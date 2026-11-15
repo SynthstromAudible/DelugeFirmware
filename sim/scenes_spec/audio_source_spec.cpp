@@ -46,19 +46,22 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
 #include <array>
 #include <cstdint>
+#include <format>
+#include <ostream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// `defaultAudioOutputInputChannel`, defined in `model/song/song.cpp`. Both sides write it
 /// (`AudioInputSelector::selectEncoderAction`), so an example that drives either half has to put it back.
@@ -187,6 +190,13 @@ struct SourceWitness {
 	uint8_t scroll = 0;
 
 	friend bool operator==(const SourceWitness&, const SourceWitness&) = default;
+
+	/// @brief Prints the fields by name, the channels as numbers and the recorded output as its address.
+	friend std::ostream& operator<<(std::ostream& os, const SourceWitness& w) {
+		return os << std::format("{{channel {}, recording_from {}, song_default {}, option {}, scroll {}}}",
+		                         std::to_underlying(w.channel), static_cast<const void*>(w.recording_from),
+		                         std::to_underlying(w.song_default), w.option, w.scroll);
+	}
 };
 
 /// @brief Saves and restores everything an example here can move.
@@ -288,14 +298,14 @@ describe audio_source_table("scenes::context_menu the audio-source descriptor", 
 		// The three this descriptor needs. Asserted present here and
 		// asserted *absent* on all five resets in `context_menu_scene_spec.cpp`, so "the extension
 		// changed nothing for the existing table" is a fact rather than a claim.
-		expect(d.initial_option != nullptr).to_be_true();
-		expect(d.on_move != nullptr).to_be_true();
-		expect(d.footer != nullptr).to_be_true();
+		expect(d.initial_option).not_().to_be_null();
+		expect(d.on_move).not_().to_be_null();
+		expect(d.footer).not_().to_be_null();
 	});
 
 	it("is what the audio_source_selector menu item opens", _ {
 		const auto* item = dynamic_cast<const nodes::ContextMenuItem*>(nodes::audio_source_selector.custom);
-		expect(item != nullptr).to_be_true();
+		expect(item).not_().to_be_null();
 		expect(static_cast<int>(item->descriptor_id())).to_equal(static_cast<int>(DescriptorId::AudioSource));
 		expect(nodes::audio_source_selector.custom->is_placeholder()).to_be_false();
 		// ... and the five reset items still open theirs, unchanged by the class rename.
@@ -309,14 +319,14 @@ describe audio_source_table("scenes::context_menu the audio-source descriptor", 
 		std::vector<int> observed;
 		for (const auto& [node, id] : resets) {
 			const auto* reset_item = dynamic_cast<const nodes::ContextMenuItem*>(node->custom);
-			expect(reset_item != nullptr).to_be_true();
+			expect(reset_item).not_().to_be_null();
 			observed.push_back(reset_item != nullptr ? static_cast<int>(reset_item->descriptor_id()) : -1);
 		}
 		const std::vector<int> expected{0, 1, 2, 3, 4};
 		expect(observed).to_equal(expected);
 		std::vector<int> swapped = observed;
 		std::swap(swapped[0], swapped[4]);
-		expect(swapped == expected).to_be_false();
+		expect(swapped).not_().to_equal(expected);
 	});
 });
 
@@ -411,11 +421,11 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 			    .scroll = cm::context_menu_scene().selection().scroll,
 			};
 
-			expect(got == want).to_be_true();
+			expect(got).to_equal(want);
 			// The song-wide default is written on every turn, refused ones included -- that is
 			// legacy's shape (the write in `AudioInputSelector::selectEncoderAction` is outside every guard), and asserting it
 			// is what stops a "tidy" guard being added later.
-			expect(got.song_default == AudioInputChannel::UNSET).to_be_false();
+			expect(got.song_default).not_().to_equal(AudioInputChannel::UNSET);
 		}
 	});
 
@@ -444,12 +454,12 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 		r.shell.tick(5);
 		r.turn(1, 10);
 		r.shell.tick(15);
-		expect(r.song.output->inputChannel == AudioInputChannel::LEFT).to_be_true();
+		expect(r.song.output->inputChannel).to_equal(AudioInputChannel::LEFT);
 		r.press(20);
 		r.shell.tick(25);
 		// `AudioInputSelector` has no `acceptCurrentOption()` override, so the base's `return false`
 		// closes the menu; the channel is whatever the last turn set.
-		expect(r.song.output->inputChannel == AudioInputChannel::LEFT).to_be_true();
+		expect(r.song.output->inputChannel).to_equal(AudioInputChannel::LEFT);
 	});
 });
 
@@ -491,7 +501,10 @@ describe audio_source_sink("scenes::context_menu the audio-source descriptor: th
 		    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_INPUT,
 		                                    .owner = deluge::project::TrackAddress{*r.song.output->id()}},
 		    "inputChannel");
-		expect(recorded.has_value() && recorded->str() == "right").to_be_true();
+		expect(recorded.has_value()).to_be_true();
+		if (recorded.has_value()) {
+			expect(recorded->str()).to_equal("right");
+		}
 	});
 });
 
@@ -547,7 +560,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 			seed(r.song.output, AudioInputChannel::STEREO, nullptr);
 			r.open_selector();
 			r.shell.tick(5);
-			expect_golden(self, "../ui/scenes/context_menu_audio_source_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_audio_source_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -555,7 +568,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 			seed(r64.song.output, AudioInputChannel::SPECIFIC_OUTPUT, nullptr);
 			r64.open_selector();
 			r64.shell.tick(5);
-			expect_golden(self, "../ui/scenes/context_menu_audio_source_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_audio_source_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -571,9 +584,9 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 			r.shell.tick(5 + t * 15);
 			expect(r.fake.pbm(0)).to_equal(first);
 		}
-		expect(r.song.output->inputChannel == AudioInputChannel::STEREO).to_be_true();
+		expect(r.song.output->inputChannel).to_equal(AudioInputChannel::STEREO);
 		// `on_move` runs on a turn, not on a tick, so the song-wide default is still untouched.
-		expect(defaultAudioOutputInputChannel == AudioInputChannel::UNSET).to_be_true();
+		expect(defaultAudioOutputInputChannel).to_equal(AudioInputChannel::UNSET);
 		// Every shipped label fits its box, so the side scroller never arms.
 		expect(cm::context_menu_scene().next_timer().has_value()).to_be_false();
 	});

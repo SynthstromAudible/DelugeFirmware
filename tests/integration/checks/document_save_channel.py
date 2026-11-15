@@ -4,6 +4,9 @@ Saves a preset through the REAL ENTER gesture and requires that the document was
 channel, and stored through the byte channel's write-from after boot. No other gate builds that whole-document write,
 and a feature no gate builds is code that has never run. The byte channel has no feature switch, so there is one leg.
 
+The registry entry requires each marker and the result line; this module judges the summary's counts and the lines'
+fields.
+
 What the checks cover:
   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.
   DS-TICKED     the save's steps went through a channel after boot. The gate's actual claim.
@@ -23,18 +26,41 @@ What the checks cover:
   DS-OVERWRITE-FAIL
                 a confirmed overwrite whose temp file is truncated before its read-back fails the save, leaves the
                 document it was replacing byte-for-byte intact, and removes the temp file.
+
+Gate document-save-channel:
+    a preset saved through the real ENTER gesture must be written WHOLE, read back through the channel (DS-VERIFIED,
+    DS-VERIFY-ARM), and stored through the byte channel's write-from after boot (DS-TICKED). One leg: the byte channel
+    has no feature switch, so there is no second arm to run. DS-OCCUPIED saves onto a name that is already taken and
+    requires both that the user is asked and that the existing document is left alone: silently replacing somebody's
+    preset is the worst thing this code could do. DS-BACKMIDSAVE and DS-EXITMIDSAVE press BACK and fire the long-press
+    exit while the save is still running, and require the save screen to stay open: a save spans ticks with the UI live,
+    and leaving its screen mid-save would let the save's own close() read below the bottom of the UI stack. Both first
+    require that the save really is still in flight, so a save that finished early fails the check instead of passing it
+    for free. DS-GUARD-SONG dispatches a preset save while a song save's collection or document machine is still running
+    with the save guard already released, and requires the dispatch refused and the song document whole: the shared
+    serialiser holds the song's staged document for that whole window. DS-ACCOUNTED removes a preset's file between its
+    write landing and its read-back's first answer, and requires the one answer the channel gave -- NOT_FOUND, which
+    fails the save -- to be counted as served: counting only the ticks that advanced would undercount every failed
+    read-back. DS-OVERWRITE saves onto the preset's own name again, confirms the prompt, and requires the document
+    written to <target>.tmp, verified there and swapped into place, with no temp file left. DS-OVERWRITE-FAIL does the
+    same and truncates that temp file between its write landing and its read-back, and requires the save failed, the
+    document it was replacing byte-for-byte intact, and the temp file removed: rewriting the target in place would let a
+    failed write or read-back destroy the document it replaces. Both run last, because DS-GUARD and DS-KITROW count
+    staged saves absolutely. DS-HELD holds a preset save's write-from on the byte channel past the save's stall bound
+    and requires the save to complete and verify: giving up would release the serialiser the write is still copying
+    from.
 """
 
-import re
+from scenario_gate import count_field
 
 
-def _summary(run, pattern: str) -> str | None:
-    """The digits `pattern` captures on a DS-SUMMARY line, or None when no line matches ("" counts as absent)."""
-    for line in run.lines:
-        m = re.match(pattern, line)
-        if m:
-            return m.group(1) or None
-    return None
+def _summary(run, key: str) -> int | None:
+    """The counter `key` on the DS-SUMMARY line, or None when the line or the counter is absent or not a count."""
+    return count_field(run.first("DS-SUMMARY "), key)
+
+
+def _shown(count: int | None, otherwise: str) -> str:
+    return otherwise if count is None else str(count)
 
 
 def _require_line(gate, run, whole: str, tag: str, missing: str = "no line") -> None:
@@ -45,22 +71,19 @@ def _require_line(gate, run, whole: str, tag: str, missing: str = "no line") -> 
 
 
 def check(gate, run):
-    if not run.has_line("DS-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("DS-RESULT")))
-
-    served = _summary(run, r"^DS-SUMMARY served=([0-9]*) ")
-    channel_ticks = _summary(run, r"^DS-SUMMARY .*channelTicks=([0-9]*)")
-    vserved = _summary(run, r"^DS-SUMMARY .*verifyServed=([0-9]*)")
-    vinline = _summary(run, r"^DS-SUMMARY .*verifyInline=([0-9]*)")
+    served = _summary(run, "served")
+    channel_ticks = _summary(run, "channelTicks")
+    vserved = _summary(run, "verifyServed")
+    vinline = _summary(run, "verifyInline")
 
     # DS-CHANNEL. The async arm actually RAN.
-    if served is None or int(served) == 0:
+    if not served:
         gate.fail(
-            f"DS-CHANNEL — the save served {served or 'no'} document write(s); the async arm never ran"
+            f"DS-CHANNEL — the save served {_shown(served, 'no')} document write(s); the async arm never ran"
         )
 
     # DS-TICKED. The gate's actual claim: `channelTicks` counts ticks on which a staged step went through a channel.
-    if channel_ticks is None or int(channel_ticks) == 0:
+    if not channel_ticks:
         gate.fail("DS-TICKED — the save never ran through the channel across ticks")
 
     # DS-VERIFIED. The preset, the kit row, the confirmed overwrite and the held save are checked, and all four
@@ -99,10 +122,10 @@ def check(gate, run):
     )
 
     # DS-VERIFY-ARM. The read-back rides the channel, and none runs on the inline arm (`verifyInline`).
-    if int(vserved or 0) == 0 or int(vinline or 1) != 0:
+    if not vserved or vinline != 0:
         gate.fail(
             "DS-VERIFY-ARM — the read-back did not run through the channel "
-            f"(verifyServed={vserved or 'none'} verifyInline={vinline or 'none'})"
+            f"(verifyServed={_shown(vserved, 'none')} verifyInline={_shown(vinline, 'none')})"
         )
 
     if not gate.failures:

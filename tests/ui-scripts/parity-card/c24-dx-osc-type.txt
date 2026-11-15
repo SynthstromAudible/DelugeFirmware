@@ -1,5 +1,6 @@
 # The oscillator type set to DX7 enters "DX7 source" on SELECT, from the shortcut's source page and from the vertical
-# walk (root, OSCILLATOR 1, TYPE); with any other type SELECT ascends. Runs on a card with EnableDX7Engine on.
+# walk (root, OSCILLATOR 1, TYPE); with any other type SELECT ascends.
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 2 2 down

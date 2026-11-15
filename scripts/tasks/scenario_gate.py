@@ -10,6 +10,12 @@ that gate. It defines one of:
 
 and reports through `gate.fail(message)`. A gate passes when nothing failed. Pass or fail, the `deluge-<gate>-card`
 fixture tree a gate's runs staged in the temp dir is removed after it.
+
+A `run(gate)` check judges the entry's markers and result itself: `gate.require_standard(run)` on a run, or
+`gate.require_markers(lines)` over several runs' output or stdout and stderr together, or `gate.shortfall(lines)` where
+a run is expected to fall short. Checks read marker lines through the helpers here (`tag`, `fields`, `field`,
+`count_field`, `int_field`, `has_fields`, `starting`, `after`); a registry unit test refuses a check that parses them
+with `re`.
 """
 
 import importlib.util
@@ -19,11 +25,15 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
 # A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'.
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
+# One `key=value` on a marker line: the key runs from a space (or the line's start) to '='; the value ends at
+# whitespace.
+_FIELD = re.compile(r"(?:^| )([^\s=]+)=(\S*)")
 
 
 @dataclass
@@ -38,9 +48,9 @@ class Run:
     def lines(self) -> list[str]:
         return self.out.splitlines()
 
-    def starting(self, prefix: str) -> list[str]:
-        """Every stdout line that starts with `prefix`."""
-        return [line for line in self.lines if line.startswith(prefix)]
+    def starting(self, *prefixes: str) -> list[str]:
+        """Every stdout line that starts with one of `prefixes`."""
+        return starting(self.lines, *prefixes)
 
     def first(self, prefix: str) -> str | None:
         found = self.starting(prefix)
@@ -59,10 +69,7 @@ class Run:
 
 def field(line: str | None, key: str) -> str | None:
     """The value of `key=value` in `line`, or None. Values end at whitespace."""
-    if line is None:
-        return None
-    m = re.search(r"(?:^| )" + re.escape(key) + r"=(\S*)", line)
-    return m.group(1) if m else None
+    return fields(line).get(key) if line is not None else None
 
 
 def int_field(line: str | None, key: str) -> int | None:
@@ -71,6 +78,48 @@ def int_field(line: str | None, key: str) -> int | None:
         return int(value) if value is not None else None
     except ValueError:
         return None
+
+
+def count_field(line: str | None, key: str) -> int | None:
+    """The counter `key=<digits>` in `line`; None when it is absent or anything but unsigned ASCII digits."""
+    value = field(line, key)
+    return (
+        int(value)
+        if value is not None and value.isascii() and value.isdigit()
+        else None
+    )
+
+
+def starting(lines: Iterable[str], *prefixes: str) -> list[str]:
+    """Every line of `lines` that starts with one of `prefixes`, in order."""
+    return [line for line in lines if line.startswith(prefixes)]
+
+
+def tag(line: str | None) -> str | None:
+    """The marker tag `line` starts with (`CL-SONGLOAD` in `CL-SONGLOAD clipsReferenced=0`), or None."""
+    m = MARKER.match(line) if line is not None else None
+    return line[: m.start(2)] if m else None
+
+
+def after(line: str | None, prefix: str) -> str | None:
+    """The text of `line` after `prefix`, or None when `line` does not start with it."""
+    return line[len(prefix) :] if line is not None and line.startswith(prefix) else None
+
+
+def fields(line: str | None) -> dict[str, str]:
+    """Every `key=value` in `line`, in order; a key given twice keeps its first value, as `field` reads it."""
+    found: dict[str, str] = {}
+    for key, value in _FIELD.findall(line or ""):
+        found.setdefault(key, value)
+    return found
+
+
+def has_fields(line: str | None, **want: object) -> bool:
+    """Does `line` carry `key=value` for each of `want`? Values are compared as text (`pending=0` matches `"0"`)."""
+    got = fields(line)
+    return line is not None and all(
+        got.get(key) == str(value) for key, value in want.items()
+    )
 
 
 class Gate:
@@ -137,6 +186,28 @@ class Gate:
             return Run(124, out, err)
         return Run(result.returncode, result.stdout, result.stderr)
 
+    def shortfall(self, lines: list[str]) -> str | None:
+        """Why `lines` lack one of the entry's markers or its result line, or None. Records nothing: a check that
+        expects a run to fall short (a runner self-test) asks this."""
+        for marker in self.entry.markers:
+            if not any(
+                line == marker or line.startswith(marker + " ") for line in lines
+            ):
+                return f"no {marker} line; that stage did not run"
+        if self.entry.result and self.entry.result not in lines:
+            return "in-process failures:"
+        return None
+
+    def require_markers(self, lines: list[str]) -> bool:
+        """The entry's markers and result line, judged over `lines`: several runs' output, or stdout and stderr
+        together. False when one is missing; the failure is recorded and the marker lines shown."""
+        why = self.shortfall(lines)
+        if why is None:
+            return True
+        self.fail(why)
+        self.show(lines)
+        return False
+
     def require_standard(self, run: Run) -> bool:
         """The checks every scenario gate makes: exit 0, each marker, the result line. False when the run failed."""
         if run.code != 0:
@@ -145,20 +216,11 @@ class Gate:
             for line in run.err.splitlines()[:25]:
                 self.say(line)
             return False
-        for marker in self.entry.markers:
-            if not run.has(marker + " ") and not run.has_line(marker):
-                self.fail(f"no {marker} line; that stage did not run")
-                self.show(run)
-                return False
-        if self.entry.result and not run.has_line(self.entry.result):
-            self.fail("in-process failures:")
-            self.show(run)
-            return False
-        return True
+        return self.require_markers(run.lines)
 
-    def show(self, run: Run) -> None:
-        """Print the run's marker lines."""
-        for line in run.lines:
+    def show(self, run: Run | list[str]) -> None:
+        """Print the marker lines of a run, or of `lines`."""
+        for line in run.lines if isinstance(run, Run) else run:
             if MARKER.match(line):
                 self.say(line)
 
@@ -204,7 +266,20 @@ def run_gate(root: Path, entry, env: dict[str, str], binary: Path, log) -> bool:
         _clean_up_fixture(entry)
 
 
-__all__ = ["MARKER", "Gate", "Run", "field", "int_field", "run_gate"]
+__all__ = [
+    "MARKER",
+    "Gate",
+    "Run",
+    "after",
+    "count_field",
+    "field",
+    "fields",
+    "has_fields",
+    "int_field",
+    "run_gate",
+    "starting",
+    "tag",
+]
 
 if __name__ == "__main__":
     sys.exit("scenario_gate.py is a module; run gates with ./dbt test")

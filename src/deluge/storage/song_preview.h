@@ -52,7 +52,7 @@ namespace deluge::storage {
 /// captured fixture replaces this one.
 ///
 /// A song whose preview falls outside this window renders BLANK, indistinguishably from a song that
-/// has no preview at all. That is why `song_preview_window_tests.cpp` asserts the bound over the
+/// has no preview at all. That is why `song_preview_window_spec.cpp` asserts the bound over the
 /// whole corpus rather than trusting this number: if a future writer moves the attribute later, CI
 /// says so instead of artwork silently disappearing.
 ///

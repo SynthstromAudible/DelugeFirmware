@@ -4,6 +4,7 @@
 # between them. PING-PONG (Shift +
 # pad (14,4), a toggle Selection) opens alone and lists its own options. A black encoder drops the first detent of its
 # first turn after boot and of a reversal: COMMUNITY FEATURES is row 11, so +12.
+# card: tests/fixtures/card-shell-menu-vertical.card
 100   snapshot boot
 300   button Shift down
 400   button SelectEnc down

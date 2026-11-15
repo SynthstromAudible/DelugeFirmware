@@ -1,0 +1,33 @@
+// The entry point deluge_specs_driver generates for one spec executable. `<driver> <spec> [CppSpec options]` runs the
+// spec whose file stem is <spec>, handing it the remaining arguments with <spec> as its program name.
+#include <cstdio>
+#include <cstring>
+
+@DELUGE_SPEC_DECLARATIONS@
+namespace {
+
+struct SpecEntry {
+	const char* name;
+	int (*run)(int, char**);
+};
+
+constexpr SpecEntry kSpecs[] = {
+@DELUGE_SPEC_ROWS@};
+
+} // namespace
+
+int main(int argc, char** argv) {
+	if (argc >= 2) {
+		for (const SpecEntry& spec : kSpecs) {
+			if (std::strcmp(argv[1], spec.name) == 0) {
+				return spec.run(argc - 1, argv + 1);
+			}
+		}
+		std::fprintf(stderr, "%s: no spec named %s\n", argv[0], argv[1]);
+	}
+	std::fprintf(stderr, "the specs:\n");
+	for (const SpecEntry& spec : kSpecs) {
+		std::fprintf(stderr, "  %s\n", spec.name);
+	}
+	return 1;
+}

@@ -36,6 +36,7 @@
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/printers/param_address_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -46,7 +47,7 @@
 #include <string_view>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::modulation::params::Kind;
@@ -327,7 +328,9 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		rig.set_mode(0);
 		rig.knobs.set_song(nullptr);
 		const deluge::scenes::services::ModIndicatorInfo info = rig.knobs.indicator_info(0);
-		expect(info.has_auto_param || info.non_existent_param || info.patch_cable_default).to_be_false();
+		expect(info.has_auto_param).to_be_false("the indicator's auto param");
+		expect(info.non_existent_param).to_be_false("the indicator's non-existent param");
+		expect(info.patch_cable_default).to_be_false("the indicator's patch cable default");
 		expect(ModKnobs::indicator_level(info, false).declared).to_be_false();
 	});
 
@@ -335,8 +338,10 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		Rig rig;
 		rig.set_mode(0);
 		const std::optional<deluge::project::ParamAddress> lower = rig.knobs.knob_address(0);
-		expect(lower.has_value()).to_be_true();
-		expect(lower == std::optional{rig.patched(deluge::modulation::params::LOCAL_PAN)}).to_be_true();
+		expect(lower.has_value()).to_be_true("the lower knob's address");
+		if (lower.has_value()) {
+			expect(*lower).to_equal(rig.patched(deluge::modulation::params::LOCAL_PAN), "the lower knob's address");
+		}
 		rig.knobs.set_focus({}, false);
 		expect(rig.knobs.knob_address(0).has_value()).to_be_false();
 	});

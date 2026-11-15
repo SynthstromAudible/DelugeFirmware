@@ -36,6 +36,15 @@ holder's file or zone also calls recordRanges() or rangesFor().
 Usage:
     scripts/check_setting_menus.py                    # check src/deluge/gui and src/scenes, exit 1 on a call
     scripts/check_setting_menus.py --root DIR [DIR]   # check those
+
+Gate setting-menus:
+    no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit: no setter a
+    setting Edit runs (setTranspose, setOscType, setLfoSync…), no reseed of the record (seedDocRanges, seedDocDxPatch…),
+    no direct repeatMode or oscType write; each goes through settingFor()/rangesFor()/dxPatchFor()/recordControlsOf(); a
+    sample range's holder is allowed by name. Nor a song setting outside SetSetting: the reverb, swing interval and
+    disabled scales, a track's name and MIDI or CV device fields, a lane's name, a note row's direction, an audio clip's
+    descriptor (songSettingFor()/trackSettingFor()/laneSettingFor()/noteRowSettingFor()/audioClipSettingFor()); load
+    paths are allowed by file, with their reasons
 """
 
 from __future__ import annotations

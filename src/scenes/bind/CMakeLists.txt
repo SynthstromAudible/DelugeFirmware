@@ -1,7 +1,7 @@
 # deluge_scenes_bind — what a scenes menu node edits, bound to the model's records and the engines' descriptors.
 #
-# Standalone of the app: it depends on the model and the engine libraries only, so its specs (tests/scenes-bind) run
-# against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
+# Standalone of the app: it depends on the model and the engine libraries only, so its specs (tests/unit/scenes/bind)
+# run against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
 # The app supplies what it cannot see: the runtime facts (RuntimeFacts) and the sink that applies Edits (WriteSink).
 
 add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp

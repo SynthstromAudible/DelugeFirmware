@@ -1,6 +1,7 @@
 # Playhead moves on a heavy song (Glitchy_2): start, launch and stop clips from the session sidebar, restart, undo,
 # stop, start again. Each stop prints how long each playhead move held the render off (`PM-SPAN` lines in an ALPHA
 # image's debug output, kept in device.log). Record-only: the measurement is the device's.
+# card: content/card.img
 100   snapshot boot
 8200  button Session down
 8220  button Session up

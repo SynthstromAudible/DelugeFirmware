@@ -54,8 +54,8 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 	// Sim/golden only: a deliberate, leaked SDRAM pad to perturb allocation *layout*. Allocated here —
 	// before the slab, resource manager, and any cluster — so it shifts everything after it by
-	// DELUGE_SIM_HEAP_PAD bytes. The pad-sweep golden guard (scripts/golden_mixdown.sh padsweep) renders
-	// a fixture at two pad values and asserts the outputs are bit-identical, proving the render is
+	// DELUGE_SIM_HEAP_PAD bytes. The layout-invariance guard (scripts/embassy_layout_invariance.sh) renders
+	// a fixture at several pad values and asserts the outputs are bit-identical, proving the render is
 	// layout-INVARIANT: no audio may depend on allocation addresses (no overread, no layout-coupled PRNG
 	// draw count — the class of bug that coupled master dither to load-phase sample count). A green
 	// golden alone does NOT prove this; the sweep does. Firmware never compiles this branch.

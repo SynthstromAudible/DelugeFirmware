@@ -15,7 +15,38 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/song_load_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the song-load channel gate: save a song carrying a distinctive value,
+///        load it back through the REAL `LoadSongUI`, and require both that the value returns and
+///        that the read went through the storage channel.
+///
+/// ## Why this gate exists at all
+///
+/// A load that brings back the right song says nothing about how its bytes arrived. This gate pins
+/// the whole-file staging read the song load depends on: a gate that only checks what came back would
+/// stay green with that read broken in any way that still produced the song.
+///
+/// ## Why the assertion is a VALUE from inside the song
+///
+/// The two cheaper signals are both known-bad. The song's NAME is written by the finished song save from the
+/// entered text, so it matches whether or not the load happened. Object IDENTITY -- "is `currentSong`
+/// a different object afterwards" -- returns false even on a clean tree in the save round-trip's
+/// shape, so it cannot separate a real load from a retained one either.
+///
+/// `insideWorldTickMagnitude` is saved as `inputTickMagnitude` and read back by `Song::readFromFile`,
+/// so it can only be right if bytes came off the card and were parsed. The scenario deliberately
+/// stamps a DIFFERENT value over it after saving and before loading: without that, the value could be
+/// correct merely because nothing ever changed it.
+///
+/// @note Runs as a STEP MACHINE: the gesture only starts the load, which `loadRoutine()` then
+///       advances across ticks, so every check reads its result on a LATER tick than the gesture
+///       that caused it.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources). Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/cancel_result.h"
@@ -48,6 +79,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(song_load_channel);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate drives the REAL gesture rather
 /// than the save machinery underneath it. Mirrors `SaveRoundtripProbe` in the save round-trip scenario.
@@ -94,6 +127,10 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SLTEST01";
 /// Where the setup's save lands: songs save in kSongSaveFormat.
@@ -135,10 +172,8 @@ Stage g_stage = Stage::Fixture;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 bool g_setupFailed = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"SL"};
 int32_t g_expectedMagnitude = 0;
-int32_t g_loadTicks = 0;
-int32_t g_saveTicks = 0;
 /// Whether the fixture's sample bound before the save. A song saved without it proves nothing on the way back.
 bool g_fixtureBound = false;
 
@@ -149,12 +184,23 @@ constexpr int32_t kMaxLoadTicks = 200000;
 /// Ticks to wait for the save's file to appear before calling it absent.
 constexpr int32_t kMaxSaveTicks = 20000;
 
+/// The waits of the stage running (the save's file landing, the staging read being issued) and, kept apart because
+/// SL-LOADED reports their sum, those of the load back: its browser's listing, its scroll-in, and the load itself.
+Wait g_wait{g_report, "the save's file landing", kMaxSaveTicks};
+Wait g_listingWait{g_report, "the load browser's listing", kMaxLoadTicks};
+Wait g_scrollWait{g_report, "the load browser scrolling in", kMaxLoadTicks};
+Wait g_loadWait{g_report, "the load finishing", kMaxLoadTicks};
+
 /// How long the byte channel holds each operation in the cancel-in-STAGE leg, so the staging read is still
 /// outstanding when BACK is pressed. A tick is about a virtual millisecond.
 constexpr uint32_t kHoldMs = 300;
 /// Ticks the cancel-in-STAGE leg runs on after BACK, past every hold, to see that nothing of the dropped load comes
-/// back.
+/// back. Not a wait: the property is that nothing of the dropped load comes back within this window, and no signal
+/// says it will not.
 constexpr int32_t kAfterTicks = 1000;
+/// Ticks the completed load gets for its settings write to land. A fixed window: polling for the file would add card
+/// reads to the step.
+constexpr int32_t kSettingsTicks = 1000;
 
 /// cancel_in_stage: the song before the load, and the staging buffers parked when BACK was pressed.
 Song* g_songBefore = nullptr;
@@ -219,23 +265,22 @@ void runTick() {
 		// indexed off the end of a UI stack the load had already rearranged. The bound stays: a save
 		// that never lands must end the run with a report, not a timeout.
 		const bool saveIdle = !saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight();
-		if ((saveIdle && fileExists(kSavePath)) || ++g_saveTicks > kMaxSaveTicks) {
+		switch (g_wait.poll(saveIdle && fileExists(kSavePath))) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::SaveCheck;
-		}
-		break;
-	}
-	case Stage::SaveCheck: {
-		if (!fileExists(kSavePath)) {
-			printf("SL-SETUP FAIL the save wrote no file at %s after %d ticks; there is nothing to "
-			       "load back\n",
-			       kSavePath, g_saveTicks);
-			g_failures++;
-			// The decoy never gets stamped on this path, so the magnitude still reads correct and
-			// SL-LOADED below would report a PASS for a load that never ran. Say so instead.
+			break;
+		case WaitState::Expired:
+			// The decoy never gets stamped on this path, so the magnitude still reads correct and SL-LOADED below
+			// would report a PASS for a load that never ran. Say so instead.
 			g_setupFailed = true;
 			g_stage = Stage::Report;
 			break;
 		}
+		break;
+	}
+	case Stage::SaveCheck: {
 		printf("SL-SETUP saved=%s magnitude=%d\n", kSavePath, g_expectedMagnitude);
 		g_stage = Stage::Decoy;
 		break;
@@ -248,6 +293,8 @@ void runTick() {
 	}
 	case Stage::LoadBack: {
 		currentSong->setSongFullPath(kSavePath);
+		g_listingWait = Wait{g_report, "the load browser's listing", kMaxLoadTicks};
+		g_scrollWait = Wait{g_report, "the load browser scrolling in", kMaxLoadTicks};
 		(void)openUI(&loadSongUI);
 		g_stage = Stage::LoadBackListing;
 		break;
@@ -255,13 +302,13 @@ void runTick() {
 	case Stage::LoadBackListing: {
 		// The browser's own listing lands first, as a LOAD press waits for it. Loading over a listing still
 		// suspended would leave its machine active for the next browser to resume as its own.
-		if (Browser::isListingInProgress()) {
+		const WaitState listed = g_listingWait.poll(!Browser::isListingInProgress());
+		if (listed == WaitState::Pending) {
 			loadSongUI.graphicsRoutine();
-			if (++g_loadTicks > kMaxLoadTicks) {
-				printf("SL-LOADED FAIL the load browser's listing never finished (%d ticks)\n", g_loadTicks);
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+			break;
+		}
+		if (listed == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		// The browser's scroll-in runs on the UI timer, which nothing fires in the harness; BACK is a browser gesture
@@ -271,14 +318,13 @@ void runTick() {
 		for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
 			(void)loadSongUI.timerCallback();
 		}
-		if (currentUIMode != UI_MODE_NONE) {
-			// Still waiting to scroll in, or mid-scroll: ask again next tick.
-			if (++g_loadTicks > kMaxLoadTicks) {
-				printf("SL-CANCEL FAIL the load browser never finished scrolling in (mode=%d)\n",
-				       static_cast<int>(currentUIMode));
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+		// Still waiting to scroll in, or mid-scroll: ask again next tick.
+		const WaitState scrolled = g_scrollWait.poll(currentUIMode == UI_MODE_NONE);
+		if (scrolled == WaitState::Pending) {
+			break;
+		}
+		if (scrolled == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		g_stage = Stage::CancelStart;
@@ -297,19 +343,26 @@ void runTick() {
 		deluge_file_bytes_set_latency_ms(kHoldMs);
 		// The real ENTER, so the load carries the completion that gesture gives it.
 		SongLoadChannelProbe::pressLoadEnter();
-		g_cancelTicks = 0;
+		g_wait = Wait{g_report, "the load issuing its staging read", kMaxLoadTicks};
 		g_stage = Stage::CancelWait;
 		break;
 	}
 	case Stage::CancelWait: {
-		if (!SongLoadChannelProbe::stagingReadOutstanding()) {
-			if (++g_cancelTicks > kMaxLoadTicks || !loadSongUI.loadInFlight()) {
-				printf("SL-CANCEL FAIL the load never reached its staging read (phase=%d inFlight=%d)\n",
-				       SongLoadChannelProbe::phase(), loadSongUI.loadInFlight() ? 1 : 0);
-				g_failures++;
-				deluge_file_bytes_set_latency_ms(0);
-				g_stage = Stage::Report;
-			}
+		const bool outstanding = SongLoadChannelProbe::stagingReadOutstanding();
+		if (!outstanding && !loadSongUI.loadInFlight()) {
+			g_report.fail("CANCEL the load ended without reaching its staging read (phase=%d)",
+			              SongLoadChannelProbe::phase());
+			deluge_file_bytes_set_latency_ms(0);
+			g_stage = Stage::Report;
+			break;
+		}
+		const WaitState issued = g_wait.poll(outstanding);
+		if (issued == WaitState::Pending) {
+			break;
+		}
+		if (issued == WaitState::Expired) {
+			deluge_file_bytes_set_latency_ms(0);
+			g_stage = Stage::Report;
 			break;
 		}
 		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true);
@@ -324,17 +377,13 @@ void runTick() {
 		printf("SL-CANCEL-BACK dropped=%d browserStayed=%d songKept=%d playing=%d animation=%d parked=%d\n",
 		       dropped ? 1 : 0, browserStayed ? 1 : 0, songKept ? 1 : 0, playing ? 1 : 0, animation ? 1 : 0, parked);
 		if (!dropped || !browserStayed) {
-			printf(
-			    "SL-CANCEL FAIL BACK while the song load staged did not drop it and leave the browser where it was\n");
-			g_failures++;
+			g_report.fail("CANCEL BACK while the song load staged did not drop it and leave the browser where it was");
 		}
 		if (!songKept || !playing || animation) {
-			printf("SL-CANCEL FAIL the cancel did not leave the current song playing with nothing shown\n");
-			g_failures++;
+			g_report.fail("CANCEL the cancel did not leave the current song playing with nothing shown");
 		}
 		if (parked != 1) {
-			printf("SL-CANCEL FAIL the staging buffer the byte channel still writes was not parked\n");
-			g_failures++;
+			g_report.fail("CANCEL the staging buffer the byte channel still writes was not parked");
 		}
 		deluge_file_bytes_set_latency_ms(0);
 		g_cancelTicks = 0;
@@ -355,22 +404,18 @@ void runTick() {
 		       songKept ? 1 : 0, playing ? 1 : 0, browserStayed ? 1 : 0, loadSongUI.loadInFlight() ? 1 : 0, parked,
 		       static_cast<int>(idle));
 		if (!songKept || !playing || !browserStayed || loadSongUI.loadInFlight()) {
-			printf("SL-CANCEL FAIL the cancelled load came back, or the current song stopped playing\n");
-			g_failures++;
+			g_report.fail("CANCEL the cancelled load came back, or the current song stopped playing");
 		}
 		if (parked != 0) {
-			printf("SL-CANCEL FAIL the parked staging buffer was not freed once the byte channel let it go\n");
-			g_failures++;
+			g_report.fail("CANCEL the parked staging buffer was not freed once the byte channel let it go");
 		}
 		if (idle != deluge::gui::CancelResult::Stale) {
-			printf("SL-CANCEL FAIL a cancel with no load in flight was not Stale\n");
-			g_failures++;
+			g_report.fail("CANCEL a cancel with no load in flight was not Stale");
 		}
 		const bool settingsWritten = fileExists(kSettingsPath);
 		printf("SL-CANCEL-LASTOPENED settingsWritten=%d\n", settingsWritten ? 1 : 0);
 		if (settingsWritten) {
-			printf("SL-CANCEL FAIL the cancelled load recorded \"last opened\" for a song that never loaded\n");
-			g_failures++;
+			g_report.fail("CANCEL the cancelled load recorded \"last opened\" for a song that never loaded");
 		}
 		playbackHandler.endPlayback();
 		g_stage = Stage::RefuseStart;
@@ -383,6 +428,7 @@ void runTick() {
 		// replaces; `main` loads a NEXT_SONG at once, so one never fires after a manual load.
 		playbackHandler.nextSongPending_ = true;
 		SongLoadChannelProbe::pressLoadEnter();
+		g_loadWait = Wait{g_report, "the load finishing", kMaxLoadTicks};
 		g_stage = Stage::LoadBackWait;
 		break;
 	}
@@ -394,41 +440,38 @@ void runTick() {
 			const bool carriesOn = loadSongUI.loadInFlight() && SongLoadChannelProbe::pastStaging();
 			printf("SL-REFUSED phase=%d result=%d carriesOn=%d\n", phase, static_cast<int>(result), carriesOn ? 1 : 0);
 			if (result != deluge::gui::CancelResult::Refused || !carriesOn) {
-				printf("SL-REFUSED FAIL a cancel past STAGE was not refused, or stopped the load\n");
-				g_failures++;
+				g_report.fail("REFUSED a cancel past STAGE was not refused, or stopped the load");
 			}
 		}
 		// loadInFlight(), NOT isLoadingSong(): the latter is true merely because the load UI is
 		// showing, so with the browser open it would never go false and this gate would hang rather
 		// than report.
-		if (!loadSongUI.loadInFlight()) {
-			g_nextHeldAfterLoad = playbackHandler.nextSongPending_;
-			playbackHandler.nextSongPending_ = false;
-			if (!g_refuseTried) {
-				printf("SL-REFUSED FAIL the load finished before a cancel past STAGE could be tried\n");
-				g_failures++;
-			}
-			g_cancelTicks = 0;
-			g_stage = Stage::LastOpenedWait;
+		const WaitState finished = g_loadWait.poll(!loadSongUI.loadInFlight());
+		if (finished == WaitState::Pending) {
 			break;
 		}
-		if (++g_loadTicks > kMaxLoadTicks) {
-			printf("SL-LOADED FAIL the load never finished (%d ticks)\n", g_loadTicks);
-			g_failures++;
+		if (finished == WaitState::Expired) {
 			g_stage = Stage::Report;
+			break;
 		}
+		g_nextHeldAfterLoad = playbackHandler.nextSongPending_;
+		playbackHandler.nextSongPending_ = false;
+		if (!g_refuseTried) {
+			g_report.fail("REFUSED the load finished before a cancel past STAGE could be tried");
+		}
+		g_cancelTicks = 0;
+		g_stage = Stage::LastOpenedWait;
 		break;
 	}
 	case Stage::LastOpenedWait: {
 		// The settings write is handed to the byte channel as the load ends; give it time to land.
-		if (++g_cancelTicks < kAfterTicks) {
+		if (++g_cancelTicks < kSettingsTicks) {
 			break;
 		}
 		const bool settingsWritten = fileExists(kSettingsPath);
 		printf("SL-LOADED-LASTOPENED settingsWritten=%d\n", settingsWritten ? 1 : 0);
 		if (!settingsWritten) {
-			printf("SL-LOADED FAIL the completed load did not record \"last opened\"\n");
-			g_failures++;
+			g_report.fail("LOADED the completed load did not record \"last opened\"");
 		}
 		FlashStorage::defaultStartupSongMode = g_startupModeBefore;
 		g_stage = Stage::Report;
@@ -441,12 +484,12 @@ void runTick() {
 			printf("SL-LOADED skipped -- the setup never produced a song to load\n");
 		}
 		else {
-			printf("SL-LOADED magnitude=%d wanted=%d ticks=%d\n", observed, g_expectedMagnitude, g_loadTicks);
+			printf("SL-LOADED magnitude=%d wanted=%d ticks=%d\n", observed, g_expectedMagnitude,
+			       g_listingWait.ticks() + g_scrollWait.ticks() + g_loadWait.ticks());
 		}
 		if (!g_setupFailed && observed != g_expectedMagnitude) {
-			printf("SL-LOADED FAIL the song did not come back off the card -- a value stamped over in "
-			       "memory before the load was not restored by it\n");
-			g_failures++;
+			g_report.fail("LOADED the song did not come back off the card -- a value stamped over in "
+			              "memory before the load was not restored by it");
 		}
 		// SL-ORDER. The song's sample is bound by the time the load ends -- the pass that binds it moves tier in
 		// this plan, and what it achieves must not.
@@ -462,13 +505,11 @@ void runTick() {
 		}
 		printf("SL-ORDER fixtureBound=%d audioClips=%d bound=%d\n", g_fixtureBound ? 1 : 0, audioClips, boundHolders);
 		if (!g_fixtureBound || audioClips != 1 || boundHolders != 1) {
-			printf("SL-ORDER FAIL the song's sample did not come back bound\n");
-			g_failures++;
+			g_report.fail("ORDER the song's sample did not come back bound");
 		}
 		printf("SL-NEXT heldAfterLoad=%d\n", g_nextHeldAfterLoad ? 1 : 0);
 		if (g_nextHeldAfterLoad) {
-			printf("SL-NEXT FAIL a next song held before the load was still held after it\n");
-			g_failures++;
+			g_report.fail("NEXT a next song held before the load was still held after it");
 		}
 		printf("SL-SUMMARY served=%d channelTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
 		       (int)AudioEngine::songStageTicks());
@@ -477,7 +518,7 @@ void runTick() {
 		// exactly how this run broke save-roundtrip once, and the accumulation trap this project has
 		// hit before with the streaming-scenario images.
 		(void)deluge::io::unlink(kSavePath);
-		printf("SL-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio. These
 		// lines ARE the gate's evidence, so losing them exactly when the gate fails is the one case
 		// that must not happen.
@@ -504,10 +545,8 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_setupFailed = false;
-	g_failures = 0;
+	g_report.reset();
 	g_expectedMagnitude = 0;
-	g_loadTicks = 0;
-	g_saveTicks = 0;
 	g_fixtureBound = false;
 	g_songBefore = nullptr;
 	g_orphansBefore = 0;
@@ -536,7 +575,7 @@ bool deluge_scenario_song_load_channel_step_done(void) {
 }
 
 int32_t deluge_scenario_song_load_channel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

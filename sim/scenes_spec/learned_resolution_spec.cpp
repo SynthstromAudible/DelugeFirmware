@@ -46,11 +46,13 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/learned_fixture.h"
+#include "support/printers/controls_facts_printer.h"
+#include "support/printers/param_id_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -202,17 +204,21 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 		ArrangementRecording recording{f};
 		expect(write(*f.song, lpf, 1 << 26, Resolve::LEARNED)).to_be_true();
 		Clip* const take = f.instrument->getActiveClip();
-		expect(take != nullptr && take != f.clip && take->beingRecordedFromClip == f.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(f.clip, "the take");
+		if (take != nullptr) {
+			expect(take->beingRecordedFromClip).to_equal(f.clip, "the clip the take records from");
+		}
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
 		if (take == nullptr || take == f.clip) {
 			return;
 		}
-		expect(valueOf(*f.song, filterOf(f, deluge::instrument::param::kLpfFrequency, *take))
-		       == std::optional<int32_t>{1 << 26}).to_be_true();
-		expect(valueOf(*f.song, lpf) == before).to_be_true();
+		expect(valueOf(*f.song, filterOf(f, deluge::instrument::param::kLpfFrequency, *take)))
+		    .to_equal(std::optional<int32_t>{1 << 26}, "the take's LPF");
+		expect(valueOf(*f.song, lpf)).to_equal(before, "the session clip's LPF");
 		// A second write finds the same take.
 		expect(write(*f.song, lpf, 1 << 25, Resolve::LEARNED)).to_be_true();
-		expect(f.instrument->getActiveClip() == take).to_be_true();
+		expect(f.instrument->getActiveClip()).to_equal(take, "the active clip");
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 	});
@@ -224,7 +230,7 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 		RootView root;
 		expect(valueOf(*f.song, cable).has_value()).to_be_false();
 		expect(write(*f.song, cable, 1 << 26, Resolve::LEARNED)).to_be_true();
-		expect(valueOf(*f.song, cable) == std::optional<int32_t>{1 << 26}).to_be_true();
+		expect(valueOf(*f.song, cable)).to_equal(std::optional<int32_t>{1 << 26}, "the cable depth");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 	});
 
@@ -235,12 +241,12 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 		RootView root;
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 		expect(write(*f.song, cableOf(f, *f.clip), 1 << 26, Resolve::WRITE)).to_be_true();
-		expect(valueOf(*f.song, cableOf(f, *f.clip)) == std::optional<int32_t>{1 << 26}).to_be_true();
+		expect(valueOf(*f.song, cableOf(f, *f.clip))).to_equal(std::optional<int32_t>{1 << 26}, "the cable depth");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_true();
 		static_cast<Instrument*>(f.instrument)->editedByUser = false;
 		ArrangementRecording recording{f};
 		expect(write(*f.song, lpf, 1 << 26, Resolve::WRITE)).to_be_true();
-		expect(f.instrument->getActiveClip() != f.clip).to_be_true();
+		expect(f.instrument->getActiveClip()).not_().to_equal(static_cast<Clip*>(f.clip), "the active clip");
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_true();
 	});
@@ -255,9 +261,9 @@ describe learned_resolution("SetParamValue's Resolve::LEARNED, beside the resolu
 		expect(valueOf(*f.song, cableOf(f, *f.clip)).has_value()).to_be_false();
 		ArrangementRecording recording{f};
 		expect(write(*f.song, lpf, 1 << 26, Resolve::EXACT)).to_be_true();
-		expect(f.instrument->getActiveClip() == f.clip).to_be_true();
+		expect(f.instrument->getActiveClip()).to_equal(static_cast<Clip*>(f.clip), "the active clip");
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged);
-		expect(valueOf(*f.song, lpf) == std::optional<int32_t>{1 << 26}).to_be_true();
+		expect(valueOf(*f.song, lpf)).to_equal(std::optional<int32_t>{1 << 26}, "the LPF");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 	});
 
@@ -290,7 +296,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		RootView root;
 		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
 		expect(sink.write_param(cable, 1 << 26, 0, 0, controls::Resolution::LEARNED)).to_be_true();
-		expect(valueOf(*f.song, cable) == std::optional<int32_t>{1 << 26}).to_be_true();
+		expect(valueOf(*f.song, cable)).to_equal(std::optional<int32_t>{1 << 26}, "the cable depth");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 		expect(sink.write_param(lpf, 1 << 26, 0, 0, controls::Resolution::KNOB)).to_be_true();
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_true();
@@ -305,17 +311,23 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		RootView root;
 		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
 		const uint32_t output = *f.instrument->id();
-		expect(sink.take_for(output) == std::optional<uint32_t>{f.clip->id()}).to_be_true();
+		expect(sink.take_for(output)).to_equal(std::optional<uint32_t>{f.clip->id()}, "the output's take");
 		expect(sink.take_for(output + 1000).has_value()).to_be_false();
 		const size_t arranged = f.song->live.clips.arrangement_only_clips.size();
 		{
 			ArrangementRecording recording{f};
 			const std::optional<uint32_t> take = sink.take_for(output);
-			expect(take.has_value() && *take != f.clip->id()).to_be_true();
+			expect(take.has_value()).to_be_true("the output's take");
+			if (take.has_value()) {
+				expect(*take).not_().to_equal(f.clip->id(), "the output's take");
+			}
 			expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
-			expect(f.instrument->getActiveClip() != nullptr && take == std::optional<uint32_t>{f.instrument->getActiveClip()->id()})
-			    .to_be_true();
-			expect(sink.take_for(output) == take).to_be_true();
+			Clip* const active = f.instrument->getActiveClip();
+			expect(active).not_().to_be_null("the output's active clip");
+			if (active != nullptr) {
+				expect(take).to_equal(std::optional<uint32_t>{active->id()}, "the output's take");
+			}
+			expect(sink.take_for(output)).to_equal(take, "the output's take, asked again");
 			expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
 		}
 		deluge::scenes::spec::make_current(saved);
@@ -331,15 +343,15 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		const ParamAddress cable = cableOf(f, *f.clip);
 		expect(valueOf(*f.song, cable).has_value()).to_be_false();
 		expect(sink.make_param(cable)).to_be_true();
-		expect(valueOf(*f.song, cable) == std::optional<int32_t>{0}).to_be_true();
+		expect(valueOf(*f.song, cable)).to_equal(std::optional<int32_t>{0}, "the made cable depth");
 		expect(sink.make_param(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip))).to_be_true();
 		const ParamAddress bend{.owner = OwnerId::instrument(*f.instrument->id()),
 		                        .space = ParamSpace::EXPRESSION,
 		                        .id = deluge::plugin::ParamId{0},
 		                        .clip_id = f.clip->id()};
-		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		expect(f.clip->paramManager.getExpressionParamSet()).to_be_null("the clip's expression params");
 		expect(sink.make_param(bend)).to_be_false();
-		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		expect(f.clip->paramManager.getExpressionParamSet()).to_be_null("the clip's expression params");
 		deluge::scenes::spec::make_current(saved);
 	});
 
@@ -359,7 +371,8 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 			const project::Mapping* entry = f.song->project.mappings.find(t);
 			return entry != nullptr && entry->relative;
 		};
-		expect(relative(target) && relative(other)).to_be_true();
+		expect(relative(target)).to_be_true("the target's relative flag");
+		expect(relative(other)).to_be_true("the other's relative flag");
 		deluge::scenes::menu::host_controls_sink().knob_absolute(target, a);
 		expect(relative(target)).to_be_false();
 		expect(relative(other)).to_be_true();
@@ -437,7 +450,8 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		expect(follow(performanceView, songVolume).grid).to_be_false();
 		// A session root follows nothing.
 		const Seen session = follow(sessionView, songVolume);
-		expect(session.grid || session.display).to_be_false();
+		expect(session.grid).to_be_false("the session's grid");
+		expect(session.display).to_be_false("the session's display");
 		automationView.onArrangerView = savedArranger;
 		performanceView.defaultEditingMode = savedEditing;
 		performanceView.editingParam = savedParamEditing;
@@ -455,17 +469,21 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		expect(outputs.size()).to_equal(size_t{3});
 		if (outputs.size() == 3) {
 			using PlayingOutput = controls::PlayingOutput;
-			expect(outputs[0].kind == PlayingOutput::Kind::SYNTH && outputs[1].kind == PlayingOutput::Kind::KIT
-			       && outputs[2].kind == PlayingOutput::Kind::AUDIO).to_be_true();
-			expect(outputs[0].owner == ControlsAddress{Kind::OUTPUT, *w.synth.instrument->id()}
-			       && outputs[0].param_owner == OwnerId::instrument(*w.synth.instrument->id())
-			       && outputs[0].clip_id == w.synth.clip->id()).to_be_true();
-			expect(outputs[1].owner == ControlsAddress{Kind::OUTPUT, *w.kit.instrument->id()}
-			       && outputs[1].param_owner == OwnerId::instrument(*w.kit.instrument->id())
-			       && outputs[1].clip_id == w.kit.clip->id()).to_be_true();
-			expect(outputs[2].owner == ControlsAddress{Kind::OUTPUT, *w.audio->id()}
-			       && outputs[2].param_owner == OwnerId::clip(w.audioClip->id())
-			       && outputs[2].clip_id == w.audioClip->id()).to_be_true();
+			expect(outputs[0]).to_equal(PlayingOutput{.owner = ControlsAddress{Kind::OUTPUT, *w.synth.instrument->id()},
+			                                          .param_owner = OwnerId::instrument(*w.synth.instrument->id()),
+			                                          .kind = PlayingOutput::Kind::SYNTH,
+			                                          .clip_id = w.synth.clip->id()},
+			                            "the first output");
+			expect(outputs[1]).to_equal(PlayingOutput{.owner = ControlsAddress{Kind::OUTPUT, *w.kit.instrument->id()},
+			                                          .param_owner = OwnerId::instrument(*w.kit.instrument->id()),
+			                                          .kind = PlayingOutput::Kind::KIT,
+			                                          .clip_id = w.kit.clip->id()},
+			                            "the second output");
+			expect(outputs[2]).to_equal(PlayingOutput{.owner = ControlsAddress{Kind::OUTPUT, *w.audio->id()},
+			                                          .param_owner = OwnerId::clip(w.audioClip->id()),
+			                                          .kind = PlayingOutput::Kind::AUDIO,
+			                                          .clip_id = w.audioClip->id()},
+			                            "the third output");
 		}
 		deluge::scenes::spec::make_current(saved);
 	});
@@ -477,8 +495,10 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		const auto rows = deluge::scenes::menu::host_runtime_facts().sound_rows(w.kit.clip->id());
 		expect(rows.size()).to_equal(size_t{2});
 		if (rows.size() == 2) {
-			expect(rows[0].drum_id == *w.rowB->id() && rows[0].param_owner == OwnerId::drum(*w.rowB->id())).to_be_true();
-			expect(rows[1].drum_id == *w.rowA->id() && rows[1].param_owner == OwnerId::drum(*w.rowA->id())).to_be_true();
+			expect(rows[0]).to_equal(controls::KitRow{.drum_id = *w.rowB->id(), .param_owner = OwnerId::drum(*w.rowB->id())},
+			                         "the first row");
+			expect(rows[1]).to_equal(controls::KitRow{.drum_id = *w.rowA->id(), .param_owner = OwnerId::drum(*w.rowA->id())},
+			                         "the second row");
 		}
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(w.synth.clip->id()).empty()).to_be_true();
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(0xFFFFFF).empty()).to_be_true();
@@ -505,19 +525,25 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			}
 		}
 		expect(rowCount).to_equal(size_t{2});
-		expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end()) == before).to_be_true();
+		expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end())).to_equal(before, "the outputs");
 		// A write that clones the synth's clip into a take leaves both spans as they were.
 		const auto rows = facts.sound_rows(w.kit.clip->id());
 		{
 			ArrangementRecording recording{w.synth};
 			expect(write(*w.song, filterOf(w.synth, deluge::instrument::param::kLpfFrequency, *w.synth.clip), 1 << 26,
 			             Resolve::LEARNED)).to_be_true();
-			expect(w.synth.instrument->getActiveClip() != w.synth.clip).to_be_true();
-			expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end()) == before).to_be_true();
-			expect(std::vector<controls::KitRow>(rows.begin(), rows.end()) == kitRows).to_be_true();
+			expect(w.synth.instrument->getActiveClip())
+			    .not_()
+			    .to_equal(static_cast<Clip*>(w.synth.clip), "the synth's active clip");
+			expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end()))
+			    .to_equal(before, "the outputs after the clone");
+			expect(std::vector<controls::KitRow>(rows.begin(), rows.end())).to_equal(kitRows, "the kit's rows after the clone");
 			// The next call answers the take.
 			const auto after = facts.playing_outputs();
-			expect(after.size() == 3 && after[0].clip_id == w.synth.instrument->getActiveClip()->id()).to_be_true();
+			expect(after.size()).to_equal(size_t{3}, "the outputs asked again");
+			if (after.size() == 3) {
+				expect(after[0].clip_id).to_equal(w.synth.instrument->getActiveClip()->id(), "the synth's clip asked again");
+			}
 		}
 		deluge::scenes::spec::make_current(saved);
 	});
@@ -528,16 +554,19 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			TakeoverSetting mode{MIDITakeoverMode::SCALE};
 			Transport transport{RecordingMode::NORMAL};
 			const controls::TakeoverInputs inputs = facts.takeover_inputs(true);
-			expect(inputs.mode == controls::TakeoverMode::SCALE).to_be_true();
-			expect(inputs.cable_relative && inputs.recording).to_be_true();
-			expect(!inputs.step_editing && !inputs.knob_relative).to_be_true();
+			expect(int(inputs.mode)).to_equal(int(controls::TakeoverMode::SCALE), "the takeover mode");
+			expect(inputs.cable_relative).to_be_true("the cable's relative flag");
+			expect(inputs.recording).to_be_true("the recording flag");
+			expect(inputs.step_editing).to_be_false("the step editing flag");
+			expect(inputs.knob_relative).to_be_false("the knob's relative flag");
 		}
 		{
 			TakeoverSetting mode{MIDITakeoverMode::PICKUP};
 			Transport transport{RecordingMode::OFF};
 			const controls::TakeoverInputs inputs = facts.takeover_inputs(false);
-			expect(inputs.mode == controls::TakeoverMode::PICKUP).to_be_true();
-			expect(!inputs.cable_relative && !inputs.recording).to_be_true();
+			expect(int(inputs.mode)).to_equal(int(controls::TakeoverMode::PICKUP), "the takeover mode");
+			expect(inputs.cable_relative).to_be_false("the cable's relative flag");
+			expect(inputs.recording).to_be_false("the recording flag");
 		}
 	});
 
@@ -549,7 +578,8 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		expect(facts.step_region(f.clip->id()).has_value()).to_be_false();
 		{
 			HeldRegion region{*f.clip, 96, 48};
-			expect(facts.step_region(f.clip->id()) == std::optional{std::pair{int32_t{96}, int32_t{48}}}).to_be_true();
+			expect(facts.step_region(f.clip->id()))
+			    .to_equal(std::optional{std::pair{int32_t{96}, int32_t{48}}}, "the held step region");
 			expect(facts.step_region(f.clip->id() + 1000).has_value()).to_be_false();
 			expect(facts.step_region(std::nullopt).has_value()).to_be_false();
 		}
@@ -561,15 +591,18 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
 		const project::ParamTarget lpf{.space = ParamSpace::ENGINE, .id = deluge::instrument::param::kLpfFrequency};
 		const deluge::plugin::ParamInfo* sound = facts.param_info(deluge::plugin::kDelugeInstrument, lpf);
-		expect(sound != nullptr && sound->id == lpf.id).to_be_true();
+		expect(sound).not_().to_be_null("the sound's LPF info");
+		if (sound != nullptr) {
+			expect(sound->id).to_equal(lpf.id, "the sound's LPF info");
+		}
 		const deluge::plugin::ParamInfo* chain = facts.param_info(
 		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::global_effectable::kParams[0].id});
-		expect(chain == &deluge::global_effectable::kParams[0]).to_be_true();
-		expect(facts.param_info(deluge::plugin::kDelugeInstrument, depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1)) == nullptr)
-		    .to_be_true();
-		expect(facts.param_info(deluge::plugin::kDelugeEffects, lpf) == nullptr).to_be_true();
-		expect(facts.param_info(deluge::plugin::kDelugeInstrument, {.space = ParamSpace::EXPRESSION, .id = lpf.id}) == nullptr)
-		    .to_be_true();
+		expect(chain).to_equal(&deluge::global_effectable::kParams[0], "the chain's first param info");
+		expect(facts.param_info(deluge::plugin::kDelugeInstrument, depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1)))
+		    .to_be_null("a cable depth's info");
+		expect(facts.param_info(deluge::plugin::kDelugeEffects, lpf)).to_be_null("the effects' LPF info");
+		expect(facts.param_info(deluge::plugin::kDelugeInstrument, {.space = ParamSpace::EXPRESSION, .id = lpf.id}))
+		    .to_be_null("an expression lane's info");
 	});
 
 	it("reads no value, and does not crash, for a param the owner does not hold yet", _ {

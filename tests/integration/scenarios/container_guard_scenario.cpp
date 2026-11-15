@@ -15,7 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/container_guard_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the container-guard probe. With playback running, each leg makes one structural edit to
+///        a container the render walks -- a note, a note row, a clip, a clip instance, an automation node, a drum, an
+///        output -- through the model's own entry point, and reports how many structural edits were made while the
+///        render could have preempted them (deluge::unguardedStructuralEditsTotal(), util/structural_edit_probe.h).
+///
+/// @note The scenario fails nothing on a count: tests/integration/checks/container_guard.py judges them.
+///
+/// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
+///       advance between steps. The scenario drives the render itself.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
@@ -98,9 +112,12 @@ extern void setUIForLoadedSong(Song* song);
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(container_guard);
+
 namespace {
 
 using deluge::StructuralContainer;
+using deluge::scenarios::ScenarioReport;
 
 /// The render block the scenario drives: the golden harness skips the audio task's own render once boot has finished,
 /// and the internal clock's ticks are actioned inside the render.
@@ -108,7 +125,9 @@ constexpr uint32_t kRenderBlockFrames = 128;
 /// Blocks rendered with the clip playing before the edit (at least), and after it.
 constexpr int32_t kBlocksBefore = 8;
 constexpr int32_t kBlocksAfter = 4;
-/// The most blocks rendered waiting for the render to action a timer tick of this playback.
+/// The most blocks rendered waiting for the render to action a timer tick of this playback. Not a wait: the leg judges
+/// the clock itself, with `CG-FAIL SETUP leg=<leg> the render actioned no ticks: the clock never ran`, and the blocks
+/// rendered are its stimulus.
 constexpr int32_t kMaxBlocksBefore = 400;
 /// A y beyond the grid: the new-clip gesture then appends the clip after every other session clip.
 constexpr int32_t kAppendY = 1000;
@@ -192,7 +211,7 @@ Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::NoteAdd;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"CG"};
 int32_t g_blocks = 0;
 uint32_t g_timerAtStart = 0;
 Clip* g_home = nullptr;
@@ -355,9 +374,8 @@ const char* kindName(StructuralContainer kind) {
 	return "?";
 }
 
-bool fail(const char* what) {
-	printf("CG-SETUP FAIL leg=%s %s\n", legName(g_leg), what);
-	g_failures++;
+bool setupFailed(const char* what) {
+	g_report.fail("SETUP leg=%s %s", legName(g_leg), what);
 	return false;
 }
 
@@ -468,7 +486,7 @@ InstrumentClip* makeSynthClip() {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		fail("no synth");
+		setupFailed("no synth");
 		return nullptr;
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
@@ -479,7 +497,7 @@ InstrumentClip* makeSynthClip() {
 	acquired.loadedFromFile = true;
 	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::SYNTH, kAppendY, &acquired);
 	if (clip == nullptr) {
-		fail("the new-clip gesture made no clip");
+		setupFailed("the new-clip gesture made no clip");
 		return nullptr;
 	}
 	clip->activeIfNoSolo = true;
@@ -490,12 +508,12 @@ InstrumentClip* makeSynthClip() {
 SoundDrum* makeDrum(Kit* kit) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("a drum's ParamManager could not be set up");
+		setupFailed("a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("no memory for a drum");
+		setupFailed("no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -511,7 +529,7 @@ InstrumentClip* makeKitClip() {
 	ParamManagerForTimeline kitParams;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (instrument == nullptr) {
-		fail("no kit");
+		setupFailed("no kit");
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
@@ -524,7 +542,7 @@ InstrumentClip* makeKitClip() {
 	acquired.loadedFromFile = true;
 	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::KIT, kAppendY, &acquired);
 	if (clip == nullptr) {
-		fail("the new-clip gesture made no kit clip");
+		setupFailed("the new-clip gesture made no kit clip");
 		return nullptr;
 	}
 	clip->activeIfNoSolo = true;
@@ -551,13 +569,13 @@ void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 /// MIDI clip's CC (learning it if new) or a patch cable's depth.
 void turnParamIn(ModelStackWithThreeMainThings* ms, ParamCollectionSummary* summary, int32_t id, int32_t value) {
 	if (summary == nullptr || summary->paramCollection == nullptr) {
-		fail("no param collection to turn a param in");
+		setupFailed("no param collection to turn a param in");
 		return;
 	}
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId, true);
 	if (withParam == nullptr || withParam->autoParam == nullptr) {
-		fail("no param to turn");
+		setupFailed("no param to turn");
 		return;
 	}
 	deluge::edits::Context context{*currentSong, currentSong->project};
@@ -643,7 +661,7 @@ NoteRow* rowFor(int32_t note, int32_t* index) {
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
 	ModelStackWithNoteRow* row = g_clip->getOrCreateNoteRowForYNote(note, ms, nullptr);
 	if (row == nullptr || row->getNoteRowAllowNull() == nullptr) {
-		fail("no note row");
+		setupFailed("no note row");
 		return nullptr;
 	}
 	if (index != nullptr) {
@@ -738,7 +756,7 @@ bool setupLeg() {
 		// An audio track whose chain runs chorus with its depth above minimum, so the chorus is on.
 		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
 		if (clip == nullptr || clip->type != ClipType::AUDIO) {
-			return fail("no audio clip");
+			return setupFailed("no audio clip");
 		}
 		clip->activeIfNoSolo = true;
 		g_audio = static_cast<AudioClip*>(clip);
@@ -751,7 +769,7 @@ bool setupLeg() {
 		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(ModFXType::CHORUS))));
 		return (output->effectsOwner()->effects().mod_fx.type == ModFXType::CHORUS)
 		           ? true
-		           : fail("the audio track took no chorus");
+		           : setupFailed("the audio track took no chorus");
 	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
@@ -767,7 +785,7 @@ bool setupLeg() {
 		// An audio track to stutter before the kit takes the stutter over.
 		Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
 		if (clip == nullptr || clip->type != ClipType::AUDIO) {
-			return fail("no audio clip");
+			return setupFailed("no audio clip");
 		}
 		clip->activeIfNoSolo = true;
 		g_audio = static_cast<AudioClip*>(clip);
@@ -778,13 +796,13 @@ bool setupLeg() {
 		return (g_clip->noteRows.insertNoteRowAtY(kRowNote) != nullptr
 		        && g_clip->noteRows.insertNoteRowAtY(kRowNote + 2) != nullptr)
 		           ? true
-		           : fail("no memory for two note rows");
+		           : setupFailed("no memory for two note rows");
 	case Leg::RenderAlloc: {
 		// Notes on the drum's row every 24 ticks, so the drum starts and stops sounding on the render.
 		Drum* drum = g_kit->firstDrum;
 		g_row = (drum != nullptr) ? g_clip->getNoteRowForDrum(drum, &g_rowIndex) : nullptr;
 		if (g_row == nullptr) {
-			return fail("the kit clip has no note row for its drum");
+			return setupFailed("the kit clip has no note row for its drum");
 		}
 		// Four short notes spread over the loop: the drum falls silent between them, so each one re-enters the set.
 		for (int32_t n = 0; n < 4; n++) {
@@ -828,7 +846,7 @@ bool setupLeg() {
 		// Two ranges on source 0, so one can be deleted.
 		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
 		if (source.getOrCreateFirstRange() == nullptr || source.ranges.insertMultiRange(1) == nullptr) {
-			return fail("no memory for two multi-ranges");
+			return setupFailed("no memory for two multi-ranges");
 		}
 		auditionSynth(kRowNote);
 		return true;
@@ -842,8 +860,9 @@ bool setupLeg() {
 		// The clip becomes a MIDI clip, whose CC automation is its own store in the song's clip params.
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
-		return (g_clip->changeOutputType(ms, OutputType::MIDI_OUT) != nullptr) ? true
-		                                                                       : fail("the clip became no MIDI clip");
+		return (g_clip->changeOutputType(ms, OutputType::MIDI_OUT) != nullptr)
+		           ? true
+		           : setupFailed("the clip became no MIDI clip");
 	}
 	case Leg::DrumDel: {
 		// A second drum, so the kit keeps one, and the first drum's volume turned: its automation store is in the
@@ -851,7 +870,7 @@ bool setupLeg() {
 		g_drum = static_cast<SoundDrum*>(g_kit->firstDrum);
 		g_row = (g_drum != nullptr) ? g_clip->getNoteRowForDrum(g_drum, &g_rowIndex) : nullptr;
 		if (g_row == nullptr || makeDrum(g_kit) == nullptr) {
-			return fail("the kit clip has no note row for its drum, or no second drum");
+			return setupFailed("the kit clip has no note row for its drum, or no second drum");
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		turnParam(setupModelStackWithTimelineCounter(memory, currentSong, g_clip)
@@ -860,7 +879,7 @@ bool setupLeg() {
 		          deluge::modulation::params::LOCAL_VOLUME, 0x20000000);
 		return (backedStoresOf(deluge::project::OwnerId::drum(g_drum->id().value_or(0))) > 0)
 		           ? true
-		           : fail("the drum's turned param left no store in the song's backed params");
+		           : setupFailed("the drum's turned param left no store in the song's backed params");
 	}
 	case Leg::Quantize:
 		g_row = rowFor(kRowNote, &g_rowIndex);
@@ -885,14 +904,14 @@ bool setupLeg() {
 		// The kit clip's one row, for its one drum.
 		Drum* drum = g_kit->firstDrum;
 		g_row = (drum != nullptr) ? g_clip->getNoteRowForDrum(drum, &g_rowIndex) : nullptr;
-		return (g_row != nullptr) ? true : fail("the kit clip has no note row for its drum");
+		return (g_row != nullptr) ? true : setupFailed("the kit clip has no note row for its drum");
 	}
 	case Leg::BigRow:
 		// Straight into the row vector: the song is in scale mode, where getOrCreateNoteRowForYNote() recalculates the
 		// scale for an out-of-scale row and discards empty rows.
 		for (int32_t n = 1; n <= kBigRowCount; n++) {
 			if (g_clip->noteRows.insertNoteRowAtY(n) == nullptr) {
-				return fail("no memory for a note row");
+				return setupFailed("no memory for a note row");
 			}
 		}
 		return true;
@@ -988,14 +1007,14 @@ void editLeg() {
 		                                    ? cables->records().find(PatchSource::ENVELOPE_1, pitch)
 		                                    : std::nullopt;
 		if (!c.has_value() || cables->numPatchCables != before + 1) {
-			fail("the patch cable was not added");
+			setupFailed("the patch cable was not added");
 			break;
 		}
 		g_step = "deletePatchCable";
 		deluge::edits::EditCable remove = deluge::edits::EditCable::remove(three, *c);
 		deluge::edits::apply(ctx, remove);
 		if (cables->numPatchCables != before) {
-			fail("the patch cable was not deleted");
+			setupFailed("the patch cable was not deleted");
 		}
 		break;
 	}
@@ -1030,7 +1049,7 @@ void editLeg() {
 		g_step = "relocate";
 		constexpr int32_t kVolume = deluge::modulation::params::LOCAL_VOLUME;
 		if (paramResident(kVolume)) {
-			fail("the synth's volume was already in the song's stores");
+			setupFailed("the synth's volume was already in the song's stores");
 			break;
 		}
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
@@ -1094,7 +1113,7 @@ void editLeg() {
 		};
 		const std::optional<size_t> first = add(PatchSource::ENVELOPE_1);
 		if (!first.has_value()) {
-			fail("the first cable was not added");
+			setupFailed("the first cable was not added");
 			break;
 		}
 		g_step = "cableDepth";
@@ -1108,7 +1127,7 @@ void editLeg() {
 		g_step = "addSecondCable";
 		const std::optional<size_t> second = add(PatchSource::ENVELOPE_2);
 		if (!second.has_value()) {
-			fail("the second cable was not added");
+			setupFailed("the second cable was not added");
 			break;
 		}
 		g_step = "removeSecondCable";
@@ -1156,7 +1175,7 @@ void editLeg() {
 			deluge::memory::dealloc(stolen.nodes);
 		}
 		if (stolen.num == 0) {
-			fail("no nodes were stolen");
+			setupFailed("no nodes were stolen");
 		}
 		break;
 	}
@@ -1193,7 +1212,7 @@ void editLeg() {
 		ParamManagerForTimeline paramManager;
 		Instrument* fresh = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 		if (fresh == nullptr) {
-			fail("no replacement synth");
+			setupFailed("no replacement synth");
 			break;
 		}
 		auto* synth = static_cast<SoundInstrument*>(fresh);
@@ -1206,7 +1225,7 @@ void editLeg() {
 		g_step = "deleteNoteByPos";
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
 		if (action == nullptr) {
-			fail("no action for the undo");
+			setupFailed("no action for the undo");
 			break;
 		}
 		deleteNote(kNotePos, action);
@@ -1252,7 +1271,7 @@ void editLeg() {
 		auto* drum = static_cast<SoundDrum*>(g_kit->firstDrum);
 		NoteRow* row = g_clip->getNoteRowForDrum(drum);
 		if (drum == nullptr || row == nullptr) {
-			fail("the kit clip has no drum with a note row");
+			setupFailed("the kit clip has no drum with a note row");
 			break;
 		}
 		alignas(ModelStackWithAutoParam) char drumMemory[MODEL_STACK_MAX_SIZE];
@@ -1268,7 +1287,7 @@ void editLeg() {
 		auto* first = static_cast<SoundDrum*>(g_kit->firstDrum);
 		NoteRow* row = g_clip->getNoteRowForDrum(first);
 		if (row == nullptr) {
-			fail("the kit clip has no note row for its first drum");
+			setupFailed("the kit clip has no note row for its first drum");
 			break;
 		}
 		for (int32_t n = 0; n < 40; n++) {
@@ -1380,12 +1399,12 @@ void editLeg() {
 		// A cluster-slab slot claimed, touched and released from the interaction tier while the render plays.
 		DelugeSlab* slab = GeneralMemoryAllocator::get().clusterSlab();
 		if (slab == nullptr) {
-			fail("no cluster slab");
+			setupFailed("no cluster slab");
 			break;
 		}
 		void* slot = deluge_slab_acquire(slab, nullptr);
 		if (slot == nullptr) {
-			fail("cluster slab acquire failed");
+			setupFailed("cluster slab acquire failed");
 			break;
 		}
 		deluge_slab_touch(slab, slot);
@@ -1405,7 +1424,7 @@ void editLeg() {
 		const ModFXParam paramBefore = fx.effectsOwner()->view->modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		if (fx.effectsOwner()->effects().mod_fx.type != ModFXType::NONE) {
-			fail("the master's mod FX is not off");
+			setupFailed("the master's mod FX is not off");
 			break;
 		}
 		// The master's dry render: its effects stage over a ramp with no mod FX.
@@ -1484,7 +1503,7 @@ void editLeg() {
 		const ModFXParam paramBefore = fx.effectsOwner()->view->modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		if (fx.effectsOwner()->effects().mod_fx.type != ModFXType::NONE) {
-			fail("the master's mod FX is not off");
+			setupFailed("the master's mod FX is not off");
 			break;
 		}
 		// The master's dry render: its effects stage over a ramp with no mod FX.
@@ -1557,7 +1576,7 @@ void editLeg() {
 		deluge::model::maintainDelayArena();
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::DELAY_TAPE);
 		if (arena.regions() != 0) {
-			fail("the delay arena holds a region with no delay on");
+			setupFailed("the delay arena holds a region with no delay on");
 			break;
 		}
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
@@ -1750,7 +1769,7 @@ void editLeg() {
 		auto* lone =
 		    static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager));
 		if (lone == nullptr) {
-			fail("no synth");
+			setupFailed("no synth");
 			break;
 		}
 		UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
@@ -1880,7 +1899,7 @@ void printLine(bool aborted) {
 void reportAborted(int signal) {
 	printLine(true);
 	char line[64];
-	const int n = snprintf(line, sizeof(line), "CG-RESULT failures=%d\n", g_failures);
+	const int n = snprintf(line, sizeof(line), "CG-RESULT failures=%d\n", g_report.failures());
 	if (n > 0) {
 		(void)write(STDOUT_FILENO, line, static_cast<size_t>(n));
 	}
@@ -1928,7 +1947,7 @@ void runTick() {
 			break;
 		}
 		if (ticks <= 0) {
-			fail("the render actioned no ticks: the clock never ran");
+			setupFailed("the render actioned no ticks: the clock never ran");
 			g_stage = Stage::Summary;
 			break;
 		}
@@ -1975,7 +1994,7 @@ void runTick() {
 		g_stage = Stage::Setup;
 		break;
 	case Stage::Summary:
-		printf("CG-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		break;
@@ -1992,13 +2011,13 @@ void deluge_scenario_container_guard_begin(void) {
 	g_leg = Leg::NoteAdd;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	// Every leg's gesture is made from the session view (the clip view the harness boots into dereferences
 	// getCurrentInstrumentClip() unconditionally).
 	changeRootUI(&sessionView);
 	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
-		fail("the boot song has no clip");
+		setupFailed("the boot song has no clip");
 		g_stage = Stage::Summary;
 	}
 }
@@ -2021,7 +2040,7 @@ bool deluge_scenario_container_guard_step_done(void) {
 }
 
 int32_t deluge_scenario_container_guard_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

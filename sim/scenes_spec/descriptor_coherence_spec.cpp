@@ -832,7 +832,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 				sidechain_sync = c;
 			}
 		}
-		expect(sidechain_sync != nullptr).to_be_true();
+		expect(sidechain_sync).not_().to_be_null();
 		const std::vector<const Node*> sync_nodes = paired_nodes(*sidechain_sync);
 		expect(sync_nodes.empty()).to_be_false();
 		const Node& node = *sync_nodes.front();
@@ -844,7 +844,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			const std::string at = "sidechain sync " + std::to_string(level) + "/" + std::to_string(kind);
 			expect(at + " " + std::to_string(bindings::read(node, ctx)))
 			    .to_equal(at + " " + std::to_string(to_menu(row, level, kind)));
-			expect(to_menu(row, level, kind) > menu_range(row).second).to_be_true();
+			expect(to_menu(row, level, kind)).to_be_greater_than(menu_range(row).second);
 		}
 		for (const int32_t menu : {10, 18, 19, 27}) {
 			expect(from_menu(row, menu).has_value()).to_be_false();
@@ -879,7 +879,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::global_effectable::kParams}
 			           : std::span<const deluge::plugin::ParamInfo>{deluge::instrument::kParams};
 			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(table, id);
-			expect(row != nullptr).to_be_true();
+			expect(row).not_().to_be_null();
 			if (row == nullptr) {
 				continue;
 			}
@@ -912,8 +912,8 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		}
 		std::fprintf(stdout, "descriptor_coherence_spec: %zu param nodes titled as their table name, %zu titled as the item\n",
 		             same, differ);
-		expect(same > 0).to_be_true();
-		expect(differ > 0).to_be_true();
+		expect(same).to_be_greater_than(0);
+		expect(differ).to_be_greater_than(0);
 	});
 	it("names why each value node no row reaches has none", _ {
 		run_all(self);
@@ -948,7 +948,7 @@ describe descriptor_coherence_reference_rows("descriptor_coherence_spec: the ref
 	it("parses descriptors.tsv clean and asks every row of its node pairing", _ {
 		spec::OracleTable& t = spec::OracleTable::named("descriptors");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{3000}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{3000});
 		expect(t.unasked({"paths"})).to_equal(std::string{});
 	});
 });

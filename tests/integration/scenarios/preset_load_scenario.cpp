@@ -15,8 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/preset_load_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the preset-load gate: load synth and kit presets through the real preset browser into a
+///        clip, a kit row and a clone, and report what each load bound and on which tier its card work began.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -78,6 +89,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(preset_load);
 
 /// Drives SessionView's and ArrangerView's acquisition gestures for the AQ legs: the private state a pad or encoder
 /// handler reads is written as a user's press leaves it, and then the handler itself is called.
@@ -156,6 +169,10 @@ public:
 };
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// Each leg's samples, in folders of their own (see pack_preset_load_image in the harness).
 constexpr const char* kSynthSample = "SAMPLES/PL/PLSYN.WAV";
@@ -386,8 +403,13 @@ Leg g_leg = Leg::Synth;
 Step g_step = Step::Prepare;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"PL"};
+/// The wait of the stage running; each stage that waits starts a fresh one.
+Wait g_wait{g_report, "a load from an earlier leg ending", kMaxStallTicks};
+
+void startWait(const char* what, int32_t budgetTicks) {
+	g_wait = Wait{g_report, what, budgetTicks};
+}
 SoundInstrument* g_synth = nullptr;
 Clip* g_synthClip = nullptr;
 Clip* g_kitClip = nullptr;
@@ -403,8 +425,8 @@ int32_t g_orphansBefore = 0;
 /// The sample loads begun when the supersession leg selected the heavy kit: it scrolls on only once the heavy kit's own
 /// has begun, so a kit has been parsed and is out loading when the scroll cancels it.
 int32_t g_heavyLoadsBefore = 0;
-/// The blank-song legs: the built-in synth a song with no preset starts on, and how long they wait for one to land
-/// once the song has been swapped in.
+/// The blank-song legs: the built-in synth a song with no preset starts on, and when a leg that acquires nothing is
+/// settled. The tick count is part of what settled means for a leg that asks for no preset, not a bound on a wait.
 constexpr const char* kDefaultSynthName = "0";
 constexpr int32_t kBlankSettleTicks = 120;
 
@@ -509,10 +531,14 @@ bool isRevertLeg(Leg leg) {
 	return leg == Leg::RevertCard || leg == Leg::RevertMemory || leg == Leg::RevertStall;
 }
 
-bool fail(const char* leg, const char* what) {
-	printf("PL-SETUP FAIL leg=%s %s\n", leg, what);
-	g_failures++;
+bool setupFailed(const char* leg, const char* what) {
+	g_report.fail("SETUP leg=%s %s", leg, what);
 	return false;
+}
+
+/// Names the leg a wait expired in: evidence only, the wait has counted the failure.
+void probeExpired() {
+	printf("PL-PROBE leg=%s expired\n", legName(g_leg));
 }
 
 TierMark markTier() {
@@ -561,11 +587,11 @@ int32_t countOutputs() {
 bool writeInstrumentDocument(Instrument& instrument, const char* path, const char* closingTag) {
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail(legName(g_leg), "a preset file could not be created");
+		return setupFailed(legName(g_leg), "a preset file could not be created");
 	}
 	instrument.writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", closingTag);
-	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
+	return error == Error::NONE || setupFailed(legName(g_leg), "a preset file could not be closed");
 }
 
 /// @brief Rewrite the preset at @p path in the form a firmware without the delay type saves it.
@@ -579,17 +605,17 @@ bool writeLegacyDelay(const char* path) {
 	{
 		auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
 		if (!opened.has_value()) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 		auto size = opened->size();
 		if (!size.has_value() || *size == 0) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 		text.resize(*size);
 		auto read = opened->read(std::as_writable_bytes(std::span{text}));
 		std::ignore = opened->close();
 		if (!read.has_value() || read->size() != *size) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 	}
 	for (const auto& [word, flag] :
@@ -601,11 +627,12 @@ bool writeLegacyDelay(const char* path) {
 	}
 	auto opened = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
 	if (!opened.has_value()) {
-		return fail(legName(g_leg), "a preset could not be rewritten");
+		return setupFailed(legName(g_leg), "a preset could not be rewritten");
 	}
 	auto written = opened->write(std::as_bytes(std::span{text}));
 	std::ignore = opened->close();
-	return (written.has_value() && *written == text.size()) || fail(legName(g_leg), "a preset could not be rewritten");
+	return (written.has_value() && *written == text.size())
+	       || setupFailed(legName(g_leg), "a preset could not be rewritten");
 }
 
 /// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
@@ -619,19 +646,19 @@ bool delayResolvedOff(ModControllable& owner) {
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	return deluge::harness::writeSampleSynthPreset(path, samplePath)
-	       || fail(legName(g_leg), "a synth preset could not be written");
+	       || setupFailed(legName(g_leg), "a synth preset could not be written");
 }
 
 /// A sample drum, the way the slicer builds one, added to @p kit.
 SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail(legName(g_leg), "a drum's ParamManager could not be set up");
+		setupFailed(legName(g_leg), "a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail(legName(g_leg), "no memory for a drum");
+		setupFailed(legName(g_leg), "no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -642,7 +669,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
-		fail(legName(g_leg), "a drum has no sample range");
+		setupFailed(legName(g_leg), "a drum has no sample range");
 		return nullptr;
 	}
 	holder->filePath = samplePath;
@@ -657,7 +684,7 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
-		return fail(legName(g_leg), "no kit for a preset");
+		return setupFailed(legName(g_leg), "no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
@@ -674,17 +701,17 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 bool writeMidiDefinition(const char* path) {
 	Instrument* instrument = StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 2, -1);
 	if (instrument == nullptr) {
-		return fail("midi-def", "no MIDI instrument for a definition");
+		return setupFailed("midi-def", "no MIDI instrument for a definition");
 	}
 	auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
 	midiInstrument->setNameForCC(kMidiDefinitionCC, kMidiDefinitionLabel);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("midi-def", "a definition file could not be created");
+		return setupFailed("midi-def", "a definition file could not be created");
 	}
 	midiInstrument->writeDeviceDefinitionFile(GetSerializer(), /*writeFileNameToPresetOrSong=*/false);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n");
-	return error == Error::NONE || fail("midi-def", "a definition file could not be closed");
+	return error == Error::NONE || setupFailed("midi-def", "a definition file could not be closed");
 }
 
 // ── Driving the browser ──────────────────────────────────────────────────────
@@ -728,11 +755,11 @@ bool openLeg() {
 		const bool opened = openUI(&loadMidiDeviceDefinitionUI);
 		printf("PL-SETUP leg=%s opened=%d browserOnTop=%d outputs=%d\n", leg, opened ? 1 : 0,
 		       getCurrentUI() == &loadMidiDeviceDefinitionUI ? 1 : 0, countOutputs());
-		return opened || fail(leg, "the device-definition browser could not be opened");
+		return opened || setupFailed(leg, "the device-definition browser could not be opened");
 	}
 	Clip* clip = (g_leg == Leg::Kit || g_leg == Leg::Row || g_leg == Leg::Supersede) ? g_kitClip : g_synthClip;
 	if (clip == nullptr || clip->output == nullptr) {
-		return fail(leg, "the leg's clip is missing");
+		return setupFailed(leg, "the leg's clip is missing");
 	}
 	currentSong->setCurrentClip(clip);
 	changeRootUI(&instrumentClipView);
@@ -743,7 +770,7 @@ bool openLeg() {
 		int32_t rowIndex = 0;
 		SoundDrum* drum = kitFirstDrum(&row, &rowIndex);
 		if (drum == nullptr) {
-			return fail(leg, "the kit clip has no first drum with a NoteRow");
+			return setupFailed(leg, "the kit clip has no first drum with a NoteRow");
 		}
 		g_rowIndex = rowIndex;
 		loadInstrumentPresetUI.setupLoadSynthToKit(instrument, instrumentClip, drum, row, rowIndex);
@@ -756,7 +783,7 @@ bool openLeg() {
 	const bool opened = openUI(&loadInstrumentPresetUI);
 	printf("PL-SETUP leg=%s opened=%d browserOnTop=%d outputs=%d\n", leg, opened ? 1 : 0,
 	       getCurrentUI() == &loadInstrumentPresetUI ? 1 : 0, g_outputsBefore);
-	return opened || fail(leg, "the preset browser could not be opened");
+	return opened || setupFailed(leg, "the preset browser could not be opened");
 }
 
 const char* legPreset() {
@@ -1022,15 +1049,13 @@ void checkTier() {
 	const int32_t sampleIo = now.sampleIo - g_tierMark.sampleIo;
 	printf("PL-TIER leg=%s documentReads=%d sampleLoads=%d sampleIo=%d\n", legName(g_leg), reads, loads, sampleIo);
 	if (reads == 0 || loads == 0) {
-		printf("PL-TIER FAIL leg=%s the leg read no document or loaded no samples\n", legName(g_leg));
-		g_failures++;
+		g_report.fail("TIER leg=%s the leg read no document or loaded no samples", legName(g_leg));
 	}
 	if (sampleIo != 0) {
-		printf("PL-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a preset load "
-		       "belongs on "
-		       "the interaction tier\n",
-		       legName(g_leg), sampleIo);
-		g_failures++;
+		g_report.fail("TIER leg=%s %d sample read(s) went to the card on the interaction tier -- a preset load "
+		              "belongs on "
+		              "the interaction tier",
+		              legName(g_leg), sampleIo);
 	}
 }
 
@@ -1053,21 +1078,19 @@ void checkRevert() {
 	if (g_leg == Leg::RevertCard) {
 		printf("RV-CARD reverted=%d bound=%d closedAtOnce=%d gateClosed=%d released=%d name=%s ticks=%d\n",
 		       reverted ? 1 : 0, bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, g_revertGateClosed ? 1 : 0,
-		       released ? 1 : 0, instrument->name.c_str(), g_waitTicks);
+		       released ? 1 : 0, instrument->name.c_str(), g_wait.ticks());
 		if (!reverted || !bound || !g_revertClosedAtOnce || !g_revertGateClosed || !released) {
-			printf("RV-CARD FAIL backing out did not close the browser at once and put the original back through "
-			       "the channels with its gate closed while it loaded\n");
-			g_failures++;
+			g_report.fail("RV-CARD backing out did not close the browser at once and put the original back through "
+			              "the channels with its gate closed while it loaded");
 		}
 		return;
 	}
 	if (g_leg == Leg::RevertMemory) {
 		printf("RV-MEMORY reverted=%d bound=%d closedAtOnce=%d name=%s ticks=%d\n", reverted ? 1 : 0, bound ? 1 : 0,
-		       g_revertClosedAtOnce ? 1 : 0, instrument->name.c_str(), g_waitTicks);
+		       g_revertClosedAtOnce ? 1 : 0, instrument->name.c_str(), g_wait.ticks());
 		if (!reverted || !bound || !g_revertClosedAtOnce) {
-			printf("RV-MEMORY FAIL backing out did not put the hibernating original back, with no document read at "
-			       "all\n");
-			g_failures++;
+			g_report.fail("RV-MEMORY backing out did not put the hibernating original back, with no document read at "
+			              "all");
 		}
 		return;
 	}
@@ -1075,9 +1098,8 @@ void checkRevert() {
 	printf("RV-STALL reverted=%d holderEmpty=%d released=%d giveUps=%d name=%s\n", reverted ? 1 : 0,
 	       holderEmpty ? 1 : 0, released ? 1 : 0, giveUps, instrument->name.c_str());
 	if (!reverted || !holderEmpty || !released || giveUps != 1) {
-		printf("RV-STALL FAIL a revert whose sample load never answered did not put the original back with that "
-		       "holder empty on the stall bound\n");
-		g_failures++;
+		g_report.fail("RV-STALL a revert whose sample load never answered did not put the original back with that "
+		              "holder empty on the stall bound");
 	}
 }
 
@@ -1090,17 +1112,16 @@ void checkMidiDefinition() {
 	const bool closed = !isUIOpen(&loadMidiDeviceDefinitionUI);
 	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_midiDefReadsBefore;
 	printf("MD-BROWSER midi=%d labelled=%d closed=%d reads=%d ticks=%d\n", isMidi ? 1 : 0, labelled ? 1 : 0,
-	       closed ? 1 : 0, reads, g_waitTicks);
+	       closed ? 1 : 0, reads, g_wait.ticks());
 	if (!isMidi || !labelled || !closed || reads != 1) {
-		printf("MD-BROWSER FAIL the definition browser did not stage its file through InstrumentLoad and label the "
-		       "instrument from it\n");
-		g_failures++;
+		g_report.fail("MD-BROWSER the definition browser did not stage its file through InstrumentLoad and label the "
+		              "instrument from it");
 	}
 }
 
 void checkLeg() {
 	// What loading made of each sound is what its record and slot say.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "preset");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "preset"));
 	if (g_leg == Leg::MidiDef) {
 		// Nothing of the preset kind is read: a definition carries no samples.
 		checkMidiDefinition();
@@ -1127,10 +1148,9 @@ void checkLeg() {
 		const bool bound = boundTo(holder, kRaceSample);
 		printf("PL-PROBE leg=race name=%s edited=%d\n", instrument->name.c_str(), instrument->editedByUser ? 1 : 0);
 		printf("PL-RACE renamed=%d bound=%d edited=%d browserClosed=%d ticks=%d\n", renamed ? 1 : 0, bound ? 1 : 0,
-		       instrument->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+		       instrument->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_wait.ticks());
 		if (!isSynth || !renamed || !bound || !instrument->editedByUser || !browserClosed) {
-			printf("PL-RACE FAIL a clone made while the selection's scroll-load was still out did not survive it\n");
-			g_failures++;
+			g_report.fail("RACE a clone made while the selection's scroll-load was still out did not survive it");
 		}
 		break;
 	}
@@ -1142,12 +1162,11 @@ void checkLeg() {
 		const bool outputsKept = countOutputs() == g_outputsBefore;
 		const int32_t orphansLeft = orphanedParamManagers() - g_orphansBefore;
 		printf("PL-SUPERSEDE lite=%d heavySwapped=%d heavyLeft=%d orphansLeft=%d outputsKept=%d ticks=%d\n",
-		       lite ? 1 : 0, g_heavySwapped ? 1 : 0, heavyLeft, orphansLeft, outputsKept ? 1 : 0, g_waitTicks);
+		       lite ? 1 : 0, g_heavySwapped ? 1 : 0, heavyLeft, orphansLeft, outputsKept ? 1 : 0, g_wait.ticks());
 		if (!lite || g_heavySwapped || heavyLeft != 0 || orphansLeft != 0 || !outputsKept) {
-			printf("PL-SUPERSEDE FAIL a scroll that moved on before the heavy kit's samples landed still swapped the "
-			       "heavy "
-			       "kit in, or left it in the song\n");
-			g_failures++;
+			g_report.fail("SUPERSEDE a scroll that moved on before the heavy kit's samples landed still swapped the "
+			              "heavy "
+			              "kit in, or left it in the song");
 		}
 		loadInstrumentPresetUI.close();
 		break;
@@ -1160,18 +1179,15 @@ void checkLeg() {
 		printf("PL-GATE whileRunning=%d typeRefused=%d encoderRefused=%d released=%d loaded=%d browserClosed=%d "
 		       "ticks=%d\n",
 		       g_gateWhileRunning ? 1 : 0, g_gateTypeRefused ? 1 : 0, g_gateEncoderRefused ? 1 : 0, released ? 1 : 0,
-		       loaded ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+		       loaded ? 1 : 0, browserClosed ? 1 : 0, g_wait.ticks());
 		if (!g_gateWhileRunning) {
-			printf(
-			    "PL-GATE FAIL the commit had ended before its held sample could land: a commit must wait on its load "
-			    "with the gate closed\n");
-			g_failures++;
+			g_report.fail("GATE the commit had ended before its held sample could land: a commit must wait on its load "
+			              "with the gate closed");
 		}
 		else if (!g_gateTypeRefused || !g_gateEncoderRefused || !released || !loaded || !browserClosed) {
-			printf(
-			    "PL-GATE FAIL an output-type button or an encoder turn was taken while the commit was out, or the gate "
-			    "stayed closed, or the commit did not finish\n");
-			g_failures++;
+			g_report.fail(
+			    "GATE an output-type button or an encoder turn was taken while the commit was out, or the gate "
+			    "stayed closed, or the commit did not finish");
 		}
 		break;
 	}
@@ -1190,9 +1206,8 @@ void checkLeg() {
 		printf("PL-STALL swapped=%d holderEmpty=%d released=%d browserClosed=%d\n", swapped ? 1 : 0,
 		       holderEmpty ? 1 : 0, released ? 1 : 0, browserClosed ? 1 : 0);
 		if (!swapped || !holderEmpty || !released || !browserClosed) {
-			printf("PL-STALL FAIL a commit whose sample load never answered did not keep its instrument: it must be "
-			       "swapped in with that holder empty, the gate released and the browser closed\n");
-			g_failures++;
+			g_report.fail("STALL a commit whose sample load never answered did not keep its instrument: it must be "
+			              "swapped in with that holder empty, the gate released and the browser closed");
 		}
 		break;
 	}
@@ -1209,18 +1224,16 @@ void checkLeg() {
 		if (g_leg == Leg::Synth) {
 			const bool named = instrument->name == kSynthName;
 			printf("PL-SYNTH synth=%d named=%d bound=%d browserClosed=%d ticks=%d\n", isSynth ? 1 : 0, named ? 1 : 0,
-			       bound ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+			       bound ? 1 : 0, browserClosed ? 1 : 0, g_wait.ticks());
 			if (!isSynth || !named || !bound || !browserClosed) {
-				printf(
-				    "PL-SYNTH FAIL the clip's instrument is not the loaded synth with its sample bound, or the browser "
-				    "is still open\n");
-				g_failures++;
+				g_report.fail(
+				    "SYNTH the clip's instrument is not the loaded synth with its sample bound, or the browser "
+				    "is still open");
 			}
 			const bool off = isSynth && delayResolvedOff(*static_cast<SoundInstrument*>(instrument));
 			printf("PL-DELAY leg=synth off=%d\n", off ? 1 : 0);
 			if (!off) {
-				printf("PL-DELAY FAIL the loaded synth's delay type was not worked out as OFF at its load\n");
-				g_failures++;
+				g_report.fail("DELAY the loaded synth's delay type was not worked out as OFF at its load");
 			}
 		}
 		else {
@@ -1228,11 +1241,10 @@ void checkLeg() {
 			const bool renamed = instrument->name != kCloneName && instrument->name.starts_with(kCloneName);
 			printf("PL-CLONE synth=%d renamed=%d bound=%d edited=%d browserClosed=%d ticks=%d\n", isSynth ? 1 : 0,
 			       renamed ? 1 : 0, bound ? 1 : 0, instrument->editedByUser ? 1 : 0, browserClosed ? 1 : 0,
-			       g_waitTicks);
+			       g_wait.ticks());
 			if (!isSynth || !renamed || !bound || !instrument->editedByUser || !browserClosed) {
-				printf("PL-CLONE FAIL the clone is not a new synth under a variation of the preset's name with its "
-				       "sample bound, or the browser is still open\n");
-				g_failures++;
+				g_report.fail("CLONE the clone is not a new synth under a variation of the preset's name with its "
+				              "sample bound, or the browser is still open");
 			}
 		}
 		break;
@@ -1264,12 +1276,11 @@ void checkLeg() {
 		}
 		const bool named = kit->name == kKitName;
 		printf("PL-KIT kit=%d named=%d drums=%d matched=%d rowsWithDrum=%d browserClosed=%d ticks=%d\n", isKit ? 1 : 0,
-		       named ? 1 : 0, drums, matched, rowsWithDrum, browserClosed ? 1 : 0, g_waitTicks);
+		       named ? 1 : 0, drums, matched, rowsWithDrum, browserClosed ? 1 : 0, g_wait.ticks());
 		if (!isKit || !named || drums != kKitDrumCount || matched != kKitDrumCount || rowsWithDrum < kKitDrumCount
 		    || !browserClosed) {
-			printf("PL-KIT FAIL the clip's instrument is not the loaded kit with each drum bound to its sample and a "
-			       "NoteRow, or the browser is still open\n");
-			g_failures++;
+			g_report.fail("KIT the clip's instrument is not the loaded kit with each drum bound to its sample and a "
+			              "NoteRow, or the browser is still open");
 		}
 		bool off = isKit && delayResolvedOff(*kit);
 		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
@@ -1277,8 +1288,7 @@ void checkLeg() {
 		}
 		printf("PL-DELAY leg=kit off=%d\n", off ? 1 : 0);
 		if (!off) {
-			printf("PL-DELAY FAIL the loaded kit's or a drum's delay type was not worked out as OFF at its load\n");
-			g_failures++;
+			g_report.fail("DELAY the loaded kit's or a drum's delay type was not worked out as OFF at its load");
 		}
 		break;
 	}
@@ -1294,17 +1304,15 @@ void checkLeg() {
 		printf("PL-PROBE leg=row name=%s path=%s\n", drum != nullptr ? drum->name().c_str() : "",
 		       holder != nullptr ? holder->filePath.c_str() : "");
 		printf("PL-ROW named=%d bound=%d browserClosed=%d ticks=%d\n", named ? 1 : 0, bound ? 1 : 0,
-		       browserClosed ? 1 : 0, g_waitTicks);
+		       browserClosed ? 1 : 0, g_wait.ticks());
 		if (!named || !bound || !browserClosed) {
-			printf("PL-ROW FAIL the kit row's drum is not the loaded synth, named after it with its sample bound, or "
-			       "the browser is still open\n");
-			g_failures++;
+			g_report.fail("ROW the kit row's drum is not the loaded synth, named after it with its sample bound, or "
+			              "the browser is still open");
 		}
 		const bool off = drum != nullptr && delayResolvedOff(*drum);
 		printf("PL-DELAY leg=row off=%d\n", off ? 1 : 0);
 		if (!off) {
-			printf("PL-DELAY FAIL the loaded row drum's delay type was not worked out as OFF at its load\n");
-			g_failures++;
+			g_report.fail("DELAY the loaded row drum's delay type was not worked out as OFF at its load");
 		}
 		break;
 	}
@@ -1404,7 +1412,7 @@ bool g_navThirdBehindWalk = false;
 /// and the clips of it the act stopped, all put back afterwards.
 deluge::gui::PresetNavigation g_navWrapWalk;
 int32_t g_navWrapMove = 0;
-int32_t g_navWrapTicks = 0;
+Wait g_navWrapWait{g_report, "the navigate walk finishing", kMaxLegTicks};
 std::array<std::string, 3> g_navWrapLanded{};
 std::array<int32_t, 3> g_navWrapWraps{};
 Instrument* g_navWrapLandedInstrument = nullptr;
@@ -1520,9 +1528,8 @@ void checkListingEdgeTrim() {
 	listing.dropFoldersAndDuplicates(Availability::INSTRUMENT_UNUSED);
 	printf("PL-LISTING-EDGE culled=%d size=%d\n", culled ? 1 : 0, static_cast<int>(listing.size()));
 	if (!culled || listing.size() != 0) {
-		printf("PL-LISTING-EDGE FAIL a culled window that filtering emptied must stay empty, not have an edge trimmed "
-		       "off nothing\n");
-		g_failures++;
+		g_report.fail("LISTING-EDGE a culled window that filtering emptied must stay empty, not have an edge trimmed "
+		              "off nothing");
 	}
 }
 
@@ -1624,8 +1631,6 @@ void markSlotScan() {
 	g_slotListingBefore = browserListingNames();
 }
 
-void aqFail(const char* marker, const char* what);
-
 /// The pile-wrapped-twice walk's moves: one on from the clip's kit, then each pile from the move before's landing.
 constexpr std::array<int32_t, 3> kNavWrapMoves{1, kNavWrapPile, 1};
 
@@ -1676,6 +1681,7 @@ void restoreNavWrapKits() {
 
 /// Arm pile-wrapped-twice's walk for its next move.
 void armNavWrapMove() {
+	g_navWrapWait.restart();
 	auto* kit = static_cast<Instrument*>(g_aqClip->output);
 	deluge::storage::AcquireWalkSpec spec{.walk = deluge::storage::AcquireWalk::Navigate,
 	                                      .outputType = OutputType::KIT,
@@ -1696,7 +1702,6 @@ bool armNavWrapMachine() {
 		return false;
 	}
 	g_navWrapMove = 0;
-	g_navWrapTicks = 0;
 	g_navWrapLanded.fill("");
 	g_navWrapWraps.fill(-1);
 	g_navWrapLandedInstrument = nullptr;
@@ -1709,8 +1714,15 @@ bool runNavWrapMachine() {
 	if (g_navWrapMove >= static_cast<int32_t>(kNavWrapMoves.size())) {
 		return false;
 	}
-	if (g_navWrapWalk.tick() && ++g_navWrapTicks <= kMaxLegTicks) {
+	switch (g_navWrapWait.poll(!g_navWrapWalk.tick())) {
+	case WaitState::Pending:
 		return true;
+	case WaitState::Met:
+		break;
+	case WaitState::Expired:
+		probeExpired();
+		g_navWrapMove = static_cast<int32_t>(kNavWrapMoves.size());
+		return false;
 	}
 	const auto landed = g_navWrapWalk.result();
 	if (!landed.has_value() || *landed == nullptr) {
@@ -1729,16 +1741,21 @@ bool runNavWrapMachine() {
 
 /// Check pile-wrapped-twice's landings, and put the song back as it was.
 void checkNavWrapMachine() {
+	if (g_navWrapWait.expired()) {
+		// The walk never finished: its landings were never recorded, and the wait has said so.
+		restoreNavWrapKits();
+		return;
+	}
 	printf("AQ-NAV-PILE turns=pile-wrapped-twice landed=%s,%s,%s wraps=%d,%d,%d in-song=%d\n",
 	       g_navWrapLanded[0].c_str(), g_navWrapLanded[1].c_str(), g_navWrapLanded[2].c_str(), g_navWrapWraps[0],
 	       g_navWrapWraps[1], g_navWrapWraps[2], g_navWrapLandedInstrument == g_navWrapOther ? 1 : 0);
 	// The landings are display names, which keep the file's extension.
 	if (g_navWrapLanded[0] != "WRAP1.XML" || g_navWrapLanded[1] != "WRAP3.XML" || g_navWrapWraps[1] != 1) {
-		aqFail("AQ-NAV-PILE", "on and three more did not pass the in-song kit, wrapping once, onto WRAP3");
+		g_report.fail("AQ-NAV-PILE on and three more did not pass the in-song kit, wrapping once, onto WRAP3");
 	}
 	if (g_navWrapLanded[2] != std::string{kNavWrapInSong} + ".XML" || g_navWrapLandedInstrument != g_navWrapOther) {
-		aqFail("AQ-NAV-PILE", "a pile past a second wrap, from a landing that had wrapped once, did not take the "
-		                      "in-song kit");
+		g_report.fail("AQ-NAV-PILE a pile past a second wrap, from a landing that had wrapped once, did not take the "
+		              "in-song kit");
 	}
 	restoreNavWrapKits();
 }
@@ -1766,16 +1783,17 @@ void checkNavWrapTurned(const std::string& name) {
 	       g_aqNameBefore.c_str(), name.c_str(), kNavWrapFrom, g_navThirdBehindWalk ? 1 : 0, nameShown ? 1 : 0,
 	       working ? 1 : 0);
 	if (!nameShown) {
-		aqFail("AQ-NAV-PILE", "the OLED did not show the name of the kit the clip stayed on");
+		g_report.fail("AQ-NAV-PILE the OLED did not show the name of the kit the clip stayed on");
 	}
 	if (working) {
-		aqFail("AQ-NAV-PILE", "the working notice was left up after the turn stayed where it was");
+		g_report.fail("AQ-NAV-PILE the working notice was left up after the turn stayed where it was");
 	}
 	if (!g_navThirdBehindWalk) {
-		aqFail("AQ-NAV-PILE", "the third turn was not made behind the pile's walk");
+		g_report.fail("AQ-NAV-PILE the third turn was not made behind the pile's walk");
 	}
 	if (!stayed) {
-		aqFail("AQ-NAV-PILE", "turns whose pile wrapped twice onto the in-song kit did not leave the clip on its kit");
+		g_report.fail(
+		    "AQ-NAV-PILE turns whose pile wrapped twice onto the in-song kit did not leave the clip on its kit");
 	}
 	PresetAcquireProbe::releasePress();
 	restoreNavWrapKits();
@@ -1814,7 +1832,7 @@ bool actAcquire() {
 			return true;
 		}
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		// shift+SYNTH on the clip view.
 		markSlotScan();
@@ -1822,7 +1840,7 @@ bool actAcquire() {
 		return true;
 	case Leg::AqChange:
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		(void)instrumentClipView.buttonAction(KIT, true);
 		(void)instrumentClipView.buttonAction(KIT, false);
@@ -1830,19 +1848,20 @@ bool actAcquire() {
 	case Leg::AqNavigate:
 		if (g_aqAct == 0) {
 			if (!focusClip(g_aqClip)) {
-				return fail(leg, "the new-track gesture made no clip");
+				return setupFailed(leg, "the new-track gesture made no clip");
 			}
 			instrumentClipView.selectEncoderAction(1);
 			return true;
 		}
 		if (g_aqAct == 1) {
-			return PresetAcquireProbe::turnInGrid(g_aqClip, 1) || fail(leg, "the clip's grid pad could not be held");
+			return PresetAcquireProbe::turnInGrid(g_aqClip, 1)
+			       || setupFailed(leg, "the clip's grid pad could not be held");
 		}
 		PresetAcquireProbe::turnInArranger(g_aqClip->output, 1);
 		return true;
 	case Leg::AqSupersede:
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		deluge_audio_load_set_latency_ms(kHoldMs);
 		g_aqOrphansBefore = orphanedParamManagers();
@@ -1875,8 +1894,7 @@ bool actAcquire() {
 			PresetAcquireProbe::releaseRow(g_tapRow);
 			g_tapReleased = true;
 			if (!loadInstrumentPresetUI.presetAcquisitionInFlight()) {
-				printf("AQ-TAP FAIL the acquisition landed before the pad was let go, so nothing was tested\n");
-				g_failures++;
+				g_report.fail("AQ-TAP the acquisition landed before the pad was let go, so nothing was tested");
 			}
 		}
 		if (g_aqAct == 3) {
@@ -1888,13 +1906,14 @@ bool actAcquire() {
 		return true;
 	case Leg::AqClone:
 		if (g_aqClip == nullptr) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		PresetAcquireProbe::pressEmptyRow(emptyRow());
-		return PresetAcquireProbe::cloneIntoEmptyColumn(g_aqClip) || fail(leg, "the clip has no grid pad to copy");
+		return PresetAcquireProbe::cloneIntoEmptyColumn(g_aqClip)
+		       || setupFailed(leg, "the clip has no grid pad to copy");
 	case Leg::AqStall:
 		if (!focusClip(g_synthClip)) {
-			return fail(leg, "the synth clip is missing");
+			return setupFailed(leg, "the synth clip is missing");
 		}
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		g_aqNameBefore = g_synthClip->output->name;
@@ -1903,7 +1922,7 @@ bool actAcquire() {
 	case Leg::AqChangeCases: {
 		using namespace deluge::hid::button;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		if ((g_aqAct % 2) == 0) {
 			(void)instrumentClipView.buttonAction(SYNTH, true);
@@ -1930,7 +1949,7 @@ bool actAcquire() {
 	}
 	case Leg::AqNavWrap: {
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		if (g_aqAct == 0) {
 			// The clip's kit placed at the folder's last preset: what a navigate reads is its folder and name.
@@ -1957,7 +1976,7 @@ bool actAcquire() {
 		}
 		if (g_aqAct == 5 || g_aqAct == 6) {
 			if (g_synthClip == nullptr || g_synthClip->output == nullptr) {
-				return fail(leg, "the synth clip is missing");
+				return setupFailed(leg, "the synth clip is missing");
 			}
 			g_navOtherNameBefore = g_synthClip->output->name;
 			(void)focusClip(g_synthClip);
@@ -1992,18 +2011,18 @@ bool actAcquire() {
 			return true; // the second turn waits for the first's load to begin (runAcquireTick)
 		}
 		if (g_aqAct == 14) {
-			return armNavWrapMachine() || fail(leg, "the song has no second kit to put in the wrap folder");
+			return armNavWrapMachine() || setupFailed(leg, "the song has no second kit to put in the wrap folder");
 		}
 		if (g_aqAct == 15) {
 			if (!placeNavWrapKits()) {
-				return fail(leg, "the song has no second kit to put in the wrap folder");
+				return setupFailed(leg, "the song has no second kit to put in the wrap folder");
 			}
 			g_aqTurned = false;
 			g_navThirdBehindWalk = false;
 			deluge_file_directory_set_latency_ms(kNavReadHoldMs);
 			const bool held = PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[0])
 			                  && PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[1]);
-			return held || fail(leg, "the clip's grid pad could not be held");
+			return held || setupFailed(leg, "the clip's grid pad could not be held");
 		}
 		if (g_aqAct == 16) {
 			auto* kit = static_cast<Instrument*>(g_aqClip->output);
@@ -2048,7 +2067,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip) || g_aqClip->output->type != OutputType::SYNTH) {
-			return fail(leg, "the song has no synth clip to change to a kit");
+			return setupFailed(leg, "the song has no synth clip to change to a kit");
 		}
 		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
 		clip->backedUpInstrumentDirPath[static_cast<size_t>(OutputType::KIT)] = "KITS/AQCHSTALL";
@@ -2067,7 +2086,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the song has no session clip to navigate");
+			return setupFailed(leg, "the song has no session clip to navigate");
 		}
 		auto* synth = static_cast<Instrument*>(g_aqClip->output);
 		synth->dirPath = "SYNTHS/AQNAVSTALL";
@@ -2084,7 +2103,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the song has no session clip to press Shift+SYNTH on");
+			return setupFailed(leg, "the song has no session clip to press Shift+SYNTH on");
 		}
 		g_slotStallOutputBefore = g_aqClip->output;
 		g_aqNameBefore = g_aqClip->output->name;
@@ -2120,11 +2139,6 @@ bool synthBoundTo(Output* output, const char* sample) {
 	       && boundTo(firstHolder(static_cast<SoundInstrument*>(output)->sources[0]), sample);
 }
 
-void aqFail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
-}
-
 /// Check the gesture's outcome, once its acquisition has ended.
 void checkAcquireAct() {
 	const std::vector<Clip*> added = clipsAdded();
@@ -2136,8 +2150,8 @@ void checkAcquireAct() {
 		PresetAcquireProbe::setExtensions(g_extensionsBefore);
 		printf("AQ-EXT gesture=%s kept=%d\n", g_aqAct == 0 ? "track" : "instrument", kept ? 1 : 0);
 		if (!kept) {
-			aqFail("AQ-EXT", "a preset walk left the browser's extension filter changed: the next browser listing "
-			                 "would filter for the walk's files, not its own");
+			g_report.fail("AQ-EXT a preset walk left the browser's extension filter changed: the next browser listing "
+			              "would filter for the walk's files, not its own");
 		}
 	}
 	if (g_leg == Leg::AqChange) {
@@ -2147,8 +2161,8 @@ void checkAcquireAct() {
 		Browser::currentDir = g_changeDirBefore;
 		printf("AQ-CHANGE-TIER run=%d requests=%d browserUntouched=%d\n", run, requests, untouched ? 1 : 0);
 		if (run != 1 || requests < 1 || !untouched) {
-			aqFail("AQ-CHANGE-TIER", "a change-type must walk once, through the directory channel, and leave the "
-			                         "browser's folder alone");
+			g_report.fail("AQ-CHANGE-TIER a change-type must walk once, through the directory channel, and leave the "
+			              "browser's folder alone");
 		}
 	}
 	if (g_leg == Leg::AqNavigate) {
@@ -2160,8 +2174,8 @@ void checkAcquireAct() {
 		printf("AQ-NAV-TIER gesture=%s run=%d requests=%d browserUntouched=%d\n", kNavGestures[g_aqAct], run, requests,
 		       untouched ? 1 : 0);
 		if (run != 1 || requests < 1 || !untouched) {
-			aqFail("AQ-NAV-TIER", "a preset navigate must walk once, through the directory channel, and leave the "
-			                      "browser's folder alone");
+			g_report.fail("AQ-NAV-TIER a preset navigate must walk once, through the directory channel, and leave the "
+			              "browser's folder alone");
 		}
 	}
 	switch (g_leg) {
@@ -2176,8 +2190,9 @@ void checkAcquireAct() {
 			       created != nullptr ? created->name.c_str() : "", runs);
 			PresetAcquireProbe::releasePress();
 			if (added.size() != 1 || !named || !bound) {
-				aqFail("AQ-NEW", "the new-track gesture did not make one synth track on the first unused synth preset "
-				                 "with its sample bound");
+				g_report.fail(
+				    "AQ-NEW the new-track gesture did not make one synth track on the first unused synth preset "
+				    "with its sample bound");
 			}
 			break;
 		}
@@ -2186,7 +2201,7 @@ void checkAcquireAct() {
 		printf("AQ-NEW gesture=instrument fresh=%d before=%s name=%s runs=%d\n", fresh ? 1 : 0, g_aqNameBefore.c_str(),
 		       name.c_str(), runs);
 		if (!fresh) {
-			aqFail("AQ-NEW", "shift+SYNTH did not give the clip a new synth under an unused slot name");
+			g_report.fail("AQ-NEW shift+SYNTH did not give the clip a new synth under an unused slot name");
 		}
 		{
 			const int32_t scans = deluge::gui::instrumentLoad.slotScans() - g_slotScansBefore;
@@ -2196,9 +2211,10 @@ void checkAcquireAct() {
 			printf("AQ-SLOT name=%s want=%s scans=%d requests=%d browserUntouched=%d\n", name.c_str(), kAqSlotName,
 			       scans, requests, untouched ? 1 : 0);
 			if (name != kAqSlotName || scans != 1 || requests < 1 || !untouched) {
-				aqFail("AQ-SLOT", "the new instrument's slot name must be read once, through the directory channel, "
-				                  "leaving the browser's folder and list as they were, and come out as the old walk "
-				                  "named it");
+				g_report.fail(
+				    "AQ-SLOT the new instrument's slot name must be read once, through the directory channel, "
+				    "leaving the browser's folder and list as they were, and come out as the old walk "
+				    "named it");
 			}
 		}
 		break;
@@ -2210,8 +2226,8 @@ void checkAcquireAct() {
 		printf("AQ-CHANGE kit=%d named=%d bound=%d name=%s runs=%d\n", isKit ? 1 : 0, named ? 1 : 0, bound,
 		       name.c_str(), runs);
 		if (!isKit || !named || bound != 1) {
-			aqFail("AQ-CHANGE",
-			       "the KIT button did not land the clip on the first unused kit preset with its drum bound");
+			g_report.fail(
+			    "AQ-CHANGE the KIT button did not land the clip on the first unused kit preset with its drum bound");
 		}
 		break;
 	}
@@ -2228,7 +2244,7 @@ void checkAcquireAct() {
 			PresetAcquireProbe::endArrangerAudition();
 		}
 		if (!landed || bound != 1) {
-			aqFail("AQ-NAVIGATE", "a turn did not land the clip on the next unused kit preset with its drum bound");
+			g_report.fail("AQ-NAVIGATE a turn did not land the clip on the next unused kit preset with its drum bound");
 		}
 		break;
 	}
@@ -2241,9 +2257,9 @@ void checkAcquireAct() {
 		printf("AQ-SUPERSEDE lite=%d heavySwapped=%d heavyLeft=%d orphansLeft=%d supersessions=%d name=%s runs=%d\n",
 		       lite ? 1 : 0, g_aqHeavySwapped ? 1 : 0, heavyLeft, orphansLeft, supersessions, name.c_str(), runs);
 		if (!lite || g_aqHeavySwapped || heavyLeft != 0 || orphansLeft != 0 || supersessions < 1) {
-			aqFail("AQ-SUPERSEDE",
-			       "a turn made while the heavy kit's samples were loading did not cancel it: the heavy "
-			       "kit swapped in, or something of it was left, or the clip missed the light kit");
+			g_report.fail(
+			    "AQ-SUPERSEDE a turn made while the heavy kit's samples were loading did not cancel it: the heavy "
+			    "kit swapped in, or something of it was left, or the clip missed the light kit");
 		}
 		break;
 	}
@@ -2258,8 +2274,9 @@ void checkAcquireAct() {
 		       runs);
 		PresetAcquireProbe::releasePress();
 		if (added.size() != 2 || synths != 1 || kits != 1 || runs != 2) {
-			aqFail("AQ-REFUSE", "three new-track presses in one tick did not keep the in-flight and the queued one and "
-			                    "refuse the third");
+			g_report.fail(
+			    "AQ-REFUSE three new-track presses in one tick did not keep the in-flight and the queued one and "
+			    "refuse the third");
 		}
 		break;
 	}
@@ -2276,26 +2293,28 @@ void checkAcquireAct() {
 		       held ? 1 : 0, static_cast<int>(currentUIMode), runs,
 		       made != nullptr && made->output != nullptr ? made->output->name.c_str() : "");
 		if (made == nullptr) {
-			aqFail("AQ-TAP", "the new-track press made no track");
+			g_report.fail("AQ-TAP the new-track press made no track");
 		}
 		else if (g_aqAct == 0 && !entered) {
-			aqFail("AQ-TAP", "a new-track pad tapped before its preset landed did not enter the clip once it did");
+			g_report.fail("AQ-TAP a new-track pad tapped before its preset landed did not enter the clip once it did");
 		}
 		else if (g_aqAct == 1 && !held) {
-			aqFail("AQ-TAP", "a new-track pad still held when its preset landed did not hold the clip");
+			g_report.fail("AQ-TAP a new-track pad still held when its preset landed did not hold the clip");
 		}
 		else if (g_aqAct == 2 && (entered || held)) {
-			aqFail("AQ-TAP",
-			       "a new-track pad let go slowly before its preset landed entered or held the clip once it did");
+			g_report.fail(
+			    "AQ-TAP a new-track pad let go slowly before its preset landed entered or held the clip once it did");
 		}
 		else if (g_aqAct == 3
 		         && (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || currentSong->getCurrentClip() == made)) {
-			aqFail("AQ-TAP", "a new-track tap whose preset landed while another clip was held took the UI from that "
-			                 "gesture");
+			g_report.fail(
+			    "AQ-TAP a new-track tap whose preset landed while another clip was held took the UI from that "
+			    "gesture");
 		}
 		else if (g_aqAct == 4 && !held) {
-			aqFail("AQ-TAP", "a queued new-track press still held when its preset landed did not hold its own clip: "
-			                 "the first track's completion took its press");
+			g_report.fail(
+			    "AQ-TAP a queued new-track press still held when its preset landed did not hold its own clip: "
+			    "the first track's completion took its press");
 		}
 		if (g_aqAct == 1) {
 			PresetAcquireProbe::releaseRow(g_tapRow);
@@ -2316,7 +2335,7 @@ void checkAcquireAct() {
 		       runs);
 		PresetAcquireProbe::releasePress();
 		if (added.size() != 2 || synths != 1 || kits != 1 || runs != 2) {
-			aqFail("AQ-CLONE", "a new-track press and a grid clone made in one tick did not both make their track");
+			g_report.fail("AQ-CLONE a new-track press and a grid clone made in one tick did not both make their track");
 		}
 		// Every output, live or hibernating, keeps a durable id of its own, and so a record of its own.
 		std::vector<uint32_t> ids;
@@ -2334,7 +2353,7 @@ void checkAcquireAct() {
 		}
 		std::ranges::sort(ids);
 		if (std::ranges::adjacent_find(ids) != ids.end()) {
-			aqFail("AQ-CLONE", "two outputs share one durable id, and so one record");
+			g_report.fail("AQ-CLONE two outputs share one durable id, and so one record");
 		}
 		break;
 	}
@@ -2350,8 +2369,8 @@ void checkAcquireAct() {
 		printf("AQ-STALL named=%d holderEmpty=%d giveUps=%d before=%s name=%s runs=%d\n", named ? 1 : 0,
 		       holderEmpty ? 1 : 0, giveUps, g_aqNameBefore.c_str(), synth->name.c_str(), runs);
 		if (!named || !holderEmpty || giveUps != 1) {
-			aqFail("AQ-STALL", "a turn whose sample load never answered did not deliver the synth with that holder "
-			                   "empty on the stall bound");
+			g_report.fail("AQ-STALL a turn whose sample load never answered did not deliver the synth with that holder "
+			              "empty on the stall bound");
 		}
 		break;
 	}
@@ -2368,7 +2387,8 @@ void checkAcquireAct() {
 		const bool isKit = output != nullptr && output->type == OutputType::KIT;
 		printf("%s name=%s want=%s kit=%d runs=%d\n", marker, name.c_str(), want.c_str(), isKit ? 1 : 0, runs);
 		if (!isKit || name != want || want.empty()) {
-			aqFail(marker, "the KIT press did not land on the preset its remembered folder and name call for");
+			g_report.fail("%s the KIT press did not land on the preset its remembered folder and name call for",
+			              marker);
 		}
 		break;
 	}
@@ -2393,14 +2413,15 @@ void checkAcquireAct() {
 			       g_aqNameBefore.c_str(), name.c_str(), kNavGoneLands, g_navGoneThirdBehindWalk ? 1 : 0,
 			       static_cast<int>(g_navGoneErrorShown), runs);
 			if (!g_navGoneThirdBehindWalk) {
-				aqFail("AQ-NAV-PILE", "the third turn was not made behind the second's walk, with its folder gone");
+				g_report.fail("AQ-NAV-PILE the third turn was not made behind the second's walk, with its folder gone");
 			}
 			if (g_navGoneErrorShown == Error::NONE) {
-				aqFail("AQ-NAV-PILE",
-				       "a pile's failed walk did not end with its error before the turn behind it began");
+				g_report.fail(
+				    "AQ-NAV-PILE a pile's failed walk did not end with its error before the turn behind it began");
 			}
 			if (name != kNavGoneLands) {
-				aqFail("AQ-NAV-PILE", "the turn behind a failed pile did not move one preset from the clip's own kit");
+				g_report.fail(
+				    "AQ-NAV-PILE the turn behind a failed pile did not move one preset from the clip's own kit");
 			}
 			break;
 		}
@@ -2417,10 +2438,10 @@ void checkAcquireAct() {
 			printf("AQ-NAV-PILE turns=%s before=%s name=%s want=%s other-kept=%d runs=%d\n", kTurns[g_aqAct - 5],
 			       g_aqNameBefore.c_str(), name.c_str(), want, otherKept ? 1 : 0, runs);
 			if (name != want || !otherKept) {
-				aqFail("AQ-NAV-PILE", "a turn's pile did not move as main's pending detents do");
+				g_report.fail("AQ-NAV-PILE a turn's pile did not move as main's pending detents do");
 			}
 			if (g_aqAct == 10 && instrumentsNamed(kNavHibernateName) != 1) {
-				aqFail("AQ-NAV-PILE", "the edited kit turned away from did not hibernate");
+				g_report.fail("AQ-NAV-PILE the edited kit turned away from did not hibernate");
 			}
 			if (g_aqAct == 11) {
 				deluge_file_directory_set_latency_ms(0);
@@ -2430,23 +2451,25 @@ void checkAcquireAct() {
 				const int32_t loads = markAcquireTier().sampleLoads - g_navSampleLoadsBefore;
 				printf("AQ-NAV-PILE pile-behind-loaded sampleLoads=%d\n", loads);
 				if (!g_navSecondDuringLoad) {
-					aqFail("AQ-NAV-PILE", "the second turn was not made while the first's preset loaded");
+					g_report.fail("AQ-NAV-PILE the second turn was not made while the first's preset loaded");
 				}
 				if (loads != 1) {
-					aqFail("AQ-NAV-PILE", "the preset a pile turned past loaded its samples");
+					g_report.fail("AQ-NAV-PILE the preset a pile turned past loaded its samples");
 				}
 			}
 			if (g_aqAct == 12) {
 				deluge_file_bytes_set_latency_ms(0);
 				if (!g_navSecondDuringLoad) {
-					aqFail("AQ-NAV-PILE", "the second turn was not made while the first's preset loaded");
+					g_report.fail("AQ-NAV-PILE the second turn was not made while the first's preset loaded");
 				}
 				if (deluge::gui::instrumentLoad.lastError() == Error::NONE) {
-					aqFail("AQ-NAV-PILE", "the turn behind the failed load did not move one, onto the broken preset");
+					g_report.fail(
+					    "AQ-NAV-PILE the turn behind the failed load did not move one, onto the broken preset");
 				}
 			}
 			if (g_aqAct == 11 && !g_navThirdBehindWalk) {
-				aqFail("AQ-NAV-PILE", "the third turn was not made behind the second's walk, after the first landed");
+				g_report.fail(
+				    "AQ-NAV-PILE the third turn was not made behind the second's walk, after the first landed");
 			}
 			break;
 		}
@@ -2457,7 +2480,7 @@ void checkAcquireAct() {
 			printf("AQ-NAV-ADD turns=%s before=%s name=%s want=%s runs=%d\n", kTurns[g_aqAct - 2],
 			       g_aqNameBefore.c_str(), name.c_str(), want, runs);
 			if (name != want) {
-				aqFail("AQ-NAV-ADD", "turns made while a navigate loaded did not move on by their detents' sum");
+				g_report.fail("AQ-NAV-ADD turns made while a navigate loaded did not move on by their detents' sum");
 			}
 			break;
 		}
@@ -2466,8 +2489,8 @@ void checkAcquireAct() {
 		printf("AQ-NAV-WRAP turn=%s before=%s name=%s want=%s runs=%d\n", g_aqAct == 0 ? "forward" : "back",
 		       g_aqNameBefore.c_str(), name.c_str(), want, runs);
 		if (name != want) {
-			aqFail("AQ-NAV-WRAP", "a navigate off the end of a folder bigger than its window did not wrap round to "
-			                      "the far end");
+			g_report.fail("AQ-NAV-WRAP a navigate off the end of a folder bigger than its window did not wrap round to "
+			              "the far end");
 		}
 		break;
 	}
@@ -2480,8 +2503,8 @@ void checkAcquireAct() {
 		printf("AQ-CHANGE-STALL error=%d kept=%d idle=%d giveUps=%d before=%s name=%s\n", static_cast<int>(error),
 		       kept ? 1 : 0, idle ? 1 : 0, giveUps, g_aqNameBefore.c_str(), name.c_str());
 		if (error != Error::SD_CARD || !kept || !idle || giveUps != 0) {
-			aqFail("AQ-CHANGE-STALL", "a change-type whose folder open never answered must give up with the card "
-			                          "error, leave the clip on the synth it had, and leave nothing in flight");
+			g_report.fail("AQ-CHANGE-STALL a change-type whose folder open never answered must give up with the card "
+			              "error, leave the clip on the synth it had, and leave nothing in flight");
 		}
 		break;
 	}
@@ -2497,8 +2520,8 @@ void checkAcquireAct() {
 		printf("AQ-NAV-STALL error=%d kept=%d idle=%d giveUps=%d before=%s name=%s\n", static_cast<int>(error),
 		       kept ? 1 : 0, idle ? 1 : 0, giveUps, g_aqNameBefore.c_str(), name.c_str());
 		if (error != Error::SD_CARD || !kept || !idle || giveUps != 0) {
-			aqFail("AQ-NAV-STALL", "a navigate whose folder open never answered must give up with the card error, "
-			                       "leave the clip on the instrument it had, and leave nothing in flight");
+			g_report.fail("AQ-NAV-STALL a navigate whose folder open never answered must give up with the card error, "
+			              "leave the clip on the instrument it had, and leave nothing in flight");
 		}
 		break;
 	}
@@ -2510,8 +2533,8 @@ void checkAcquireAct() {
 		printf("AQ-SLOT-STALL error=%d kept=%d idle=%d before=%s name=%s\n", static_cast<int>(error), kept ? 1 : 0,
 		       idle ? 1 : 0, g_aqNameBefore.c_str(), name.c_str());
 		if (error != Error::SD_CARD || !kept || !idle) {
-			aqFail("AQ-SLOT-STALL", "a Shift+SYNTH whose folder open never answered must give up with the card "
-			                        "error, leave the clip on the instrument it had, and leave nothing in flight");
+			g_report.fail("AQ-SLOT-STALL a Shift+SYNTH whose folder open never answered must give up with the card "
+			              "error, leave the clip on the instrument it had, and leave nothing in flight");
 		}
 		break;
 	}
@@ -2529,15 +2552,13 @@ void checkAcquireTier() {
 	const int32_t sampleIo = now.sampleIo - g_aqTierMark.sampleIo;
 	printf("AQ-TIER leg=%s documentReads=%d sampleLoads=%d sampleIo=%d\n", legName(g_leg), reads, loads, sampleIo);
 	if (reads == 0 || loads == 0) {
-		printf("AQ-TIER FAIL leg=%s the leg read no document or loaded no samples\n", legName(g_leg));
-		g_failures++;
+		g_report.fail("AQ-TIER leg=%s the leg read no document or loaded no samples", legName(g_leg));
 	}
 	if (sampleIo != 0) {
-		printf("AQ-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- an acquisition's "
-		       "load belongs on "
-		       "the interaction tier\n",
-		       legName(g_leg), sampleIo);
-		g_failures++;
+		g_report.fail("AQ-TIER leg=%s %d sample read(s) went to the card on the interaction tier -- an acquisition's "
+		              "load belongs on "
+		              "the interaction tier",
+		              legName(g_leg), sampleIo);
 	}
 }
 
@@ -2550,7 +2571,10 @@ void runAcquireTick() {
 		g_aqStep = AqStep::Act;
 		break;
 	case AqStep::Act:
-		g_waitTicks = 0;
+		startWait("an acquisition ending", (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall
+		                                    || g_leg == Leg::AqNavStall || g_leg == Leg::AqChangeStall)
+		                                       ? kMaxStallTicks
+		                                       : kMaxLegTicks);
 		if (!actAcquire()) {
 			nextLeg();
 			break;
@@ -2622,19 +2646,18 @@ void runAcquireTick() {
 				break;
 			}
 		}
-		const int32_t maxTicks = (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall
-		                          || g_leg == Leg::AqChangeStall)
-		                             ? kMaxStallTicks
-		                             : kMaxLegTicks;
-		const bool ended = g_waitTicks >= 1 && !loadInstrumentPresetUI.presetAcquisitionInFlight()
+		const bool ended = g_wait.ticks() >= 1 && !loadInstrumentPresetUI.presetAcquisitionInFlight()
 		                   && (g_leg != Leg::AqSupersede || g_aqTurned);
-		if (!ended && ++g_waitTicks <= maxTicks) {
+		const WaitState waited = g_wait.poll(ended);
+		if (waited == WaitState::Pending) {
 			break;
 		}
-		if (!ended) {
-			fail(legName(g_leg), "an acquisition never ended");
+		if (waited == WaitState::Met) {
+			checkAcquireAct();
 		}
-		checkAcquireAct();
+		else {
+			probeExpired();
+		}
 		if (++g_aqAct < acquireActs(g_leg)) {
 			g_aqStep = AqStep::Act;
 			break;
@@ -2697,17 +2720,20 @@ void runWalkMachineTick() {
 		g_walkSavedDir = Browser::currentDir;
 		g_walkTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
 		g_presetWalk.arm(loadInstrumentPresetUI, kWalkStartDir, currentSong, OutputType::SYNTH, Availability::ANY);
-		g_waitTicks = 0;
+		startWait("the preset search machine finishing", kMaxWalkMachineTicks);
 		g_walkStep = WalkMachineStep::RunFound;
 		break;
 
 	case WalkMachineStep::RunFound:
-		if (g_presetWalk.tick()) {
-			if (++g_waitTicks > kMaxWalkMachineTicks) {
-				fail(legName(g_leg), "the preset search machine never finished");
-				g_walkStep = WalkMachineStep::Report;
-			}
+		switch (g_wait.poll(!g_presetWalk.tick())) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			probeExpired();
+			g_walkStep = WalkMachineStep::Report;
+			return;
 		}
 		{
 			// Copied out NOW: the FileItem* points into Browser::fileItems, which emptyFileItems()
@@ -2723,7 +2749,7 @@ void runWalkMachineTick() {
 			// open for InstrumentLoad; this at least holds the machine to its half.
 			g_walkFoundDir = g_presetWalk.foundDir();
 		}
-		g_walkTicks = g_waitTicks;
+		g_walkTicks = g_wait.ticks();
 		g_walkMaxDepth = g_presetWalk.maxDepthReached();
 		g_walkPagedReads = g_presetWalk.pagedReads();
 		g_walkGiveUps = g_presetWalk.depthGiveUps();
@@ -2736,17 +2762,20 @@ void runWalkMachineTick() {
 		// folder that never existed and passed on FOLDER_DOESNT_EXIST (10), which tests a missing
 		// folder rather than an exhausted search.
 		g_presetWalk.arm(loadInstrumentPresetUI, "SYNTHS/WALK/W01", currentSong, OutputType::SYNTH, Availability::ANY);
-		g_waitTicks = 0;
+		startWait("the exhausting preset search machine finishing", kMaxWalkMachineTicks);
 		g_walkStep = WalkMachineStep::RunExhaust;
 		break;
 
 	case WalkMachineStep::RunExhaust:
-		if (g_presetWalk.tick()) {
-			if (++g_waitTicks > kMaxWalkMachineTicks) {
-				fail(legName(g_leg), "the exhausting preset search machine never finished");
-				g_walkStep = WalkMachineStep::Report;
-			}
+		switch (g_wait.poll(!g_presetWalk.tick())) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			probeExpired();
+			g_walkStep = WalkMachineStep::Report;
+			return;
 		}
 		{
 			const auto none = g_presetWalk.result();
@@ -2787,28 +2816,28 @@ void runWalkMachineTick() {
 		       (int)g_walkTicks);
 
 		if (!descended) {
-			fail(legName(g_leg), "the preset search machine did not reach the nested preset");
+			setupFailed(legName(g_leg), "the preset search machine did not reach the nested preset");
 		}
 		if (!endedInNested) {
-			fail(legName(g_leg), "the preset search machine did not leave currentDir at the folder it found");
+			setupFailed(legName(g_leg), "the preset search machine did not leave currentDir at the folder it found");
 		}
 		if (g_walkMaxDepth < 2) {
-			fail(legName(g_leg), "the preset search machine never pushed a frame");
+			setupFailed(legName(g_leg), "the preset search machine never pushed a frame");
 		}
 		if (g_walkPagedReads < kWalkFolderCount) {
-			fail(legName(g_leg), "the preset search machine did not re-read a parent for every folder it left");
+			setupFailed(legName(g_leg), "the preset search machine did not re-read a parent for every folder it left");
 		}
 		if (g_walkGiveUps != 0) {
-			fail(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
+			setupFailed(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
 		}
 		if (!g_walkExhausted) {
-			fail(legName(g_leg), "an exhausted search machine did not report NO_FURTHER_FILES_THIS_DIRECTION");
+			setupFailed(legName(g_leg), "an exhausted search machine did not report NO_FURTHER_FILES_THIS_DIRECTION");
 		}
 		if (tierIo != 0) {
-			fail(legName(g_leg), "the preset search machine did card I/O on the interaction tier");
+			setupFailed(legName(g_leg), "the preset search machine did card I/O on the interaction tier");
 		}
 		if (g_walkTicks == 0) {
-			fail(legName(g_leg), "the preset search machine never suspended, so its tier leg proves nothing");
+			setupFailed(legName(g_leg), "the preset search machine never suspended, so its tier leg proves nothing");
 		}
 		nextLeg();
 		break;
@@ -2848,10 +2877,10 @@ void checkBlankBoot() {
 	const bool isDefault =
 	    instrument != nullptr && instrument->type == OutputType::SYNTH && instrument->name == kDefaultSynthName;
 	const int32_t walks = LoadInstrumentPresetUI::presetAcquisitionsRun();
-	printf("BS-BOOT default=%d walks=%d outputs=%d ticks=%d\n", isDefault ? 1 : 0, walks, countOutputs(), g_waitTicks);
+	printf("BS-BOOT default=%d walks=%d outputs=%d ticks=%d\n", isDefault ? 1 : 0, walks, countOutputs(),
+	       g_wait.ticks());
 	if (!isDefault || walks != 1) {
-		printf("BS-BOOT FAIL the boot song did not start on the default synth and ask for a preset exactly once\n");
-		g_failures++;
+		g_report.fail("BS-BOOT the boot song did not start on the default synth and ask for a preset exactly once");
 	}
 }
 
@@ -2862,21 +2891,19 @@ void checkBlankClear() {
 	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_blankReadsBefore;
 	if (g_leg == Leg::BlankClear) {
 		printf("BS-CLEAR name=%s bound=%d reads=%d outputs=%d ticks=%d\n", name.c_str(), blankBound() ? 1 : 0, reads,
-		       countOutputs(), g_waitTicks);
+		       countOutputs(), g_wait.ticks());
 		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1) {
-			printf("BS-CLEAR FAIL a cleared song did not land on a SYNTHS preset staged by InstrumentLoad\n");
-			g_failures++;
+			g_report.fail("BS-CLEAR a cleared song did not land on a SYNTHS preset staged by InstrumentLoad");
 		}
 		return;
 	}
 	const int32_t orphans = orphanedParamManagers();
 	const int32_t outputs = countOutputs();
 	printf("BS-EDITED name=%s edited=%d orphans=%d outputs=%d ticks=%d\n", name.c_str(), g_blankEdited ? 1 : 0, orphans,
-	       outputs, g_waitTicks);
+	       outputs, g_wait.ticks());
 	if (name != kDefaultSynthName || !g_blankEdited || orphans != 0 || outputs != 1) {
-		printf("BS-EDITED FAIL a preset was swapped over an edited default synth, or something of it was left "
-		       "behind\n");
-		g_failures++;
+		g_report.fail("BS-EDITED a preset was swapped over an edited default synth, or something of it was left "
+		              "behind");
 	}
 }
 
@@ -2886,21 +2913,23 @@ void runBlankTick() {
 	switch (g_blankStep) {
 	case BlankStep::Prepare:
 		if (g_leg == Leg::BlankBoot) {
-			g_waitTicks = 0;
+			startWait("the boot song's preset arriving", kMaxLegTicks);
 			g_blankStep = BlankStep::Wait;
 			break;
 		}
 		// The stall legs leave the loader holding, and a clear needs it moving again with nothing of theirs in flight.
 		deluge_audio_load_set_latency_ms(0);
-		if (deluge::gui::instrumentLoad.inFlight()) {
-			if (++g_waitTicks > kMaxStallTicks) {
-				fail(legName(g_leg), "a load from an earlier leg never ended");
-				nextLeg();
-			}
+		switch (g_wait.poll(!deluge::gui::instrumentLoad.inFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_blankStep = BlankStep::Act;
+			break;
+		case WaitState::Expired:
+			probeExpired();
+			nextLeg();
 			break;
 		}
-		g_waitTicks = 0;
-		g_blankStep = BlankStep::Act;
 		break;
 	case BlankStep::Act:
 		g_blankRunsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
@@ -2914,7 +2943,7 @@ void runBlankTick() {
 		}
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		printf("PL-PROBE leg=%s cleared=1\n", legName(g_leg));
-		g_waitTicks = 0;
+		startWait("the cleared song's preset arriving", kMaxLegTicks);
 		g_blankStep = BlankStep::Wait;
 		break;
 	case BlankStep::Wait: {
@@ -2931,10 +2960,13 @@ void runBlankTick() {
 			}
 		}
 		const bool acquired = LoadInstrumentPresetUI::presetAcquisitionsRun() > g_blankRunsBefore;
-		const bool settled = acquired || g_waitTicks > kBlankSettleTicks;
+		const bool settled = acquired || g_wait.ticks() > kBlankSettleTicks;
 		const bool ready = (g_leg == Leg::BlankBoot) || cleared;
 		const bool ended = ready && settled && !deluge::gui::instrumentLoad.inFlight();
-		if (ended || ++g_waitTicks > kMaxLegTicks) {
+		switch (g_wait.poll(ended)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			if (g_leg == Leg::BlankBoot) {
 				checkBlankBoot();
 			}
@@ -2942,6 +2974,11 @@ void runBlankTick() {
 				checkBlankClear();
 			}
 			nextLeg();
+			break;
+		case WaitState::Expired:
+			probeExpired();
+			nextLeg();
+			break;
 		}
 		break;
 	}
@@ -2956,12 +2993,12 @@ void nextLeg() {
 	g_step = Step::Prepare;
 	g_aqStep = AqStep::Prepare;
 	g_blankStep = BlankStep::Prepare;
-	g_waitTicks = 0;
+	startWait("a load from an earlier leg ending", kMaxStallTicks);
 }
 
 void runTick() {
 	if (g_leg == Leg::Done) {
-		printf("PL-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		return;
@@ -2984,7 +3021,7 @@ void runTick() {
 		g_step = Step::Open;
 		break;
 	case Step::Open:
-		g_waitTicks = 0;
+		startWait("a browser listing finishing", kMaxListingTicks);
 		g_step = openLeg() ? Step::Listing : Step::Prepare;
 		if (g_step == Step::Prepare) {
 			nextLeg();
@@ -2995,12 +3032,15 @@ void runTick() {
 		if (g_leg == Leg::Supersede && static_cast<Instrument*>(g_kitClip->output)->name == kHeavyName) {
 			g_heavySwapped = true;
 		}
-		if (listingBusy()) {
-			if (++g_waitTicks > kMaxListingTicks) {
-				fail(legName(g_leg), "a browser listing never finished");
-				nextLeg();
-			}
+		switch (g_wait.poll(!listingBusy())) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			probeExpired();
+			nextLeg();
+			return;
 		}
 		if (g_step == Step::Listing) {
 			g_step = Step::Select;
@@ -3010,22 +3050,24 @@ void runTick() {
 		       loadInstrumentPresetUI.getCurrentFileItem() != nullptr
 		           ? loadInstrumentPresetUI.getCurrentFileItem()->filename.c_str()
 		           : "");
-		g_waitTicks = 0;
+		startWait("the selection's scroll-load finishing", kMaxLegTicks);
 		g_step = actsWithoutSettling() ? Step::Act : Step::Settle;
 		break;
 	case Step::Settle:
 		// The load the selection started, left to finish as a user waits for it before pressing anything: a
 		// scroll-load still in flight would otherwise land after the leg's own load.
-		if (g_leg == Leg::Supersede ? markTier().sampleLoads == g_heavyLoadsBefore
-		                            : loadInstrumentPresetUI.scrollLoadInFlight()) {
-			if (++g_waitTicks > kMaxLegTicks) {
-				fail(legName(g_leg), "the selection's scroll-load never finished");
-				nextLeg();
-			}
+		switch (g_wait.poll(!(g_leg == Leg::Supersede ? markTier().sampleLoads == g_heavyLoadsBefore
+		                                              : loadInstrumentPresetUI.scrollLoadInFlight()))) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			probeExpired();
+			nextLeg();
+			return;
 		}
-		printf("PL-PROBE leg=%s settled ticks=%d\n", legName(g_leg), g_waitTicks);
-		g_waitTicks = 0;
+		printf("PL-PROBE leg=%s settled ticks=%d\n", legName(g_leg), g_wait.ticks());
 		g_step = Step::Act;
 		break;
 	case Step::Select:
@@ -3049,12 +3091,13 @@ void runTick() {
 		else {
 			(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, legPreset());
 		}
-		g_waitTicks = 0;
+		startWait("a browser listing finishing", kMaxListingTicks);
 		g_step = Step::SelectWait;
 		break;
 	case Step::Act:
 		actLeg();
-		g_waitTicks = 0;
+		startWait("the leg's load ending",
+		          (g_leg == Leg::Stall || g_leg == Leg::RevertStall) ? kMaxStallTicks : kMaxLegTicks);
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
@@ -3070,10 +3113,17 @@ void runTick() {
 		if (isRevertLeg(g_leg)) {
 			tickRevert();
 		}
-		if (legEnded()
-		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RevertStall) ? kMaxStallTicks : kMaxLegTicks)) {
+		switch (g_wait.poll(legEnded())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			checkLeg();
 			nextLeg();
+			break;
+		case WaitState::Expired:
+			probeExpired();
+			nextLeg();
+			break;
 		}
 		break;
 	}
@@ -3090,8 +3140,8 @@ void deluge_scenario_preset_load_begin(void) {
 	g_blankStep = BlankStep::Prepare;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
+	startWait("a load from an earlier leg ending", kMaxStallTicks);
 	g_synth = nullptr;
 	g_synthClip = nullptr;
 	g_kitClip = nullptr;
@@ -3122,7 +3172,7 @@ bool deluge_scenario_preset_load_step_done(void) {
 }
 
 int32_t deluge_scenario_preset_load_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -1,0 +1,61 @@
+# The audio-load A/B scenario's card (audio_load_ab_scenario.cpp). Every file is load-bearing:
+#
+# - SAMPLES/BOTH.WAV is in the regular directory and in SAMPLES/ALT, with a different length and fill in each, so a
+#   wrong candidate order moves the geometry, the recorded path and the stream fingerprint together.
+# - SAMPLES/BOTH2.WAV has the same shape but is asked for after the alternate directory is probed, with both
+#   candidates live (BOTH.WAV's request carries one). It is the file that tests the candidate order itself.
+# - SAMPLES/ONLYALT.WAV is only in SAMPLES/ALT: the probe must find it, and its regular-path miss promotes the load's
+#   alternate-dir status for every later case.
+# - SAMPLES/ONLYREG.WAV and SAMPLES/STEREO24.WAV come after that promotion and see the changed try order;
+#   STEREO24.WAV (2 channels, 24-bit) differs in both fields compared first.
+# - SAMPLES/BADREG.WAV is garbage at the regular path with a good copy in SAMPLES/ALT, asked for while the alternate
+#   dir is unprobed. A parse verdict is not a miss: the load must fail as FILE_UNSUPPORTED without trying the
+#   alternate.
+# - SAMPLES/GARBAGE.WAV opens and fails to parse; SAMPLES/EMPTY.WAV is empty; SAMPLES/MISSING.WAV is never written.
+#   The backings must fail with the same Error, not merely both fail.
+# - SAMPLES/ALT/SELFDIR.WAV sits inside the alternate directory, the one shape where the bare-name alternate
+#   candidate equals the regular path, so "an alternate won" must be decided by candidate position.
+# - SAMPLES/PREVIEW.WAV is previewed once and must then load and draw with only per-tick calls driving it.
+# - SAMPLES/CANCEL.WAV is asked for and abandoned before its load runs, and must never load or draw.
+# - SAMPLES/STALL.WAV is previewed while the loader holds every load past the browser's bound; the preview must give
+#   up without loading or drawing it.
+# - SAMPLES/DRAWSTALL.WAV is previewed while the streaming loader holds every cluster fill; the redraw must give up.
+# - SAMPLES/SWAP.WAV, SWAPB.WAV and WITNESS.WAV serve the card-ejection stage (below).
+wav SAMPLES/BOTH.WAV ch=1 bits=16 bytes=2048 fill=0x11
+wav SAMPLES/ALT/BOTH.WAV ch=1 bits=16 bytes=4096 fill=0x22
+wav SAMPLES/ALT/ONLYALT.WAV ch=1 bits=16 bytes=1536 fill=0x33
+wav SAMPLES/BOTH2.WAV ch=1 bits=16 bytes=1792 fill=0x66
+wav SAMPLES/ALT/BOTH2.WAV ch=1 bits=16 bytes=3584 fill=0x77
+wav SAMPLES/ONLYREG.WAV ch=1 bits=16 bytes=2560 fill=0x44
+wav SAMPLES/STEREO24.WAV ch=2 bits=24 bytes=3072 fill=0x55
+# The nested case: three locations, three lengths. Only a nested regular path makes the flattened alternate
+# candidate (ALT/KIT_SNARE.WAV) and the bare-name one (ALT/SNARE.WAV) distinct.
+wav SAMPLES/KIT/SNARE.WAV ch=1 bits=16 bytes=1024 fill=0x88
+wav SAMPLES/ALT/KIT_SNARE.WAV ch=1 bits=16 bytes=2304 fill=0x99
+wav SAMPLES/ALT/SNARE.WAV ch=1 bits=16 bytes=3072 fill=0xAA
+# The self-directory case (selfdir in audio_load_ab_scenario.cpp's kCases). There is deliberately no flattened
+# ALT/ALT_SELFDIR.WAV: that candidate must miss so the ambiguous bare-name one wins.
+wav SAMPLES/ALT/SELFDIR.WAV ch=1 bits=16 bytes=1280 fill=0xBB
+# kPreviewPath: asked for by no case above, so it is not resident when the stage begins and its load goes through
+# the loader.
+wav SAMPLES/PREVIEW.WAV ch=1 bits=16 bytes=2816 fill=0xCC
+# kCancelPath: loadable on purpose, so "nothing loaded or drew it" cannot pass because the file could not load.
+wav SAMPLES/CANCEL.WAV ch=1 bits=16 bytes=3328 fill=0xDD
+# kStallPath: loadable, for the same reason as CANCEL.WAV.
+wav SAMPLES/STALL.WAV ch=1 bits=16 bytes=3840 fill=0xDE
+# The preview-draw stall file: six 32 KB clusters, so each view column covers less than two and reads its cluster
+# directly, which a held fill leaves non-resident. At 16 clusters or more each column spans whole clusters, which the
+# draw takes from the overview without waiting.
+wav SAMPLES/DRAWSTALL.WAV ch=1 bits=16 bytes=196608 fill=0xDF
+# The card-ejection stage (kSwapPath): the loader parses SWAP.WAV before the ejection; SWAPB.WAV, the "other card's"
+# file, is moved onto its path once the card is marked gone. They differ in every asserted field, so a header parsed
+# from one and applied to the other cannot pass. WITNESS.WAV is queued behind SWAP.WAV, so its completion tells the
+# stage SWAP.WAV's result is published.
+wav SAMPLES/SWAP.WAV ch=1 bits=16 bytes=2048 fill=0xE1
+wav SAMPLES/SWAPB.WAV ch=2 bits=24 bytes=6144 fill=0xE2
+wav SAMPLES/WITNESS.WAV ch=1 bits=16 bytes=1536 fill=0xE3
+raw SAMPLES/BADREG.WAV bytes=512 fill=0x7E
+wav SAMPLES/ALT/BADREG.WAV ch=1 bits=16 bytes=2048 fill=0xBB
+raw SAMPLES/GARBAGE.WAV bytes=512 fill=0x7E
+# A third failure shape: the file opens and there is nothing in it.
+raw SAMPLES/EMPTY.WAV bytes=0 fill=0

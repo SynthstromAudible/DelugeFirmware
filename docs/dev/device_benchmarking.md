@@ -27,11 +27,11 @@ script runs on the real Deluge with nobody at it:
 1. Build it: `tools/bench_image.py --out harness.elf --no-bench --features rig-harness`. The feature is never in
    a shipping image; its images link with a 96 KiB SRAM heap floor instead of 100 KiB.
 2. Check it boots: `tools/device_check.py harness.elf --expect-harness`.
-3. Compare it with delugemu: `tools/device_parity.py --emu-ref <elf> --device harness.elf --sd <the rig's card>
-   scripts…`. It reads the rig's settings sector for delugemu's starting flash (read only), runs delugemu in
-   parallel and the device one script at a time, and prints emu_parity's MATCH/DIFF lines. With
-   `--record-only` there is no delugemu side; scripts with `midi` steps (sent with `amidi` on the probe host,
-   `--midi-port`) need it.
+3. Compare it with delugemu: `tools/device_parity.py --emu-ref <elf> --device harness.elf scripts…` (the card is the one
+   the scripts' headers name; `--card`/`--sd` names another); `./dbt test ui-device` and `ui-device-record` run the
+   device scripts this way. It reads the rig's settings sector for delugemu's starting flash (read only), runs delugemu
+   in parallel and the device one script at a time, and prints emu_parity's MATCH/DIFF lines. With `--record-only` there
+   is no delugemu side; scripts with `midi` steps (sent with `amidi` on the probe host, `--midi-port`) need it.
 
 The protocol: the device prints numbered `@` lines between its log lines on RTT channel 0 (the OLED, pad
 columns, LEDs, gold rings, flashes and PIC settings as the app sent them; `peripherals/rig_harness/wire.rs`)

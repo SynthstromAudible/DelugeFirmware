@@ -17,6 +17,9 @@
 
 #pragma once
 
+// Relative: sim/scenes_spec includes this header with only the tests/ root on its include path, not tests/integration.
+#include "integration/scenarios/support/scenario_declare.h"
+
 #include <cstdint>
 #include <cstdio>
 
@@ -37,8 +40,8 @@ class Song;
 ///     DRV_DIRECT if set, both go straight to the process's stdout and stderr as printed, so they survive a crash
 ///
 /// It runs once, in one interaction-tier step, and the scenario then prints `DRV-EXIT code=<n>`: the value its main
-/// returned, which is the exit status of its process. tests/golden/driver.py turns a run back into that
-/// process's exit status, stdout and stderr, which is what the runners in tests/golden compare.
+/// returned, which is the exit status of its process. tests/integration/corpus/driver.py turns a run back into that
+/// process's exit status, stdout and stderr, which is what the runners in tests/integration/corpus compare.
 ///
 /// A driver loads and saves songs of its own beside the booted one, and sets currentSong to them as it goes. The step
 /// restores currentSong, the serialization format and the sample clock afterwards, so the render
@@ -72,9 +75,10 @@ long saveSongCapture(Song& song, char* buf, uint32_t cap);
 
 } // namespace deluge::scenarios::driver
 
-/// The five functions of a driver scenario named @p name, running @p mainFn. Their declarations are in
-/// scenarios/drivers/driver_scenarios.h.
+/// The five functions of a driver scenario named @p name, running @p mainFn. Declared through DELUGE_SCENARIO_DECLARE,
+/// as the table declares them.
 #define DELUGE_DRIVER_SCENARIO(name, mainFn)                                                                           \
+	DELUGE_SCENARIO_DECLARE(name);                                                                                     \
 	extern "C" void deluge_scenario_##name##_begin(void) {                                                             \
 		deluge::scenarios::driver::begin();                                                                            \
 	}                                                                                                                  \

@@ -1,0 +1,2222 @@
+# MIDI follow: channel A = channel 1, feedback on channel A, display param on (settings, from song view).
+# Then every CC 0..122 at two values into the synth clip, a kit row, a kit with affect-entire and the song, and the
+# mod knobs' feedback on each. Snapshots carry the popups and the DIN MIDI the image sent back.
+# card: content/bare.img
+100     button Session down
+220     button Session up
+1470    button Shift down
+1720    button SelectEnc down
+1840    button SelectEnc up
+2090    button Shift up
+2340    encoder Select +5
+2590    button SelectEnc down
+2710    button SelectEnc up
+2960    encoder Select +1
+3210    button SelectEnc down
+3330    button SelectEnc up
+3580    encoder Select +3
+3830    button SelectEnc down
+3950    button SelectEnc up
+4200    encoder Select -4
+4450    button SelectEnc down
+4570    button SelectEnc up
+4820    button SelectEnc down
+4940    button SelectEnc up
+5190    encoder Select +2
+5440    snapshot channel_a
+6440    button Back down
+6560    button Back up
+6810    button Back down
+6930    button Back up
+7180    encoder Select +2
+7430    button SelectEnc down
+7550    button SelectEnc up
+7800    button SelectEnc down
+7920    button SelectEnc up
+8170    encoder Select +1
+8420    snapshot feedback_a
+9420    button Back down
+9540    button Back up
+9790    button Back down
+9910    button Back up
+10160   button Back down
+10280   button Back up
+10530   button Back down
+10650   button Back up
+10900   button Back down
+11020   button Back up
+11270   snapshot settings_closed
+12270   button Clip down
+12390   button Clip up
+13640   cc 1 0 100
+13890   snapshot synth_cc0_100
+14890   cc 1 0 20
+15140   snapshot synth_cc0_20
+16140   cc 1 1 100
+16390   snapshot synth_cc1_100
+17390   cc 1 1 20
+17640   snapshot synth_cc1_20
+18640   cc 1 2 100
+18890   snapshot synth_cc2_100
+19890   cc 1 2 20
+20140   snapshot synth_cc2_20
+21140   cc 1 3 100
+21390   snapshot synth_cc3_100
+22390   cc 1 3 20
+22640   snapshot synth_cc3_20
+23640   cc 1 4 100
+23890   snapshot synth_cc4_100
+24890   cc 1 4 20
+25140   snapshot synth_cc4_20
+26140   cc 1 5 100
+26390   snapshot synth_cc5_100
+27390   cc 1 5 20
+27640   snapshot synth_cc5_20
+28640   cc 1 6 100
+28890   snapshot synth_cc6_100
+29890   cc 1 6 20
+30140   snapshot synth_cc6_20
+31140   cc 1 7 100
+31390   snapshot synth_cc7_100
+32390   cc 1 7 20
+32640   snapshot synth_cc7_20
+33640   cc 1 8 100
+33890   snapshot synth_cc8_100
+34890   cc 1 8 20
+35140   snapshot synth_cc8_20
+36140   cc 1 9 100
+36390   snapshot synth_cc9_100
+37390   cc 1 9 20
+37640   snapshot synth_cc9_20
+38640   cc 1 10 100
+38890   snapshot synth_cc10_100
+39890   cc 1 10 20
+40140   snapshot synth_cc10_20
+41140   cc 1 11 100
+41390   snapshot synth_cc11_100
+42390   cc 1 11 20
+42640   snapshot synth_cc11_20
+43640   cc 1 12 100
+43890   snapshot synth_cc12_100
+44890   cc 1 12 20
+45140   snapshot synth_cc12_20
+46140   cc 1 13 100
+46390   snapshot synth_cc13_100
+47390   cc 1 13 20
+47640   snapshot synth_cc13_20
+48640   cc 1 14 100
+48890   snapshot synth_cc14_100
+49890   cc 1 14 20
+50140   snapshot synth_cc14_20
+51140   cc 1 15 100
+51390   snapshot synth_cc15_100
+52390   cc 1 15 20
+52640   snapshot synth_cc15_20
+53640   cc 1 16 100
+53890   snapshot synth_cc16_100
+54890   cc 1 16 20
+55140   snapshot synth_cc16_20
+56140   cc 1 17 100
+56390   snapshot synth_cc17_100
+57390   cc 1 17 20
+57640   snapshot synth_cc17_20
+58640   cc 1 18 100
+58890   snapshot synth_cc18_100
+59890   cc 1 18 20
+60140   snapshot synth_cc18_20
+61140   cc 1 19 100
+61390   snapshot synth_cc19_100
+62390   cc 1 19 20
+62640   snapshot synth_cc19_20
+63640   cc 1 20 100
+63890   snapshot synth_cc20_100
+64890   cc 1 20 20
+65140   snapshot synth_cc20_20
+66140   cc 1 21 100
+66390   snapshot synth_cc21_100
+67390   cc 1 21 20
+67640   snapshot synth_cc21_20
+68640   cc 1 22 100
+68890   snapshot synth_cc22_100
+69890   cc 1 22 20
+70140   snapshot synth_cc22_20
+71140   cc 1 23 100
+71390   snapshot synth_cc23_100
+72390   cc 1 23 20
+72640   snapshot synth_cc23_20
+73640   cc 1 24 100
+73890   snapshot synth_cc24_100
+74890   cc 1 24 20
+75140   snapshot synth_cc24_20
+76140   cc 1 25 100
+76390   snapshot synth_cc25_100
+77390   cc 1 25 20
+77640   snapshot synth_cc25_20
+78640   cc 1 26 100
+78890   snapshot synth_cc26_100
+79890   cc 1 26 20
+80140   snapshot synth_cc26_20
+81140   cc 1 27 100
+81390   snapshot synth_cc27_100
+82390   cc 1 27 20
+82640   snapshot synth_cc27_20
+83640   cc 1 28 100
+83890   snapshot synth_cc28_100
+84890   cc 1 28 20
+85140   snapshot synth_cc28_20
+86140   cc 1 29 100
+86390   snapshot synth_cc29_100
+87390   cc 1 29 20
+87640   snapshot synth_cc29_20
+88640   cc 1 30 100
+88890   snapshot synth_cc30_100
+89890   cc 1 30 20
+90140   snapshot synth_cc30_20
+91140   cc 1 31 100
+91390   snapshot synth_cc31_100
+92390   cc 1 31 20
+92640   snapshot synth_cc31_20
+93640   cc 1 32 100
+93890   snapshot synth_cc32_100
+94890   cc 1 32 20
+95140   snapshot synth_cc32_20
+96140   cc 1 33 100
+96390   snapshot synth_cc33_100
+97390   cc 1 33 20
+97640   snapshot synth_cc33_20
+98640   cc 1 34 100
+98890   snapshot synth_cc34_100
+99890   cc 1 34 20
+100140  snapshot synth_cc34_20
+101140  cc 1 35 100
+101390  snapshot synth_cc35_100
+102390  cc 1 35 20
+102640  snapshot synth_cc35_20
+103640  cc 1 36 100
+103890  snapshot synth_cc36_100
+104890  cc 1 36 20
+105140  snapshot synth_cc36_20
+106140  cc 1 37 100
+106390  snapshot synth_cc37_100
+107390  cc 1 37 20
+107640  snapshot synth_cc37_20
+108640  cc 1 38 100
+108890  snapshot synth_cc38_100
+109890  cc 1 38 20
+110140  snapshot synth_cc38_20
+111140  cc 1 39 100
+111390  snapshot synth_cc39_100
+112390  cc 1 39 20
+112640  snapshot synth_cc39_20
+113640  cc 1 40 100
+113890  snapshot synth_cc40_100
+114890  cc 1 40 20
+115140  snapshot synth_cc40_20
+116140  cc 1 41 100
+116390  snapshot synth_cc41_100
+117390  cc 1 41 20
+117640  snapshot synth_cc41_20
+118640  cc 1 42 100
+118890  snapshot synth_cc42_100
+119890  cc 1 42 20
+120140  snapshot synth_cc42_20
+121140  cc 1 43 100
+121390  snapshot synth_cc43_100
+122390  cc 1 43 20
+122640  snapshot synth_cc43_20
+123640  cc 1 44 100
+123890  snapshot synth_cc44_100
+124890  cc 1 44 20
+125140  snapshot synth_cc44_20
+126140  cc 1 45 100
+126390  snapshot synth_cc45_100
+127390  cc 1 45 20
+127640  snapshot synth_cc45_20
+128640  cc 1 46 100
+128890  snapshot synth_cc46_100
+129890  cc 1 46 20
+130140  snapshot synth_cc46_20
+131140  cc 1 47 100
+131390  snapshot synth_cc47_100
+132390  cc 1 47 20
+132640  snapshot synth_cc47_20
+133640  cc 1 48 100
+133890  snapshot synth_cc48_100
+134890  cc 1 48 20
+135140  snapshot synth_cc48_20
+136140  cc 1 49 100
+136390  snapshot synth_cc49_100
+137390  cc 1 49 20
+137640  snapshot synth_cc49_20
+138640  cc 1 50 100
+138890  snapshot synth_cc50_100
+139890  cc 1 50 20
+140140  snapshot synth_cc50_20
+141140  cc 1 51 100
+141390  snapshot synth_cc51_100
+142390  cc 1 51 20
+142640  snapshot synth_cc51_20
+143640  cc 1 52 100
+143890  snapshot synth_cc52_100
+144890  cc 1 52 20
+145140  snapshot synth_cc52_20
+146140  cc 1 53 100
+146390  snapshot synth_cc53_100
+147390  cc 1 53 20
+147640  snapshot synth_cc53_20
+148640  cc 1 54 100
+148890  snapshot synth_cc54_100
+149890  cc 1 54 20
+150140  snapshot synth_cc54_20
+151140  cc 1 55 100
+151390  snapshot synth_cc55_100
+152390  cc 1 55 20
+152640  snapshot synth_cc55_20
+153640  cc 1 56 100
+153890  snapshot synth_cc56_100
+154890  cc 1 56 20
+155140  snapshot synth_cc56_20
+156140  cc 1 57 100
+156390  snapshot synth_cc57_100
+157390  cc 1 57 20
+157640  snapshot synth_cc57_20
+158640  cc 1 58 100
+158890  snapshot synth_cc58_100
+159890  cc 1 58 20
+160140  snapshot synth_cc58_20
+161140  cc 1 59 100
+161390  snapshot synth_cc59_100
+162390  cc 1 59 20
+162640  snapshot synth_cc59_20
+163640  cc 1 60 100
+163890  snapshot synth_cc60_100
+164890  cc 1 60 20
+165140  snapshot synth_cc60_20
+166140  cc 1 61 100
+166390  snapshot synth_cc61_100
+167390  cc 1 61 20
+167640  snapshot synth_cc61_20
+168640  cc 1 62 100
+168890  snapshot synth_cc62_100
+169890  cc 1 62 20
+170140  snapshot synth_cc62_20
+171140  cc 1 63 100
+171390  snapshot synth_cc63_100
+172390  cc 1 63 20
+172640  snapshot synth_cc63_20
+173640  cc 1 64 100
+173890  snapshot synth_cc64_100
+174890  cc 1 64 20
+175140  snapshot synth_cc64_20
+176140  cc 1 65 100
+176390  snapshot synth_cc65_100
+177390  cc 1 65 20
+177640  snapshot synth_cc65_20
+178640  cc 1 66 100
+178890  snapshot synth_cc66_100
+179890  cc 1 66 20
+180140  snapshot synth_cc66_20
+181140  cc 1 67 100
+181390  snapshot synth_cc67_100
+182390  cc 1 67 20
+182640  snapshot synth_cc67_20
+183640  cc 1 68 100
+183890  snapshot synth_cc68_100
+184890  cc 1 68 20
+185140  snapshot synth_cc68_20
+186140  cc 1 69 100
+186390  snapshot synth_cc69_100
+187390  cc 1 69 20
+187640  snapshot synth_cc69_20
+188640  cc 1 70 100
+188890  snapshot synth_cc70_100
+189890  cc 1 70 20
+190140  snapshot synth_cc70_20
+191140  cc 1 71 100
+191390  snapshot synth_cc71_100
+192390  cc 1 71 20
+192640  snapshot synth_cc71_20
+193640  cc 1 72 100
+193890  snapshot synth_cc72_100
+194890  cc 1 72 20
+195140  snapshot synth_cc72_20
+196140  cc 1 73 100
+196390  snapshot synth_cc73_100
+197390  cc 1 73 20
+197640  snapshot synth_cc73_20
+198640  cc 1 74 100
+198890  snapshot synth_cc74_100
+199890  cc 1 74 20
+200140  snapshot synth_cc74_20
+201140  cc 1 75 100
+201390  snapshot synth_cc75_100
+202390  cc 1 75 20
+202640  snapshot synth_cc75_20
+203640  cc 1 76 100
+203890  snapshot synth_cc76_100
+204890  cc 1 76 20
+205140  snapshot synth_cc76_20
+206140  cc 1 77 100
+206390  snapshot synth_cc77_100
+207390  cc 1 77 20
+207640  snapshot synth_cc77_20
+208640  cc 1 78 100
+208890  snapshot synth_cc78_100
+209890  cc 1 78 20
+210140  snapshot synth_cc78_20
+211140  cc 1 79 100
+211390  snapshot synth_cc79_100
+212390  cc 1 79 20
+212640  snapshot synth_cc79_20
+213640  cc 1 80 100
+213890  snapshot synth_cc80_100
+214890  cc 1 80 20
+215140  snapshot synth_cc80_20
+216140  cc 1 81 100
+216390  snapshot synth_cc81_100
+217390  cc 1 81 20
+217640  snapshot synth_cc81_20
+218640  cc 1 82 100
+218890  snapshot synth_cc82_100
+219890  cc 1 82 20
+220140  snapshot synth_cc82_20
+221140  cc 1 83 100
+221390  snapshot synth_cc83_100
+222390  cc 1 83 20
+222640  snapshot synth_cc83_20
+223640  cc 1 84 100
+223890  snapshot synth_cc84_100
+224890  cc 1 84 20
+225140  snapshot synth_cc84_20
+226140  cc 1 85 100
+226390  snapshot synth_cc85_100
+227390  cc 1 85 20
+227640  snapshot synth_cc85_20
+228640  cc 1 86 100
+228890  snapshot synth_cc86_100
+229890  cc 1 86 20
+230140  snapshot synth_cc86_20
+231140  cc 1 87 100
+231390  snapshot synth_cc87_100
+232390  cc 1 87 20
+232640  snapshot synth_cc87_20
+233640  cc 1 88 100
+233890  snapshot synth_cc88_100
+234890  cc 1 88 20
+235140  snapshot synth_cc88_20
+236140  cc 1 89 100
+236390  snapshot synth_cc89_100
+237390  cc 1 89 20
+237640  snapshot synth_cc89_20
+238640  cc 1 90 100
+238890  snapshot synth_cc90_100
+239890  cc 1 90 20
+240140  snapshot synth_cc90_20
+241140  cc 1 91 100
+241390  snapshot synth_cc91_100
+242390  cc 1 91 20
+242640  snapshot synth_cc91_20
+243640  cc 1 92 100
+243890  snapshot synth_cc92_100
+244890  cc 1 92 20
+245140  snapshot synth_cc92_20
+246140  cc 1 93 100
+246390  snapshot synth_cc93_100
+247390  cc 1 93 20
+247640  snapshot synth_cc93_20
+248640  cc 1 94 100
+248890  snapshot synth_cc94_100
+249890  cc 1 94 20
+250140  snapshot synth_cc94_20
+251140  cc 1 95 100
+251390  snapshot synth_cc95_100
+252390  cc 1 95 20
+252640  snapshot synth_cc95_20
+253640  cc 1 96 100
+253890  snapshot synth_cc96_100
+254890  cc 1 96 20
+255140  snapshot synth_cc96_20
+256140  cc 1 97 100
+256390  snapshot synth_cc97_100
+257390  cc 1 97 20
+257640  snapshot synth_cc97_20
+258640  cc 1 98 100
+258890  snapshot synth_cc98_100
+259890  cc 1 98 20
+260140  snapshot synth_cc98_20
+261140  cc 1 99 100
+261390  snapshot synth_cc99_100
+262390  cc 1 99 20
+262640  snapshot synth_cc99_20
+263640  cc 1 100 100
+263890  snapshot synth_cc100_100
+264890  cc 1 100 20
+265140  snapshot synth_cc100_20
+266140  cc 1 101 100
+266390  snapshot synth_cc101_100
+267390  cc 1 101 20
+267640  snapshot synth_cc101_20
+268640  cc 1 102 100
+268890  snapshot synth_cc102_100
+269890  cc 1 102 20
+270140  snapshot synth_cc102_20
+271140  cc 1 103 100
+271390  snapshot synth_cc103_100
+272390  cc 1 103 20
+272640  snapshot synth_cc103_20
+273640  cc 1 104 100
+273890  snapshot synth_cc104_100
+274890  cc 1 104 20
+275140  snapshot synth_cc104_20
+276140  cc 1 105 100
+276390  snapshot synth_cc105_100
+277390  cc 1 105 20
+277640  snapshot synth_cc105_20
+278640  cc 1 106 100
+278890  snapshot synth_cc106_100
+279890  cc 1 106 20
+280140  snapshot synth_cc106_20
+281140  cc 1 107 100
+281390  snapshot synth_cc107_100
+282390  cc 1 107 20
+282640  snapshot synth_cc107_20
+283640  cc 1 108 100
+283890  snapshot synth_cc108_100
+284890  cc 1 108 20
+285140  snapshot synth_cc108_20
+286140  cc 1 109 100
+286390  snapshot synth_cc109_100
+287390  cc 1 109 20
+287640  snapshot synth_cc109_20
+288640  cc 1 110 100
+288890  snapshot synth_cc110_100
+289890  cc 1 110 20
+290140  snapshot synth_cc110_20
+291140  cc 1 111 100
+291390  snapshot synth_cc111_100
+292390  cc 1 111 20
+292640  snapshot synth_cc111_20
+293640  cc 1 112 100
+293890  snapshot synth_cc112_100
+294890  cc 1 112 20
+295140  snapshot synth_cc112_20
+296140  cc 1 113 100
+296390  snapshot synth_cc113_100
+297390  cc 1 113 20
+297640  snapshot synth_cc113_20
+298640  cc 1 114 100
+298890  snapshot synth_cc114_100
+299890  cc 1 114 20
+300140  snapshot synth_cc114_20
+301140  cc 1 115 100
+301390  snapshot synth_cc115_100
+302390  cc 1 115 20
+302640  snapshot synth_cc115_20
+303640  cc 1 116 100
+303890  snapshot synth_cc116_100
+304890  cc 1 116 20
+305140  snapshot synth_cc116_20
+306140  cc 1 117 100
+306390  snapshot synth_cc117_100
+307390  cc 1 117 20
+307640  snapshot synth_cc117_20
+308640  cc 1 118 100
+308890  snapshot synth_cc118_100
+309890  cc 1 118 20
+310140  snapshot synth_cc118_20
+311140  cc 1 119 100
+311390  snapshot synth_cc119_100
+312390  cc 1 119 20
+312640  snapshot synth_cc119_20
+313640  cc 1 120 100
+313890  snapshot synth_cc120_100
+314890  cc 1 120 20
+315140  snapshot synth_cc120_20
+316140  cc 1 121 100
+316390  snapshot synth_cc121_100
+317390  cc 1 121 20
+317640  snapshot synth_cc121_20
+318640  cc 1 122 100
+318890  snapshot synth_cc122_100
+319890  cc 1 122 20
+320140  snapshot synth_cc122_20
+321140  button Mod0 down
+321260  button Mod0 up
+321510  encoder GoldUpper +1
+321760  snapshot synth_mod0_upper
+322760  encoder GoldLower +1
+323010  snapshot synth_mod0_lower
+324010  button Mod1 down
+324130  button Mod1 up
+324380  encoder GoldUpper +1
+324630  snapshot synth_mod1_upper
+325630  encoder GoldLower +1
+325880  snapshot synth_mod1_lower
+326880  button Mod2 down
+327000  button Mod2 up
+327250  encoder GoldUpper +1
+327500  snapshot synth_mod2_upper
+328500  encoder GoldLower +1
+328750  snapshot synth_mod2_lower
+329750  button Mod3 down
+329870  button Mod3 up
+330120  encoder GoldUpper +1
+330370  snapshot synth_mod3_upper
+331370  encoder GoldLower +1
+331620  snapshot synth_mod3_lower
+332620  button Mod4 down
+332740  button Mod4 up
+332990  encoder GoldUpper +1
+333240  snapshot synth_mod4_upper
+334240  encoder GoldLower +1
+334490  snapshot synth_mod4_lower
+335490  button Mod5 down
+335610  button Mod5 up
+335860  encoder GoldUpper +1
+336110  snapshot synth_mod5_upper
+337110  encoder GoldLower +1
+337360  snapshot synth_mod5_lower
+338360  button Mod6 down
+338480  button Mod6 up
+338730  encoder GoldUpper +1
+338980  snapshot synth_mod6_upper
+339980  encoder GoldLower +1
+340230  snapshot synth_mod6_lower
+341230  button Mod7 down
+341350  button Mod7 up
+341600  encoder GoldUpper +1
+341850  snapshot synth_mod7_upper
+342850  encoder GoldLower +1
+343100  snapshot synth_mod7_lower
+344100  button Kit down
+344220  button Kit up
+346470  encoder Select +1
+# the selected drum's audition pad shows its row's random colour
+350720  random_colour 17 0
+350720  pad 17 0 down
+350840  pad 17 0 up
+351090  cc 1 0 100
+351340  snapshot row_cc0_100
+352340  cc 1 0 20
+352590  snapshot row_cc0_20
+353590  cc 1 1 100
+353840  snapshot row_cc1_100
+354840  cc 1 1 20
+355090  snapshot row_cc1_20
+356090  cc 1 2 100
+356340  snapshot row_cc2_100
+357340  cc 1 2 20
+357590  snapshot row_cc2_20
+358590  cc 1 3 100
+358840  snapshot row_cc3_100
+359840  cc 1 3 20
+360090  snapshot row_cc3_20
+361090  cc 1 4 100
+361340  snapshot row_cc4_100
+362340  cc 1 4 20
+362590  snapshot row_cc4_20
+363590  cc 1 5 100
+363840  snapshot row_cc5_100
+364840  cc 1 5 20
+365090  snapshot row_cc5_20
+366090  cc 1 6 100
+366340  snapshot row_cc6_100
+367340  cc 1 6 20
+367590  snapshot row_cc6_20
+368590  cc 1 7 100
+368840  snapshot row_cc7_100
+369840  cc 1 7 20
+370090  snapshot row_cc7_20
+371090  cc 1 8 100
+371340  snapshot row_cc8_100
+372340  cc 1 8 20
+372590  snapshot row_cc8_20
+373590  cc 1 9 100
+373840  snapshot row_cc9_100
+374840  cc 1 9 20
+375090  snapshot row_cc9_20
+376090  cc 1 10 100
+376340  snapshot row_cc10_100
+377340  cc 1 10 20
+377590  snapshot row_cc10_20
+378590  cc 1 11 100
+378840  snapshot row_cc11_100
+379840  cc 1 11 20
+380090  snapshot row_cc11_20
+381090  cc 1 12 100
+381340  snapshot row_cc12_100
+382340  cc 1 12 20
+382590  snapshot row_cc12_20
+383590  cc 1 13 100
+383840  snapshot row_cc13_100
+384840  cc 1 13 20
+385090  snapshot row_cc13_20
+386090  cc 1 14 100
+386340  snapshot row_cc14_100
+387340  cc 1 14 20
+387590  snapshot row_cc14_20
+388590  cc 1 15 100
+388840  snapshot row_cc15_100
+389840  cc 1 15 20
+390090  snapshot row_cc15_20
+391090  cc 1 16 100
+391340  snapshot row_cc16_100
+392340  cc 1 16 20
+392590  snapshot row_cc16_20
+393590  cc 1 17 100
+393840  snapshot row_cc17_100
+394840  cc 1 17 20
+395090  snapshot row_cc17_20
+396090  cc 1 18 100
+396340  snapshot row_cc18_100
+397340  cc 1 18 20
+397590  snapshot row_cc18_20
+398590  cc 1 19 100
+398840  snapshot row_cc19_100
+399840  cc 1 19 20
+400090  snapshot row_cc19_20
+401090  cc 1 20 100
+401340  snapshot row_cc20_100
+402340  cc 1 20 20
+402590  snapshot row_cc20_20
+403590  cc 1 21 100
+403840  snapshot row_cc21_100
+404840  cc 1 21 20
+405090  snapshot row_cc21_20
+406090  cc 1 22 100
+406340  snapshot row_cc22_100
+407340  cc 1 22 20
+407590  snapshot row_cc22_20
+408590  cc 1 23 100
+408840  snapshot row_cc23_100
+409840  cc 1 23 20
+410090  snapshot row_cc23_20
+411090  cc 1 24 100
+411340  snapshot row_cc24_100
+412340  cc 1 24 20
+412590  snapshot row_cc24_20
+413590  cc 1 25 100
+413840  snapshot row_cc25_100
+414840  cc 1 25 20
+415090  snapshot row_cc25_20
+416090  cc 1 26 100
+416340  snapshot row_cc26_100
+417340  cc 1 26 20
+417590  snapshot row_cc26_20
+418590  cc 1 27 100
+418840  snapshot row_cc27_100
+419840  cc 1 27 20
+420090  snapshot row_cc27_20
+421090  cc 1 28 100
+421340  snapshot row_cc28_100
+422340  cc 1 28 20
+422590  snapshot row_cc28_20
+423590  cc 1 29 100
+423840  snapshot row_cc29_100
+424840  cc 1 29 20
+425090  snapshot row_cc29_20
+426090  cc 1 30 100
+426340  snapshot row_cc30_100
+427340  cc 1 30 20
+427590  snapshot row_cc30_20
+428590  cc 1 31 100
+428840  snapshot row_cc31_100
+429840  cc 1 31 20
+430090  snapshot row_cc31_20
+431090  cc 1 32 100
+431340  snapshot row_cc32_100
+432340  cc 1 32 20
+432590  snapshot row_cc32_20
+433590  cc 1 33 100
+433840  snapshot row_cc33_100
+434840  cc 1 33 20
+435090  snapshot row_cc33_20
+436090  cc 1 34 100
+436340  snapshot row_cc34_100
+437340  cc 1 34 20
+437590  snapshot row_cc34_20
+438590  cc 1 35 100
+438840  snapshot row_cc35_100
+439840  cc 1 35 20
+440090  snapshot row_cc35_20
+441090  cc 1 36 100
+441340  snapshot row_cc36_100
+442340  cc 1 36 20
+442590  snapshot row_cc36_20
+443590  cc 1 37 100
+443840  snapshot row_cc37_100
+444840  cc 1 37 20
+445090  snapshot row_cc37_20
+446090  cc 1 38 100
+446340  snapshot row_cc38_100
+447340  cc 1 38 20
+447590  snapshot row_cc38_20
+448590  cc 1 39 100
+448840  snapshot row_cc39_100
+449840  cc 1 39 20
+450090  snapshot row_cc39_20
+451090  cc 1 40 100
+451340  snapshot row_cc40_100
+452340  cc 1 40 20
+452590  snapshot row_cc40_20
+453590  cc 1 41 100
+453840  snapshot row_cc41_100
+454840  cc 1 41 20
+455090  snapshot row_cc41_20
+456090  cc 1 42 100
+456340  snapshot row_cc42_100
+457340  cc 1 42 20
+457590  snapshot row_cc42_20
+458590  cc 1 43 100
+458840  snapshot row_cc43_100
+459840  cc 1 43 20
+460090  snapshot row_cc43_20
+461090  cc 1 44 100
+461340  snapshot row_cc44_100
+462340  cc 1 44 20
+462590  snapshot row_cc44_20
+463590  cc 1 45 100
+463840  snapshot row_cc45_100
+464840  cc 1 45 20
+465090  snapshot row_cc45_20
+466090  cc 1 46 100
+466340  snapshot row_cc46_100
+467340  cc 1 46 20
+467590  snapshot row_cc46_20
+468590  cc 1 47 100
+468840  snapshot row_cc47_100
+469840  cc 1 47 20
+470090  snapshot row_cc47_20
+471090  cc 1 48 100
+471340  snapshot row_cc48_100
+472340  cc 1 48 20
+472590  snapshot row_cc48_20
+473590  cc 1 49 100
+473840  snapshot row_cc49_100
+474840  cc 1 49 20
+475090  snapshot row_cc49_20
+476090  cc 1 50 100
+476340  snapshot row_cc50_100
+477340  cc 1 50 20
+477590  snapshot row_cc50_20
+478590  cc 1 51 100
+478840  snapshot row_cc51_100
+479840  cc 1 51 20
+480090  snapshot row_cc51_20
+481090  cc 1 52 100
+481340  snapshot row_cc52_100
+482340  cc 1 52 20
+482590  snapshot row_cc52_20
+483590  cc 1 53 100
+483840  snapshot row_cc53_100
+484840  cc 1 53 20
+485090  snapshot row_cc53_20
+486090  cc 1 54 100
+486340  snapshot row_cc54_100
+487340  cc 1 54 20
+487590  snapshot row_cc54_20
+488590  cc 1 55 100
+488840  snapshot row_cc55_100
+489840  cc 1 55 20
+490090  snapshot row_cc55_20
+491090  cc 1 56 100
+491340  snapshot row_cc56_100
+492340  cc 1 56 20
+492590  snapshot row_cc56_20
+493590  cc 1 57 100
+493840  snapshot row_cc57_100
+494840  cc 1 57 20
+495090  snapshot row_cc57_20
+496090  cc 1 58 100
+496340  snapshot row_cc58_100
+497340  cc 1 58 20
+497590  snapshot row_cc58_20
+498590  cc 1 59 100
+498840  snapshot row_cc59_100
+499840  cc 1 59 20
+500090  snapshot row_cc59_20
+501090  cc 1 60 100
+501340  snapshot row_cc60_100
+502340  cc 1 60 20
+502590  snapshot row_cc60_20
+503590  cc 1 61 100
+503840  snapshot row_cc61_100
+504840  cc 1 61 20
+505090  snapshot row_cc61_20
+506090  cc 1 62 100
+506340  snapshot row_cc62_100
+507340  cc 1 62 20
+507590  snapshot row_cc62_20
+508590  cc 1 63 100
+508840  snapshot row_cc63_100
+509840  cc 1 63 20
+510090  snapshot row_cc63_20
+511090  cc 1 64 100
+511340  snapshot row_cc64_100
+512340  cc 1 64 20
+512590  snapshot row_cc64_20
+513590  cc 1 65 100
+513840  snapshot row_cc65_100
+514840  cc 1 65 20
+515090  snapshot row_cc65_20
+516090  cc 1 66 100
+516340  snapshot row_cc66_100
+517340  cc 1 66 20
+517590  snapshot row_cc66_20
+518590  cc 1 67 100
+518840  snapshot row_cc67_100
+519840  cc 1 67 20
+520090  snapshot row_cc67_20
+521090  cc 1 68 100
+521340  snapshot row_cc68_100
+522340  cc 1 68 20
+522590  snapshot row_cc68_20
+523590  cc 1 69 100
+523840  snapshot row_cc69_100
+524840  cc 1 69 20
+525090  snapshot row_cc69_20
+526090  cc 1 70 100
+526340  snapshot row_cc70_100
+527340  cc 1 70 20
+527590  snapshot row_cc70_20
+528590  cc 1 71 100
+528840  snapshot row_cc71_100
+529840  cc 1 71 20
+530090  snapshot row_cc71_20
+531090  cc 1 72 100
+531340  snapshot row_cc72_100
+532340  cc 1 72 20
+532590  snapshot row_cc72_20
+533590  cc 1 73 100
+533840  snapshot row_cc73_100
+534840  cc 1 73 20
+535090  snapshot row_cc73_20
+536090  cc 1 74 100
+536340  snapshot row_cc74_100
+537340  cc 1 74 20
+537590  snapshot row_cc74_20
+538590  cc 1 75 100
+538840  snapshot row_cc75_100
+539840  cc 1 75 20
+540090  snapshot row_cc75_20
+541090  cc 1 76 100
+541340  snapshot row_cc76_100
+542340  cc 1 76 20
+542590  snapshot row_cc76_20
+543590  cc 1 77 100
+543840  snapshot row_cc77_100
+544840  cc 1 77 20
+545090  snapshot row_cc77_20
+546090  cc 1 78 100
+546340  snapshot row_cc78_100
+547340  cc 1 78 20
+547590  snapshot row_cc78_20
+548590  cc 1 79 100
+548840  snapshot row_cc79_100
+549840  cc 1 79 20
+550090  snapshot row_cc79_20
+551090  cc 1 80 100
+551340  snapshot row_cc80_100
+552340  cc 1 80 20
+552590  snapshot row_cc80_20
+553590  cc 1 81 100
+553840  snapshot row_cc81_100
+554840  cc 1 81 20
+555090  snapshot row_cc81_20
+556090  cc 1 82 100
+556340  snapshot row_cc82_100
+557340  cc 1 82 20
+557590  snapshot row_cc82_20
+558590  cc 1 83 100
+558840  snapshot row_cc83_100
+559840  cc 1 83 20
+560090  snapshot row_cc83_20
+561090  cc 1 84 100
+561340  snapshot row_cc84_100
+562340  cc 1 84 20
+562590  snapshot row_cc84_20
+563590  cc 1 85 100
+563840  snapshot row_cc85_100
+564840  cc 1 85 20
+565090  snapshot row_cc85_20
+566090  cc 1 86 100
+566340  snapshot row_cc86_100
+567340  cc 1 86 20
+567590  snapshot row_cc86_20
+568590  cc 1 87 100
+568840  snapshot row_cc87_100
+569840  cc 1 87 20
+570090  snapshot row_cc87_20
+571090  cc 1 88 100
+571340  snapshot row_cc88_100
+572340  cc 1 88 20
+572590  snapshot row_cc88_20
+573590  cc 1 89 100
+573840  snapshot row_cc89_100
+574840  cc 1 89 20
+575090  snapshot row_cc89_20
+576090  cc 1 90 100
+576340  snapshot row_cc90_100
+577340  cc 1 90 20
+577590  snapshot row_cc90_20
+578590  cc 1 91 100
+578840  snapshot row_cc91_100
+579840  cc 1 91 20
+580090  snapshot row_cc91_20
+581090  cc 1 92 100
+581340  snapshot row_cc92_100
+582340  cc 1 92 20
+582590  snapshot row_cc92_20
+583590  cc 1 93 100
+583840  snapshot row_cc93_100
+584840  cc 1 93 20
+585090  snapshot row_cc93_20
+586090  cc 1 94 100
+586340  snapshot row_cc94_100
+587340  cc 1 94 20
+587590  snapshot row_cc94_20
+588590  cc 1 95 100
+588840  snapshot row_cc95_100
+589840  cc 1 95 20
+590090  snapshot row_cc95_20
+591090  cc 1 96 100
+591340  snapshot row_cc96_100
+592340  cc 1 96 20
+592590  snapshot row_cc96_20
+593590  cc 1 97 100
+593840  snapshot row_cc97_100
+594840  cc 1 97 20
+595090  snapshot row_cc97_20
+596090  cc 1 98 100
+596340  snapshot row_cc98_100
+597340  cc 1 98 20
+597590  snapshot row_cc98_20
+598590  cc 1 99 100
+598840  snapshot row_cc99_100
+599840  cc 1 99 20
+600090  snapshot row_cc99_20
+601090  cc 1 100 100
+601340  snapshot row_cc100_100
+602340  cc 1 100 20
+602590  snapshot row_cc100_20
+603590  cc 1 101 100
+603840  snapshot row_cc101_100
+604840  cc 1 101 20
+605090  snapshot row_cc101_20
+606090  cc 1 102 100
+606340  snapshot row_cc102_100
+607340  cc 1 102 20
+607590  snapshot row_cc102_20
+608590  cc 1 103 100
+608840  snapshot row_cc103_100
+609840  cc 1 103 20
+610090  snapshot row_cc103_20
+611090  cc 1 104 100
+611340  snapshot row_cc104_100
+612340  cc 1 104 20
+612590  snapshot row_cc104_20
+613590  cc 1 105 100
+613840  snapshot row_cc105_100
+614840  cc 1 105 20
+615090  snapshot row_cc105_20
+616090  cc 1 106 100
+616340  snapshot row_cc106_100
+617340  cc 1 106 20
+617590  snapshot row_cc106_20
+618590  cc 1 107 100
+618840  snapshot row_cc107_100
+619840  cc 1 107 20
+620090  snapshot row_cc107_20
+621090  cc 1 108 100
+621340  snapshot row_cc108_100
+622340  cc 1 108 20
+622590  snapshot row_cc108_20
+623590  cc 1 109 100
+623840  snapshot row_cc109_100
+624840  cc 1 109 20
+625090  snapshot row_cc109_20
+626090  cc 1 110 100
+626340  snapshot row_cc110_100
+627340  cc 1 110 20
+627590  snapshot row_cc110_20
+628590  cc 1 111 100
+628840  snapshot row_cc111_100
+629840  cc 1 111 20
+630090  snapshot row_cc111_20
+631090  cc 1 112 100
+631340  snapshot row_cc112_100
+632340  cc 1 112 20
+632590  snapshot row_cc112_20
+633590  cc 1 113 100
+633840  snapshot row_cc113_100
+634840  cc 1 113 20
+635090  snapshot row_cc113_20
+636090  cc 1 114 100
+636340  snapshot row_cc114_100
+637340  cc 1 114 20
+637590  snapshot row_cc114_20
+638590  cc 1 115 100
+638840  snapshot row_cc115_100
+639840  cc 1 115 20
+640090  snapshot row_cc115_20
+641090  cc 1 116 100
+641340  snapshot row_cc116_100
+642340  cc 1 116 20
+642590  snapshot row_cc116_20
+643590  cc 1 117 100
+643840  snapshot row_cc117_100
+644840  cc 1 117 20
+645090  snapshot row_cc117_20
+646090  cc 1 118 100
+646340  snapshot row_cc118_100
+647340  cc 1 118 20
+647590  snapshot row_cc118_20
+648590  cc 1 119 100
+648840  snapshot row_cc119_100
+649840  cc 1 119 20
+650090  snapshot row_cc119_20
+651090  cc 1 120 100
+651340  snapshot row_cc120_100
+652340  cc 1 120 20
+652590  snapshot row_cc120_20
+653590  cc 1 121 100
+653840  snapshot row_cc121_100
+654840  cc 1 121 20
+655090  snapshot row_cc121_20
+656090  cc 1 122 100
+656340  snapshot row_cc122_100
+657340  cc 1 122 20
+657590  snapshot row_cc122_20
+658590  button Mod0 down
+658710  button Mod0 up
+658960  encoder GoldUpper +1
+659210  snapshot row_mod0_upper
+660210  encoder GoldLower +1
+660460  snapshot row_mod0_lower
+661460  button Mod1 down
+661580  button Mod1 up
+661830  encoder GoldUpper +1
+662080  snapshot row_mod1_upper
+663080  encoder GoldLower +1
+663330  snapshot row_mod1_lower
+664330  button Mod2 down
+664450  button Mod2 up
+664700  encoder GoldUpper +1
+664950  snapshot row_mod2_upper
+665950  encoder GoldLower +1
+666200  snapshot row_mod2_lower
+667200  button Mod3 down
+667320  button Mod3 up
+667570  encoder GoldUpper +1
+667820  snapshot row_mod3_upper
+668820  encoder GoldLower +1
+669070  snapshot row_mod3_lower
+670070  button Mod4 down
+670190  button Mod4 up
+670440  encoder GoldUpper +1
+670690  snapshot row_mod4_upper
+671690  encoder GoldLower +1
+671940  snapshot row_mod4_lower
+672940  button Mod5 down
+673060  button Mod5 up
+673310  encoder GoldUpper +1
+673560  snapshot row_mod5_upper
+674560  encoder GoldLower +1
+674810  snapshot row_mod5_lower
+675810  button Mod6 down
+675930  button Mod6 up
+676180  encoder GoldUpper +1
+676430  snapshot row_mod6_upper
+677430  encoder GoldLower +1
+677680  snapshot row_mod6_lower
+678680  button Mod7 down
+678800  button Mod7 up
+679050  encoder GoldUpper +1
+679300  snapshot row_mod7_upper
+680300  encoder GoldLower +1
+680550  snapshot row_mod7_lower
+681550  button AffectEntire down
+681670  button AffectEntire up
+681920  cc 1 0 100
+682170  snapshot entire_cc0_100
+683170  cc 1 0 20
+683420  snapshot entire_cc0_20
+684420  cc 1 1 100
+684670  snapshot entire_cc1_100
+685670  cc 1 1 20
+685920  snapshot entire_cc1_20
+686920  cc 1 2 100
+687170  snapshot entire_cc2_100
+688170  cc 1 2 20
+688420  snapshot entire_cc2_20
+689420  cc 1 3 100
+689670  snapshot entire_cc3_100
+690670  cc 1 3 20
+690920  snapshot entire_cc3_20
+691920  cc 1 4 100
+692170  snapshot entire_cc4_100
+693170  cc 1 4 20
+693420  snapshot entire_cc4_20
+694420  cc 1 5 100
+694670  snapshot entire_cc5_100
+695670  cc 1 5 20
+695920  snapshot entire_cc5_20
+696920  cc 1 6 100
+697170  snapshot entire_cc6_100
+698170  cc 1 6 20
+698420  snapshot entire_cc6_20
+699420  cc 1 7 100
+699670  snapshot entire_cc7_100
+700670  cc 1 7 20
+700920  snapshot entire_cc7_20
+701920  cc 1 8 100
+702170  snapshot entire_cc8_100
+703170  cc 1 8 20
+703420  snapshot entire_cc8_20
+704420  cc 1 9 100
+704670  snapshot entire_cc9_100
+705670  cc 1 9 20
+705920  snapshot entire_cc9_20
+706920  cc 1 10 100
+707170  snapshot entire_cc10_100
+708170  cc 1 10 20
+708420  snapshot entire_cc10_20
+709420  cc 1 11 100
+709670  snapshot entire_cc11_100
+710670  cc 1 11 20
+710920  snapshot entire_cc11_20
+711920  cc 1 12 100
+712170  snapshot entire_cc12_100
+713170  cc 1 12 20
+713420  snapshot entire_cc12_20
+714420  cc 1 13 100
+714670  snapshot entire_cc13_100
+715670  cc 1 13 20
+715920  snapshot entire_cc13_20
+716920  cc 1 14 100
+717170  snapshot entire_cc14_100
+718170  cc 1 14 20
+718420  snapshot entire_cc14_20
+719420  cc 1 15 100
+719670  snapshot entire_cc15_100
+720670  cc 1 15 20
+720920  snapshot entire_cc15_20
+721920  cc 1 16 100
+722170  snapshot entire_cc16_100
+723170  cc 1 16 20
+723420  snapshot entire_cc16_20
+724420  cc 1 17 100
+724670  snapshot entire_cc17_100
+725670  cc 1 17 20
+725920  snapshot entire_cc17_20
+726920  cc 1 18 100
+727170  snapshot entire_cc18_100
+728170  cc 1 18 20
+728420  snapshot entire_cc18_20
+729420  cc 1 19 100
+729670  snapshot entire_cc19_100
+730670  cc 1 19 20
+730920  snapshot entire_cc19_20
+731920  cc 1 20 100
+732170  snapshot entire_cc20_100
+733170  cc 1 20 20
+733420  snapshot entire_cc20_20
+734420  cc 1 21 100
+734670  snapshot entire_cc21_100
+735670  cc 1 21 20
+735920  snapshot entire_cc21_20
+736920  cc 1 22 100
+737170  snapshot entire_cc22_100
+738170  cc 1 22 20
+738420  snapshot entire_cc22_20
+739420  cc 1 23 100
+739670  snapshot entire_cc23_100
+740670  cc 1 23 20
+740920  snapshot entire_cc23_20
+741920  cc 1 24 100
+742170  snapshot entire_cc24_100
+743170  cc 1 24 20
+743420  snapshot entire_cc24_20
+744420  cc 1 25 100
+744670  snapshot entire_cc25_100
+745670  cc 1 25 20
+745920  snapshot entire_cc25_20
+746920  cc 1 26 100
+747170  snapshot entire_cc26_100
+748170  cc 1 26 20
+748420  snapshot entire_cc26_20
+749420  cc 1 27 100
+749670  snapshot entire_cc27_100
+750670  cc 1 27 20
+750920  snapshot entire_cc27_20
+751920  cc 1 28 100
+752170  snapshot entire_cc28_100
+753170  cc 1 28 20
+753420  snapshot entire_cc28_20
+754420  cc 1 29 100
+754670  snapshot entire_cc29_100
+755670  cc 1 29 20
+755920  snapshot entire_cc29_20
+756920  cc 1 30 100
+757170  snapshot entire_cc30_100
+758170  cc 1 30 20
+758420  snapshot entire_cc30_20
+759420  cc 1 31 100
+759670  snapshot entire_cc31_100
+760670  cc 1 31 20
+760920  snapshot entire_cc31_20
+761920  cc 1 32 100
+762170  snapshot entire_cc32_100
+763170  cc 1 32 20
+763420  snapshot entire_cc32_20
+764420  cc 1 33 100
+764670  snapshot entire_cc33_100
+765670  cc 1 33 20
+765920  snapshot entire_cc33_20
+766920  cc 1 34 100
+767170  snapshot entire_cc34_100
+768170  cc 1 34 20
+768420  snapshot entire_cc34_20
+769420  cc 1 35 100
+769670  snapshot entire_cc35_100
+770670  cc 1 35 20
+770920  snapshot entire_cc35_20
+771920  cc 1 36 100
+772170  snapshot entire_cc36_100
+773170  cc 1 36 20
+773420  snapshot entire_cc36_20
+774420  cc 1 37 100
+774670  snapshot entire_cc37_100
+775670  cc 1 37 20
+775920  snapshot entire_cc37_20
+776920  cc 1 38 100
+777170  snapshot entire_cc38_100
+778170  cc 1 38 20
+778420  snapshot entire_cc38_20
+779420  cc 1 39 100
+779670  snapshot entire_cc39_100
+780670  cc 1 39 20
+780920  snapshot entire_cc39_20
+781920  cc 1 40 100
+782170  snapshot entire_cc40_100
+783170  cc 1 40 20
+783420  snapshot entire_cc40_20
+784420  cc 1 41 100
+784670  snapshot entire_cc41_100
+785670  cc 1 41 20
+785920  snapshot entire_cc41_20
+786920  cc 1 42 100
+787170  snapshot entire_cc42_100
+788170  cc 1 42 20
+788420  snapshot entire_cc42_20
+789420  cc 1 43 100
+789670  snapshot entire_cc43_100
+790670  cc 1 43 20
+790920  snapshot entire_cc43_20
+791920  cc 1 44 100
+792170  snapshot entire_cc44_100
+793170  cc 1 44 20
+793420  snapshot entire_cc44_20
+794420  cc 1 45 100
+794670  snapshot entire_cc45_100
+795670  cc 1 45 20
+795920  snapshot entire_cc45_20
+796920  cc 1 46 100
+797170  snapshot entire_cc46_100
+798170  cc 1 46 20
+798420  snapshot entire_cc46_20
+799420  cc 1 47 100
+799670  snapshot entire_cc47_100
+800670  cc 1 47 20
+800920  snapshot entire_cc47_20
+801920  cc 1 48 100
+802170  snapshot entire_cc48_100
+803170  cc 1 48 20
+803420  snapshot entire_cc48_20
+804420  cc 1 49 100
+804670  snapshot entire_cc49_100
+805670  cc 1 49 20
+805920  snapshot entire_cc49_20
+806920  cc 1 50 100
+807170  snapshot entire_cc50_100
+808170  cc 1 50 20
+808420  snapshot entire_cc50_20
+809420  cc 1 51 100
+809670  snapshot entire_cc51_100
+810670  cc 1 51 20
+810920  snapshot entire_cc51_20
+811920  cc 1 52 100
+812170  snapshot entire_cc52_100
+813170  cc 1 52 20
+813420  snapshot entire_cc52_20
+814420  cc 1 53 100
+814670  snapshot entire_cc53_100
+815670  cc 1 53 20
+815920  snapshot entire_cc53_20
+816920  cc 1 54 100
+817170  snapshot entire_cc54_100
+818170  cc 1 54 20
+818420  snapshot entire_cc54_20
+819420  cc 1 55 100
+819670  snapshot entire_cc55_100
+820670  cc 1 55 20
+820920  snapshot entire_cc55_20
+821920  cc 1 56 100
+822170  snapshot entire_cc56_100
+823170  cc 1 56 20
+823420  snapshot entire_cc56_20
+824420  cc 1 57 100
+824670  snapshot entire_cc57_100
+825670  cc 1 57 20
+825920  snapshot entire_cc57_20
+826920  cc 1 58 100
+827170  snapshot entire_cc58_100
+828170  cc 1 58 20
+828420  snapshot entire_cc58_20
+829420  cc 1 59 100
+829670  snapshot entire_cc59_100
+830670  cc 1 59 20
+830920  snapshot entire_cc59_20
+831920  cc 1 60 100
+832170  snapshot entire_cc60_100
+833170  cc 1 60 20
+833420  snapshot entire_cc60_20
+834420  cc 1 61 100
+834670  snapshot entire_cc61_100
+835670  cc 1 61 20
+835920  snapshot entire_cc61_20
+836920  cc 1 62 100
+837170  snapshot entire_cc62_100
+838170  cc 1 62 20
+838420  snapshot entire_cc62_20
+839420  cc 1 63 100
+839670  snapshot entire_cc63_100
+840670  cc 1 63 20
+840920  snapshot entire_cc63_20
+841920  cc 1 64 100
+842170  snapshot entire_cc64_100
+843170  cc 1 64 20
+843420  snapshot entire_cc64_20
+844420  cc 1 65 100
+844670  snapshot entire_cc65_100
+845670  cc 1 65 20
+845920  snapshot entire_cc65_20
+846920  cc 1 66 100
+847170  snapshot entire_cc66_100
+848170  cc 1 66 20
+848420  snapshot entire_cc66_20
+849420  cc 1 67 100
+849670  snapshot entire_cc67_100
+850670  cc 1 67 20
+850920  snapshot entire_cc67_20
+851920  cc 1 68 100
+852170  snapshot entire_cc68_100
+853170  cc 1 68 20
+853420  snapshot entire_cc68_20
+854420  cc 1 69 100
+854670  snapshot entire_cc69_100
+855670  cc 1 69 20
+855920  snapshot entire_cc69_20
+856920  cc 1 70 100
+857170  snapshot entire_cc70_100
+858170  cc 1 70 20
+858420  snapshot entire_cc70_20
+859420  cc 1 71 100
+859670  snapshot entire_cc71_100
+860670  cc 1 71 20
+860920  snapshot entire_cc71_20
+861920  cc 1 72 100
+862170  snapshot entire_cc72_100
+863170  cc 1 72 20
+863420  snapshot entire_cc72_20
+864420  cc 1 73 100
+864670  snapshot entire_cc73_100
+865670  cc 1 73 20
+865920  snapshot entire_cc73_20
+866920  cc 1 74 100
+867170  snapshot entire_cc74_100
+868170  cc 1 74 20
+868420  snapshot entire_cc74_20
+869420  cc 1 75 100
+869670  snapshot entire_cc75_100
+870670  cc 1 75 20
+870920  snapshot entire_cc75_20
+871920  cc 1 76 100
+872170  snapshot entire_cc76_100
+873170  cc 1 76 20
+873420  snapshot entire_cc76_20
+874420  cc 1 77 100
+874670  snapshot entire_cc77_100
+875670  cc 1 77 20
+875920  snapshot entire_cc77_20
+876920  cc 1 78 100
+877170  snapshot entire_cc78_100
+878170  cc 1 78 20
+878420  snapshot entire_cc78_20
+879420  cc 1 79 100
+879670  snapshot entire_cc79_100
+880670  cc 1 79 20
+880920  snapshot entire_cc79_20
+881920  cc 1 80 100
+882170  snapshot entire_cc80_100
+883170  cc 1 80 20
+883420  snapshot entire_cc80_20
+884420  cc 1 81 100
+884670  snapshot entire_cc81_100
+885670  cc 1 81 20
+885920  snapshot entire_cc81_20
+886920  cc 1 82 100
+887170  snapshot entire_cc82_100
+888170  cc 1 82 20
+888420  snapshot entire_cc82_20
+889420  cc 1 83 100
+889670  snapshot entire_cc83_100
+890670  cc 1 83 20
+890920  snapshot entire_cc83_20
+891920  cc 1 84 100
+892170  snapshot entire_cc84_100
+893170  cc 1 84 20
+893420  snapshot entire_cc84_20
+894420  cc 1 85 100
+894670  snapshot entire_cc85_100
+895670  cc 1 85 20
+895920  snapshot entire_cc85_20
+896920  cc 1 86 100
+897170  snapshot entire_cc86_100
+898170  cc 1 86 20
+898420  snapshot entire_cc86_20
+899420  cc 1 87 100
+899670  snapshot entire_cc87_100
+900670  cc 1 87 20
+900920  snapshot entire_cc87_20
+901920  cc 1 88 100
+902170  snapshot entire_cc88_100
+903170  cc 1 88 20
+903420  snapshot entire_cc88_20
+904420  cc 1 89 100
+904670  snapshot entire_cc89_100
+905670  cc 1 89 20
+905920  snapshot entire_cc89_20
+906920  cc 1 90 100
+907170  snapshot entire_cc90_100
+908170  cc 1 90 20
+908420  snapshot entire_cc90_20
+909420  cc 1 91 100
+909670  snapshot entire_cc91_100
+910670  cc 1 91 20
+910920  snapshot entire_cc91_20
+911920  cc 1 92 100
+912170  snapshot entire_cc92_100
+913170  cc 1 92 20
+913420  snapshot entire_cc92_20
+914420  cc 1 93 100
+914670  snapshot entire_cc93_100
+915670  cc 1 93 20
+915920  snapshot entire_cc93_20
+916920  cc 1 94 100
+917170  snapshot entire_cc94_100
+918170  cc 1 94 20
+918420  snapshot entire_cc94_20
+919420  cc 1 95 100
+919670  snapshot entire_cc95_100
+920670  cc 1 95 20
+920920  snapshot entire_cc95_20
+921920  cc 1 96 100
+922170  snapshot entire_cc96_100
+923170  cc 1 96 20
+923420  snapshot entire_cc96_20
+924420  cc 1 97 100
+924670  snapshot entire_cc97_100
+925670  cc 1 97 20
+925920  snapshot entire_cc97_20
+926920  cc 1 98 100
+927170  snapshot entire_cc98_100
+928170  cc 1 98 20
+928420  snapshot entire_cc98_20
+929420  cc 1 99 100
+929670  snapshot entire_cc99_100
+930670  cc 1 99 20
+930920  snapshot entire_cc99_20
+931920  cc 1 100 100
+932170  snapshot entire_cc100_100
+933170  cc 1 100 20
+933420  snapshot entire_cc100_20
+934420  cc 1 101 100
+934670  snapshot entire_cc101_100
+935670  cc 1 101 20
+935920  snapshot entire_cc101_20
+936920  cc 1 102 100
+937170  snapshot entire_cc102_100
+938170  cc 1 102 20
+938420  snapshot entire_cc102_20
+939420  cc 1 103 100
+939670  snapshot entire_cc103_100
+940670  cc 1 103 20
+940920  snapshot entire_cc103_20
+941920  cc 1 104 100
+942170  snapshot entire_cc104_100
+943170  cc 1 104 20
+943420  snapshot entire_cc104_20
+944420  cc 1 105 100
+944670  snapshot entire_cc105_100
+945670  cc 1 105 20
+945920  snapshot entire_cc105_20
+946920  cc 1 106 100
+947170  snapshot entire_cc106_100
+948170  cc 1 106 20
+948420  snapshot entire_cc106_20
+949420  cc 1 107 100
+949670  snapshot entire_cc107_100
+950670  cc 1 107 20
+950920  snapshot entire_cc107_20
+951920  cc 1 108 100
+952170  snapshot entire_cc108_100
+953170  cc 1 108 20
+953420  snapshot entire_cc108_20
+954420  cc 1 109 100
+954670  snapshot entire_cc109_100
+955670  cc 1 109 20
+955920  snapshot entire_cc109_20
+956920  cc 1 110 100
+957170  snapshot entire_cc110_100
+958170  cc 1 110 20
+958420  snapshot entire_cc110_20
+959420  cc 1 111 100
+959670  snapshot entire_cc111_100
+960670  cc 1 111 20
+960920  snapshot entire_cc111_20
+961920  cc 1 112 100
+962170  snapshot entire_cc112_100
+963170  cc 1 112 20
+963420  snapshot entire_cc112_20
+964420  cc 1 113 100
+964670  snapshot entire_cc113_100
+965670  cc 1 113 20
+965920  snapshot entire_cc113_20
+966920  cc 1 114 100
+967170  snapshot entire_cc114_100
+968170  cc 1 114 20
+968420  snapshot entire_cc114_20
+969420  cc 1 115 100
+969670  snapshot entire_cc115_100
+970670  cc 1 115 20
+970920  snapshot entire_cc115_20
+971920  cc 1 116 100
+972170  snapshot entire_cc116_100
+973170  cc 1 116 20
+973420  snapshot entire_cc116_20
+974420  cc 1 117 100
+974670  snapshot entire_cc117_100
+975670  cc 1 117 20
+975920  snapshot entire_cc117_20
+976920  cc 1 118 100
+977170  snapshot entire_cc118_100
+978170  cc 1 118 20
+978420  snapshot entire_cc118_20
+979420  cc 1 119 100
+979670  snapshot entire_cc119_100
+980670  cc 1 119 20
+980920  snapshot entire_cc119_20
+981920  cc 1 120 100
+982170  snapshot entire_cc120_100
+983170  cc 1 120 20
+983420  snapshot entire_cc120_20
+984420  cc 1 121 100
+984670  snapshot entire_cc121_100
+985670  cc 1 121 20
+985920  snapshot entire_cc121_20
+986920  cc 1 122 100
+987170  snapshot entire_cc122_100
+988170  cc 1 122 20
+988420  snapshot entire_cc122_20
+989420  button Mod0 down
+989540  button Mod0 up
+989790  encoder GoldUpper +1
+990040  snapshot entire_mod0_upper
+991040  encoder GoldLower +1
+991290  snapshot entire_mod0_lower
+992290  button Mod1 down
+992410  button Mod1 up
+992660  encoder GoldUpper +1
+992910  snapshot entire_mod1_upper
+993910  encoder GoldLower +1
+994160  snapshot entire_mod1_lower
+995160  button Mod2 down
+995280  button Mod2 up
+995530  encoder GoldUpper +1
+995780  snapshot entire_mod2_upper
+996780  encoder GoldLower +1
+997030  snapshot entire_mod2_lower
+998030  button Mod3 down
+998150  button Mod3 up
+998400  encoder GoldUpper +1
+998650  snapshot entire_mod3_upper
+999650  encoder GoldLower +1
+999900  snapshot entire_mod3_lower
+1000900 button Mod4 down
+1001020 button Mod4 up
+1001270 encoder GoldUpper +1
+1001520 snapshot entire_mod4_upper
+1002520 encoder GoldLower +1
+1002770 snapshot entire_mod4_lower
+1003770 button Mod5 down
+1003890 button Mod5 up
+1004140 encoder GoldUpper +1
+1004390 snapshot entire_mod5_upper
+1005390 encoder GoldLower +1
+1005640 snapshot entire_mod5_lower
+1006640 button Mod6 down
+1006760 button Mod6 up
+1007010 encoder GoldUpper +1
+1007260 snapshot entire_mod6_upper
+1008260 encoder GoldLower +1
+1008510 snapshot entire_mod6_lower
+1009510 button Mod7 down
+1009630 button Mod7 up
+1009880 encoder GoldUpper +1
+1010130 snapshot entire_mod7_upper
+1011130 encoder GoldLower +1
+1011380 snapshot entire_mod7_lower
+1012380 button Session down
+1012500 button Session up
+1013750 cc 1 0 100
+1014000 snapshot song_cc0_100
+1015000 cc 1 0 20
+1015250 snapshot song_cc0_20
+1016250 cc 1 1 100
+1016500 snapshot song_cc1_100
+1017500 cc 1 1 20
+1017750 snapshot song_cc1_20
+1018750 cc 1 2 100
+1019000 snapshot song_cc2_100
+1020000 cc 1 2 20
+1020250 snapshot song_cc2_20
+1021250 cc 1 3 100
+1021500 snapshot song_cc3_100
+1022500 cc 1 3 20
+1022750 snapshot song_cc3_20
+1023750 cc 1 4 100
+1024000 snapshot song_cc4_100
+1025000 cc 1 4 20
+1025250 snapshot song_cc4_20
+1026250 cc 1 5 100
+1026500 snapshot song_cc5_100
+1027500 cc 1 5 20
+1027750 snapshot song_cc5_20
+1028750 cc 1 6 100
+1029000 snapshot song_cc6_100
+1030000 cc 1 6 20
+1030250 snapshot song_cc6_20
+1031250 cc 1 7 100
+1031500 snapshot song_cc7_100
+1032500 cc 1 7 20
+1032750 snapshot song_cc7_20
+1033750 cc 1 8 100
+1034000 snapshot song_cc8_100
+1035000 cc 1 8 20
+1035250 snapshot song_cc8_20
+1036250 cc 1 9 100
+1036500 snapshot song_cc9_100
+1037500 cc 1 9 20
+1037750 snapshot song_cc9_20
+1038750 cc 1 10 100
+1039000 snapshot song_cc10_100
+1040000 cc 1 10 20
+1040250 snapshot song_cc10_20
+1041250 cc 1 11 100
+1041500 snapshot song_cc11_100
+1042500 cc 1 11 20
+1042750 snapshot song_cc11_20
+1043750 cc 1 12 100
+1044000 snapshot song_cc12_100
+1045000 cc 1 12 20
+1045250 snapshot song_cc12_20
+1046250 cc 1 13 100
+1046500 snapshot song_cc13_100
+1047500 cc 1 13 20
+1047750 snapshot song_cc13_20
+1048750 cc 1 14 100
+1049000 snapshot song_cc14_100
+1050000 cc 1 14 20
+1050250 snapshot song_cc14_20
+1051250 cc 1 15 100
+1051500 snapshot song_cc15_100
+1052500 cc 1 15 20
+1052750 snapshot song_cc15_20
+1053750 cc 1 16 100
+1054000 snapshot song_cc16_100
+1055000 cc 1 16 20
+1055250 snapshot song_cc16_20
+1056250 cc 1 17 100
+1056500 snapshot song_cc17_100
+1057500 cc 1 17 20
+1057750 snapshot song_cc17_20
+1058750 cc 1 18 100
+1059000 snapshot song_cc18_100
+1060000 cc 1 18 20
+1060250 snapshot song_cc18_20
+1061250 cc 1 19 100
+1061500 snapshot song_cc19_100
+1062500 cc 1 19 20
+1062750 snapshot song_cc19_20
+1063750 cc 1 20 100
+1064000 snapshot song_cc20_100
+1065000 cc 1 20 20
+1065250 snapshot song_cc20_20
+1066250 cc 1 21 100
+1066500 snapshot song_cc21_100
+1067500 cc 1 21 20
+1067750 snapshot song_cc21_20
+1068750 cc 1 22 100
+1069000 snapshot song_cc22_100
+1070000 cc 1 22 20
+1070250 snapshot song_cc22_20
+1071250 cc 1 23 100
+1071500 snapshot song_cc23_100
+1072500 cc 1 23 20
+1072750 snapshot song_cc23_20
+1073750 cc 1 24 100
+1074000 snapshot song_cc24_100
+1075000 cc 1 24 20
+1075250 snapshot song_cc24_20
+1076250 cc 1 25 100
+1076500 snapshot song_cc25_100
+1077500 cc 1 25 20
+1077750 snapshot song_cc25_20
+1078750 cc 1 26 100
+1079000 snapshot song_cc26_100
+1080000 cc 1 26 20
+1080250 snapshot song_cc26_20
+1081250 cc 1 27 100
+1081500 snapshot song_cc27_100
+1082500 cc 1 27 20
+1082750 snapshot song_cc27_20
+1083750 cc 1 28 100
+1084000 snapshot song_cc28_100
+1085000 cc 1 28 20
+1085250 snapshot song_cc28_20
+1086250 cc 1 29 100
+1086500 snapshot song_cc29_100
+1087500 cc 1 29 20
+1087750 snapshot song_cc29_20
+1088750 cc 1 30 100
+1089000 snapshot song_cc30_100
+1090000 cc 1 30 20
+1090250 snapshot song_cc30_20
+1091250 cc 1 31 100
+1091500 snapshot song_cc31_100
+1092500 cc 1 31 20
+1092750 snapshot song_cc31_20
+1093750 cc 1 32 100
+1094000 snapshot song_cc32_100
+1095000 cc 1 32 20
+1095250 snapshot song_cc32_20
+1096250 cc 1 33 100
+1096500 snapshot song_cc33_100
+1097500 cc 1 33 20
+1097750 snapshot song_cc33_20
+1098750 cc 1 34 100
+1099000 snapshot song_cc34_100
+1100000 cc 1 34 20
+1100250 snapshot song_cc34_20
+1101250 cc 1 35 100
+1101500 snapshot song_cc35_100
+1102500 cc 1 35 20
+1102750 snapshot song_cc35_20
+1103750 cc 1 36 100
+1104000 snapshot song_cc36_100
+1105000 cc 1 36 20
+1105250 snapshot song_cc36_20
+1106250 cc 1 37 100
+1106500 snapshot song_cc37_100
+1107500 cc 1 37 20
+1107750 snapshot song_cc37_20
+1108750 cc 1 38 100
+1109000 snapshot song_cc38_100
+1110000 cc 1 38 20
+1110250 snapshot song_cc38_20
+1111250 cc 1 39 100
+1111500 snapshot song_cc39_100
+1112500 cc 1 39 20
+1112750 snapshot song_cc39_20
+1113750 cc 1 40 100
+1114000 snapshot song_cc40_100
+1115000 cc 1 40 20
+1115250 snapshot song_cc40_20
+1116250 cc 1 41 100
+1116500 snapshot song_cc41_100
+1117500 cc 1 41 20
+1117750 snapshot song_cc41_20
+1118750 cc 1 42 100
+1119000 snapshot song_cc42_100
+1120000 cc 1 42 20
+1120250 snapshot song_cc42_20
+1121250 cc 1 43 100
+1121500 snapshot song_cc43_100
+1122500 cc 1 43 20
+1122750 snapshot song_cc43_20
+1123750 cc 1 44 100
+1124000 snapshot song_cc44_100
+1125000 cc 1 44 20
+1125250 snapshot song_cc44_20
+1126250 cc 1 45 100
+1126500 snapshot song_cc45_100
+1127500 cc 1 45 20
+1127750 snapshot song_cc45_20
+1128750 cc 1 46 100
+1129000 snapshot song_cc46_100
+1130000 cc 1 46 20
+1130250 snapshot song_cc46_20
+1131250 cc 1 47 100
+1131500 snapshot song_cc47_100
+1132500 cc 1 47 20
+1132750 snapshot song_cc47_20
+1133750 cc 1 48 100
+1134000 snapshot song_cc48_100
+1135000 cc 1 48 20
+1135250 snapshot song_cc48_20
+1136250 cc 1 49 100
+1136500 snapshot song_cc49_100
+1137500 cc 1 49 20
+1137750 snapshot song_cc49_20
+1138750 cc 1 50 100
+1139000 snapshot song_cc50_100
+1140000 cc 1 50 20
+1140250 snapshot song_cc50_20
+1141250 cc 1 51 100
+1141500 snapshot song_cc51_100
+1142500 cc 1 51 20
+1142750 snapshot song_cc51_20
+1143750 cc 1 52 100
+1144000 snapshot song_cc52_100
+1145000 cc 1 52 20
+1145250 snapshot song_cc52_20
+1146250 cc 1 53 100
+1146500 snapshot song_cc53_100
+1147500 cc 1 53 20
+1147750 snapshot song_cc53_20
+1148750 cc 1 54 100
+1149000 snapshot song_cc54_100
+1150000 cc 1 54 20
+1150250 snapshot song_cc54_20
+1151250 cc 1 55 100
+1151500 snapshot song_cc55_100
+1152500 cc 1 55 20
+1152750 snapshot song_cc55_20
+1153750 cc 1 56 100
+1154000 snapshot song_cc56_100
+1155000 cc 1 56 20
+1155250 snapshot song_cc56_20
+1156250 cc 1 57 100
+1156500 snapshot song_cc57_100
+1157500 cc 1 57 20
+1157750 snapshot song_cc57_20
+1158750 cc 1 58 100
+1159000 snapshot song_cc58_100
+1160000 cc 1 58 20
+1160250 snapshot song_cc58_20
+1161250 cc 1 59 100
+1161500 snapshot song_cc59_100
+1162500 cc 1 59 20
+1162750 snapshot song_cc59_20
+1163750 cc 1 60 100
+1164000 snapshot song_cc60_100
+1165000 cc 1 60 20
+1165250 snapshot song_cc60_20
+1166250 cc 1 61 100
+1166500 snapshot song_cc61_100
+1167500 cc 1 61 20
+1167750 snapshot song_cc61_20
+1168750 cc 1 62 100
+1169000 snapshot song_cc62_100
+1170000 cc 1 62 20
+1170250 snapshot song_cc62_20
+1171250 cc 1 63 100
+1171500 snapshot song_cc63_100
+1172500 cc 1 63 20
+1172750 snapshot song_cc63_20
+1173750 cc 1 64 100
+1174000 snapshot song_cc64_100
+1175000 cc 1 64 20
+1175250 snapshot song_cc64_20
+1176250 cc 1 65 100
+1176500 snapshot song_cc65_100
+1177500 cc 1 65 20
+1177750 snapshot song_cc65_20
+1178750 cc 1 66 100
+1179000 snapshot song_cc66_100
+1180000 cc 1 66 20
+1180250 snapshot song_cc66_20
+1181250 cc 1 67 100
+1181500 snapshot song_cc67_100
+1182500 cc 1 67 20
+1182750 snapshot song_cc67_20
+1183750 cc 1 68 100
+1184000 snapshot song_cc68_100
+1185000 cc 1 68 20
+1185250 snapshot song_cc68_20
+1186250 cc 1 69 100
+1186500 snapshot song_cc69_100
+1187500 cc 1 69 20
+1187750 snapshot song_cc69_20
+1188750 cc 1 70 100
+1189000 snapshot song_cc70_100
+1190000 cc 1 70 20
+1190250 snapshot song_cc70_20
+1191250 cc 1 71 100
+1191500 snapshot song_cc71_100
+1192500 cc 1 71 20
+1192750 snapshot song_cc71_20
+1193750 cc 1 72 100
+1194000 snapshot song_cc72_100
+1195000 cc 1 72 20
+1195250 snapshot song_cc72_20
+1196250 cc 1 73 100
+1196500 snapshot song_cc73_100
+1197500 cc 1 73 20
+1197750 snapshot song_cc73_20
+1198750 cc 1 74 100
+1199000 snapshot song_cc74_100
+1200000 cc 1 74 20
+1200250 snapshot song_cc74_20
+1201250 cc 1 75 100
+1201500 snapshot song_cc75_100
+1202500 cc 1 75 20
+1202750 snapshot song_cc75_20
+1203750 cc 1 76 100
+1204000 snapshot song_cc76_100
+1205000 cc 1 76 20
+1205250 snapshot song_cc76_20
+1206250 cc 1 77 100
+1206500 snapshot song_cc77_100
+1207500 cc 1 77 20
+1207750 snapshot song_cc77_20
+1208750 cc 1 78 100
+1209000 snapshot song_cc78_100
+1210000 cc 1 78 20
+1210250 snapshot song_cc78_20
+1211250 cc 1 79 100
+1211500 snapshot song_cc79_100
+1212500 cc 1 79 20
+1212750 snapshot song_cc79_20
+1213750 cc 1 80 100
+1214000 snapshot song_cc80_100
+1215000 cc 1 80 20
+1215250 snapshot song_cc80_20
+1216250 cc 1 81 100
+1216500 snapshot song_cc81_100
+1217500 cc 1 81 20
+1217750 snapshot song_cc81_20
+1218750 cc 1 82 100
+1219000 snapshot song_cc82_100
+1220000 cc 1 82 20
+1220250 snapshot song_cc82_20
+1221250 cc 1 83 100
+1221500 snapshot song_cc83_100
+1222500 cc 1 83 20
+1222750 snapshot song_cc83_20
+1223750 cc 1 84 100
+1224000 snapshot song_cc84_100
+1225000 cc 1 84 20
+1225250 snapshot song_cc84_20
+1226250 cc 1 85 100
+1226500 snapshot song_cc85_100
+1227500 cc 1 85 20
+1227750 snapshot song_cc85_20
+1228750 cc 1 86 100
+1229000 snapshot song_cc86_100
+1230000 cc 1 86 20
+1230250 snapshot song_cc86_20
+1231250 cc 1 87 100
+1231500 snapshot song_cc87_100
+1232500 cc 1 87 20
+1232750 snapshot song_cc87_20
+1233750 cc 1 88 100
+1234000 snapshot song_cc88_100
+1235000 cc 1 88 20
+1235250 snapshot song_cc88_20
+1236250 cc 1 89 100
+1236500 snapshot song_cc89_100
+1237500 cc 1 89 20
+1237750 snapshot song_cc89_20
+1238750 cc 1 90 100
+1239000 snapshot song_cc90_100
+1240000 cc 1 90 20
+1240250 snapshot song_cc90_20
+1241250 cc 1 91 100
+1241500 snapshot song_cc91_100
+1242500 cc 1 91 20
+1242750 snapshot song_cc91_20
+1243750 cc 1 92 100
+1244000 snapshot song_cc92_100
+1245000 cc 1 92 20
+1245250 snapshot song_cc92_20
+1246250 cc 1 93 100
+1246500 snapshot song_cc93_100
+1247500 cc 1 93 20
+1247750 snapshot song_cc93_20
+1248750 cc 1 94 100
+1249000 snapshot song_cc94_100
+1250000 cc 1 94 20
+1250250 snapshot song_cc94_20
+1251250 cc 1 95 100
+1251500 snapshot song_cc95_100
+1252500 cc 1 95 20
+1252750 snapshot song_cc95_20
+1253750 cc 1 96 100
+1254000 snapshot song_cc96_100
+1255000 cc 1 96 20
+1255250 snapshot song_cc96_20
+1256250 cc 1 97 100
+1256500 snapshot song_cc97_100
+1257500 cc 1 97 20
+1257750 snapshot song_cc97_20
+1258750 cc 1 98 100
+1259000 snapshot song_cc98_100
+1260000 cc 1 98 20
+1260250 snapshot song_cc98_20
+1261250 cc 1 99 100
+1261500 snapshot song_cc99_100
+1262500 cc 1 99 20
+1262750 snapshot song_cc99_20
+1263750 cc 1 100 100
+1264000 snapshot song_cc100_100
+1265000 cc 1 100 20
+1265250 snapshot song_cc100_20
+1266250 cc 1 101 100
+1266500 snapshot song_cc101_100
+1267500 cc 1 101 20
+1267750 snapshot song_cc101_20
+1268750 cc 1 102 100
+1269000 snapshot song_cc102_100
+1270000 cc 1 102 20
+1270250 snapshot song_cc102_20
+1271250 cc 1 103 100
+1271500 snapshot song_cc103_100
+1272500 cc 1 103 20
+1272750 snapshot song_cc103_20
+1273750 cc 1 104 100
+1274000 snapshot song_cc104_100
+1275000 cc 1 104 20
+1275250 snapshot song_cc104_20
+1276250 cc 1 105 100
+1276500 snapshot song_cc105_100
+1277500 cc 1 105 20
+1277750 snapshot song_cc105_20
+1278750 cc 1 106 100
+1279000 snapshot song_cc106_100
+1280000 cc 1 106 20
+1280250 snapshot song_cc106_20
+1281250 cc 1 107 100
+1281500 snapshot song_cc107_100
+1282500 cc 1 107 20
+1282750 snapshot song_cc107_20
+1283750 cc 1 108 100
+1284000 snapshot song_cc108_100
+1285000 cc 1 108 20
+1285250 snapshot song_cc108_20
+1286250 cc 1 109 100
+1286500 snapshot song_cc109_100
+1287500 cc 1 109 20
+1287750 snapshot song_cc109_20
+1288750 cc 1 110 100
+1289000 snapshot song_cc110_100
+1290000 cc 1 110 20
+1290250 snapshot song_cc110_20
+1291250 cc 1 111 100
+1291500 snapshot song_cc111_100
+1292500 cc 1 111 20
+1292750 snapshot song_cc111_20
+1293750 cc 1 112 100
+1294000 snapshot song_cc112_100
+1295000 cc 1 112 20
+1295250 snapshot song_cc112_20
+1296250 cc 1 113 100
+1296500 snapshot song_cc113_100
+1297500 cc 1 113 20
+1297750 snapshot song_cc113_20
+1298750 cc 1 114 100
+1299000 snapshot song_cc114_100
+1300000 cc 1 114 20
+1300250 snapshot song_cc114_20
+1301250 cc 1 115 100
+1301500 snapshot song_cc115_100
+1302500 cc 1 115 20
+1302750 snapshot song_cc115_20
+1303750 cc 1 116 100
+1304000 snapshot song_cc116_100
+1305000 cc 1 116 20
+1305250 snapshot song_cc116_20
+1306250 cc 1 117 100
+1306500 snapshot song_cc117_100
+1307500 cc 1 117 20
+1307750 snapshot song_cc117_20
+1308750 cc 1 118 100
+1309000 snapshot song_cc118_100
+1310000 cc 1 118 20
+1310250 snapshot song_cc118_20
+1311250 cc 1 119 100
+1311500 snapshot song_cc119_100
+1312500 cc 1 119 20
+1312750 snapshot song_cc119_20
+1313750 cc 1 120 100
+1314000 snapshot song_cc120_100
+1315000 cc 1 120 20
+1315250 snapshot song_cc120_20
+1316250 cc 1 121 100
+1316500 snapshot song_cc121_100
+1317500 cc 1 121 20
+1317750 snapshot song_cc121_20
+1318750 cc 1 122 100
+1319000 snapshot song_cc122_100
+1320000 cc 1 122 20
+1320250 snapshot song_cc122_20
+1321250 button Mod0 down
+1321370 button Mod0 up
+1321620 encoder GoldUpper +1
+1321870 snapshot song_mod0_upper
+1322870 encoder GoldLower +1
+1323120 snapshot song_mod0_lower
+1324120 button Mod1 down
+1324240 button Mod1 up
+1324490 encoder GoldUpper +1
+1324740 snapshot song_mod1_upper
+1325740 encoder GoldLower +1
+1325990 snapshot song_mod1_lower
+1326990 button Mod2 down
+1327110 button Mod2 up
+1327360 encoder GoldUpper +1
+1327610 snapshot song_mod2_upper
+1328610 encoder GoldLower +1
+1328860 snapshot song_mod2_lower
+1329860 button Mod3 down
+1329980 button Mod3 up
+1330230 encoder GoldUpper +1
+1330480 snapshot song_mod3_upper
+1331480 encoder GoldLower +1
+1331730 snapshot song_mod3_lower
+1332730 button Mod4 down
+1332850 button Mod4 up
+1333100 encoder GoldUpper +1
+1333350 snapshot song_mod4_upper
+1334350 encoder GoldLower +1
+1334600 snapshot song_mod4_lower
+1335600 button Mod5 down
+1335720 button Mod5 up
+1335970 encoder GoldUpper +1
+1336220 snapshot song_mod5_upper
+1337220 encoder GoldLower +1
+1337470 snapshot song_mod5_lower
+1338470 button Mod6 down
+1338590 button Mod6 up
+1338840 encoder GoldUpper +1
+1339090 snapshot song_mod6_upper
+1340090 encoder GoldLower +1
+1340340 snapshot song_mod6_lower
+1341340 button Mod7 down
+1341460 button Mod7 up
+1341710 encoder GoldUpper +1
+1341960 snapshot song_mod7_upper
+1342960 encoder GoldLower +1
+1343210 snapshot song_mod7_lower
+1344210 quit

@@ -3,6 +3,7 @@
 # with a turn zooms (the slide read 50 ms in), a turn scrolls; the audition column sounds the note and the playhead
 # follows it; a vertical turn scrolls the clip view; Shift + an empty shortcut cell stays, Shift + LPF frequency
 # jumps to its page.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

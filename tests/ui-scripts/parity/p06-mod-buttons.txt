@@ -1,4 +1,6 @@
 # The eight mod buttons in the boot clip view.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Mod0 down
 320   button Mod0 up

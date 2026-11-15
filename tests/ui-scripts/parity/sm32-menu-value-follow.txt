@@ -3,6 +3,7 @@
 # learn mode the learned knob and the CC each move the frequency the menu shows, with no knob popup over it.
 # Snapshot windows end between the patching-source blink's flashes (every 800 ms from the page's opening, near
 # 1200, 2000, 2800, ... ms here), never on one: that blink's phase differs from main's by a few ms (D129).
+# card: tests/fixtures/card-shell-menu-vertical.card
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down

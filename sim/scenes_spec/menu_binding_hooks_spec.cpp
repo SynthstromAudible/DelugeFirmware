@@ -37,8 +37,8 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -48,7 +48,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -318,7 +318,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// Confirms the staging actually happened, so the assertion below cannot pass vacuously
 		// (an already-zero `edit_offset` would make `on_enter` look like it cleared something it
 		// never saw).
-		expect(menu_scene().state().tick.edit_offset != 0).to_be_true();
+		expect(menu_scene().state().tick.edit_offset).not_().to_equal(0);
 
 		menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0});
 
@@ -388,7 +388,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.turn(2, 10);
 		r.shell.tick(20);
 
-		expect(g_permit_set_calls > 0).to_be_true();
+		expect(g_permit_set_calls).to_be_greater_than(0);
 	});
 
 	it("a value_text node's post-edit notification is (name, its Notification text)", _ {
@@ -409,7 +409,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
 		    deluge::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
-		expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();
+		expect(notice.kind).to_equal(deluge::notify::Notice::Kind::Notification);
 		expect(std::string(notice.notification_title())).to_equal(expected_name);
 		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));
 	});

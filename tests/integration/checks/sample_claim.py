@@ -77,6 +77,53 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
 The registry entry requires each marker and the result line, and gives the run a 180 s virtual-time budget: three legs
 hold the loader for 30 virtual seconds each (SC-STALL, RD-STALL's randomize, IM-STALL) and the pitch legs hold the
 streaming loader on top, which is more than the runner's default 60 s covers.
+
+Gate sample-claim:
+    files claimed from the sample browser, opened through the menu's file selector and brought to the leg's file by a
+    favourite's by-path listing, must be bound by the Select encoder's claim: into the boot song's synth (a single-cycle
+    file as a wavetable from the context menu, and a stereo file offered to a wavetable oscillator as a sample instead),
+    into a kit drum (named after the file, a kick sent to side-chain), and into an audio clip (its loop length set from
+    the sample). The slicer, opened on the file itself, must slice a one-drum kit into four regions, each drum bound to
+    the one sample with a NoteRow, and into three in manual mode with the points as they were when Select was pressed
+    (SC-SHELL-SLICE, SC-SHELL-SLICE-MANUAL); before the region slice, a teardown of every UI, as a song load makes, must
+    drop a held audition's load, which names the outgoing kit's first drum, and a learned MIDI next-song arriving while
+    the slice is out must be held back until the slice is in, saying so with its Next song after slice notice, then let
+    go (SC-SHELL-SLICE); a slicer whose open is held past the stall bound must give up without opening, the kit
+    untouched (SC-SHELL-SLICE-FAIL); BACK out of manual mode on a first drum that holds no file must leave that drum as
+    it was, and a slice commit with the menu's context forgotten by a teardown must be refused with nothing cut
+    (SC-SHELL-SLICE-BACK). The Drum Randomizer (LOAD held, pad 15,2) on a kit whose drums name files in a folder of
+    their own must land the selected drum, and with affect-entire held every unmuted row that has notes, on a file from
+    that folder named after it, leaving the muted and empty rows alone; RD-TIER requires a randomizer scan to have run
+    and no sample read from the card on the interaction tier; RD-GATE requires, while a walk whose load the loader holds
+    is out, no second walk and an edit pad refused, and once it ends the gate released and the same pad taken; RD-STALL
+    requires a walk whose second row's load is held past the stall bound to end with the first row kept on its file, the
+    second unbound, the third untouched, and the gate released. The kit context menu's Load All option over a folder of
+    its own must end with one drum per file in filename order, named after its file without the shared prefix, bound,
+    with a NoteRow; the synth context menu's Multisamples option over three sines an octave apart must end with one
+    range per file in pitch order, each bound to its file; IM-TIER requires a folder listing to have run and no sample
+    read from the card on the interaction tier; IM-GATE requires BACK and a second Select on the menu refused while a
+    kit import whose loads the loader holds is out, and once it ends the gate released and the kit holding its drums;
+    IM-EMPTY requires Load All on a folder holding a subfolder and no audio file of its own to land as main's, an import
+    of nothing: the kit's one drum kept, the browser closed onto the clip view and the gate released; IM-STALL requires
+    a multisample import whose second file is held past the stall bound to abort with the ranges and the loaded files'
+    reasons as they were, just the menu closed, the browser open, and the gate released. SC-TIER requires, for every
+    claim and the slice, that no sample was read from the card on the interaction tier; SC-GATE requires the browser to
+    refuse its select encoder while an explicit claim's load is held, and the gate released once the claim ends;
+    SC-STALL requires an explicit claim whose load is held past the stall bound to give up, leaving the holder unbound,
+    the browser open and the gate released; SC-SUPERSEDE requires an auto-load claim the cursor leaves while its pitch
+    detection is out, for a next preview that lands at once and for one still loading, to be cancelled once and drain
+    before the next claim starts, with only the next file's claim finishing. SC-OSC2 requires a wavetable claim on the
+    synth's second oscillator, asked for on the source, to bind it as a wavetable, and a stereo file then claimed there
+    to bind as a sample. SC-LAYOUT pins the knobs those claims leave, recorded from the engine: mod button 7 after each
+    wavetable claim (oscillator 1: its wave index and its LFO 2 depth; oscillator 2: its wave index on the lower knob)
+    in knob mode 7, and after each sample load the bitcrush and sample-rate reduction in mode 1; and every row the
+    slicer and the kit import make holds the pitch adjust on mod button 6; each with the record equal to the engine's
+    knobs.
+
+Gate app-asan-sample-claim:
+    the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+    poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a claim, a slice or an
+    import binds a file into a sound whose record a teardown or a supersede may free under it)
 """
 
 

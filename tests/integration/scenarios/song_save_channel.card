@@ -1,0 +1,3 @@
+# The song-save scenario's card: an empty SONGS directory. The fixture that matters is the song, which the scenario
+# inflates in memory until its document outgrows the staging buffer.
+dir SONGS

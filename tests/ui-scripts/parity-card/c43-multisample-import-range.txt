@@ -2,6 +2,7 @@
 # the picker in front of the file selector, which is turned down to the bottom range, and SELECT opens the browser on
 # it. A long press on the browser's file imports its folder again, and the browser closes onto the picker, which main
 # opens on the middle range the import left current.
+# card: content/sweep-shellmenu.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

@@ -15,7 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/idle_job_rates_scenario.h"
+/// @file
+/// @brief An idle app loop runs each job only as often as it has work: after boot settles, every job's runs over ten
+/// seconds of the app's clock are printed as a rate (IR-JOB), and the wake-driven jobs must not have run at all.
+///
+/// Gate idle-job-rates:
+///     an idle app runs each job only as often as it has work: booted on an empty card, settled for 2 s, then over 10 s
+///     of the app clock every job's runs are printed as a rate (IR-JOB). The jobs with no gap -- encoders, reclaim,
+///     buttons and pads, every storage machine, settings io, the startup fail-safe, stem export, SysEx, and the
+///     playback slow routine -- must not run at all, since nothing wakes or requests them; a job turned back into a
+///     poll fails here. The ui routine must run between 30 and 400 times a second (the graphics routine's 15 ms timer
+///     plus its re-checks while the sample clock reaches a deadline). The gapped jobs are printed, not bounded: each
+///     runs once per gap (playback and midi 1.5 ms, audio slow 6 ms, pending UI 20 ms, audio recorder slow 100 ms,
+///     audio file slow 200 ms).
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "runtime/app_loop.h"
 
@@ -28,6 +43,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(idle_job_rates);
 
 namespace {
 
@@ -71,17 +88,12 @@ enum class Stage : uint8_t { Settle, Measure, Done };
 Stage g_stage = Stage::Settle;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+deluge::scenarios::ScenarioReport g_report{"IR"};
 Micros g_settleFrom = 0;
 Micros g_windowFrom = 0;
 /// Each job's run count at the previous step, and its runs counted in the window so far.
 std::array<uint32_t, Loop::kMaxJobs> g_lastRuns{};
 std::array<uint64_t, Loop::kMaxJobs> g_windowRuns{};
-
-void fail(const char* what) {
-	printf("IR-FAIL %s\n", what);
-	g_failures++;
-}
 
 /// Adds each job's runs since the previous step. The debug "job stats" job zeroes every count every ten seconds; a
 /// count lower than the last one read has been zeroed since, so all of it is new.
@@ -116,12 +128,12 @@ void report(Micros elapsedUs) {
 	for (const char* name : kWakeDriven) {
 		if (!isRegistered(name)) {
 			printf("IR-MISSING job=%s\n", name);
-			fail("a job this scenario expects is not registered");
+			g_report.fail("a job this scenario expects is not registered");
 		}
 	}
 	if (!isRegistered(kUiJob)) {
 		printf("IR-MISSING job=%s\n", kUiJob);
-		fail("the ui routine is not registered");
+		g_report.fail("the ui routine is not registered");
 	}
 	for (JobId id = 0; id < appLoop.size(); ++id) {
 		const auto s = appLoop.stats(id);
@@ -129,11 +141,10 @@ void report(Micros elapsedUs) {
 		printf("IR-JOB runs=%llu perSecond=%.1f name=%s\n", static_cast<unsigned long long>(g_windowRuns[id]),
 		       perSecond, s.name);
 		if (isWakeDriven(s.name) && g_windowRuns[id] != 0) {
-			printf("IR-FAIL job=%s\n", s.name);
-			fail("a wake-driven job ran on an idle app: something polls it");
+			g_report.fail("job=%s: a wake-driven job ran on an idle app: something polls it", s.name);
 		}
 		if (std::strcmp(s.name, kUiJob) == 0 && (perSecond < kUiMinPerSecond || perSecond > kUiMaxPerSecond)) {
-			fail("the ui routine ran outside its timers' rate");
+			g_report.fail("the ui routine ran outside its timers' rate");
 		}
 	}
 }
@@ -163,7 +174,7 @@ void runTick() {
 	}
 
 	case Stage::Done:
-		printf("IR-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_report.printResult();
 		g_summaryPrinted = true;
 		break;
 	}
@@ -178,7 +189,7 @@ void deluge_scenario_idle_job_rates_begin(void) {
 	g_stage = Stage::Settle;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_settleFrom = nowUs();
 }
 
@@ -200,7 +211,7 @@ bool deluge_scenario_idle_job_rates_step_done(void) {
 }
 
 int32_t deluge_scenario_idle_job_rates_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

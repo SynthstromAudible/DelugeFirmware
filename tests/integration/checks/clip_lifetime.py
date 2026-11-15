@@ -134,9 +134,59 @@ failures>0), or the process ended some other way: an exit with no aborted=1 line
 wedge.
 
 This module runs the scenario itself: once, or once more after each leg that ends the process.
+
+Gate clip-lifetime:
+    Which clip deletions free a clip the render still points at. The render holds clip pointers across blocks -- the
+    current song's currentClip and syncScalingClip, every clip's beingRecordedFromClip and each output's activeClip; the
+    gold knobs name a clip by id. A deleted clip is handed to the render (AudioEngine::retire(Clip*), from
+    Song::deleteClipObject() and from an undo log's ConsequenceClipExistence discard), which clears the ones the
+    interaction tier writes (currentClip, syncScalingClip, the knobs' focus) at once and has the render null the rest at
+    its next block before the clip is freed; CL-WINDOW (SESSIONDELETE, ARRANGERNOUNDO) says, before any block, whether
+    currentClip or the knobs' focus still names the retired clip, and is required 0. ~Clip counts a destruction that
+    finds any of them still pointing at it (Clip::clipsDestroyedWhileReferenced()), and ~Song one that finds itself
+    still currentSong or a Sound of its outputs still in the Sound registry (Song::songsDestroyedWhileReachable()). Each
+    leg plays a clip on the internal clock with a note held on its blank synth, renders 8 blocks, deletes it through a
+    real path, renders 8 more, then renders a few and reclaims so the clip is freed inside the leg (CL-FREED pending=),
+    and reports how far the two counters and Sound::soundsDestroyedWithLiveVoices() moved: CL-SESSIONDELETE (the
+    selected current clip, SessionView::removeClip -> Song::removeSessionClip), CL-ARRANGERDELETE (an arrangement-only
+    current clip, the arranger's delete gesture step for step with a real logged action, destroyed when the logs are
+    discarded), CL-SWAPTYPE (the selected clip changed to audio, Song::swapClips), CL-UNDODELETE (the same logged
+    arranger delete, undone with restored=, redone, then destroyed by discarding the logs), CL-ARRANGERNOUNDO (the same
+    arranger delete with the null action the gesture passes when the action logger has none to give, so the clip is
+    deleted at once with the song's currentClip still on it), CL-RECORDSOURCE (the clip another clip's
+    beingRecordedFromClip names) and CL-SYNCSCALE (the sync-scaling clip, through removeSessionClip). CL-DANGLING says
+    which references still hold the deleted clip's address just after the deletion. Two drum legs also hand their
+    SoundDrum to the render (AudioEngine::retire(SoundDrum*)) instead of destroying it on the spot, and are REQUIRED
+    soundsLive=0 with no abort: CL-SAVEKIT (a second drum on the kit that no NoteRow has, naturally left with
+    voicesAtSave=0 renderingActive=1 by Kit::writeDataToFile's own deletion trigger, which has no skippingRendering
+    guard -- a real, unforced precondition) and CL-WONTSOUND (a drum with an empty note row, put back into
+    drumsWithRenderingActive by hand -- skipping rendering, yet still in that set, a state no natural note-on/off path
+    reaches, since SoundDrum::setSkippingRendering is the only writer of the flag and erases from the set in the same
+    call that sets it true; this leg proves only that InstrumentClip::deleteSoundsWhichWontSound's retire hand-off is
+    wired correctly, not a reachable precondition -- its real safety value is that the hasActiveVoices() check beside it
+    is ALPHA_OR_BETA_VERSION-only, so on a release build only AudioEngine::retire()'s unconditional voice-kill on let-go
+    stands between a genuinely-sounding drum and a stale free). CL-RECLAIM (AudioEngine::retiredPending() after
+    reclaimRetired()) is printed once after the seven clip legs and SAVEKIT, and again after WONTSOUND; the final one is
+    REQUIRED pending=0. REQUIRED: the seven clip legs above must read clipsReferenced=0 with no abort and CL-FREED
+    pending=0, and CL-UNDODELETE restored=1. The song legs are REQUIRED too: a replaced song is handed to the render
+    (AudioEngine::retire(Song*)), which ends the voices of and deregisters every Sound of its outputs before ~Song runs,
+    and a stopped-clock load or clear waits for it to be freed (AudioEngine::awaitRetired(), a bounded wait on the
+    render through deluge_audio_await_block()) before it builds the new song. CL-EPOCH0 (Create New Song at boot, before
+    the scheduler has run the render task; epoch=0 or 1, returned=1), CL-SONGCLEAR, CL-SONGLOAD, CL-SONGSWAP (the armed
+    swap), CL-BURSTSONG (10 synths and 10 kits of 32 drums with two clips each, cleared while stopped; CL-LETGO reports
+    the host wall time of the render block that lets go of it) and CL-CLEARPLAYING (Create New Song while following an
+    external clock, with an audio clip holding a temp-recorded Sample, which the clear frees right after handing the old
+    song over: pendingAtFree=0 is required, so the old song is gone first) must read clipsReferenced=0 songsReachable=0
+    soundsLive=0 violations=0 with no abort; the stopped-clock ones also pendingAtBuild=0 (retired objects still waiting
+    when the new Song was constructed) and pending=0, and SONGCLEAR, SONGLOAD and BURSTSONG their CL-AFTER line (a UI
+    timer and a DIN MIDI note-in right after the clear or load returns -- a regression guard that currentSong is set
+    afterwards, not evidence about the wait inside the operation, whose null-currentSong window no interaction task can
+    see by construction). A leg whose deletion or the blocks after it end the process is reported with aborted=1 and the
+    step, and the script starts a new run at the next leg. The run also fails on a missing leg line, a fixture that
+    could not be built or a clock that never ran, or a process end that no leg reported.
 """
 
-import re
+from scenario_gate import field, fields, has_fields, int_field, starting, tag
 
 LEGS = [
     "EPOCH0",
@@ -184,10 +234,6 @@ STOPPED_SONG_LEGS = ["EPOCH0", "SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 # set and usable once the clear or load has returned.
 AFTER_LEGS = ["SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 
-ABORTED = re.compile(r"^CL-([A-Z0-9]+) .* aborted=1( |$)")
-RECLAIM = re.compile(r"^CL-RECLAIM pending=[0-9]+$")
-LEG_LINE = re.compile(r"^CL-[A-Z0-9]+ (restored=[01] )?clipsReferenced=")
-
 
 def _next_leg(leg: str) -> str:
     """The leg after `leg`, or "" after the last or for a name that is not a leg."""
@@ -197,12 +243,22 @@ def _next_leg(leg: str) -> str:
     return LEGS[i + 1] if i + 1 < len(LEGS) else ""
 
 
-def _has(lines: list[str], pattern: str) -> bool:
-    return any(re.search(pattern, line) for line in lines)
+def _leg(line: str) -> str | None:
+    """The leg a `CL-<leg>` result line reports -- its first field, after an optional `restored`, is clipsReferenced --
+    or None for any other line."""
+    keys = list(fields(line))
+    if keys[:1] == ["restored"]:
+        keys = keys[1:]
+    name = tag(line)
+    return (
+        name[3:]
+        if name and name.startswith("CL-") and keys[:1] == ["clipsReferenced"]
+        else None
+    )
 
 
-def _last(lines: list[str], pattern: str) -> str:
-    found = [line for line in lines if re.search(pattern, line)]
+def _last_leg(lines: list[str], leg: str) -> str:
+    found = [line for line in lines if _leg(line) == leg]
     return found[-1] if found else ""
 
 
@@ -215,7 +271,11 @@ def _runs(gate) -> list[str] | None:
         lines += result.starting("CL-")
         if result.code == 0:
             return lines
-        aborted = [m.group(1) for line in result.lines if (m := ABORTED.match(line))]
+        aborted = [
+            tag(line)[3:]
+            for line in starting(result.lines, "CL-")
+            if tag(line) and field(line, "aborted") == "1"
+        ]
         if not aborted:
             gate.fail(f"the run exited {result.code} with no leg reporting aborted=1")
             for line in lines or result.lines[:60]:
@@ -235,11 +295,11 @@ def _required_failures(lines: list[str]) -> str:
     """The required legs that failed, each followed by a space, in the order they are checked."""
     failed = ""
     for leg in REQUIRED_LEGS:
-        line = _last(lines, rf"^CL-{leg} (restored=[01] )?clipsReferenced=")
+        line = _last_leg(lines, leg)
         if (
-            not re.search(r"(^| )clipsReferenced=0( |$)", line)
+            not has_fields(line, clipsReferenced=0)
             or "aborted=1" in line
-            or (leg == "UNDODELETE" and " restored=1 " not in line)
+            or (leg == "UNDODELETE" and field(line, "restored") != "1")
         ):
             failed += f"{leg} "
         elif f"CL-FREED leg={leg} pending=0" not in lines:
@@ -253,40 +313,43 @@ def _required_failures(lines: list[str]) -> str:
     # The drum must be handed to the render (soundsLive=0) rather than destroyed on the spot, and the leg must not end
     # the process.
     for leg in REQUIRED_SOUND_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
-        if (
-            not line
-            or "aborted=1" in line
-            or not re.search(r"(^| )soundsLive=0( |$)", line)
-        ):
+        line = _last_leg(lines, leg)
+        if not line or "aborted=1" in line or not has_fields(line, soundsLive=0):
             failed += f"{leg} "
     # The old song must be unreachable when ~Song runs.
     for leg in REQUIRED_SONG_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
+        line = _last_leg(lines, leg)
         if (
             not line
             or "aborted=1" in line
-            or not re.search(
-                r" clipsReferenced=0 songsReachable=0 soundsLive=0( |$)", line
+            or not has_fields(
+                line,
+                clipsReferenced=0,
+                songsReachable=0,
+                soundsLive=0,
+                violations=0,
             )
-            or not re.search(r"(^| )violations=0( |$)", line)
         ):
             failed += f"{leg} "
     # The stopped-clock ones must free it before they build the new one.
     for leg in STOPPED_SONG_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
-        if not re.search(r"(^| )pendingAtBuild=0( |$)", line) or not re.search(
-            r"(^| )pending=0( |$)", line
-        ):
+        line = _last_leg(lines, leg)
+        if not has_fields(line, pendingAtBuild=0, pending=0):
             failed += f"{leg}(pending) "
     # epoch=1 is the one block boot renders itself (setupBlankSong() -> setUIForLoadedSong() runs the audio routine
     # inline, before the render task exists); no scheduled render has run yet.
-    if not _has(lines, r"^CL-EPOCH0 .* epoch=[01] returned=1 "):
+    if not any(
+        field(line, "epoch") in ("0", "1") and has_fields(line, returned=1)
+        for line in starting(lines, "CL-EPOCH0 ")
+    ):
         failed += "EPOCH0(epoch) "
     # Create New Song with a clock running frees the temp-recorded Samples right after it hands the old song over: the
     # old song, whose audio clip holds one of them, must already be freed by then.
     if (
-        not _has(lines, r"^CL-CLEARPLAYING .* pendingAtFree=0 ")
+        not any(
+            has_fields(line, pendingAtFree=0)
+            for line in starting(lines, "CL-CLEARPLAYING ")
+        )
         or "CL-CLEARSAMPLE leg=CLEARPLAYING sampleFreed=1 pendingAtFree=0" not in lines
     ):
         failed += "CLEARPLAYING(order) "
@@ -297,13 +360,20 @@ def _required_failures(lines: list[str]) -> str:
 
 
 def _check(gate, lines: list[str]) -> None:
+    # The entry's leg markers and CL-RESULT failures=0, over every run's lines.
+    if not gate.require_markers(lines):
+        return
     for leg in LEGS:
-        if not _has(lines, rf"^CL-{leg} (restored=[01] )?clipsReferenced="):
+        if not any(_leg(line) == leg for line in lines):
             gate.fail(f"no CL-{leg} line: a leg never ran")
             for line in lines:
                 gate.say(line)
             return
-    reclaims = [line for line in lines if RECLAIM.match(line)]
+    reclaims = [
+        line
+        for line in starting(lines, "CL-RECLAIM ")
+        if (field(line, "pending") or "").isdigit()
+    ]
     if not reclaims:
         gate.fail("no CL-RECLAIM line")
         for line in lines:
@@ -332,22 +402,26 @@ def _check(gate, lines: list[str]) -> None:
 
     # Everything the render let go of, including the two direct-drum-destroy legs' retired drums, must actually have
     # been reclaimed by the end of the run.
-    if not reclaims[-1].endswith(" pending=0"):
+    if field(reclaims[-1], "pending") != "0":
         gate.fail(f"the final CL-RECLAIM did not read pending=0: {reclaims[-1]}")
         return
 
     red_legs = sorted(
         {
-            re.sub(r"^CL-([A-Z0-9]+) .*", r"\1", line)
+            _leg(line)
             for line in lines
-            if LEG_LINE.match(line)
-            and re.search(
-                r"aborted=1|(clipsReferenced|songsReachable|soundsLive)=[1-9]", line
+            if _leg(line)
+            and (
+                field(line, "aborted") == "1"
+                or any(
+                    (int_field(line, key) or 0) > 0
+                    for key in ("clipsReferenced", "songsReachable", "soundsLive")
+                )
             )
         }
     )
     red = "".join(f"{leg} " for leg in red_legs)
-    if _has(lines, r"^CL-RECLAIM pending=[1-9]"):
+    if any((int_field(line, "pending") or 0) > 0 for line in reclaims):
         red += "RECLAIM "
     gate.say(f"PASS — every required leg clean; red legs: {red or 'none'}")
 

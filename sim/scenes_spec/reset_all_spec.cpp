@@ -22,7 +22,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace PadLEDs {
 /// The pad dimmer's live level (`hid/led/pad_leds.cpp`), which `pad_leds.h` does not declare.
@@ -55,9 +55,8 @@ describe reset_all("scenes::context_menu's full factory reset on the guest", $ {
 
 		(void)deluge::scenes::context_menu::descriptor(DescriptorId::ResetAll).accept(ctx, 0);
 
-		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting
-		       == deluge::ui::Highlighting::PartialInversion)
-		    .to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
+		    .to_equal(deluge::ui::Highlighting::PartialInversion);
 		expect(shellHostUI.shell().screensaver_idle_ms())
 		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u);
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();

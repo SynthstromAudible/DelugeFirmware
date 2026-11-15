@@ -41,9 +41,38 @@ fail, it can write the run's traces out.
 Environment:
     SAMPLE_LOAD_TREE_TRACE          if set, a file to write the run's LT lines to
     SAMPLE_LOAD_TREE_CRUCIAL_TRACE  if set, a file to write the run's LTC lines to
-"""
 
-import re
+Gate sample-load-tree:
+    a song with a sample synth, a wavetable, a sample kit drum and an audio clip, saved with collected media, must load
+    back with each holder bound to its collected copy in the song's folder once the originals are gone, and with the
+    audio clip's still-resident sample claimed from memory and the clip named after it. A synth preset and a kit preset
+    whose samples exist only in the preset's own folder must load with each holder's path rewritten to that folder. A
+    song loaded while playback runs must take the crucial-only pass, binding a sound only when its track's active clip
+    is playing, a kit drum only when its row is unmuted and has notes, and every audio clip that is its track's active
+    clip, and must then finish after its armed swap with every holder bound to its collected copy. The crucial load, the
+    full song, the synth preset and the kit preset must then each load again through AsyncSampleLoad, ticked from the
+    interaction tier with every file it binds dropped from memory first, and the first three end as the blocking load
+    did: the same holders bound to the same files. The kit's load is dropped after its first drum binds, as a cancelled
+    preset load is, and must leave only that drum bound, from the kit's folder, with one lease on its file, no file
+    built for the other drum and no answer kept by the loader for either, even once every request it left has answered.
+    No load may read a sample from the card or probe a folder on the interaction tier. The song must also load when the
+    folder's exists probe is held until every sample request has come back, and when the card is ejected while the probe
+    is out the load must end on the unusable card, with a second load on the same context binding everything once the
+    card is back. A synth preset load held past the stall bound must end Failed/Stalled on the bound's walk with nothing
+    bound, and a second load must bind the sample once the hold is lifted. A load of only the song's wavetable, on a
+    context whose folder probe a dropped load left out, must bind the wavetable to its collected copy. A load of the
+    kit's second drum on a context that has learnt the kit's folder must bind the drum to its copy there, though a load
+    of the same drum on no context, dropped with its request out, was answered with a miss first: a dropped load's
+    answer is discarded, not taken by the next lookup of the path. The same must hold with both loads live: a load of
+    the second drum on no context asks first, and a load of it on the context that knows the kit's folder, looking first
+    once that answer is back, must bind the drum to its copy there rather than take the other load's miss for fewer
+    candidates as its own.
+
+Gate app-asan-sample-load-tree:
+    the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+    poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its
+    record's state, so a record freed under it would read freed memory)
+"""
 
 
 def run(gate):
@@ -59,9 +88,8 @@ def run(gate):
     if not gate.require_standard(result):
         return
     # The SLT- lines and the tier inventory: the LT/LTA/LTC/LTP trace lines go to the trace files, not the log.
-    for line in result.lines:
-        if line.startswith("SLT-") or re.match(r"TIER-SYNC(-AT)? ", line):
-            gate.say(line)
+    for line in result.starting("SLT-", "TIER-SYNC ", "TIER-SYNC-AT "):
+        gate.say(line)
     gate.say(
         "PASS — every holder resolved where the fixture put its file, the dropped kit load bound no more, and the"
     )

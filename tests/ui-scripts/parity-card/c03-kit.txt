@@ -1,4 +1,5 @@
 # A kit: turn the boot clip into a kit, play its rows, audition, open the kit browser and close it.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Kit down
 5020  button Kit up

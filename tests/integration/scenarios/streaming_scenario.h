@@ -28,7 +28,8 @@
 ///
 /// @note `DELUGE_HOST`-only (see sim/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
 ///       compiled into every x86 build off this tree (the Rust Embassy `host_app` and its
-///       harnesses), never into the ARM device firmware. Only the Rust harness calls these.
+///       harnesses), never into the ARM device firmware. Called by the Rust host runtime's streaming scenario
+///       (`scenario.rs`) and by the `stem_export` scenario (`stem_export_scenario.cpp`).
 ///
 /// ## Why two-phase song load
 /// On the Embassy BSP, `Browser::beginListing` (which `openUI(&loadSongUI)` triggers) reads the
@@ -87,7 +88,8 @@ bool deluge_scenario_song_load_begin_ok();
 /// Mirrors `LoadSongUI::enterKeyPress()`'s non-folder branch, minus its `LASTOPENED`
 /// settings-file write (irrelevant to the harness). Poll
 /// deluge_scenario_song_load_in_progress() for completion.
-/// @return Always true.
+/// @return False, with nothing started, when the browser's listing did not land on the song
+///         deluge_scenario_begin_song_load() named: the song is not on the card.
 bool deluge_scenario_commit_song_load();
 
 /// @brief Whether a load committed by deluge_scenario_commit_song_load() is still running.

@@ -1,5 +1,6 @@
 # Shift + Select on a file in a fresh kit's sample browser opens the slicer with a SLICER popup; BACK returns to the
 # browser; the second time, Select slices into the default sixteen regions and lands in the clip view.
+# card: content/sweep-bare.img
 100   snapshot boot
 6000  button Shift down
 6050  button Kit down

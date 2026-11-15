@@ -15,7 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/pattern_load_scenario.h"
+/// @file
+/// @brief The pattern-load gate: a pattern file loaded through the real pattern browser, after boot.
+///
+/// The boot song's synth clip is given notes, written to a pattern file with the firmware's own pattern writer, and
+/// cleared. The pattern browser is then opened the way the clip view's LOAD gesture opens it, once per leg: Enter,
+/// a PLAY preview, a preview discarded by BACK, and Enter pressed over a preview still in flight. Each leg must leave
+/// exactly the notes it should, and none may make a synchronous card call on the interaction tier: every byte of the
+/// pattern has to arrive through the channels.
+///
+/// Gate pattern-load:
+///     a pattern file, written from notes on the boot song's synth clip by the firmware's own pattern writer, must load
+///     back through the real pattern browser with Enter, landing after the browser closes (PT-LOAD), and as a PLAY
+///     preview (PT-PREVIEW), each putting back exactly the notes that were written onto a cleared clip. A preview
+///     followed by BACK, pressed while the channel holds the preview's read, must paste nothing (PT-DISCARD), and Enter
+///     pressed at that moment must land its own load (PT-SUPERSEDE). No leg may make a synchronous card call on the
+///     interaction tier after boot (PT-TIER): the pattern's bytes must arrive through the channels.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -46,7 +64,13 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(pattern_load);
+
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 constexpr const char* kFolder = "PATTERNS/MELODIC";
 constexpr const char* kName = "PT_TEST.XML";
@@ -88,19 +112,14 @@ Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::Load;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_ticks = 0;
+ScenarioReport g_report{"PT"};
+/// The wait of the stage in progress: the preview's read being held, then the leg's load settling.
+Wait g_wait{g_report, "the preview's read held by the channel", kLegTicks};
 InstrumentClip* g_clip = nullptr;
 /// The notes the fixture wrote, as "yNote:pos:length:velocity" in row then position order.
 std::vector<std::string> g_expected;
 /// The meter's per-entry counts when the first leg began: every synchronous call after it is the code under test's.
 std::vector<uint32_t> g_entryBefore;
-
-bool fail(const char* what) {
-	printf("PT-FAIL %s\n", what);
-	g_failures++;
-	return false;
-}
 
 /// Every note in the clip, as "yNote:pos:length:velocity" in row then position order.
 std::vector<std::string> notesOf(InstrumentClip* clip) {
@@ -118,7 +137,8 @@ std::vector<std::string> notesOf(InstrumentClip* clip) {
 bool addFixtureNotes() {
 	const int32_t length = instrumentClipView.getPosFromSquare(1) - instrumentClipView.getPosFromSquare(0);
 	if (length <= 0) {
-		return fail("the clip view shows no time: a square is zero ticks wide");
+		g_report.fail("the clip view shows no time: a square is zero ticks wide");
+		return false;
 	}
 	for (int32_t yDisplay : kRows) {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -127,7 +147,8 @@ bool addFixtureNotes() {
 		ModelStackWithNoteRow* rowStack = g_clip->getOrCreateNoteRowForYNote(yNote, ms, nullptr);
 		NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
 		if (row == nullptr) {
-			return fail("no note row for a fixture note");
+			g_report.fail("no note row for a fixture note");
+			return false;
 		}
 		for (int32_t square : kSquares) {
 			(void)row->attemptNoteAdd(instrumentClipView.getPosFromSquare(square), length, kVelocity,
@@ -145,11 +166,16 @@ bool writePatternFile() {
 	(void)deluge::io::unlink(kPath);
 	Error error = StorageManager::createXMLFile(kPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("the pattern file could not be created");
+		g_report.fail("the pattern file could not be created");
+		return false;
 	}
 	instrumentClipView.copyNotesToFile(GetSerializer());
 	error = GetSerializer().closeFileAfterWriting(kPath, nullptr, nullptr);
-	return (error == Error::NONE) || fail("the pattern file could not be written");
+	if (error != Error::NONE) {
+		g_report.fail("the pattern file could not be written");
+		return false;
+	}
+	return true;
 }
 
 /// Remove every note from the clip, as the clip's CLEAR gesture does. `patternClear()` is not used: it clears the
@@ -176,7 +202,10 @@ bool openBrowser(const char* leg) {
 		loadPatternUI.setupLoadPatternUI();
 	}
 	printf("PT-OPEN leg=%s opened=%d browserOnTop=%d\n", leg, opened ? 1 : 0, getCurrentUI() == &loadPatternUI ? 1 : 0);
-	return opened || fail("the pattern browser could not be opened");
+	if (!opened) {
+		g_report.fail("the pattern browser could not be opened");
+	}
+	return opened;
 }
 
 /// Tick the browser while its listing runs, as its graphics routine is ticked on the device. True once it has finished.
@@ -194,7 +223,10 @@ bool fixtureSelected(const char* leg) {
 	const std::string name = (item != nullptr) ? std::string{item->displayName()} : std::string{"-"};
 	const bool selected = (item != nullptr) && !item->isFolder && deluge::string::caselessEquals(name, kName);
 	printf("PT-LISTED leg=%s selected=%d name=%s\n", leg, selected ? 1 : 0, name.c_str());
-	return selected || fail("the listing did not select the fixture");
+	if (!selected) {
+		g_report.fail("the listing did not select the fixture");
+	}
+	return selected;
 }
 
 const char* legName(Leg leg) {
@@ -238,21 +270,21 @@ void reportLeg() {
 	       : g_leg == Leg::Preview ? "PREVIEW"
 	       : g_leg == Leg::Discard ? "DISCARD"
 	                               : "SUPERSEDE",
-	       ok ? 1 : 0, static_cast<int>(notes.size()), wantNotes ? static_cast<int>(g_expected.size()) : 0, g_ticks,
-	       browserOnTop ? 1 : 0, loadPatternUI.loadInFlight() ? 1 : 0);
+	       ok ? 1 : 0, static_cast<int>(notes.size()), wantNotes ? static_cast<int>(g_expected.size()) : 0,
+	       g_wait.ticks(), browserOnTop ? 1 : 0, loadPatternUI.loadInFlight() ? 1 : 0);
 	if (!ok) {
 		switch (g_leg) {
 		case Leg::Load:
-			fail("Enter did not load the pattern's notes after closing the browser");
+			g_report.fail("Enter did not load the pattern's notes after closing the browser");
 			break;
 		case Leg::Preview:
-			fail("PLAY did not preview the pattern's notes");
+			g_report.fail("PLAY did not preview the pattern's notes");
 			break;
 		case Leg::Discard:
-			fail("a preview discarded by BACK still pasted");
+			g_report.fail("a preview discarded by BACK still pasted");
 			break;
 		default:
-			fail("Enter over a preview in flight did not land its own load");
+			g_report.fail("Enter over a preview in flight did not land its own load");
 			break;
 		}
 	}
@@ -314,9 +346,9 @@ void report() {
 	}
 	printf("PT-TIER sync=%u\n", total);
 	if (total != 0) {
-		fail("the pattern legs made synchronous card calls on the interaction tier");
+		g_report.fail("the pattern legs made synchronous card calls on the interaction tier");
 	}
-	printf("PT-RESULT failures=%d\n", static_cast<int>(g_failures));
+	g_report.printResult();
 	g_summaryPrinted = true;
 }
 
@@ -327,7 +359,7 @@ void runTick() {
 		                                                                      : nullptr;
 		if (first == nullptr || first->type != ClipType::INSTRUMENT || first->output == nullptr
 		    || first->output->type != OutputType::SYNTH) {
-			fail("the boot song has no synth clip");
+			g_report.fail("the boot song has no synth clip");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -344,7 +376,7 @@ void runTick() {
 		printf("PT-SETUP notes=%d cleared=%d file=%s\n", static_cast<int>(g_expected.size()), static_cast<int>(cleared),
 		       kPath);
 		if (g_expected.size() != std::size(kRows) * std::size(kSquares) || cleared != 0) {
-			fail("the fixture did not write, then clear, the notes it meant to");
+			g_report.fail("the fixture did not write, then clear, the notes it meant to");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -363,7 +395,7 @@ void runTick() {
 		}
 		clearNotes();
 		if (!notesOf(g_clip).empty()) {
-			fail("the notes could not be cleared between legs");
+			g_report.fail("the notes could not be cleared between legs");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -386,31 +418,49 @@ void runTick() {
 			deluge_file_bytes_set_latency_ms(kHoldMs);
 		}
 		act();
-		g_ticks = 0;
-		g_stage = (g_leg == Leg::Discard || g_leg == Leg::Supersede) ? Stage::Hold : Stage::Await;
+		if (g_leg == Leg::Discard || g_leg == Leg::Supersede) {
+			g_wait = Wait{g_report, "the preview's read held by the channel", kLegTicks};
+			g_stage = Stage::Hold;
+		}
+		else {
+			g_wait = Wait{g_report, "the leg's load settling", kLegTicks};
+			g_stage = Stage::Await;
+		}
 		break;
 
-	case Stage::Hold:
+	case Stage::Hold: {
 		// Ticked until the preview's read is issued, so the second press has to wait a held buffer out rather than
 		// drop a read the channel has not started.
 		tickLoad();
-		if (loadPatternUI.readIssued()) {
-			printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_ticks);
+		const bool issued = loadPatternUI.readIssued();
+		if (!issued && !loadPatternUI.loadInFlight()) {
+			deluge_file_bytes_set_latency_ms(0);
+			g_report.fail("the preview's load ended before its read was held");
+			g_stage = Stage::Report;
+			break;
+		}
+		switch (g_wait.poll(issued)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_wait.ticks());
 			actOverHeldRead();
 			deluge_file_bytes_set_latency_ms(0);
-			g_ticks = 0;
+			g_wait = Wait{g_report, "the leg's load settling", kLegTicks};
 			g_stage = Stage::Await;
-		}
-		else if (++g_ticks >= kLegTicks || !loadPatternUI.loadInFlight()) {
+			break;
+		case WaitState::Expired:
 			deluge_file_bytes_set_latency_ms(0);
-			fail("the preview's read was never held by the channel");
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
+	}
 
 	case Stage::Await:
 		tickLoad();
-		if (legSettled() || ++g_ticks >= kLegTicks) {
+		// An expired wait still reports the leg: its PT line is the evidence of how far the load got.
+		if (g_wait.done(legSettled())) {
 			reportLeg();
 			g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 			g_stage = (g_leg == Leg::Count) ? Stage::Report : Stage::Clear;
@@ -443,8 +493,8 @@ void deluge_scenario_pattern_load_begin(void) {
 	g_leg = Leg::Load;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_ticks = 0;
+	g_report.reset();
+	g_wait = Wait{g_report, "the preview's read held by the channel", kLegTicks};
 	g_clip = nullptr;
 	g_expected.clear();
 	g_entryBefore.clear();
@@ -468,7 +518,7 @@ bool deluge_scenario_pattern_load_step_done(void) {
 }
 
 int32_t deluge_scenario_pattern_load_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

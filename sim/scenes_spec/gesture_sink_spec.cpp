@@ -24,11 +24,12 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/printers/sound_state_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <optional>
 #include <string>
@@ -102,7 +103,10 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		    .to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		actionLogger.deleteAllLogs();
@@ -119,7 +123,10 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		const deluge::project::DocClip* doc =
 		    synth.song->project.resolveClip(deluge::project::ClipAddress{synth.clip->id()});
 		expect(synth.clip->colourOffset()).to_equal(static_cast<int16_t>(before + 5));
-		expect(doc != nullptr && doc->colour_offset == static_cast<int16_t>(before + 5)).to_be_true();
+		expect(doc).not_().to_be_null();
+		if (doc != nullptr) {
+			expect(doc->colour_offset).to_equal(static_cast<int16_t>(before + 5));
+		}
 		currentSong = saved;
 	});
 
@@ -135,7 +142,10 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_CLIP,
 		                                    .owner = deluge::project::ClipAddress{audio.clip->id()}},
 		    "endSamplePos");
-		expect(end.has_value() && end->str() == "4321").to_be_true();
+		expect(end.has_value()).to_be_true();
+		if (end.has_value()) {
+			expect(end->str()).to_equal("4321");
+		}
 		currentSong = saved;
 	});
 
@@ -149,13 +159,16 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		(void)sound.sources[0].getOrCreateFirstRange(); // the range a zone editor makes, recorded as a gesture does
 		deluge::edits::recordRanges(sound, 0);
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
-		expect(state != nullptr).to_be_true();
+		expect(state).not_().to_be_null();
 		std::vector<deluge::instrument::RangeState> ranges = state->sources[0].ranges;
 		expect(ranges.size()).to_equal(size_t(1));
 		ranges[0].transpose = 7;
 		expect(menu::host_write_sink().write_ranges(slot, 0, ranges)).to_be_true();
 		const deluge::instrument::SoundState* after = menu::host_runtime_facts().sound_state(slot);
-		expect(!after->sources[0].ranges.empty() && after->sources[0].ranges[0].transpose == 7).to_be_true();
+		expect(after->sources[0].ranges.empty()).to_be_false();
+		if (!after->sources[0].ranges.empty()) {
+			expect(after->sources[0].ranges[0].transpose).to_equal(7);
+		}
 		currentSong = saved;
 	});
 
@@ -199,7 +212,10 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound.sources[1]);
 		const std::vector<deluge::instrument::RangeState> recorded =
 		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
-		expect(!legacy.empty() && recorded[0] == legacy[0]).to_be_true();
+		expect(legacy.empty()).to_be_false();
+		if (!legacy.empty()) {
+			expect(recorded[0]).to_equal(legacy[0]);
+		}
 		expect(static_cast<int64_t>(recorded[0].end_pos)).to_equal(static_cast<int64_t>(legacy[0].end_pos));
 		currentSong = saved;
 	});

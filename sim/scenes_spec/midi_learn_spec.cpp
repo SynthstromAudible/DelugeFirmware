@@ -47,7 +47,7 @@
 ///   * **The grid repaint** `View::midiLearnFlash` asks for at `:800-802`
 ///     (`getRootUI()->midiLearnFlash()`). This layer has no `Shell`; what is asserted here is
 ///     `MidiLearn::timer_repaints()`'s claim, and the shell honouring a service's claim is
-///     `tests/spec/shell/flush_spec.cpp`'s.
+///     `tests/unit/shell/flush_spec.cpp`'s.
 ///
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
@@ -111,9 +111,12 @@
 #include "synth/modulation/cable.h"
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
+#include "support/printers/learn_input_printer.h"
+#include "support/printers/mapping_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <array>
 #include <cstdint>
@@ -122,7 +125,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::services::GlobalControls;
@@ -584,9 +587,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		view.sectionMidiLearnPadPressed(true, 2);
 		view.noteOnReceivedForMidiLearn(cables().a, 3, 64, 127);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.cable == &cables().a).to_be_true();
-		expect(legacy.channel_or_zone == 3).to_be_true();
-		expect(legacy.note_or_cc == 64).to_be_true();
+		expect(legacy.cable).to_equal(&cables().a);
+		expect(legacy.channel_or_zone).to_equal(3);
+		expect(legacy.note_or_cc).to_equal(64);
 		view.sectionMidiLearnPadPressed(false, 2);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -601,7 +604,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.note_on_received(cables().a, 3, 64, 127);
 		const Learned port = Learned::of(slot);
 
-		expect(port.channel_or_zone != kPoisonChannel).to_be_true();
+		expect(port.channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(port.describe()).to_equal(legacy.describe());
 	});
 
@@ -615,7 +618,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		view.clipStatusMidiLearnPadPressed(true, fixture.clip); // `view.cpp`
 		view.noteOnReceivedForMidiLearn(cables().b, 5, 70, 100);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.cable == &cables().b).to_be_true();
+		expect(legacy.cable).to_equal(&cables().b);
 		view.clipStatusMidiLearnPadPressed(false, fixture.clip);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -627,17 +630,17 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(cables().b, 5, 70, 100);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
 	it("NOTEROW_MUTE: `noteRowMuteMidiLearnPadPressed` maps onto `LearnTarget::note_row_mute`", _ {
 		static spec::SongFixture fixture = spec::make_kit_song();
 		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
-		expect(drum != nullptr).to_be_true();
+		expect(drum).not_().to_be_null();
 		NoteRow* const row = fixture.clip->getNoteRowForDrum(drum);
-		expect(row != nullptr).to_be_true();
-		expect(row->drum == drum).to_be_true();
+		expect(row).not_().to_be_null();
+		expect(row->drum).to_equal(drum);
 		::LearnedMIDI& slot = drum->muteMIDICommand;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -646,7 +649,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		view.noteRowMuteMidiLearnPadPressed(true, row); // `view.cpp`
 		view.noteOnReceivedForMidiLearn(cables().a, 7, 41, 127);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.channel_or_zone == 7).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(7);
 		view.noteRowMuteMidiLearnPadPressed(false, row);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -658,7 +661,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
 		rig.ml.note_on_received(cables().a, 7, 41, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
@@ -674,11 +677,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		view.startMIDILearn();
 		view.drumMidiLearnPadPressed(true, drum, kit);
-		expect(view.drumPressedForMIDILearn == drum).to_be_true(); // `:565`
-		expect(view.kitPressedForMIDILearn == kit).to_be_true();   // `:566`
+		expect(view.drumPressedForMIDILearn).to_equal(drum); // `:565`
+		expect(view.kitPressedForMIDILearn).to_equal(kit);   // `:566`
 		view.noteOnReceivedForMidiLearn(cables().b, 2, 36, 127);   // the `:629-660` arm
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.note_or_cc == 36).to_be_true();
+		expect(legacy.note_or_cc).to_equal(36);
 		view.drumMidiLearnPadPressed(false, drum, kit);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -688,11 +691,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
-		expect(rig.ml.pressed().mapping == deluge::project::MappingTarget{deluge::project::LaneInputTarget{*drum->id()}})
-		    .to_be_true();
+		expect(rig.ml.pressed().mapping)
+		    .to_equal(deluge::project::MappingTarget{deluge::project::LaneInputTarget{*drum->id()}});
 		rig.ml.note_on_received(cables().b, 2, 36, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
@@ -710,10 +713,10 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		view.startMIDILearn();
 		view.instrumentMidiLearnPadPressed(true, fixture.instrument); // `view.cpp`
-		expect(view.instrumentPressedForMIDILearn == fixture.instrument).to_be_true();
+		expect(view.instrumentPressedForMIDILearn).to_equal(fixture.instrument);
 		view.noteOnReceivedForMidiLearn(cables().a, 9, 55, 127); // the `:677-740` arm
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.channel_or_zone == 9).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(9);
 		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -723,24 +726,23 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_song(fixture.song);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
-		expect(rig.ml.pressed().mapping
-		       == deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}})
-		    .to_be_true();
+		expect(rig.ml.pressed().mapping)
+		    .to_equal(deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}});
 		const uint32_t before = rig.ml.unported_calls(LearnService::UnportedCall::ClearMonoExpression);
 		rig.ml.note_on_received(cables().a, 9, 55, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 		// The one call this arm cannot spell was REACHED -- see the file docstring's uncovered
 		// list. Counted, not made.
-		expect(rig.ml.unported_calls(LearnService::UnportedCall::ClearMonoExpression) == before + 1).to_be_true();
+		expect(rig.ml.unported_calls(LearnService::UnportedCall::ClearMonoExpression)).to_equal(before + 1);
 	});
 
 	// -- The three button targets ----------------------------------------------------------------
 
 	it("LEARN: the button is the mode's on/off switch, on both sides", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		expect(fixture.song != nullptr).to_be_true();
+		expect(fixture.song).not_().to_be_null();
 
 		// --- Legacy (`view.cpp:187-198`) ----------------------------------------------------
 		release_all_legacy_buttons();
@@ -763,11 +765,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, false, 1'010);
 		const bool port_off = !rig.ml.active();
 
-		expect(port_on == legacy_on).to_be_true();
-		expect(port_off == legacy_off).to_be_true();
+		expect(port_on).to_equal(legacy_on);
+		expect(port_off).to_equal(legacy_off);
 		// Nothing fell off the end of the chain: `GlobalControls` declined LEARN
 		// (`ViewArm::LearnOwns`) and `MidiLearn` claimed it.
-		expect(rig.router.dropped_events() == 0).to_be_true();
+		expect(rig.router.dropped_events()).to_equal(0);
 	});
 
 	it("PLAY under learn: the button learns, and the transport tail does NOT run", _ {
@@ -783,14 +785,14 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		playbackHandler.playbackState = 0;
 		view.startMIDILearn();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true);
-		expect(view.thingPressedForMidiLearn == ::MidiLearn::PLAY_BUTTON).to_be_true();
+		expect(view.thingPressedForMidiLearn).to_equal(::MidiLearn::PLAY_BUTTON);
 		view.noteOnReceivedForMidiLearn(cables().a, 1, 60, 127);
 		const Learned legacy = Learned::of(slot);
 		const uint8_t legacy_playback = playbackHandler.playbackState;
-		expect(legacy.channel_or_zone == 1).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(1);
 		// The tail was skipped: `View::buttonAction`'s `DEALT_WITH` makes `hid/buttons.cpp:139-141`
 		// jump past `:144-167`, so playback never started.
-		expect(legacy_playback == 0).to_be_true();
+		expect(legacy_playback).to_equal(0);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), false);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -809,13 +811,13 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 2'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::Play, true, 2'020);
-		expect(rig.ml.pressed().kind == ::MidiLearn::PLAY_BUTTON).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::PLAY_BUTTON);
 		rig.ml.note_on_received(cables().a, 1, 60, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 		// `GlobalControls` really did abstain: playback is still stopped.
-		expect(playbackHandler.playbackState == legacy_playback).to_be_true();
+		expect(playbackHandler.playbackState).to_equal(legacy_playback);
 	});
 
 	it("RECORD under learn: the same shape, on the RECORD slot", _ {
@@ -828,10 +830,10 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		playbackHandler.recording = RecordingMode::OFF;
 		view.startMIDILearn();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true); // `view.cpp:217-230`
-		expect(view.thingPressedForMidiLearn == ::MidiLearn::RECORD_BUTTON).to_be_true();
+		expect(view.thingPressedForMidiLearn).to_equal(::MidiLearn::RECORD_BUTTON);
 		view.noteOnReceivedForMidiLearn(cables().b, 4, 62, 127);
 		const Learned legacy = Learned::of(slot);
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -849,12 +851,12 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 3'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::Record, true, 3'020);
-		expect(rig.ml.pressed().kind == ::MidiLearn::RECORD_BUTTON).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::RECORD_BUTTON);
 		rig.ml.note_on_received(cables().b, 4, 62, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 	});
 
 	it("TAP_TEMPO under learn: learns TAP, and the metronome/tap arm stays out of it", _ {
@@ -870,7 +872,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		playbackHandler.metronomeOn = false;
 		view.startMIDILearn();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true);
-		expect(view.thingPressedForMidiLearn == ::MidiLearn::TAP_TEMPO_BUTTON).to_be_true();
+		expect(view.thingPressedForMidiLearn).to_equal(::MidiLearn::TAP_TEMPO_BUTTON);
 		view.noteOnReceivedForMidiLearn(cables().a, 6, 48, 127);
 		const Learned legacy = Learned::of(slot);
 		expect(playbackHandler.metronomeOn).to_be_false();
@@ -891,10 +893,10 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.press(ButtonId::Learn, true, 4'000);
 		expect(rig.ml.active()).to_be_true();
 		rig.press(ButtonId::TapTempo, true, 4'020);
-		expect(rig.ml.pressed().kind == ::MidiLearn::TAP_TEMPO_BUTTON).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::TAP_TEMPO_BUTTON);
 		rig.ml.note_on_received(cables().a, 6, 48, 127);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 		expect(playbackHandler.metronomeOn).to_be_false();
 	});
@@ -936,12 +938,12 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.note_on_received(cables().a, 3, 64, 127);
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), false);
 		expect(slot.containsSomething()).to_be_true();
-		expect(Learned::of(slot).channel_or_zone == 3).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).to_equal(3);
 
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), true);
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 1), false);
 		expect(slot.containsSomething()).to_be_false();
-		expect(rig.ml.pressed().kind == ::MidiLearn::NONE).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
 	});
 
 	it("delete on release: a release of a DIFFERENT kind of thing does nothing", _ {
@@ -965,9 +967,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 3), true);
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
-		expect(rig.ml.pressed().kind == ::MidiLearn::SECTION).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::SECTION);
 		// The held target is still section 3: its learn edits a scratch committed to that section's record.
-		expect(rig.ml.pressed().section_index == section_slot.index).to_be_true();
+		expect(rig.ml.pressed().section_index).to_equal(section_slot.index);
 	});
 
 	// -- Step 4: the flash -----------------------------------------------------------------------
@@ -984,18 +986,18 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// the timer (`:797-798`).
 		expect(rig.ml.flash_on()).to_be_true();
 		expect(rig.ml.next_timer().has_value()).to_be_true();
-		expect(*rig.ml.next_timer() == LearnService::kFlashMs).to_be_true();
+		expect(*rig.ml.next_timer()).to_equal(LearnService::kFlashMs);
 
 		// A quiet tick that does not reach the deadline: the phase must NOT move, and the
 		// remaining time must come down by exactly what was spent.
 		rig.ml.tick(1'020, 20);
 		expect(rig.ml.flash_on()).to_be_true();
-		expect(*rig.ml.next_timer() == LearnService::kFlashMs - 20).to_be_true();
+		expect(*rig.ml.next_timer()).to_equal(LearnService::kFlashMs - 20);
 
 		// A quiet tick that reaches it: the phase flips and the timer re-arms, with no input.
 		rig.ml.tick(1'060, LearnService::kFlashMs - 20);
 		expect(rig.ml.flash_on()).to_be_false();
-		expect(*rig.ml.next_timer() == LearnService::kFlashMs).to_be_true();
+		expect(*rig.ml.next_timer()).to_equal(LearnService::kFlashMs);
 
 		// And again, so "it flipped once" cannot pass for "it is flashing".
 		rig.ml.tick(1'120, LearnService::kFlashMs);
@@ -1080,7 +1082,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const auto [play_declared, play_on] = led_declared_on(frame, ButtonId::Play, 0);
 		const auto [record_declared, record_on] = led_declared_on(frame, ButtonId::Record, 0);
 		expect(play_declared).to_be_true();
-		expect(play_on == legacy_play).to_be_true();
+		expect(play_on).to_equal(legacy_play);
 		// The RECORD half is the interesting one: legacy did not WRITE it, and the port does not
 		// DECLARE it, which is the declarative spelling of the same fact.
 		expect(record_declared).to_be_false();
@@ -1119,24 +1121,23 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.leds(off_frame);
 		const std::optional<deluge::ui::LedState> off = led_state(off_frame, ButtonId::Learn);
 		expect(off.has_value()).to_be_true();
-		expect(off->kind == deluge::ui::LedState::Kind::Off).to_be_true();
+		expect(off->kind).to_equal(deluge::ui::LedState::Kind::Off);
 
 		rig.ml.begin();
 		deluge::ui::LedFrame on_frame;
 		rig.ml.leds(on_frame);
 		const std::optional<deluge::ui::LedState> on = led_state(on_frame, ButtonId::Learn);
 		expect(on.has_value()).to_be_true();
-		expect(on->kind == deluge::ui::LedState::Kind::Shared).to_be_true();
-		expect(on->rate == deluge::ui::BlinkRate::Fast).to_be_true();
+		expect(on->kind).to_equal(deluge::ui::LedState::Kind::Shared);
+		expect(on->rate).to_equal(deluge::ui::BlinkRate::Fast);
 		// A blink with no deadline: legacy's `numBlinks == 255` never folds back
 		// (`hid/led/indicator_leds.cpp:69-71`, `:117-126`).
-		expect(on->until_ms == 0).to_be_true();
+		expect(on->until_ms).to_equal(0);
 		// And it really does change on its own at the fast period, which is what makes the declaration a blink rather
 		// than a name for one.
 		const deluge::ui::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
-		expect(deluge::ui::shell::led_is_on(*on, 0, phases)
-		       != deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs, phases))
-		    .to_be_true();
+		expect(deluge::ui::shell::led_is_on(*on, 0, phases))
+		    .not_().to_equal(deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs, phases));
 	});
 
 	// -- The chain, and the reachability gate ----------------------------------------------------
@@ -1156,9 +1157,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.active()).to_be_false();
 		rig.press(ButtonId::Play, true, 5'000);
 
-		expect(playbackHandler.playbackState != 0).to_be_true();
-		expect(rig.ml.pressed().kind == ::MidiLearn::NONE).to_be_true();
-		expect(rig.router.dropped_events() == 0).to_be_true();
+		expect(playbackHandler.playbackState).not_().to_equal(0);
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
+		expect(rig.router.dropped_events()).to_equal(0);
 
 		playbackHandler.playbackState = 0;
 	});
@@ -1175,7 +1176,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.active()).to_be_false();
 		// Not merely unhandled by this service: nothing in the chain claimed it, which is exactly
 		// what legacy does when the current UI declines and no tail arm names the button.
-		expect(rig.router.dropped_events() > 0).to_be_true();
+		expect(rig.router.dropped_events()).to_be_greater_than(0);
 
 		// And the gate is the only thing refusing: flip it back and the same press works.
 		rig.root.root = true;
@@ -1197,8 +1198,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		view.sectionMidiLearnPadPressed(true, 0);
 		view.ccReceivedForMIDILearn(cables().a, 2, 74, 100);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.channel_or_zone == 2 + IS_A_CC).to_be_true();
-		expect(legacy.note_or_cc == 74).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(2 + IS_A_CC);
+		expect(legacy.note_or_cc).to_equal(74);
 		view.sectionMidiLearnPadPressed(false, 0);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -1210,7 +1211,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 0), true);
 		rig.ml.cc_received(cables().a, 2, 74, 100);
 
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
@@ -1250,7 +1251,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// `view.cpp`, the arm with three conjuncts: the held thing is an instrument, the
 		// CURRENT output is a MIDI instrument, and nothing has been learned into the slot yet.
 		static spec::SongFixture fixture = spec::make_midi_song();
-		expect(fixture.instrument->type == OutputType::MIDI_OUT).to_be_true();
+		expect(fixture.instrument->type).to_equal(OutputType::MIDI_OUT);
 		::LearnedMIDI& slot = fixture.instrument->midiInput;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -1261,8 +1262,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const Learned legacy = Learned::of(slot);
 		// The channel, with no CC bias, and `noteOrCC` untouched -- which is what distinguishes
 		// this arm from the note-on fallback the previous example drives.
-		expect(legacy.channel_or_zone == 8).to_be_true();
-		expect(legacy.cable == &cables().b).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(8);
+		expect(legacy.cable).to_equal(&cables().b);
 		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -1312,14 +1313,14 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// `:2963`'s gate, which `View::startMIDILearn` is what sets. Asserted rather
 		// than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings`
 		// and this example would compare two untouched slots.
-		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true();
+		expect(currentUIMode).to_equal(UI_MODE_MIDI_LEARN);
 		view.sectionMidiLearnPadPressed(true, 5);
 		bool thru = false;
 		playbackHandler.noteMessageReceived(cables().a, /*on=*/true, 3, 64, 127, &thru);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.cable == &cables().a).to_be_true();
-		expect(legacy.channel_or_zone == zone_of(cables().a, 3)).to_be_true();
-		expect(legacy.note_or_cc == 64).to_be_true();
+		expect(legacy.cable).to_equal(&cables().a);
+		expect(legacy.channel_or_zone).to_equal(zone_of(cables().a, 3));
+		expect(legacy.note_or_cc).to_equal(64);
 		view.sectionMidiLearnPadPressed(false, 5);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -1337,8 +1338,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// The bool `ShellHostUI::noteOnReceivedForMidiLearn` returns to `PlaybackHandler`, so the note does not also
 		// play, nor reach `view`'s learn as well.
 		expect(handled).to_be_true();
-		expect(rig.router.dropped_events() == dropped_before).to_be_true();
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(rig.router.dropped_events()).to_equal(dropped_before);
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
@@ -1352,20 +1353,20 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // the base answer reaches `view` only in learn mode
+		expect(currentUIMode).to_equal(UI_MODE_MIDI_LEARN); // the base answer reaches `view` only in learn mode
 		// The current UI is `StubRootUI`, not the menu, so the base answer, `view.ccReceivedForMIDILearn`, is the branch
 		// this example is about. Asserted, because under the menu this would compare nothing.
-		expect(getCurrentUI() == static_cast<UI*>(&shellHostUI)).to_be_false();
+		expect(getCurrentUI()).not_().to_equal(static_cast<UI*>(&shellHostUI));
 		view.sectionMidiLearnPadPressed(true, 6);
 		bool thru = false;
 		playbackHandler.midiCCReceived(cables().a, 2, 74, 100, &thru);
 		const Learned legacy = Learned::of(slot);
-		expect(legacy.cable == &cables().a).to_be_true();
+		expect(legacy.cable).to_equal(&cables().a);
 		// The `IS_A_CC` bias is applied by `ccReceivedForMIDILearn` itself (`view.cpp`), not
 		// by the dispatcher -- so it must appear on the port side too, from `cc_received`, and NOT
 		// from the transport. `UiEvent::channel` carries the raw zone.
-		expect(legacy.channel_or_zone == zone_of(cables().a, 2) + IS_A_CC).to_be_true();
-		expect(legacy.note_or_cc == 74).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(zone_of(cables().a, 2) + IS_A_CC);
+		expect(legacy.note_or_cc).to_equal(74);
 		view.sectionMidiLearnPadPressed(false, 6);
 		expect(reset_legacy_learn()).to_be_true();
 
@@ -1378,7 +1379,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const bool handled = rig.router.route(midi_cc(cables().a, 2, 74, 100), rig.ctx());
 
 		expect(handled).to_be_true();
-		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).not_().to_equal(kPoisonChannel);
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
 	});
 
@@ -1400,18 +1401,18 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
 
 		expect(handled).to_be_true();
-		expect(rig.root.midi_seen == 1).to_be_true();
+		expect(rig.root.midi_seen).to_equal(1);
 		// Still poisoned: the service never ran. If the chain consulted `midi_learn` first this
 		// would hold `cable A / 3 / 64` instead.
-		expect(Learned::of(slot).channel_or_zone == kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).to_equal(kPoisonChannel);
 
 		// And with the scene declining, the SAME rig, the same held thing and the same event do
 		// reach the service -- so the assertion above is about the claim and not about some other
 		// reason the model did not move.
 		rig.root.claim_midi = false;
 		expect(rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx())).to_be_true();
-		expect(Learned::of(slot).channel_or_zone == zone_of(cables().a, 3)).to_be_true();
-		expect(Learned::of(slot).note_or_cc == 64).to_be_true();
+		expect(Learned::of(slot).channel_or_zone).to_equal(zone_of(cables().a, 3));
+		expect(Learned::of(slot).note_or_cc).to_equal(64);
 	});
 
 	it("a MIDI event with a null cable is dropped, not dereferenced", _ {
@@ -1431,8 +1432,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const bool handled = rig.router.route(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .cable = nullptr}, rig.ctx());
 
 		expect(handled).to_be_false();
-		expect(rig.router.dropped_events() == dropped_before + 1).to_be_true();
-		expect(Learned::of(slot).channel_or_zone == kPoisonChannel).to_be_true();
+		expect(rig.router.dropped_events()).to_equal(dropped_before + 1);
+		expect(Learned::of(slot).channel_or_zone).to_equal(kPoisonChannel);
 	});
 
 	// -- `startMIDILearn`'s guard ------------------------------------------------------------------
@@ -1458,11 +1459,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.set_other_mode_active(false);
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::global_command(GlobalMIDICommand::PLAY), true);
-		expect(rig.ml.pressed().kind == ::MidiLearn::PLAY_BUTTON).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::PLAY_BUTTON);
 		rig.ml.set_other_mode_active(true);
 		rig.ml.begin();
 		expect(rig.ml.active()).to_be_true();
-		expect(rig.ml.pressed().kind == ::MidiLearn::NONE).to_be_true();
+		expect(rig.ml.pressed().kind).to_equal(::MidiLearn::NONE);
 	});
 });
 
@@ -1487,8 +1488,9 @@ describe midi_learn_reference("bridge::command_of: the device a learned command 
 		learned.cable = &cable;
 		const deluge::project::MidiCommand command = deluge::bridge::command_of(learned);
 		expect(command.device.has_value()).to_be_true();
-		expect(command.device.has_value() && command.device->port == deluge::project::MidiDeviceRef::Port::HOSTED)
-		    .to_be_true();
+		if (command.device.has_value()) {
+			expect(command.device->port).to_equal(deluge::project::MidiDeviceRef::Port::HOSTED);
+		}
 		expect(command.device.has_value() ? command.device->name : std::string{}).to_equal(std::string{"KEYS"});
 		expect(command.device.has_value() ? static_cast<int32_t>(command.device->vendor_id) : 0).to_equal(int32_t{0x1234});
 	});
@@ -1525,10 +1527,10 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		view.clipStatusMidiLearnPadPressed(true, fixture.clip);
 		view.noteOnReceivedForMidiLearn(cables().a, 4, 60, 127);
 		view.clipStatusMidiLearnPadPressed(false, fixture.clip);
-		expect(held(*fixture.song, target) == command(cables().a, 4, 60)).to_be_true();
+		expect(held(*fixture.song, target)).to_equal(command(cables().a, 4, 60));
 		view.clipStatusMidiLearnPadPressed(true, fixture.clip);
 		view.clipStatusMidiLearnPadPressed(false, fixture.clip);
-		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(fixture.song->project.mappings.find(target)).to_be_null();
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
@@ -1537,10 +1539,10 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.note_on_received(cables().b, 5, 61, 127);
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
-		expect(held(*fixture.song, target) == command(cables().b, 5, 61)).to_be_true();
+		expect(held(*fixture.song, target)).to_equal(command(cables().b, 5, 61));
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), true);
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
-		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(fixture.song->project.mappings.find(target)).to_be_null();
 	});
 
 	it("NOTEROW_MUTE and DRUM_INPUT: a learn writes the kit row's mute and input entries", _ {
@@ -1559,8 +1561,8 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		view.drumMidiLearnPadPressed(true, drum, kit);
 		view.noteOnReceivedForMidiLearn(cables().a, 7, 41, 127);
 		view.drumMidiLearnPadPressed(false, drum, kit);
-		expect(held(*fixture.song, mute) == command(cables().a, 6, 40)).to_be_true();
-		expect(held(*fixture.song, input) == command(cables().a, 7, 41)).to_be_true();
+		expect(held(*fixture.song, mute)).to_equal(command(cables().a, 6, 40));
+		expect(held(*fixture.song, input)).to_equal(command(cables().a, 7, 41));
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
@@ -1568,11 +1570,11 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), true);
 		rig.ml.thing_pressed(LearnTarget::note_row_mute(row->drum != nullptr ? row->drum->id() : std::nullopt), false);
-		expect(fixture.song->project.mappings.find(mute) == nullptr).to_be_true();
+		expect(fixture.song->project.mappings.find(mute)).to_be_null();
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), true);
 		rig.ml.note_on_received(cables().b, 8, 42, 127);
 		rig.ml.thing_pressed(LearnTarget::drum_input(*drum->id()), false);
-		expect(held(*fixture.song, input) == command(cables().b, 8, 42)).to_be_true();
+		expect(held(*fixture.song, input)).to_equal(command(cables().b, 8, 42));
 	});
 
 	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
@@ -1587,7 +1589,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		view.instrumentMidiLearnPadPressed(true, fixture.instrument);
 		view.noteOnReceivedForMidiLearn(cables().a, 9, 50, 127);
 		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
-		expect(held(*fixture.song, target) == command(cables().a, 9, 50)).to_be_true();
+		expect(held(*fixture.song, target)).to_equal(command(cables().a, 9, 50));
 		expect(reset_legacy_learn()).to_be_true();
 
 		LearnRig rig;
@@ -1595,7 +1597,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
-		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(fixture.song->project.mappings.find(target)).to_be_null();
 		expect(fixture.instrument->midiInput.containsSomething()).to_be_false();
 	});
 
@@ -1609,9 +1611,10 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		view.ccReceivedForMIDILearn(cables().b, 8, 74, 100);
 		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
 		const deluge::project::MidiCommand legacy = held(*fixture.song, target);
-		expect(legacy.channel_or_zone == 8 && legacy.device.has_value()).to_be_true();
-		expect(fixture.instrument->midiInput.channelOrZone == 8).to_be_true();
-		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
+		expect(legacy.channel_or_zone).to_equal(8);
+		expect(legacy.device.has_value()).to_be_true();
+		expect(fixture.instrument->midiInput.channelOrZone).to_equal(8);
+		expect(fixture.instrument->midiInput.cable).to_equal(&cables().b);
 		expect(reset_legacy_learn()).to_be_true();
 
 		// The clip the view has open is the MIDI track's, as the app tells the view state.
@@ -1622,13 +1625,13 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false); // unlearned
-		expect(fixture.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(fixture.song->project.mappings.find(target)).to_be_null();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.cc_received(cables().a, 3, 74, 100);
 		deluge::scenes::services::view_state().set_current_view({});
-		expect(held(*fixture.song, target).channel_or_zone == 3).to_be_true();
-		expect(fixture.instrument->midiInput.channelOrZone == 3).to_be_true();
-		expect(fixture.instrument->midiInput.cable == &cables().a).to_be_true();
+		expect(held(*fixture.song, target).channel_or_zone).to_equal(3);
+		expect(fixture.instrument->midiInput.channelOrZone).to_equal(3);
+		expect(fixture.instrument->midiInput.cable).to_equal(&cables().a);
 	});
 
 	it("CV: a note learns the track's input into the table and the instrument", _ {
@@ -1640,9 +1643,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), true);
 		rig.ml.note_on_received(cables().b, 4, 48, 127);
-		expect(held(*fixture.song, target) == command(cables().b, 4, 48)).to_be_true();
-		expect(fixture.instrument->midiInput.channelOrZone == 4).to_be_true();
-		expect(fixture.instrument->midiInput.cable == &cables().b).to_be_true();
+		expect(held(*fixture.song, target)).to_equal(command(cables().b, 4, 48));
+		expect(fixture.instrument->midiInput.channelOrZone).to_equal(4);
+		expect(fixture.instrument->midiInput.cable).to_equal(&cables().b);
 	});
 
 	it("a pad learn hands the sink one learn request by its mapping target, with the note's cable on an input", _ {
@@ -1657,17 +1660,17 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(recording.gestures.size()).to_equal(size_t{1});
 		if (!recording.gestures.empty()) {
 			const deluge::scenes::bind::GestureRequest& learn = recording.gestures[0];
-			expect(learn.kind == deluge::scenes::bind::GestureRequest::Kind::LEARN).to_be_true();
-			expect(learn.mapping
-			       == deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}})
-			    .to_be_true();
-			expect(learn.command.has_value() && *learn.command == command(cables().a, 4, 52)).to_be_true();
-			expect(learn.input == deluge::scenes::bind::LearnInput{.cable = &cables().a, .channel_or_zone = 4})
-			    .to_be_true();
+			expect(learn.kind).to_equal(deluge::scenes::bind::GestureRequest::Kind::LEARN);
+			expect(learn.mapping)
+			    .to_equal(deluge::project::MappingTarget{deluge::project::TrackInputTarget{*fixture.instrument->id()}});
+			expect(learn.command.has_value()).to_be_true();
+			if (learn.command.has_value()) {
+				expect(*learn.command).to_equal(command(cables().a, 4, 52));
+			}
+			expect(learn.input).to_equal(deluge::scenes::bind::LearnInput{.cable = &cables().a, .channel_or_zone = 4});
 		}
-		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()})
-		       == nullptr)
-		    .to_be_true(); // only the request: nothing else wrote
+		expect(fixture.song->project.mappings.find(deluge::project::TrackInputTarget{*fixture.instrument->id()}))
+		    .to_be_null(); // only the request: nothing else wrote
 	});
 
 	it("a release that deletes hands the sink an unlearn", _ {
@@ -1681,9 +1684,8 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.thing_pressed(LearnTarget::clip(deluge::project::ClipAddress{fixture.clip->id()}), false);
 		expect(recording.gestures.size()).to_equal(size_t{1});
 		if (!recording.gestures.empty()) {
-			expect(recording.gestures[0].mapping
-			       == deluge::project::MappingTarget{deluge::project::ClipMuteTarget{fixture.clip->id()}})
-			    .to_be_true();
+			expect(recording.gestures[0].mapping)
+			    .to_equal(deluge::project::MappingTarget{deluge::project::ClipMuteTarget{fixture.clip->id()}});
 			expect(recording.gestures[0].command.has_value()).to_be_false();
 		}
 	});
@@ -1763,7 +1765,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(recorded_velocity_cable(*fixture.song, deluge::project::OwnerId::instrument(*fixture.instrument->id()),
 		                               fixture.clip->id()))
 		    .to_equal(std::optional<int32_t>{0x18000000});
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		currentSong = saved;
 	});
 
@@ -1791,7 +1793,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                    deluge::project::NoteRowAddress{fixture.clip->id(), true, static_cast<int32_t>(*drum->id())},
 		                    "bendRange"))
 		    .to_equal(std::string{"5"});
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		fixture.song->setCurrentClip(nullptr);
 		currentSong = saved;
 	});
@@ -1820,7 +1822,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
 		                    deluge::project::ClipAddress{fixture.clip->id()}, "bendRangeMPE"))
 		    .to_equal(std::string{"24"});
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		cables().a.mpeZoneBendRanges[0][BEND_RANGE_MAIN] = main_before;
 		cables().a.mpeZoneBendRanges[0][BEND_RANGE_FINGER_LEVEL] = finger_before;
 		currentSong = saved;
@@ -1845,7 +1847,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		view.drumMidiLearnPadPressed(false, drum, kit);
 		expect(reset_legacy_learn()).to_be_true();
 
-		expect(drum->midiInput.channelOrZone == 3 + IS_A_CC).to_be_true();
+		expect(drum->midiInput.channelOrZone).to_equal(3 + IS_A_CC);
 		expect(recorded_row(*fixture.song, deluge::project::SettingGroupId::NOTE_ROW, row, "bendRange"))
 		    .to_equal(before);
 		fixture.song->setCurrentClip(nullptr);
@@ -1858,9 +1860,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		give_active_clip(fixture);
 		Song* const saved = currentSong;
 		currentSong = fixture.song;
-		expect(FlashStorage::defaultBendRange[BEND_RANGE_MAIN] != FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL])
-		    .to_be_true();
-		expect(fixture.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		expect(FlashStorage::defaultBendRange[BEND_RANGE_MAIN])
+		    .not_().to_equal(FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL]);
+		expect(fixture.clip->paramManager.getExpressionParamSet()).to_be_null();
 		const CableDefaults defaults{cables().a, 3, 0, 7};
 
 		LearnRig rig;
@@ -1871,7 +1873,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		rig.ml.thing_pressed(LearnTarget::instrument_input(*fixture.instrument->id()), false);
 
 		const ExpressionParamSet* expression = fixture.clip->paramManager.getExpressionParamSet();
-		expect(expression != nullptr).to_be_true();
+		expect(expression).not_().to_be_null();
 		if (expression != nullptr) {
 			expect(static_cast<int32_t>(expression->bendRanges[BEND_RANGE_FINGER_LEVEL]))
 			    .to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL]));
@@ -1900,7 +1902,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const int32_t misread_zone = IS_A_CC - MIDI_CHANNEL_MPE_LOWER_ZONE;
 		auto* const misread = reinterpret_cast<uint8_t*>(&cables().a.mpeZoneBendRanges[0][0])
 		                      + (misread_zone * 2) + BEND_RANGE_FINGER_LEVEL;
-		expect(misread < reinterpret_cast<uint8_t*>(&cables().a) + sizeof(::MIDICable)).to_be_true();
+		expect(misread).to_be_less_than(reinterpret_cast<uint8_t*>(&cables().a) + sizeof(::MIDICable));
 		const uint8_t zone_finger = *misread;
 		*misread = 9;
 
@@ -1931,7 +1933,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		auto* synth = static_cast<SoundInstrument*>(fixture.instrument);
 		const auto clone_onto = [&](InstrumentClip* clip) {
 			ParamManagerForTimeline params;
-			expect(params.cloneParamCollectionsFrom(&fixture.clip->paramManager, false) == Error::NONE).to_be_true();
+			expect(params.cloneParamCollectionsFrom(&fixture.clip->paramManager, false)).to_equal(Error::NONE);
 			clip->setAudioInstrument(synth, fixture.song, true, &params);
 		};
 		InstrumentClip* second = spec::detail::make_session_clip(fixture.song);
@@ -1942,7 +1944,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		clone_onto(arranged);
 		arranged->setSection(255);
 		const int32_t at = synth->clipInstances.insertSorted(0).value_or(-1);
-		expect(at >= 0).to_be_true();
+		to_be_at_least(expect(at), 0);
 		if (at >= 0) {
 			synth->clipInstances[at].clip = arranged;
 			synth->clipInstances[at].length = arranged->loopLength();
@@ -1974,7 +1976,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		fixture.song->setCurrentClip(fixture.clip);
 		deluge::scenes::services::view_state().set_current_view(deluge::gui::menuViewOf(fixture.clip));
 		NoteRow* row = fixture.clip->getNoteRowForDrum(drum);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		(void)row->paramManager.getOrCreateExpressionParamSet(true); // a played bend made it, as a note would
 		const deluge::project::ParamAddress bend{.owner = deluge::project::OwnerId::drum(*drum->id()),
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,

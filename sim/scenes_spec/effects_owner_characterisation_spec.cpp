@@ -36,7 +36,8 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/printers/effect_sections_printer.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -189,9 +190,11 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* feedback = looseParam(*f.song, *loose, params::GLOBAL_DELAY_FEEDBACK, memory);
 			feedback->autoParam->setCurrentValueInResponseToUserInput(INT32_MIN, feedback);
-			expect(effectsOf(*loose->synth).delay.type == deluge::effects::DelayType::OFF).to_be_true();
+			expect(int(effectsOf(*loose->synth).delay.type)).to_equal(int(deluge::effects::DelayType::OFF), "the delay type at no feedback");
 			feedback->autoParam->setCurrentValueInResponseToUserInput(0, feedback);
-			expect(effectsOf(*loose->synth).delay.type != deluge::effects::DelayType::OFF).to_be_true();
+			expect(int(effectsOf(*loose->synth).delay.type))
+			    .not_()
+			    .to_equal(int(deluge::effects::DelayType::OFF), "the delay type with feedback");
 			spec::make_current(nullptr);
 		});
 	});
@@ -304,8 +307,8 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			spec::make_current(f.song);
 			auto* other = spec::detail::place<AudioOutput>();
 			UiMode pressed{UI_MODE_CLIP_PRESSED_IN_SONG_VIEW};
-			expect(f.song->live.stutter.begin(other->channel().core(), effectsOf(*other).stutter, 1 << 24)
-			       == Error::NONE).to_be_true();
+			expect(int(f.song->live.stutter.begin(other->channel().core(), effectsOf(*other).stutter, 1 << 24)))
+			    .to_equal(int(Error::NONE), "the stutter's start");
 			enterUIMode(UI_MODE_STUTTERING);
 			other->~AudioOutput();
 			expect(f.song->live.stutter.active()).to_be_false();
@@ -332,14 +335,18 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 
 			const deluge::effects::EffectStates& got = effectsOf(*clone);
 			const deluge::effects::EffectStates& from = effectsOf(*source);
-			expect(got.filter == from.filter).to_be_true();
-			expect(got.saturation == from.saturation).to_be_true();
-			expect(got.mod_fx == from.mod_fx).to_be_true();
-			expect(got.sidechain == from.sidechain).to_be_true();
-			expect(got.delay == from.delay).to_be_true();
-			expect(got.stutter == from.stutter).to_be_true();
-			expect(got.compressor == compressor).to_be_true();
-			expect(clone->channel().view().modFXParam() == ModFXParam::DEPTH).to_be_true();
+			expect(got.filter).to_equal(from.filter, "the clone's filter");
+			expect(got.saturation).to_equal(from.saturation, "the clone's saturation");
+			expect(got.mod_fx).to_equal(from.mod_fx, "the clone's mod FX");
+			expect(got.sidechain).to_equal(from.sidechain, "the clone's sidechain");
+			// DelayState's printer belongs to the effects unit specs' driver, so its fields are judged one by one here.
+			expect(got.delay.ping_pong).to_equal(from.delay.ping_pong, "the clone's delay ping-pong");
+			expect(int(got.delay.type)).to_equal(int(from.delay.type), "the clone's delay type");
+			expect(int(got.delay.sync_type)).to_equal(int(from.delay.sync_type), "the clone's delay sync type");
+			expect(int(got.delay.sync_level)).to_equal(int(from.delay.sync_level), "the clone's delay sync level");
+			expect(got.stutter).to_equal(from.stutter, "the clone's stutter");
+			expect(got.compressor).to_equal(compressor, "the clone's own compressor");
+			expect(int(clone->channel().view().modFXParam())).to_equal(int(ModFXParam::DEPTH), "the clone's mod FX view");
 			expect(clone->effectsOwner()->knobs->loaded.size()).to_equal(static_cast<std::size_t>(1));
 			source->effectsOwner()->knobs->loaded.clear();
 			clone->effectsOwner()->knobs->loaded.clear();

@@ -16,9 +16,7 @@ import numpy as np
 import predicates
 from dump import load_npz
 
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[2] / "tests" / "integration" / "golden")
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests/golden/render"))
 import compare_renders
 
 FULL_SCALE_16 = 32768.0

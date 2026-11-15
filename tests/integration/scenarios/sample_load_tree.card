@@ -1,0 +1,24 @@
+# The sample-load tree scenario's card.
+#
+# - SAMPLES/SLTSYN.WAV, SLTWT.WAV, SLTKIT.WAV and SLTAUD.WAV are the song's samples: the synth's sample source, its
+#   wavetable source (one 2048-sample cycle), the kit drum and the audio clip. The scenario collects them into the
+#   song's folder when it saves, then removes the first three from here, so the song load can only find their
+#   collected copies.
+# - SYNTHS/SLTPSYN/SLTPSYN.WAV and KITS/SLTPKIT/SLTPKA.WAV / SLTPKB.WAV are the presets' samples. Each preset names
+#   its sample under SAMPLES/, where no such file exists, so the load must find it in the preset's own folder and
+#   rewrite the holder's path.
+# - SAMPLES/SLTCKA.WAV, SLTCKB.WAV, SLTCKC.WAV, SLTCSB.WAV and SLTCAB.WAV belong to the crucial-only load's song (a
+#   second kit's three drums, a second synth, a second audio clip), collected and removed the same way.
+dir SONGS
+wav SAMPLES/SLTSYN.WAV ch=1 bits=16 bytes=4096 fill=0x51
+wav SAMPLES/SLTWT.WAV ch=1 bits=16 bytes=4096 fill=0x52
+wav SAMPLES/SLTKIT.WAV ch=1 bits=16 bytes=3072 fill=0x53
+wav SAMPLES/SLTAUD.WAV ch=1 bits=16 bytes=2048 fill=0x54
+wav SAMPLES/SLTCKA.WAV ch=1 bits=16 bytes=2048 fill=0x61
+wav SAMPLES/SLTCKB.WAV ch=1 bits=16 bytes=2048 fill=0x62
+wav SAMPLES/SLTCKC.WAV ch=1 bits=16 bytes=2048 fill=0x63
+wav SAMPLES/SLTCSB.WAV ch=1 bits=16 bytes=2048 fill=0x64
+wav SAMPLES/SLTCAB.WAV ch=1 bits=16 bytes=2048 fill=0x65
+wav SYNTHS/SLTPSYN/SLTPSYN.WAV ch=1 bits=16 bytes=2048 fill=0x55
+wav KITS/SLTPKIT/SLTPKA.WAV ch=1 bits=16 bytes=2048 fill=0x56
+wav KITS/SLTPKIT/SLTPKB.WAV ch=1 bits=16 bytes=2048 fill=0x57

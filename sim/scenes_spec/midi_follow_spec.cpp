@@ -49,7 +49,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge;
 
@@ -314,9 +314,9 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 		midiEngine.midiTakeover = MIDITakeoverMode::PICKUP;
 		midiFollow.ccToSoundTarget[kCc] = soundParam(params::LOCAL_LPF_FREQ);
 		putKnobAt(*s.song, s.synthLpf(), -40);
-		expect(midiFollow.previousKnobPos[kCc] == kNoSelection).to_be_true();
+		expect(midiFollow.previousKnobPos[kCc]).to_equal(kNoSelection, "the CC's position before a message");
 		sendCc(kChannel, kCc, kValue); // the first value seeds the state; the knob is not met yet
-		expect(midiFollow.previousKnobPos[kCc] != kNoSelection).to_be_true();
+		expect(midiFollow.previousKnobPos[kCc]).not_().to_equal(kNoSelection, "the CC's position after a message");
 		expect(knobPosOf(*s.song, s.synthLpf())).to_equal(-40);
 		sendCc(kChannel, kCc, 1); // the controller crosses the knob: it is picked up
 		expect(knobPosOf(*s.song, s.synthLpf())).to_equal(-63);
@@ -331,7 +331,11 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 		sendCc(kChannel, kOtherCc, kValue); // follows nothing
 		Clip* const take = s.synth.instrument->getActiveClip();
 		expect(s.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
-		expect(take != nullptr && take != s.synth.clip && take->beingRecordedFromClip == s.synth.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(static_cast<Clip*>(s.synth.clip), "the take");
+		if (take != nullptr) {
+			expect(take->beingRecordedFromClip).to_equal(static_cast<Clip*>(s.synth.clip), "the clip the take records from");
+		}
 	});
 
 	it("clones nothing for a selected clip that is not its output's active clip", _ {
@@ -342,9 +346,9 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 		InstrumentClip* const other = s.addInactiveClip();
 		Clip* const active = s.synth.instrument->getActiveClip();
 		sendCc(kChannel, kOtherCc, kValue); // no root UI: the current clip is the one followed
-		expect(other != active).to_be_true();
+		expect(static_cast<Clip*>(other)).not_().to_equal(active, "the inactive clip");
 		expect(s.song->live.clips.arrangement_only_clips.size()).to_equal(arranged);
-		expect(s.synth.instrument->getActiveClip() == active).to_be_true();
+		expect(s.synth.instrument->getActiveClip()).to_equal(active, "the active clip");
 	});
 
 	it("writes a held step region into the take, the region read before the clone", _ {
@@ -357,7 +361,8 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 		ArrangementRecording recording{s.synth};
 		sendCc(kChannel, kCc, kValue);
 		Clip* const take = s.synth.instrument->getActiveClip();
-		expect(take != nullptr && take != s.synth.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(static_cast<Clip*>(s.synth.clip), "the take");
 		if (take == nullptr || take == s.synth.clip) {
 			return;
 		}
@@ -453,7 +458,8 @@ describe midi_follow_feedback("the feedback scan sends the CCs of the params the
 			sendCc(kChannel, kCc, kValue); // lands in the take, automated there
 		}
 		Clip* const take = s.synth.instrument->getActiveClip();
-		expect(take != nullptr && take != s.synth.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(static_cast<Clip*>(s.synth.clip), "the take");
 		if (take == nullptr || take == s.synth.clip) {
 			return;
 		}
@@ -528,20 +534,24 @@ describe midi_follow_descriptors("the controls' knob arithmetic for every param 
 		each(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
 		each(deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL,
 		     params::UNPATCHED_GLOBAL_MAX_NUM);
-		expect(params_checked > 60).to_be_true();
-		expect(compared > 10000).to_be_true();
+		expect(params_checked).to_be_greater_than(60, "the params checked");
+		expect(compared).to_be_greater_than(10000, "the values compared");
 		expect(mismatches).to_equal(std::string{});
 	});
 
 	it("maps no cable depth: a CC's targets are the sound's patched and unpatched params and the global effectable's", _ {
 		for (int32_t index = 0; index < params::GLOBAL_NONE; index++) {
 			const auto target = deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, index);
-			expect(!target || !deluge::instrument::is_cable_depth(target->id)).to_be_true();
+			if (target) {
+				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+			}
 		}
 		for (int32_t index = 0; index < params::UNPATCHED_SOUND_MAX_NUM; index++) {
 			const auto target =
 			    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, index);
-			expect(!target || !deluge::instrument::is_cable_depth(target->id)).to_be_true();
+			if (target) {
+				expect(deluge::instrument::is_cable_depth(target->id)).to_be_false("param " + std::to_string(index) + "'s target");
+			}
 		}
 	});
 });

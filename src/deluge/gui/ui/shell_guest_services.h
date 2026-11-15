@@ -33,13 +33,13 @@ class MIDICable;
 /// The guest owns the `Shell`, the `GuestSurfaceSet` and the three services, and three members
 /// would be the obvious shape. It does not build: the host spec suite
 /// compiles `gui/ui/shell_host_ui.cpp` **directly** and never builds the `deluge_scenes` closure
-/// (`tests/spec/CMakeLists.txt`, which fakes `deluge::scenes::scene_registry()` for exactly
+/// (`tests/trees/host/CMakeLists.txt`, which fakes `deluge::scenes::scene_registry()` for exactly
 /// that reason), and `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn` are
 /// concrete classes over `model/` that cannot be faked the way a free function can. Naming their
-/// types in `shell_host_ui.cpp` would take `shell_host_ui_spec`'s 52 examples off the board.
+/// types in `shell_host_ui.cpp` would take the `shell_host_ui_*_spec` examples off the board.
 ///
 /// So the guest keeps the `Shell` and this file keeps the services, joined by a single
-/// no-arguments function the host suite stubs in `tests/spec/gui/support/fake_legacy_ui.cpp`. The
+/// no-arguments function the host suite stubs in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`. The
 /// ownership is the same -- the services outlive nothing but the process, and they are installed
 /// into `shellHostUI`'s own `Shell` -- and the seam is one symbol wide.
 ///

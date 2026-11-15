@@ -21,7 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 
@@ -86,7 +86,7 @@ describe playback_start_spec_body("PlaybackHandler start-up under a preempting r
 
 	it("a render block that lands while internal-clock playback starts actions no timer tick", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		expect(fixture.song != nullptr).to_be_true();
+		expect(fixture.song).not_().to_be_null();
 		currentSong = fixture.song;
 		spec::QuietAudio quiet;
 		reset_to_stopped();

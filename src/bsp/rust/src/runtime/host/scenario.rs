@@ -55,7 +55,7 @@ pub struct ScenarioResult {
     pub song_load_dispatched: bool,
     /// The directory listing it starts completed.
     pub listing_completed: bool,
-    /// `deluge_scenario_commit_song_load` dispatched.
+    /// `deluge_scenario_commit_song_load` dispatched the load; false when the song is not on the card.
     pub load_committed: bool,
     /// The committed load finished.
     pub load_completed: bool,

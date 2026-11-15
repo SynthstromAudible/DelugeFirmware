@@ -53,7 +53,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -455,8 +455,10 @@ describe learned_cc_order("a learned CC through PlaybackHandler::midiCCReceived:
 		World w = makeWorld();
 		learnAll(w, EVERY);
 		RootView root;
-		expect(w.synth.instrument->next == w.kit.instrument && w.kit.instrument->next == w.audio
-		       && w.audio->next == w.idle.instrument && w.idle.instrument->next == nullptr).to_be_true();
+		expect(w.synth.instrument->next).to_equal(static_cast<Output*>(w.kit.instrument), "the output after the synth");
+		expect(w.kit.instrument->next).to_equal(static_cast<Output*>(w.audio), "the output after the kit");
+		expect(w.audio->next).to_equal(static_cast<Output*>(w.idle.instrument), "the output after the audio track");
+		expect(w.idle.instrument->next).to_be_null("the output after the idle instrument");
 		sendCc(kChannel, kCc, 100);
 		expect(written(w)).to_equal(std::string{"song synth kit rowB rowA audio"});
 		// A value 100 is knob position 36, jumped to; the idle track's clip is not active, the sleeping synth's is gone.
@@ -604,11 +606,16 @@ describe learned_cc_takeover("a learned CC through takeover (controls::knob_pos_
 		expect(rig.steps()).to_equal(size_t{1});
 		const std::optional<int32_t> inRegion = valueAtPos(*rig.f.song, rig.address, 100);
 		const std::optional<int32_t> beforeRegion = valueAtPos(*rig.f.song, rig.address, 0);
-		expect(inRegion == std::optional<int32_t>{valueForKnobPos(*rig.f.song, rig.address, -64)}).to_be_true();
-		expect(inRegion != beforeRegion).to_be_true();
+		expect(inRegion.has_value()).to_be_true("the value in the region");
+		if (inRegion.has_value()) {
+			expect(*inRegion).to_equal(valueForKnobPos(*rig.f.song, rig.address, -64), "the value in the region");
+		}
+		expect(inRegion).not_().to_equal(beforeRegion, "the value in the region");
 		// The region is 48 long: still written at its last tick, back to where it was past its end.
-		expect(valueAtPos(*rig.f.song, rig.address, 96 + 47) == inRegion).to_be_true();
-		expect(valueAtPos(*rig.f.song, rig.address, 96 + 48 + 10) != inRegion).to_be_true();
+		expect(valueAtPos(*rig.f.song, rig.address, 96 + 47)).to_equal(inRegion, "the value at the region's last tick");
+		expect(valueAtPos(*rig.f.song, rig.address, 96 + 48 + 10))
+		    .not_()
+		    .to_equal(inRegion, "the value past the region's end");
 	});
 
 	it("picks up in PICKUP mode only when the controller crosses the param", _ {
@@ -679,7 +686,7 @@ describe learned_pitch_bend("a learned pitch bend through PlaybackHandler::pitch
 		const std::optional<int32_t> pan_before = valueOf(*rig.f.song, pan);
 		sendBend(kChannel, 16383);
 		expect(valueOf(*rig.f.song, rig.address).value_or(0)).to_equal(2147221504);
-		expect(valueOf(*rig.f.song, pan) == pan_before).to_be_true();
+		expect(valueOf(*rig.f.song, pan)).to_equal(pan_before, "the pan");
 	});
 
 	it("stops the bend reaching the instrument of an output it is learned on, and that output's only", _ {
@@ -704,7 +711,7 @@ describe learned_pitch_bend("a learned pitch bend through PlaybackHandler::pitch
 		RootView root;
 		actionLogger.deleteAllLogs();
 		sendBend(kChannel, 16383);
-		expect(valueOf(*rig.f.song, volume) == before).to_be_true();
+		expect(valueOf(*rig.f.song, volume)).to_equal(before, "the volume");
 		expect(rig.steps()).to_equal(size_t{0});
 	});
 
@@ -731,14 +738,14 @@ describe learned_pitch_bend("a learned pitch bend through PlaybackHandler::pitch
 		const std::optional<int32_t> kit_before = valueOf(*kit.song, kitGlobal);
 		sendBend(kChannel, 16383);
 		expect(valueOf(*kit.song, rowOwn).value_or(0)).to_equal(2147221504);
-		expect(valueOf(*kit.song, kitGlobal) == kit_before).to_be_true();
+		expect(valueOf(*kit.song, kitGlobal)).to_equal(kit_before, "the kit's own param");
 		sendBend(1, 0);
 		expect(valueOf(*kit.song, rowLpf).value_or(0)).to_equal(INT32_MIN);
 		// The same row's CC knob writes the row's own param.
 		putKnobAt(*kit.song, rowOwn, 0);
 		sendCc(kChannel, kCc, 100);
 		expect(knobPosOf(*kit.song, rowOwn)).to_equal(36);
-		expect(valueOf(*kit.song, kitGlobal) == kit_before).to_be_true();
+		expect(valueOf(*kit.song, kitGlobal)).to_equal(kit_before, "the kit's own param");
 	});
 });
 
@@ -756,9 +763,16 @@ describe learned_writes("how a learned write lands", $ {
 		Clip* const synthTake = w.synth.instrument->getActiveClip();
 		Clip* const kitTake = w.kit.instrument->getActiveClip();
 		expect(w.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 2);
-		expect(synthTake != nullptr && synthTake != w.synth.clip && synthTake->beingRecordedFromClip == w.synth.clip)
-		    .to_be_true();
-		expect(kitTake != nullptr && kitTake != w.kit.clip && kitTake->beingRecordedFromClip == w.kit.clip).to_be_true();
+		expect(synthTake).not_().to_be_null("the synth's take");
+		expect(synthTake).not_().to_equal(w.synth.clip, "the synth's take");
+		if (synthTake != nullptr) {
+			expect(synthTake->beingRecordedFromClip).to_equal(w.synth.clip, "the clip the synth's take records from");
+		}
+		expect(kitTake).not_().to_be_null("the kit's take");
+		expect(kitTake).not_().to_equal(w.kit.clip, "the kit's take");
+		if (kitTake != nullptr) {
+			expect(kitTake->beingRecordedFromClip).to_equal(w.kit.clip, "the clip the kit's take records from");
+		}
 		if (synthTake == nullptr || kitTake == nullptr) {
 			return;
 		}
@@ -784,7 +798,8 @@ describe learned_writes("how a learned write lands", $ {
 		// A second move writes the same takes.
 		sendCc(kChannel, kCc, 110);
 		expect(w.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 2);
-		expect(w.synth.instrument->getActiveClip() == synthTake && w.kit.instrument->getActiveClip() == kitTake).to_be_true();
+		expect(w.synth.instrument->getActiveClip()).to_equal(synthTake, "the synth's active clip");
+		expect(w.kit.instrument->getActiveClip()).to_equal(kitTake, "the kit's active clip");
 		expect(onTake(lanes[1], *synthTake)).to_equal(46);
 		// The arrangement records no undo steps, and no instrument is marked edited.
 		expect(written(w)).to_equal(std::string{});
@@ -815,8 +830,8 @@ describe learned_writes("how a learned write lands", $ {
 			if (clips.size() < 2) {
 				continue;
 			}
-			expect(clips[0] == w.kit.instrument->getActiveClip() && clips[1] == w.synth.instrument->getActiveClip())
-			    .to_be_true();
+			expect(clips[0]).to_equal(w.kit.instrument->getActiveClip(), "the first arranged clip");
+			expect(clips[1]).to_equal(w.synth.instrument->getActiveClip(), "the second arranged clip");
 		}
 	});
 
@@ -833,7 +848,11 @@ describe learned_writes("how a learned write lands", $ {
 		Clip* const take = w.synth.instrument->getActiveClip();
 		expect(written(w)).to_equal(std::string{});
 		expect(w.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
-		expect(take != nullptr && take != w.synth.clip && take->beingRecordedFromClip == w.synth.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(w.synth.clip, "the take");
+		if (take != nullptr) {
+			expect(take->beingRecordedFromClip).to_equal(w.synth.clip, "the clip the take records from");
+		}
 	});
 
 	it("reads the held step region on the session clip before it clones, and writes it into the take", _ {
@@ -845,7 +864,8 @@ describe learned_writes("how a learned write lands", $ {
 		ArrangementRecording recording{{rig.f}};
 		rig.send(0);
 		Clip* const take = rig.f.instrument->getActiveClip();
-		expect(take != nullptr && take != rig.f.clip).to_be_true();
+		expect(take).not_().to_be_null("the take");
+		expect(take).not_().to_equal(rig.f.clip, "the take");
 		if (take == nullptr || take == rig.f.clip) {
 			return;
 		}
@@ -854,8 +874,10 @@ describe learned_writes("how a learned write lands", $ {
 		expect(automated(*rig.f.song, onTake)).to_be_true();
 		expect(automated(*rig.f.song, rig.address)).to_be_false();
 		const std::optional<int32_t> inRegion = valueAtPos(*rig.f.song, onTake, 100);
-		expect(valueAtPos(*rig.f.song, onTake, 96 + 47) == inRegion).to_be_true();
-		expect(valueAtPos(*rig.f.song, onTake, 96 + 48 + 10) != inRegion).to_be_true();
+		expect(valueAtPos(*rig.f.song, onTake, 96 + 47)).to_equal(inRegion, "the take's value at the region's last tick");
+		expect(valueAtPos(*rig.f.song, onTake, 96 + 48 + 10))
+		    .not_()
+		    .to_equal(inRegion, "the take's value past the region's end");
 	});
 
 	it("makes a cable depth the learned knob turns when the sound has none yet", _ {
@@ -871,7 +893,7 @@ describe learned_writes("how a learned write lands", $ {
 		actionLogger.deleteAllLogs();
 		sendCc(kChannel, kCc, 100);
 		expect(valueOf(*f.song, address).has_value()).to_be_true();
-		expect(valueOf(*f.song, address).value_or(0) != 0).to_be_true();
+		expect(valueOf(*f.song, address).value_or(0)).not_().to_equal(0, "the cable depth");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 	});
 
@@ -887,9 +909,13 @@ describe learned_writes("how a learned write lands", $ {
 		expect(valueOf(*f.song, address).has_value()).to_be_false();
 		actionLogger.deleteAllLogs();
 		sendCc(kChannel, kCc, 0); // a fresh knob reads it as an offset of 0
-		expect(valueOf(*f.song, address) == std::optional<int32_t>{0}).to_be_true();
+		const std::optional<int32_t> made = valueOf(*f.song, address);
+		expect(made.has_value()).to_be_true("the cable depth");
+		if (made.has_value()) {
+			expect(*made).to_equal(0, "the cable depth");
+		}
 		expect(writes().empty()).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true(); // the cable's own undo step
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null("the cable's own undo step");
 	});
 
 	it("marks no owner edited: a synth, a kit's own knob, or a kit's rows", _ {

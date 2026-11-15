@@ -21,7 +21,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <limits>
 #include <string>
@@ -76,7 +76,7 @@ describe set_kit_lane_setting("an arp setting written across a kit's lanes", ${
 		for (Drum* drum : std::initializer_list<Drum*>{l.sound, l.second, l.midi}) {
 			expect(lane(l, *drum, "arpeggiator/numOctaves")).to_equal("3");
 		}
-		expect(lane(l, *l.gate, "arpeggiator/numOctaves") != "3").to_be_true();
+		expect(lane(l, *l.gate, "arpeggiator/numOctaves")).not_().to_equal("3");
 		expect(static_cast<int>(l.midi->arpSettings.numOctaves)).to_equal(3);
 		expect(kit_clip(l, "arpeggiator/numOctaves")).to_equal(clip_before);
 	});

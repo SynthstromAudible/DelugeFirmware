@@ -1,11 +1,11 @@
-# ShellMenu: AFFECT ENTIRE in a kit row's sound menu. The content card's synth clip is made a kit and drum row 0's
-# menu opened over the clip view. On the root list (a row that enters a submenu, which does not use affect-entire)
-# AFFECT ENTIRE toggles the clip's affect-entire, as the clip view's own button does: its LED lights and stays. SHIFT
-# + (8,7) opens the row's FILTER page on LPF frequency, which does use it: holding AFFECT ENTIRE blinks its LED fast
-# (the hold mode), a turn under it edits every drum, and the release ends the blink (the LED shows the clip's setting
-# again). BACK leaves the menu (a shortcut opened the page); SELECT then opens the kit's own root (affect-entire is
-# on), where AFFECT ENTIRE toggles the clip's setting off again. Every snapshot has a 1 s window. Run on the content
-# card (sweep-shellmenu.img).
+# ShellMenu: AFFECT ENTIRE in a kit row's sound menu. The content card's synth clip is made a kit and drum row 0's menu
+# opened over the clip view. On the root list (a row that enters a submenu, which does not use affect-entire) AFFECT
+# ENTIRE toggles the clip's affect-entire, as the clip view's own button does: its LED lights and stays. SHIFT + (8,7)
+# opens the row's FILTER page on LPF frequency, which does use it: holding AFFECT ENTIRE blinks its LED fast (the hold
+# mode), a turn under it edits every drum, and the release ends the blink (the LED shows the clip's setting again). BACK
+# leaves the menu (a shortcut opened the page); SELECT then opens the kit's own root (affect-entire is on), where AFFECT
+# ENTIRE toggles the clip's setting off again. Every snapshot has a 1 s window.
+# card: content/sweep-bare.img
 1300  button Clip down
 1320  button Clip up
 2300  button Kit down

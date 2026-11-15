@@ -34,7 +34,7 @@
 /// `Fixed<S, F>` stores a value as `S` holding value × 2^F. There are no arithmetic operators: every operation names
 /// its overflow policy (`_wrap`, `_sat`, `_clamp_then_shift`) and rounding (`_floor`, `_round`, `_r`), and a format
 /// change is either a reformat (`as_*`: same value, new format) or a scale (`scale_*`: same format, new value). Each
-/// operation compiles to the Cortex-A9 instruction its comment names; tests/unit-arm/codegen checks that.
+/// operation compiles to the Cortex-A9 instruction its comment names; tests/unit/deluge/dsp-next/core checks that.
 ///
 /// Every operation is always_inline and written with builtins, comparisons and constexpr constants, so that it compiles
 /// to its instruction under any inliner, the codegen probes' -fno-inline-functions included.

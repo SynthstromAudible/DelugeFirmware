@@ -22,7 +22,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <optional>
 
@@ -151,7 +151,7 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 			ui.seen = {};
 			bool thru = false;
 			playbackHandler.noteMessageReceived(cable(), true, 2, 60, 100, &thru);
-			expect(ui.seen.got == Got::NoteOn).to_be_true();
+			expect(ui.seen.got).to_equal(Got::NoteOn);
 			expect(ui.seen.number).to_equal(60);
 		}
 	});
@@ -162,7 +162,7 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 		Mode mode{true};
 		bool thru = false;
 		playbackHandler.noteMessageReceived(cable(), false, 2, 60, 0, &thru);
-		expect(ui.seen.got == Got::Nothing).to_be_true();
+		expect(ui.seen.got).to_equal(Got::Nothing);
 	});
 
 	it("offers a program change, in or out of learn mode", _ {
@@ -172,7 +172,7 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 			Mode mode{learning};
 			ui.seen = {};
 			playbackHandler.programChangeReceived(cable(), 3, 7);
-			expect(ui.seen.got == Got::ProgramChange).to_be_true();
+			expect(ui.seen.got).to_equal(Got::ProgramChange);
 			expect(ui.seen.channel).to_equal(3);
 			expect(ui.seen.number).to_equal(7);
 		}
@@ -184,7 +184,7 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 		Mode mode{true};
 		bool thru = false;
 		playbackHandler.midiCCReceived(cable(), 15, 74, 64, &thru);
-		expect(ui.seen.got == Got::Cc).to_be_true();
+		expect(ui.seen.got).to_equal(Got::Cc);
 		expect(ui.seen.number).to_equal(74);
 	});
 
@@ -195,7 +195,7 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 		Mode mode{true};
 		bool thru = false;
 		playbackHandler.midiCCReceived(cable(), 2, 74, 64, &thru);
-		expect(ui.seen.got == Got::Nothing).to_be_true();
+		expect(ui.seen.got).to_equal(Got::Nothing);
 	});
 
 	it("offers a pitch bend outside any MPE zone, and not an MPE one", _ {
@@ -204,12 +204,12 @@ describe learn_dispatch_offers("PlaybackHandler offers learnable messages to the
 		Mode mode{true};
 		bool thru = false;
 		playbackHandler.pitchBendReceived(cable(), 15, 0, 64, &thru);
-		expect(ui.seen.got == Got::PitchBend).to_be_true();
+		expect(ui.seen.got).to_equal(Got::PitchBend);
 
 		MpeZone zone{4};
 		ui.seen = {};
 		playbackHandler.pitchBendReceived(cable(), 2, 0, 64, &thru);
-		expect(ui.seen.got == Got::Nothing).to_be_true();
+		expect(ui.seen.got).to_equal(Got::Nothing);
 	});
 
 	it("stops at a UI that answers true: the view's learn does not also run", _ {

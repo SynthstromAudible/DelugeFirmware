@@ -10,11 +10,12 @@
 #include "processing/sound/sound_instrument.h"
 #include "scenes/menu/node.h"
 #include "support/menu_engine.h"
+#include "support/printers/bind_addresses_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
@@ -61,9 +62,10 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Sound));
 		expect(ctx.resolved).to_be_true();
-		expect(ctx.addresses.slot == std::optional{instrument_slot(f)}).to_be_true();
-		expect(ctx.addresses.clip == std::optional{deluge::project::ClipAddress{f.clip->id()}}).to_be_true();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod == static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument))).to_be_true();
+		expect(ctx.addresses.slot).to_equal(std::optional{instrument_slot(f)});
+		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
+		expect(deluge::scenes::spec::menu_engine(ctx).mod)
+		    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
 		expect(ctx.source_index).to_equal(static_cast<int8_t>(0));
@@ -83,10 +85,11 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.is_kit).to_be_true();
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_true();
-		expect(ctx.addresses.clip == std::optional{deluge::project::ClipAddress{f.clip->id()}}).to_be_true();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod != nullptr).to_be_true();
+		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
+		expect(deluge::scenes::spec::menu_engine(ctx).mod).not_().to_be_null();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::KIT).to_be_true();
+		expect(ctx.addresses.chain.has_value()).to_be_true();
+		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::KIT);
 	});
 
 	it("edits the selected row when kit_global_fx is false, even with affect-entire on", _ {
@@ -101,7 +104,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.affect_entire).to_be_true();
 		expect(ctx.is_kit_global_fx).to_be_false();
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
-		expect(ctx.addresses.slot == std::optional{drum_slot(*drum)}).to_be_true();
+		expect(ctx.addresses.slot).to_equal(std::optional{drum_slot(*drum)});
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 	});
 
@@ -118,7 +121,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.is_drum).to_be_false();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::KIT).to_be_true();
+		expect(ctx.addresses.chain.has_value()).to_be_true();
+		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::KIT);
 
 		// A MIDI row selected: the MIDI drum's root, still over the kit's own chain.
 		auto m = spec::make_kit_song();
@@ -138,9 +142,12 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
 		expect(ctx.is_kit).to_be_true();
 		expect(ctx.is_drum).to_be_true();
-		expect(ctx.addresses.slot == std::optional{drum_slot(*drum)}).to_be_true();
+		expect(ctx.addresses.slot).to_equal(std::optional{drum_slot(*drum)});
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
-		expect(ctx.addresses.lane.has_value() && ctx.addresses.lane->drum_id == *drum->id()).to_be_true();
+		expect(ctx.addresses.lane.has_value()).to_be_true();
+		if (ctx.addresses.lane.has_value()) {
+			expect(ctx.addresses.lane->drum_id).to_equal(*drum->id());
+		}
 	});
 
 	it("resolves a kit clip with a selected MIDI drum to the MIDI-drum root, with only an arp", _ {
@@ -150,7 +157,10 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiDrum));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(ctx.addresses.lane.has_value() && ctx.addresses.lane->drum_id == *drum->id()).to_be_true();
+		expect(ctx.addresses.lane.has_value()).to_be_true();
+		if (ctx.addresses.lane.has_value()) {
+			expect(ctx.addresses.lane->drum_id).to_equal(*drum->id());
+		}
 	});
 
 	it("refuses a kit clip with neither affect-entire nor a selected drum", _ {
@@ -158,7 +168,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
 
 		expect(ctx.resolved).to_be_false();
-		expect(ctx.addresses.slot.has_value() || ctx.addresses.chain.has_value()).to_be_false();
+		expect(ctx.addresses.slot.has_value()).to_be_false();
+		expect(ctx.addresses.chain.has_value()).to_be_false();
 	});
 
 	it("resolves a MIDI instrument clip to the MIDI/CV root, with no sound", _ {
@@ -167,8 +178,8 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiOrCv));
 		expect(ctx.addresses.slot.has_value()).to_be_false();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod == nullptr).to_be_true();
-		expect(ctx.addresses.clip == std::optional{deluge::project::ClipAddress{f.clip->id()}}).to_be_true();
+		expect(deluge::scenes::spec::menu_engine(ctx).mod).to_be_null();
+		expect(ctx.addresses.clip).to_equal(std::optional{deluge::project::ClipAddress{f.clip->id()}});
 	});
 
 	it("resolves no clip and no session root to the settings root", _ {
@@ -187,8 +198,9 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Performance));
 		expect(ctx.is_performance).to_be_true();
 		expect(ctx.is_song_view).to_be_true();
-		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::SONG).to_be_true();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod != nullptr).to_be_true();
+		expect(ctx.addresses.chain.has_value()).to_be_true();
+		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::SONG);
+		expect(deluge::scenes::spec::menu_engine(ctx).mod).not_().to_be_null();
 	});
 
 	it("resolves a session/arranger root with no clip to the song root", _ {
@@ -196,7 +208,8 @@ describe menu_context("scenes::menu::context_for", $ {
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, /*kit_global_fx=*/false);
 
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Song));
-		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::SONG).to_be_true();
+		expect(ctx.addresses.chain.has_value()).to_be_true();
+		expect(ctx.addresses.chain_owner).to_equal(bind::ChainOwner::SONG);
 	});
 
 	it("keeps the wide and narrow root-UI facts on separate fields, and picks the root from the wide one", _ {
@@ -219,8 +232,9 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(session.is_song_view).to_be_true();
 		expect(session.is_session_view).to_be_true();
 		// The narrow bool steers no branch: same root, same addresses, same mod controllable.
-		expect(session.addresses == arranger.addresses).to_be_true();
-		expect(deluge::scenes::spec::menu_engine(session).mod == deluge::scenes::spec::menu_engine(arranger).mod).to_be_true();
+		expect(session.addresses).to_equal(arranger.addresses);
+		expect(deluge::scenes::spec::menu_engine(session).mod)
+		    .to_equal(deluge::scenes::spec::menu_engine(arranger).mod);
 
 		// A clip minder: neither fact holds, and the narrow bool is not silently inherited.
 		const MenuContext clip = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);

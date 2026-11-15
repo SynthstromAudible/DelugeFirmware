@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Tests for rig_session.py's DeviceSession over a fake RTT link: `python3 -m unittest test_rig_session`."""
+"""Tests for rig_session.py's DeviceSession over a fake RTT link: `python3 -m unittest test_rig_session`.
+
+Gate rig-session:
+    rig_session's reading of the rig harness's RTT stream: split lines and log lines between panel lines, each panel
+    line kind into delugemu-shaped state (OLED rows, 18x8 pads, LEDs by name, gold rings, flashes, PIC settings), the
+    clock counted from the attach after the app runs, a link dropped before attaching reopened without its partial line,
+    and a lost line, a dropped flash, a refused command, a closed link or a silent device raised
+"""
 
 import base64
 import tempfile

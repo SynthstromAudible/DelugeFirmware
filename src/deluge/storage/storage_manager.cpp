@@ -649,7 +649,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 
 FileWriter::~FileWriter() {
 	// The BASE, not the buffer. They differ by CACHE_LINE_SIZE, and handing back the offset pointer
-	// gives the allocator an address it never issued -- the host's own storage_mocks.cpp records libc
+	// gives the allocator an address it never issued -- the host's own mock_storage.cpp records libc
 	// rejecting exactly that shape ("free(): invalid size") for this class's reader twin.
 	deluge::memory::dealloc(writeClusterBufferBase);
 }

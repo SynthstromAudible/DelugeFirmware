@@ -9,6 +9,11 @@
 // snapshot granularity choice.
 //
 // std::chrono is fine here: the Date.now/Math.random restriction is a Workflow-script rule, not a C++ one.
+//
+// Gate param-snapshot-bench:
+//     nothing: it times ParamSnapshot::applyPatch (one lane) against the full projectFromStoreAfterRead rebuild for the
+//     same single-param edits, and prints the table (DRV-OUT lines) that answers the incremental-vs-rebuild granularity
+//     question
 
 #include "definitions_cxx.hpp"
 #include "model/fx/chain_params.h"

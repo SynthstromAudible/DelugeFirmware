@@ -117,7 +117,7 @@ phase boundaries.
    monolithic `util/functions.cpp` into a new leaf `util/interpolation.{h,cpp}` (only
    dep = the decay/release LUTs); 5 callers + `functions.cpp` re-include it. (`getSine`
    already lived in the leaf `util/waves.h`.) That unblocked a dual-arch
-   `tests/dsp/envelope_spec.cpp` — 8 cases driving the `Envelope` in isolation
+   `tests/unit/deluge/dsp-next/envelope_spec.cpp` — 8 cases driving the `Envelope` in isolation
    (`envelope.cpp` + `interpolation.cpp` + `lookuptables.cpp`, no fatfs/gui/hid), green
    on x86 (SIMDe) and ARM/qemu. Pure relocation, bit-exact (x86 333/333, ARM subset).
 
@@ -148,8 +148,8 @@ phase boundaries.
    envelope cull-timing shift): per-struct state means a *live local-LFO shape change
    between two stateful waves* resets the accumulators (an accidental cross-type state
    leak in the old shared-fields code), unobservable in the corpus. Added a dual-arch
-   `tests/dsp/lfo_spec.cpp` (exact per-waveform values ported from the retired x86-only
-   `tests/unit/lfo_tests.cpp`, which is deleted) — 12 cases green on x86 + ARM/qemu.
+   `tests/unit/deluge/dsp-next/lfo_spec.cpp` (exact per-waveform values from the x86-only CppUTest LFO
+   suite it supersedes) — 12 cases green on x86 + ARM/qemu.
    Bit-exact: x86 golden 333/333, ARM oracle 8/8 LFO-exercising cases.
 4. **`ControlBlock` + patcher param source — DONE.** The audit showed the Patcher's
    only app-coupling is `sound.getSmoothedPatchedParamValue(p, pm)` (= `paramLPF`

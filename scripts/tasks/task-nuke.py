@@ -17,8 +17,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def readonly_handler(func, path, execinfo):
-    # shutil.rmtree can fail after building tests, due to a cpputest's git checkout
-    # under build tree containing read-only files.
+    # shutil.rmtree can fail after building tests: a FetchContent git checkout under a build tree holds read-only files.
     os.chmod(path, stat.S_IWRITE)
     func(path)
 

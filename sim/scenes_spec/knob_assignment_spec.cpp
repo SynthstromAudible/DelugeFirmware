@@ -29,7 +29,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <cstdio>
 #include <functional>
@@ -130,7 +130,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		auto* kit = static_cast<Kit*>(f.instrument);
 		int32_t row_index = 0;
 		NoteRow* row = f.clip->getNoteRowForDrum(drum, &row_index);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row != nullptr) {
 			const bind::KnobFocus focus{.owner = bind::SoundFocus{
 			    .slot = {deluge::project::SlotAddress::Kind::DRUM, *drum->id()},

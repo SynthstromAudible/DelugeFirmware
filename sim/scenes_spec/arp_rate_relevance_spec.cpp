@@ -36,7 +36,7 @@
 #include <cstring>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 namespace spec = deluge::scenes::spec;
@@ -88,9 +88,11 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		const MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
-		expect(menu::shortcut_node(ctx.root, false, 11, 0) == &menu::nodes::arp_rate).to_be_true();
+		expect(menu::shortcut_node(ctx.root, false, 11, 0)).to_equal(&menu::nodes::arp_rate);
 		const RGB pad = menu::shortcut_colour(ctx, 11, 0);
-		expect(pad.r == 0 && pad.g == 0 && pad.b == 0).to_be_true();
+		expect(pad.r).to_equal(0);
+		expect(pad.g).to_equal(0);
+		expect(pad.b).to_equal(0);
 		expect(menu::shortcut_applies(menu::nodes::arp_rate, ctx)).to_be_false();
 	});
 
@@ -155,9 +157,11 @@ describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomi
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, true))).to_be_false();
 		// The kit's own menu is latched: its overlay paints (11,3) black and Shift + pad refuses it.
 		const MenuContext menu_ctx = kit_table_context(f, true);
-		expect(menu::shortcut_node(menu_ctx.root, false, 11, 3) == &menu::nodes::arp_octaves).to_be_true();
+		expect(menu::shortcut_node(menu_ctx.root, false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
 		const RGB pad = menu::shortcut_colour(menu_ctx, 11, 3);
-		expect(pad.r == 0 && pad.g == 0 && pad.b == 0).to_be_true();
+		expect(pad.r).to_equal(0);
+		expect(pad.g).to_equal(0);
+		expect(pad.b).to_equal(0);
 		expect(menu::shortcut_applies(menu::nodes::arp_octaves, menu_ctx)).to_be_false();
 	});
 
@@ -323,7 +327,10 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 		actionLogger.deleteAllLogs();
 		menu::bindings::write(menu::nodes::spread_gate_midi, ctx, 30);
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		menu::bindings::write(menu::nodes::note_probability_midi, ctx, 20);
 
 		// The kit's own render: `Kit::renderOutput` hands its clip's params to `setupAndRenderArpPreOutput`.
@@ -336,8 +343,8 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 		kit->renderOutput(setupModelStackWithSong(memory, f.song), buffer, nullptr, 0, 0, false, true);
 		// The kit's arp is its active clip's (`Kit::getArpSettings`).
 		const ArpeggiatorSettings& rendered = f.clip->arpSettings;
-		expect(rendered.spreadGate == menu::bindings::menu_to_unsigned(30)).to_be_true();
-		expect(rendered.noteProbability == menu::bindings::menu_to_unsigned(20)).to_be_true();
+		expect(rendered.spreadGate).to_equal(menu::bindings::menu_to_unsigned(30));
+		expect(rendered.noteProbability).to_equal(menu::bindings::menu_to_unsigned(20));
 		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx)).to_equal(30);
 		expect(menu::bindings::read(menu::nodes::note_probability_midi, ctx)).to_equal(20);
 		// The MIDI drum's own arp is not the kit's: its settings are untouched.
@@ -345,7 +352,7 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 
 		// The spread gate write is one undo step, which restores the column.
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
-		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx) != 30).to_be_true();
+		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx)).not_().to_equal(30);
 		actionLogger.deleteAllLogs();
 		nullifyUIs();
 	});

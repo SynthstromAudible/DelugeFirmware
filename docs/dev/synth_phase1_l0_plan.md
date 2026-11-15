@@ -116,12 +116,12 @@ at the end. Migration order:
    device render DX7 presets identically.
 
 Each primitive: rewrite in `dsp-next` → **write a thorough behavioural spec**
-(`tests/dsp/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
+(`tests/unit/deluge/dsp-next/<name>_spec.cpp`, CppSpec) that runs as a CTest test on **both** x86
 (SIMDe) and ARM/qemu, locking the kernel's behaviour and cross-checking x86≡ARM
 → switch the caller (oscillator dispatch / `Voice` / `FilterSet` / `WaveTable`)
 → full golden sweep (bit-exact) → delete the old `dsp/` implementation. The spec
 is mandatory and lands with (or just before) the migration, not after — it is
-the per-primitive regression net. See `tests/dsp/README.md`.
+the per-primitive regression net. See `tests/unit/deluge/dsp-next/README.md`.
 
 ### Deferred to Phase 3 (do not migrate now)
 `granular/`, `timestretch/`, and the sample path stay in the old `dsp/` and
@@ -149,7 +149,7 @@ change.
   legacy `dsp/`, HAL/BSP; `memory/` only via `memory_allocator_interface.h`)
   wired into pre-commit + a CI workflow. Firmware Debug builds green, text
   unchanged (empty libs add no code). The per-primitive unit-spec harness
-  (`tests/dsp/`, dual-arch CppSpec via CTest) lands with S2.
+  (`tests/unit/deluge/dsp-next/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
   `q31_t`, + the `SampleType` concept) and `core/convert.h` (`to_f32`/`to_q31`
@@ -167,7 +167,7 @@ change.
   Doxygen; snake_case free functions via a scoped `dsp-next/.clang-tidy`. Bit-exact:
   x86 319/319, ARM oracle 5/5 (the sine/fm cases only — the full ARM/QEMU sweep
   is too slow to run per-commit, so it is reserved for phase boundaries). Shipped
-  with a thorough dual-arch unit spec: `tests/dsp/sine_spec.cpp` (CppSpec, CTest)
+  with a thorough dual-arch unit spec: `tests/unit/deluge/dsp-next/sine_spec.cpp` (CppSpec, CTest)
   runs on x86 (SIMDe) and ARM/qemu, both green.
 - **Oscillator domain** (the active thread): the VA wave kernels + LUTs, the VCA
   separation, and the megaswitch → kernel-registry rewrite. Staged
@@ -187,7 +187,7 @@ change.
 ## Test & gate strategy
 
 - **`fixed/` primitives** are golden-bit-exact gated on caller-switch, and
-  each gets a dual-arch CppSpec unit spec (`tests/dsp/`, run as CTest on x86
+  each gets a dual-arch CppSpec unit spec (`tests/unit/deluge/dsp-next/`, run as CTest on x86
   SIMDe + ARM/qemu) proving behaviour and x86 ≡ ARM in isolation.
 - **`float/` primitives** are validated by tolerance/perceptual comparison,
   never SHA — they are a different numeric track by design.

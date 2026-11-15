@@ -1,5 +1,5 @@
 // The website's menu reference (src/data/generated/menu-hierarchies.json), built from the firmware's own dump of its
-// menu tree (src/data/generated/menu-tree.json, written by the ui-menu-dump gate's scripts/menu_dump_check.sh).
+// menu tree (src/data/generated/menu-tree.json, re-recorded by `./dbt test --update ui-menu-dump`).
 //
 //   node scripts/generate-menu-hierarchies.mjs           rewrite menu-hierarchies.json
 //   node scripts/generate-menu-hierarchies.mjs --check   fail if menu-hierarchies.json is not what it would write

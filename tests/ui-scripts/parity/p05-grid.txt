@@ -1,4 +1,6 @@
 # Notes, audition and mute pads in the boot clip view.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   pad 2 4 down
 350   pad 2 4 up

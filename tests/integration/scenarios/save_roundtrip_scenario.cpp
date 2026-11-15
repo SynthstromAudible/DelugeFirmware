@@ -15,7 +15,39 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/save_roundtrip_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the save round-trip gate: save a song through the REAL `SaveSongUI`
+///        gesture, load it back, save it again, and require the two written files to be identical.
+///
+/// ## Why a round trip rather than a golden
+///
+/// The property that matters is that a saved song can be loaded and re-saved without losing
+/// anything, and that is self-checking: nothing here is baselined, so there is no golden anyone can
+/// quietly re-baseline into passing.
+///
+/// ## Why the second save overwrites the SAME name
+///
+/// a finished song save writes `currentSong->name = enteredText` as part of a successful save, so saving
+/// the reloaded song under a DIFFERENT name would legitimately produce different bytes and the
+/// comparison would fail for a reason that is not a defect. Overwriting the same name keeps every
+/// name-derived field identical, so a difference can only come from the round trip losing something.
+/// It also makes the second save the overwrite-prompt case, so one gesture covers both properties.
+///
+/// ## The seam is asserted by OUTCOME
+///
+/// Whether the overwrite context menu opened is read from the UI itself, not from a dispatch count.
+/// A count proves only that an op was queued -- this gate exists to prove the save actually
+/// happened and the prompt actually appeared.
+///
+/// @note Runs as a STEP MACHINE, because saving is staged across ticks: the gesture only STARTS
+///       the save, whose card steps go through the channels and complete on later ticks, so every
+///       check reads its result on a LATER tick than the gesture that caused it.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources). Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
@@ -41,6 +73,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(save_roundtrip);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate must drive the REAL gesture, not
 /// the save machinery underneath it, or it would miss whatever the gesture itself does. Mirrors
@@ -82,6 +116,10 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SVTEST01";
 /// Where the save lands: songs save in kSongSaveFormat.
@@ -112,16 +150,18 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Fixture;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"SR"};
 uint32_t g_crcFirst = 0;
 uint32_t g_crcSecond = 0;
 size_t g_bytesFirst = 0;
 std::vector<uint8_t> g_first;
-int32_t g_saveWaitTicks = 0;
 
 /// How long one save is given to finish before the run calls it wedged. A bound, not a timeout: an
 /// unbounded wait presents as the harness hanging rather than as a failure anyone can read.
 constexpr int32_t kMaxSaveWaitTicks = 200000;
+
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "the free save finishing", kMaxSaveWaitTicks};
 
 /// Whether the save machinery has gone quiet.
 ///
@@ -229,14 +269,14 @@ bool sameIgnoringPreview(const std::vector<uint8_t>& a, const std::vector<uint8_
 	const auto ra = previewValueRange(a);
 	const auto rb = previewValueRange(b);
 	if (ra.second == 0 || rb.second == 0) {
-		printf("SR-ROUNDTRIP FAIL a save wrote no preview attribute at all\n");
+		printf("SR-ROUNDTRIP a save wrote no preview attribute at all\n");
 		return false;
 	}
 	const size_t lena = ra.second - ra.first;
 	const size_t lenb = rb.second - rb.first;
 	// 144 pads * 3 colours * 2 hex chars. Pinned so a save that truncated the artwork still fails.
 	if (lena != 864 || lenb != 864) {
-		printf("SR-ROUNDTRIP FAIL preview length first=%zu second=%zu, wanted 864\n", lena, lenb);
+		printf("SR-ROUNDTRIP preview length first=%zu second=%zu, wanted 864\n", lena, lenb);
 		return false;
 	}
 	if (a.size() != b.size()) {
@@ -247,7 +287,7 @@ bool sameIgnoringPreview(const std::vector<uint8_t>& a, const std::vector<uint8_
 			continue; // the artwork, which is display state
 		}
 		if (a[i] != b[i]) {
-			printf("SR-ROUNDTRIP FAIL first difference outside the preview at offset %zu\n", i);
+			printf("SR-ROUNDTRIP first difference outside the preview at offset %zu\n", i);
 			char pre[65] = {0};
 			char fa[49] = {0};
 			char fb[49] = {0};
@@ -295,32 +335,31 @@ void runTick() {
 	case Stage::SaveFirst: {
 		SaveRoundtripProbe::typeName(kSaveName);
 		SaveRoundtripProbe::pressEnter();
-		g_saveWaitTicks = 0;
+		g_wait = Wait{g_report, "the free save finishing", kMaxSaveWaitTicks};
 		g_stage = Stage::SaveFirstWait;
 		break;
 	}
 	case Stage::SaveFirstWait: {
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::SaveFirstCheck;
 			break;
-		}
-		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
-			printf("SR-SEAM FAIL free save never finished (%d ticks)\n", g_saveWaitTicks);
-			g_failures++;
-			g_stage = Stage::SaveFirstCheck;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::SaveFirstCheck: {
 		// A free name must NOT prompt.
 		if (SaveRoundtripProbe::overwritePromptOpen()) {
-			printf("SR-SEAM FAIL free name opened the overwrite prompt\n");
-			g_failures++;
+			g_report.fail("SEAM free name opened the overwrite prompt");
 		}
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(kSavePath, bytes)) {
-			printf("SR-SEAM FAIL free prompted=0 created=0 -- the save wrote no file at %s\n", kSavePath);
-			g_failures++;
+			g_report.fail("SEAM free prompted=0 created=0 -- the save wrote no file at %s", kSavePath);
 		}
 		else {
 			g_crcFirst = crc32(bytes.data(), bytes.size());
@@ -334,7 +373,7 @@ void runTick() {
 	case Stage::LoadBack: {
 		currentSong->setSongFullPath(kSavePath);
 		(void)openUI(&loadSongUI);
-		g_saveWaitTicks = 0;
+		g_wait = Wait{g_report, "the load browser's listing", kMaxSaveWaitTicks};
 		g_stage = Stage::LoadBackListing;
 		break;
 	}
@@ -342,13 +381,13 @@ void runTick() {
 		// The browser's own listing lands first, as a LOAD press waits for it. Loading over a listing still
 		// suspended would leave its machine active, and the Reopen stage's save browser would resume it as its
 		// own.
-		if (Browser::isListingInProgress()) {
+		const WaitState listed = g_wait.poll(!Browser::isListingInProgress());
+		if (listed == WaitState::Pending) {
 			loadSongUI.graphicsRoutine();
-			if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
-				printf("SR-LOAD FAIL the load browser's listing never finished (%d ticks)\n", g_saveWaitTicks);
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+			break;
+		}
+		if (listed == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		loadSongUI.beginLoad();
@@ -379,21 +418,22 @@ void runTick() {
 		// every name-derived field identical, and makes this the occupied-prompt case too.
 		SaveRoundtripProbe::typeName(kSaveName);
 		SaveRoundtripProbe::pressEnter();
-		g_saveWaitTicks = 0;
+		g_wait = Wait{g_report, "the occupied save answering", kMaxSaveWaitTicks};
 		g_stage = Stage::SaveSecondWait;
 		break;
 	}
 	case Stage::SaveSecondWait: {
 		// The existence answer lands on a LATER tick than the key press, so this check must wait rather
 		// than read the prompt on the same tick as the key press.
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::SaveSecondCheck;
 			break;
-		}
-		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
-			printf("SR-SEAM FAIL the occupied save never answered (%d ticks)\n", g_saveWaitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -402,8 +442,7 @@ void runTick() {
 			std::vector<uint8_t> probe;
 			printf("SR-DIAG dir=%s entered=%s targetExists=%d\n", Browser::currentDir.c_str(),
 			       Browser::enteredText.c_str(), readWholeFile(kSavePath, probe) ? 1 : 0);
-			printf("SR-SEAM FAIL occupied prompted=0 -- an existing file did not prompt\n");
-			g_failures++;
+			g_report.fail("SEAM occupied prompted=0 -- an existing file did not prompt");
 			g_stage = Stage::Report; // nothing to confirm; skip the confirmation case
 			break;
 		}
@@ -413,35 +452,35 @@ void runTick() {
 	}
 	case Stage::Confirm: {
 		(void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption();
-		g_saveWaitTicks = 0;
+		g_wait = Wait{g_report, "the confirmed overwrite finishing", kMaxSaveWaitTicks};
 		g_stage = Stage::ConfirmWait;
 		break;
 	}
 	case Stage::ConfirmWait: {
 		// Confirming the prompt STARTS the overwrite; it does not perform it.
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::ConfirmCheck;
 			break;
-		}
-		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
-			printf("SR-ROUNDTRIP FAIL the confirmed overwrite never finished (%d ticks)\n", g_saveWaitTicks);
-			g_failures++;
-			g_stage = Stage::ConfirmCheck;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::ConfirmCheck: {
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(kSavePath, bytes)) {
-			printf("SR-ROUNDTRIP FAIL the confirmed overwrite left no file at %s\n", kSavePath);
-			g_failures++;
+			g_report.fail("ROUNDTRIP the confirmed overwrite left no file at %s", kSavePath);
 		}
 		else {
 			g_crcSecond = crc32(bytes.data(), bytes.size());
 			printf("SR-ROUNDTRIP first=%08X second=%08X bytes=%zu\n", g_crcFirst, g_crcSecond, bytes.size());
 			if (!sameIgnoringPreview(g_first, bytes)) {
-				printf("SR-ROUNDTRIP FAIL first=%08X second=%08X -- the round trip changed the song\n", g_crcFirst,
-				       g_crcSecond);
+				g_report.fail("ROUNDTRIP first=%08X second=%08X -- the round trip changed the song", g_crcFirst,
+				              g_crcSecond);
 				// Report WHERE they diverge: a field that legitimately varies looks very different
 				// from a truncation, and the byte counts here are equal.
 				size_t n = g_first.size() < bytes.size() ? g_first.size() : bytes.size();
@@ -465,12 +504,10 @@ void runTick() {
 						break;
 					}
 				}
-				g_failures++;
 			}
 		}
 		if (SaveRoundtripProbe::overwritePromptOpen()) {
-			printf("SR-SEAM FAIL confirmed closed=0 -- the overwrite prompt is still up\n");
-			g_failures++;
+			g_report.fail("SEAM confirmed closed=0 -- the overwrite prompt is still up");
 		}
 		else {
 			printf("SR-SEAM confirmed changed=1 closed=1\n");
@@ -480,7 +517,7 @@ void runTick() {
 	}
 	case Stage::Report: {
 		g_stage = Stage::Done;
-		printf("SR-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		break;
@@ -502,7 +539,7 @@ void deluge_scenario_save_roundtrip_begin(void) {
 	g_stage = Stage::Fixture;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_crcFirst = 0;
 	g_crcSecond = 0;
 	g_bytesFirst = 0;
@@ -527,7 +564,7 @@ bool deluge_scenario_save_roundtrip_step_done(void) {
 }
 
 int32_t deluge_scenario_save_roundtrip_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

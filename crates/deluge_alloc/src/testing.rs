@@ -1,6 +1,6 @@
 //! Randomized invariant harness for the allocator, shared by the unit tests and the fuzz targets.
 //!
-//! Checks the same invariants as the C++ conformance suite in `tests/unit/alloc`: 16-byte (and
+//! Checks the same invariants as the C++ conformance suite in `tests/unit/crates/deluge_alloc`: 16-byte (and
 //! requested) alignment, non-overlapping live blocks, data integrity across churn, realloc
 //! fidelity, and full reclamation after a drain. Host only (`test` or the `fuzzing` feature).
 

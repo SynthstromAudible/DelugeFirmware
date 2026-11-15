@@ -7,20 +7,22 @@ file in the tree is ignored.
 
   python3 scripts/ui_snapshot_diff.py <got_dir> <golden_dir>          # compare
   python3 scripts/ui_snapshot_diff.py <got_dir> <golden_dir> --list   # list files compared
-  GFX_GOLDEN_UPDATE=1 python3 scripts/ui_snapshot_diff.py <got_dir> <golden_dir>  # re-record
+  ./dbt test --update ui-scripts                                  # re-record (the runner sets DELUGE_GOLDEN_UPDATE)
 
 Comparison is byte-identical, not parsed-content: a `.pbm`'s per-row XOR summary is printed on
 mismatch purely to help a human read the diff, and never affects the pass/fail verdict.
 
-Exit codes: 0 match (or re-recorded), 1 mismatch, 2 usage error or a missing directory.
+Exit codes: 0 match (or re-recorded), 1 mismatch, 2 usage error, a missing directory, or the switch without the update
+log.
 """
 
 import argparse
 import difflib
-import os
-import shutil
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "tasks"))
+import golden_update
 
 SNAPSHOT_SUFFIXES = (".pbm", ".state")
 
@@ -97,21 +99,17 @@ def state_diff_lines(golden: bytes, got: bytes, name: str) -> list[str]:
     return [line.rstrip("\n") for line in diff]
 
 
-def do_update(got_dir: Path, golden_dir: Path, got_files: dict[str, Path]) -> None:
-    golden_dir.mkdir(parents=True, exist_ok=True)
-    stale = [
-        p
-        for p in sorted(golden_dir.rglob("*"))
-        if p.is_file() and p.suffix in SNAPSHOT_SUFFIXES
-    ]
-    for p in stale:
-        p.unlink()
-        print(f"removed {p.relative_to(golden_dir)}")
+def do_update(golden_dir: Path, got_files: dict[str, Path]) -> None:
+    """Make `golden_dir`'s snapshot files exactly `got_files`: each changed or new one written, each the run did not
+    produce removed, every change logged (golden_update)."""
+    for name, path in sorted(snapshot_files(golden_dir).items()):
+        if name not in got_files:
+            golden_update.remove(path, str(path.resolve()))
     for name in sorted(got_files):
         dest = golden_dir / name
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(got_files[name], dest)
-        print(f"wrote {name}")
+        golden_update.write_bytes(
+            dest, got_files[name].read_bytes(), str(dest.resolve())
+        )
 
 
 def do_compare(got_files: dict[str, Path], golden_files: dict[str, Path]) -> bool:
@@ -157,7 +155,7 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    update = os.environ.get("GFX_GOLDEN_UPDATE") == "1"
+    update = golden_update.updating()
 
     if not args.got_dir.is_dir():
         print(f"error: got directory does not exist: {args.got_dir}", file=sys.stderr)
@@ -189,7 +187,7 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        do_update(args.got_dir, args.golden_dir, got_files)
+        do_update(args.golden_dir, got_files)
         return 0
 
     golden_files = snapshot_files(args.golden_dir)

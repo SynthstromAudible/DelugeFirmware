@@ -15,14 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Every take starts from the menu's recorder item, opened on the clip as the user opens it, and runs on the ported
-// recorder screen. The open ticks the guest until the screen is pushed, so each leg checks its take on the step that
-// started it; after that the guest runs on its own wake, the UI timer the app loop fires.
+/// @file
+/// @brief Audio-input recording takes, each started from the sound editor's recorder menu item. A take runs while the
+/// rest of the app keeps going: DIN MIDI notes and clock delivered during it are handled during it (RT-TAKE), and BACK
+/// attaches its sample to the source it was recorded for (RT-ATTACH). No take starts while a load that can replace the
+/// clip's output is in flight (RT-REFUSED); a take whose recorder UI is closed under it (RT-CLOSED), or whose synth is
+/// replaced under it (RT-REPLACED), is dropped and attached to nothing, and the next take starts (RT-SECOND).
+///
+/// Every take starts from the menu's recorder item, opened on the clip as the user opens it, and runs on the ported
+/// recorder screen. The open ticks the guest until the screen is pushed, so each leg checks its take on the step that
+/// started it; after that the guest runs on its own wake, the UI timer the app loop fires.
 
-#include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
 #include "scenarios/guest_drive.h"
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -67,6 +75,7 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -76,6 +85,8 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(recorder_take);
+
 // The harness's test input signal and DIN note script (audio/host.rs).
 extern "C" {
 int32_t deluge_host_midi_script_start(const char* path);
@@ -84,6 +95,10 @@ void deluge_host_test_input(uint32_t signal);
 }
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// The legs, in the order they run. Each starts its take from the recorder menu item, the user's gesture.
 enum class Stage : uint8_t {
@@ -115,7 +130,8 @@ constexpr int32_t kMaxLoadSteps = 20000;
 constexpr int32_t kMaxTakeSteps = 5000;
 /// Steps a take, or a load, is given to settle.
 constexpr int32_t kMaxSettleSteps = 5000;
-/// Steps a take runs before something is done to it: long enough for its file to exist.
+/// Steps a take runs before something is done to it: long enough for its file to exist. Not a wait: it is the
+/// stimulus, and nothing signals that the file exists.
 constexpr int32_t kRunSteps = 100;
 
 /// MIDI clock at 120 BPM: 24 pulses a quarter note, so one every 919 frames at 44.1 kHz.
@@ -132,12 +148,16 @@ constexpr const char* kNextSongText =
     "\tearliestCompatibleFirmware=\"4.1.0-alpha\"\n>\n</song>\n";
 constexpr uint8_t kNextSongNote = 0x30;
 /// Steps the take runs on after its NEXT_SONG was read: well past a load's STAGE and BEGIN, which is where a load
-/// that started at once would close the recorder.
+/// that started at once would close the recorder. Not a wait: the property is that the recorder is still open at the
+/// end of this window.
 constexpr int32_t kNextRunSteps = 600;
 
 Stage g_stage = Stage::Loading;
 bool g_stepDone = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"RT"};
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "OPEN the blank song's preset load", kMaxLoadSteps};
+/// Steps a take has run since the stage began, against kRunSteps and kNextRunSteps.
 int32_t g_steps = 0;
 
 Clip* g_clip = nullptr;
@@ -157,9 +177,25 @@ Song* g_songBefore = nullptr;
 bool g_nextRead = false;
 bool g_loadSeen = false;
 
-void fail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
+/// The failure tag of the leg named by @p marker: the marker without its "RT-"; the first leg's bare "RT" is its OPEN
+/// line's.
+const char* stageOf(const char* marker) {
+	return std::string_view{marker} == "RT" ? "OPEN" : marker + std::string_view{"RT-"}.size();
+}
+
+/// Starts a stage's wait, the take's settling or the song load's, with its own budget.
+void startWait(const char* what, int32_t budget) {
+	g_wait = Wait{g_report, what, budget};
+}
+
+/// Polls the stage's wait with whether its condition holds now; true once it does. A wait that runs out ends the run at
+/// the report, having recorded its failure.
+bool settled(bool met) {
+	const WaitState state = g_wait.poll(met);
+	if (state == WaitState::Expired) {
+		g_stage = Stage::Report;
+	}
+	return state == WaitState::Met;
 }
 
 using deluge::harness::guestTick;
@@ -198,7 +234,7 @@ int64_t leasesOn(const std::string& path) {
 bool frontClip(const char* marker) {
 	g_clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
 	if (g_clip == nullptr || g_clip->output == nullptr || g_clip->output->type != OutputType::SYNTH) {
-		fail(marker, "the song has no synth clip to record into");
+		g_report.fail("%s the song has no synth clip to record into", stageOf(marker));
 		return false;
 	}
 	currentSong->setCurrentClip(g_clip);
@@ -236,7 +272,8 @@ bool startTake(const char* marker) {
 	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, onTop ? 1 : 0,
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()));
 	if (!onTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
-		fail(marker, "the recorder item did not leave an input take running under the recorder screen");
+		g_report.fail("%s the recorder item did not leave an input take running under the recorder screen",
+		              stageOf(marker));
 		return false;
 	}
 	g_steps = 0;
@@ -248,16 +285,14 @@ void pressBack() {
 	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false);
 }
 
-/// Waits for the take to be over; false while it runs, and after reporting a take that never settles.
-bool waitOver(const char* marker) {
-	if (takeOver()) {
-		return true;
-	}
-	if (++g_steps > kMaxSettleSteps) {
-		fail(marker, "the take never settled");
-		g_stage = Stage::Report;
-	}
-	return false;
+/// Waits for the take to be over; false while it runs, and after a take that never settles ends the run.
+bool waitOver() {
+	return settled(takeOver());
+}
+
+/// Starts the wait for a take to settle.
+void startSettleWait(const char* what) {
+	startWait(what, kMaxSettleSteps);
 }
 
 /// Writes the take's DIN script: a MIDI Start, two bars of clock, one note on channel 1 (which MIDI follow sends to
@@ -309,14 +344,9 @@ std::string writeNextSongScript() {
 
 /// The blank song's preset load is over once nothing it asked for is still in flight.
 void stepLoading() {
-	if (currentSong->blankPresetPending || deluge::gui::instrumentLoad.acquisitionInFlight()) {
-		if (++g_steps > kMaxLoadSteps) {
-			fail("RT-OPEN", "the blank song's preset load never finished");
-			g_stage = Stage::Report;
-		}
+	if (!settled(!currentSong->blankPresetPending && !deluge::gui::instrumentLoad.acquisitionInFlight())) {
 		return;
 	}
-	g_steps = 0;
 	deluge_host_test_input(1);
 	g_stage = Stage::MidiOpen;
 }
@@ -327,21 +357,24 @@ void stepMidiOpen() {
 		return;
 	}
 	g_scriptPath = writeScript();
-	scenarios::followChannelOne();
+	::scenarios::followChannelOne();
 	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
 	if (g_events <= 0) {
-		fail("RT-TAKE", "the DIN script could not be written or armed");
+		g_report.fail("TAKE the DIN script could not be written or armed");
 		pressBack();
+		startSettleWait("ATTACH the take settling");
 		g_stage = Stage::MidiEnding;
 		return;
 	}
+	startWait("TAKE the app reading every scripted byte", kMaxTakeSteps);
 	g_stage = Stage::MidiTake;
 }
 
 /// While the take runs, MIDI must be handled: every scripted byte read, the note sounding, the clock followed.
 void stepMidiTake() {
 	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
-		fail("RT-TAKE", "the take ended before BACK was pressed");
+		g_report.fail("TAKE the take ended before BACK was pressed");
+		startSettleWait("ATTACH the take settling");
 		g_stage = Stage::MidiEnding;
 		return;
 	}
@@ -358,35 +391,33 @@ void stepMidiTake() {
 
 	const uint32_t released = deluge_host_midi_script_released();
 	const bool allRead = released == static_cast<uint32_t>(g_events);
-	if (!allRead && ++g_steps <= kMaxTakeSteps) {
+	if (g_wait.poll(allRead) == WaitState::Pending) {
 		return;
 	}
 	printf("RT-TAKE events=%d released=%u voicesMax=%d externalClock=%d recordingShown=%d clippingConsumed=%d "
 	       "steps=%d\n",
 	       g_events, released, g_voicesMax, g_externalClockSeen ? 1 : 0, g_recordingShown ? 1 : 0,
-	       g_clipConsumed ? 1 : 0, g_steps);
-	if (!allRead) {
-		fail("RT-TAKE", "the app did not read the DIN bytes delivered during the take");
-	}
+	       g_clipConsumed ? 1 : 0, g_wait.ticks());
 	if (g_voicesMax == 0) {
-		fail("RT-TAKE", "a note delivered during the take did not sound");
+		g_report.fail("TAKE a note delivered during the take did not sound");
 	}
 	if (!g_externalClockSeen) {
-		fail("RT-TAKE", "MIDI Start and clock delivered during the take did not start playback on the external clock");
+		g_report.fail(
+		    "TAKE MIDI Start and clock delivered during the take did not start playback on the external clock");
 	}
 	// The test input is a full-scale sawtooth, so the take clips every block, and only the recorder screen's own
 	// step lowers the clipping flag.
 	if (!g_clipConsumed) {
-		fail("RT-TAKE", "the recorder screen's own step did not handle clipping during the take");
+		g_report.fail("TAKE the recorder screen's own step did not handle clipping during the take");
 	}
 	pressBack();
-	g_steps = 0;
+	startSettleWait("ATTACH the take settling");
 	g_stage = Stage::MidiEnding;
 }
 
 /// BACK ends the take; once it has settled the recorder attaches the sample to the source and closes.
 void stepMidiEnding() {
-	if (!waitOver("RT-ATTACH")) {
+	if (!waitOver()) {
 		return;
 	}
 	const Source& source = g_sound->sources[0];
@@ -398,19 +429,18 @@ void stepMidiEnding() {
 	printf("RT-ATTACH osc=%d attached=%d pathsAgree=%d frames=%llu path=%s editorOnTop=%d steps=%d\n",
 	       static_cast<int>(source.oscType), sample != nullptr ? 1 : 0, pathsAgree ? 1 : 0,
 	       static_cast<unsigned long long>(frames), sample != nullptr ? sample->filePath.c_str() : "(none)",
-	       isUIOpen(&shellHostUI) ? 1 : 0, g_steps);
+	       isUIOpen(&shellHostUI) ? 1 : 0, g_wait.ticks());
 	if (!isSample || sample == nullptr || !pathsAgree) {
-		fail("RT-ATTACH", "the take's sample was not attached to the source it was recorded for");
+		g_report.fail("ATTACH the take's sample was not attached to the source it was recorded for");
 	}
 	else if (frames == 0 || sample->filePath.rfind("SAMPLES/RECORD/", 0) != 0) {
-		fail("RT-ATTACH", "the attached sample is empty or not a recording");
+		g_report.fail("ATTACH the attached sample is empty or not a recording");
 	}
 	// The take is the source's sample now, in its record and slot as well as at runtime.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "take");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "take"));
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
-	g_steps = 0;
 	g_stage = Stage::RefuseStart;
 }
 
@@ -434,16 +464,17 @@ void stepRefuseStart() {
 	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0, onTop ? 1 : 0,
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), logKept ? 1 : 0);
 	if (loggedBefore == nullptr) {
-		fail("RT-REFUSED", "no undo-log entry could be made before the recorder was opened, so nothing was tested");
+		g_report.fail("REFUSED no undo-log entry could be made before the recorder was opened, so nothing was tested");
 	}
 	else if (!logKept) {
-		fail("RT-REFUSED", "a refused take wiped the undo log");
+		g_report.fail("REFUSED a refused take wiped the undo log");
 	}
 	if (!loading) {
-		fail("RT-REFUSED", "the acquisition was not in flight when the recorder was opened, so nothing was tested");
+		g_report.fail("REFUSED the acquisition was not in flight when the recorder was opened, so nothing was tested");
 	}
 	if (onTop || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
-		fail("RT-REFUSED", "the recorder started a take while a preset load that can replace its sound was in flight");
+		g_report.fail(
+		    "REFUSED the recorder started a take while a preset load that can replace its sound was in flight");
 		if (onTop) {
 			pressBack();
 		}
@@ -451,16 +482,12 @@ void stepRefuseStart() {
 	if (isUIOpen(&shellHostUI)) {
 		(void)shellHostUI.exitUI();
 	}
-	g_steps = 0;
+	startSettleWait("REFUSED the acquisition and the refused take settling");
 	g_stage = Stage::RefuseSettle;
 }
 
 void stepRefuseSettle() {
-	if (deluge::gui::instrumentLoad.inFlight() || !takeOver()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("RT-REFUSED", "the acquisition or the refused take never settled");
-			g_stage = Stage::Report;
-		}
+	if (!settled(!deluge::gui::instrumentLoad.inFlight() && takeOver())) {
 		return;
 	}
 	g_stage = startTake("RT-CLOSED") ? Stage::ClosedRun : Stage::Report;
@@ -474,24 +501,24 @@ void stepClosedRun() {
 	}
 	nullifyUIs();
 	changeRootUI(&instrumentClipView);
-	g_steps = 0;
+	startSettleWait("CLOSED the take settling");
 	g_stage = Stage::ClosedWait;
 }
 
 void stepClosedWait() {
-	if (!waitOver("RT-CLOSED")) {
+	if (!waitOver()) {
 		return;
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
-	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_wait.ticks());
 	if (source.oscType == OscType::SAMPLE) {
-		fail("RT-CLOSED", "a take whose recorder screen was closed under it switched the source to SAMPLE");
+		g_report.fail("CLOSED a take whose recorder screen was closed under it switched the source to SAMPLE");
 	}
 	if (g_recordingPath.empty() || leases > 0) {
-		fail("RT-CLOSED", "a take whose recorder screen was closed under it was attached to something");
+		g_report.fail("CLOSED a take whose recorder screen was closed under it was attached to something");
 	}
 	g_stage = startTake("RT-SECOND") ? Stage::SecondRun : Stage::Report;
 }
@@ -501,19 +528,19 @@ void stepSecondRun() {
 		return;
 	}
 	pressBack();
-	g_steps = 0;
+	startSettleWait("SECOND the take settling");
 	g_stage = Stage::SecondEnding;
 }
 
 void stepSecondEnding() {
-	if (!waitOver("RT-SECOND")) {
+	if (!waitOver()) {
 		return;
 	}
 	const bool attached = g_sound->sources[0].oscType == OscType::SAMPLE && g_range->getAudioFileHolder() != nullptr
 	                      && g_range->getAudioFileHolder()->audioFile != nullptr;
 	printf("RT-SECOND attached=%d\n", attached ? 1 : 0);
 	if (!attached) {
-		fail("RT-SECOND", "the take after a dropped one did not attach its sample");
+		g_report.fail("SECOND the take after a dropped one did not attach its sample");
 	}
 	g_stage = startTake("RT-NULLED") ? Stage::NulledRun : Stage::Report;
 }
@@ -526,21 +553,21 @@ void stepNulledRun() {
 		return;
 	}
 	nullifyUIs();
-	g_steps = 0;
+	startSettleWait("NULLED the take settling");
 	g_stage = Stage::NulledWait;
 }
 
 void stepNulledWait() {
-	if (!waitOver("RT-NULLED")) {
+	if (!waitOver()) {
 		return;
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
-	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_wait.ticks());
 	if (g_recordingPath.empty() || leases > 0) {
-		fail("RT-NULLED", "a take whose UI stack was nullified under it was attached to something");
+		g_report.fail("NULLED a take whose UI stack was nullified under it was attached to something");
 	}
 	changeRootUI(&instrumentClipView);
 	g_stage = startTake("RT-REPLACED") ? Stage::ReplacedRun : Stage::Report;
@@ -565,7 +592,7 @@ void stepReplacedRun() {
 	if (guestTop(kRecorderSceneKind)) {
 		pressBack();
 	}
-	g_steps = 0;
+	startSettleWait("REPLACED the take settling");
 	g_stage = Stage::ReplacedEnding;
 }
 
@@ -580,7 +607,7 @@ bool hibernating(const Output* output) {
 }
 
 void stepReplacedEnding() {
-	if (!waitOver("RT-REPLACED")) {
+	if (!waitOver()) {
 		return;
 	}
 	const bool replaced = g_clip->output != g_outputBefore;
@@ -590,16 +617,16 @@ void stepReplacedEnding() {
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-REPLACED replaced=%d oldHibernating=%d oldOsc=%d path=%s leases=%lld steps=%d\n", replaced ? 1 : 0,
 	       oldAlive ? 1 : 0, static_cast<int>(oldOsc), g_recordingPath.c_str(), static_cast<long long>(leases),
-	       g_steps);
+	       g_wait.ticks());
 	if (!replaced || !oldAlive) {
-		fail("RT-REPLACED", "the synth was not replaced and kept alive, so nothing was tested");
+		g_report.fail("REPLACED the synth was not replaced and kept alive, so nothing was tested");
 	}
 	if (oldOsc == OscType::SAMPLE) {
-		fail("RT-REPLACED", "the replaced synth's source was switched to SAMPLE");
+		g_report.fail("REPLACED the replaced synth's source was switched to SAMPLE");
 	}
 	// Attaching takes a lease on the recording; a dropped take holds none.
 	if (g_recordingPath.empty() || leases > 0) {
-		fail("RT-REPLACED", "a take whose sound was replaced under it was attached to something");
+		g_report.fail("REPLACED a take whose sound was replaced under it was attached to something");
 	}
 	// next_song_mid_take needs a song to move on to, and the load browser's listing that NEXT_SONG walks: a song
 	// loaded from the browser leaves it behind, so the leg opens the browser on that song and leaves it the same way.
@@ -609,17 +636,16 @@ void stepReplacedEnding() {
 	}
 	currentSong->setSongFullPath(kNextSongPath);
 	(void)openUI(&loadSongUI);
-	g_steps = 0;
+	startSettleWait("NEXT the load browser's listing");
 	g_stage = Stage::NextListing;
 }
 
 void stepNextListing() {
-	if (Browser::isListingInProgress()) {
+	const bool listing = Browser::isListingInProgress();
+	if (listing) {
 		loadSongUI.graphicsRoutine();
-		if (++g_steps > kMaxSettleSteps) {
-			fail("RT-NEXT", "the load browser's listing never finished");
-			g_stage = Stage::Report;
-		}
+	}
+	if (!settled(!listing)) {
 		return;
 	}
 	for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
@@ -630,7 +656,7 @@ void stepNextListing() {
 	nullifyUIs();
 	currentUIMode = UI_MODE_NONE;
 	if (!listed) {
-		fail("RT-NEXT", "the load browser did not list a song for NEXT_SONG to move on to, so nothing was tested");
+		g_report.fail("NEXT the load browser did not list a song for NEXT_SONG to move on to, so nothing was tested");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -651,12 +677,13 @@ void stepNextListing() {
 	g_scriptPath = writeNextSongScript();
 	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
 	if (g_events <= 0) {
-		fail("RT-NEXT", "the DIN script could not be written or armed");
+		g_report.fail("NEXT the DIN script could not be written or armed");
 		g_stage = Stage::Report;
 		return;
 	}
 	g_nextRead = false;
 	g_loadSeen = false;
+	startWait("NEXT the app reading the NEXT_SONG note", kMaxTakeSteps);
 	g_stage = Stage::NextRun;
 }
 
@@ -666,22 +693,25 @@ void stepNextRun() {
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
 	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
 		printf("RT-NEXT-RUN read=%d loadSeen=%d recorderOnTop=%d steps=%d\n", g_nextRead ? 1 : 0, g_loadSeen ? 1 : 0,
-		       guestTop(kRecorderSceneKind) ? 1 : 0, g_steps);
-		fail("RT-NEXT", "the take ended under a MIDI NEXT_SONG, before BACK was pressed");
-		g_steps = 0;
+		       guestTop(kRecorderSceneKind) ? 1 : 0, g_nextRead ? g_steps : g_wait.ticks());
+		g_report.fail("NEXT the take ended under a MIDI NEXT_SONG, before BACK was pressed");
+		startWait("NEXT the next song loading", kMaxLoadSteps);
 		g_stage = Stage::NextLoad;
 		return;
 	}
 	if (!g_nextRead) {
 		g_nextRead = deluge_host_midi_script_released() == static_cast<uint32_t>(g_events);
-		if (!g_nextRead && ++g_steps > kMaxTakeSteps) {
-			fail("RT-NEXT", "the app did not read the NEXT_SONG note delivered during the take");
+		switch (g_wait.poll(g_nextRead)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_steps = 0;
+			break;
+		case WaitState::Expired:
 			pressBack();
-			g_steps = 0;
+			startSettleWait("NEXT the take settling");
 			g_stage = Stage::NextEnding;
-		}
-		if (g_nextRead) {
-			g_steps = 0;
+			break;
 		}
 		return;
 	}
@@ -690,17 +720,17 @@ void stepNextRun() {
 	}
 	printf("RT-NEXT-RUN read=1 loadSeen=%d recorderOnTop=1 steps=%d\n", g_loadSeen ? 1 : 0, g_steps);
 	if (g_loadSeen) {
-		fail("RT-NEXT", "a song load started while the take ran");
+		g_report.fail("NEXT a song load started while the take ran");
 	}
 	pressBack();
-	g_steps = 0;
+	startSettleWait("NEXT the take settling");
 	g_stage = Stage::NextEnding;
 }
 
 /// The take ends as BACK asks, in the song it was recorded in, and attaches there.
 void stepNextEnding() {
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
-	if (!waitOver("RT-NEXT")) {
+	if (!waitOver()) {
 		return;
 	}
 	// The sound is read only while its song is still the current one.
@@ -709,11 +739,11 @@ void stepNextEnding() {
 	                      && g_range->getAudioFileHolder() != nullptr
 	                      && g_range->getAudioFileHolder()->audioFile != nullptr;
 	printf("RT-NEXT-ATTACH sameSong=%d attached=%d loadSeen=%d steps=%d\n", sameSong ? 1 : 0, attached ? 1 : 0,
-	       g_loadSeen ? 1 : 0, g_steps);
+	       g_loadSeen ? 1 : 0, g_wait.ticks());
 	if (!attached) {
-		fail("RT-NEXT", "a take that a MIDI NEXT_SONG arrived during did not attach its sample");
+		g_report.fail("NEXT a take that a MIDI NEXT_SONG arrived during did not attach its sample");
 	}
-	g_steps = 0;
+	startWait("NEXT the next song loading", kMaxLoadSteps);
 	g_stage = Stage::NextLoad;
 }
 
@@ -721,16 +751,11 @@ void stepNextEnding() {
 void stepNextLoad() {
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
 	const bool songChanged = currentSong != g_songBefore;
-	if (!(songChanged && !loadSongUI.loadInFlight())) {
-		if (++g_steps <= kMaxLoadSteps) {
-			return;
-		}
+	if (!settled(songChanged && !loadSongUI.loadInFlight())) {
+		return;
 	}
 	printf("RT-NEXT songChanged=%d loadSeen=%d loadInFlight=%d steps=%d\n", songChanged ? 1 : 0, g_loadSeen ? 1 : 0,
-	       loadSongUI.loadInFlight() ? 1 : 0, g_steps);
-	if (!songChanged) {
-		fail("RT-NEXT", "the MIDI NEXT_SONG held back during the take did not load the next song once it ended");
-	}
+	       loadSongUI.loadInFlight() ? 1 : 0, g_wait.ticks());
 	g_stage = Stage::Report;
 }
 
@@ -742,7 +767,7 @@ void report() {
 	if (!g_scriptPath.empty()) {
 		std::remove(g_scriptPath.c_str());
 	}
-	printf("RT-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	g_stage = Stage::Done;
 }
 
@@ -754,7 +779,8 @@ void deluge_scenario_recorder_take_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Loading;
 	g_stepDone = false;
-	g_failures = 0;
+	g_report.reset();
+	g_wait = Wait{g_report, "OPEN the blank song's preset load", kMaxLoadSteps};
 	g_steps = 0;
 	g_clip = nullptr;
 	g_sound = nullptr;
@@ -848,7 +874,7 @@ bool deluge_scenario_recorder_take_step_done(void) {
 }
 
 int32_t deluge_scenario_recorder_take_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -1,10 +1,12 @@
-# ShellMenu: the automation view's "menu view". From the synth clip, SHIFT + the LPF frequency shortcut opens its
-# page; CLIP puts the automation view on that param in menu view and CLIP again returns to the clip view. In menu
-# view a shortcut to another param returns to the clip view, and BACK out of the menu leaves the view in menu view.
-# Entered through the menu instead (which reopens on FILTERS afterwards), BACK from the LPF page to the filters list returns to the clip view. On a patch
-# cable's page (MOD MATRIX) CLIP selects the cable without entering menu view, so KEYBOARD there swaps the clip view
-# for the keyboard. Last, KEYBOARD from the LPF page's menu view opens the keyboard under the menu, and KEYBOARD again
-# leaves it. Every snapshot has a 1 s window (blinks). Run on the ShellMenu card.
+# ShellMenu: the automation view's "menu view". From the synth clip, SHIFT + the LPF frequency shortcut opens its page;
+# CLIP puts the automation view on that param in menu view and CLIP again returns to the clip view. In menu view a
+# shortcut to another param returns to the clip view, and BACK out of the menu leaves the view in menu view. Entered
+# through the menu instead (which reopens on FILTERS afterwards), BACK from the LPF page to the filters list returns to
+# the clip view. On a patch cable's page (MOD MATRIX) CLIP selects the cable without entering menu view, so KEYBOARD
+# there swaps the clip view for the keyboard. Last, KEYBOARD from the LPF page's menu view opens the keyboard under the
+# menu, and KEYBOARD again leaves it. Every snapshot has a 1 s window (blinks).
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 500   pad 8 7 down

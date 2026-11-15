@@ -1,0 +1,9 @@
+# The load-cancel scenario's card: the samples its six synth presets name, in SAMPLES/LC/, and an empty SYNTHS/ the
+# scenario writes the presets into through the firmware's serialisers.
+dir SYNTHS
+sine SAMPLES/LC/LCA.WAV ch=1 frames=22050 hz=440
+sine SAMPLES/LC/LCB.WAV ch=1 frames=22050 hz=330
+sine SAMPLES/LC/LCC.WAV ch=1 frames=22050 hz=550
+sine SAMPLES/LC/LCD.WAV ch=1 frames=22050 hz=660
+sine SAMPLES/LC/LCE.WAV ch=1 frames=22050 hz=770
+sine SAMPLES/LC/LCF.WAV ch=1 frames=22050 hz=880

@@ -65,7 +65,7 @@ public:
 	///          so three things guard it, in this order of strength:
 	///          1. **The type.** `Scene::RepaintSurfaces`' members are `false`, so an override can
 	///             only arm what it names.
-	///          2. **`tests/spec/shell/flush_spec.cpp`**, whose two service legs are the only
+	///          2. **`tests/unit/shell/flush_spec.cpp`**, whose two service legs are the only
 	///             machine check on step 8c: one claims the OLED (so deleting step 8c's whole
 	///             `if (surfaces.oled)` block fails it), the other is "a service claiming
 	///             `{.grid = true}` arms no OLED gate", written in the dangerous spelling itself.
@@ -74,8 +74,8 @@ public:
 	///             fails the checker if a `Service` is ever declared where the row cannot see it.
 	///
 	///          It is a ratchet and not a ban: if your service really does need the OLED armed,
-	///          make the case in the commit message, run `--update`, and extend flush_spec's OLED
-	///          leg to match.
+	///          make the case in the commit message, run `scripts/check_layer_rules.py --update`,
+	///          and extend flush_spec's OLED leg to match.
 	///
 	/// @return `{false, false}` by default: the timer is a wake and nothing more.
 	virtual Scene::RepaintSurfaces timer_repaints() const { return {.oled = false, .grid = false}; }

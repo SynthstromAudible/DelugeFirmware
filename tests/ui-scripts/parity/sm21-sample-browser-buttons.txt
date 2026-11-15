@@ -1,7 +1,8 @@
-# ShellMenu: the sample browser's buttons. On CLIPS' first file SHIFT + SAVE asks to delete it and BACK refuses;
-# LOAD turns auto-load on (its LED), Select +1 loads the next file and the browser stays open, SHIFT + SAVE on that
-# file refuses (the song uses it), LOAD again turns auto-load off; the audition column sounds the clip's row; RECORD
-# opens the audio recorder and BACK leaves it. Run on the content ShellMenu card.
+# ShellMenu: the sample browser's buttons. On CLIPS' first file SHIFT + SAVE asks to delete it and BACK refuses; LOAD
+# turns auto-load on (its LED), Select +1 loads the next file and the browser stays open, SHIFT + SAVE on that file
+# refuses (the song uses it), LOAD again turns auto-load off; the audition column sounds the clip's row; RECORD opens
+# the audio recorder and BACK leaves it.
+# card: content/sweep-bare.img
 100   snapshot boot
 300   button Shift down
 400   pad 0 5 down

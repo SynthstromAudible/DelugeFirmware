@@ -13,13 +13,14 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/ui/support/frames.h"
+#include "support/printers/pad_flash_printer.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
@@ -100,10 +101,10 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 			return n;
 		};
 		expect(flashes_between(1000, 1500)).to_equal(size_t(0));
-		expect(flashes_between(1500, 2000) > 0).to_be_true();
+		expect(flashes_between(1500, 2000)).to_be_greater_than(0);
 		st.list[0].cursor = 1;
 		expect(flashes_between(2000, 2500)).to_equal(size_t(0));
-		expect(flashes_between(2500, 3000) > 0).to_be_true();
+		expect(flashes_between(2500, 3000)).to_be_greater_than(0);
 	});
 
 	it("an exclusive blink flashes only its pad, on every other cycle", _ {
@@ -114,11 +115,11 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 			deluge::ui::test::GridRig rig;
 			menu::fire_blink_step(rig.frame, plan, step);
 			for (const PadFlash& f : rig.flashes.flashes()) {
-				expect(f == PadFlash{5, 5, FlashColour::Default}).to_be_true();
+				expect(f).to_equal(PadFlash{5, 5, FlashColour::Default});
 				steps.push_back(step);
 			}
 		}
-		expect(steps == std::vector<uint32_t>{1, 5, 9}).to_be_true(); // the param step of cycles 0, 2 and 4
+		expect(steps).to_equal(std::vector<uint32_t>{1, 5, 9}); // the param step of cycles 0, 2 and 4
 	});
 });
 // clang-format on

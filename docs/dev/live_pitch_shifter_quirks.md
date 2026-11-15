@@ -6,7 +6,7 @@ what it does, what it may be, and how to settle it. The code names each quirk at
 
 Settling one is a behaviour change of its own: an A/B render with the quirk fixed, a spectrum or ear check, a decision,
 and a re-baseline of the goldens it moves, with that evidence. The goldens that play the shifter are
-`tests/integration/golden/presets/{,stereo/}input_pitchshift*`; the workloads and records under `tests/dsp/` pin it at
+`tests/golden/render/presets/{,stereo/}input_pitchshift*`; the workloads and records under `tests/unit/deluge/dsp-next/` pin it at
 the component.
 
 | # | Where | What it does | Suspicion | How to settle |

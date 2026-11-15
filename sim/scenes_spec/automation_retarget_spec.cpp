@@ -36,11 +36,11 @@
 #include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace params = deluge::modulation::params;
 namespace spec = deluge::scenes::spec;
@@ -176,7 +176,7 @@ describe automation_root_facts("the menu's root facts under the automation view"
 		const MenuContext& ctx = menu_scene().menu_context();
 		expect(ctx.root_is_automation).to_be_true();
 		expect(ctx.root_is_keyboard).to_be_false();
-		expect(ctx.root_greyout == MenuContext::RootGreyout::SpareSidebar).to_be_true();
+		expect(ctx.root_greyout).to_equal(MenuContext::RootGreyout::SpareSidebar);
 	});
 
 	it("follow the view into its editor, for the menu's greyout and the knobs", _ {
@@ -189,7 +189,7 @@ describe automation_root_facts("the menu's root facts under the automation view"
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
 		on_lpf_freq(fx.clip);
 		shellHostUI.refreshRootFacts();
-		expect(menu_scene().menu_context().root_greyout == MenuContext::RootGreyout::Nothing).to_be_true();
+		expect(menu_scene().menu_context().root_greyout).to_equal(MenuContext::RootGreyout::Nothing);
 		expect(deluge::gui::ui::guestKnobsSeeAutomationEditor()).to_be_true();
 		uint32_t cols = 0;
 		uint32_t rows = 0;
@@ -207,7 +207,7 @@ describe automation_root_facts("the menu's root facts under the automation view"
 		shellHostUI.refreshRootFacts();
 		const MenuContext& ctx = menu_scene().menu_context();
 		expect(ctx.root_is_automation).to_be_false();
-		expect(ctx.root_greyout == MenuContext::RootGreyout::InstrumentClip).to_be_true();
+		expect(ctx.root_greyout).to_equal(MenuContext::RootGreyout::InstrumentClip);
 		expect(deluge::gui::ui::guestKnobsSeeAutomationEditor()).to_be_false();
 	});
 });
@@ -219,7 +219,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		Rig r;
 		r.open(nodes::sound_filters);
 		r.press(kSelectEncButtonX, kSelectEncButtonY);
-		expect(menu_scene().focused_value() == &nodes::lpf_mode).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_mode);
 		expect(automationView.inAutomationEditor()).to_be_false();
 		r.press(kKitX, kKitY);
 		expect(view_on(r.song.clip, params::Kind::PATCHED, params::LOCAL_LPF_FREQ)).to_be_true();
@@ -234,7 +234,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		r.press(kKitX, kKitY);
 		expect(automationView.inAutomationEditor()).to_be_true();
 		r.press(kBackX, kBackY);
-		expect(menu_scene().focused() == &nodes::sound_filters).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::sound_filters);
 		expect(automationView.inAutomationEditor()).to_be_false();
 	});
 
@@ -254,7 +254,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		r.open(nodes::sound_filters);
 		r.shortcut(6, 2);
 		expect(view_on(r.song.clip, params::Kind::PATCH_CABLE, kVibratoCable)).to_be_true();
-		expect(r.song.clip->lastSelectedPatchSource == PatchSource::LFO_GLOBAL_1).to_be_true();
+		expect(r.song.clip->lastSelectedPatchSource).to_equal(PatchSource::LFO_GLOBAL_1);
 	});
 
 	it("leaves the view on its param when BACK leaves the menu", _ {
@@ -282,7 +282,7 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 		setRootUILowLevel(&instrumentClipView);
 		r.open(nodes::sound_filters);
 		r.shortcut(8, 7);
-		expect(r.song.clip->lastSelectedParamKind == params::Kind::NONE).to_be_true();
+		expect(r.song.clip->lastSelectedParamKind).to_equal(params::Kind::NONE);
 	});
 });
 describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation view from the menu", $ {
@@ -294,15 +294,15 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		on_overview(fx.clip);
 		automationView.onMenuView = false;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, true)).to_equal(ActionResult::DEALT_WITH);
 		(void)shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, false);
-		expect(getRootUI() == &automationView).to_be_true();
+		expect(getRootUI()).to_equal(&automationView);
 		expect(automationView.onMenuView).to_be_true();
-		expect(automationView.previousUI == &instrumentClipView).to_be_true();
+		expect(automationView.previousUI).to_equal(&instrumentClipView);
 		expect(view_on(fx.clip, params::Kind::PATCHED, params::LOCAL_LPF_FREQ)).to_be_true();
 		expect(menu_scene().menu_context().root_is_automation).to_be_true();
 		(void)shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, true);
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(getRootUI()).to_equal(&instrumentClipView);
 		expect(automationView.onMenuView).to_be_false();
 		expect(menu_scene().menu_context().root_is_automation).to_be_false();
 	});
@@ -314,9 +314,8 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		on_overview(fx.clip);
 		automationView.onMenuView = false;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 5)).to_be_true(); // LPF MODE, a setting
-		expect(shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, true) == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::CLIP_VIEW, true)).to_equal(ActionResult::NOT_DEALT_WITH);
+		expect(getRootUI()).to_equal(&instrumentClipView);
 	});
 
 	it("gives X_ENC on a param to the view under it, and not over another root", _ {
@@ -325,10 +324,10 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		spec::SongFixture fx = spec::make_synth_song();
 		on_overview(fx.clip);
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, false)).to_equal(ActionResult::DEALT_WITH);
 		setRootUILowLevel(&instrumentClipView);
-		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::X_ENC, true)).to_equal(ActionResult::NOT_DEALT_WITH);
 	});
 
 	it("leaves menu view for the keyboard on KEYBOARD", _ {
@@ -342,8 +341,8 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		automationView.previousUI = &instrumentClipView;
 		fx.clip->onAutomationClipView = true;
 		currentUIMode = UI_MODE_NONE;
-		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getRootUI() == &keyboardScreen).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getRootUI()).to_equal(&keyboardScreen);
 		expect(automationView.onMenuView).to_be_false();
 		expect(fx.clip->onAutomationClipView).to_be_false();
 		expect(menu_scene().menu_context().root_is_keyboard).to_be_true();
@@ -358,7 +357,7 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardAutomationButton(deluge::hid::button::KEYBOARD, true).has_value()).to_be_false();
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(getRootUI()).to_equal(&instrumentClipView);
 	});
 
 	it("in menu view, swaps back on a shortcut and on a move to another param, and stays on BACK out", _ {
@@ -370,7 +369,7 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 			automationView.previousUI = &instrumentClipView;
 			r.open(nodes::sound_filters);
 			r.shortcut(8, 7);
-			expect(getRootUI() == &instrumentClipView).to_be_true();
+			expect(getRootUI()).to_equal(&instrumentClipView);
 			expect(automationView.onMenuView).to_be_false();
 		}
 		{
@@ -381,7 +380,7 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 			r.press(kSelectEncButtonX, kSelectEncButtonY); // onto MODE, no param: nothing
 			expect(automationView.onMenuView).to_be_true();
 			r.press(kKitX, kKitY); // onto frequency
-			expect(getRootUI() == &instrumentClipView).to_be_true();
+			expect(getRootUI()).to_equal(&instrumentClipView);
 		}
 		{
 			Rig r;
@@ -392,7 +391,7 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 			r.press(kBackX, kBackY);
 			r.press(kBackX, kBackY);
 			expect(r.shell.stack().depth()).to_equal(size_t(0));
-			expect(getRootUI() == &automationView).to_be_true();
+			expect(getRootUI()).to_equal(&automationView);
 			expect(automationView.onMenuView).to_be_true();
 		}
 		automationView.onMenuView = false;
@@ -413,7 +412,7 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		expect(deluge::gui::ui::automationEditorTakesKnobs()).to_be_true();
 		const int32_t before = fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ);
 		shellHostUI.modEncoderAction(1, 8);
-		expect(fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ) != before).to_be_true();
+		expect(fx.clip->paramManager.getPatchedParamSet()->getValue(params::LOCAL_HPF_FREQ)).not_().to_equal(before);
 	});
 
 	it("leaves the gold knobs to the menu's knobs on the view's overview", _ {
@@ -438,7 +437,7 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		const int32_t before = fx.clip->yScroll;
 		(void)shellHostUI.verticalEncoderAction(1);
-		expect(fx.clip->yScroll != before).to_be_true();
+		expect(fx.clip->yScroll).not_().to_equal(before);
 		const int32_t moved = fx.clip->yScroll;
 		{
 			spec::ShiftHeld shift;

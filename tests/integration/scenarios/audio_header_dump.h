@@ -30,7 +30,7 @@
 /// runs `parseSampleHeader()` and `parseWaveTableHeader()` (at both `makeWaveTableWorkAtAllCosts`
 /// settings) against it, and renders every field plus the error/reject outcome of each as one JSON
 /// line. `crates/deluge_rust/tests/audio_format_corpus.rs` runs golden_vt_render's
-/// `audio_header_dump` scenario (audio_header_dump_scenario.h) as a subprocess and parses this output
+/// `audio_header_dump` scenario (audio_header_dump_scenario.cpp) as a subprocess and parses this output
 /// to compare field-by-field against the new Rust parser.
 ///
 /// `DELUGE_HOST`-only, same reach as `harness/recorder_readback_probe.h`: compiled into

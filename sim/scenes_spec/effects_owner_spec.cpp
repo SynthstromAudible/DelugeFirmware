@@ -30,7 +30,8 @@
 #include "cppspec.hpp"
 
 #include "model/mod_controllable/filters/filter_config.h"
-#include "spec/support/spec_main.h"
+#include "support/printers/effect_states_printer.h"
+#include "support/spec_main.h"
 
 using namespace deluge;
 
@@ -96,26 +97,26 @@ describe effects_owner("an owner's EffectsOwner", ${
 			auto& synth = *static_cast<SoundInstrument*>(f.instrument);
 			const std::optional<EffectsOwner> owner = synth.effectsOwner();
 			expect(owner.has_value()).to_be_true();
-			expect(owner->core == &synth.core()).to_be_true();
-			expect(owner->sound == static_cast<Sound*>(&synth)).to_be_true();
-			expect(owner->view == nullptr).to_be_true();
-			expect(owner->unpatchedKind() == params::Kind::UNPATCHED_SOUND).to_be_true();
+			expect(owner->core).to_equal(&synth.core(), "the synth owner's chain core");
+			expect(owner->sound).to_equal(static_cast<Sound*>(&synth), "the synth owner's sound");
+			expect(owner->view).to_be_null("the synth owner's view");
+			expect(int(owner->unpatchedKind())).to_equal(int(params::Kind::UNPATCHED_SOUND), "the synth owner's unpatched kind");
 		});
 
 		it("names a kit's and an audio track's channel, with its view", _ {
 			spec::SongFixture kit = spec::make_kit_song();
 			auto& k = *static_cast<Kit*>(kit.instrument);
 			const std::optional<EffectsOwner> ofKit = k.effectsOwner();
-			expect(ofKit->core == &k.channel().core()).to_be_true();
-			expect(ofKit->binding == &k.channel().binding()).to_be_true();
-			expect(ofKit->view == &k.channel().view()).to_be_true();
-			expect(ofKit->sound == nullptr).to_be_true();
-			expect(ofKit->unpatchedKind() == params::Kind::UNPATCHED_GLOBAL).to_be_true();
+			expect(ofKit->core).to_equal(&k.channel().core(), "the kit owner's chain core");
+			expect(ofKit->binding).to_equal(&k.channel().binding(), "the kit owner's binding");
+			expect(ofKit->view).to_equal(&k.channel().view(), "the kit owner's view");
+			expect(ofKit->sound).to_be_null("the kit owner's sound");
+			expect(int(ofKit->unpatchedKind())).to_equal(int(params::Kind::UNPATCHED_GLOBAL), "the kit owner's unpatched kind");
 
 			spec::AudioSongFixture audio = spec::make_audio_clip_song();
 			const std::optional<EffectsOwner> ofAudio = audio.output->effectsOwner();
-			expect(ofAudio->core == &audio.output->channel().core()).to_be_true();
-			expect(ofAudio->view == &audio.output->channel().view()).to_be_true();
+			expect(ofAudio->core).to_equal(&audio.output->channel().core(), "the audio owner's chain core");
+			expect(ofAudio->view).to_equal(&audio.output->channel().view(), "the audio owner's view");
 		});
 
 		it("names the song's master channel through the song's owner slot", _ {
@@ -123,9 +124,9 @@ describe effects_owner("an owner's EffectsOwner", ${
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* stack = f.song->setupModelStackWithSongAsTimelineCounter(memory);
 			const std::optional<EffectsOwner> owner = stack->modControllable->effectsOwner();
-			expect(owner->core == &f.song->live.master_channel.core()).to_be_true();
-			expect(owner->binding == &f.song->live.master_channel.binding()).to_be_true();
-			expect(owner->view == &f.song->live.master_channel.view()).to_be_true();
+			expect(owner->core).to_equal(&f.song->live.master_channel.core(), "the song owner's chain core");
+			expect(owner->binding).to_equal(&f.song->live.master_channel.binding(), "the song owner's binding");
+			expect(owner->view).to_equal(&f.song->live.master_channel.view(), "the song owner's view");
 		});
 
 		it("names nothing for a MIDI instrument", _ {
@@ -158,34 +159,40 @@ describe effects_owner("an owner's EffectsOwner", ${
 			spec::SongFixture f = spec::make_kit_song();
 			const EffectsOwner owner = *static_cast<Kit*>(f.instrument)->effectsOwner();
 			const deluge::project::FxChain* record = owner.view->bound();
-			expect(record != nullptr).to_be_true();
+			expect(record).not_().to_be_null("the bound record");
 			deluge::model::setChainView(owner, ModFXParam::OFFSET, FilterType::HPF);
-			expect(record->mod_fx_param == util::to_underlying(ModFXParam::OFFSET)).to_be_true();
-			expect(record->filter_type == util::to_underlying(FilterType::HPF)).to_be_true();
-			expect(owner.binding->snapshot().mod_fx_param == ModFXParam::OFFSET).to_be_true();
+			if (record != nullptr) {
+				expect(int(record->mod_fx_param)).to_equal(int(ModFXParam::OFFSET), "the record's mod FX view");
+				expect(int(record->filter_type)).to_equal(int(FilterType::HPF), "the record's filter view");
+			}
+			expect(int(owner.binding->snapshot().mod_fx_param)).to_equal(int(ModFXParam::OFFSET), "the render's mod FX view");
 		});
 
 		it("seeds a record it binds from what it plays, and takes it back when unbound", _ {
 			spec::SongFixture f = spec::make_kit_song();
 			const EffectsOwner owner = *static_cast<Kit*>(f.instrument)->effectsOwner();
 			deluge::model::unbindChain(owner);
-			expect(owner.view->bound() == nullptr).to_be_true();
+			expect(owner.view->bound()).to_be_null("the record bound before binding");
 			deluge::model::setChainView(owner, ModFXParam::DEPTH, FilterType::LPF);
 			deluge::model::changeEffects(owner, [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::SVF_BAND; });
 
 			deluge::project::FxChain chain{};
 			deluge::model::bindChain(owner, chain);
-			expect(owner.view->bound() == &chain).to_be_true();
-			expect(chain.mod_fx_param == util::to_underlying(ModFXParam::DEPTH)).to_be_true();
-			expect(chain.effects.as<deluge::effects::DelugeEffects>()->filter.lpf_mode == FilterMode::SVF_BAND).to_be_true();
+			expect(owner.view->bound()).to_equal(static_cast<const deluge::project::FxChain*>(&chain), "the bound record");
+			expect(int(chain.mod_fx_param)).to_equal(int(ModFXParam::DEPTH), "the seeded mod FX view");
+			const auto* seeded = chain.effects.as<deluge::effects::DelugeEffects>();
+			expect(seeded).not_().to_be_null("the seeded effects");
+			if (seeded != nullptr) {
+				expect(int(seeded->filter.lpf_mode)).to_equal(int(FilterMode::SVF_BAND), "the seeded LPF mode");
+			}
 			deluge::model::changeEffects(owner, [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::SVF_NOTCH; });
 			deluge::model::setChainView(owner, ModFXParam::FEEDBACK, FilterType::HPF);
 
 			deluge::model::unbindChain(owner);
-			expect(owner.view->bound() == nullptr).to_be_true();
-			expect(owner.effects().filter.lpf_mode == FilterMode::SVF_NOTCH).to_be_true();
-			expect(owner.view->modFXParam() == ModFXParam::FEEDBACK).to_be_true();
-			expect(owner.view->filterType() == FilterType::HPF).to_be_true();
+			expect(owner.view->bound()).to_be_null("the record bound after unbinding");
+			expect(int(owner.effects().filter.lpf_mode)).to_equal(int(FilterMode::SVF_NOTCH), "the LPF mode taken back");
+			expect(int(owner.view->modFXParam())).to_equal(int(ModFXParam::FEEDBACK), "the mod FX view taken back");
+			expect(int(owner.view->filterType())).to_equal(int(FilterType::HPF), "the filter view taken back");
 		});
 	});
 
@@ -194,17 +201,26 @@ describe effects_owner("an owner's EffectsOwner", ${
 			spec::SongFixture kit = spec::make_kit_song();
 			using deluge::project::ChainAddress;
 			const auto song = deluge::bridge::chainAt({.kind = ChainAddress::Kind::SONG}, *kit.song);
-			expect(song.has_value() && song->core == &kit.song->live.master_channel.core()).to_be_true();
+			expect(song.has_value()).to_be_true("the master chain is found");
+			if (song.has_value()) {
+				expect(song->core).to_equal(&kit.song->live.master_channel.core(), "the master chain's core");
+			}
 			auto& k = *static_cast<Kit*>(kit.instrument);
 			const auto ofKit = deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *k.id()}, *kit.song);
-			expect(ofKit.has_value() && ofKit->core == &k.channel().core()).to_be_true();
+			expect(ofKit.has_value()).to_be_true("the kit's chain is found");
+			if (ofKit.has_value()) {
+				expect(ofKit->core).to_equal(&k.channel().core(), "the kit chain's core");
+			}
 			expect(deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = 0xFFFFFF}, *kit.song).has_value())
 			    .to_be_false();
 
 			spec::AudioSongFixture audio = spec::make_audio_clip_song();
 			const auto ofAudio =
 			    deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *audio.output->id()}, *audio.song);
-			expect(ofAudio.has_value() && ofAudio->core == &audio.output->channel().core()).to_be_true();
+			expect(ofAudio.has_value()).to_be_true("the audio track's chain is found");
+			if (ofAudio.has_value()) {
+				expect(ofAudio->core).to_equal(&audio.output->channel().core(), "the audio chain's core");
+			}
 
 			spec::SongFixture synth = spec::make_synth_song();
 			expect(deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *synth.instrument->id()},
@@ -243,20 +259,22 @@ describe effects_owner("an owner's EffectsOwner", ${
 			const ControlsAddress song{ControlsAddress::Kind::SONG, 0};
 			const ControlsAddress ofKit{ControlsAddress::Kind::OUTPUT, *k.id()};
 			const ControlsAddress ofRow{ControlsAddress::Kind::DRUM, *drum->id()};
-			expect(deluge::bridge::soundAt(*kit.song, song) == nullptr).to_be_true();
-			expect(deluge::bridge::soundAt(*kit.song, ofKit) == nullptr).to_be_true();
-			expect(deluge::bridge::soundAt(*kit.song, ofRow) == static_cast<Sound*>(drum)).to_be_true();
-			expect(deluge::bridge::effectsOwnerAt(*kit.song, song)->core == &kit.song->live.master_channel.core())
-			    .to_be_true();
-			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofKit)->core == &k.channel().core()).to_be_true();
-			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofRow)->sound == static_cast<Sound*>(drum)).to_be_true();
-			expect(deluge::bridge::controlsSlotAt(*kit.song, ofKit) == static_cast<ModControllable*>(&k)).to_be_true();
+			expect(deluge::bridge::soundAt(*kit.song, song)).to_be_null("the song's sound");
+			expect(deluge::bridge::soundAt(*kit.song, ofKit)).to_be_null("the kit's sound");
+			expect(deluge::bridge::soundAt(*kit.song, ofRow)).to_equal(static_cast<Sound*>(drum), "the sound row's sound");
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, song)->core)
+			    .to_equal(&kit.song->live.master_channel.core(), "the song owner's chain core");
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofKit)->core)
+			    .to_equal(&k.channel().core(), "the kit owner's chain core");
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofRow)->sound)
+			    .to_equal(static_cast<Sound*>(drum), "the sound row owner's sound");
+			expect(deluge::bridge::controlsSlotAt(*kit.song, ofKit))
+			    .to_equal(static_cast<ModControllable*>(&k), "the kit's controls slot");
 
 			spec::SongFixture synth = spec::make_synth_song();
 			const ControlsAddress ofSynth{ControlsAddress::Kind::OUTPUT, *synth.instrument->id()};
-			expect(deluge::bridge::soundAt(*synth.song, ofSynth)
-			       == static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument)))
-			    .to_be_true();
+			expect(deluge::bridge::soundAt(*synth.song, ofSynth))
+			    .to_equal(static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument)), "the synth's sound");
 
 			spec::SongFixture midi = spec::make_midi_song();
 			const ControlsAddress ofMidi{ControlsAddress::Kind::OUTPUT, *midi.instrument->id()};
@@ -272,8 +290,8 @@ describe effects_owner("an owner's EffectsOwner", ${
 			next.filter.lpf_mode = FilterMode::SVF_NOTCH;
 			next.stutter.reversed = true;
 			deluge::model::storeEffects(owner, next);
-			expect(owner.effects() == next).to_be_true();
-			expect(owner.binding->snapshot().effects == next).to_be_true();
+			expect(owner.effects()).to_equal(next, "the stored settings");
+			expect(owner.binding->snapshot().effects).to_equal(next, "the render's settings");
 		});
 
 		it("projects a host chain's selected mod FX knob", _ {
@@ -282,7 +300,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			const EffectsOwner owner = *kit.effectsOwner();
 			kit.channel().view().write(ModFXParam::DEPTH, kit.channel().view().filterType());
 			deluge::model::projectEffects(owner);
-			expect(owner.binding->snapshot().mod_fx_param == ModFXParam::DEPTH).to_be_true();
+			expect(int(owner.binding->snapshot().mod_fx_param)).to_equal(int(ModFXParam::DEPTH), "the render's mod FX view");
 		});
 
 		it("keeps the settings in a bound record, which takes those held, until unbound", _ {
@@ -294,14 +312,14 @@ describe effects_owner("an owner's EffectsOwner", ${
 
 			deluge::effects::EffectStates record{};
 			deluge::model::bindEffects(owner, &record);
-			expect(record == held).to_be_true();
+			expect(record).to_equal(held, "the bound record");
 			deluge::effects::EffectStates next = held;
 			next.stutter.quantized = !next.stutter.quantized;
 			deluge::model::storeEffects(owner, next);
-			expect(record == next).to_be_true();
+			expect(record).to_equal(next, "the bound record after a store");
 
 			deluge::model::bindEffects(owner, nullptr);
-			expect(owner.effects() == next).to_be_true();
+			expect(owner.effects()).to_equal(next, "the settings taken back");
 		});
 	});
 });

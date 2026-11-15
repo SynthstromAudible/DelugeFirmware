@@ -834,7 +834,7 @@ RULES = [
         # rendered (`Shell::tick` step 5 sets `blit_pending` on any successful `render_oled`; there
         # is no content diff, unlike the grid's `last_sent`), so the claim IS the blit rate -- an
         # unconditional claim is a 50-100 Hz two-panel blit -- and its only other machine check is
-        # one leg of `tests/spec/shell/flush_spec.cpp`.
+        # one leg of `tests/unit/shell/flush_spec.cpp`.
         #
         # `Service::timer_repaints`'s doc (`src/shell/service.h`) says all of that and says "claim
         # `oled` only for a timer whose deadline really does change OLED content" -- but nothing
@@ -1069,7 +1069,7 @@ def audit_service_scope() -> int:
 
     Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` and
     `sim/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
-    the OLED is how the OLED branch gets covered at all (`tests/spec/shell/flush_spec.cpp`).
+    the OLED is how the OLED branch gets covered at all (`tests/unit/shell/flush_spec.cpp`).
     """
     frm = next(f for name, f, *_ in RULES if name == SERVICE_ROW)
     bad = 0

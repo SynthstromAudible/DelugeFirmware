@@ -4,9 +4,9 @@
 #include "util/const_functions.h"
 
 #ifdef IN_UNIT_TESTS
-#include "display_mock.h"
-#include "function_mocks.h"
-#include "song_mock.h"
+#include "mock_display.h"
+#include "mock_functions.h"
+#include "mock_song.h"
 #else
 #include "hid/display/display.h"
 #include "model/song/song.h"

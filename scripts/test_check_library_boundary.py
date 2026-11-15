@@ -2,7 +2,13 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for check_library_boundary.py: what each library's no-allowlist check must accept and reject."""
+"""Tests for check_library_boundary.py: what each library's no-allowlist check must accept and reject.
+
+Gate library-boundary-selftest:
+    each standalone library's boundary check rejects every way an undeclared header could slip in: a non-standard
+    <header>, path traversal, an include it cannot parse (a macro or a comment), an undeclared neighbour of a declared
+    dependency, and any C-family file suffix
+"""
 
 from __future__ import annotations
 

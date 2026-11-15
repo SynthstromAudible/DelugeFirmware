@@ -24,6 +24,15 @@ re-runs the report over a run's decode.
 
 Exit codes are capture.py's (0 captured, 1 a --fail-on line matched, 2 timed out, 3 probe or target
 error, 4 usage), or 5 when the decode failed.
+
+Gate ptm-trace-tool:
+    the PTM trace tool's host side: function names resolve to one address range (bare or full signature, Thumb bit
+    cleared, overloads refused), the CoreSight ROM walk finds the trace path and programming writes the PTM, funnel, ETF
+    and TPIU as the rig needs them, the OpenCSD snapshot names a Cortex-A9 and a PFT 1.0 PTM with the registers used,
+    the J-Trace's reversed RAWTRACE bytes are put back in port order without frame syncs, and the report times blocks,
+    loop iterations and instructions from a canned decode; the profile's shadow call stack charges self and inclusive
+    cycles through calls, returns, tail calls and recursion, keeps an interrupt's cycles and code found after a gap
+    behind a barrier, re-anchors frames across a loss of sync, and says when gaps leave its call stacks unreliable
 """
 
 from __future__ import annotations

@@ -56,16 +56,16 @@
 #include "support/oracle_rainfall.h"
 #include "support/oracle_starfield.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
 #include <cstdint>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::overlay::kFrameIntervalMs;
@@ -577,7 +577,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		Rig r;
 		r.open(0x7777);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/screensaver_rainfall_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/screensaver_rainfall_48.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the starfield golden", _ {
@@ -585,7 +585,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		Rig r;
 		r.open(0x7777);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/screensaver_starfield_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/screensaver_starfield_48.pbm", r.fake.pbm(0));
 	});
 });
 // clang-format on

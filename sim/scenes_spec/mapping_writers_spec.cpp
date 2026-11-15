@@ -36,11 +36,15 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/indexed_knobs.h"
+#include "support/printers/mapping_printer.h"
+#include "support/printers/param_id_printer.h"
+#include "support/printers/param_target_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -231,10 +235,13 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, newId});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(knobs.size() == 1 && knobs[0].source == knobCc(1, 74)).to_be_true();
-		expect(held(*f.song, TrackInputTarget{newId}) == note(2, 60)).to_be_true();
+		expect(knobs.size()).to_equal(1);
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(knobCc(1, 74));
+		}
+		expect(held(*f.song, TrackInputTarget{newId})).to_equal(note(2, 60));
 		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, oldId}).empty()).to_be_true();
-		expect(f.song->project.mappings.find(TrackInputTarget{oldId}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(TrackInputTarget{oldId})).to_be_null();
 		OwnerParamTarget handed = knob;
 		handed.owner.id = newId;
 		expect(indexPlays(*f.song, handed, 1, 74)).to_be_true(); // the preset plays it
@@ -251,7 +258,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		f.song->replaceInstrument(f.instrument, preset);
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *preset->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(knobs.size() == 1 && knobs[0].source == knobCc(3, 21)).to_be_true();
+		expect(knobs.size()).to_equal(1);
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(knobCc(3, 21));
+		}
 	});
 
 	it("records the input and knobs a track brings into a running song", _ {
@@ -264,9 +274,12 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		f.song->addOutput(synth);
 		const uint32_t id = *synth->id();
 		expect(fieldMatches(*f.song, TrackInputTarget{id}, synth->midiInput)).to_be_true();
-		expect(f.song->project.mappings.find(TrackInputTarget{id}) != nullptr).to_be_true();
+		expect(f.song->project.mappings.find(TrackInputTarget{id})).not_().to_be_null();
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, id});
-		expect(knobs.size() == 1 && knobs[0].source == knobCc(4, 10)).to_be_true();
+		expect(knobs.size()).to_equal(size_t{1});
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(knobCc(4, 10));
+		}
 		expect(synth->effectsOwner()->knobs->loaded.empty()).to_be_true(); // the table holds them now
 		expect(indexPlays(*f.song, OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, id}, patched(params::LOCAL_PAN)}, 4, 10))
 		    .to_be_true();
@@ -281,8 +294,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		drum->midiInput.noteOrCC = 31;
 		static_cast<Kit*>(f.instrument)->addDrum(drum);
 		const uint32_t id = *drum->id();
-		expect(held(*f.song, DrumMuteTarget{id}) == note(6, 30)).to_be_true();
-		expect(held(*f.song, LaneInputTarget{id}) == note(7, 31)).to_be_true();
+		expect(held(*f.song, DrumMuteTarget{id})).to_equal(note(6, 30));
+		expect(held(*f.song, LaneInputTarget{id})).to_equal(note(7, 31));
 	});
 
 	it("copies an audio track's knobs to its clone, device included", _ {
@@ -300,11 +313,18 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(storeSaw(knob, fromAbsentDevice(knobCc(0, 7)), 515)).to_be_true();
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
+		expect(knobs.size()).to_equal(size_t{1});
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(fromAbsentDevice(knobCc(0, 7)));
+		}
 		// The clone's knob listens to an entry made for the device, which no message arrives on until it is plugged in.
 		MIDICable* entry = deluge::bridge::find_cable(*fromAbsentDevice(knobCc(0, 7)).device);
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, cloneKnob.owner, 0, 7);
-		expect(entry != nullptr && played.size() == 1 && played[0].cable == entry).to_be_true();
+		expect(entry).not_().to_be_null("the absent device's entry");
+		expect(played.size()).to_equal(size_t{1}, "the clone's knobs on CC 7");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(entry);
+		}
 	});
 
 	it("copies a clip's mute command to the audio clip that replaces it", _ {
@@ -312,13 +332,13 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		const uint32_t oldId = f.clip->id();
 		deluge::edits::learnMappingFor(note(3, 40), ClipMuteTarget{oldId});
 		Clip* audio = f.song->replaceInstrumentClipWithAudioClip(f.clip, 0);
-		expect(audio != nullptr).to_be_true();
+		expect(audio).not_().to_be_null();
 		if (audio == nullptr) {
 			return;
 		}
-		expect(held(*f.song, ClipMuteTarget{audio->id()}) == note(3, 40)).to_be_true();
+		expect(held(*f.song, ClipMuteTarget{audio->id()})).to_equal(note(3, 40));
 		expect(audio->muteMIDICommand.equalsNoteOrCC(nullptr, 3, 40)).to_be_true();
-		expect(f.song->project.mappings.find(ClipMuteTarget{oldId}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(ClipMuteTarget{oldId})).to_be_null();
 	});
 
 	it("forgets a deleted clip's mute command", _ {
@@ -328,7 +348,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		ClipArray& clips = f.song->live.clips.session_clips;
 		clips.erase(clips.begin() + clips.getIndexForClip(f.clip));
 		f.song->deleteClipObject(f.clip, false, InstrumentRemoval::NONE);
-		expect(f.song->project.mappings.find(ClipMuteTarget{id}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(ClipMuteTarget{id})).to_be_null();
 	});
 
 	it("forgets a deleted kit row's mute and input", _ {
@@ -343,8 +363,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
 		row->setDrum(nullptr, kit, stack->addNoteRow(f.clip->getNoteRowId(row, 0), row));
 		kit->removeDrum(drum);
-		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
-		expect(f.song->project.mappings.find(LaneInputTarget{id}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(DrumMuteTarget{id})).to_be_null();
+		expect(f.song->project.mappings.find(LaneInputTarget{id})).to_be_null();
 	});
 
 	it("forgets a deleted track's knobs and input", _ {
@@ -360,7 +380,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		f.song->deleteOutputThatIsInMainList(synth);
 		expect(storeSaw(knob, knobCc(0, 70), 9)).to_be_false();
 		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, id}).empty()).to_be_true();
-		expect(f.song->project.mappings.find(TrackInputTarget{id}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(TrackInputTarget{id})).to_be_null();
 	});
 
 	it("keeps each kit row's table entry and field the same through a kit change", _ {
@@ -397,8 +417,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		std::vector<MIDIDrum*> rows;
 		Kit* newKit = makeKitWithRows(f, 1, &rows);
 		f.song->replaceInstrument(f.instrument, newKit);
-		expect(held(*f.song, DrumMuteTarget{*rows[0]->id()}) == fromAbsentDevice(note(1, 36))).to_be_true();
-		expect(held(*f.song, ClipMuteTarget{f.clip->id()}) == note(1, 36)).to_be_true();
+		expect(held(*f.song, DrumMuteTarget{*rows[0]->id()})).to_equal(fromAbsentDevice(note(1, 36)));
+		expect(held(*f.song, ClipMuteTarget{f.clip->id()})).to_equal(note(1, 36));
 	});
 
 	it("keeps each row's entry and field the same through a change to a kit with fewer rows", _ {
@@ -463,13 +483,20 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		    .port = MidiDeviceRef::Port::HOSTED, .name = "MW", .vendor_id = 0x0001, .product_id = 0x0002};
 		deluge::edits::learnMappingFor(source, knob);
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 2, 9);
-		expect(played.size() == 1 && played[0].cable == &cable && played[0].relative).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 9");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&cable);
+			expect(played[0].relative).to_be_true();
+		}
 
 		deluge::midi::learnedCcToOutput(*f.instrument, cable, 2, 9, 64);
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
 		const std::vector<deluge::midi::IndexedEntry> after = indexedKnobs(*f.song, knob.owner, 2, 9);
-		expect(after.size() == 1 && !after[0].relative).to_be_true();
-		expect(held(*f.song, knob) == source).to_be_true();
+		expect(after.size()).to_equal(size_t{1}, "the knobs on CC 9");
+		if (after.size() == 1) {
+			expect(after[0].relative).to_be_false();
+		}
+		expect(held(*f.song, knob)).to_equal(source);
 	});
 
 	it("learns a menu's MIDI knob through the table, and unlearns it there", _ {
@@ -480,17 +507,20 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		Command source = knobCc(1, 74);
 		source.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
-		expect(held(*f.song, knob) == source).to_be_true();
+		expect(held(*f.song, knob)).to_equal(source);
 		expect(f.song->project.mappings.find(knob)->relative).to_be_true();
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
-		expect(played.size() == 1 && played[0].cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		}
 
 		// The menu unlearns through the song's table (ShellEditSink::learn with no command).
 		deluge::midi::takeoverStore().at(knob, source).previous = 31;
 		deluge::edits::unlearnMappingFor(knob);
 		expect(storeSaw(knob, source, 31)).to_be_false();
-		expect(f.song->project.mappings.find(knob) == nullptr).to_be_true();
-		expect(indexedKnobs(*f.song, knob.owner, 1, 74).empty()).to_be_true();
+		expect(f.song->project.mappings.find(knob)).to_be_null();
+		expect(indexedKnobs(*f.song, knob.owner, 1, 74).size()).to_equal(size_t{0}, "the knobs on CC 74");
 	});
 
 	it("rebinds a menu's knob heard again from another device while inputs are not told apart", _ {
@@ -511,11 +541,16 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		Command fromUsb = knobCc(1, 74);
 		fromUsb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
 		expect(static_cast<int>(knobs.size())).to_equal(2);
-		expect(knobs.size() == 2 && knobs[0].source == fromUsb
-		       && std::get<OwnerParamTarget>(knobs[0].target).param == patched(params::LOCAL_VOLUME))
-		    .to_be_true();
+		expect(knobs.size()).to_equal(size_t{2});
+		if (knobs.size() == 2) {
+			expect(knobs[0].source).to_equal(fromUsb);
+			expect(std::get<OwnerParamTarget>(knobs[0].target).param).to_equal(patched(params::LOCAL_VOLUME));
+		}
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, owner, 1, 74);
-		expect(played.size() == 1 && played[0].cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
+		}
 	});
 
 	it("rebinds a menu's knob learned from any device to the device it is heard from", _ {
@@ -534,9 +569,15 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		const std::vector<Mapping> knobs =
 		    f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *f.instrument->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(knobs.size() == 1 && knobs[0].source == fromDin).to_be_true();
+		expect(knobs.size()).to_equal(size_t{1});
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(fromDin);
+		}
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
-		expect(played.size() == 1 && played[0].cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		}
 	});
 
 	it("keeps a menu's knobs from two devices apart while inputs are told apart", _ {
@@ -555,9 +596,11 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		    .to_equal(2);
 		const std::vector<deluge::midi::IndexedEntry> played =
 		    indexedKnobs(*f.song, {ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, 1, 74);
-		expect(played.size() == 2 && played[0].cable == &MIDIDeviceManager::dinMIDIPorts
-		       && played[1].cable == &MIDIDeviceManager::upstreamUSBMIDICable1)
-		    .to_be_true();
+		expect(played.size()).to_equal(size_t{2}, "the knobs on CC 74");
+		if (played.size() == 2) {
+			expect(played[0].cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+			expect(played[1].cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
+		}
 	});
 
 	it("keeps a menu knob's takeover state when it is learned again from another device", _ {
@@ -580,7 +623,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 		expect(learned).to_be_true();
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
-		expect(played.size() == 1 && played[0].cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
+		}
 		expect(storeSaw(knob, fromUsb, 12345)).to_be_true();
 		expect(deluge::midi::takeoverStore().size()).to_equal(size_t{1});
 	});
@@ -600,7 +646,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		expect(f.song->project.mappings.find(knob)->relative).to_be_true();
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 1, 74);
-		expect(played.size() == 1 && played[0].relative).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 74");
+		if (played.size() == 1) {
+			expect(played[0].relative).to_be_true();
+		}
 		expect(storeSaw(knob, fromDin, 777)).to_be_true();
 	});
 
@@ -624,7 +673,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(learned).to_be_true();
 		const std::vector<Mapping> knobs = f.song->project.mappings.params_of(owner);
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(knobs.size() == 1 && knobs[0].source == fromDin).to_be_true();
+		expect(knobs.size()).to_equal(size_t{1});
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(fromDin);
+		}
 		expect(indexedKnobs(*f.song, owner, 1, 74).size()).to_equal(size_t{1});
 		expect(storeHolds(knob, fromDin)).to_be_false();
 	});
@@ -638,11 +690,14 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		    .port = MidiDeviceRef::Port::HOSTED, .name = "mw", .vendor_id = 0x9999, .product_id = 0x8888};
 		deluge::edits::learnMappingFor(source, knob);
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, knob.owner, 2, 11);
-		expect(played.size() == 1 && played[0].cable == &cable).to_be_true();
+		expect(played.size()).to_equal(size_t{1}, "the knobs on CC 11");
+		if (played.size() == 1) {
+			expect(played[0].cable).to_equal(&cable);
+		}
 		deluge::midi::takeoverStore().at(knob, source).previous = 4242;
 		deluge::bridge::projectDeviceMappings(*f.song); // the devices changed
 		expect(storeSaw(knob, source, 4242)).to_be_true();
-		expect(held(*f.song, knob) == source).to_be_true();
+		expect(held(*f.song, knob)).to_equal(source);
 	});
 
 	it("lands a write the render held after a kit change's table as it was, after the rows' moves", _ {
@@ -658,7 +713,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::memory::noteRenderBlock(false);
 		deluge::bridge::recordMovedDrumCommands(*kit, before.entries(), {}, *f.song);
 		deluge::bridge::applyPendingMappingOps(*f.song);
-		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(DrumMuteTarget{id})).to_be_null();
 	});
 
 	it("holds the render's writes while any row-command guard is open, and lands them when the last closes", _ {
@@ -673,14 +728,14 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 			deluge::bridge::forgetDrumMappings(*f.song, id);
 			deluge::memory::noteRenderBlock(false);
 			deluge::bridge::applyPendingMappingOps(*f.song);
-			expect(f.song->project.mappings.find(DrumMuteTarget{id}) != nullptr).to_be_true();
+			expect(f.song->project.mappings.find(DrumMuteTarget{id})).not_().to_be_null();
 			{
 				deluge::bridge::RowCommandMoves inner(*f.song);
 				expect(inner.before().size()).to_equal(size_t{1}); // the table as the forget found it
 			}
-			expect(f.song->project.mappings.find(DrumMuteTarget{id}) != nullptr).to_be_true(); // the outer still open
+			expect(f.song->project.mappings.find(DrumMuteTarget{id})).not_().to_be_null(); // the outer still open
 		}
-		expect(f.song->project.mappings.find(DrumMuteTarget{id}) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(DrumMuteTarget{id})).to_be_null();
 	});
 
 	it("plays a learned knob through the index for its CC and param, and for no other", _ {
@@ -712,8 +767,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		                           unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
 		deluge::edits::learnMappingFor(knobCc(2, 21), kitParam);
 		expect(indexPlays(*f.song, kitParam, 2, 21)).to_be_true();
-		expect(indexedKnobs(*f.song, kitParam.owner, 2, 22).empty()).to_be_true();
-		expect(indexedKnobs(*f.song, rowParam.owner, 2, 21).empty()).to_be_true(); // the kit's knob is not its row's
+		expect(indexedKnobs(*f.song, kitParam.owner, 2, 22).size()).to_equal(size_t{0}, "the kit's knobs on CC 22");
+		// The kit's knob is not its row's.
+		expect(indexedKnobs(*f.song, rowParam.owner, 2, 21).size()).to_equal(size_t{0}, "the row's knobs on CC 21");
 	});
 
 	it("names no engine knob for a param outside the engine's, and plays an engine param's knob as that param's", _ {
@@ -730,8 +786,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		// The index plays each knob as its own target: the one outside the engine's is not taken for volume.
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, owner, 1, 74);
 		expect(static_cast<int>(played.size())).to_equal(2);
-		expect(played.size() == 2 && played[0].target == MappingTarget{volume} && played[1].target == MappingTarget{outside})
-		    .to_be_true();
+		if (played.size() == 2) {
+			expect(played[0].target).to_equal(MappingTarget{volume});
+			expect(played[1].target).to_equal(MappingTarget{outside});
+		}
 	});
 
 	it("accepts a param outside the engine's in its owner, and lends it no other knob's takeover state", _ {
@@ -795,10 +853,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		}
 		deluge::memory::noteRenderBlock(false);
 		expect(deluge::bridge::applyPendingMappingOps(*f.song, deluge::bridge::OverflowReconcile::DEFER)).to_be_true();
-		expect(f.song->project.mappings.find(gone) != nullptr).to_be_true();
+		expect(f.song->project.mappings.find(gone)).not_().to_be_null();
 		expect(deluge::mappingIndexStale()).to_be_true();
 		deluge::midi::refreshMappingIndex();
-		expect(f.song->project.mappings.find(gone) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(gone)).to_be_null();
 		expect(deluge::mappingIndexStale()).to_be_false();
 	});
 
@@ -856,7 +914,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(static_cast<int>(knobs.size())).to_equal(1);
 		OwnerParamTarget cloneKnob = knob;
 		cloneKnob.owner.id = *clone->id();
-		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(fromAbsentDevice(knobCc(0, 7)));
+		}
 		expect(storeSaw(cloneKnob, fromAbsentDevice(knobCc(0, 7)), 321)).to_be_true();
 		expect(clone->effectsOwner()->knobs->cloned_from.has_value()).to_be_false();
 	});
@@ -883,7 +943,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::memory::noteRenderBlock(false);
 		(void)deluge::bridge::applyPendingMappingOps(*f.song);
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
-		expect(knobs.size() == 1 && knobs[0].source == knobCc(0, 7)).to_be_true();
+		expect(knobs.size()).to_equal(size_t{1});
+		if (knobs.size() == 1) {
+			expect(knobs[0].source).to_equal(knobCc(0, 7));
+		}
 		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, source}).empty()).to_be_true();
 	});
 
@@ -897,7 +960,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		clone->cloneFrom(f.output);
 		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
 		deluge::memory::noteRenderBlock(false);
-		expect(clone->effectsOwner()->knobs->cloned_from == std::optional<uint32_t>{*f.output->id()}).to_be_true();
+		expect(clone->effectsOwner()->knobs->cloned_from).to_equal(std::optional<uint32_t>{*f.output->id()});
 		(void)deluge::bridge::applyPendingMappingOps(*f.song);
 		expect(clone->effectsOwner()->knobs->cloned_from.has_value()).to_be_false();
 		expect(static_cast<int>(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()}).size()))
@@ -919,13 +982,13 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
 		deluge::memory::noteRenderBlock(false);
 		const uint32_t gone = *clone->id();
-		expect(f.song->removeOutputFromMainList(clone, false) >= 0).to_be_true();
+		to_be_at_least(expect(f.song->removeOutputFromMainList(clone, false)), 0);
 		(void)deluge::bridge::applyPendingMappingOps(*f.song);
 		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, gone}).empty()).to_be_true();
 		OwnerParamTarget cloneKnob = knob;
 		cloneKnob.owner.id = gone;
 		expect(storeHolds(cloneKnob, source)).to_be_false();
-		expect(deluge::bridge::find_cable(*source.device) == nullptr).to_be_true();
+		expect(deluge::bridge::find_cable(*source.device)).to_be_null();
 	});
 
 	it("starts a song's knobs over when another becomes the current song, whatever its address", _ {

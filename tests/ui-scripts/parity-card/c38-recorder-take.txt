@@ -1,6 +1,7 @@
-# The recorder's return (ShellMenu card): Shift + (0,4) from the clip view lands on the SAMPLE RECORDER page, SELECT
-# opens the recorder on source 0, and RECORD ends the take, which lands on the oscillator's source page with the file
-# selector focused on the new recording; BACK from there leaves the menu.
+# The recorder's return: Shift + (0,4) from the clip view lands on the SAMPLE RECORDER page, SELECT opens the recorder
+# on source 0, and RECORD ends the take, which lands on the oscillator's source page with the file selector focused on
+# the new recording; BACK from there leaves the menu.
+# card: content/sweep-bare.img
 1000  button Shift down
 1100  pad 0 4 down
 1150  pad 0 4 up

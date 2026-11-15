@@ -15,7 +15,35 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/load_cancel_scenario.h"
+/// @file
+/// @brief Cancelling preset loads by ticket. BACK in the preset browser while the preset under the cursor is still
+/// staging (LC-STAGE) or loading its samples (LC-SAMPLES) drops that load: the clip keeps its preset, the browser stays
+/// where it is, nothing of the dropped load is left behind and no error is shown. A cancel naming a load that has
+/// finished, or one a newer request replaced, changes nothing (LC-STALE); a creation refuses a cancel and completes
+/// (LC-REFUSED). BACK straight after a fast scroll, the newest scroll-load still queued behind the one it replaces,
+/// leaves neither loading (LC-QUEUED).
+///
+/// Gate load-cancel:
+///     a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the
+///     browser's scroll-load. Six synth presets, each naming a sample of its own, are written through the firmware and
+///     selected in the real preset browser opened on the boot song's synth clip. cancel_at_stage: with the byte channel
+///     holding the document read, BACK while the scroll-load is still staging must cancel it at once, leaving the
+///     browser open on the same file, the clip on its previous preset, no loading animation, and past the hold no
+///     further reads or sample loads, nothing of the preset in the song and no error shown (LC-STAGE).
+///     cancel_at_samples: with the loader holding the sample load, BACK once the preset is parsed and loading its
+///     sample must do the same, and leave no param manager or sample lease behind: the parsed synth freed, never
+///     swapped in, no give-up counted and no card error shown (LC-SAMPLES). cancel_queued: BACK straight after a scroll
+///     on from a preset still loading its sample, the newer scroll-load queued behind it, must leave neither loading
+///     and neither in the song (LC-QUEUED). stale_ticket: a cancel naming a scroll-load that has finished must answer
+///     Stale and change nothing; a cancel naming a load still in flight with a newer selection's load queued behind it
+///     to replace it must answer Stale and drop neither; and a cancel naming a load a newer selection replaced, made
+///     while the newer load is in flight, must answer Stale and leave the newer load to land (LC-STALE).
+///     refused_for_a_creation: the clip view's new-synth gesture's load must refuse a cancel, and complete
+///     (LC-REFUSED). The host build has no allocator leak count, so a leak shows as the preset's synth left in the
+///     song, an orphaned param manager or a held sample lease.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -51,14 +79,19 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(load_cancel);
+
 namespace {
 
 using deluge::gui::CancelResult;
 using deluge::gui::instrumentLoad;
 using deluge::gui::LoadTicket;
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// The presets, written through the firmware's serialisers once the boot song has its synth; each names a sample of
-/// its own (see fill_load_cancel_card in the harness). Each leg that holds a sample load holds a sample nothing has
+/// its own (see load_cancel.card). Each leg that holds a sample load holds a sample nothing has
 /// asked for before, so no earlier leg's request for it is still out when the hold is set.
 constexpr int32_t kPresets = 6;
 constexpr const char* kPresetPaths[kPresets] = {"SYNTHS/LCA.XML", "SYNTHS/LCB.XML", "SYNTHS/LCC.XML",
@@ -83,9 +116,11 @@ constexpr const char* kSampleC = kSamplePaths[2];
 
 /// How long the byte channel holds the cancel-at-Stage leg's document read, and the loader each held sample load.
 constexpr uint32_t kHoldMs = 300;
-/// Steps a load, a listing or a settle is given. A step is about a virtual millisecond.
+/// Steps each load, listing or settle wait is given. A step is about a virtual millisecond.
 constexpr int32_t kMaxSteps = 20000;
-/// Steps a leg runs on after its cancel, past every hold, to see that nothing of the dropped load comes back.
+/// Steps a leg runs on after its cancel, past every hold, to see that nothing of the dropped load comes back. Not a
+/// wait: the property is that nothing of the dropped load comes back within this window, and no signal says it will
+/// not.
 constexpr int32_t kAfterSteps = 600;
 
 enum class Stage : uint8_t {
@@ -116,7 +151,10 @@ enum class Stage : uint8_t {
 
 Stage g_stage = Stage::Loading;
 bool g_stepDone = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"LC"};
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "SETUP the boot song's preset request settling", kMaxSteps};
+/// Steps run since the cancel, against kAfterSteps.
 int32_t g_steps = 0;
 
 InstrumentClip* g_clip = nullptr;
@@ -137,19 +175,19 @@ bool g_popupSeen = false;
 /// stale_ticket: whether LCE's ticket was cancelled while LCF's load was queued behind it.
 bool g_queuedStaleSeen = false;
 
-void fail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
+/// Starts the next stage's wait.
+void startWait(const char* what) {
+	g_wait = Wait{g_report, what, kMaxSteps};
 }
 
-/// Gives a wait another step; false, with @p marker's failure reported and the run ended, once it has had too many.
-bool waitMore(const char* marker, const char* what) {
-	if (++g_steps <= kMaxSteps) {
-		return true;
+/// Polls the stage's wait with whether its condition holds now; true once it does. A wait that runs out ends the run at
+/// the report, having recorded its failure.
+bool settled(bool met) {
+	const WaitState state = g_wait.poll(met);
+	if (state == WaitState::Expired) {
+		g_stage = Stage::Report;
 	}
-	fail(marker, what);
-	g_stage = Stage::Report;
-	return false;
+	return state == WaitState::Met;
 }
 
 void pressBack() {
@@ -276,7 +314,7 @@ bool previousKept(const char* name) {
 }
 
 /// BACK while the browser's scroll-load is out: the load must be dropped at once, with the browser left where it is.
-void backAndCheck(const char* marker, const char* name, const char* file) {
+void backAndCheck(const char* stage, const char* name, const char* file) {
 	const bool wasCurrent = scrollLoadCurrent();
 	pressBack();
 	g_readsAtCancel = instrumentLoad.documentReads();
@@ -287,59 +325,61 @@ void backAndCheck(const char* marker, const char* name, const char* file) {
 	const bool dropped = !instrumentLoad.inFlight();
 	const bool animation = loadingAnimationShown();
 	g_popupSeen = display->hasPopup();
-	printf("%s-BACK wasCurrent=%d cancels=%d dropped=%d browserStayed=%d file=%s kept=%d animation=%d popup=%d "
+	printf("LC-%s-BACK wasCurrent=%d cancels=%d dropped=%d browserStayed=%d file=%s kept=%d animation=%d popup=%d "
 	       "steps=%d\n",
-	       marker, wasCurrent ? 1 : 0, cancels, dropped ? 1 : 0, browserStayed ? 1 : 0, currentFileName().c_str(),
-	       previousKept(name) ? 1 : 0, animation ? 1 : 0, g_popupSeen ? 1 : 0, g_steps);
+	       stage, wasCurrent ? 1 : 0, cancels, dropped ? 1 : 0, browserStayed ? 1 : 0, currentFileName().c_str(),
+	       previousKept(name) ? 1 : 0, animation ? 1 : 0, g_popupSeen ? 1 : 0, g_wait.ticks());
 	if (!wasCurrent) {
-		fail(marker, "the scroll-load was not the load in flight when BACK was pressed, so nothing was tested");
+		g_report.fail("%s the scroll-load was not the load in flight when BACK was pressed, so nothing was tested",
+		              stage);
 	}
 	if (cancels != 1 || !dropped) {
-		fail(marker, "BACK did not cancel the browser's scroll-load");
+		g_report.fail("%s BACK did not cancel the browser's scroll-load", stage);
 	}
 	if (!browserStayed) {
-		fail(marker, "BACK during a scroll-load moved or closed the browser instead of only cancelling the load");
+		g_report.fail("%s BACK during a scroll-load moved or closed the browser instead of only cancelling the load",
+		              stage);
 	}
 	if (animation) {
-		fail(marker, "the loading animation was left up after the cancel");
+		g_report.fail("%s the loading animation was left up after the cancel", stage);
 	}
 	g_steps = 0;
 }
 
 /// After the cancel, past every hold: the clip on its preset, nothing of the dropped load in the song, InstrumentLoad
 /// idle with no reads or sample loads since the cancel, and no error shown.
-void checkAfter(const char* marker, const char* name, const char* sample) {
+void checkAfter(const char* stage, const char* name, const char* sample) {
 	const int32_t reads = instrumentLoad.documentReads() - g_readsAtCancel;
 	const int32_t loads = instrumentLoad.sampleLoads() - g_loadsAtCancel;
 	const int32_t giveUps = instrumentLoad.giveUps() - g_giveUpsBefore;
 	const int32_t orphans = orphanedParamManagers() - g_orphansBefore;
 	const int64_t leases = leasesOn(sample);
 	const bool kept = previousKept(name);
-	printf("%s kept=%d named=%s instances=%d outputsKept=%d orphans=%d reads=%d sampleLoads=%d giveUps=%d leases=%lld "
-	       "inFlight=%d popup=%d\n",
-	       marker, kept ? 1 : 0, g_clip->output->name.c_str(), instrumentsNamed(name),
-	       countOutputs() == g_outputsBefore ? 1 : 0, orphans, reads, loads, giveUps, static_cast<long long>(leases),
-	       instrumentLoad.inFlight() ? 1 : 0, g_popupSeen ? 1 : 0);
+	printf(
+	    "LC-%s kept=%d named=%s instances=%d outputsKept=%d orphans=%d reads=%d sampleLoads=%d giveUps=%d leases=%lld "
+	    "inFlight=%d popup=%d\n",
+	    stage, kept ? 1 : 0, g_clip->output->name.c_str(), instrumentsNamed(name),
+	    countOutputs() == g_outputsBefore ? 1 : 0, orphans, reads, loads, giveUps, static_cast<long long>(leases),
+	    instrumentLoad.inFlight() ? 1 : 0, g_popupSeen ? 1 : 0);
 	if (!kept) {
-		fail(marker, "the cancelled preset was swapped in or left in the song, or the clip lost its preset");
+		g_report.fail("%s the cancelled preset was swapped in or left in the song, or the clip lost its preset", stage);
 	}
 	if (orphans != 0 || leases > 0) {
-		fail(marker, "the cancelled load left a param manager or a sample lease behind");
+		g_report.fail("%s the cancelled load left a param manager or a sample lease behind", stage);
 	}
 	if (reads != 0 || loads != 0) {
-		fail(marker, "the cancelled load ran on after its cancel");
+		g_report.fail("%s the cancelled load ran on after its cancel", stage);
 	}
 	if (giveUps != 0 || g_popupSeen) {
-		fail(marker, "the cancelled load reported a failure or showed an error");
+		g_report.fail("%s the cancelled load reported a failure or showed an error", stage);
 	}
 	if (instrumentLoad.inFlight()) {
-		fail(marker, "a load was still in flight after the cancel");
+		g_report.fail("%s a load was still in flight after the cancel", stage);
 	}
 }
 
 void stepLoading() {
-	if (currentSong->blankPresetPending || instrumentLoad.inFlight()) {
-		(void)waitMore("LC-SETUP", "the boot song's preset request never settled");
+	if (!settled(!currentSong->blankPresetPending && !instrumentLoad.inFlight())) {
 		return;
 	}
 	g_stage = Stage::Fixture;
@@ -354,7 +394,7 @@ void stepFixture() {
 		written = deluge::harness::writeSampleSynthPreset(kPresetPaths[i], kSamplePaths[i]);
 	}
 	if (!written || g_clip == nullptr || g_clip->output == nullptr || g_clip->output->type != OutputType::SYNTH) {
-		fail("LC-SETUP", "the presets could not be written, or the song has no synth clip");
+		g_report.fail("SETUP the presets could not be written, or the song has no synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -366,18 +406,17 @@ void stepFixture() {
 	const bool opened = openUI(&loadInstrumentPresetUI);
 	printf("LC-SETUP opened=%d synth=%s\n", opened ? 1 : 0, instrument->name.c_str());
 	if (!opened) {
-		fail("LC-SETUP", "the preset browser could not be opened");
+		g_report.fail("SETUP the preset browser could not be opened");
 		g_stage = Stage::Report;
 		return;
 	}
-	g_steps = 0;
+	startWait("SETUP the browser's opening listing settling");
 	g_stage = Stage::Opening;
 }
 
 void stepOpening() {
 	// Opening lists the folder and asks for a scroll-load of whatever it lands on; that settles first.
-	if (listingBusy() || instrumentLoad.inFlight()) {
-		(void)waitMore("LC-SETUP", "the browser's opening listing never settled");
+	if (!settled(!listingBusy() && !instrumentLoad.inFlight())) {
 		return;
 	}
 	g_stage = Stage::StageSelect;
@@ -388,17 +427,17 @@ void stepStageSelect() {
 	mark();
 	deluge_file_bytes_set_latency_ms(kHoldMs);
 	select(kPresetA);
+	startWait("STAGE the scroll-load beginning to stage");
 	g_stage = Stage::StageWait;
 }
 
 void stepStageWait() {
 	const bool staging = scrollLoadCurrent() && instrumentLoad.documentReads() > g_readsBefore
 	                     && instrumentLoad.sampleLoads() == g_loadsBefore;
-	if (!staging) {
-		(void)waitMore("LC-STAGE", "the scroll-load never began staging");
+	if (!settled(staging)) {
 		return;
 	}
-	backAndCheck("LC-STAGE", kNameA, "LCA.XML");
+	backAndCheck("STAGE", kNameA, "LCA.XML");
 	deluge_file_bytes_set_latency_ms(0);
 	g_stage = Stage::StageAfter;
 }
@@ -408,7 +447,7 @@ void stepStageAfter() {
 	if (++g_steps < kAfterSteps) {
 		return;
 	}
-	checkAfter("LC-STAGE", kNameA, kSampleA);
+	checkAfter("STAGE", kNameA, kSampleA);
 	g_stage = Stage::SamplesSelect;
 }
 
@@ -418,16 +457,16 @@ void stepSamplesSelect() {
 	mark();
 	deluge_audio_load_set_latency_ms(kHoldMs);
 	select(kPresetB);
+	startWait("SAMPLES the scroll-load beginning to load its samples");
 	g_stage = Stage::SamplesWait;
 }
 
 void stepSamplesWait() {
 	const bool loading = scrollLoadCurrent() && instrumentLoad.sampleLoads() > g_loadsBefore;
-	if (!loading) {
-		(void)waitMore("LC-SAMPLES", "the scroll-load never began loading its samples");
+	if (!settled(loading)) {
 		return;
 	}
-	backAndCheck("LC-SAMPLES", kNameB, "LCB.XML");
+	backAndCheck("SAMPLES", kNameB, "LCB.XML");
 	deluge_audio_load_set_latency_ms(0);
 	g_stage = Stage::SamplesAfter;
 }
@@ -437,7 +476,7 @@ void stepSamplesAfter() {
 	if (++g_steps < kAfterSteps) {
 		return;
 	}
-	checkAfter("LC-SAMPLES", kNameB, kSampleB);
+	checkAfter("SAMPLES", kNameB, kSampleB);
 	g_stage = Stage::QueuedSelect;
 }
 
@@ -447,22 +486,22 @@ void stepQueuedSelect() {
 	mark();
 	deluge_audio_load_set_latency_ms(kHoldMs);
 	select(kPresetC);
+	startWait("QUEUED the scroll-load of LCC beginning to load its samples");
 	g_stage = Stage::QueuedFirst;
 }
 
 void stepQueuedFirst() {
-	if (!scrollLoadCurrent() || instrumentLoad.sampleLoads() == g_loadsBefore) {
-		(void)waitMore("LC-QUEUED", "the scroll-load of LCC never began loading its samples");
+	if (!settled(scrollLoadCurrent() && instrumentLoad.sampleLoads() != g_loadsBefore)) {
 		return;
 	}
 	g_ticket = loadInstrumentPresetUI.scrollLoadTicket();
 	select(kPresetD);
+	startWait("QUEUED the scroll onto LCD asking for its load");
 	g_stage = Stage::QueuedSecond;
 }
 
 void stepQueuedSecond() {
-	if (!scrollLoadAsked()) {
-		(void)waitMore("LC-QUEUED", "the scroll onto LCD never asked for its load");
+	if (!settled(scrollLoadAsked())) {
 		return;
 	}
 	const bool queued =
@@ -477,10 +516,10 @@ void stepQueuedSecond() {
 	printf("LC-QUEUED-BACK queued=%d cancels=%d dropped=%d browserStayed=%d\n", queued ? 1 : 0, cancels,
 	       dropped ? 1 : 0, browserStayed ? 1 : 0);
 	if (!queued) {
-		fail("LC-QUEUED", "LCD's load was not queued behind LCC's when BACK was pressed, so nothing was tested");
+		g_report.fail("QUEUED LCD's load was not queued behind LCC's when BACK was pressed, so nothing was tested");
 	}
 	if (cancels != 1 || !dropped || !browserStayed) {
-		fail("LC-QUEUED", "BACK after a fast scroll left a scroll-load loading, or moved the browser");
+		g_report.fail("QUEUED BACK after a fast scroll left a scroll-load loading, or moved the browser");
 	}
 	deluge_audio_load_set_latency_ms(0);
 	g_popupSeen = display->hasPopup();
@@ -493,9 +532,9 @@ void stepQueuedAfter() {
 	if (++g_steps < kAfterSteps) {
 		return;
 	}
-	checkAfter("LC-QUEUED", kNameC, kSampleC);
+	checkAfter("QUEUED", kNameC, kSampleC);
 	if (instrumentsNamed(kNameD) != 0) {
-		fail("LC-QUEUED", "the queued preset was loaded into the song after BACK");
+		g_report.fail("QUEUED the queued preset was loaded into the song after BACK");
 	}
 	g_stage = Stage::StaleSelect;
 }
@@ -504,12 +543,12 @@ void stepQueuedAfter() {
 void stepStaleSelect() {
 	mark();
 	select(kPresetA);
+	startWait("STALE the scroll-load of LCA finishing");
 	g_stage = Stage::StaleWait;
 }
 
 void stepStaleWait() {
-	if (!scrollLoadAsked() || instrumentLoad.inFlight()) {
-		(void)waitMore("LC-STALE", "the scroll-load of LCA never finished");
+	if (!settled(scrollLoadAsked() && !instrumentLoad.inFlight())) {
 		return;
 	}
 	const LoadTicket finished = loadInstrumentPresetUI.scrollLoadTicket();
@@ -520,10 +559,10 @@ void stepStaleWait() {
 	printf("LC-STALE-FINISHED result=%d landed=%s unchanged=%d\n", static_cast<int>(result), landed->name.c_str(),
 	       unchanged ? 1 : 0);
 	if (landed->name != kNameA) {
-		fail("LC-STALE", "the scroll-load of LCA did not land, so nothing was tested");
+		g_report.fail("STALE the scroll-load of LCA did not land, so nothing was tested");
 	}
 	if (result != CancelResult::Stale || !unchanged) {
-		fail("LC-STALE", "a cancel naming a load that had finished was not Stale, or changed something");
+		g_report.fail("STALE a cancel naming a load that had finished was not Stale, or changed something");
 	}
 	g_stage = Stage::NewerSelect;
 }
@@ -533,18 +572,18 @@ void stepNewerSelect() {
 	mark();
 	deluge_audio_load_set_latency_ms(kHoldMs);
 	select(kPresetE);
+	startWait("STALE the scroll-load of LCE beginning to load its samples");
 	g_stage = Stage::NewerFirst;
 }
 
 void stepNewerFirst() {
-	if (!scrollLoadCurrent() || instrumentLoad.sampleLoads() == g_loadsBefore) {
-		(void)waitMore("LC-STALE", "the scroll-load of LCE never began loading its samples");
+	if (!settled(scrollLoadCurrent() && instrumentLoad.sampleLoads() != g_loadsBefore)) {
 		return;
 	}
 	g_newerTicket = loadInstrumentPresetUI.scrollLoadTicket();
 	g_ticket = g_newerTicket;
 	select(kPresetF);
-	g_steps = 0;
+	startWait("STALE the scroll-load of LCF replacing LCE's");
 	g_stage = Stage::NewerSecond;
 }
 
@@ -562,40 +601,38 @@ void stepNewerSecond() {
 		                      && instrumentLoad.cancellations() == g_cancelsBefore;
 		printf("LC-STALE-QUEUED result=%d bothKept=%d\n", static_cast<int>(result), bothKept ? 1 : 0);
 		if (result != CancelResult::Stale || !bothKept) {
-			fail("LC-STALE", "a cancel naming a load a queued request replaces was not Stale, or dropped a load");
+			g_report.fail("STALE a cancel naming a load a queued request replaces was not Stale, or dropped a load");
 		}
 	}
-	if (!asked || !instrumentLoad.inFlight() || instrumentLoad.currentTicket().generation != newer.generation) {
-		(void)waitMore("LC-STALE", "the scroll-load of LCF never replaced LCE's");
+	if (!settled(asked && instrumentLoad.inFlight() && instrumentLoad.currentTicket().generation == newer.generation)) {
 		return;
 	}
 	if (!g_queuedStaleSeen) {
-		fail("LC-STALE",
-		     "LCF's load was never seen queued behind LCE's, so a replaced load still in flight was not tested");
+		g_report.fail(
+		    "STALE LCF's load was never seen queued behind LCE's, so a replaced load still in flight was not tested");
 	}
 	const CancelResult result = instrumentLoad.cancel(g_newerTicket);
 	const bool newerKept = instrumentLoad.inFlight() && instrumentLoad.currentTicket().generation == newer.generation;
 	printf("LC-STALE-REPLACED result=%d newerKept=%d\n", static_cast<int>(result), newerKept ? 1 : 0);
 	if (result != CancelResult::Stale || !newerKept) {
-		fail("LC-STALE", "a cancel naming a replaced load was not Stale, or cancelled the load that replaced it");
+		g_report.fail("STALE a cancel naming a replaced load was not Stale, or cancelled the load that replaced it");
 	}
 	deluge_audio_load_set_latency_ms(0);
-	g_steps = 0;
+	startWait("STALE the newer load finishing");
 	g_stage = Stage::NewerSettle;
 }
 
 void stepNewerSettle() {
-	if (instrumentLoad.inFlight()) {
-		(void)waitMore("LC-STALE", "the newer load never finished");
+	if (!settled(!instrumentLoad.inFlight())) {
 		return;
 	}
 	const bool landed = g_clip->output->name == kNameF;
 	const int32_t replaced = instrumentsNamed(kNameE);
 	const int32_t cancels = instrumentLoad.cancellations() - g_cancelsBefore;
 	printf("LC-STALE landed=%s replacedLeft=%d cancels=%d steps=%d\n", g_clip->output->name.c_str(), replaced, cancels,
-	       g_steps);
+	       g_wait.ticks());
 	if (!landed || replaced != 0 || cancels != 0) {
-		fail("LC-STALE", "the newer load did not complete after a stale cancel, or the replaced load was kept");
+		g_report.fail("STALE the newer load did not complete after a stale cancel, or the replaced load was kept");
 	}
 	g_stage = Stage::RefusedStart;
 }
@@ -615,25 +652,25 @@ void stepRefusedStart() {
 	printf("LC-REFUSED-CANCEL accepted=%d result=%d stillInFlight=%d\n", ticket.accepted() ? 1 : 0,
 	       static_cast<int>(result), stillInFlight ? 1 : 0);
 	if (!ticket.accepted()) {
-		fail("LC-REFUSED", "the new-synth gesture had no load in flight, so nothing was tested");
+		g_report.fail("REFUSED the new-synth gesture had no load in flight, so nothing was tested");
 	}
 	if (result != CancelResult::Refused || !stillInFlight) {
-		fail("LC-REFUSED", "a creation's load was cancelled");
+		g_report.fail("REFUSED a creation's load was cancelled");
 	}
+	startWait("REFUSED the creation finishing");
 	g_stage = Stage::RefusedSettle;
 }
 
 void stepRefusedSettle() {
-	if (instrumentLoad.inFlight()) {
-		(void)waitMore("LC-REFUSED", "the creation never finished");
+	if (!settled(!instrumentLoad.inFlight())) {
 		return;
 	}
 	const bool created = g_clip->output != g_outputBefore && g_clip->output->type == OutputType::SYNTH;
 	const int32_t cancels = instrumentLoad.cancellations() - g_cancelsBefore;
 	printf("LC-REFUSED created=%d synth=%s cancels=%d error=%d steps=%d\n", created ? 1 : 0,
-	       g_clip->output->name.c_str(), cancels, static_cast<int>(instrumentLoad.lastError()), g_steps);
+	       g_clip->output->name.c_str(), cancels, static_cast<int>(instrumentLoad.lastError()), g_wait.ticks());
 	if (!created || cancels != 0 || instrumentLoad.lastError() != Error::NONE) {
-		fail("LC-REFUSED", "the creation whose cancel was refused did not complete");
+		g_report.fail("REFUSED the creation whose cancel was refused did not complete");
 	}
 	g_stage = Stage::Report;
 }
@@ -641,7 +678,7 @@ void stepRefusedSettle() {
 void report() {
 	deluge_file_bytes_set_latency_ms(0);
 	deluge_audio_load_set_latency_ms(0);
-	printf("LC-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	g_stage = Stage::Done;
 }
 
@@ -653,7 +690,8 @@ void deluge_scenario_load_cancel_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Loading;
 	g_stepDone = false;
-	g_failures = 0;
+	g_report.reset();
+	g_wait = Wait{g_report, "SETUP the boot song's preset request settling", kMaxSteps};
 	g_steps = 0;
 	g_clip = nullptr;
 	g_outputBefore = nullptr;
@@ -746,7 +784,7 @@ bool deluge_scenario_load_cancel_step_done(void) {
 }
 
 int32_t deluge_scenario_load_cancel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -29,7 +29,7 @@
 /// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++, so the P1
 /// and `.state` writers are a hand port of it into C -- `host_snapshot.{h,c}`, split out (final
 /// review I-3) exactly as `host_script_tables.c` splits out the name tables, so BOTH this runner and
-/// `deluge_spec` can compile them and `tests/spec/harness/identity_spec.cpp` can cross-check the
+/// `deluge_spec` can compile them and `tests/unit/harness/identity_spec.cpp` can cross-check the
 /// two writers against one fact set instead of leaning on a comment. This file only ever calls
 /// into that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format
 /// itself.
@@ -65,7 +65,7 @@
 // The button-matrix and encoder-order name tables (and `ui_script_button_xy` /
 // `ui_script_encoder_index`) live in `host_script_tables.c` (included via `host_script.h`), not
 // here: that pair is dependency-free and compiles into both the host BSP and `deluge_spec`, so
-// `tests/spec/harness/tables_spec.cpp` can cross-check it against `deluge_profile()` without
+// `tests/unit/harness/tables_spec.cpp` can cross-check it against `deluge_profile()` without
 // linking this file's BSP statics. See `host_script_tables.h`.
 // ===========================================================================
 

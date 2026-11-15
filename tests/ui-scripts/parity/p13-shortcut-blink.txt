@@ -1,6 +1,8 @@
 # Shortcut blinks from the boot clip view: SHIFT + a parameter's shortcut pad opens the sound menu on it, and the
 # firmware blinks that pad, and the pads of the sources patched to it, with the PIC's own pad flash; editing keeps
 # the blink, another shortcut moves it, and leaving the menu stops it.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 6 0 down

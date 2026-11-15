@@ -27,7 +27,7 @@
 /// live oracle there is (`OLED_MAIN_HEIGHT_PIXELS` is a compile-time 48; there is no 64-row legacy
 /// singleton to ask). The widget this scene calls, `ui::oled::popup_text`, is already proven byte
 /// for byte against a *height-parameterised* transcription of `OLED::popupText` at both 48 and 64
-/// rows in `tests/spec/ui/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
+/// rows in `tests/unit/ui/popup_spec.cpp`'s "matches popupText byte for byte, at both geometries"
 /// example -- so the 64-row example here does not re-derive that; it instead confirms this scene
 /// invokes that already-proven widget consistently across geometries, by checking the box's own
 /// interior is byte-identical at its own (geometry-correct) vertical offset in each profile. Box
@@ -61,9 +61,9 @@
 #include "playback/playback_handler.h"
 #include "util/c_string.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -71,7 +71,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::overlay::count_in_scene;
@@ -215,7 +215,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 	it("centres the same box content at both panel geometries, at the geometry-correct offset", _ {
 		// The widget itself (`ui::oled::popup_text`) is already proven byte for byte against a
 		// height-parameterised legacy transcription at both 48 and 64 rows
-		// (`tests/spec/ui/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
+		// (`tests/unit/ui/popup_spec.cpp`), so this confirms the *scene* invokes it consistently,
 		// not the widget's own arithmetic again.
 		Rig r48;
 		r48.open();
@@ -236,7 +236,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 
 		// And the two canvases really do differ outside that band -- this is not a trivially
 		// blank match.
-		expect(r48.fake.pbm(0) == r64.fake.pbm(0)).to_be_false();
+		expect(r48.fake.pbm(0)).not_().to_equal(r64.fake.pbm(0));
 
 		// Leave the singleton quiescent for later examples.
 		playbackHandler.currentVisualCountForCountIn = 0;
@@ -302,7 +302,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 		r.open();
 		playbackHandler.currentVisualCountForCountIn = 4;
 		r.tick(kCountInPollMs);
-		expect_golden(self, "../ui/scenes/count_in_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/count_in_48.pbm", r.fake.pbm(0));
 
 		// Leave the singleton quiescent for later examples.
 		playbackHandler.currentVisualCountForCountIn = 0;

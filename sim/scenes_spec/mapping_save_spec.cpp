@@ -27,7 +27,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -129,7 +129,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
 		const Value* knob = knobAt(*saved, 0);
-		expect(knob != nullptr).to_be_true();
+		expect(knob).not_().to_be_null();
 		expect(text(knob, "channel")).to_equal(std::string{"2"});
 		expect(text(knob, "ccNumber")).to_equal(std::string{"74"});
 		expect(text(knob, "relative")).to_equal(std::string{"1"});
@@ -144,12 +144,20 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		f.song->project.mappings.learn(Mapping{.source = command(2, 74), .target = outside});
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
-		expect(saved->find("midiKnobs") == nullptr).to_be_true();
+		if (saved.has_value()) {
+			expect(saved->find("midiKnobs")).to_be_null();
+		}
 		f.song->project.mappings.learn(
 		    Mapping{.source = command(0, 10), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
 		saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
-		expect(saved->find("midiKnobs") != nullptr && saved->find("midiKnobs")->items().size() == 1).to_be_true();
+		if (saved.has_value()) {
+			const Value* knobs = saved->find("midiKnobs");
+			expect(knobs).not_().to_be_null();
+			if (knobs != nullptr) {
+				expect(knobs->items().size()).to_equal(size_t{1}, "the saved knob count");
+			}
+		}
 	});
 
 	it("saves an owner's knobs in table order, and none it holds outside the table while the song holds it", _ {
@@ -166,7 +174,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(saved.has_value()).to_be_true();
 		expect(text(knobAt(*saved, 0), "ccNumber")).to_equal(std::string{"11"});
 		expect(text(knobAt(*saved, 1), "ccNumber")).to_equal(std::string{"10"});
-		expect(knobAt(*saved, 2) == nullptr).to_be_true();
+		expect(knobAt(*saved, 2)).to_be_null();
 	});
 
 	it("saves the name of a device that is not connected", _ {
@@ -192,7 +200,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		f.clip->muteMIDICommand.noteOrCC = 40;
 		std::optional<Value> saved = savedClip(*f.clip, *f.song);
 		expect(saved.has_value()).to_be_true();
-		expect(saved->find("muteMidiCommand") == nullptr).to_be_true();
+		expect(saved->find("muteMidiCommand")).to_be_null();
 	});
 
 	it("saves a kit row's mute and input, and the kit's input with its root note", _ {
@@ -213,7 +221,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(kitInput, "channel")).to_equal(std::string{"5"});
 		expect(text(kitInput, "note")).to_equal(std::string{"36"});
 		const Value* row = firstRow(*saved);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		expect(text(row != nullptr ? row->find("midiMuteCommand") : nullptr, "note")).to_equal(std::string{"50"});
 		const Value* rowInput = row != nullptr ? row->find("midiInput") : nullptr;
 		expect(text(rowInput, "note")).to_equal(std::string{"51"});
@@ -223,7 +231,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 	it("saves a knob from the table of the song being saved when another song is current", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const spec::SongFixture current = spec::make_synth_song(); // the most recently built song is current
-		expect(currentSong == current.song).to_be_true();
+		expect(currentSong).to_equal(current.song);
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		f.song->project.mappings.learn(
 		    Mapping{.source = command(2, 74), .target = OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)}});
@@ -236,7 +244,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
 		const spec::SongFixture current = spec::make_kit_song();
-		expect(currentSong == current.song).to_be_true();
+		expect(currentSong).to_equal(current.song);
 		f.song->project.mappings.learn(Mapping{.source = command(1, 50), .target = DrumMuteTarget{*drum->id()}});
 		f.song->project.mappings.learn(Mapping{.source = command(4, 51), .target = LaneInputTarget{*drum->id()}});
 		drum->muteMIDICommand.clear();
@@ -261,7 +269,9 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		other.instrument->midiInput.channelOrZone = 6;
 		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);
 		expect(saved.has_value()).to_be_true();
-		expect(saved && saved->find("midiKnobs") == nullptr).to_be_true();
+		if (saved.has_value()) {
+			expect(saved->find("midiKnobs")).to_be_null();
+		}
 		expect(text(&*saved, "inputMidiChannel")).to_equal(std::string{"6"});
 	});
 
@@ -279,7 +289,9 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(knob, "ccNumber")).to_equal(std::string{"99"});
 		expect(text(knob, "relative")).to_equal(std::string{"1"});
 		expect(text(knob, "controlsParam")).to_equal(std::string{"pitch"});
-		expect(saved && knobAt(*saved, 1) == nullptr).to_be_true();
+		if (saved.has_value()) {
+			expect(knobAt(*saved, 1)).to_be_null();
+		}
 	});
 
 	it("saves a synth's input zone and device", _ {

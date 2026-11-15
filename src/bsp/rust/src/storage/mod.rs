@@ -1,6 +1,8 @@
 //! The SD card and the filesystem on it.
 
 pub mod card;
+#[cfg(not(target_os = "none"))]
+pub mod card_manifest;
 pub mod efatfs;
 #[cfg(has_app)]
 pub mod fill_trace;

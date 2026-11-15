@@ -34,7 +34,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 
@@ -102,7 +102,7 @@ describe menu_value_follow("View::displayAutomation under the ported menu", $ {
 			expect(knob_write(fx, 1 << 30)).to_be_true();
 			now = menu::bindings::read(nodes::lpf_freq, menu_scene().menu_context());
 		}
-		expect(now != before).to_be_true(); // the write moved what the screen shows
+		expect(now).not_().to_equal(before); // the write moved what the screen shows
 		display_automation_fires();
 		expect(menu_scene().state().edit_int).to_equal(now);
 	});

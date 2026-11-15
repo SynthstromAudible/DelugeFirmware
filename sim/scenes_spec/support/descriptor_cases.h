@@ -59,7 +59,7 @@
 #include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 

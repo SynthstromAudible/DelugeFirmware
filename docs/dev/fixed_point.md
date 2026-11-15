@@ -73,11 +73,12 @@ Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the in
 The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
 (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
-`tests/unit-arm/codegen` disassembles each operation in both instruction sets, built with `-O2 -fno-inline-functions`,
-which inlines only always_inline functions: stricter than either of the image's inliners. It fails on any other
-instruction sequence, on a wrong immediate where one matters, and on any call. It also reports, without failing, which
-loop shapes the compiler auto-vectorizes; the multiply loops stay scalar. `tests/unit-arm/spec/fixed_point_isa_spec.cpp`
-compares every operation, and every portable form, against the real instruction under qemu.
+`tests/unit/deluge/dsp-next/core` disassembles each operation in both instruction sets, built with
+`-O2 -fno-inline-functions`, which inlines only always_inline functions: stricter than either of the image's inliners.
+It fails on any other instruction sequence, on a wrong immediate where one matters, and on any call. It also reports,
+without failing, which loop shapes the compiler auto-vectorizes; the multiply loops stay scalar.
+`tests/unit/deluge/dsp-next/core/fixed_point_isa_spec.cpp` compares every operation, and every portable form, against
+the real instruction under qemu.
 
 | Operation | A9 instruction |
 |---|---|
@@ -171,7 +172,7 @@ of the scalar operation with the same per-lane meaning:
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged. Helpers
 private to one family of kernels may pass the vectors between themselves: the windowed sinc's `SincWindow` holds
 `Q16Vec<15>`, for its blend, its dot product and their two window loaders. `lane(i)` reads one lane through memory, for
-tests. The lane spec (`tests/dsp/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
+tests. The lane spec (`tests/unit/deluge/dsp-next/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
 operation: on the x86 host through SIMDe, and under qemu on the A9's own instructions.
 
 ## Where the types are used
@@ -356,7 +357,7 @@ source change, so an empty result is not the gate. Each changed function is clas
 - **The raw helpers** (`dsp-next/core/detail/raw_ops.h`, in `deluge::dsp::detail`) are the arithmetic of the raw
   references the typed operations are checked against, and of the few raw sites that say why they are raw: the high-pass
   ladder's asm saturate, the granular grain size and the wavetable chunker's index scaling, integer products of a count
-  and a fraction. They are not for new code. The specs reach them through `tests/dsp/raw_words.h`, with the full-scale
+  and a fraction. They are not for new code. The specs reach them through `tests/unit/deluge/dsp-next/raw_words.h`, with the full-scale
   words the references were written with.
 - **The words that stay** outside dsp-next, each with its reason in a comment where it crosses:
   - codec and DMA words: the audio engine's input and output rings, the CV DAC, the MIDI wire;

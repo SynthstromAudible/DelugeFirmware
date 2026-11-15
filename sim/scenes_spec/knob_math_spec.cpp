@@ -26,7 +26,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <array>
 #include <cstdint>
@@ -100,7 +100,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 			const ParamAddress cable{.owner = synth, .space = ParamSpace::ENGINE, .id = *depth, .clip_id = f.clip->id()};
 			deluge::edits::Context ctx{*f.song, f.song->project};
 			deluge::edits::SetPatchCable make{cable, 1 << 28, Polarity::BIPOLAR};
-			expect(deluge::edits::apply(ctx, make) == Error::NONE).to_be_true();
+			expect(deluge::edits::apply(ctx, make)).to_equal(Error::NONE);
 			if (std::string why = disagreement(*f.song, cable, nullptr); !why.empty()) {
 				found.push_back("cable " + why);
 			}
@@ -176,7 +176,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		expect(controls::turn(KnobKind::CABLE, -192, -1)).to_equal(-192);
 		expect(controls::turn(KnobKind::CABLE, -100, -1)).to_equal(-101);
 		const ParamAddress cc{.space = ParamSpace::MIDI_CC, .id = {74}};
-		expect(controls::knob_kind(cc) == KnobKind::MIDI_CC).to_be_true();
+		expect(controls::knob_kind(cc)).to_equal(KnobKind::MIDI_CC);
 	});
 });
 // clang-format on

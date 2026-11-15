@@ -5,18 +5,19 @@ image under test in delugemu and requires identical panels at every snapshot. Ea
 and covers one surface, so a divergence in one cannot hide the others. Format: `tests/harness/README.md`; times are
 milliseconds after boot settles, and a snapshot waits for both panels to settle.
 
-Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/shellmenu`): they enter the menus
-through SelectEnc, which opens the ported menu.
+`p16`–`p27` are longer walks: the automation view on a kit and the song (`p16`), a MIDI clip (`p17`) and a synth
+(`p18`), the cable menus (`p19`), learn (`p20`), MIDI follow's CCs (`p21`), the mod knobs (`p22`), the performance view
+(`p23`), param undo (`p24`), the gold knobs pressed with a menu up (`p25`), a learned CC (`p26`) and the gold knobs at
+the root views (`p27`). They make an input every 250 ms (a press held 120 ms), and each snapshot is a 1 s
+window. Their results are in `DIFFERENCES.md`'s `p16`–`p24` section.
 
-The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware ignores.
-
-`.superpowers/emu-card/card.img` keeps the old `legacyMenu=1`, which the firmware keeps as an unknown key and ignores:
-the basic scripts run on it as well as on a bare card, and both must agree, so the stale key stays inert.
+Each script's `# card:` lines name the cards it runs on, and `tools/emu_parity.py tests/ui-scripts/parity` runs it on
+each. Scripts named `sm*` enter the menus through SelectEnc, which opens the ported menu.
 
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
 detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images. A black
-encoder drops the first detent of its first turn after boot and of any turn that reverses its
-direction (each decoder starts at its detent's resting state): count one extra detent for those turns. `sm10-patched-blink` covers the
+encoder drops the first detent of its first turn after boot and of any turn that reverses its direction (each decoder
+starts at its detent's resting state): count one extra detent for those turns. `sm10-patched-blink` covers the
 patched-param and patching-source blinks; its snapshots have 1 s windows because a source patched to a param flashes
 once every 800 ms, and a shorter window decides by phase alone whether it sees the flash.
 
@@ -29,28 +30,21 @@ follow channel.
 
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
-`DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it with Horizontal Menus on
-(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen,
-`--card` takes the directory).
+`DISPLAY_AUTOMATION` timer, with no knob popup over the same param.
 
-`sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical` (the ShellMenu card with
-HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
-coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the press. Run both with
-`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical`. For a ready-made
-image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools: `mcopy -i card.img -o CommunityFeatures.XML
-::/SETTINGS/CommunityFeatures.XML`.
+`sm33-full-screen-values` runs with HorizontalMenus off, where a shortcut opens its item alone: a transpose's cursor,
+step and Horizontal move, the coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms
+after the press.
 
 `sm34-claim-back` covers a sample claim made from the audio clip's SAMPLE page (opened from the clip's root list) and
-the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, Horizontal
-Menus on and off. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs the content
-card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a copy whose `SETTINGS/CommunityFeatures.XML`
-is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
-and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
+the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, with
+Horizontal Menus on. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs a content
+card's presets. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1` and `back2` differ only in the
+colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
-`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus
-off, where a shortcut opens its item alone): a Community Feature's row is a checkbox SELECT flips in place, OSC
-SYNC's page lists Off and On where `main`'s lists Disabled and Enabled (D134, accepted), and PING-PONG's lists its
-options.
+`sm35-toggle-words` covers the words a toggle draws, with HorizontalMenus off (where a shortcut opens its item alone): a
+Community Feature's row is a checkbox SELECT flips in place, OSC SYNC's page lists Off and On where `main`'s lists
+Disabled and Enabled (D134, accepted), and PING-PONG's lists its options.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
@@ -61,24 +55,25 @@ moves are several turns; the sound menu reopens on the row it last showed; BACK 
 the menu.
 
 `sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
-keyboard screen and the automation view, SESSION, and SYNC-SCALING. Run it on the ShellMenu card and on
-`.superpowers/emu-card/shellmenu-fill` (the ShellMenu card with `syncScalingAction` 1, Fill), where SYNC-SCALING
-holds fill and lights its LED.
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/shellmenu-fill` (`syncScalingAction` 1,
+Fill) SYNC-SCALING holds fill and lights its LED.
 
 `sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
 row (the edit stays on the row the menu opened for, and so does the kit's selection), and the sequence-direction pad's
-note-row editor. It runs on the content card (`sweep-shellmenu.img`), in the sweep's `browser`
-group. It stops on the note-row editor: BACK there sticks on `main` (D92).
+note-row editor. It stops on the note-row editor: BACK there sticks on `main` (D92).
 
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
-`sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
-root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
-keyboard on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete
-prompt and refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. They run on
-the content card with the ShellMenu card's settings (`.superpowers/emu-card/content-shellmenu`: the content card plus
-the ShellMenu card's `SETTINGS/CommunityFeatures.XML`), and `sm19` also with `--audio-wav`. Windows over a
-blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
-100 ms after the press, before it times out.
+`sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed root
+view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the keyboard
+on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete prompt and
+refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. Windows over a blink are
+at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read 100 ms after
+the press, before it times out.
+
+`sm19`'s audio is checked by hand:
+`tools/emu_parity.py --audio-wav tests/ui-scripts/parity/sm19-sample-browser-preview.txt` writes each image's
+`audio.wav`/`raw.s32` for the envelope and spectrum comparison (DIFFERENCES.md Coverage); `ui-parity` does not capture
+audio.
 
 `sm23-select-in-place` covers SELECT on an item main does not enter: the arpeggiator's ENABLED row and USB AUDIO's
 INPUT toggle flip on their list, and a choice column (POLYPHONY on the VOICE page, set to MONO) stays on its page. Its
@@ -103,33 +98,31 @@ SELECT) and drives it there: the held pad's release, a Vertical turn, a grid pre
 turn and BACK, which returns to the automation overview. It makes no Horizontal turn, on which `main` freezes (E379)
 with no note under the held pad.
 
-`menu_knob_presses` is written for `run_parity.py` (its script format, the factory card), not `tools/emu_parity.py`: it
-presses the gold knobs and the mod buttons with a menu up, where the shell's knob service takes them, which the other
-knob scripts never do (they press only over the root views). On the boot synth (the low-pass frequency's page), a kit
-with affect-entire (its menu from SELECT) and the song (the song menu), each press is followed by a turn, so a press
-that moved a knob shows in the next popup and the knob LEDs: the filter knob's cycle, the mode steps, a chain's mod FX
-views and type, the song's compressor entered from its threshold knob, walked round and left, and a held stutter. Its
-five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entire_mod1_upper_push3`,
-`entire_mod1_lower_push`, `entire_mod1_lower_push_turn`: the kit's knob LEDs, and a popup's timing and value) differ
-the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
-kit half differs there (that page draws a marker on its bar that `main`'s does not).
+`p25-menu-knob-presses` presses the gold knobs and the mod buttons with a menu up, where the shell's knob service takes
+them, which the other knob scripts never do (they press only over the root views). On the boot synth (the low-pass
+frequency's page), a kit with affect-entire (its menu from SELECT) and the song (the song menu), each press is followed
+by a turn, so a press that moved a knob shows in the next popup and the knob LEDs: the filter knob's cycle, the mode
+steps, a chain's mod FX views and type, the song's compressor entered from its threshold knob, walked round and left,
+and a held stutter. Its five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`,
+`entire_mod1_upper_push3`, `entire_mod1_lower_push`, `entire_mod1_lower_push_turn`: the kit's knob LEDs, and a popup's
+timing and value) differ the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF
+shortcut instead, its whole kit half differs there (that page draws a marker on its bar that `main`'s does not).
 
-`learned_cc` is a `run_parity.py` script too: a MIDI CC learned from the sound menu (LEARN held, then the CC) onto a
-param, then played at 0, 64, 127 and 64. It learns the boot synth's low-pass frequency, a kit's first row's, the kit's
-with affect-entire, and the song's reverb amount; the first three close the menu and read the value off the filter
-knobs' rings, the song's keeps its page open, where the new value shows. A fresh CC knob is relative until a value from
-16 to 111 shows it is not, so the 0 moves nothing and the 64 that follows is the first absolute move.
+`p26-learned-cc` learns a MIDI CC from the sound menu (LEARN held, then the CC) onto a param, then plays it at 0, 64,
+127 and 64. It learns the boot synth's low-pass frequency, a kit's first row's, the kit's with affect-entire, and the
+song's reverb amount; the first three close the menu and read the value off the filter knobs' rings, the song's keeps
+its page open, where the new value shows. A fresh CC knob is relative until a value from 16 to 111 shows it is not, so
+the 0 moves nothing and the 64 that follows is the first absolute move.
 
-`midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song. The
+`p21-midi-follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song. The
 synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN bytes
 of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so the
 script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is pinned
-by `tests/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the runner
-has no bend verb) or unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI
-differences (D160, D161 in `DIFFERENCES.md`) are pinned by specs.
+by `tests/unit/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the
+runner has no bend verb) or unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI
+differences (D164, D165 in `DIFFERENCES.md`) are pinned by specs.
 
-`root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views, in the order its sections
-run:
+`p27-root-knob-views` pins the gold knobs at the root views, in the order its sections run:
 - note tails (`tail_*`, `menu_tail_*`): a long note on the boot synth, envelope-1 sustain set to its minimum from the menu
   (no gold knob changes it), then the release knob (mod button 2, lower) turned across the tail flip, at root and with the
   sound menu up; the pads show the tails going and returning.

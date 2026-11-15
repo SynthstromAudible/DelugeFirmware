@@ -17,7 +17,7 @@
 #include <string>
 #include <tuple>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 
@@ -90,7 +90,7 @@ describe file_catalogue_trio("the browser's file catalogue, listing past its cap
 		// note names the earlier -- so the two runs never agree, whatever readdir handed over.
 		expect(std::get<1>(plain).empty()).to_be_false();
 		expect(std::get<1>(notes).empty()).to_be_false();
-		expect(std::get<1>(notes) < std::get<1>(plain)).to_be_true();
+		expect(std::get<1>(notes)).to_be_less_than(std::get<1>(plain));
 	});
 });
 // clang-format on

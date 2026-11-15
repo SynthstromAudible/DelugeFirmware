@@ -1,0 +1,7 @@
+# The card-reinsert scenario's card: three samples, one per fate the reinsert walk distinguishes. The scenario
+# removes CRLOST.WAV between ejection and re-insertion, so its resident Sample must be marked unloadable. The other
+# two stay on the card; their fates depend on whether a project still holds them.
+dir SONGS
+wav SAMPLES/CRSURV.WAV ch=1 bits=16 bytes=4096 fill=0x71
+wav SAMPLES/CRLOST.WAV ch=1 bits=16 bytes=3072 fill=0x72
+wav SAMPLES/CREVICT.WAV ch=1 bits=16 bytes=2048 fill=0x73

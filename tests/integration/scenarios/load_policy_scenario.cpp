@@ -15,10 +15,58 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/load_policy_scenario.h"
+/// @file
+/// @brief The load policies that need no loader state to pin, run as `GOLDEN_SCENARIO=load_policy`.
+///
+/// Each prints one `LP-<CHECK> ok=0|1` line, then `LP-RESULT failures=N`:
+///
+/// - `LP-CANDIDATES`: `AudioFileManager::proposeLoadCandidates` proposes the right paths in the right order. The
+///   async loader tries them in exactly this order, so a wrong order opens the wrong file or misses one.
+/// - `LP-ADMISSION`: `AudioFileManager::admissibleAsyncLoadPath` agrees with `path_admission_corpus.inc`, which the
+///   Rust loader is tested against too. A looser C++ rule asks the loader for a path it refuses, forever.
+/// - `LP-ABANDON`: the sample build contract (`storage/audio/sample_build.h`). Abandoning a build publishes nothing,
+///   `applyGeometry` refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they
+///   adopt, so a browser cursor that never lands on a file cannot exhaust the chunk table. Runs before anything
+///   else loads, so its eviction count is its own.
+/// - `LP-OPEN-PATH`: a Sample's read stream (`SampleStream::open_read_stream`) opens exactly the path it is given. A
+///   path with an embedded NUL, or with no room for its terminator, answers `FILE_NOT_FOUND` rather than opening
+///   the file a shortened path names.
+/// - `LP-DEFAULT layer=holder|manager`: `AudioFileHolder::loadFile` and `AudioFileManager::getAudioFileFromFilename`
+///   default to the synchronous backing. Against the real loader, which is always active here, a call with the
+///   mode omitted loads at once, and the same call made explicitly `AsyncOrBlocking` first reports
+///   `LOAD_IN_PROGRESS`; the contrast is what lets a flipped default fail.
+///
+/// Gate load-policy:
+///     the load policies no loader state can show: AudioFileManager::proposeLoadCandidates proposes the right paths in
+///     the right order (LP-CANDIDATES) -- the async loader opens them in exactly that order; the C++ admission rule
+///     agrees with path_admission_corpus.inc, which the Rust loader is tested against too (LP-ADMISSION); the sample
+///     build contract (storage/audio/sample_build.h), where abandoning a build publishes nothing, applyGeometry refuses
+///     an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they adopt, so a browser cursor
+///     that never lands cannot exhaust the chunk table (LP-ABANDON); a sample's read stream opens exactly the path it
+///     is given, refusing one with an embedded NUL or with no room for its terminator rather than opening the file a
+///     shortened path names (LP-OPEN-PATH); and AudioFileHolder::loadFile and getAudioFileFromFilename default to the
+///     synchronous backing, which a call with the mode omitted shows by loading at once while the same call made
+///     explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT); the wavetables each fixture builds
+///     (LP-WT-PIN: every band's range, geometry and samples, as a CRC per file under
+///     tests/unit/deluge/dsp-next/wavetable_band_records.h, for the synthetic set in
+///     tests/golden/render/wavetable_pins and the golden presets' wavetables); the pitch each sample's detection
+///     finds (LP-PITCH-PIN, by its bits, against tests/integration/scenarios/pitch_pin_records.h); and a single-band
+///     table's load (LP-WT-ZEROBAND, an 8-sample cycle, which must hold one band with a non-empty cycle range so no
+///     band index below 0 is selected); each allocation of a wavetable load from a file, failed once (LP-WT-FAIL): a
+///     band's samples, the band list, the cycle buffer and the spectrum fail the load with INSUFFICIENT_RAM and leave
+///     nothing resident, a missing band-0 FFT table leaves one band holding every cycle, a missing smaller band's table
+///     drops that band alone, and a missing pitch window table ends the detection with no pitch.
+///
+/// Gate load-policy-wavetable-churn:
+///     wavetables evicted under memory pressure reload as they were built: sixteen distinct copies of a golden
+///     wavetable, loaded and released for eight rounds with the host SDRAM clamped so each round must evict, each
+///     reload's bands matching the recorded CRC, with the resource manager's eviction count rising, every failing
+///     allocation of LP-WT-FAIL repeated each round so a leaked band or chunk exhausts memory, and no reason leaked at
+///     the end (LP-INVARIANTS)
 
-#include "../../dsp/wavetable_band_crc.h"
-#include "../../dsp/wavetable_band_records.h"
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
+
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
 #include "model/sample/pitch_scan.h"
@@ -31,6 +79,9 @@
 #include "storage/audio/sample_build.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_holder.h"
+#include "support/golden_update.h"
+#include "unit/deluge/dsp-next/wavetable_band_crc.h"
+#include "unit/deluge/dsp-next/wavetable_band_records.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
@@ -52,10 +103,22 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(load_policy);
+
 using deluge::storage::AsyncLoadMode;
 using deluge::storage::AudioLoadContext;
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
+ScenarioReport g_report{"LP"};
+
+namespace golden = deluge::test::golden;
+constexpr std::string_view kWaveTableHeader = "tests/unit/deluge/dsp-next/wavetable_band_records.h";
+constexpr std::string_view kPitchHeader = "tests/integration/scenarios/pitch_pin_records.h";
 
 /// Pin proposeLoadCandidates()'s policy: which paths a load tries, in what order. The async loader opens candidates
 /// in exactly this order, so a wrong order silently opens the wrong file or misses one it used to find.
@@ -74,24 +137,24 @@ bool checkProposeLoadCandidates() {
 		Candidates c;
 		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/kick.wav", c.data(), c.size());
 		if (count != 3) {
-			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a single-level SAMPLES/ path, got %zu\n",
-			       count);
+			g_report.fail("[proposeLoadCandidates]: expected 3 candidates for a single-level SAMPLES/ path, got %zu",
+			              count);
 			ok = false;
 		}
 		else {
 			if (c[0] != "SAMPLES/ALT/kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
-				       c[0].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.wav\", got \"%s\"",
+				              c[0].c_str());
 				ok = false;
 			}
 			if (c[1] != "SAMPLES/ALT/kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[1] \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
-				       c[1].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[1] \"SAMPLES/ALT/kick.wav\", got \"%s\"",
+				              c[1].c_str());
 				ok = false;
 			}
 			if (c[2] != "SAMPLES/kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[2] \"SAMPLES/kick.wav\", got \"%s\"\n",
-				       c[2].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[2] \"SAMPLES/kick.wav\", got \"%s\"",
+				              c[2].c_str());
 				ok = false;
 			}
 		}
@@ -106,26 +169,27 @@ bool checkProposeLoadCandidates() {
 		Candidates c;
 		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/FOLDER/kick.wav", c.data(), c.size());
 		if (count != 3) {
-			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a nested SAMPLES/ path, got %zu\n", count);
+			g_report.fail("[proposeLoadCandidates]: expected 3 candidates for a nested SAMPLES/ path, got %zu", count);
 			ok = false;
 		}
 		else {
 			if (c[0] != "SAMPLES/ALT/FOLDER_kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[0] (flattened) "
-				       "\"SAMPLES/ALT/FOLDER_kick.wav\", got \"%s\"\n",
-				       c[0].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[0] (flattened) "
+				              "\"SAMPLES/ALT/FOLDER_kick.wav\", got \"%s\"",
+				              c[0].c_str());
 				ok = false;
 			}
 			if (c[1] != "SAMPLES/ALT/kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[1] (bare) \"SAMPLES/ALT/kick.wav\", got "
-				       "\"%s\"\n",
-				       c[1].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[1] (bare) \"SAMPLES/ALT/kick.wav\", got "
+				              "\"%s\"",
+				              c[1].c_str());
 				ok = false;
 			}
 			if (c[2] != "SAMPLES/FOLDER/kick.wav") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[2] (regular) \"SAMPLES/FOLDER/kick.wav\", got "
-				       "\"%s\"\n",
-				       c[2].c_str());
+				g_report.fail(
+				    "[proposeLoadCandidates]: expected candidate[2] (regular) \"SAMPLES/FOLDER/kick.wav\", got "
+				    "\"%s\"",
+				    c[2].c_str());
 				ok = false;
 			}
 		}
@@ -138,19 +202,19 @@ bool checkProposeLoadCandidates() {
 		Candidates c;
 		size_t count = audioFileManager.proposeLoadCandidates(context, "PRESETS/SYNTHS/kick.xml", c.data(), c.size());
 		if (count != 2) {
-			printf("FAIL [proposeLoadCandidates]: expected 2 candidates for a non-SAMPLES/ path, got %zu\n", count);
+			g_report.fail("[proposeLoadCandidates]: expected 2 candidates for a non-SAMPLES/ path, got %zu", count);
 			ok = false;
 		}
 		else {
 			if (c[0] != "SAMPLES/ALT/kick.xml") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.xml\", got \"%s\"\n",
-				       c[0].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.xml\", got \"%s\"",
+				              c[0].c_str());
 				ok = false;
 			}
 			if (c[1] != "PRESETS/SYNTHS/kick.xml") {
-				printf("FAIL [proposeLoadCandidates]: expected candidate[1] \"PRESETS/SYNTHS/kick.xml\", got "
-				       "\"%s\"\n",
-				       c[1].c_str());
+				g_report.fail("[proposeLoadCandidates]: expected candidate[1] \"PRESETS/SYNTHS/kick.xml\", got "
+				              "\"%s\"",
+				              c[1].c_str());
 				ok = false;
 			}
 		}
@@ -162,12 +226,12 @@ bool checkProposeLoadCandidates() {
 		Candidates c;
 		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/kick.wav", c.data(), c.size());
 		if (count != 1) {
-			printf("FAIL [proposeLoadCandidates]: expected 1 candidate with no alternate dir known, got %zu\n", count);
+			g_report.fail("[proposeLoadCandidates]: expected 1 candidate with no alternate dir known, got %zu", count);
 			ok = false;
 		}
 		else if (c[0] != "SAMPLES/kick.wav") {
-			printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/kick.wav\", got \"%s\"\n",
-			       c[0].c_str());
+			g_report.fail("[proposeLoadCandidates]: expected candidate[0] \"SAMPLES/kick.wav\", got \"%s\"",
+			              c[0].c_str());
 			ok = false;
 		}
 	}
@@ -188,7 +252,7 @@ bool checkSampleBuildAbandon() {
 		Error error = Error::NONE;
 		sample_build::SampleBuild* build = sample_build::begin("TEST/abandon.wav", "", 4096, &error);
 		if (build == nullptr) {
-			printf("FAIL [sampleBuildAbandon]: begin() returned null (error=%d)\n", static_cast<int>(error));
+			g_report.fail("[sampleBuildAbandon]: begin() returned null (error=%d)", static_cast<int>(error));
 			return false;
 		}
 		sample_build::abandon(build);
@@ -196,8 +260,8 @@ bool checkSampleBuildAbandon() {
 		// alone does not prove abandon() actually released the adopted chunk -- see the loop below for
 		// that.
 		if (audioFileManager.audioFiles.size() != before) {
-			printf("FAIL [sampleBuildAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
-			       audioFileManager.audioFiles.size());
+			g_report.fail("[sampleBuildAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)", before,
+			              audioFileManager.audioFiles.size());
 			ok = false;
 		}
 	}
@@ -208,8 +272,8 @@ bool checkSampleBuildAbandon() {
 		Error error = Error::NONE;
 		sample_build::SampleBuild* build = sample_build::begin("TEST/geometry.wav", "", 4096, &error);
 		if (build == nullptr) {
-			printf("FAIL [sampleBuildAbandon]: begin() (geometry case) returned null (error=%d)\n",
-			       static_cast<int>(error));
+			g_report.fail("[sampleBuildAbandon]: begin() (geometry case) returned null (error=%d)",
+			              static_cast<int>(error));
 			return false;
 		}
 
@@ -218,9 +282,9 @@ bool checkSampleBuildAbandon() {
 		Error geometryError = Error::NONE;
 		const bool acceptedInvalid = sample_build::applyGeometry(build, geometry, &geometryError);
 		if (acceptedInvalid || geometryError != Error::BUG) {
-			printf("FAIL [sampleBuildAbandon]: applyGeometry() accepted an invalid raw_data_format=200 "
-			       "(accepted=%d error=%d)\n",
-			       acceptedInvalid, static_cast<int>(geometryError));
+			g_report.fail("[sampleBuildAbandon]: applyGeometry() accepted an invalid raw_data_format=200 "
+			              "(accepted=%d error=%d)",
+			              acceptedInvalid, static_cast<int>(geometryError));
 			ok = false;
 		}
 
@@ -228,9 +292,9 @@ bool checkSampleBuildAbandon() {
 		geometryError = Error::UNSPECIFIED;
 		const bool acceptedValid = sample_build::applyGeometry(build, geometry, &geometryError);
 		if (!acceptedValid || geometryError != Error::NONE) {
-			printf("FAIL [sampleBuildAbandon]: applyGeometry() refused a valid raw_data_format=0 "
-			       "(accepted=%d error=%d)\n",
-			       acceptedValid, static_cast<int>(geometryError));
+			g_report.fail("[sampleBuildAbandon]: applyGeometry() refused a valid raw_data_format=0 "
+			              "(accepted=%d error=%d)",
+			              acceptedValid, static_cast<int>(geometryError));
 			ok = false;
 		}
 
@@ -268,9 +332,9 @@ bool checkSampleBuildAbandon() {
 			Error error = Error::NONE;
 			sample_build::SampleBuild* build = sample_build::begin("TEST/abandon_loop.wav", "", 4096, &error);
 			if (build == nullptr) {
-				printf("FAIL [sampleBuildAbandon]: begin/abandon churn ran out of chunk-table slots -- "
-				       "begin() failed after %d iterations (error=%d); abandon() is likely leaking\n",
-				       i, static_cast<int>(error));
+				g_report.fail("[sampleBuildAbandon]: begin/abandon churn ran out of chunk-table slots -- "
+				              "begin() failed after %d iterations (error=%d); abandon() is likely leaking",
+				              i, static_cast<int>(error));
 				ok = false;
 				break;
 			}
@@ -281,10 +345,10 @@ bool checkSampleBuildAbandon() {
 			DelugeResourceStats stats{};
 			deluge_resource_stats(mgr, &stats);
 			if (stats.evictions != 0) {
-				printf("FAIL [sampleBuildAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
-				       "churn that should never have needed any -- abandon() is likely dropping the lease "
-				       "without destroying the object (shape (b) above)\n",
-				       static_cast<unsigned long long>(stats.evictions));
+				g_report.fail("[sampleBuildAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
+				              "churn that should never have needed any -- abandon() is likely dropping the lease "
+				              "without destroying the object (shape (b) above)",
+				              static_cast<unsigned long long>(stats.evictions));
 				ok = false;
 			}
 		}
@@ -321,15 +385,15 @@ bool checkPathAdmissionCorpus() {
 	for (const AdmissionCase& c : cases) {
 		const bool accepted = AudioFileManager::admissibleAsyncLoadPath(c.bytes);
 		if (accepted != c.accepted) {
-			printf("FAIL [pathAdmission]: %s (%zu bytes) should be %s, was %s\n", c.label, c.bytes.size(),
-			       c.accepted ? "accepted" : "refused", accepted ? "accepted" : "refused");
+			g_report.fail("[pathAdmission]: %s (%zu bytes) should be %s, was %s", c.label, c.bytes.size(),
+			              c.accepted ? "accepted" : "refused", accepted ? "accepted" : "refused");
 			ok = false;
 		}
 	}
 	return ok;
 }
 
-/// The sample every `LP-DEFAULT` load asks for; the card holds it (golden_vt_render's `fill_load_policy_card`).
+/// The sample every `LP-DEFAULT` load asks for; the card holds it (load_policy.card).
 constexpr const char* kDefaultPath = "SAMPLES/DEFAULT.WAV";
 
 /// Pin that a Sample's read stream opens exactly the path it is given: a path the ABI cannot carry whole is refused
@@ -342,28 +406,30 @@ bool checkReadStreamPath() {
 	Error error = Error::NONE;
 	sample_build::SampleBuild* build = sample_build::begin("TEST/open_path.wav", "", 4096, &error);
 	if (build == nullptr) {
-		printf("FAIL [readStreamPath]: begin() returned null (error=%d)\n", static_cast<int>(error));
+		g_report.fail("[readStreamPath]: begin() returned null (error=%d)", static_cast<int>(error));
 		return false;
 	}
 	constexpr std::string_view kEmbeddedNul{"SAMPLES/DEFAULT.WAV\0.bak", 24};
 	const Error embedded = sample_build::bindReadStream(build, kEmbeddedNul);
 	if (embedded != Error::FILE_NOT_FOUND) {
-		printf("FAIL [readStreamPath]: a path with an embedded NUL answered error=%d, not FILE_NOT_FOUND -- it opened "
-		       "the file named by the bytes before the NUL\n",
-		       static_cast<int>(embedded));
+		g_report.fail(
+		    "[readStreamPath]: a path with an embedded NUL answered error=%d, not FILE_NOT_FOUND -- it opened "
+		    "the file named by the bytes before the NUL",
+		    static_cast<int>(embedded));
 		ok = false;
 	}
 	const std::string overLong(DELUGE_PATH_MAX, 'A');
 	const Error tooLong = sample_build::bindReadStream(build, overLong);
 	if (tooLong != Error::FILE_NOT_FOUND) {
-		printf("FAIL [readStreamPath]: a path of DELUGE_PATH_MAX bytes answered error=%d, not FILE_NOT_FOUND\n",
-		       static_cast<int>(tooLong));
+		g_report.fail("[readStreamPath]: a path of DELUGE_PATH_MAX bytes answered error=%d, not FILE_NOT_FOUND",
+		              static_cast<int>(tooLong));
 		ok = false;
 	}
 	sample_build::abandon(build);
 	return ok;
 }
-/// Ticks an explicit async load may stay `LOAD_IN_PROGRESS` before it counts as wedged.
+/// How many times an explicit async load may be answered `LOAD_IN_PROGRESS` before it counts as wedged. A retry bound
+/// inside one load's resolution, which its own LP-DEFAULT line and FAIL lines judge, not a wait across steps.
 constexpr int kMaxDeferrals = 2000;
 
 enum class Stage : uint8_t {
@@ -433,7 +499,6 @@ bool stageRuns(Stage stage) {
 }
 
 Stage g_stage = Stage::Pure;
-int32_t g_failures = 0;
 bool g_cardStepPending = false;
 bool g_summaryPrinted = false;
 /// The explicit async load in flight: how many times it has been asked, and whether its first answer was
@@ -442,11 +507,9 @@ int g_asyncAttempts = 0;
 bool g_asyncDeferredFirst = false;
 AudioFileHolder g_holder;
 
+/// Prints a check's evidence line. The failures behind `ok=0` are counted where their FAIL lines print.
 void report(const char* line, bool ok) {
 	printf("%s ok=%d\n", line, ok ? 1 : 0);
-	if (!ok) {
-		g_failures++;
-	}
 }
 
 /// The mode omitted, as every existing call site omits it: the load must happen at once, synchronously.
@@ -457,9 +520,9 @@ void runHolderDefault() {
 	const Error error = g_holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
 	const bool ok = error != Error::LOAD_IN_PROGRESS && g_holder.audioFile != nullptr;
 	if (!ok) {
-		printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile with the mode omitted did not load at once "
-		       "(error=%d audioFile=%p)\n",
-		       static_cast<int>(error), static_cast<void*>(g_holder.audioFile));
+		g_report.fail("[loadFileDefault]: AudioFileHolder::loadFile with the mode omitted did not load at once "
+		              "(error=%d audioFile=%p)",
+		              static_cast<int>(error), static_cast<void*>(g_holder.audioFile));
 	}
 	if (g_holder.audioFile != nullptr) {
 		// The reason setAudioFile took, dropped with the tag setAudioFile itself releases with, so the file can be
@@ -506,14 +569,14 @@ bool runOneAsync(bool holderLayer) {
 	const char* layer = holderLayer ? "holder" : "manager";
 	const bool ok = g_asyncDeferredFirst && file != nullptr;
 	if (!g_asyncDeferredFirst) {
-		printf("FAIL [loadFileDefault]: the explicit AsyncOrBlocking load (%s) did not reach the async loader: its "
-		       "first answer was not LOAD_IN_PROGRESS\n",
-		       layer);
+		g_report.fail("[loadFileDefault]: the explicit AsyncOrBlocking load (%s) did not reach the async loader: its "
+		              "first answer was not LOAD_IN_PROGRESS",
+		              layer);
 	}
 	if (file == nullptr) {
-		printf("FAIL [loadFileDefault]: the explicit AsyncOrBlocking load (%s) did not load after %d attempts "
-		       "(error=%d)\n",
-		       layer, g_asyncAttempts, static_cast<int>(error));
+		g_report.fail("[loadFileDefault]: the explicit AsyncOrBlocking load (%s) did not load after %d attempts "
+		              "(error=%d)",
+		              layer, g_asyncAttempts, static_cast<int>(error));
 	}
 	if (holderLayer && g_holder.audioFile != nullptr) {
 		g_holder.audioFile->removeReason("E391");
@@ -521,9 +584,6 @@ bool runOneAsync(bool holderLayer) {
 	}
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kDefaultPath);
 	printf("LP-DEFAULT layer=%s mode=async attempts=%d ok=%d\n", layer, g_asyncAttempts, ok ? 1 : 0);
-	if (!ok) {
-		g_failures++;
-	}
 	g_asyncAttempts = 0;
 	g_asyncDeferredFirst = false;
 	return true;
@@ -538,17 +598,13 @@ void runManagerDefault() {
 	    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE);
 	const bool ok = error != Error::LOAD_IN_PROGRESS && file != nullptr;
 	if (!ok) {
-		printf("FAIL [loadFileDefault]: getAudioFileFromFilename with the mode omitted did not load at once "
-		       "(error=%d file=%p)\n",
-		       static_cast<int>(error), static_cast<void*>(file));
+		g_report.fail("[loadFileDefault]: getAudioFileFromFilename with the mode omitted did not load at once "
+		              "(error=%d file=%p)",
+		              static_cast<int>(error), static_cast<void*>(file));
 	}
 	// Returned held by no reason: nothing to release before deleting.
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kDefaultPath);
 	report("LP-DEFAULT layer=manager mode=omitted", ok);
-}
-
-bool recording() {
-	return std::getenv("LOAD_POLICY_RECORD") != nullptr;
 }
 
 /// The card path of a record's file: wavetable_pins/X under SAMPLES/WTP, presets/… under SAMPLES/WTG.
@@ -572,15 +628,19 @@ void runWaveTablePins() {
 		const deluge::dsp::fixed::WaveTableData view =
 		    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
 		const uint32_t crc = table != nullptr ? wavetable_band_crc(view) : 0;
-		if (recording()) {
-			printf("LP-RECORD {\"%s\", %d, 0x%08XU},\n", record.file, static_cast<int>(view.num_bands()),
-			       static_cast<unsigned>(crc));
+		const bool updating = golden::updating();
+		if (updating && table != nullptr) {
+			char line[160];
+			std::snprintf(line, sizeof line, "    {\"%s\", %d, 0x%08XU},", record.file,
+			              static_cast<int>(view.num_bands()), static_cast<unsigned>(crc));
+			golden::record(kWaveTableHeader, "kRecords", line);
 		}
-		const bool ok = table != nullptr && view.num_bands() == record.num_bands && crc == record.crc;
+		// Re-recording, the bands are what the run records; the table must still load.
+		const bool ok = table != nullptr && (updating || (view.num_bands() == record.num_bands && crc == record.crc));
 		printf("LP-WT-PIN file=%s error=%d bands=%d crc=%08X ok=%d\n", record.file, static_cast<int>(error),
 		       static_cast<int>(view.num_bands()), static_cast<unsigned>(crc), ok ? 1 : 0);
 		if (!ok) {
-			g_failures++;
+			g_report.count();
 		}
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
 	}
@@ -590,8 +650,8 @@ void runWaveTablePins() {
 std::size_t g_pitchIndex = 0;
 Sample* g_pitchSample = nullptr;
 deluge::sample::PitchScan g_pitchScan;
-int g_pitchSteps = 0;
-constexpr int kMaxPitchSteps = 2000;
+constexpr int32_t kMaxPitchSteps = 2000;
+Wait g_pitchWait{g_report, "the pitch detection finishing", kMaxPitchSteps};
 
 /// Loads each SAMPLES/PIT sample, runs its pitch detection to Done and compares the result's bits with its record
 /// (LP-PITCH-PIN). One step per call; a scan answers Pending while its windows stream in.
@@ -608,25 +668,30 @@ bool runPitchPinStep() {
 		AudioFile* file = audioFileManager.getAudioFileFromFilename(path, true, &error, AudioFileType::SAMPLE);
 		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
 			printf("LP-PITCH-PIN file=%s error=%d ok=0\n", record.file, static_cast<int>(error));
-			g_failures++;
+			g_report.count();
 			g_pitchIndex++;
 			return g_pitchIndex >= records.size();
 		}
 		g_pitchSample = static_cast<Sample*>(file);
 		g_pitchScan.arm(*g_pitchSample, deluge::sample::PitchScan::Limits{});
-		g_pitchSteps = 0;
+		g_pitchWait = Wait{g_report, "the pitch detection finishing", kMaxPitchSteps};
 	}
 	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
-	const bool timeout = !done && ++g_pitchSteps >= kMaxPitchSteps;
-	if (!done && !timeout) {
+	const WaitState waited = g_pitchWait.poll(done);
+	if (waited == WaitState::Pending) {
 		return false;
 	}
+	const bool timeout = g_pitchWait.expired();
 	const float hz = g_pitchScan.result();
 	const uint32_t bits = std::bit_cast<uint32_t>(hz);
-	if (recording() && done) {
-		printf("LP-RECORD {\"%s\", 0x%08XU},\n", record.file, static_cast<unsigned>(bits));
+	const bool updating = golden::updating();
+	if (updating && done) {
+		char line[96];
+		std::snprintf(line, sizeof line, "    {\"%s\", 0x%08XU},", record.file, static_cast<unsigned>(bits));
+		golden::record(kPitchHeader, "kRecords", line);
 	}
-	const bool ok = done && bits == record.hz_bits;
+	// Re-recording, the pitch is what the run records; the scan must still finish.
+	const bool ok = done && (updating || bits == record.hz_bits);
 	if (timeout) {
 		printf("LP-PITCH-PIN file=%s timeout=1 ok=0\n", record.file);
 	}
@@ -634,8 +699,9 @@ bool runPitchPinStep() {
 		printf("LP-PITCH-PIN file=%s hz=%.6f bits=%08X ok=%d\n", record.file, static_cast<double>(hz),
 		       static_cast<unsigned>(bits), ok ? 1 : 0);
 	}
-	if (!ok) {
-		g_failures++;
+	// A scan that never finished is counted by its wait.
+	if (!ok && !timeout) {
+		g_report.count();
 	}
 	g_pitchScan.cancel();
 	g_pitchSample = nullptr;
@@ -662,7 +728,7 @@ void runZeroBand() {
 	printf("LP-WT-ZEROBAND error=%d bands=%d ok=%d\n", static_cast<int>(error), static_cast<int>(view.num_bands()),
 	       ok ? 1 : 0);
 	if (!ok) {
-		g_failures++;
+		g_report.count();
 	}
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
 }
@@ -732,7 +798,7 @@ void reportFail(const char* site, Error error, int32_t bands, bool ok, const cha
 	printf("LP-WT-FAIL site=%s injected=%d error=%d bands=%d ok=%d%s\n", site, injected ? 1 : 0,
 	       static_cast<int>(error), static_cast<int>(bands), (ok && injected) ? 1 : 0, suffix);
 	if (!(ok && injected)) {
-		g_failures++;
+		g_report.count();
 	}
 }
 
@@ -805,7 +871,7 @@ void runFailedLoadLegs() {
 
 /// The pitch leg's sample, loaded on its first step; the scan over it is the pitch pins' scan, which is idle here.
 Sample* g_failPitchSample = nullptr;
-int g_failPitchSteps = 0;
+Wait g_failPitchWait{g_report, "the failing pitch load ending", kMaxPitchSteps};
 
 /// A missing pitch window FFT table, made before any detection has built it: the scan ends with no pitch. One step per
 /// call, as the pitch pins tick theirs.
@@ -822,13 +888,16 @@ bool runPitchTwiddlesStep() {
 		g_failPitchSample = static_cast<Sample*>(file);
 		deluge::memory::failNextAllocationOfSize(FFTConfigManager::blockBytes(kPitchDetectWindowSizeMagnitude));
 		g_pitchScan.arm(*g_failPitchSample, deluge::sample::PitchScan::Limits{});
-		g_failPitchSteps = 0;
+		g_failPitchWait = Wait{g_report, "the failing pitch load ending", kMaxPitchSteps};
 	}
 	const bool done = g_pitchScan.tick() == deluge::sample::PitchScan::Progress::Done;
-	if (!done && ++g_failPitchSteps < kMaxPitchSteps) {
+	const WaitState waited = g_failPitchWait.poll(done);
+	if (waited == WaitState::Pending) {
 		return false;
 	}
-	reportFail("pitch-twiddles", Error::NONE, 0, done && g_pitchScan.result() == 0.0F);
+	if (waited == WaitState::Met) {
+		reportFail("pitch-twiddles", Error::NONE, 0, g_pitchScan.result() == 0.0F);
+	}
 	g_pitchScan.cancel();
 	g_failPitchSample = nullptr;
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path.c_str());
@@ -892,7 +961,7 @@ bool runWaveTableChurnStep() {
 	printf("LP-WT-CHURN round=%d loads=%d evictions=%llu crcOk=%d ok=%d\n", g_churnRound + 1, loads,
 	       static_cast<unsigned long long>(evictionCount() - evictionsBefore), crcOk ? 1 : 0, ok ? 1 : 0);
 	if (!ok) {
-		g_failures++;
+		g_report.count();
 	}
 	if (++g_churnRound < kChurnRounds) {
 		return false;
@@ -901,7 +970,7 @@ bool runWaveTableChurnStep() {
 	printf("LP-WT-CHURN rounds=%d evictions=%llu ok=%d\n", kChurnRounds, static_cast<unsigned long long>(evictions),
 	       evictions > 0 ? 1 : 0);
 	if (evictions == 0) {
-		g_failures++;
+		g_report.count();
 	}
 	return true;
 }
@@ -966,12 +1035,17 @@ void runOneCardStep() {
 			g_stage = Stage::Finish;
 		}
 		break;
-	case Stage::Finish:
-		report("LP-INVARIANTS", checkLoadInvariants("load_policy"));
+	case Stage::Finish: {
+		const bool invariants = checkLoadInvariants("load_policy");
+		report("LP-INVARIANTS", invariants);
+		if (!invariants) {
+			g_report.count();
+		}
 		g_stage = Stage::Done;
-		printf("LP-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_report.printResult();
 		g_summaryPrinted = true;
 		break;
+	}
 	case Stage::Done:
 		break;
 	}
@@ -981,16 +1055,16 @@ void runOneCardStep() {
 
 void deluge_scenario_load_policy_begin(void) {
 	g_stage = Stage::Pure;
-	g_failures = 0;
+	g_report.reset();
 	g_cardStepPending = false;
 	g_summaryPrinted = false;
 	g_asyncAttempts = 0;
 	g_asyncDeferredFirst = false;
 	g_pitchIndex = 0;
 	g_pitchSample = nullptr;
-	g_pitchSteps = 0;
+	g_pitchWait = Wait{g_report, "the pitch detection finishing", kMaxPitchSteps};
 	g_failPitchSample = nullptr;
-	g_failPitchSteps = 0;
+	g_failPitchWait = Wait{g_report, "the failing pitch load ending", kMaxPitchSteps};
 	g_churnRound = 0;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
@@ -1015,5 +1089,5 @@ bool deluge_scenario_load_policy_step_done(void) {
 }
 
 int32_t deluge_scenario_load_policy_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }

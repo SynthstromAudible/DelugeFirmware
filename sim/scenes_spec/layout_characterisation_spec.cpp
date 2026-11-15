@@ -61,11 +61,13 @@
 #include "storage/value_serializer.h"
 #include "util/functions.h"
 
+#include "support/printers/controller_mapping_printer.h"
+#include "support/printers/knob_pair_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <array>
 #include <cstdint>
@@ -217,9 +219,9 @@ void expect_layout(auto& self, Sound& sound, Song* song, const std::function<voi
 		return;
 	}
 	std::vector<project::ControllerMapping>* record = record_of(sound, *song);
-	expect(record != nullptr).to_be_true();
+	expect(record).not_().to_be_null("the sound's controls record");
 	if (record != nullptr) {
-		expect(*record == deluge::bridge::controlsOf(sound)).to_be_true();
+		expect(*record).to_equal(deluge::bridge::controlsOf(sound), "the sound's controls record");
 		expect(joined(song_layout(*record))).to_equal(wanted);
 	}
 }
@@ -266,7 +268,7 @@ void set_pair(auto& self, Sound& sound, Song& song, uint8_t button, deluge::modu
 	}
 	deluge::edits::Context ctx{song, song.project};
 	deluge::edits::SetControls edit{*deluge::bridge::controlsAddressOf(sound), controls};
-	expect(deluge::edits::apply(ctx, edit) == Error::NONE).to_be_true();
+	expect(int(deluge::edits::apply(ctx, edit))).to_equal(int(Error::NONE), "the controls edit");
 }
 
 // The layouts, recorded from `Sound::setSynthMode` (the FM swap) and `Sound::setupAsSample` (a sample row's mode 6).
@@ -397,14 +399,14 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	deluge::gui::ui::root_knobs::mod_button(2, false);
 	view.setKnobIndicatorLevels();
 
-	expect(param_snapshot(&f.clip->paramManager) == clip_before).to_be_true();
-	expect(param_snapshot(&f.song->paramManager) == song_before).to_be_true();
-	expect(param_snapshot(row_params) == row_before).to_be_true();
+	expect(param_snapshot(&f.clip->paramManager)).to_equal(clip_before, "the clip's params");
+	expect(param_snapshot(&f.song->paramManager)).to_equal(song_before, "the song's params");
+	expect(param_snapshot(row_params)).to_equal(row_before, "the row's params");
 	expect(record_mode(*f.song, *f.instrument)).to_equal(mode);
 	expect(static_cast<int32_t>(f.instrument->modKnobMode)).to_equal(mode); // the engine's copy too
 	expect(stub.popups).to_equal(0);
-	expect(ring(0) == (std::array<uint8_t, 4>{})).to_be_true();
-	expect(ring(1) == (std::array<uint8_t, 4>{})).to_be_true();
+	expect(ring(0)).to_equal(std::array<uint8_t, 4>{}, "the lower knob's ring");
+	expect(ring(1)).to_equal(std::array<uint8_t, 4>{}, "the upper knob's ring");
 
 	nullifyUIs();
 	view.releaseActiveModControllable();
@@ -540,11 +542,14 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			f.song->live.media.first_output = outputs;
 			expect(changed).to_be_true();
 			const auto* record = f.song->project.resolveControls(*deluge::bridge::controlsAddressOf(sound));
-			expect(record != nullptr).to_be_true();
+			expect(record).not_().to_be_null("the sound's controls record");
 			const deluge::instrument::KnobPair want{.lower = deluge::instrument::param::kModulator2Volume,
 			                                        .upper = deluge::instrument::param::kModulator1Volume};
-			expect(deluge::bridge::knobPairsOf(*record)[2] == want).to_be_true();
-			expect(deluge::bridge::knobPairsOf(deluge::bridge::controlsOf(sound))[2] == want).to_be_true();
+			if (record != nullptr) {
+				expect(deluge::bridge::knobPairsOf(*record)[2]).to_equal(want, "the record's mod button 2");
+			}
+			expect(deluge::bridge::knobPairsOf(deluge::bridge::controlsOf(sound))[2])
+			    .to_equal(want, "the engine's mod button 2");
 		});
 
 		it("swaps the drums of a kit the mode's fan-out reaches, and passes over a sample row", _ {
@@ -564,13 +569,13 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			deluge::edits::Context ctx{*f.song, f.song->project};
 			deluge::edits::SetKitSetting fm{*f.instrument->id(), "mode", Value::makeScalar("fm"),
 			                                deluge::scenes::menu::fan_out::kRingable};
-			expect(deluge::edits::apply(ctx, fm) == Error::NONE).to_be_true();
+			expect(int(deluge::edits::apply(ctx, fm))).to_equal(int(Error::NONE), "the kit's FM mode edit");
 			expect(fm.drums_written()).to_equal(1u);
 			expect_row_layout(self, f, *sample, kRow);
 			expect_row_layout(self, f, *synth, kRowFm);
 			deluge::edits::SetKitSetting back{*f.instrument->id(), "mode", Value::makeScalar("subtractive"),
 			                                  deluge::scenes::menu::fan_out::kRingable};
-			expect(deluge::edits::apply(ctx, back) == Error::NONE).to_be_true();
+			expect(int(deluge::edits::apply(ctx, back))).to_equal(int(Error::NONE), "the kit's subtractive mode edit");
 			expect(back.drums_written()).to_equal(1u);
 			expect_row_layout(self, f, *sample, kRow);
 			expect_row_layout(self, f, *synth, kRow);
@@ -611,7 +616,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			int32_t index = 0;
 			NoteRow* row = f.clip->createNewNoteRowForKit(stack, /*atStart=*/false, &index);
 			SoundDrum* drum = instrumentClipView.createDrumForRow(stack->addNoteRow(index, row), false);
-			expect(drum != nullptr).to_be_true();
+			expect(drum).not_().to_be_null("the row's new drum");
 			if (drum == nullptr) {
 				return;
 			}
@@ -676,7 +681,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			currentUIMode = UI_MODE_NONE;
 			expect(static_cast<int32_t>(drum->channel())).to_equal((channel + 1) % 16);
 			expect(static_cast<int32_t>(drum->note())).to_equal((note + 1) % 128);
-			expect(param_snapshot(&f.clip->paramManager) == clip_before).to_be_true();
+			expect(param_snapshot(&f.clip->paramManager)).to_equal(clip_before, "the clip's params");
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;
@@ -701,7 +706,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			turn_one_step(1);
 			currentUIMode = UI_MODE_NONE;
 			expect(static_cast<int32_t>(drum->channel())).to_equal((channel + 1) % NUM_GATE_CHANNELS);
-			expect(param_snapshot(&f.clip->paramManager) == clip_before).to_be_true();
+			expect(param_snapshot(&f.clip->paramManager)).to_equal(clip_before, "the clip's params");
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;

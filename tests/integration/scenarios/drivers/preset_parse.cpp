@@ -17,6 +17,11 @@
 
 // preset_parse — reading a preset document: a JSON synth preset reads into a kit row as an XML one does, and a preset
 // that cannot be read fails to load with an error, leaving nothing behind (the instrument it began is deleted whole).
+//
+// Gate preset-parse:
+//     a JSON synth preset reads into a kit row as an XML one does; a synth or kit preset that cannot be read (XML or
+//     JSON) fails to load with an error and deletes the instrument it began, whole -- freeing it from its allocation's
+//     start, not from an interior base
 
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"

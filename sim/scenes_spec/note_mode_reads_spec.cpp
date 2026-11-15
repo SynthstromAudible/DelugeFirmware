@@ -67,7 +67,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// @name Legacy's held-button state, reached by bare `extern`
 ///
@@ -370,7 +370,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		(void)guest::forwardNoteVerticalEncoder(0);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 		expect(menu_on_guest_stack()).to_be_true();
 		expect(std::ranges::any_of(instrumentClipView.get_note_edit_targets(), &EditPadPress::isActive)).to_be_true();
 	});
@@ -387,7 +387,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 		(void)guest::forwardNoteVerticalEncoder(0);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_root);
 		expect(menu_on_guest_stack()).to_be_true();
 	});
 
@@ -407,7 +407,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 
 		guest::noteModeGoUpOneLevel();
 		expect(menu_on_guest_stack()).to_be_false();
-		expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);
 	});
 
 	it("pressing a pad holding a different note re-reads the focused item for that note -- "
@@ -522,19 +522,19 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		legacy.add_square_note(0, 0, kNumProbabilityValues);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true();
 		legacy.pressed.push_back({0, 0});
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
-		expect(menu_scene().focused() == &nodes::note_editor_root).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
-		expect(menu_scene().menu_context().root == Root::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_root);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
+		expect(menu_scene().menu_context().root).to_equal(Root::NoteRowEditor);
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true();
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 	});
 
 	it("on the row's probability item, holding a note enters the note's probability item and releasing it comes back "
@@ -551,13 +551,13 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true();
 		legacy.pressed.push_back({0, 0});
 		expect(menu_scene().state().depth).to_equal(uint8_t{2});
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true();
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
-		expect(menu_scene().focused() == &nodes::note_row_probability).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_probability);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 	});
 
 	it("with horizontal menus off, holding a note pad at the row root moves nothing -- runtimeFeatureSettings read as "
@@ -574,7 +574,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true();
 		legacy.pressed.push_back({0, 0});
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
 	});
 
 	it("the release stays on the note item and raises \"Select Row\" when no row is auditioning -- the target's "
@@ -589,12 +589,12 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		menu_scene().enter_submenu(nodes::note_row_probability);
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true();
 		legacy.pressed.push_back({0, 0});
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 
 		exitUIMode(UI_MODE_AUDITIONING);
 		(void)drain_last_notice();
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true();
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
 	});
 
@@ -616,9 +616,9 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		guest::noteModeToggleNoteEditorParamMenu(1);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
-		expect(menu_scene().focused() == &nodes::note_row_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_probability);
 		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 	});
 
 	it("releasing one of two held notes re-reads the focused item for the note still held -- "
@@ -637,11 +637,11 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		legacy.pressed.push_back({0, 0});
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(1, 0, 1)).to_be_true(); // still holding: a re-read
 		legacy.pressed.push_back({1, 0});
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 		expect(menu_scene().state().edit_int).to_equal(int32_t{kNumProbabilityValues});
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 0)).to_be_true(); // one released, one held
-		expect(menu_scene().focused() == &nodes::note_editor_probability).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_probability);
 		expect(menu_scene().state().edit_int).to_equal(int32_t{10});
 	});
 
@@ -662,7 +662,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 		expect(instrumentClipView.lastAuditionedYDisplay).to_equal(uint8_t{1});
 		expect(menu_scene().state().edit_int).to_equal(int32_t{legacy.row_at(1)->probabilityValue});
-		expect(menu_scene().state().edit_int == 5).to_be_false();
+		expect(menu_scene().state().edit_int).not_().to_equal(5);
 	});
 
 	it("an audition on another row re-reads Play Direction for that row -- potentiallyRefreshNoteRowMenu", _ {
@@ -682,7 +682,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		(void)fx.clip->getNoteRowOnScreen(0, currentSong, &row_index);
 		row->setSequenceDirectionMode(stack->addNoteRow(fx.clip->getNoteRowId(row, row_index), row),
 		                              SequenceDirection::PINGPONG);
-		expect(static_cast<int32_t>(row->sequenceDirectionMode()) == before).to_be_false();
+		expect(static_cast<int32_t>(row->sequenceDirectionMode())).not_().to_equal(before);
 
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(row->sequenceDirectionMode()));
@@ -721,7 +721,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth, 1, 1)).to_be_true();
-		expect(kit->selectedDrum == other).to_be_true();
+		expect(kit->selectedDrum).to_equal(other);
 	});
 
 	it("a main pad on a kit y with no NoteRow creates no row and leaves the selected drum alone -- editPadAction's "
@@ -737,15 +737,15 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		Kit* const kit = static_cast<Kit*>(fx.clip->output);
 		kit->selectedDrum = drum;
 		const auto rows = std::ssize(fx.clip->noteRows);
-		expect(fx.clip->getNoteRowOnScreen(1, currentSong) == nullptr).to_be_true();
+		expect(fx.clip->getNoteRowOnScreen(1, currentSong)).to_be_null();
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 1, 1)).to_be_true();
 		legacy.pressed.push_back({0, 1});
 
-		expect(std::ssize(fx.clip->noteRows) == rows).to_be_true();
-		expect(kit->selectedDrum == drum).to_be_true();
+		expect(std::ssize(fx.clip->noteRows)).to_equal(rows);
+		expect(kit->selectedDrum).to_equal(drum);
 	});
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
@@ -759,7 +759,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		fx.clip->yScroll = 0;
 		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
 		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
-		expect(fx.clip->getNoteRowOnScreen(2, currentSong) == nullptr).to_be_true();
+		expect(fx.clip->getNoteRowOnScreen(2, currentSong)).to_be_null();
 		LegacyViewGuard::audition_row(1);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 
@@ -781,7 +781,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		HeldShift shift;
 
 		(void)guest::forwardNoteVerticalEncoder(1);
-		expect(fx.clip->colourOffset() == colour).to_be_true();
+		expect(fx.clip->colourOffset()).to_equal(colour);
 	});
 
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
@@ -812,7 +812,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth + 1, 1, 1)).to_be_true();
 
-		expect(kit->selectedDrum == row1).to_be_true();
+		expect(kit->selectedDrum).to_equal(row1);
 		expect(knobs_move(row1->toModControllable())).to_be_true();
 	});
 
@@ -827,7 +827,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 0, 1)).to_be_true(); // the toggle: into the note root
 		legacy.pressed.push_back({0, 0});
-		expect(menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_editor_root);
 
 		HeldButton x_enc(deluge::hid::button::X_ENC);
 		// Nudged left from tick 0, the note wraps to the row's end (`nudgeNotes`' `newPos +=
@@ -835,7 +835,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		(void)guest::forwardNoteHorizontalEncoder(-1);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
 		expect(menu_on_guest_stack()).to_be_true();
 	});
 });
@@ -854,7 +854,7 @@ describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submen
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
 		expect(menu_scene().go_up_one_level()).to_be_true();
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
-		expect(menu_scene().focused() == &kOpenRoot).to_be_true();
+		expect(menu_scene().focused()).to_equal(&kOpenRoot);
 
 		menu_scene().open(kRefusedRoot, ctx);
 		menu_scene().enter_submenu(kChildPage); // no permission asked, as `enterSubmenu` asks none
@@ -864,9 +864,9 @@ describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submen
 		// The caller closes the editor on false; the scene asks for no close of its own afterwards.
 		const deluge::ui::shell::Result after = menu_scene().after_render();
 		for (const deluge::ui::shell::Action& action : after.actions) {
-			expect(action.kind == deluge::ui::shell::Action::Kind::Remove).to_be_false();
+			expect(action.kind).not_().to_equal(deluge::ui::shell::Action::Kind::Remove);
 		}
-		expect(menu_scene().menu_context().root == Root::Song).to_be_true(); // neither entry touches the context
+		expect(menu_scene().menu_context().root).to_equal(Root::Song); // neither entry touches the context
 	});
 });
 
@@ -907,7 +907,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		expect(menu_on_guest_stack()).to_be_false();
 
 		instrumentClipView.mutePadPress(1);
-		expect(kit->selectedDrum == row_drum).to_be_true();
+		expect(kit->selectedDrum).to_equal(row_drum);
 	});
 
 	it("action_logger.cpp: menu closed, getNewAction allows under the root and refuses under any other current UI", _ {
@@ -918,15 +918,15 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		SongFixture fx = deluge::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		expect(menu_on_guest_stack()).to_be_false();
-		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_false();
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).not_().to_be_null();
 
 		// The guest current over the root, the menu then taken off its stack: a current UI that is neither
 		// the root, the sound editor nor `loadPatternUI`.
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
 		expect(menu_on_guest_stack()).to_be_false();
-		expect(getCurrentUI() == static_cast<UI*>(&shellHostUI)).to_be_true();
-		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_true();
+		expect(getCurrentUI()).to_equal(static_cast<UI*>(&shellHostUI));
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).to_be_null();
 	});
 
 	it("action_logger.cpp: the note-mode twin -- with the guest current, getNewAction refuses at a non-note root "
@@ -937,12 +937,12 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		SongFixture fx = deluge::scenes::spec::make_synth_song();
 
 		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
-		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_true();
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).to_be_null();
 
 		nullifyUIs();
 		GlobalGuestGuard::empty_guest_stack();
 		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
-		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_false();
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED)).not_().to_be_null();
 	});
 
 	it("view.cpp: SYNC_SCALING as Fill, auditioning, menu closed -- the row-fill arm: no fill mode, FILL popup", _ {
@@ -1044,7 +1044,7 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
 		    .to_be_true();
 		// And nothing holds a 0 ms timer for it.
-		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_false();
+		expect(menu_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{0});
 	});
 
 	it("real audition presses forwarded from the menu re-read it for the newly auditioned row", _ {

@@ -1,0 +1,117 @@
+# A CC learned onto a param from the sound menu (LEARN held, then the CC), then played at 0, 64, 127 and 64 with the menu
+# closed and the filter knobs showing the param: the gold knob rings follow the value the CC wrote. The song's page stays
+# open, the song view having no knob ring to show it.
+# Boot synth: the low-pass frequency (SHIFT + the filter pad). A kit's first row. A kit with affect-entire. The song's
+# reverb amount.
+# card: content/bare.img
+#
+# Synth
+100     button Shift down
+350     pad 8 7 down
+470     pad 8 7 up
+720     button Shift up
+970     snapshot synth_menu
+1970    button Learn down
+2220    cc 1 21 64
+2470    button Learn up
+2720    snapshot synth_learned
+3720    button Back down
+3840    button Back up
+4090    button Back down
+4210    button Back up
+4460    button Mod1 down
+4580    button Mod1 up
+4830    snapshot synth_idle
+5830    cc 1 21 0
+6080    snapshot synth_cc0
+7080    cc 1 21 64
+7330    snapshot synth_cc64
+8330    cc 1 21 127
+8580    snapshot synth_cc127
+9580    cc 1 21 64
+9830    snapshot synth_cc64_again
+#
+# A kit row
+10830   button Kit down
+10950   button Kit up
+13200   encoder Select +1
+# the selected drum's audition pad shows its row's random colour
+17450   random_colour 17 0
+17450   pad 17 0 down
+17570   pad 17 0 up
+17820   button Shift down
+18070   pad 8 7 down
+18190   pad 8 7 up
+18440   button Shift up
+18690   snapshot row_menu
+19690   button Learn down
+19940   cc 1 22 64
+20190   button Learn up
+20440   snapshot row_learned
+21440   button Back down
+21560   button Back up
+21810   button Back down
+21930   button Back up
+22180   button Mod1 down
+22300   button Mod1 up
+22550   snapshot row_idle
+23550   cc 1 22 0
+23800   snapshot row_cc0
+24800   cc 1 22 64
+25050   snapshot row_cc64
+26050   cc 1 22 127
+26300   snapshot row_cc127
+27300   cc 1 22 64
+27550   snapshot row_cc64_again
+#
+# The kit with affect-entire
+28550   button AffectEntire down
+28670   button AffectEntire up
+28920   button Shift down
+29170   pad 8 7 down
+29290   pad 8 7 up
+29540   button Shift up
+29790   snapshot entire_menu
+30790   button Learn down
+31040   cc 1 23 64
+31290   button Learn up
+31540   snapshot entire_learned
+32540   button Back down
+32660   button Back up
+32910   button Back down
+33030   button Back up
+33280   button Mod1 down
+33400   button Mod1 up
+33650   snapshot entire_idle
+34650   cc 1 23 0
+34900   snapshot entire_cc0
+35900   cc 1 23 64
+36150   snapshot entire_cc64
+37150   cc 1 23 127
+37400   snapshot entire_cc127
+38400   cc 1 23 64
+38650   snapshot entire_cc64_again
+#
+# The song's reverb amount, from the song menu, its page open
+39650   button Session down
+39770   button Session up
+41020   button SelectEnc down
+41140   button SelectEnc up
+41390   button Shift down
+41640   pad 13 3 down
+41760   pad 13 3 up
+42010   button Shift up
+42260   snapshot song_menu
+43260   button Learn down
+43510   cc 1 24 64
+43760   button Learn up
+44010   snapshot song_learned
+45010   cc 1 24 0
+45260   snapshot song_cc0
+46260   cc 1 24 64
+46510   snapshot song_cc64
+47510   cc 1 24 127
+47760   snapshot song_cc127
+48760   cc 1 24 64
+49010   snapshot song_cc64_again
+50010   quit

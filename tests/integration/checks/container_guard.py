@@ -116,9 +116,34 @@ kinds=<kind=n,...>`:
 Every leg's count must be 0. A leg whose edit ends the process is reported with aborted=1 and fails the run, and so
 does a missing leg line. The registry entry requires the
 result line.
+
+Gate container-guard:
+    Which structural edits to the containers the audio render walks are made while the render could preempt them. On the
+    device the render preempts thread mode at any instruction, so an insert, erase, reorder, relink or reallocation of a
+    clip's note rows, a row's notes, an automation node list, a patch cable set's cables, the song's clip arrays, an
+    output's clip instances, the song's output list or a kit's drum list must run inside an AudioExcludedSection
+    (libdeluge/system.h). Each such container reports every structural edit to a probe
+    (src/deluge/util/structural_edit_probe.h) that counts those made outside a section. With playback on the internal
+    clock, each leg makes one edit through the model's own entry point and reports CG-<LEG> unguarded=<n>
+    kinds=<kind=n,...>: NOTEADD, NOTEDEL, ROWADD, ROWDEL, CLIPNEW, CLIPDEL, CLIPDUP, ARRANGE, AUTOMATE, PATCHCABLE,
+    DRUM, REPLACE, UNDO, BIGROW (a row inserted below 128 others, with CG-MASK its host wall time), ROWDRAG (the clip
+    view's note-row drag), CLIPMOVE (the session view's clip drag), OUTPUTMOVE (the arranger's output drag) and QUANTIZE
+    (a row's notes rotated in place), plus the automation stores: RECORDKNOB (a knob recorded into automation, each
+    param_edit kernel and the live-record block one section, kind nodekernel), RELOCATE (an owner's own store the render
+    reaches first: it must read it in place and move nothing into the song's param stores, renderStoreEdits=0), CCLEARN,
+    CABLEADD and DRUMDEL (the clip and backed-param maps and the CC and cable-depth lanes, kind paramstore), and PASTE,
+    TRIM and STEAL (the engine's automation paste, trim and note-drag steal, each one compound edit); for the automation
+    legs CG-NODES leg=<LEG> lone=0 is also required: no automation node insert or erase at an index outside a compound
+    edit. What the probe can see: edits made through the containers' mutators and the song and kit list splices that
+    report to it. An edit that bypasses them -- a raw element swap, a reorder through operator[], a splice in some other
+    file -- is invisible to it; the reorders that would (the three drags and quantize's rotation) go through reporting,
+    sectioned mutators, and a grep of std::swap/rotate/sort and ->next/firstOutput/firstDrum writes found no other. All
+    legs are required to read unguarded=0; the others are reported. The run fails on a missing leg line, a fixture that
+    could not be built or a clock that never ran, or an edit that ends the process. Every golden run also prints
+    GUARD-UNGUARDED total=<n> at exit when any unguarded edit was made.
 """
 
-import re
+from scenario_gate import field, int_field, tag
 
 LEGS = [
     "NOTEADD",
@@ -187,9 +212,8 @@ NODE_LEGS = [
 ]
 
 
-def _grep(result, pattern: str, otherwise: str) -> str:
-    found = [line for line in result.lines if re.match(pattern, line)]
-    return "\n".join(found) if found else otherwise
+def _grep(result, prefix: str, otherwise: str) -> str:
+    return "\n".join(result.starting(prefix)) or otherwise
 
 
 def _guarded(result, leg: str) -> bool:
@@ -199,21 +223,20 @@ def _guarded(result, leg: str) -> bool:
 def _check(gate, result) -> None:
     for leg in LEGS:
         if not any(
-            re.match(rf"CG-{leg} unguarded=[0-9]+ ", line) for line in result.lines
+            (field(line, "unguarded") or "").isdigit()
+            for line in result.starting(f"CG-{leg} ")
         ):
             gate.fail(f"no CG-{leg} line: a stage never ran")
             return
 
     # The render must not allocate: a kit's drums start and stop rendering without touching the heap.
-    alloc = re.search(
-        r"CG-RENDERALLOC renderAllocs=(\d+) delayStarts=(\d+) delayStops=(\d+)",
-        "\n".join(result.lines),
-    )
-    if alloc and (int(alloc.group(2)) < 1 or int(alloc.group(3)) < 1):
+    alloc = next(iter(result.starting("CG-RENDERALLOC renderAllocs=")), None)
+    starts, stops = int_field(alloc, "delayStarts"), int_field(alloc, "delayStops")
+    if alloc and ((starts or 0) < 1 or (stops or 0) < 1):
         gate.fail(
-            f"CG-RENDERALLOC — the drum's delay must start and abandon its tapes ({alloc.group(0)})"
+            f"CG-RENDERALLOC — the drum's delay must start and abandon its tapes ({alloc})"
         )
-    if not (alloc and alloc.group(1) == "0"):
+    if field(alloc, "renderAllocs") != "0":
         found = _grep(
             result,
             "CG-RENDERALLOC renderAllocs=",
@@ -346,7 +369,7 @@ def _check(gate, result) -> None:
         ),
     ):
         if not result.has_line(line):
-            leg = line.split(" ")[0]
+            leg = tag(line)
             found = _grep(result, leg + " ", f"no {leg} line")
             gate.fail(f"{leg} — {why} ({found})")
     if not result.has_line("CG-GRAINSWAP blocks=1 noted=1"):
@@ -357,10 +380,10 @@ def _check(gate, result) -> None:
         return
 
     # The render's latched record writes must be reached, or RECORDKNOB says nothing about them.
-    record = re.search(
-        r"CG-RECORDKNOB recorded=1 renderKernels=(\d+)", "\n".join(result.lines)
-    )
-    if not (record and int(record.group(1)) > 0):
+    knob = next(iter(result.starting("CG-RECORDKNOB recorded=")), None)
+    if not (
+        field(knob, "recorded") == "1" and (int_field(knob, "renderKernels") or 0) > 0
+    ):
         found = _grep(result, "CG-RECORDKNOB recorded", "no CG-RECORDKNOB line")
         gate.fail(f"{found}: the render never wrote over the recorded nodes")
     for leg in NODE_LEGS:

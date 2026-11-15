@@ -17,16 +17,24 @@ held, while counting every favourites card operation that began on the interacti
 The registry entry requires each marker and the result line. This module adds FV-CHANNEL's count: the bank's
 operations must have gone through the byte channel, because a channel that is compiled but never runs would otherwise
 leave every other check green.
+
+Gate favourites-channel:
+    the favourites bank must never be written with less than it held, and none of its card I/O may begin on the
+    interaction tier. Every browser visit, favourite pad and bank pad reaches this bank, and before this gate existed a
+    failed existence check read as absent and wrote an EMPTY bank over the real one, and an edit on a bank that never
+    loaded saved one favourite over the other fifteen. FV-ABSENT requires opening a bank with no file to leave no file;
+    FV-REFUSE requires an edit made while the bank is loading to change and write nothing; FV-ORDER requires a save made
+    just before switching away and back to land before the bank is read again; FV-STALE requires an answer that arrives
+    after another bank was selected never to be applied, and first requires that answer to have been issued at all, or
+    it proves nothing. One leg: the byte channel has no feature switch, and FV-CHANNEL requires the bank's operations to
+    have gone through it. Every wait is on the bank going idle, never on a file appearing.
 """
 
-import re
-
-CHANNEL = re.compile(r"FV-CHANNEL served=[0-9]* favourites=([0-9]*)")
+from scenario_gate import count_field
 
 
 def check(gate, run):
-    counts = [m.group(1) for line in run.lines if (m := CHANNEL.fullmatch(line))]
-    if not counts or not counts[0] or int(counts[0]) == 0:
+    if not count_field(run.first("FV-CHANNEL "), "favourites"):
         line = run.first("FV-CHANNEL ") or "no line"
         gate.fail(
             f"FV-CHANNEL — no favourites operation went through the channel: {line}"

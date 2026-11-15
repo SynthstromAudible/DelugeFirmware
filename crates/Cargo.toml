@@ -1,5 +1,9 @@
 # The Deluge Rust core libraries. Each member is a plain rlib; the umbrella `deluge_rust` bundles
 # their C ABIs into the staticlib the C++ unit tests link.
+#
+# Gate crates:
+#     every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format corpus differential
+#     (deluge-sdk runs the parser's own tests), the sample fill/reader/source/stream crates
 [workspace]
 resolver = "2"
 members = ["deluge_alloc", "deluge_resource", "deluge_rust", "deluge_sample_source", "deluge_sample_fill", "deluge_sample_reader", "deluge_sample_stream"]

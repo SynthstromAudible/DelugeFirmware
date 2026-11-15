@@ -20,7 +20,7 @@
 #include <iterator>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 
@@ -64,9 +64,9 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 	it("re-points the range by its index after a retype that reallocates the ranges", _ {
 		SourceRig r{2, 1};
 		deluge::gui::setOscTypeFor(r.target, OscType::WAVETABLE);
-		expect(r.source->oscType == OscType::WAVETABLE).to_be_true();
+		expect(r.source->oscType).to_equal(OscType::WAVETABLE);
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(1);
-		expect(r.target.range == r.source->ranges.getElement(1)).to_be_true();
+		expect(r.target.range).to_equal(r.source->ranges.getElement(1));
 	});
 
 	it("re-points range 0 too, whatever range the target was left pointing at", _ {
@@ -74,7 +74,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 		r.target.range = r.source->ranges.getElement(1);
 		deluge::gui::setOscTypeFor(r.target, OscType::WAVETABLE);
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(0);
-		expect(r.target.range == r.source->ranges.getElement(0)).to_be_true();
+		expect(r.target.range).to_equal(r.source->ranges.getElement(0));
 	});
 
 	it("leaves the range alone after a retype that does not reallocate them", _ {
@@ -82,7 +82,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 		::MultiRange* const before = r.target.range;
 		deluge::gui::setOscTypeFor(r.target, OscType::SAMPLE);
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(1);
-		expect(r.target.range == before).to_be_true();
+		expect(r.target.range).to_equal(before);
 	});
 
 	it("reports a reallocation of the watched source, and no clear, through the source's setting Edit", _ {
@@ -98,7 +98,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 		SourceRig r{1, 3};
 		deluge::gui::retargetRangeAfterRetype(r.target, RangesRetype{.reallocated = true, .cleared = true});
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(0);
-		expect(r.target.range == r.source->ranges.getElement(0)).to_be_true();
+		expect(r.target.range).to_equal(r.source->ranges.getElement(0));
 	});
 
 	it("leaves the range alone when its index is past the reallocated ranges", _ {
@@ -106,7 +106,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 		::MultiRange* const before = r.target.range;
 		deluge::gui::retargetRangeAfterRetype(r.target, RangesRetype{.reallocated = true, .cleared = false});
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(3);
-		expect(r.target.range == before).to_be_true();
+		expect(r.target.range).to_equal(before);
 	});
 
 	it("hears only the source it watches", _ {

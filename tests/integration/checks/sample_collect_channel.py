@@ -10,6 +10,8 @@ answers that by deciding every path first, transferring with nothing shared held
 pass -- and SC-ORDERED is what says the answer works. The transfers and the save around them ride the byte channel,
 which has no feature switch, so there is one leg.
 
+The registry entry requires each marker and the result line; this module judges the summary's counts.
+
 What the checks cover:
   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the source.
   SC-RENAMED    the fixture's recording really was renamed. Required, because a collect-media save rewrites filePath
@@ -29,45 +31,51 @@ SC-RENAMED proves it is still being renamed -- and a second file positioned so t
 ACROSS it in the sort order. And the neutering: mutate filePath during the PLAN walk instead of the APPLY pass, and
 SC-ATOMIC must go red. SC-ORDERED does not catch that; the end state is repaired by the apply pass, so only the
 in-flight check can see it.
+
+Gate sample-collect-channel:
+    a song saved with collect-media on must land every sample it references in its own folder, byte-identical to the
+    source, and must leave the audio-file list sorted and every resident file still findable. One leg: every transfer
+    rides the byte channel, and so does the save around it, which stages its document through the byte channel's
+    write-from; the channel has no feature switch. SC-ORDERED is the reason this gate is worth its runtime -- the
+    collection walks a container the audio engine and the UI both read, mutating the very key it is SORTED BY, while the
+    copying spans ticks, so the walk can be observed half-done. A green SC-ORDERED proves nothing by itself, though:
+    what proves the snapshot is load-bearing is the neutering that mutates filePath during the PLAN walk instead of the
+    APPLY pass, which must turn SC-ORDERED red.
 """
 
-import re
+from scenario_gate import count_field
 
 
-def _summary(run, pattern: str) -> str | None:
-    """The digits `pattern` captures on an SC-SUMMARY line, or None when no line matches ("" counts as absent)."""
-    for line in run.lines:
-        m = re.match(pattern, line)
-        if m:
-            return m.group(1) or None
-    return None
+def _summary(run, key: str) -> int | None:
+    """The counter `key` on the SC-SUMMARY line, or None when the line or the counter is absent or not a count."""
+    return count_field(run.first("SC-SUMMARY "), key)
 
 
 def check(gate, run):
-    if not run.has_line("SC-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("SC-RESULT")))
-
-    served = _summary(run, r"^SC-SUMMARY served=([0-9]*) ")
-    inline_served = _summary(run, r"^SC-SUMMARY .*inlineServed=([0-9]*)")
-    channel_ticks = _summary(run, r"^SC-SUMMARY .*channelTicks=([0-9]*)")
+    served = _summary(run, "served")
+    inline_served = _summary(run, "inlineServed")
+    channel_ticks = _summary(run, "channelTicks")
     copies = len(run.starting("SC-COPIED to="))
 
     # SC-CHANNEL, SC-ACCOUNTED and SC-TICKED: no file may take the inline arm, and the channel must have served exactly
     # the files that arrived.
-    if served is None or int(served) == 0:
+    shown_served = "no" if served is None else served
+    if not served:
         gate.fail(
-            f"SC-CHANNEL — the collection served {served or 'no'} transfer(s); the async arm never ran"
+            f"SC-CHANNEL — the collection served {shown_served} transfer(s); the async arm never ran"
         )
-    if int(inline_served or 1) != 0:
+    if inline_served != 0:
+        shown_inline = (
+            "an unknown number of" if inline_served is None else inline_served
+        )
         gate.fail(
-            "SC-ACCOUNTED — the collection sent "
-            f"{inline_served or 'an unknown number of'} transfer(s) through the inline arm"
+            f"SC-ACCOUNTED — the collection sent {shown_inline} transfer(s) through the inline arm"
         )
-    if int(served or 0) != copies:
+    if (served or 0) != copies:
         gate.fail(
-            f"SC-ACCOUNTED — the collection copied {copies} file(s) but the channel served {served or 'no'}"
+            f"SC-ACCOUNTED — the collection copied {copies} file(s) but the channel served {shown_served}"
         )
-    if channel_ticks is None or int(channel_ticks) == 0:
+    if not channel_ticks:
         gate.fail("SC-TICKED — no transfer ever ran through the channel across ticks")
 
     if not gate.failures:

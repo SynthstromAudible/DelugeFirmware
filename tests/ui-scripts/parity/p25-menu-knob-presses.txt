@@ -1,0 +1,230 @@
+# The gold knobs' presses and the mod buttons with a menu up, where the shell's knob service takes them: on the boot
+# synth (the low-pass frequency's menu), on a kit with affect-entire (its menu, from SELECT) and on the song (the song
+# menu).
+# Each press is followed by a turn of both knobs, so a press that moved a knob to another param shows in the turn's
+# popup and the knob LEDs. The pushes walk the cycles: the filter knob through low-pass, high-pass and EQ; the mode
+# steps (filter, delay, sidechain, mod FX type); a chain's mod FX view; the song's compressor, entered from its
+# threshold knob, walked past its last setting and left again; the stutter held.
+# card: content/bare.img
+#
+# Synth: menu up, then the filter, delay, reverb, mod FX and stutter buttons.
+100     button Shift down
+350     pad 8 7 down
+470     pad 8 7 up
+720     button Shift up
+970     snapshot synth_menu
+1970    button Mod1 down
+2090    button Mod1 up
+2340    snapshot synth_mod1
+3340    button ModEnc1 down
+3460    button ModEnc1 up
+3710    snapshot synth_mod1_upper_push
+4710    encoder GoldUpper +1
+4960    snapshot synth_mod1_upper_push_turn_upper
+5960    encoder GoldLower +1
+6210    snapshot synth_mod1_upper_push_turn_lower
+7210    button ModEnc1 down
+7330    button ModEnc1 up
+7580    snapshot synth_mod1_upper_push2
+8580    encoder GoldUpper +1
+8830    snapshot synth_mod1_upper_push2_turn
+9830    button ModEnc0 down
+9950    button ModEnc0 up
+10200   snapshot synth_mod1_lower_push
+11200   encoder GoldLower +1
+11450   snapshot synth_mod1_lower_push_turn
+12450   button Mod3 down
+12570   button Mod3 up
+12820   snapshot synth_mod3
+13820   button ModEnc1 down
+13940   button ModEnc1 up
+14190   snapshot synth_mod3_upper_push
+15190   button ModEnc0 down
+15310   button ModEnc0 up
+15560   snapshot synth_mod3_lower_push
+16560   encoder GoldUpper +1
+16810   snapshot synth_mod3_turn_upper
+17810   encoder GoldLower +1
+18060   snapshot synth_mod3_turn_lower
+19060   button Mod4 down
+19180   button Mod4 up
+19430   snapshot synth_mod4
+20430   button ModEnc0 down
+20550   button ModEnc0 up
+20800   snapshot synth_mod4_lower_push
+21800   button ModEnc1 down
+21920   button ModEnc1 up
+22170   snapshot synth_mod4_upper_push
+23170   encoder GoldUpper +1
+23420   snapshot synth_mod4_turn_upper
+24420   encoder GoldLower +1
+24670   snapshot synth_mod4_turn_lower
+25670   button Mod5 down
+25790   button Mod5 up
+26040   snapshot synth_mod5
+27040   button ModEnc1 down
+27160   button ModEnc1 up
+27410   snapshot synth_mod5_upper_push
+28410   button ModEnc0 down
+28530   button ModEnc0 up
+28780   snapshot synth_mod5_lower_push
+29780   encoder GoldUpper +1
+30030   snapshot synth_mod5_turn_upper
+31030   button Mod6 down
+31150   button Mod6 up
+31400   snapshot synth_mod6
+32400   button ModEnc1 down
+32650   snapshot synth_mod6_stutter_held
+33650   button ModEnc1 up
+33900   snapshot synth_mod6_stutter_released
+34900   encoder GoldUpper +1
+35150   snapshot synth_mod6_turn_upper
+36150   button Mod1 down
+36270   button Mod1 up
+36520   snapshot synth_back_to_mod1
+37520   button Back down
+37640   button Back up
+37890   button Back down
+38010   button Back up
+#
+# A kit with affect-entire: its menu up from SELECT, then the filter view's cycle, the mod FX views and type, the
+# sidechain and reverb, the delay.
+38260   button Kit down
+38380   button Kit up
+40630   encoder Select +1
+# the selected drum's audition pad shows its row's random colour
+44880   random_colour 17 0
+44880   button AffectEntire down
+45000   button AffectEntire up
+45250   button SelectEnc down
+45370   button SelectEnc up
+45620   snapshot entire_menu
+46620   button Mod1 down
+46740   button Mod1 up
+46990   snapshot entire_mod1
+47990   button ModEnc1 down
+48110   button ModEnc1 up
+48360   snapshot entire_mod1_upper_push
+49360   encoder GoldUpper +1
+49610   snapshot entire_mod1_upper_push_turn
+50610   button ModEnc1 down
+50730   button ModEnc1 up
+50980   snapshot entire_mod1_upper_push2
+51980   encoder GoldUpper +1
+52230   snapshot entire_mod1_upper_push2_turn
+53230   button ModEnc1 down
+53350   button ModEnc1 up
+53600   snapshot entire_mod1_upper_push3
+54600   button ModEnc0 down
+54720   button ModEnc0 up
+54970   snapshot entire_mod1_lower_push
+55970   encoder GoldLower +1
+56220   snapshot entire_mod1_lower_push_turn
+57220   button Mod5 down
+57340   button Mod5 up
+57590   snapshot entire_mod5
+58590   button ModEnc0 down
+58710   button ModEnc0 up
+58960   snapshot entire_mod5_lower_push
+59960   encoder GoldLower +1
+60210   snapshot entire_mod5_lower_push_turn
+61210   button ModEnc0 down
+61330   button ModEnc0 up
+61580   snapshot entire_mod5_lower_push2
+62580   button ModEnc1 down
+62700   button ModEnc1 up
+62950   snapshot entire_mod5_upper_push
+63950   button ModEnc0 down
+64070   button ModEnc0 up
+64320   snapshot entire_mod5_lower_push3
+65320   encoder GoldLower +1
+65570   snapshot entire_mod5_lower_push3_turn
+66570   button Mod4 down
+66690   button Mod4 up
+66940   snapshot entire_mod4
+67940   button ModEnc1 down
+68060   button ModEnc1 up
+68310   snapshot entire_mod4_upper_push
+69310   button ModEnc0 down
+69430   button ModEnc0 up
+69680   snapshot entire_mod4_lower_push
+70680   encoder GoldUpper +1
+70930   snapshot entire_mod4_turn_upper
+71930   button Mod3 down
+72050   button Mod3 up
+72300   snapshot entire_mod3
+73300   button ModEnc1 down
+73420   button ModEnc1 up
+73670   snapshot entire_mod3_upper_push
+74670   button ModEnc0 down
+74790   button ModEnc0 up
+75040   snapshot entire_mod3_lower_push
+76040   encoder GoldLower +1
+76290   snapshot entire_mod3_turn_lower
+77290   button Back down
+77410   button Back up
+77660   button Back down
+77780   button Back up
+#
+# The song: the song menu up, then the compressor (its threshold knob into the compressor's settings, the lower knob
+# past the last setting and round, the threshold knob back), the filter view and the mod FX view.
+78030   button Session down
+78150   button Session up
+79400   button SelectEnc down
+79520   button SelectEnc up
+79770   snapshot song_menu
+80770   button Mod4 down
+80890   button Mod4 up
+81140   snapshot song_mod4
+82140   button ModEnc1 down
+82260   button ModEnc1 up
+82510   snapshot song_mod4_upper_push
+83510   encoder GoldLower +1
+83760   snapshot song_mod4_upper_push_turn_lower
+84760   button ModEnc0 down
+84880   button ModEnc0 up
+85130   snapshot song_mod4_lower_push1
+86130   button ModEnc0 down
+86250   button ModEnc0 up
+86500   snapshot song_mod4_lower_push2
+87500   button ModEnc0 down
+87620   button ModEnc0 up
+87870   snapshot song_mod4_lower_push3
+88870   button ModEnc0 down
+88990   button ModEnc0 up
+89240   snapshot song_mod4_lower_push4
+90240   button ModEnc0 down
+90360   button ModEnc0 up
+90610   snapshot song_mod4_lower_push5
+91610   encoder GoldLower +1
+91860   snapshot song_mod4_lower_push5_turn
+92860   button ModEnc0 down
+92980   button ModEnc0 up
+93230   snapshot song_mod4_lower_push6
+94230   encoder GoldLower +1
+94480   snapshot song_mod4_lower_push6_turn
+95480   button ModEnc1 down
+95600   button ModEnc1 up
+95850   snapshot song_mod4_upper_push2
+96850   encoder GoldLower +1
+97100   snapshot song_mod4_upper_push2_turn_lower
+98100   button Mod1 down
+98220   button Mod1 up
+98470   snapshot song_mod1
+99470   button ModEnc1 down
+99590   button ModEnc1 up
+99840   snapshot song_mod1_upper_push
+100840  encoder GoldUpper +1
+101090  snapshot song_mod1_upper_push_turn
+102090  button Mod5 down
+102210  button Mod5 up
+102460  snapshot song_mod5
+103460  button ModEnc0 down
+103580  button ModEnc0 up
+103830  snapshot song_mod5_lower_push
+104830  encoder GoldLower +1
+105080  snapshot song_mod5_lower_push_turn
+106080  button ModEnc1 down
+106200  button ModEnc1 up
+106450  snapshot song_mod5_upper_push
+107450  quit

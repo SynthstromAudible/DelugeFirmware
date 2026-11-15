@@ -23,7 +23,7 @@
 /// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
-/// when it answers a value -- `tests/spec/gui/shell_host_ui_spec.cpp`'s, against fakes.
+/// when it answers a value -- `tests/unit/deluge/gui/shell_host_ui_buttons_spec.cpp`'s, against fakes.
 
 #include "gui/ui/shell_note_mode.h"
 
@@ -54,7 +54,7 @@
 #include <cstdint>
 #include <optional>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 // `gui/ui/ui.cpp`: the pending-grid-render accumulators `uiNeedsRendering` writes, which
 // `ui.h` does not export. Declared here the way `file_catalogue_spec.cpp` reaches its own globals.
@@ -185,11 +185,11 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteEditor);
 
 		GlobalGuestGuard::empty_guest_stack();
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteRowEditor);
 	});
 
 	it("answers None for every other root on the guest's stack", _ {
@@ -198,8 +198,8 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		for (Root root : kOtherRoots) {
 			GlobalGuestGuard::empty_guest_stack();
 			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
-			expect(menu_scene().menu_context().root == root).to_be_true();
-			expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
+			expect(menu_scene().menu_context().root).to_equal(root);
+			expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);
 		}
 	});
 
@@ -212,8 +212,8 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
-		expect(menu_scene().menu_context().root == Root::NoteEditor).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
+		expect(menu_scene().menu_context().root).to_equal(Root::NoteEditor);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);
 	});
 
 	it("leaves the mode on under a scene that takes input above the menu, and under one that does not", _ {
@@ -229,19 +229,18 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		// (`LoadingScene::input_transparent`) -- so with it on top, the menu is on the stack and NOT the input
 		// top.
 		expect(shellHostUI.shell().stack().push(SceneId{SceneKind::Loading, 0})).to_be_true();
-		expect(&shellHostUI.shell().stack().input_top()
-		       == static_cast<deluge::ui::shell::Scene*>(&menu_scene()))
-		    .to_be_false();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
+		expect(&shellHostUI.shell().stack().input_top())
+		    .not_().to_equal(static_cast<deluge::ui::shell::Scene*>(&menu_scene()));
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteEditor);
 
 		// The mod-encoder value popup, named by its own registration constant
 		// (`overlay::kParamPopupSceneKind`) and asserted to BE that scene once pushed, so
 		// a registry reorder cannot silently retarget this half at another kind. It is
 		// input-transparent (`ParamPopupScene::input_transparent`).
 		expect(shellHostUI.shell().stack().push(SceneId{overlay::kParamPopupSceneKind, 0})).to_be_true();
-		expect(&shellHostUI.shell().stack().top() == static_cast<deluge::ui::shell::Scene*>(&overlay::param_popup_scene()))
-		    .to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
+		expect(&shellHostUI.shell().stack().top())
+		    .to_equal(static_cast<deluge::ui::shell::Scene*>(&overlay::param_popup_scene()));
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::NoteEditor);
 	});
 
 	it("answers None after a song swap resets the menu's context", _ {
@@ -254,8 +253,8 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		deluge::notify::DirtySet dirty;
 		dirty.raise(deluge::notify::Dirty::SongSwapped);
 		menu_scene().on_model_changed(dirty);
-		expect(shellHostUI.shell().stack().depth() > 0u).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
+		expect(shellHostUI.shell().stack().depth()).to_be_greater_than(0u);
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);
 	});
 });
 
@@ -338,17 +337,15 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 				g_rec = Recorder{};
 				g_rec.answer = ActionResult::NOT_DEALT_WITH;
 				const std::optional<ActionResult> pressed = guest::forwardNoteButton(b, true);
-				expect(pressed.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
-				    .to_be_true();
+				expect(pressed.value_or(ActionResult::DEALT_WITH)).to_equal(ActionResult::NOT_DEALT_WITH);
 				expect(g_rec.count(button_call_for(root))).to_equal(1);
 				expect(g_rec.total()).to_equal(1);
-				expect(g_rec.b == b).to_be_true();
+				expect(g_rec.b).to_equal(b);
 				expect(g_rec.on).to_be_true();
 
 				g_rec.answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				const std::optional<ActionResult> released = guest::forwardNoteButton(b, false);
-				expect(released.value_or(ActionResult::DEALT_WITH) == ActionResult::ACTIONED_AND_CAUSED_CHANGE)
-				    .to_be_true();
+				expect(released.value_or(ActionResult::DEALT_WITH)).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 				expect(g_rec.on).to_be_false();
 			}
 		}
@@ -372,7 +369,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 				expect(guest::forwardNoteButton(b, true).has_value()).to_be_true();
 				expect(g_rec.count(button_call_for(root))).to_equal(1);
 				expect(g_rec.total()).to_equal(1);
-				expect(g_rec.b == b).to_be_true();
+				expect(g_rec.b).to_equal(b);
 			}
 		}
 	});
@@ -387,7 +384,10 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
-		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result.has_value()).to_be_true();
+		if (result.has_value()) {
+			expect(*result).to_equal(ActionResult::DEALT_WITH);
+		}
 		expect(fx.clip->affectEntire).to_be_false();
 	});
 
@@ -401,15 +401,24 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
-		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result.has_value()).to_be_true();
+		if (result.has_value()) {
+			expect(*result).to_equal(ActionResult::DEALT_WITH);
+		}
 		expect(fx.clip->affectEntire).to_be_true();
 
 		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, false);
-		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result.has_value()).to_be_true();
+		if (result.has_value()) {
+			expect(*result).to_equal(ActionResult::DEALT_WITH);
+		}
 		expect(fx.clip->affectEntire).to_be_true();
 
 		result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
-		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result.has_value()).to_be_true();
+		if (result.has_value()) {
+			expect(*result).to_equal(ActionResult::DEALT_WITH);
+		}
 		expect(fx.clip->affectEntire).to_be_false();
 	});
 
@@ -421,7 +430,10 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true);
-		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result.has_value()).to_be_true();
+		if (result.has_value()) {
+			expect(*result).to_equal(ActionResult::DEALT_WITH);
+		}
 		expect(fx.clip->affectEntire).to_be_false();
 	});
 
@@ -437,7 +449,10 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 			                              button::LOAD, button::TAP_TEMPO, button::TRIPLETS, button::RECORD,
 			                              button::Y_ENC, button::TEMPO_ENC}) {
 				const std::optional<ActionResult> result = guest::forwardNoteButton(b, true);
-				expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
+				expect(result.has_value()).to_be_true();
+				if (result.has_value()) {
+					expect(*result).to_equal(ActionResult::DEALT_WITH);
+				}
 			}
 		}
 	});
@@ -451,7 +466,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		fx.clip->affectEntire = false;
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
-		expect(shellHostUI.buttonAction(button::AFFECT_ENTIRE, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(button::AFFECT_ENTIRE, true)).to_equal(ActionResult::DEALT_WITH);
 		expect(fx.clip->affectEntire).to_be_true();
 	});
 });
@@ -481,8 +496,7 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 			g_rec.answer = ActionResult::NOT_DEALT_WITH;
 
 			const std::optional<ActionResult> result = guest::forwardNoteHorizontalEncoder(-3);
-			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
-			    .to_be_true();
+			expect(result.value_or(ActionResult::DEALT_WITH)).to_equal(ActionResult::NOT_DEALT_WITH);
 			expect(g_rec.count(root == Root::NoteEditor ? Call::EditorHorizontal : Call::RowHorizontal)).to_equal(1);
 			expect(g_rec.total()).to_equal(1);
 			expect(g_rec.offset).to_equal(int32_t(-3));
@@ -501,15 +515,14 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 			g_rec = Recorder{};
 			g_rec.answer = ActionResult::NOT_DEALT_WITH;
 			std::optional<ActionResult> result = guest::forwardNoteVerticalEncoder(2);
-			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::NOT_DEALT_WITH)
-			    .to_be_true();
+			expect(result.value_or(ActionResult::DEALT_WITH)).to_equal(ActionResult::NOT_DEALT_WITH);
 			expect(g_rec.count(call)).to_equal(1);
 			expect(g_rec.total()).to_equal(1);
 			expect(g_rec.offset).to_equal(int32_t(2));
 
 			g_rec.answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			result = guest::forwardNoteVerticalEncoder(-1);
-			expect(result.value_or(ActionResult::DEALT_WITH) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+			expect(result.value_or(ActionResult::DEALT_WITH)).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 			expect(g_rec.count(call)).to_equal(2);
 		}
 	});
@@ -554,7 +567,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
-		expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
+		expect(guest::activeNoteMode()).to_equal(NoteModeKind::None);
 
 		guest::exitNoteModeBeforeClose();
 		expect(g_rec.count(Call::ExitEditor)).to_equal(1);

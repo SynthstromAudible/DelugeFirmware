@@ -56,7 +56,7 @@ scales reads its own voice's (or sound's) current result, and no pass, on either
 
 ## Exactness of the Argon forms
 
-`MatrixFixed`'s four-lane forms equal its scalar functions lane for lane; `tests/dsp/matrix_exactness_spec.cpp` holds
+`MatrixFixed`'s four-lane forms equal its scalar functions lane for lane; `tests/unit/deluge/dsp-next/matrix_exactness_spec.cpp` holds
 them to that over operand corners and random operands, and over every param the four-lane curves compute, on x86,
 under UBSan and on ARM under qemu.
 
@@ -76,7 +76,7 @@ positive).
 ## Speed
 
 On the device (the DSP bench's `matrix_q31_*` cases: 14 cables, two of them depth cables, over 8 voices and the
-sound), against the Patcher (the frozen reference in `tests/dsp/reference_patcher.cpp`, as an image of its own), in
+sound), against the Patcher (the frozen reference in `tests/unit/deluge/dsp-next/reference_patcher.cpp`, as an image of its own), in
 cycles over 128 blocks:
 
 | Case | Patcher | Matrix |

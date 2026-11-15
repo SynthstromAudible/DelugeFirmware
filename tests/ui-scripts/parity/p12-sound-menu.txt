@@ -1,4 +1,6 @@
 # The sound menu from the boot clip view: open, scroll, enter, edit, leave.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

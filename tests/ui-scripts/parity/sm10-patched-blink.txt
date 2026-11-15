@@ -1,6 +1,8 @@
 # ShellMenu: the patched-param and patching-source blinks main plans (`updatePadLightsFor`): a patched param's sources
 # on its own page, the param pad every fourth cycle on its source list and cable-strength page, and a second-layer
-# param's pad yellow. Run on the ShellMenu card.
+# param's pad yellow.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 # Master > Volume, then its source list.
 1100  button Shift down

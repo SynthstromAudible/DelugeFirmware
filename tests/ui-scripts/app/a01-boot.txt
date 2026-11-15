@@ -1,0 +1,9 @@
+# Level 3: the whole app on golden_vt_render, on its virtual clock: times are milliseconds since boot.
+#
+# Not 0 ms: the app blits its first frame from inside the main loop, *after* its first input poll,
+# so nothing has been drawn at 0 ms and a snapshot there has no panel to record (the run fails
+# rather than record a blank). 50 ms is still the app's very first screen.
+# card: tests/fixtures/card
+50     snapshot boot
+2000   snapshot idle
+2100   quit

@@ -26,8 +26,8 @@
 namespace deluge::dsp::fixed::fft {
 
 /// @brief An unscaled int32 real FFT over lent tables and scratch: forward from 2^m real samples to 2^(m-1)+1 bins,
-///        inverse back, each output bit for bit as tests/dsp/real_fft_records.h records it. A block-staged component:
-///        no state between calls.
+///        inverse back, each output bit for bit as tests/unit/deluge/dsp-next/real_fft_records.h records it. A
+///        block-staged component: no state between calls.
 class RealFft {
 public:
 	/// @param twiddles Built tables (factor, stage and super twiddles all generated).

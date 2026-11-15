@@ -1,0 +1,710 @@
+# The gold knobs at the root views: performance view, the automation view's overview, a MIDI track's CC select, a
+# synth clip's note tails, an audio clip, a kit row and a kit with affect-entire, the arranger and the keyboard screen.
+# card: content/bare.img
+#
+# 1 Performance view (song view, a short KEYBOARD press): mod button 1 and its knobs turned with no pad held; the
+#   pad of the param a knob turns held while that knob turns (the display shows the param, no popup), and a pad
+#   of the other knob's param held; mod button 6 with a stutter pad held and the upper knob pushed, then the pad
+#   released. Back in the song view, mod button 0 pressed until the VU meter toggles in the sidebar: the sidebar
+#   redraws only once the meter is drawn there, so it is the toggle off (vu_off) that shows a missing redraw.
+# 2 Automation view overview on the boot synth clip: both knobs turned; the low-pass frequency's automation painted
+#   in its editor; Learn + a knob's push copies (the lower knob's, empty, then the upper's) and Shift + Learn + the
+#   lower knob's push pastes; then each knob pushed.
+# 3 A MIDI clip at its root: each knob's push, held (the CC select popup shows while it is down) with turns, then
+#   released, and mod button 3 pressed and released. A gold-knob turn during the hold changes nothing; the select
+#   encoder turn changes the CC (alone, and with its push held), shown again on a second push.
+# 4 The boot synth clip with a long note and the envelope-1 sustain at its minimum: the release knob (mod button 2,
+#   lower) turned up and back down across the note-tail flip, the pads snapshot after each turn.
+# 5 The same as 4 with the sound menu up.
+# 6-9 An audio clip, a kit row and then the kit with affect-entire, the arranger (an output's audition pad held, then
+#   the song's knobs and the VU meter), and the keyboard screen over the kit's row: in each, mod button 1 and both
+#   knobs turned, each knob pushed, then mod button 0 and both knobs turned.
+# 10-13 On the kit after 9: a row made from a sample (mod button 6 and both knobs); a MIDI drum and a gate drum
+#   (auditioned with both knobs turned, then both knobs and mod button 2 with no audition); the clip made a synth, its
+#   synth mode set to FM and back to subtractive, mod button 1's knobs turned and pushed in each; and the clip made a CV
+#   clip, both knobs turned and mod button 2 pressed.
+#
+# The sections run in the order 4, 5, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13: the note tails need the boot synth clip's own
+# view, the MIDI clip replaces the synth clip, the song view makes the audio and kit clips, and the last kit becomes the
+# synth and then the CV clip.
+#
+# Section 4: note tails. The boot preset's envelope-1 sustain is at its maximum, which no gold knob changes, so
+# the sustain is brought to its minimum from the menu first; then the release knob (mod button 2, lower) decides the
+# tails: tails vanish when the release passes the decay and return when it falls back.
+100     pad 0 0 down
+350     pad 8 0 down
+600     pad 8 0 up
+850     pad 0 0 up
+1100    snapshot tail_note
+2100    button Shift down
+2350    pad 8 1 down
+2470    pad 8 1 up
+2720    button Shift up
+2970    encoder Select -50
+3220    snapshot tail_sustain_min
+4220    button Back down
+4340    button Back up
+4590    snapshot tail_root
+5590    button Mod2 down
+5710    button Mod2 up
+5960    snapshot tail_mod2
+6960    encoder GoldLower +1
+7210    snapshot tail_release_up_1
+8210    encoder GoldLower +4
+8460    snapshot tail_release_up_5
+9460    encoder GoldLower +1
+9710    snapshot tail_release_up_6
+10710   encoder GoldLower +1
+10960   snapshot tail_release_up_7
+11960   encoder GoldLower -1
+12210   snapshot tail_release_down_6
+13210   encoder GoldLower -1
+13460   snapshot tail_release_down_5
+14460   encoder GoldLower -3
+14710   snapshot tail_release_down_2
+15710   encoder GoldLower -1
+15960   snapshot tail_release_down_1
+16960   encoder GoldUpper +1
+17210   snapshot tail_attack_up
+18210   encoder GoldUpper -1
+18460   snapshot tail_attack_down
+19460   encoder GoldLower -2
+19710   snapshot tail_release_down_0
+#
+# Section 5: the same walk with the sound menu up.
+20710   button Shift down
+20960   pad 8 7 down
+21080   pad 8 7 up
+21330   button Shift up
+21580   snapshot menu_tail_menu
+22580   button Mod2 down
+22700   button Mod2 up
+22950   snapshot menu_tail_mod2
+23950   encoder GoldLower +1
+24200   snapshot menu_tail_release_up_1
+25200   encoder GoldLower +4
+25450   snapshot menu_tail_release_up_5
+26450   encoder GoldLower +1
+26700   snapshot menu_tail_release_up_6
+27700   encoder GoldLower +1
+27950   snapshot menu_tail_release_up_7
+28950   encoder GoldLower -1
+29200   snapshot menu_tail_release_down_6
+30200   encoder GoldLower -1
+30450   snapshot menu_tail_release_down_5
+31450   encoder GoldLower -3
+31700   snapshot menu_tail_release_down_2
+32700   encoder GoldLower -1
+32950   snapshot menu_tail_release_down_1
+33950   encoder GoldUpper +1
+34200   snapshot menu_tail_attack_up
+35200   encoder GoldUpper -1
+35450   snapshot menu_tail_attack_down
+36450   button Back down
+36570   button Back up
+36820   snapshot menu_tail_left
+#
+#
+# Section 1: performance view.
+37820   button Session down
+37940   button Session up
+39190   button Keyboard down
+39210   button Keyboard up
+39460   snapshot perf_opened
+40460   button Mod1 down
+40580   button Mod1 up
+40830   snapshot perf_mod1
+41830   encoder GoldUpper +1
+42080   snapshot perf_mod1_turn_upper
+43080   encoder GoldLower +1
+43330   snapshot perf_mod1_turn_lower
+44330   pad 0 5 down
+44580   snapshot perf_pad_held
+45580   encoder GoldUpper +2
+45830   snapshot perf_pad_held_turn_upper
+46830   encoder GoldLower +1
+47080   snapshot perf_pad_held_turn_lower
+48080   pad 0 5 up
+48330   snapshot perf_pad_released
+49330   pad 1 5 down
+49580   encoder GoldLower +1
+49830   snapshot perf_pad_held_turn_lower_same
+50830   pad 1 5 up
+51080   snapshot perf_pad_released_lower
+52080   button Mod6 down
+52200   button Mod6 up
+52450   snapshot perf_mod6
+53450   pad 5 7 down
+53700   snapshot perf_stutter_held
+54700   button ModEnc1 down
+54820   button ModEnc1 up
+55070   snapshot perf_stutter_held_upper_push
+56070   encoder GoldUpper +1
+56320   snapshot perf_stutter_held_turn_upper
+57320   pad 5 7 up
+57570   snapshot perf_stutter_released
+58570   button ModEnc1 down
+58690   button ModEnc1 up
+58940   snapshot perf_mod6_upper_push
+59940   button Keyboard down
+59960   button Keyboard up
+60210   snapshot perf_closed
+# Mod button 0 in the song view: the first press leaves mode 6 for mode 0, the next two toggle the VU meter in the
+# sidebar on and off.
+61210   button Mod0 down
+61330   button Mod0 up
+61580   snapshot vu_mode0
+62580   button Mod0 down
+62700   button Mod0 up
+62950   snapshot vu_on
+63950   button Mod0 down
+64070   button Mod0 up
+64320   snapshot vu_off
+#
+# Section 2: automation view overview on the boot synth clip.
+65320   button Clip down
+65440   button Clip up
+65690   snapshot clip_view_entered
+66690   button Clip down
+66810   button Clip up
+67060   snapshot auto_overview
+68060   encoder GoldUpper +1
+68310   snapshot auto_turn_upper
+69310   encoder GoldLower +1
+69560   snapshot auto_turn_lower
+# The filter knobs' params get automation: the low-pass frequency's editor is painted with three nodes, then the
+# overview comes back.
+70560   button Mod1 down
+70680   button Mod1 up
+70930   pad 8 7 down
+71050   pad 8 7 up
+71300   snapshot auto_lpf_editor
+72300   pad 2 5 down
+72420   pad 2 5 up
+72670   pad 6 2 down
+72790   pad 6 2 up
+73040   pad 10 6 down
+73160   pad 10 6 up
+73410   snapshot auto_lpf_painted
+74410   button Shift down
+74660   button Clip down
+74780   button Clip up
+75030   button Shift up
+75280   snapshot auto_lpf_overview
+76280   button Mod1 down
+76400   button Mod1 up
+76650   snapshot auto_overview_mod1
+# Copy from the automated upper knob, paste onto the lower knob (the low-pass resonance, no automation yet).
+77650   button Learn down
+77900   button ModEnc0 down
+78020   button ModEnc0 up
+78270   snapshot auto_copy_empty_lower
+79270   button ModEnc1 down
+79390   button ModEnc1 up
+79640   snapshot auto_copy_upper
+80640   button Learn up
+80890   snapshot auto_copy_released
+81890   button Shift down
+82140   button Learn down
+82390   button ModEnc0 down
+82510   button ModEnc0 up
+82760   snapshot auto_paste_lower
+83760   button Learn up
+84010   button Shift up
+84260   snapshot auto_paste_released
+85260   button ModEnc1 down
+85380   button ModEnc1 up
+85630   snapshot auto_upper_push
+86630   button ModEnc0 down
+86750   button ModEnc0 up
+87000   snapshot auto_lower_push
+88000   button ModEnc1 down
+88120   button ModEnc1 up
+88370   snapshot auto_upper_push2
+#
+# Section 3: a MIDI clip's CC select at root (it leaves the synth clip).
+89370   button Clip down
+89490   button Clip up
+89740   snapshot auto_left
+90740   button Midi down
+90860   button Midi up
+92110   snapshot midi_clip
+93110   button ModEnc1 down
+93230   button ModEnc1 up
+93480   snapshot midi_upper_push
+94480   button ModEnc1 down
+94730   snapshot midi_upper_down
+# A gold-knob turn while the push is held does nothing: only the select encoder changes the CC.
+95730   encoder GoldUpper +3
+95980   snapshot midi_held_turn_upper
+96980   encoder Select +3
+97230   snapshot midi_held_select_3
+98230   encoder Select +2
+98480   snapshot midi_held_select_5
+99480   button SelectEnc down
+99730   encoder Select +1
+99980   snapshot midi_held_select_unused
+100980  button SelectEnc up
+101230  button ModEnc1 up
+101480  snapshot midi_held_released
+102480  button ModEnc1 down
+102730  snapshot midi_upper_down_again
+103730  button ModEnc1 up
+103980  button ModEnc0 down
+104230  snapshot midi_lower_down
+105230  button ModEnc0 up
+105480  snapshot midi_lower_up
+106480  button Mod3 down
+106730  snapshot midi_mod3_down
+107730  button Mod3 up
+107980  snapshot midi_mod3_up
+#
+# Section 6: an audio clip. In the song view a held empty clip pad and SELECT make an audio clip, which a pad opens.
+108980  button Session down
+109100  button Session up
+110350  snapshot audio_song
+111350  pad 3 6 down
+111600  button SelectEnc down
+111720  button SelectEnc up
+112970  pad 3 6 up
+114220  snapshot audio_made
+115220  pad 3 6 down
+115340  pad 3 6 up
+116590  snapshot audio_clip
+117590  button Mod1 down
+117710  button Mod1 up
+117960  snapshot audio_mod1
+118960  encoder GoldUpper +1
+119210  snapshot audio_upper
+120210  encoder GoldLower +1
+120460  snapshot audio_lower
+121460  button ModEnc1 down
+121580  button ModEnc1 up
+121830  snapshot audio_upper_push
+122830  button ModEnc0 down
+122950  button ModEnc0 up
+123200  snapshot audio_lower_push
+124200  button Mod0 down
+124320  button Mod0 up
+124570  snapshot audio_mod0
+125570  encoder GoldUpper -1
+125820  snapshot audio_mod0_upper
+126820  encoder GoldLower +1
+127070  snapshot audio_mod0_lower
+#
+# Section 7: a kit row, then the kit with affect-entire. In the song view a held empty clip pad and KIT make a kit
+# clip, which a pad opens.
+128070  button Session down
+128190  button Session up
+129440  pad 3 5 down
+129690  button Kit down
+129810  button Kit up
+132060  pad 3 5 up
+133310  snapshot kit_made
+134310  pad 3 5 down
+134430  pad 3 5 up
+136680  snapshot kit_clip
+# the selected drum's audition pad shows its row's random colour
+137680  random_colour 17 0
+137680  pad 17 0 down
+137800  pad 17 0 up
+138050  snapshot kit_row
+139050  button Mod1 down
+139170  button Mod1 up
+139420  snapshot kit_row_mod1
+140420  encoder GoldUpper +1
+140670  snapshot kit_row_upper
+141670  encoder GoldLower +1
+141920  snapshot kit_row_lower
+142920  button ModEnc1 down
+143040  button ModEnc1 up
+143290  snapshot kit_row_upper_push
+144290  button ModEnc0 down
+144410  button ModEnc0 up
+144660  snapshot kit_row_lower_push
+145660  button Mod0 down
+145780  button Mod0 up
+146030  snapshot kit_row_mod0
+147030  encoder GoldUpper -1
+147280  snapshot kit_row_mod0_upper
+148280  encoder GoldLower +1
+148530  snapshot kit_row_mod0_lower
+149530  button AffectEntire down
+149650  button AffectEntire up
+149900  snapshot kit_entire
+150900  button Mod1 down
+151020  button Mod1 up
+151270  snapshot kit_entire_mod1
+152270  encoder GoldUpper +1
+152520  snapshot kit_entire_upper
+153520  encoder GoldLower +1
+153770  snapshot kit_entire_lower
+154770  button ModEnc1 down
+154890  button ModEnc1 up
+155140  snapshot kit_entire_upper_push
+156140  button ModEnc0 down
+156260  button ModEnc0 up
+156510  snapshot kit_entire_lower_push
+157510  button Mod0 down
+157630  button Mod0 up
+157880  snapshot kit_entire_mod0
+158880  encoder GoldUpper -1
+159130  snapshot kit_entire_mod0_upper
+160130  encoder GoldLower +1
+160380  snapshot kit_entire_mod0_lower
+#
+# Section 8: the arranger. An output's audition pad held puts the knobs on it; with nothing held they are the song's,
+# and mod button 0 toggles the VU meter in the sidebar.
+161380  button Session down
+161500  button Session up
+162750  button Session down
+162870  button Session up
+164120  snapshot arr_opened
+165120  pad 17 0 down
+165370  snapshot arr_row_held
+166370  button Mod1 down
+166490  button Mod1 up
+166740  snapshot arr_row_mod1
+167740  encoder GoldUpper +1
+167990  snapshot arr_row_upper
+168990  encoder GoldLower +1
+169240  snapshot arr_row_lower
+170240  button ModEnc1 down
+170360  button ModEnc1 up
+170610  snapshot arr_row_upper_push
+171610  button ModEnc0 down
+171730  button ModEnc0 up
+171980  snapshot arr_row_lower_push
+172980  button Mod0 down
+173100  button Mod0 up
+173350  snapshot arr_row_mod0
+174350  encoder GoldUpper -1
+174600  snapshot arr_row_mod0_upper
+175600  encoder GoldLower +1
+175850  snapshot arr_row_mod0_lower
+176850  pad 17 0 up
+177100  snapshot arr_row_released
+178100  button Mod1 down
+178220  button Mod1 up
+178470  snapshot arr_song_mod1
+179470  encoder GoldUpper +1
+179720  snapshot arr_song_upper
+180720  encoder GoldLower +1
+180970  snapshot arr_song_lower
+181970  button ModEnc1 down
+182090  button ModEnc1 up
+182340  snapshot arr_song_upper_push
+183340  button ModEnc0 down
+183460  button ModEnc0 up
+183710  snapshot arr_song_lower_push
+184710  button Mod0 down
+184830  button Mod0 up
+185080  snapshot arr_vu_mode0
+186080  button Mod0 down
+186200  button Mod0 up
+186450  snapshot arr_vu_on
+187450  button Mod0 down
+187570  button Mod0 up
+187820  snapshot arr_vu_off
+#
+# Section 9: the keyboard screen over the kit, affect-entire off: the knobs on the selected row. A kit's keyboard shows
+# its rows' random colours, so its pads compare as lit or unlit.
+188820  button Session down
+188940  button Session up
+190190  pad 3 5 down
+190310  pad 3 5 up
+192560  snapshot kb_kit
+193560  button AffectEntire down
+193680  button AffectEntire up
+193930  snapshot kb_kit_row
+194930  random_colour 0 0
+194930  random_colour 1 0
+194930  random_colour 2 0
+194930  random_colour 3 0
+194930  random_colour 4 0
+194930  random_colour 5 0
+194930  random_colour 6 0
+194930  random_colour 7 0
+194930  random_colour 8 0
+194930  random_colour 9 0
+194930  random_colour 10 0
+194930  random_colour 11 0
+194930  random_colour 12 0
+194930  random_colour 13 0
+194930  random_colour 14 0
+194930  random_colour 15 0
+194930  random_colour 0 1
+194930  random_colour 1 1
+194930  random_colour 2 1
+194930  random_colour 3 1
+194930  random_colour 4 1
+194930  random_colour 5 1
+194930  random_colour 6 1
+194930  random_colour 7 1
+194930  random_colour 8 1
+194930  random_colour 9 1
+194930  random_colour 10 1
+194930  random_colour 11 1
+194930  random_colour 12 1
+194930  random_colour 13 1
+194930  random_colour 14 1
+194930  random_colour 15 1
+194930  random_colour 0 2
+194930  random_colour 1 2
+194930  random_colour 2 2
+194930  random_colour 3 2
+194930  random_colour 4 2
+194930  random_colour 5 2
+194930  random_colour 6 2
+194930  random_colour 7 2
+194930  random_colour 8 2
+194930  random_colour 9 2
+194930  random_colour 10 2
+194930  random_colour 11 2
+194930  random_colour 12 2
+194930  random_colour 13 2
+194930  random_colour 14 2
+194930  random_colour 15 2
+194930  random_colour 0 3
+194930  random_colour 1 3
+194930  random_colour 2 3
+194930  random_colour 3 3
+194930  random_colour 4 3
+194930  random_colour 5 3
+194930  random_colour 6 3
+194930  random_colour 7 3
+194930  random_colour 8 3
+194930  random_colour 9 3
+194930  random_colour 10 3
+194930  random_colour 11 3
+194930  random_colour 12 3
+194930  random_colour 13 3
+194930  random_colour 14 3
+194930  random_colour 15 3
+194930  random_colour 0 4
+194930  random_colour 1 4
+194930  random_colour 2 4
+194930  random_colour 3 4
+194930  random_colour 4 4
+194930  random_colour 5 4
+194930  random_colour 6 4
+194930  random_colour 7 4
+194930  random_colour 8 4
+194930  random_colour 9 4
+194930  random_colour 10 4
+194930  random_colour 11 4
+194930  random_colour 12 4
+194930  random_colour 13 4
+194930  random_colour 14 4
+194930  random_colour 15 4
+194930  random_colour 0 5
+194930  random_colour 1 5
+194930  random_colour 2 5
+194930  random_colour 3 5
+194930  random_colour 4 5
+194930  random_colour 5 5
+194930  random_colour 6 5
+194930  random_colour 7 5
+194930  random_colour 8 5
+194930  random_colour 9 5
+194930  random_colour 10 5
+194930  random_colour 11 5
+194930  random_colour 12 5
+194930  random_colour 13 5
+194930  random_colour 14 5
+194930  random_colour 15 5
+194930  random_colour 0 6
+194930  random_colour 1 6
+194930  random_colour 2 6
+194930  random_colour 3 6
+194930  random_colour 4 6
+194930  random_colour 5 6
+194930  random_colour 6 6
+194930  random_colour 7 6
+194930  random_colour 8 6
+194930  random_colour 9 6
+194930  random_colour 10 6
+194930  random_colour 11 6
+194930  random_colour 12 6
+194930  random_colour 13 6
+194930  random_colour 14 6
+194930  random_colour 15 6
+194930  random_colour 0 7
+194930  random_colour 1 7
+194930  random_colour 2 7
+194930  random_colour 3 7
+194930  random_colour 4 7
+194930  random_colour 5 7
+194930  random_colour 6 7
+194930  random_colour 7 7
+194930  random_colour 8 7
+194930  random_colour 9 7
+194930  random_colour 10 7
+194930  random_colour 11 7
+194930  random_colour 12 7
+194930  random_colour 13 7
+194930  random_colour 14 7
+194930  random_colour 15 7
+194930  button Keyboard down
+195050  button Keyboard up
+195300  snapshot kb_opened
+196300  button Mod1 down
+196420  button Mod1 up
+196670  snapshot kb_mod1
+197670  encoder GoldUpper +1
+197920  snapshot kb_upper
+198920  encoder GoldLower +1
+199170  snapshot kb_lower
+200170  button ModEnc1 down
+200290  button ModEnc1 up
+200540  snapshot kb_upper_push
+201540  button ModEnc0 down
+201660  button ModEnc0 up
+201910  snapshot kb_lower_push
+202910  button Mod0 down
+203030  button Mod0 up
+203280  snapshot kb_mod0
+204280  encoder GoldUpper -1
+204530  snapshot kb_mod0_upper
+205530  encoder GoldLower +1
+205780  snapshot kb_mod0_lower
+206780  button Keyboard down
+206900  button Keyboard up
+207150  snapshot kb_closed
+#
+# Section 10: a kit row made from a sample. The audition pad of the empty row above the kit's last opens the drum
+# creator's browser; Select loads the file it is on into a new row, and BACK leaves the sound menu the creator opened.
+# The new row's mod button 6 lower knob is its pitch adjust.
+208150  random_colour 17 1
+208150  pad 17 1 down
+208270  pad 17 1 up
+210520  snapshot smp_browser
+211520  button SelectEnc down
+211640  button SelectEnc up
+214890  snapshot smp_menu
+215890  button Back down
+216010  button Back up
+217260  snapshot smp_row
+218260  button Mod6 down
+218380  button Mod6 up
+218630  snapshot smp_mod6
+219630  encoder GoldUpper +1
+219880  snapshot smp_mod6_upper
+220880  encoder GoldLower +1
+221130  snapshot smp_mod6_lower
+#
+# Section 11: a MIDI drum, then a gate drum: the next empty row's audition pad held with MIDI (then CV) makes one. While
+# the row auditions the lower knob steps its channel (and a MIDI drum's upper knob its note) and mod button 2 is pressed;
+# with no audition the knobs and mod button 2 move nothing.
+222130  random_colour 17 2
+222130  pad 17 2 down
+222380  button Midi down
+222500  button Midi up
+222750  pad 17 2 up
+224000  snapshot mdrum_made
+225000  pad 17 2 down
+225250  encoder GoldLower +4
+225500  snapshot mdrum_aud_lower
+226500  encoder GoldUpper +4
+226750  snapshot mdrum_aud_upper
+227750  button Mod2 down
+227870  button Mod2 up
+228120  snapshot mdrum_aud_mod2
+229120  pad 17 2 up
+229370  encoder GoldUpper +1
+229620  snapshot mdrum_upper
+230620  encoder GoldLower +1
+230870  snapshot mdrum_lower
+231870  button Mod2 down
+231990  button Mod2 up
+232240  snapshot mdrum_mod2
+233240  random_colour 17 3
+233240  pad 17 3 down
+233490  button Cv down
+233610  button Cv up
+233860  pad 17 3 up
+235110  snapshot gdrum_made
+236110  pad 17 3 down
+236360  encoder GoldLower +4
+236610  snapshot gdrum_aud_lower
+237610  encoder GoldUpper +4
+237860  snapshot gdrum_aud_upper
+238860  button Mod2 down
+238980  button Mod2 up
+239230  snapshot gdrum_aud_mod2
+240230  pad 17 3 up
+240480  encoder GoldUpper +1
+240730  snapshot gdrum_upper
+241730  encoder GoldLower +1
+241980  snapshot gdrum_lower
+242980  button Mod2 down
+243100  button Mod2 up
+243350  snapshot gdrum_mod2
+#
+# Section 12: the FM swap. SYNTH makes the clip a synth; the sound menu's synth mode (SHIFT + pad 6,4) set to FM swaps
+# mod button 1's filter knobs for the modulators' levels, which are turned and pushed. Back to subtractive they are the
+# filter's again. On the second visit the menu takes the first select turn without changing the value, on `main` too.
+244350  random_colour 17 7
+244350  button Synth down
+244470  button Synth up
+246720  snapshot fm_synth
+247720  button Shift down
+247970  pad 6 4 down
+248090  pad 6 4 up
+248340  button Shift up
+248590  snapshot fm_menu
+249590  encoder Select +1
+249840  snapshot fm_set
+250840  button Back down
+250960  button Back up
+251210  snapshot fm_back
+252210  button Mod1 down
+252330  button Mod1 up
+252580  snapshot fm_mod1
+253580  encoder GoldUpper +1
+253830  snapshot fm_upper
+254830  encoder GoldLower +1
+255080  snapshot fm_lower
+256080  button ModEnc1 down
+256200  button ModEnc1 up
+256450  snapshot fm_upper_push
+257450  button ModEnc0 down
+257570  button ModEnc0 up
+257820  snapshot fm_lower_push
+258820  button Shift down
+259070  pad 6 4 down
+259190  pad 6 4 up
+259440  button Shift up
+259690  snapshot sub_menu
+260690  encoder Select -1
+260940  snapshot sub_first_turn
+261940  encoder Select -1
+262190  snapshot sub_set
+263190  button Back down
+263310  button Back up
+263560  button Mod1 down
+263680  button Mod1 up
+263930  snapshot sub_mod1
+264930  encoder GoldUpper +1
+265180  snapshot sub_upper
+266180  encoder GoldLower +1
+266430  snapshot sub_lower
+267430  button ModEnc1 down
+267550  button ModEnc1 up
+267800  snapshot sub_upper_push
+268800  button ModEnc0 down
+268920  button ModEnc0 up
+269170  snapshot sub_lower_push
+#
+# Section 13: a CV track. CV makes the clip a CV clip: both knobs turned and mod button 2 pressed move nothing.
+270170  button Cv down
+270290  button Cv up
+272540  snapshot cv_clip
+273540  encoder GoldUpper +1
+273790  snapshot cv_upper
+274790  encoder GoldLower +1
+275040  snapshot cv_lower
+276040  button Mod2 down
+276160  button Mod2 up
+276410  snapshot cv_mod2
+277410  quit

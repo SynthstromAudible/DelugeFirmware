@@ -31,11 +31,12 @@
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "scenes/menu/bind_host.h"
 #include "support/indexed_knobs.h"
+#include "support/printers/param_target_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
@@ -172,9 +173,12 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 				<midiKnob channel="1" ccNumber="11" relative="1" controlsParam="range" />
 				<midiKnob channel="1" ccNumber="12" relative="0" controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
 				<midiKnob channel="1" ccNumber="13" relative="1" controlsParam="pitch" />)"));
-		expect(song != nullptr).to_be_true();
+		expect(song).not_().to_be_null("the loaded song");
 		SoundInstrument* synth = song != nullptr ? synth_of(*song) : nullptr;
-		expect(synth != nullptr && synth->id().has_value()).to_be_true();
+		expect(synth).not_().to_be_null("the song's synth");
+		if (synth != nullptr) {
+			expect(synth->id().has_value()).to_be_true("the synth's id");
+		}
 		if (synth == nullptr || !synth->id()) {
 			return;
 		}
@@ -185,12 +189,16 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 			return;
 		}
 		const auto paramOf = [](const Mapping& knob) { return std::get<OwnerParamTarget>(knob.target).param; };
-		expect(paramOf(knobs[0]) == patched(params::GLOBAL_VOLUME_POST_FX)).to_be_true();
-		expect(paramOf(knobs[1]) == deluge::project::engine_target(deluge::bridge::controlTargetOf(
-		                                deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(
-		                                    params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN)),
-		                                params::Kind::UNPATCHED_SOUND).value)).to_be_true();
-		expect(paramOf(knobs[2]) == patched(params::LOCAL_PITCH_ADJUST)).to_be_true();
+		expect(paramOf(knobs[0])).to_equal(patched(params::GLOBAL_VOLUME_POST_FX), "the first knob's param");
+		expect(paramOf(knobs[1]))
+		    .to_equal(deluge::project::engine_target(
+		                  deluge::bridge::controlTargetOf(
+		                      deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(
+		                          params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN)),
+		                      params::Kind::UNPATCHED_SOUND)
+		                      .value),
+		              "the second knob's param");
+		expect(paramOf(knobs[2])).to_equal(patched(params::LOCAL_PITCH_ADJUST), "the third knob's param");
 		expect(knobs[2].relative).to_be_true();
 		expect(synth->effectsOwner()->knobs->loaded.empty()).to_be_true(); // the table holds them now
 		// Incoming MIDI finds each, as its own param, once the song is the current one.
@@ -203,9 +211,9 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		}
 		spec::make_current(before);
 		const std::string text = saved(*song); // a song saves as JSON
-		expect(text.find(R"("controlsParam": "volumePostFX")") != std::string::npos).to_be_true();
-		expect(text.find(R"("controlsParam": "volume")") == std::string::npos).to_be_true();
-		expect(text.find(R"("ccNumber": 11)") == std::string::npos).to_be_true();
+		expect(text).to_contain(R"("controlsParam": "volumePostFX")", "the saved song");
+		expect(text).not_().to_contain(R"("controlsParam": "volume")", "the saved song");
+		expect(text).not_().to_contain(R"("ccNumber": 11)", "the saved song");
 	});
 
 	it("keeps a pitch adjust a learned knob in the table turns, and zeroes one no knob turns", _ {
@@ -228,7 +236,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		SoundInstrument* preset = makeLooseSynth(*f.song);
 		noPitchModKnobs(*preset);
 		ParamManagerForTimeline presetParams;
-		expect(presetParams.setupWithPatching() == Error::NONE).to_be_true();
+		expect(int(presetParams.setupWithPatching())).to_equal(int(Error::NONE), "the preset's param setup");
 		Sound::initParams(&presetParams);
 		seedPitch(presetParams);
 		preset->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&presetParams, f.song);
@@ -256,7 +264,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		SoundInstrument* preset = makeLooseSynth(*f.song);
 		noPitchModKnobs(*preset);
 		ParamManagerForTimeline presetParams;
-		expect(presetParams.setupWithPatching() == Error::NONE).to_be_true();
+		expect(int(presetParams.setupWithPatching())).to_equal(int(Error::NONE), "the preset's param setup");
 		Sound::initParams(&presetParams);
 
 		// A preset change hands the knob over in the table before the preset joins the song's lists, and the clips'
@@ -282,7 +290,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		noPitchModKnobs(*preset);
 		f.song->replaceInstrument(&old, preset); // the replaced synth, never edited, is deleted
 		ParamManagerForTimeline sounds;
-		expect(sounds.setupWithPatching() == Error::NONE).to_be_true();
+		expect(int(sounds.setupWithPatching())).to_equal(int(Error::NONE), "the sounds' param setup");
 		Sound::initParams(&sounds);
 		seedPitch(sounds);
 		preset->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&sounds, f.song);
@@ -301,7 +309,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *sound.id()}, patched(params::LOCAL_PITCH_ADJUST)};
 		deluge::edits::learnMappingFor(pitchKnobRead().source, knob);
 		ParamManagerForTimeline parked;
-		expect(parked.setupWithPatching() == Error::NONE).to_be_true();
+		expect(int(parked.setupWithPatching())).to_equal(int(Error::NONE), "the parked params' setup");
 		Sound::initParams(&parked);
 		seedPitch(parked);
 		f.song->live.param_backup.backUp(f.instrument, nullptr, &parked, true);
@@ -311,12 +319,12 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 				backed = &manager;
 			}
 		});
-		expect(backed != nullptr).to_be_true();
+		expect(backed).not_().to_be_null("the backed-up params");
 		if (backed == nullptr) {
 			return;
 		}
 		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
-		expect(f.song->project.mappings.find(knob) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(knob)).to_be_null("the unlearned knob's mapping");
 		expect(valueOf(*backed, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);
 		// The zeroing main's unlearn runs does reach those params: with no knob left, it zeroes the pitch adjust.
 		sound.ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(f.song);

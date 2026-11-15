@@ -29,7 +29,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <optional>
 #include <string>
@@ -179,7 +179,7 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		clip->docClip_->values.bend_range.reset();
 		clip->docClip_->values.bend_range_mpe.reset();
 		ExpressionParamSet* expression = clip->paramManager.getOrCreateExpressionParamSet();
-		expect(expression != nullptr).to_be_true();
+		expect(expression).not_().to_be_null();
 		expression->bendRanges[BEND_RANGE_MAIN] = 5;
 		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 40;
 		const uint8_t defaults[] = {FlashStorage::defaultBendRange[0], FlashStorage::defaultBendRange[1]};
@@ -199,10 +199,13 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		(void)spec::add_drum<SoundDrum>(f);
 		const MenuContext ctx = at(*f.song, f.clip);
 		NoteRow* row = static_cast<InstrumentClip*>(f.clip)->noteRows.tryGet(0);
-		expect(row != nullptr && row->docNoteRow_ != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
+		if (row != nullptr) {
+			expect(row->docNoteRow_).not_().to_be_null();
+		}
 		row->docNoteRow_->bend_range.reset();
 		ExpressionParamSet* expression = row->paramManager.getOrCreateExpressionParamSet(true);
-		expect(expression != nullptr).to_be_true();
+		expect(expression).not_().to_be_null();
 		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 17;
 		expect(menu::bindings::read(nodes::drum_bend_range, ctx)).to_equal(17);
 	});

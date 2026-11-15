@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include "scenarios/support/scenario_declare.h"
 
 /// @file
 /// @brief The host-driver scenarios (scenarios/drivers/driver.h): each runs one driver's main once.
@@ -50,43 +50,32 @@
 /// | song_roundtrip       | load -> save -> reload -> save fixed point                                 |
 /// | xml_replay_diff      | ValueTreeDeserializer's XML replay against XMLDeserializer, token for token |
 
-#define DELUGE_DRIVER_SCENARIO_DECLARE(name)                                                                           \
-	void deluge_scenario_##name##_begin(void);                                                                         \
-	bool deluge_scenario_##name##_complete(void);                                                                      \
-	void deluge_scenario_##name##_dispatch_step(void);                                                                 \
-	bool deluge_scenario_##name##_step_done(void);                                                                     \
-	int32_t deluge_scenario_##name##_failures(void);
-
-extern "C" {
-DELUGE_DRIVER_SCENARIO_DECLARE(audio_clip_edit_diff)
-DELUGE_DRIVER_SCENARIO_DECLARE(cable_decode)
-DELUGE_DRIVER_SCENARIO_DECLARE(clip_clone_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(document_version)
-DELUGE_DRIVER_SCENARIO_DECLARE(edit_substrate)
-DELUGE_DRIVER_SCENARIO_DECLARE(effect_owners)
-DELUGE_DRIVER_SCENARIO_DECLARE(edit_undo_redo)
-DELUGE_DRIVER_SCENARIO_DECLARE(engine_settings)
-DELUGE_DRIVER_SCENARIO_DECLARE(song_settings)
-DELUGE_DRIVER_SCENARIO_DECLARE(host_effect_settings)
-DELUGE_DRIVER_SCENARIO_DECLARE(preset_parse)
-DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_decode)
-DELUGE_DRIVER_SCENARIO_DECLARE(instrument_codec_encode)
-DELUGE_DRIVER_SCENARIO_DECLARE(instrument_state_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(json_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(mapping_dispatch)
-DELUGE_DRIVER_SCENARIO_DECLARE(model_decode_diff)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_clone)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_record_diff)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_snapshot_bench)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_table_check)
-DELUGE_DRIVER_SCENARIO_DECLARE(param_target_check)
-DELUGE_DRIVER_SCENARIO_DECLARE(patch_routing)
-DELUGE_DRIVER_SCENARIO_DECLARE(preset_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(serializer_check)
-DELUGE_DRIVER_SCENARIO_DECLARE(song_edit_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(song_roundtrip)
-DELUGE_DRIVER_SCENARIO_DECLARE(xml_replay_diff)
-} // extern "C"
-
-#undef DELUGE_DRIVER_SCENARIO_DECLARE
+DELUGE_SCENARIO_DECLARE(audio_clip_edit_diff);
+DELUGE_SCENARIO_DECLARE(cable_decode);
+DELUGE_SCENARIO_DECLARE(clip_clone_roundtrip);
+DELUGE_SCENARIO_DECLARE(document_version);
+DELUGE_SCENARIO_DECLARE(edit_substrate);
+DELUGE_SCENARIO_DECLARE(effect_owners);
+DELUGE_SCENARIO_DECLARE(edit_undo_redo);
+DELUGE_SCENARIO_DECLARE(engine_settings);
+DELUGE_SCENARIO_DECLARE(song_settings);
+DELUGE_SCENARIO_DECLARE(host_effect_settings);
+DELUGE_SCENARIO_DECLARE(preset_parse);
+DELUGE_SCENARIO_DECLARE(instrument_codec_decode);
+DELUGE_SCENARIO_DECLARE(instrument_codec_encode);
+DELUGE_SCENARIO_DECLARE(instrument_state_roundtrip);
+DELUGE_SCENARIO_DECLARE(json_roundtrip);
+DELUGE_SCENARIO_DECLARE(mapping_dispatch);
+DELUGE_SCENARIO_DECLARE(model_decode_diff);
+DELUGE_SCENARIO_DECLARE(param_clone);
+DELUGE_SCENARIO_DECLARE(param_projection);
+DELUGE_SCENARIO_DECLARE(param_record_diff);
+DELUGE_SCENARIO_DECLARE(param_snapshot_bench);
+DELUGE_SCENARIO_DECLARE(param_table_check);
+DELUGE_SCENARIO_DECLARE(param_target_check);
+DELUGE_SCENARIO_DECLARE(patch_routing);
+DELUGE_SCENARIO_DECLARE(preset_roundtrip);
+DELUGE_SCENARIO_DECLARE(serializer_check);
+DELUGE_SCENARIO_DECLARE(song_edit_roundtrip);
+DELUGE_SCENARIO_DECLARE(song_roundtrip);
+DELUGE_SCENARIO_DECLARE(xml_replay_diff);

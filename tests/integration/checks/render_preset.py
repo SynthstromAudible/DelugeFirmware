@@ -1,13 +1,13 @@
 """The synth golden masters: every corpus preset, played and rendered as the device renders it, against its record.
 
-Each case is one `render_preset` run (tests/integration/scenarios/render_preset_scenario.h). The card holds the preset
+Each case is one `render_preset` run (tests/integration/scenarios/render_preset_scenario.cpp). The card holds the preset
 at SYNTHS/PRESET.XML, where the blank boot song picks it up, plus the case's samples. A DIN note script on MIDI channel 1
 plays it through MIDI follow, which sends that channel to the instrument in front of the user, and the output is
 captured from the audio tier. This module stages each case, runs them in parallel, and checks per case:
     the scenario's own lines and result, as every scenario gate does;
     RP-SILENT   the render is not silence. A preset that never heard its notes renders silence, and would otherwise
                 record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
-    RP-PCM      the output against its record in tests/integration/golden/presets.json: sha256, frames, peak and
+    RP-PCM      the output against its record in tests/golden/render/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
     RP-ZONE     a case in ZONE_END moved its sample zone's end mid-note (RENDER_ZONE_END, as the sample marker editor
                 moves it).
@@ -16,7 +16,7 @@ And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
                 when it replaces its default synth. It is the one path the corpus cases do not play through.
 
-The corpus is tests/integration/golden/presets/: `<case>.xml` (or `.XML`), optionally `<case>.notes` (default.notes
+The corpus is tests/golden/render/presets/: `<case>.xml` (or `.XML`), optionally `<case>.notes` (default.notes
 otherwise), `<case>.wav` and `<case>.2.wav` (staged as SAMPLES/WT.WAV and WT2.WAV, which the preset names). A case is
 named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`. The cases under `stereo/`
 render with headphones plugged in, so in stereo (RENDER_STEREO); the rest render in mono, as through the speaker.
@@ -25,13 +25,34 @@ RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the ca
 RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g. its presets upgraded) against the same
 records.
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
-length exactly), for tests/integration/golden/compare_renders.py.
+length exactly), for tests/golden/render/compare_renders.py.
 RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources there, as `<case>.params`
 (src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
-RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
-commit that records the new one.
+`./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
+RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a
+finding to explain in the commit that records the new one.
+
+Gate golden-synth:
+    every synth golden master must render as recorded: each of the 431 presets (tests/golden/render/presets:
+    synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
+    sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
+    input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
+    a percussive test signal) is loaded by the blank boot song, played by a DIN note script and rendered in real time on
+    the audio tier, and its output is compared with its record in tests/golden/render/presets.json (RP-PCM). A case
+    fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event
+    (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a
+    synchronous card call (RP-TIER-SYNC-AUDIO), if it rendered silence (RP-SILENT), or if a case whose sample zone is to
+    move mid-note never moved it (RP-ZONE). RENDER_PRESET_FILTER runs a subset; ./dbt test --update golden-synth
+    re-records.
+
+Gate golden-synth-arm:
+    the synth golden masters on 32-bit ARM: every golden-synth case, rendered by golden_vt_render cross-built for armv7
+    Linux (the host app compiled by clang for a Cortex-A9 with NEON, as the firmware is) and run under qemu, must match
+    the same records in tests/golden/render/presets.json as the x86 build. x86 renders NEON code through SIMDe and
+    ARM through the real instructions, so a difference is a vectorised kernel that does not compute what its portable
+    form does, or code that depends on the word size.
 """
 
 import concurrent.futures
@@ -42,7 +63,10 @@ import re
 import shutil
 from pathlib import Path
 
+import golden_update
 from scenario_gate import int_field
+
+RECORDS = Path("tests/golden/render/presets.json")
 
 FRAMES_PER_SECOND = 44100
 DEFAULT_SECONDS = 2.0
@@ -210,10 +234,15 @@ def run(gate):
     # RENDER_PRESET_CORPUS renders another copy of the corpus (e.g. its files upgraded) against the same records.
     corpus = Path(
         gate.env.get("RENDER_PRESET_CORPUS")
-        or gate.root / "tests/integration/golden/presets"
+        or gate.root / "tests/golden/render/presets"
     )
-    records_path = gate.root / "tests/integration/golden/presets.json"
-    update = os.environ.get("RENDER_PRESET_UPDATE") == "1"
+    records_path = gate.root / RECORDS
+    update = golden_update.updating(gate.env)
+    if update and gate.env.get("RENDER_PRESET_CORPUS"):
+        gate.fail(
+            "RP-PCM — the records are the committed corpus's: a RENDER_PRESET_CORPUS run cannot re-record them"
+        )
+        return
     keep = (
         Path(gate.env["RENDER_PRESET_KEEP"])
         if gate.env.get("RENDER_PRESET_KEEP")
@@ -275,7 +304,7 @@ def run(gate):
             records[name] = record
         elif name not in records:
             gate.fail(
-                f"RP-PCM {name}: no record; run with RENDER_PRESET_UPDATE=1 to make one"
+                f"RP-PCM {name}: no record; ./dbt test --update golden-synth records one"
             )
         elif records[name] != record:
             gate.fail(
@@ -286,9 +315,8 @@ def run(gate):
 
     _check_learn(gate, corpus, pcm_record)
 
-    if update:
-        records_path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
-        gate.say(
-            f"RP-PCM recorded {len(selected) - failed} case(s) in {records_path.relative_to(gate.root)}"
+    if update and not gate.failures:
+        golden_update.write_json(
+            records_path, records, str(RECORDS), indent=1, env=gate.env
         )
     gate.say(f"RP-CASES run={len(selected)} passed={len(selected) - failed}")

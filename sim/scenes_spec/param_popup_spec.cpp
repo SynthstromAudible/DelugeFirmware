@@ -52,9 +52,9 @@
 #include "processing/engines/audio_engine.h"
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -64,7 +64,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::overlay::kParamPopupSceneKind;
@@ -364,7 +364,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		instrument->setNameForCC(74, "Cutoff");
 		instrument->seedDocOutputIdentity();
 		const deluge::project::DocOutput* record = midi.song->project.output_structure.find(*instrument->id());
-		expect(record != nullptr).to_be_true();
+		expect(record).not_().to_be_null();
 		if (record != nullptr) {
 			overlay::PopupContext of_midi;
 			of_midi.midi_clip = true;
@@ -562,7 +562,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			expect(handed->name).to_equal(name);
 			expect(handed->value).to_equal(value);
 			expect(handed->remaining_ms).to_equal(uint32_t(1400));
-			expect(handed->kind == Kind::UNPATCHED_GLOBAL).to_be_true();
+			expect(handed->kind).to_equal(Kind::UNPATCHED_GLOBAL);
 			expect(handed->param_id).to_equal(int32_t(UNPATCHED_VOLUME));
 		}
 		expect(popup.remaining_ms()).to_equal(uint32_t(0));
@@ -576,7 +576,10 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		                 {});
 		// No tick since the show: a hand-off 900 ms on has 1100 ms left.
 		const std::optional<overlay::ShownPopup> later = popup.hand_off(7'500'900);
-		expect(later.has_value() && later->remaining_ms == 1100).to_be_true();
+		expect(later.has_value()).to_be_true();
+		if (later.has_value()) {
+			expect(later->remaining_ms).to_equal(1100);
+		}
 
 		popup.tick(100'000);
 		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 7, PatchSource::NONE, PatchSource::NONE, 7'600'000,
@@ -599,7 +602,10 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		(void)popup.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 20, PatchSource::NONE, PatchSource::NONE, 9'000'000,
 		                 {});
 		const std::string latest{popup.shown_value()};
-		expect(handed.has_value() && handed->value == latest).to_be_true();
+		expect(handed.has_value()).to_be_true();
+		if (handed.has_value()) {
+			expect(handed->value).to_equal(latest);
+		}
 		popup.tick(100'000);
 	});
 

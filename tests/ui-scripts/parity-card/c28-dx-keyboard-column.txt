@@ -2,6 +2,7 @@
 # page on that operator's level (its row flashing white), a second Shift + the same pad toggles to its coarse tuning,
 # the top global pad opens the algorithm, and a keyboard scaling breakpoint, raised onto the grid, blinks its note's
 # pad on the isomorphic keyboard. Pads act on release.
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Mod6 down
 5100  button Synth down

@@ -15,7 +15,29 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/audio_tick_hold_scenario.h"
+/// @file
+/// @brief The audio tick's hold and re-entry guard (`AudioEngine::AudioTickHold`, `routine()`), run as
+///        `GOLDEN_SCENARIO=audio_tick_hold` on the booted app.
+///
+/// `begin` runs every check and prints one line per check:
+///     ATH-IDLE     no hold alive: audioTicksHeld() is false
+///     ATH-HOLD     a hold is held for its scope, and released after it
+///     ATH-NESTED   nested holds release only when the outermost ends
+///     ATH-HELD     a held tick does nothing: routine_task() is false, routine() 0, the routine body never reached
+///     ATH-REENTRY  routine() called from inside routine() returns 0 without running the body
+///     ATH-THROW    a throw out of routine() does not latch it: the next tick reaches the routine body
+/// then `ATH-RESULT failures=N`.
+///
+/// Gate audio-tick-hold:
+///     the audio tick's hold and re-entry guard, on the booted app: no hold alive means ticks are not held (ATH-IDLE);
+///     an AudioEngine::AudioTickHold holds them for its scope and releases them after (ATH-HOLD), and nested holds
+///     release only when the outermost ends (ATH-NESTED); a held tick does nothing, routine_task() false and routine()
+///     0 without reaching the routine body (ATH-HELD); routine() called from inside routine() returns 0 without running
+///     the body again (ATH-REENTRY); and a throw out of routine() does not latch its re-entry guard, so the next
+///     deluge_app_audio_tick() reaches the routine body (ATH-THROW), which a guard left set would silence for good
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "libdeluge/app.h"
 #include "processing/engines/audio_engine.h"
@@ -30,9 +52,11 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(audio_tick_hold);
+
 namespace {
 
-int32_t g_failures = 0;
+deluge::scenarios::ScenarioReport g_report{"ATH"};
 
 /// How many times the routine body was reached since the last reset.
 int32_t g_reached = 0;
@@ -60,7 +84,7 @@ void reenter() {
 void report(const char* tag, bool ok, const char* detail) {
 	std::printf("%s ok=%d %s\n", tag, ok ? 1 : 0, detail);
 	if (!ok) {
-		g_failures++;
+		g_report.count();
 	}
 }
 
@@ -128,13 +152,14 @@ void checkThrow() {
 } // namespace
 
 void deluge_scenario_audio_tick_hold_begin(void) {
+	g_report.reset();
 	checkIdle();
 	checkHold();
 	checkNested();
 	checkHeldTick();
 	checkReentry();
 	checkThrow();
-	std::printf("ATH-RESULT failures=%d\n", static_cast<int>(g_failures));
+	g_report.printResult();
 	std::fflush(stdout);
 }
 
@@ -150,5 +175,5 @@ bool deluge_scenario_audio_tick_hold_step_done(void) {
 }
 
 int32_t deluge_scenario_audio_tick_hold_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }

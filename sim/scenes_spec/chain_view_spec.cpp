@@ -13,8 +13,9 @@
 #include "effects/setting_params.h"
 
 #include "cppspec.hpp"
+#include "support/printers/param_id_printer.h"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <algorithm>
 #include <array>
@@ -57,7 +58,7 @@ describe chain_view("the Deluge's reading of a chain's view", ${
 		song.master_effects.filter_type = 7;
 		const controls::SectionPages pages = pages_of(song, kSong);
 		expect(int(pages.current.page_id)).to_equal(int(deluge::global_effectable::kEqPage));
-		expect(turned(pages.current, 1) == ge::kTreble).to_be_true();
+		expect(turned(pages.current, 1)).to_equal(ge::kTreble, "the EQ page's second knob");
 	});
 	it("puts a chain's mod FX knobs on the view its record holds, even one its type has no param for", _ {
 		project::Song song = song_in_mode(5);
@@ -67,7 +68,7 @@ describe chain_view("the Deluge's reading of a chain's view", ${
 		song.master_effects.effects = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>(flanger);
 		const controls::SectionPages pages = pages_of(song, kSong);
 		expect(int(pages.current.page_id)).to_equal(0);
-		expect(turned(pages.current, 0) == ge::kModFXDepth).to_be_true();
+		expect(turned(pages.current, 0)).to_equal(ge::kModFXDepth, "the mod FX page's first knob");
 		expect(std::ranges::none_of(pages.cycle, [](const controls::Page& p) { return p.page_id == 0; })).to_be_true();
 	});
 	it("gives a chain that does not resolve a new chain's mod FX view", _ {
@@ -100,9 +101,11 @@ describe chain_view("the Deluge's reading of a chain's view", ${
 			focus.comp = {.editing = false, .param = param};
 			const uint32_t entry = pages_of(song, focus).group_entry[1];
 			const auto found = std::ranges::find_if(pages.cycle, [entry](const controls::Page& p) { return p.page_id == entry; });
-			expect(found != pages.cycle.end()).to_be_true();
-			expect(int(found->group)).to_equal(1);
-			expect(turned(*found, 0) == kSettings[param]).to_be_true();
+			expect(found).not_().to_equal(pages.cycle.end(), "the compressor setting's entry page");
+			if (found != pages.cycle.end()) {
+				expect(int(found->group)).to_equal(1);
+				expect(turned(*found, 0)).to_equal(kSettings[param], "the entry page's first knob");
+			}
 		}
 	});
 	it("keeps a clip's chain on its reverb page whatever the compressor view holds", _ {

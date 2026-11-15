@@ -36,11 +36,13 @@
 #include "storage/multi_range/multi_range.h"
 
 #include "support/menu_engine.h"
+#include "support/printers/controller_mapping_printer.h"
+#include "support/printers/knob_focus_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 
@@ -119,7 +121,10 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		expect(recorded.requests.size()).to_equal(size_t(1));
 		expect(recorded.requests[0].menu_value).to_equal(4);
 		const auto shown = bind::view(kOsc2Type.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
-		expect(shown.has_value() && shown->stale.has_value()).to_be_true();
+		expect(shown.has_value()).to_be_true();
+		if (shown.has_value()) {
+			expect(shown->stale.has_value()).to_be_true();
+		}
 		bindings::write(kOsc2Type, ctx, *shown->stale);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 	});
@@ -154,7 +159,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::voice_count, ctx, 3);
 		expect(static_cast<int>(poly->boundState()->max_voice_count)).to_equal(3);
 		expect(static_cast<int>(mono->boundState()->max_voice_count)).to_equal(before);
-		expect(midi->channel() == midi_channel && gate->channel() == gate_channel).to_be_true();
+		expect(midi->channel()).to_equal(midi_channel);
+		expect(gate->channel()).to_equal(gate_channel);
 	});
 
 	it("reverses a sample drum with no file loaded under affect-entire, and passes over a saw drum quietly", _ {
@@ -206,8 +212,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		                         .fan_out_when = menu::fan_out::kBothFilters};
 		menu::host_write_sink().write({.target = route, .where = ctx.addresses,
 		                               .menu_value = deluge::plugin::to_menu(row, 2)}); // parallel
-		expect(both->effects().filter.route == deluge::effects::FilterRoute::PARALLEL).to_be_true();
-		expect(lpf_off->effects().filter.route == before).to_be_true();
+		expect(both->effects().filter.route).to_equal(deluge::effects::FilterRoute::PARALLEL);
+		expect(lpf_off->effects().filter.route).to_equal(before);
 	});
 
 	it("ends the kit arpeggiator's note when a loop mode becomes once, under affect-entire or not", _ {
@@ -270,9 +276,9 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		                               .where = ctx.addresses,
 		                               .menu_value = deluge::plugin::to_menu(row, 4)}); // SVF_Notch
 		const auto chain = deluge::project::ChainAddress{.id = kit->id().value_or(0)};
-		expect(deluge::bridge::chainAt(chain, *f.song)->effects().filter.lpf_mode
-		       == deluge::effects::FilterMode::SVF_NOTCH).to_be_true();
-		expect(drum->effects().filter.lpf_mode == row_before).to_be_true();
+		expect(deluge::bridge::chainAt(chain, *f.song)->effects().filter.lpf_mode)
+		    .to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+		expect(drum->effects().filter.lpf_mode).to_equal(row_before);
 	});
 
 	it("writes only the selected drum, under affect-entire, for a setting legacy never writes kit-wide", _ {
@@ -285,8 +291,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
-		expect(selected->boundState()->sources[0].osc_type == deluge::instrument::OscType::SAW).to_be_true();
-		expect(other->boundState()->sources[0].osc_type == before).to_be_true();
+		expect(selected->boundState()->sources[0].osc_type).to_equal(deluge::instrument::OscType::SAW);
+		expect(other->boundState()->sources[0].osc_type).to_equal(before);
 	});
 
 	it("each knob request reaches its Edit or command, and the recording sink keeps it", _ {
@@ -314,7 +320,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		}
 		const deluge::project::ControlsAddress synth{.kind = deluge::project::ControlsAddress::Kind::OUTPUT, .id = id};
 		expect(sink.write_controls(synth, controls)).to_be_true();
-		expect(model.output_structure.find(id)->controls == controls).to_be_true();
+		expect(model.output_structure.find(id)->controls).to_equal(controls);
 
 		const bind::KnobFocus song_focus{.owner = bind::SongFocus{}};
 		expect(sink.stutter(song_focus, true)).to_be_true();
@@ -338,17 +344,23 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		expect(recording.gestures.size()).to_equal(size_t{5});
 		if (recording.gestures.size() == 5) {
 			const auto& g = recording.gestures;
-			expect(g[0].kind == GK::KNOB_MODE && g[0].knob_owner == std::optional<deluge::project::KnobModeOwner>{
-			                                                             deluge::project::TrackAddress{id}}
-			       && g[0].value == 3)
-			    .to_be_true();
-			expect(g[1].kind == GK::CHAIN_VIEW && g[1].chain == song_chain && g[1].key == "currentFilterType"
-			       && g[1].text == "hpf")
-			    .to_be_true();
-			expect(g[2].kind == GK::CONTROLS && g[2].controls_address == synth && g[2].controls == controls)
-			    .to_be_true();
-			expect(g[3].kind == GK::STUTTER && g[3].focus == song_focus && g[3].begin).to_be_true();
-			expect(g[4].kind == GK::GRAB_REGION && g[4].focus == sound_focus && g[4].value == 96).to_be_true();
+			expect(g[0].kind).to_equal(GK::KNOB_MODE);
+			expect(g[0].knob_owner)
+			    .to_equal(std::optional<deluge::project::KnobModeOwner>{deluge::project::TrackAddress{id}});
+			expect(g[0].value).to_equal(3);
+			expect(g[1].kind).to_equal(GK::CHAIN_VIEW);
+			expect(g[1].chain).to_equal(song_chain);
+			expect(g[1].key).to_equal("currentFilterType");
+			expect(g[1].text).to_equal("hpf");
+			expect(g[2].kind).to_equal(GK::CONTROLS);
+			expect(g[2].controls_address).to_equal(synth);
+			expect(g[2].controls).to_equal(controls);
+			expect(g[3].kind).to_equal(GK::STUTTER);
+			expect(g[3].focus).to_equal(song_focus);
+			expect(g[3].begin).to_be_true();
+			expect(g[4].kind).to_equal(GK::GRAB_REGION);
+			expect(g[4].focus).to_equal(sound_focus);
+			expect(g[4].value).to_equal(96);
 		}
 	});
 
@@ -356,7 +368,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture other = spec::make_synth_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the fixture makes the last song built the current one
 		const MenuContext ctx = menu::context_for(*other.song, deluge::gui::menuViewOf(other.clip), 0, false, false, false, false);
-		expect(ctx.facts == nullptr && ctx.sink == nullptr).to_be_true();
+		expect(ctx.facts).to_be_null();
+		expect(ctx.sink).to_be_null();
 		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();
 		(void)playing;
 	});
@@ -368,10 +381,13 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(kMaxVoices, ctx, 7);
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
-		expect(slot != nullptr).to_be_true();
-		expect(slot->state.as<deluge::instrument::DelugeInstrument>() == drum->boundState()).to_be_true();
+		expect(slot).not_().to_be_null();
+		expect(slot->state.as<deluge::instrument::DelugeInstrument>()).to_equal(drum->boundState());
 		const auto voices = deluge::instrument::setting_value(*slot->state.as<deluge::instrument::DelugeInstrument>(), "maxVoices");
-		expect(voices.has_value() && voices->str() == "7").to_be_true();
+		expect(voices.has_value()).to_be_true();
+		if (voices.has_value()) {
+			expect(voices->str()).to_equal("7");
+		}
 	});
 
 	it("refuses a request whose slot does not resolve, and changes nothing", _ {

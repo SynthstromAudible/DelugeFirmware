@@ -1,5 +1,6 @@
 # Shift + pad (4,0) on a DX7 sound: modulator 1's volume does not apply, so the DX7 parameter page opens on the param it
 # showed last, with no pad blinking. A select turn edits the value, a horizontal turn steps to the next parameter.
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Mod6 down
 5100  button Synth down

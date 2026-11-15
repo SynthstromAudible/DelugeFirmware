@@ -28,11 +28,14 @@
 
 #include "integration/scenarios/drivers/driver.h"
 #include "integration/scenarios/drivers/tree_load.h"
+#include "support/printers/controller_mapping_printer.h"
+#include "support/printers/mod_knob_cc_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 #include <string_view>
@@ -119,18 +122,27 @@ describe knob_records("the knob records, by Edit", ${
 	it("a song read without activeModFunction holds mode 1, and one read with 4 holds 4", _ {
 		Song* const before = currentSong;
 		Song* plain = load_song(song_xml(""));
-		expect(plain != nullptr && plain->project.mod_knob_mode == 1).to_be_true();
+		expect(plain).not_().to_be_null();
+		if (plain != nullptr) {
+			expect(plain->project.mod_knob_mode).to_equal(1);
+		}
 		Song* four = load_song(song_xml(R"(activeModFunction="4")"));
-		expect(four != nullptr && four->project.mod_knob_mode == 4).to_be_true();
-		expect(four != nullptr && deluge::controls::knob_mode(four->project, songFocus(), kDelugeControls) == 4).to_be_true();
+		expect(four).not_().to_be_null();
+		if (four != nullptr) {
+			expect(four->project.mod_knob_mode).to_equal(4);
+			expect(deluge::controls::knob_mode(four->project, songFocus(), kDelugeControls)).to_equal(4);
+		}
 		currentSong = before;
 	});
 
 	it("a song that says a mode past the last button keeps it in its record, and the knobs use the last", _ {
 		Song* const before = currentSong;
 		Song* nine = load_song(song_xml(R"(activeModFunction="9")"));
-		expect(nine != nullptr && nine->project.mod_knob_mode == 9).to_be_true();
-		expect(nine != nullptr && deluge::controls::knob_mode(nine->project, songFocus(), kDelugeControls) == kNumModButtons - 1).to_be_true();
+		expect(nine).not_().to_be_null();
+		if (nine != nullptr) {
+			expect(nine->project.mod_knob_mode).to_equal(9);
+			expect(deluge::controls::knob_mode(nine->project, songFocus(), kDelugeControls)).to_equal(kNumModButtons - 1);
+		}
 		currentSong = before;
 	});
 
@@ -142,7 +154,7 @@ describe knob_records("the knob records, by Edit", ${
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, 5)).to_be_true();
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{5});
 		expect(deluge::controls::knob_mode(f.song->project, songFocus(), kDelugeControls)).to_equal(uint8_t{5});
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, kNumModButtons))
 		    .to_be_false();
 		currentSong = before;
@@ -154,16 +166,20 @@ describe knob_records("the knob records, by Edit", ${
 		currentSong = f.song;
 		// A second track in the song that is not the current clip's: an arranger row's held audition targets it.
 		Output* held = StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 6, -1);
-		expect(held != nullptr).to_be_true();
+		expect(held).not_().to_be_null();
 		if (held == nullptr) {
 			return;
 		}
 		f.song->addOutput(held);
-		expect(held->docOutput_ != nullptr && held->id().has_value()).to_be_true();
+		expect(held->docOutput_).not_().to_be_null();
+		expect(held->id().has_value()).to_be_true();
 		expect(deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*held->id()}, 4)).to_be_true();
 		expect(held->modKnobMode).to_equal(uint8_t{4});
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*held->id());
-		expect(record != nullptr && record->mod_knob_mode == 4).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->mod_knob_mode).to_equal(4);
+		}
 		expect(deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, 2)).to_be_true();
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{2});
 		// A track the song does not hold takes no mode.
@@ -179,22 +195,27 @@ describe knob_records("the knob records, by Edit", ${
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{track}, 3)).to_be_true();
 		expect(f.instrument->modKnobMode).to_equal(uint8_t{3});
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
-		expect(record != nullptr && record->mod_knob_mode == 3).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->mod_knob_mode).to_equal(3);
+		}
 		currentSong = before;
 	});
 
 	it("a song saved after its mode changes to 6 says activeModFunction 6", _ {
 		Song* const before = currentSong;
 		Song* song = load_song(song_xml(""));
-		expect(song != nullptr).to_be_true();
+		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
 			expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, 6)).to_be_true();
 			const std::string text = saved(*song);
 			// A song saves as JSON; XML says the same attribute.
-			expect(text.find(R"("activeModFunction": 6)") != std::string::npos
-			       || text.find(R"(activeModFunction="6")") != std::string::npos)
-			    .to_be_true();
+			expect(text).to_satisfy(
+			    [](const std::string& t) {
+				    return t.contains(R"("activeModFunction": 6)") || t.contains(R"(activeModFunction="6")");
+			    },
+			    "activeModFunction 6, as JSON or XML");
 		}
 		currentSong = before;
 	});
@@ -204,15 +225,18 @@ describe knob_records("the knob records, by Edit", ${
 		Song* song = load_song(midi_song_xml(
 		    R"(<modKnobs><modKnob cc="none" /><modKnob cc="bend" /><modKnob cc="aftertouch" /><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
-		expect(midi != nullptr && midi->docOutput_ != nullptr).to_be_true();
+		expect(midi).not_().to_be_null();
+		if (midi != nullptr) {
+			expect(midi->docOutput_).not_().to_be_null();
+		}
 		if (midi != nullptr && midi->docOutput_ != nullptr) {
 			const std::vector<ModKnobCc>& ccs = midi->docOutput_->mod_knob_ccs;
-			expect(ccs.size() >= size_t{4}).to_be_true();
+			to_be_at_least(expect(ccs.size()), size_t{4});
 			if (ccs.size() >= 4) {
-				expect(ccs[0] == ModKnobCc{}).to_be_true();
-				expect(ccs[1] == ModKnobCc{.kind = ModKnobCc::Kind::BEND}).to_be_true();
-				expect(ccs[2] == ModKnobCc{.kind = ModKnobCc::Kind::AFTERTOUCH}).to_be_true();
-				expect(ccs[3] == (ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = 74})).to_be_true();
+				expect(ccs[0]).to_equal(ModKnobCc{});
+				expect(ccs[1]).to_equal(ModKnobCc{.kind = ModKnobCc::Kind::BEND});
+				expect(ccs[2]).to_equal(ModKnobCc{.kind = ModKnobCc::Kind::AFTERTOUCH});
+				expect(ccs[3]).to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = 74});
 			}
 		}
 		currentSong = before;
@@ -223,9 +247,16 @@ describe knob_records("the knob records, by Edit", ${
 		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="1" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		const ModKnobCc y_axis{.kind = ModKnobCc::Kind::NUMBER, .number = CC_NUMBER_Y_AXIS};
-		expect(midi != nullptr && midi->docOutput_ != nullptr && !midi->docOutput_->mod_knob_ccs.empty()
-		       && midi->docOutput_->mod_knob_ccs[0] == y_axis)
-		    .to_be_true();
+		expect(midi).not_().to_be_null();
+		if (midi != nullptr) {
+			expect(midi->docOutput_).not_().to_be_null();
+			if (midi->docOutput_ != nullptr) {
+				expect(midi->docOutput_->mod_knob_ccs.empty()).to_be_false();
+				if (!midi->docOutput_->mod_knob_ccs.empty()) {
+					expect(midi->docOutput_->mod_knob_ccs[0]).to_equal(y_axis);
+				}
+			}
+		}
 
 		deluge::serialization::Value knob = deluge::serialization::Value::makeMap();
 		knob.set("cc", deluge::serialization::Value::makeNumber(1));
@@ -237,17 +268,20 @@ describe knob_records("the knob records, by Edit", ${
 		element.set("modKnobs", std::move(knobs));
 		deluge::project::DocOutput decoded = deluge::project::new_output("midiChannel");
 		expect(deluge::project::decode_identity(element, "midiChannel", decoded).has_value()).to_be_true();
-		expect(!decoded.mod_knob_ccs.empty() && decoded.mod_knob_ccs[0] == y_axis).to_be_true();
+		expect(decoded.mod_knob_ccs.empty()).to_be_false();
+		if (!decoded.mod_knob_ccs.empty()) {
+			expect(decoded.mod_knob_ccs[0]).to_equal(y_axis);
+		}
 		currentSong = before;
 	});
 
 	it("an unedited MIDI track saves no modKnobs", _ {
 		Song* const before = currentSong;
 		Song* song = load_song(midi_song_xml(""));
-		expect(song != nullptr).to_be_true();
+		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
-			expect(saved(*song).find("modKnobs") == std::string::npos).to_be_true();
+			expect(saved(*song)).not_().to_contain("modKnobs");
 		}
 		currentSong = before;
 	});
@@ -256,7 +290,13 @@ describe knob_records("the knob records, by Edit", ${
 		Song* const before = currentSong;
 		Song* song = load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
-		expect(midi != nullptr && midi->docOutput_ != nullptr && !midi->editedByUser).to_be_true();
+		expect(midi).not_().to_be_null();
+		if (midi != nullptr) {
+			expect(midi->docOutput_).not_().to_be_null();
+			if (midi->docOutput_ != nullptr) {
+				expect(midi->editedByUser).to_be_false();
+			}
+		}
 		if (midi != nullptr && midi->docOutput_ != nullptr) {
 			currentSong = song;
 			expect(midi->docOutput_->mod_knob_ccs.empty()).to_be_true();
@@ -271,18 +311,23 @@ describe knob_records("the knob records, by Edit", ${
 		Song* const before = currentSong;
 		Song* song = load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
-		expect(midi != nullptr && midi->id().has_value()).to_be_true();
+		expect(midi).not_().to_be_null();
+		if (midi != nullptr) {
+			expect(midi->id().has_value()).to_be_true();
+		}
 		if (midi != nullptr && midi->id()) {
 			currentSong = song;
 			actionLogger.deleteAllLogs();
 			const ModKnobCc twenty{.kind = ModKnobCc::Kind::NUMBER, .number = 20};
 			expect(deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 5, twenty)).to_be_true();
-			expect(midi->docOutput_->mod_knob_ccs.size() > size_t{5} && midi->docOutput_->mod_knob_ccs[5] == twenty)
-			    .to_be_true();
+			expect(midi->docOutput_->mod_knob_ccs.size()).to_be_greater_than(size_t{5});
+			if (midi->docOutput_->mod_knob_ccs.size() > size_t{5}) {
+				expect(midi->docOutput_->mod_knob_ccs[5]).to_equal(twenty);
+			}
 			expect(static_cast<int32_t>(midi->modKnobCCAssignments[5])).to_equal(20);
 			expect(midi->editedByUser).to_be_true();
-			expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
-			expect(saved(*song).find("modKnobs") != std::string::npos).to_be_true();
+			expect(actionLogger.firstAction[BEFORE]).to_be_null();
+			expect(saved(*song)).to_contain("modKnobs");
 		}
 		currentSong = before;
 	});
@@ -291,14 +336,16 @@ describe knob_records("the knob records, by Edit", ${
 		Song* const before = currentSong;
 		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
-		expect(midi != nullptr && midi->docOutput_ != nullptr).to_be_true();
+		expect(midi).not_().to_be_null();
+		if (midi != nullptr) {
+			expect(midi->docOutput_).not_().to_be_null();
+		}
 		if (midi != nullptr && midi->docOutput_ != nullptr) {
 			currentSong = song;
 			const int32_t next = midi->changeControlNumberForModKnob(1, 0, 0);
-			expect(next != 74).to_be_true();
-			expect(midi->docOutput_->mod_knob_ccs[0] == (ModKnobCc{.kind = ModKnobCc::Kind::NUMBER,
-			                                                        .number = static_cast<uint8_t>(next)}))
-			    .to_be_true();
+			expect(next).not_().to_equal(74);
+			expect(midi->docOutput_->mod_knob_ccs[0])
+			    .to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(next)});
 		}
 		currentSong = before;
 	});
@@ -307,19 +354,22 @@ describe knob_records("the knob records, by Edit", ${
 		Song* const before = currentSong;
 		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="none" /><modKnob cc="12" /></modKnobs>)"));
 		MIDIInstrument* old = song != nullptr ? midi_of(*song) : nullptr;
-		expect(old != nullptr).to_be_true();
+		expect(old).not_().to_be_null();
 		if (old != nullptr) {
 			currentSong = song;
 			auto* made = static_cast<MIDIInstrument*>(
 			    StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 5, -1));
-			expect(made != nullptr).to_be_true();
+			expect(made).not_().to_be_null();
 			if (made != nullptr) {
 				made->copyModKnobCCsFrom(*old);
 				song->addOutput(made);
-				expect(made->docOutput_ != nullptr && made->docOutput_->mod_knob_ccs.size() > size_t{1}).to_be_true();
+				expect(made->docOutput_).not_().to_be_null();
+				if (made->docOutput_ != nullptr) {
+					expect(made->docOutput_->mod_knob_ccs.size()).to_be_greater_than(size_t{1});
+				}
 				if (made->docOutput_ != nullptr && made->docOutput_->mod_knob_ccs.size() > 1) {
-					expect(made->docOutput_->mod_knob_ccs[1] == (ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = 12}))
-					    .to_be_true();
+					expect(made->docOutput_->mod_knob_ccs[1])
+					    .to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = 12});
 				}
 			}
 		}
@@ -333,7 +383,7 @@ describe knob_records("the knob records, by Edit", ${
 		auto* midi = static_cast<MIDIInstrument*>(f.instrument);
 		const std::optional<int32_t> moved =
 		    deluge::edits::moveModKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 0, 1);
-		expect(moved == std::optional<int32_t>{CC_NUMBER_NONE}).to_be_true();
+		expect(moved).to_equal(std::optional<int32_t>{CC_NUMBER_NONE});
 		expect(static_cast<int32_t>(midi->modKnobCCAssignments[0])).to_equal(static_cast<int32_t>(CC_NUMBER_NONE));
 		currentSong = before;
 	});
@@ -361,15 +411,18 @@ describe knob_records("the knob records, by Edit", ${
 		}
 		MIDIParamCollection* second_ccs = second->paramManager.getMIDIParamCollection();
 		MIDIParam* plain = second_ccs->params.getOrCreateParamFromCC(75, 1234);
-		expect(plain != nullptr).to_be_true();
-		expect(second_ccs->params.getParamFromCC(74) == nullptr).to_be_true();
+		expect(plain).not_().to_be_null();
+		expect(second_ccs->params.getParamFromCC(74)).to_be_null();
 
 		const std::optional<int32_t> moved =
 		    deluge::edits::moveModKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 0, 1);
-		expect(moved == std::optional<int32_t>{75}).to_be_true();
+		expect(moved).to_equal(std::optional<int32_t>{75});
 		MIDIParam* after = second_ccs->params.getParamFromCC(75);
-		expect(after != nullptr && after->param.getCurrentValue() == 1234).to_be_true();
-		expect(second_ccs->params.getParamFromCC(74) == nullptr).to_be_true();
+		expect(after).not_().to_be_null();
+		if (after != nullptr) {
+			expect(after->param.getCurrentValue()).to_equal(1234);
+		}
+		expect(second_ccs->params.getParamFromCC(74)).to_be_null();
 		currentSong = before;
 	});
 
@@ -413,7 +466,10 @@ describe knob_records("the knob records, by Edit", ${
 		for (InstrumentClip* clip : {f.clip, second, arranged}) {
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithAutoParam* param = midi->getParamToControlFromInputMIDIChannel(74, stackOf(clip, memory));
-			expect(param != nullptr && param->autoParam != nullptr).to_be_true();
+			expect(param).not_().to_be_null();
+			if (param != nullptr) {
+				expect(param->autoParam).not_().to_be_null();
+			}
 			if (param != nullptr && param->autoParam != nullptr) {
 				param->autoParam->setValuePossiblyForRegion(1 << 28, param, 0, clip->loopLength() / 2);
 			}
@@ -423,16 +479,18 @@ describe knob_records("the knob records, by Edit", ${
 		actionLogger.deleteAllLogs();
 		const std::optional<int32_t> moved =
 		    deluge::edits::moveModKnobCCFor(deluge::project::TrackAddress{*midi->id()}, 0, 1);
-		expect(moved.has_value() && *moved != 74).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(moved.has_value()).to_be_true();
+		if (moved.has_value()) {
+			expect(*moved).not_().to_equal(74);
+		}
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		if (moved) {
 			for (InstrumentClip* clip : {f.clip, second, arranged}) {
 				expect(automated(clip, *moved)).to_be_true();
 				expect(automated(clip, 74)).to_be_false();
 			}
-			expect(midi->docOutput_->mod_knob_ccs[0]
-			       == (ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(*moved)}))
-			    .to_be_true();
+			expect(midi->docOutput_->mod_knob_ccs[0])
+			    .to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(*moved)});
 			expect(static_cast<int32_t>(midi->modKnobCCAssignments[0])).to_equal(*moved);
 		}
 		currentSong = before;
@@ -450,7 +508,7 @@ describe knob_records("the knob records, by Edit", ${
 		}
 		const std::vector<deluge::project::ControllerMapping> made =
 		    deluge::bridge::controlsOf(*static_cast<Sound*>(static_cast<SoundInstrument*>(f.instrument)));
-		expect(made == expected).to_be_true();
+		expect(made).to_equal(expected);
 	});
 });
 // clang-format on

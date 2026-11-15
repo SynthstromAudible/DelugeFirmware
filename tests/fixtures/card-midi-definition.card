@@ -1,0 +1,3 @@
+# The fixture card with one MIDI device definition for a MIDI track to link.
+base tests/fixtures/card
+copy MIDI_DEVICES/DEFINITION/BLOFELD.XML from=tests/fixtures/midi-devices/BLOFELD.XML

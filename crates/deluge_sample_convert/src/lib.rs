@@ -5,7 +5,7 @@
 //! - [`stitch_boundaries`] stitches a cluster's boundary bytes against its loaded neighbours.
 //!
 //! The build script compiles the C++ (see its docs for the host, device and `app_convert` modes).
-//! The tests mirror `tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp` against the
+//! The tests mirror `tests/unit/deluge/storage/audio/stream/{convert,stitch,convert_cluster}_spec.cpp` against the
 //! host objects, and check the build's armv7a-NEON verify stamp.
 
 #![deny(unsafe_op_in_unsafe_fn)]

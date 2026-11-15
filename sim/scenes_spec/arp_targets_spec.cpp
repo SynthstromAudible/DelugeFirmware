@@ -26,7 +26,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <limits>
 #include <optional>
@@ -169,7 +169,11 @@ describe arp_targets("the arp menus edit the arp their root names", ${
 		const auto before = deluge::project::read_setting(f.song->project, lane, "arpeggiator/kitArp");
 		menu::bindings::write(nodes::arp_include_in_kit_arp, ctx, before && before->str() == "1" ? 0 : 1);
 		const auto after = deluge::project::read_setting(f.song->project, lane, "arpeggiator/kitArp");
-		expect(after.has_value() && before.has_value() && after->str() == before->str()).to_be_true();
+		expect(after.has_value()).to_be_true();
+		expect(before.has_value()).to_be_true();
+		if (after.has_value() && before.has_value()) {
+			expect(after->str()).to_equal(before->str());
+		}
 		expect(menu::bindings::read(nodes::arp_include_in_kit_arp, ctx)).to_equal(0);
 	});
 
@@ -179,7 +183,7 @@ describe arp_targets("the arp menus edit the arp their root names", ${
 		menu::bindings::write(nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::CUSTOM));
 		expect(menu::bindings::read(nodes::arp_preset, ctx)).to_equal(static_cast<int32_t>(ArpPreset::CUSTOM));
 		const menu::MenuState state{};
-		expect(nodes::arp_preset_chain(ctx, state) == &nodes::arp_octave_mode_to_note_mode).to_be_true();
+		expect(nodes::arp_preset_chain(ctx, state)).to_equal(&nodes::arp_octave_mode_to_note_mode);
 	});
 });
 

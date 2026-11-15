@@ -1,0 +1,3 @@
+# A script that never quits fails at its deadline.
+# card: tests/fixtures/card
+3000 snapshot booted
