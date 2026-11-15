@@ -322,7 +322,8 @@ describe display_mapping("A setting's display mapping", $ {
 	});
 
 	it("lists the MIDI channel's none first: menu 0 is \"255\", menu n is channel n-1", _ {
-		expect(kMidiChannels[static_cast<std::size_t>(stored_of(kMidiChannel, 0).first)]).to_equal(std::string_view{"255"});
+		expect(kMidiChannels[static_cast<std::size_t>(stored_of(kMidiChannel, 0).first)])
+		    .to_equal(std::string_view{"255"});
 		for (int32_t menu = 1; menu <= 16; ++menu) {
 			expect(stored_of(kMidiChannel, menu)).to_equal(Pair{menu - 1, 0});
 		}

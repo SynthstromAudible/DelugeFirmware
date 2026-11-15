@@ -71,8 +71,12 @@ describe state_handle("a plugin's state, held without knowing its type", ${
 
 	it("compares its states", _ {
 		expect(StateHandle::of<CounterPlugin>({.value = 1})).to_equal(StateHandle::of<CounterPlugin>({.value = 1}));
-		expect(StateHandle::of<CounterPlugin>({.value = 1})).not_().to_equal(StateHandle::of<CounterPlugin>({.value = 2}));
-		expect(StateHandle::of<CounterPlugin>({.value = 1})).not_().to_equal(StateHandle::of<OtherPlugin>({.value = 1}));
+		expect(StateHandle::of<CounterPlugin>({.value = 1}))
+		    .not_()
+		    .to_equal(StateHandle::of<CounterPlugin>({.value = 2}));
+		expect(StateHandle::of<CounterPlugin>({.value = 1}))
+		    .not_()
+		    .to_equal(StateHandle::of<OtherPlugin>({.value = 1}));
 		expect(StateHandle{}).to_equal(StateHandle{});
 	});
 
