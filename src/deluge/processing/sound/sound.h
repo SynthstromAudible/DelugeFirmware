@@ -20,11 +20,13 @@
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
 #include "model/fx/channel_setup.h"
+#include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
 #include "model/fx/stutter_gesture.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
+#include "model/snapshot/mod_controllable_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -110,7 +112,7 @@ enum class VoiceKind : uint8_t {
 };
 inline constexpr size_t kNumVoiceKinds = 4;
 
-class Sound : public ModControllableAudio, public virtual Voiced {
+class Sound : public ModControllable, public virtual Voiced {
 public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
@@ -127,8 +129,24 @@ public:
 	/// @brief The sound's effects after its voices.
 	/// @return The sound's chain.
 	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
+	[[nodiscard]] deluge::effects::ChainCore& core() { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const { return chain_.core(); }
+	/// @brief The sound's effect settings: its bound record's, else its binding's own.
+	/// @return The effect settings.
+	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
+	/// @brief The render's copy of the effect settings: it reads nothing else of them.
+	/// @return The render's copy.
+	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
+		return effectsBinding_.snapshot();
+	}
+	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
+	/// @param next The new effect settings.
+	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
+	/// @brief Keep the sound's effect settings in @p record, or in its binding again (model::bindEffects).
+	/// @param record The record that holds the settings, or nullptr.
+	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
+	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
+	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
 		return deluge::model::EffectsOwner{
 		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};

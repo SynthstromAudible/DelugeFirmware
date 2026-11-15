@@ -25,6 +25,7 @@
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "plugin-api/types/sync.h"

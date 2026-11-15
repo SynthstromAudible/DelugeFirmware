@@ -11,9 +11,7 @@
 #include "model/edits/change_effect.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
@@ -26,10 +24,13 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include <cstdio>
 #include <new>
 #include <span>
 #include <string>
+
+using namespace deluge;
 
 namespace {
 
@@ -210,7 +211,8 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	if (kit != nullptr) {
 		// The render takes a clip chain's threshold from its param each block: the chain holds the owner's state,
 		// which that does not move.
-		static_cast<Kit*>(kit)->core().compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(0x12345678));
+		static_cast<Kit*>(kit)->effectsOwner()->core->compressor().dsp().set_threshold(
+		    deluge::dsp::Q<31>::from_raw(0x12345678));
 		const std::string afterRender = deluge::harness::chainIncoherence(*song);
 		if (!afterRender.empty()) {
 			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());

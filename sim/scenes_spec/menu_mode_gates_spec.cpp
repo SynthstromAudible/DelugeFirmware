@@ -264,7 +264,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(openUI(&shellHostUI)).to_be_true();
 		(void)shellHostUI.timerCallback();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2); // a turn steps one semitone
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(fx.instrument->toModControllable()));
+		auto* sound = fx.instrument->toModControllable()->effectsOwner()->sound;
 		const int32_t before = sound->sources[0].transpose;
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.exitUI();

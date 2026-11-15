@@ -16,7 +16,6 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"

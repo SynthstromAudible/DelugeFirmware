@@ -23,7 +23,6 @@
 #include "effects/codec.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"

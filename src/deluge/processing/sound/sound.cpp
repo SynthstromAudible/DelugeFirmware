@@ -48,6 +48,7 @@
 #include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/arp_bridge.h"
@@ -108,6 +109,8 @@
 #include <span>
 #include <utility>
 
+using namespace deluge;
+
 using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
 
@@ -165,7 +168,6 @@ void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages
 
 Sound::Sound()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
-	bindBinding(effectsBinding_);
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an

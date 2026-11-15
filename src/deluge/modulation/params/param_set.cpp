@@ -28,7 +28,6 @@
 #include "model/fx/song_stutter.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_ids.h"

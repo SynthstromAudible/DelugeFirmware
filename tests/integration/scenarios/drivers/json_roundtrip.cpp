@@ -17,7 +17,6 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/output.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"

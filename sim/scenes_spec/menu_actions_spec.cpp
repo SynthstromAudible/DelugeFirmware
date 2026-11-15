@@ -646,7 +646,7 @@ struct DisplayGuard {
 /// @brief One `MISC` action in an otherwise empty undo log, and an empty one again afterwards.
 ///
 /// Not a convenience: `ClipView::lengthenClip` opens with an **unguarded**
-/// `actionLogger.firstAction[BEFORE]->type` (`gui/views/clip_view.cpp:98`), as does `shortenClip`
+/// `actionLogger.firstAction[BEFORE]->type` (`ClipView::lengthenClip`), as does `shortenClip`
 /// (`:129`), so driving a length edit with an empty log segfaults rather than failing.
 /// `audio_clip_scene_spec.cpp` records the same fact and picks the same `ActionType::MISC`,
 /// which no test in either function matches.

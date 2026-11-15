@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/strings.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
@@ -71,7 +72,7 @@ public:
 
 	// Properties
 
-	virtual l10n::String name() = 0;
+	virtual deluge::l10n::String name() = 0;
 	/// This currently includes Synth, MIDI and CV
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }

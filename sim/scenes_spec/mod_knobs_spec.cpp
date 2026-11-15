@@ -69,11 +69,9 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
@@ -773,7 +771,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentSong = nullptr;
 	});
 
-	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as GlobalEffectableForClip does", _ {
+	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as main's kit chain does", _ {
 		StubDisplay stub;
 		display = &stub;
 		spec::SongFixture f = spec::make_kit_song();

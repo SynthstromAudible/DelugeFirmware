@@ -24,7 +24,6 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/driver.h"

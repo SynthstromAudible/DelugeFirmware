@@ -16,7 +16,6 @@
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"

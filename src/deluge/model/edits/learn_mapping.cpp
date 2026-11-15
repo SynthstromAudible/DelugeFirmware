@@ -11,7 +11,6 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"

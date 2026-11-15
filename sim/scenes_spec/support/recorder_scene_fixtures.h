@@ -109,7 +109,7 @@ struct Rig {
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		currentSong = song.song; // the app's sink resolves addresses in the current song
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
 		source->sampleControls.reversed = false;

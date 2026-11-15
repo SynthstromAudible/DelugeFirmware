@@ -8,7 +8,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"

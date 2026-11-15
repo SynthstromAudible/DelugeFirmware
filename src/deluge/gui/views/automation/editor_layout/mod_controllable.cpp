@@ -38,6 +38,8 @@
 #include "playback/playback_handler.h"
 #include "util/etl_string.h"
 
+using namespace deluge;
+
 // namespace deluge::gui::views::automation::editor_layout {
 
 namespace params = deluge::modulation::params;

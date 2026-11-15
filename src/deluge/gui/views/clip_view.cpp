@@ -39,6 +39,8 @@
 #include "playback/playback_handler.h"
 #include "util/shell_menu_entry.h"
 
+using namespace deluge;
+
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }

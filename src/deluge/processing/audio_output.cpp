@@ -65,7 +65,6 @@ char const* aoModeToString(AudioOutputMode mode) {
 	return aoModeStringMap(mode);
 }
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
-	bindBinding(channel_.binding());
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
 	mode = AudioOutputMode::player;

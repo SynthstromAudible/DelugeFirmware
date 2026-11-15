@@ -20,7 +20,6 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound_drum.h"

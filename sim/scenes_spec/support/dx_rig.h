@@ -57,7 +57,7 @@ struct DxRig {
 
 	DxRig() {
 		deluge::scenes::spec::make_current(song.song);
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].setOscType(OscType::DX7);
 	}
 	~DxRig() { deluge::scenes::spec::make_current(saved); }

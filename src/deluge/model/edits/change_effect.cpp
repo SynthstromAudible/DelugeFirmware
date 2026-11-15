@@ -22,8 +22,6 @@
 #include "model/edits/set_chain_view.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
-#include "model/global_effectable/global_effectable.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"

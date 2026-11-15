@@ -23,7 +23,6 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/snapshot/param_snapshot.h"
@@ -58,6 +57,7 @@
 #include "model/edits/set_source_ranges.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -80,6 +80,8 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
+
+using namespace deluge;
 
 namespace {
 
@@ -1275,17 +1277,19 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline kitParams;
 	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	auto& kit = *static_cast<Kit*>(kitOutput);
-	deluge::effects::EffectStates seeded = kit.effects();
+	deluge::effects::EffectStates seeded = kit.effectsOwner()->effects();
 	seeded.filter.lpf_mode = FilterMode::SVF_BAND;
-	kit.setEffects(seeded); // what it plays before it joins the song
+	deluge::model::storeEffects(*kit.effectsOwner(), seeded); // what it plays before it joins the song
 	ctx.song.addOutput(kitOutput);
 	const ChainAddress kitChain{.kind = ChainAddress::Kind::OUTPUT, .id = kitOutput->id().value_or(0)};
-	check(recordEffects(ctx, kitChain) == &kit.effects(), "chain ownership: a kit plays its record's effects");
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_BAND, "chain ownership: its record took what it played");
+	check(recordEffects(ctx, kitChain) == &kit.effectsOwner()->effects(),
+	      "chain ownership: a kit plays its record's effects");
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_BAND,
+	      "chain ownership: its record took what it played");
 
 	AudioOutput* audio = ctx.song.createNewAudioOutput();
 	const ChainAddress audioChain{.kind = ChainAddress::Kind::OUTPUT, .id = audio->id().value_or(0)};
-	check(recordEffects(ctx, audioChain) == &audio->effects(),
+	check(recordEffects(ctx, audioChain) == &audio->effectsOwner()->effects(),
 	      "chain ownership: an audio track plays its record's effects");
 	check(recordEffects(ctx, {.kind = ChainAddress::Kind::SONG}) == &ctx.song.live.master_channel.binding().effects(),
 	      "chain ownership: the master plays its record's effects");
@@ -1296,30 +1300,34 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	      "chain ownership: the knobs' view is the record's");
 
 	AudioOutput* clone = ctx.song.createNewAudioOutput();
-	deluge::effects::EffectStates notch = audio->effects();
+	deluge::effects::EffectStates notch = audio->effectsOwner()->effects();
 	notch.filter.lpf_mode = FilterMode::SVF_NOTCH;
-	audio->setEffects(notch);
+	deluge::model::storeEffects(*audio->effectsOwner(), notch);
 	clone->cloneFrom(audio);
 	const ChainAddress cloneChain{.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)};
-	check(recordEffects(ctx, cloneChain) == &clone->effects() && &clone->effects() != &audio->effects()
-	          && clone->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	check(recordEffects(ctx, cloneChain) == &clone->effectsOwner()->effects()
+	          && &clone->effectsOwner()->effects() != &audio->effectsOwner()->effects()
+	          && clone->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 	      "chain ownership: a cloned audio track plays its own record, holding what it cloned");
 
 	// Deleted as a track is: the record goes now, the owner when the render lets go of it.
-	const deluge::effects::EffectStates* kitRecord = &kit.effects();
+	const deluge::effects::EffectStates* kitRecord = &kit.effectsOwner()->effects();
 	ctx.song.deleteOutputThatIsInMainList(&kit, false);
-	check(&kit.effects() != kitRecord && kit.effects().filter.lpf_mode == FilterMode::SVF_BAND
+	check(&kit.effectsOwner()->effects() != kitRecord
+	          && kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_BAND
 	          && kit.effectsOwner()->view->filterType() == FilterType::HPF,
 	      "chain ownership: a kit whose record goes keeps its effects and view");
-	deluge::effects::EffectStates after = kit.effects();
+	deluge::effects::EffectStates after = kit.effectsOwner()->effects();
 	after.filter.lpf_mode = FilterMode::SVF_NOTCH;
-	kit.setEffects(after);
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "chain ownership: and its setters still write them");
+	deluge::model::storeEffects(*kit.effectsOwner(), after);
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "chain ownership: and its setters still write them");
 	AudioEngine::retire(&kit);
 
-	const deluge::effects::EffectStates* audioRecord = &audio->effects();
+	const deluge::effects::EffectStates* audioRecord = &audio->effectsOwner()->effects();
 	ctx.song.deleteOutputThatIsInMainList(audio, false);
-	check(&audio->effects() != audioRecord && audio->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	check(&audio->effectsOwner()->effects() != audioRecord
+	          && audio->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 	      "chain ownership: an audio track whose record goes keeps its effects");
 	AudioEngine::retire(audio);
 }
@@ -1333,7 +1341,8 @@ void testGestureOnUndoHeldOwner(deluge::edits::Context& ctx) {
 	ctx.song.addOutput(kitOutput);
 	ctx.song.removeOutputFromMainList(kitOutput); // as an undo of its creation removes it
 	deluge::edits::changeEffect(ctx.song, kit, "lpfMode", deluge::serialization::Value::makeScalar("SVF_Notch"));
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "undo-held owner: a gesture still reaches it");
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "undo-held owner: a gesture still reaches it");
 	ctx.song.addOutput(kitOutput, true); // as its redo puts it back
 	check(deluge::harness::chainIncoherence(ctx.song).empty(), "undo-held owner: put back, it plays its record");
 }

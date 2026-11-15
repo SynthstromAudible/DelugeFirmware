@@ -12,7 +12,6 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"

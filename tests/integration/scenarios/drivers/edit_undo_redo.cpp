@@ -58,7 +58,6 @@
 #include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"

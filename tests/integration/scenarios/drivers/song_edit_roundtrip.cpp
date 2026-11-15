@@ -25,7 +25,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -50,6 +49,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/patch_cable_words.h"
@@ -62,6 +62,8 @@
 #include <regex>
 #include <string>
 #include <string_view>
+
+using namespace deluge;
 
 namespace {
 

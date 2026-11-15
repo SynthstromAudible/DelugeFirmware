@@ -22,7 +22,6 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
 #include <cstring>

@@ -46,7 +46,6 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -612,9 +611,9 @@ bool writeLegacyDelay(const char* path) {
 /// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
 /// @param owner The loaded sound, kit or drum to inspect.
 /// @return True if the type is resolved and OFF.
-bool delayResolvedOff(ModControllableAudio& owner) {
+bool delayResolvedOff(ModControllable& owner) {
 	return !owner.effectsOwner()->binding->delay_type_pending
-	       && owner.effects().delay.type == deluge::effects::DelayType::OFF;
+	       && owner.effectsOwner()->effects().delay.type == deluge::effects::DelayType::OFF;
 }
 
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).

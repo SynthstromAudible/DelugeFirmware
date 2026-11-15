@@ -39,7 +39,6 @@
 #include "model/fx/song_stutter.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"

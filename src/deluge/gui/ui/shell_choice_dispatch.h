@@ -49,7 +49,6 @@
 #include <optional>
 #include <string_view>
 
-class ModControllableAudio;
 class ParamManagerForTimeline;
 
 namespace deluge::gui {

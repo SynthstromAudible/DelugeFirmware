@@ -23,7 +23,7 @@ enum class StructuralContainer : uint8_t {
 	SLAB,               ///< a cluster-slab slot's claim, clear, pin, unpin or touch
 	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)
 	PATCH_CABLES,       ///< a patch cable set's cables (PatchCableSet::patchCables)
-	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (ModControllableAudio::projectModControllableSnapshot)
+	MOD_FX_RING,        ///< an owner's mod FX ring hand-over (model::projectEffects)
 	GRAIN_BLOCK,        ///< an owner's granular State and ring hand-over (the same projection)
 	DELAY_TAPE,         ///< an owner's delay tapes given back, or the delay arena's regions changed
 	STUTTER_TAPE,       ///< the song's stutter tape handed to the render or taken back (SongStutter)

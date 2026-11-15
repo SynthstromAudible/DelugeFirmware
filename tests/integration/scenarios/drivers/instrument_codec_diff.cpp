@@ -32,7 +32,6 @@
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"

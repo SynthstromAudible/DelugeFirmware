@@ -30,7 +30,7 @@ using deluge::gui::SoundTarget;
 /// at range 0: a pointer only a re-point can move.
 struct SourceRig {
 	deluge::scenes::spec::SongFixture song = deluge::scenes::spec::make_synth_song();
-	Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+	Sound* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	Source* source = &sound->sources[0];
 	SoundTarget target{};
 

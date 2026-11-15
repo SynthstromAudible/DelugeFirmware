@@ -102,6 +102,8 @@
 #include <new>
 #include <string.h>
 
+using namespace deluge;
+
 namespace params = deluge::modulation::params;
 using deluge::bridge::OwnerPlugin;
 using deluge::bridge::RuntimeParam;

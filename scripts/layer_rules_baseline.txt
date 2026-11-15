@@ -45,10 +45,6 @@ src/deluge/model/edits/set_param_value.cpp	model-includes-ui	2
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-display	1
 src/deluge/model/favourite/favourite_manager.cpp	model-calls-ui	2
 src/deluge/model/favourite/favourite_manager.cpp	model-includes-ui	2
-src/deluge/model/global_effectable/global_effectable.cpp	model-calls-display	5
-src/deluge/model/global_effectable/global_effectable.cpp	model-calls-ui	8
-src/deluge/model/global_effectable/global_effectable.cpp	model-includes-ui	4
-src/deluge/model/global_effectable/global_effectable_for_clip.cpp	model-includes-ui	2
 src/deluge/model/instrument/kit.cpp	model-calls-ui	4
 src/deluge/model/instrument/kit.cpp	model-includes-ui	3
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
@@ -56,10 +52,6 @@ src/deluge/model/instrument/melodic_instrument.cpp	model-includes-ui	4
 src/deluge/model/instrument/midi_instrument.cpp	model-calls-display	2
 src/deluge/model/instrument/midi_instrument.cpp	model-calls-ui	9
 src/deluge/model/instrument/midi_instrument.cpp	model-includes-ui	5
-src/deluge/model/mod_controllable/mod_controllable_audio.cpp	model-calls-display	8
-src/deluge/model/mod_controllable/mod_controllable_audio.cpp	model-calls-ui	10
-src/deluge/model/mod_controllable/mod_controllable_audio.cpp	model-includes-ui	5
-src/deluge/model/mod_controllable/mod_controllable_audio.h	model-includes-ui	1
 src/deluge/model/model_stack.h	model-includes-ui	1
 src/deluge/model/note/note_row.cpp	model-includes-ui	3
 src/deluge/model/note/note_row.h	model-includes-ui	1

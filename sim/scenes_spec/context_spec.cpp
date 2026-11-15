@@ -63,7 +63,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.resolved).to_be_true();
 		expect(ctx.addresses.slot == std::optional{instrument_slot(f)}).to_be_true();
 		expect(ctx.addresses.clip == std::optional{deluge::project::ClipAddress{f.clip->id()}}).to_be_true();
-		expect(deluge::scenes::spec::menu_engine(ctx).mod == static_cast<ModControllableAudio*>(static_cast<SoundInstrument*>(f.instrument))).to_be_true();
+		expect(deluge::scenes::spec::menu_engine(ctx).mod == static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument))).to_be_true();
 		expect(ctx.affect_entire).to_be_false();
 		expect(ctx.is_kit).to_be_false();
 		expect(ctx.source_index).to_equal(static_cast<int8_t>(0));

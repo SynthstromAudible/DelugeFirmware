@@ -29,7 +29,10 @@
 
 #include "cppspec.hpp"
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include "spec/support/spec_main.h"
+
+using namespace deluge;
 
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;

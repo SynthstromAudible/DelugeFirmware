@@ -300,7 +300,7 @@
 
 # 2. KIT. `SoundEditor::buttonAction` hands every button to `handleNoteEditorButtonAction` while
 # the note editor is open (`gui/ui/sound_editor.cpp:617-619`), which forwards SYNTH/KIT/MIDI/CV to
-# the horizontal menu (`gui/views/instrument_clip_view.cpp:3769-3771`), whose `select_map` maps KIT
+# the horizontal menu (`InstrumentClipView::handleNoteEditorButtonAction`), whose `select_map` maps KIT
 # to column 1 (`gui/menu_item/horizontal_menu.cpp:96-97`): probability.
 20500  button Kit down
 20520  button Kit up

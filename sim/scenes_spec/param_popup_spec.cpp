@@ -43,7 +43,6 @@
 
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -317,10 +316,9 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		spec::SongFixture synth = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(synth.instrument);
 		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
-		ModControllableAudio* mca = sound;
 		const deluge::model::EffectsOwner sound_fx = *sound->effectsOwner();
 		overlay::PopupContext of_sound;
-		of_sound.filter = mca->effects().filter;
+		of_sound.filter = sound->effects().filter;
 		for (const int32_t morph : {static_cast<int32_t>(params::LOCAL_LPF_MORPH), static_cast<int32_t>(params::LOCAL_HPF_MORPH)}) {
 			expect(shown(Kind::PATCHED, morph, of_sound).first)
 			    .to_equal(std::string{params::getParamDisplayName(Kind::PATCHED, morph, &sound_fx)});
@@ -341,7 +339,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		for (const bool song_quantized : {false, true}) {
 			for (const bool own_quantized : {false, true}) {
 				for (const bool use_song : {false, true}) {
-					deluge::effects::EffectStates own = mca->effects();
+					deluge::effects::EffectStates own = sound->effects();
 					own.stutter.use_song_stutter = use_song;
 					own.stutter.quantized = own_quantized;
 					deluge::effects::EffectStates song = master_fx.effects();

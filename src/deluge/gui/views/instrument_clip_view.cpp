@@ -120,6 +120,8 @@
 #include <string.h>
 #include <vector>
 
+using namespace deluge;
+
 extern "C" {}
 
 using namespace deluge::gui;

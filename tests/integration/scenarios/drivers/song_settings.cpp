@@ -17,7 +17,6 @@
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_setting.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"

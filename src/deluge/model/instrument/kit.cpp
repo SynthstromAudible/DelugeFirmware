@@ -78,7 +78,6 @@ void noteDrumListEdit(const Song* song) {
 } // namespace
 
 Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
-	bindBinding(channel_.binding());
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;

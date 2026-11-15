@@ -33,7 +33,6 @@
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"

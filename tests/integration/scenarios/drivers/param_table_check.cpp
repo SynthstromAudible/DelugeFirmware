@@ -34,7 +34,6 @@
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"

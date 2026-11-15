@@ -989,7 +989,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
-			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`) -- the one effect
+			// `Sound::allNotesOff` clears this first thing -- the one effect
 			// of `silenceArp`'s synth arm that survives in model state a spec can read.
 			spec::menu_engine(sound.ctx).sound->invertReversed = true;
 
@@ -1036,7 +1036,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			covered.insert(&nodes::arp_preset);
 		}
 
-		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
+		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
 			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));

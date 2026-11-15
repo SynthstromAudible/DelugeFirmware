@@ -15,9 +15,7 @@
 #include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/chain_codec.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_backup.h"
@@ -1049,7 +1047,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::bridge::serializeModControllableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "ModControllableAudio attributes byte-identical");
+		      "shared param attributes byte-identical");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
@@ -1063,7 +1061,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::bridge::serializeModControllableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "ModControllableAudio tags byte-identical");
+		      "shared param tags byte-identical");
 	}
 
 	// The ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
@@ -1149,7 +1147,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "GlobalEffectable attributes byte-identical");
+		      "host chain attributes byte-identical");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
@@ -1159,8 +1157,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
-		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "GlobalEffectable tags byte-identical");
+		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0, "host chain tags byte-identical");
 	}
 
 	// The GlobalEffectable param block round-trips through the DOM reader (flat attrs +
@@ -1449,7 +1446,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
 		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
-		authorStoreFromEngine(pm); // the GlobalEffectable::writeParamAttributesToFile reads the store
+		authorStoreFromEngine(pm); // model::writeGlobalParamAttributes reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(unpatchedStore(doc).has_value(), "override unpatched present");
@@ -1473,13 +1470,13 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "GlobalEffectable override attributes byte-identical");
+		      "host chain override attributes byte-identical");
 		// Both writers go through the same serializer, so byte equality cannot see an override taken from the wrong
 		// slot: the volume attribute must carry its own override (-123456 = 0xFFFE1DC0), which sits at the set's
 		// position 39, not at its id.
 		domBuf[domAttrLen] = '\0';
 		check(std::strstr(domBuf, "volume=\"0xFFFE1DC0") != nullptr,
-		      "GlobalEffectable override: volume takes its own override value");
+		      "host chain override: volume takes its own override value");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
@@ -1490,7 +1487,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "GlobalEffectable override tags byte-identical");
+		      "host chain override tags byte-identical");
 	}
 
 	// The DOM-target reader lands the GlobalEffectable block in a DocParamSet (the

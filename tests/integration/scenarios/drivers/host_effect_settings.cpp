@@ -15,7 +15,6 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/output.h"
@@ -34,12 +33,15 @@
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include <charconv>
 #include <chrono>
 #include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
+
+using namespace deluge;
 
 namespace {
 
@@ -410,8 +412,9 @@ void hibernationLeg(Song& song) {
 		fail(owner, "lpfMode", Value::makeScalar("SVF_Notch"), "refused while hibernating");
 		return;
 	}
-	const auto* runtime = static_cast<const Kit*>(kit);
-	if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH || runtime->effects().delay.ping_pong) {
+	auto* runtime = static_cast<Kit*>(kit);
+	if (runtime->effectsOwner()->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
+	    || runtime->effectsOwner()->effects().delay.ping_pong) {
 		fail(owner, "-", Value::makeScalar("-"), "an edit did not reach the hibernating kit");
 		return;
 	}
@@ -421,7 +424,8 @@ void hibernationLeg(Song& song) {
 	}
 	song.removeInstrumentFromHibernationList(kit);
 	song.addOutput(kit);
-	if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH || runtime->effects().delay.ping_pong) {
+	if (runtime->effectsOwner()->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
+	    || runtime->effectsOwner()->effects().delay.ping_pong) {
 		fail(owner, "-", Value::makeScalar("-"), "the revived kit lost an edit");
 		return;
 	}

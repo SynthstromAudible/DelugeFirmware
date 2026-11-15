@@ -11,7 +11,6 @@
 #include "scenes/menu/nodes/nodes.h"
 
 #include "effects/settings.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"

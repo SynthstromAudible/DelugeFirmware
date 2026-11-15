@@ -63,7 +63,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/delay_type.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"

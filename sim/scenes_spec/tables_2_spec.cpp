@@ -1486,7 +1486,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
-			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`): the one effect
+			// `Sound::allNotesOff` clears this first thing: the one effect
 			// of `silenceArp`'s synth arm that lands in readable model state.
 			spec::menu_engine(f.ctx).sound->invertReversed = true;
 

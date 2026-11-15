@@ -164,6 +164,8 @@
 
 #include "spec/support/spec_main.h"
 
+using namespace deluge;
+
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;
 using deluge::scenes::audio_clip::kAudioClipSceneKind;

@@ -100,28 +100,41 @@ class ScenesRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
-class ParamBackupRows(unittest.TestCase):
+class LegacyEffectsOwnerRows(unittest.TestCase):
     counts = ScenesRows.counts
 
-    def test_the_old_key_shape_is_counted(self):
-        counts = self.counts(
-            "src/deluge/model/project_bridge/param_backup.h",
-            "deluge::fast_map<std::pair<ModControllableAudio*, Clip*>, ParamManager> map;\n",
-        )
-        self.assertEqual(counts.get("param-backup-by-address"), 1)
+    def test_each_tree_naming_a_deleted_owner_class_is_counted(self):
+        for rel in (
+            "src/deluge/model/fx/planted.cpp",
+            "sim/scenes_spec/planted_spec.cpp",
+            "tests/integration/scenarios/planted.cpp",
+        ):
+            with self.subTest(rel=rel):
+                counts = self.counts(
+                    rel,
+                    "class ModControllableAudio;\nGlobalEffectableForClip* g = nullptr;\n",
+                )
+                self.assertEqual(counts.get("no-legacy-effects-owners"), 2)
 
-    def test_a_typed_owner_is_not(self):
+    def test_a_comment_citing_one_is_not(self):
         counts = self.counts(
             "src/deluge/model/planted.cpp",
-            "void f() {\n\tsong->live.param_backup.backUp(*output, nullptr, &p);\n}\n",
+            "// main's GlobalEffectable::modButtonAction ends the stutter\n",
         )
-        self.assertNotIn("param-backup-by-address", counts)
+        self.assertNotIn("no-legacy-effects-owners", counts)
 
-    def test_the_tree_holds_neither(self):
+    def test_the_param_table_library_is_not(self):
+        counts = self.counts(
+            "src/effects/global_effectable/planted.cpp",
+            "namespace deluge::global_effectable { int x = plugin::kGlobalEffectable; }\n",
+        )
+        self.assertNotIn("no-legacy-effects-owners", counts)
+
+    def test_the_trees_hold_none(self):
         found = {
             key: n
             for key, n in clr.current().items()
-            if key[1] == "param-backup-by-address"
+            if key[1] == "no-legacy-effects-owners"
         }
         self.assertEqual(found, {})
 
@@ -136,39 +149,11 @@ class ViewKnobRows(unittest.TestCase):
         )
         self.assertEqual(counts.get("views-no-knob-stack"), 1)
 
-    def test_a_view_casting_the_knobs_owner_is_counted(self):
-        counts = self.counts(
-            "src/deluge/gui/views/session_view.cpp",
-            "void f() {\n\t((ModControllableAudio*)modelStack->modControllable)->endStutter(nullptr);\n}\n",
-        )
-        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
-
-    def test_a_view_casting_a_resolved_owner_read_is_counted(self):
-        counts = self.counts(
-            "src/deluge/gui/views/arranger_view.cpp",
-            "void f() {\n\tauto* a = (ModControllableAudio*)knobs.stack->modControllable;\n}\n",
-        )
-        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
-
-    def test_view_itself_is_counted(self):
-        counts = self.counts(
-            "src/deluge/gui/views/view.cpp",
-            "void f() {\n\tauto* a = (ModControllableAudio*)stack->modControllable;\n}\n",
-        )
-        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
-
-    def test_the_automation_view_is_counted(self):
-        counts = self.counts(
-            "src/deluge/gui/views/automation/editor_layout/planted.cpp",
-            "void f() {\n\t(void)(ModControllableAudio*)stack->modControllable;\n}\n",
-        )
-        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
-
     def test_the_tree_holds_neither(self):
         found = {
             key: n
             for key, n in clr.current().items()
-            if key[1] in ("views-no-knob-stack", "views-no-knob-owner-cast")
+            if key[1] == "views-no-knob-stack"
         }
         self.assertEqual(found, {})
 

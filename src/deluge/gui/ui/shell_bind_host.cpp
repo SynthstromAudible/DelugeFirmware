@@ -62,7 +62,6 @@
 #include "model/edits/set_velocity_to_level.h"
 #include "model/edits/setting_edit.h"
 #include "model/favourite/favourite_manager.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/instrument/non_audio_instrument.h"

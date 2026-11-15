@@ -64,7 +64,6 @@
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/fx/chain_params.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"

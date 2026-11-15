@@ -27,7 +27,6 @@
 
 class Clip;
 class Drum;
-class ModControllableAudio;
 class Song;
 class Output;
 class ParamManagerForTimeline;

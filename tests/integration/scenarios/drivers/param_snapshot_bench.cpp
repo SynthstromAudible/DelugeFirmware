@@ -27,7 +27,6 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
 
 #include "scenarios/drivers/driver.h"
