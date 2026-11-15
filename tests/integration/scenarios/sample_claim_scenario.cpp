@@ -15,7 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/sample_claim_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sample-claim gate: claim files from the real sample browser into a synth, a kit drum
+///        and an audio clip, and slice a kit, and report what each claim bound and on which tier its load ran.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/folder_import.h"
@@ -72,7 +83,7 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 
-#include "../../dsp/wavetable_band_crc.h"
+#include "unit/deluge/dsp-next/wavetable_band_crc.h"
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
@@ -100,7 +111,13 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(sample_claim);
+
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// Each leg's file, asked for by that leg only (see pack_sample_claim_image in the harness).
 constexpr const char* kSynthSample = "SAMPLES/SCSYN.WAV";
@@ -269,12 +286,14 @@ constexpr int32_t kManualSliceCount = 3;
 /// Scenario ticks a browser listing may take before it is called wedged.
 constexpr int32_t kMaxListingTicks = 20000;
 /// Steps a leg may take to bring the browser to its item (a favourite recalled, a folder left, a turn) before the
-/// browser is called lost.
+/// browser is called lost. A bound on browser moves, not on ticks, so it is not a wait.
 constexpr int32_t kMaxBrowseSteps = 4;
 /// Scenario ticks a claim or a slice may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
 /// Scenario ticks the stall leg's claim may take to give up before it is called wedged: far past its stall bound.
 constexpr int32_t kMaxStallTicks = 20000;
+/// Scenario ticks the boot song's own preset request may take before the scenario goes on without it.
+constexpr int32_t kMaxBootTicks = 2000;
 
 enum class Leg : uint8_t {
 	Synth,
@@ -316,8 +335,15 @@ Leg g_leg = Leg::Synth;
 Step g_step = Step::Prepare;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"SC"};
+/// The boot song's preset request, waited on before the first leg acts on the boot clip.
+Wait g_bootWait{g_report, "the boot song's preset arriving", kMaxBootTicks};
+/// The wait of the stage running; each stage that waits starts a fresh one.
+Wait g_wait{g_report, "a claim from the leg before ending", kMaxLegTicks};
+
+void startWait(const char* what, int32_t budgetTicks) {
+	g_wait = Wait{g_report, what, budgetTicks};
+}
 /// The steps the current leg has taken to bring the browser to its item.
 int32_t g_browseSteps = 0;
 SoundInstrument* g_synth = nullptr;
@@ -484,9 +510,8 @@ const char* legName(Leg leg) {
 	return "?";
 }
 
-bool fail(const char* leg, const char* what) {
-	printf("SC-SETUP FAIL leg=%s %s\n", leg, what);
-	g_failures++;
+bool setupFailed(const char* leg, const char* what) {
+	g_report.fail("SETUP leg=%s %s", leg, what);
 	return false;
 }
 
@@ -530,9 +555,8 @@ void checkTier() {
 	const int32_t sampleIo = now.sampleIo - g_tierMark.sampleIo;
 	printf("SC-TIER leg=%s sampleIo=%d\n", legName(g_leg), sampleIo);
 	if (sampleIo != 0) {
-		printf("SC-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier\n", legName(g_leg),
-		       sampleIo);
-		g_failures++;
+		g_report.fail("TIER leg=%s %d sample read(s) went to the card on the interaction tier", legName(g_leg),
+		              sampleIo);
 	}
 }
 
@@ -561,12 +585,12 @@ void armPitchLeg(uint32_t holdMs) {
 SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("kit", "a drum's ParamManager could not be set up");
+		setupFailed("kit", "a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("kit", "no memory for a drum");
+		setupFailed("kit", "no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -577,7 +601,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
-		fail("kit", "a drum has no sample range");
+		setupFailed("kit", "a drum has no sample range");
 		return nullptr;
 	}
 	holder->filePath = samplePath;
@@ -598,7 +622,7 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
-		return fail("kit", "no kit for the preset");
+		return setupFailed("kit", "no kit for the preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
@@ -609,11 +633,11 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 	}
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("kit", "the kit preset file could not be created");
+		return setupFailed("kit", "the kit preset file could not be created");
 	}
 	kit->writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</kit>\n");
-	return error == Error::NONE || fail("kit", "the kit preset file could not be closed");
+	return error == Error::NONE || setupFailed("kit", "the kit preset file could not be closed");
 }
 
 /// A blank synth preset, written through the firmware's own new-synth and save paths (never hand-written: a
@@ -623,17 +647,17 @@ bool writeSynthPreset(const char* path) {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		return fail("import-multi", "no synth for the preset");
+		return setupFailed("import-multi", "no synth for the preset");
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("import-multi", "the synth preset file could not be created");
+		return setupFailed("import-multi", "the synth preset file could not be created");
 	}
 	instrument->writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n");
-	return error == Error::NONE || fail("import-multi", "the synth preset file could not be closed");
+	return error == Error::NONE || setupFailed("import-multi", "the synth preset file could not be closed");
 }
 
 // ── Driving the browser ──────────────────────────────────────────────────────
@@ -703,7 +727,7 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 		}
 	}
 	printf("SC-SETUP leg=%s opened=%d browserOnTop=%d\n", leg, opened ? 1 : 0, browserOnTop() ? 1 : 0);
-	return browserOnTop() || fail(leg, "the sample browser could not be opened");
+	return browserOnTop() || setupFailed(leg, "the sample browser could not be opened");
 }
 
 /// The sample the browser's preview holds once its load has landed, or null while it loads or holds none.
@@ -741,7 +765,7 @@ SoundDrum* kitDrum() {
 /// gesture is a pad press in the clip view itself.
 bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
 	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-		return fail(leg, "the randomizer kit clip is missing");
+		return setupFailed(leg, "the randomizer kit clip is missing");
 	}
 	guestClose();
 	currentSong->setCurrentClip(g_kitClip);
@@ -754,14 +778,14 @@ bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
 	const bool onTop = getCurrentUI() == &instrumentClipView;
 	printf("SC-SETUP leg=%s clipViewOnTop=%d selected=%d mode=%d\n", leg, onTop ? 1 : 0,
 	       (drum != nullptr && kit->selectedDrum == drum) ? 1 : 0, (int)currentUIMode);
-	return onTop || fail(leg, "the clip view could not be made current");
+	return onTop || setupFailed(leg, "the clip view could not be made current");
 }
 
 /// The kit clip current, its first drum selected, and the browser opened on that drum.
 bool openBrowserOnKitDrum(const char* leg) {
 	SoundDrum* drum = kitDrum();
 	if (drum == nullptr) {
-		return fail(leg, "the kit clip has no sound drum");
+		return setupFailed(leg, "the kit clip has no sound drum");
 	}
 	return openBrowser(leg, g_kitClip, &instrumentClipView, drum);
 }
@@ -776,7 +800,7 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 	}
 	Clip* clip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
 	if (clip == nullptr) {
-		return fail(leg, "the boot song has no synth clip");
+		return setupFailed(leg, "the boot song has no synth clip");
 	}
 	g_synth->sources[0].setOscType(osc);
 	return openBrowser(leg, clip, &instrumentClipView);
@@ -861,7 +885,7 @@ void prepareLeg() {
 			}
 			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 4, kRandomizeKitPresetPath);
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-				fail("randomize-one", "no kit clip could be created from the randomizer preset");
+				setupFailed("randomize-one", "no kit clip could be created from the randomizer preset");
 				return;
 			}
 			// The rows a user would have: notes on three, one of them muted, and one row left empty. An affect-entire
@@ -877,14 +901,14 @@ void prepareLeg() {
 				ModelStackWithNoteRow* rowStack = kitClip->getNoteRowForDrum(modelStack, drum);
 				NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
 				if (row == nullptr) {
-					fail("randomize-one", "a randomizer kit drum has no note row");
+					setupFailed("randomize-one", "a randomizer kit drum has no note row");
 					return;
 				}
 				if (kRandomizeDrums[drumIndex].note) {
 					if (row->attemptNoteAdd(0, 1, 64, row->getDefaultProbability(), row->getDefaultIterance(),
 					                        row->getDefaultFill(rowStack), rowStack, nullptr)
 					    == 0) {
-						fail("randomize-one", "a note could not be added to a randomizer kit row");
+						setupFailed("randomize-one", "a note could not be added to a randomizer kit row");
 						return;
 					}
 					rowsWithNotes++;
@@ -905,7 +929,7 @@ void prepareLeg() {
 			SoundDrum* drum = kitDrum();
 			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 			if (holder == nullptr) {
-				fail("randomize-cancelscan", "the randomizer kit's first drum has no holder");
+				setupFailed("randomize-cancelscan", "the randomizer kit's first drum has no holder");
 				return;
 			}
 			holder->setAudioFile(nullptr);
@@ -919,7 +943,7 @@ void prepareLeg() {
 			SoundDrum* drum = kitDrum();
 			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 			if (holder == nullptr) {
-				fail("randomize-gate", "the randomizer kit's first drum has no holder");
+				setupFailed("randomize-gate", "the randomizer kit's first drum has no holder");
 				return;
 			}
 			holder->setAudioFile(nullptr);
@@ -930,7 +954,7 @@ void prepareLeg() {
 	case Leg::RandomizeStall:
 		buildFixture([] {
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-				fail("randomize-stall", "the randomizer kit clip is missing");
+				setupFailed("randomize-stall", "the randomizer kit clip is missing");
 				return;
 			}
 			Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
@@ -945,7 +969,7 @@ void prepareLeg() {
 			NoteRow* afterRow =
 			    (third != nullptr) ? static_cast<InstrumentClip*>(g_kitClip)->getNoteRowForDrum(third) : nullptr;
 			if (kept == nullptr || held == nullptr || after == nullptr || afterRow == nullptr) {
-				fail("randomize-stall", "the randomizer kit's first three drums have no holders or rows");
+				setupFailed("randomize-stall", "the randomizer kit's first three drums have no holders or rows");
 				return;
 			}
 			kept->setAudioFile(nullptr);
@@ -1102,7 +1126,7 @@ bool openLeg() {
 		// No browser: the ported slicer's host opens the slicer on the file itself, for the kit's first drum.
 		SoundDrum* drum = kitDrum();
 		if (drum == nullptr) {
-			return fail(legName(g_leg), "the kit clip has no sound drum");
+			return setupFailed(legName(g_leg), "the kit clip has no sound drum");
 		}
 		frontClip(legName(g_leg), g_kitClip, &instrumentClipView, drum);
 		return true;
@@ -1125,52 +1149,52 @@ bool openLeg() {
 	case Leg::ImportKit: {
 		if (g_importKitClip == nullptr || g_importKitClip->output == nullptr
 		    || g_importKitClip->output->type != OutputType::KIT) {
-			return fail("import-kit", "no kit clip could be created from the import preset");
+			return setupFailed("import-kit", "no kit clip could be created from the import preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importKitClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-kit", "the import kit has no sound drum");
+			return setupFailed("import-kit", "the import kit has no sound drum");
 		}
 		return openBrowser("import-kit", g_importKitClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportGate: {
 		if (g_importGateClip == nullptr || g_importGateClip->output == nullptr
 		    || g_importGateClip->output->type != OutputType::KIT) {
-			return fail("import-gate", "no kit clip could be created from the import gate preset");
+			return setupFailed("import-gate", "no kit clip could be created from the import gate preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importGateClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-gate", "the import gate kit has no sound drum");
+			return setupFailed("import-gate", "the import gate kit has no sound drum");
 		}
 		return openBrowser("import-gate", g_importGateClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportEmpty: {
 		if (g_importEmptyClip == nullptr || g_importEmptyClip->output == nullptr
 		    || g_importEmptyClip->output->type != OutputType::KIT) {
-			return fail("import-empty", "no kit clip could be created from the empty import preset");
+			return setupFailed("import-empty", "no kit clip could be created from the empty import preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importEmptyClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-empty", "the empty import kit has no sound drum");
+			return setupFailed("import-empty", "the empty import kit has no sound drum");
 		}
 		return openBrowser("import-empty", g_importEmptyClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportStall:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr) {
-			return fail("import-stall", "the multisample leg's synth clip is missing");
+			return setupFailed("import-stall", "the multisample leg's synth clip is missing");
 		}
 		return openBrowser("import-stall", g_importSynthClip, &instrumentClipView);
 	case Leg::ImportMulti:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr
 		    || g_importSynthClip->output->type != OutputType::SYNTH) {
-			return fail("import-multi", "no synth clip could be created");
+			return setupFailed("import-multi", "no synth clip could be created");
 		}
 		// A wavetable oscillator: the import makes it a sample one, and finds the range it fills again.
 		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::WAVETABLE);
 		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
-			return fail("audioclip", "no audio clip could be created");
+			return setupFailed("audioclip", "no audio clip could be created");
 		}
 		return openBrowser("audioclip", g_audioClip, &audioClipView);
 	case Leg::Done:
@@ -1425,7 +1449,7 @@ void actShellSlice() {
 		deluge::gui::ui::openShellSlice(legFile());
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
 		if (deluge::gui::ui::shellSlicerBusy()) {
-			fail(legName(g_leg), "the guest's close left the slicer's open out");
+			setupFailed(legName(g_leg), "the guest's close left the slicer's open out");
 		}
 		// A commit with the menu's context forgotten, as a teardown leaves it: refused, with nothing cut or loaded.
 		if (scene.ops() != nullptr) {
@@ -1472,17 +1496,18 @@ void checkAuditionReleaseCoherent(deluge::scenes::slicing::SlicerScene& scene) {
 	if (scene.ops() == nullptr) {
 		return;
 	}
-	const int32_t failuresBefore = g_failures;
+	const int32_t failuresBefore = g_report.failures();
 	deluge_audio_load_set_latency_ms(kGateHoldMs);
 	scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 64});
 	const bool held = deluge::gui::ui::shellSlicerBusy();
 	scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 0});
 	deluge_audio_load_set_latency_ms(0);
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release"));
 	printf("SC-PROBE leg=%s auditionReleased held=%d coherent=%d\n", legName(g_leg), held ? 1 : 0,
-	       g_failures == failuresBefore ? 1 : 0);
+	       g_report.failures() == failuresBefore ? 1 : 0);
 	if (!held) {
-		fail(legName(g_leg), "the slice's audition load was not out when it was released, so nothing was tested");
+		setupFailed(legName(g_leg),
+		            "the slice's audition load was not out when it was released, so nothing was tested");
 	}
 }
 
@@ -1552,7 +1577,7 @@ void tickShellSlice() {
 		}
 		g_shellCommitBegun = scene.ops() != nullptr && scene.ops()->begin_commit(commit);
 		if (!g_shellCommitBegun) {
-			fail(legName(g_leg), "the host refused the slice");
+			setupFailed(legName(g_leg), "the host refused the slice");
 			g_shellEnded = true;
 			return;
 		}
@@ -1563,7 +1588,7 @@ void tickShellSlice() {
 		const auto* range =
 		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].ranges.getElement(0));
 		if (range->sampleHolder.audioFile == nullptr || range->sampleHolder.filePath != legFile()) {
-			fail(legName(g_leg), "the slice let go of the sample the slicer shows");
+			setupFailed(legName(g_leg), "the slice let go of the sample the slicer shows");
 		}
 		return;
 	}
@@ -1620,7 +1645,7 @@ void actLeg() {
 		printf("SC-PROBE leg=%s autoLoad=%d recalled=%d\n", legName(g_leg),
 		       deluge::scenes::browser::browser_scene().auto_load() ? 1 : 0, recalled ? 1 : 0);
 		if (!recalled) {
-			fail(legName(g_leg), "the leg's file could not be recalled with auto-load on");
+			setupFailed(legName(g_leg), "the leg's file could not be recalled with auto-load on");
 		}
 		return;
 	}
@@ -1748,9 +1773,9 @@ bool legEnded() {
 	return !browserOnTop();
 }
 
-/// The region slice's end: @p marker reports the kit's drums, how many are bound to the sliced sample, and the
-/// NoteRows.
-void checkRegionSlice(const char* marker) {
+/// The region slice's end: the SC-@p stage line reports the kit's drums, how many are bound to the sliced sample, and
+/// the NoteRows.
+void checkRegionSlice(const char* stage) {
 	int32_t drums = 0;
 	int32_t boundToSlice = 0;
 	for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
@@ -1770,17 +1795,16 @@ void checkRegionSlice(const char* marker) {
 			rowsWithDrum++;
 		}
 	}
-	printf("%s drums=%d boundToSlice=%d rowsWithDrum=%d ticks=%d\n", marker, drums, boundToSlice, rowsWithDrum,
-	       g_waitTicks);
+	printf("SC-%s drums=%d boundToSlice=%d rowsWithDrum=%d ticks=%d\n", stage, drums, boundToSlice, rowsWithDrum,
+	       g_wait.ticks());
 	if (drums != kSliceRegions || boundToSlice != kSliceRegions || rowsWithDrum < kSliceRegions) {
-		printf("%s FAIL the slice did not end with %d drums on the sliced sample, each with a NoteRow\n", marker,
-		       kSliceRegions);
-		g_failures++;
+		g_report.fail("%s the slice did not end with %d drums on the sliced sample, each with a NoteRow", stage,
+		              kSliceRegions);
 	}
 }
 
 /// The manual slice's end: as `checkRegionSlice`, and each drum painted from the slice points.
-void checkManualSlice(const char* marker) {
+void checkManualSlice(const char* stage) {
 	auto* kit = static_cast<Kit*>(g_kitClip->output);
 	int32_t drums = 0;
 	for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
@@ -1816,14 +1840,13 @@ void checkManualSlice(const char* marker) {
 			rowsWithDrum++;
 		}
 	}
-	printf("%s drums=%d boundToSlice=%d painted=%d rowsWithDrum=%d ticks=%d\n", marker, drums, boundToSlice, painted,
-	       rowsWithDrum, g_waitTicks);
+	printf("SC-%s drums=%d boundToSlice=%d painted=%d rowsWithDrum=%d ticks=%d\n", stage, drums, boundToSlice, painted,
+	       rowsWithDrum, g_wait.ticks());
 	if (drums != kManualSliceCount || boundToSlice != kManualSliceCount || painted != kManualSliceCount
 	    || rowsWithDrum < kManualSliceCount) {
-		printf("%s FAIL the manual slice did not end with %d drums on the sliced sample, each with a "
-		       "NoteRow and painted from the slice points as they were when Select was pressed\n",
-		       marker, kManualSliceCount);
-		g_failures++;
+		g_report.fail("%s the manual slice did not end with %d drums on the sliced sample, each with a "
+		              "NoteRow and painted from the slice points as they were when Select was pressed",
+		              stage, kManualSliceCount);
 	}
 }
 
@@ -1848,18 +1871,15 @@ void checkLeg() {
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "",
 		       static_cast<int>(g_synth->sources[0].oscType), static_cast<int>(g_synth->sources[0].repeatMode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
-		       onPage ? 1 : 0, horizontal ? 1 : 0, g_waitTicks);
+		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
-			printf("SC-SYNTH FAIL the menu did not re-enter on the page that lists the file selector\n");
-			g_failures++;
+			g_report.fail("SYNTH the menu did not re-enter on the page that lists the file selector");
 		}
 		if (!bound) {
-			printf("SC-SYNTH FAIL the claim bound no file\n");
-			g_failures++;
+			g_report.fail("SYNTH the claim bound no file");
 		}
 		if (!browserClosed) {
-			printf("SC-SYNTH FAIL the browser stayed open after its claim\n");
-			g_failures++;
+			g_report.fail("SYNTH the browser stayed open after its claim");
 		}
 		break;
 	}
@@ -1868,19 +1888,16 @@ void checkLeg() {
 		// Released is the gate's own mode gone: a preview's scroll may hold a mode of its own.
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
 		printf("SC-GATE input=selectEncoder claimOut=%d refused=%d released=%d ticks=%d\n", g_gateClaimOut ? 1 : 0,
-		       g_gateMoved ? 0 : 1, released ? 1 : 0, g_waitTicks);
+		       g_gateMoved ? 0 : 1, released ? 1 : 0, g_wait.ticks());
 		if (!g_gateClaimOut) {
-			printf("SC-GATE FAIL the claim was not out when the encoder turned, so nothing was tested\n");
-			g_failures++;
+			g_report.fail("GATE the claim was not out when the encoder turned, so nothing was tested");
 		}
 		if (g_gateMoved) {
-			printf("SC-GATE FAIL the select encoder moved the browser's selection while an explicit claim was in "
-			       "flight\n");
-			g_failures++;
+			g_report.fail("GATE the select encoder moved the browser's selection while an explicit claim was in "
+			              "flight");
 		}
 		if (!released) {
-			printf("SC-GATE FAIL the gate was still closed once the claim had ended\n");
-			g_failures++;
+			g_report.fail("GATE the gate was still closed once the claim had ended");
 		}
 		break;
 	}
@@ -1892,11 +1909,10 @@ void checkLeg() {
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
 		const int32_t giveUps = deluge::gui::sampleClaim.giveUps() - g_giveUpsBefore;
 		printf("SC-STALL bound=%d browserOpen=%d released=%d giveUps=%d ticks=%d\n", bound ? 1 : 0, browserOpen ? 1 : 0,
-		       released ? 1 : 0, giveUps, g_waitTicks);
+		       released ? 1 : 0, giveUps, g_wait.ticks());
 		if (bound || !browserOpen || !released || giveUps != 1) {
-			printf("SC-STALL FAIL a claim whose load never answered did not give up: it must leave the holder unbound, "
-			       "the browser open and the gate released\n");
-			g_failures++;
+			g_report.fail("STALL a claim whose load never answered did not give up: it must leave the holder unbound, "
+			              "the browser open and the gate released");
 		}
 		break;
 	}
@@ -1908,20 +1924,19 @@ void checkLeg() {
 		const OscType osc = g_synth->sources[0].oscType;
 		printf("SC-%s bound=%d path=%s osc=%d modKnobMode=%d ticks=%d\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(osc),
-		       static_cast<int>(g_synth->modKnobMode), g_waitTicks);
+		       static_cast<int>(g_synth->modKnobMode), g_wait.ticks());
 		if (!bound || osc != (wantWaveTable ? OscType::WAVETABLE : OscType::SAMPLE)) {
-			printf("SC-%s FAIL the claim did not bind the file as a %s\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
-			       wantWaveTable ? "wavetable" : "sample");
-			g_failures++;
+			g_report.fail("%s the claim did not bind the file as a %s", wantWaveTable ? "WAVETABLE" : "FALLBACK",
+			              wantWaveTable ? "wavetable" : "sample");
 		}
 		break;
 	}
 	case Leg::CancelLoading:
 		deluge_audio_load_set_latency_ms(0);
-		printf("SC-CANCEL-LOADING inFlightWhenCancelled=%d ticks=%d\n", g_cancelLoadingInFlight ? 1 : 0, g_waitTicks);
+		printf("SC-CANCEL-LOADING inFlightWhenCancelled=%d ticks=%d\n", g_cancelLoadingInFlight ? 1 : 0,
+		       g_wait.ticks());
 		if (!g_cancelLoadingInFlight) {
-			printf("SC-CANCEL-LOADING FAIL the auto-load claim had ended before the browser's exit could cancel it\n");
-			g_failures++;
+			g_report.fail("CANCEL-LOADING the auto-load claim had ended before the browser's exit could cancel it");
 		}
 		guestClose();
 		break;
@@ -1937,13 +1952,12 @@ void checkLeg() {
 		const bool boundSecond =
 		    holder != nullptr && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
 		printf("SC-SUPERSEDE case=%s underOp=%d cancels=%d finishes=%d boundSecond=%d ticks=%d\n", supersedeCase,
-		       g_supersedeFired ? 1 : 0, cancels, finishes, boundSecond ? 1 : 0, g_waitTicks);
+		       g_supersedeFired ? 1 : 0, cancels, finishes, boundSecond ? 1 : 0, g_wait.ticks());
 		if (!g_supersedeFired || cancels != 1 || finishes != 1 || !boundSecond) {
-			printf(
-			    "SC-SUPERSEDE FAIL case=%s an auto-load claim the cursor left with its pitch detection waiting must be "
-			    "cancelled once, and only the next file's claim may finish\n",
+			g_report.fail(
+			    "SUPERSEDE case=%s an auto-load claim the cursor left with its pitch detection waiting must be "
+			    "cancelled once, and only the next file's claim may finish",
 			    supersedeCase);
-			g_failures++;
 		}
 		// Auto-load off again, and out of the browser, which auto-load leaves open.
 		deluge::harness::guestHideKeyboard();
@@ -1974,12 +1988,11 @@ void checkLeg() {
 		printf("SC-WAVETABLE-CONVERTED bound=%d waveTable=%d converted=%d fromCard=%d pinned=%d crc=%08X twinCrc=%08X "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, isWaveTable ? 1 : 0, conv.converted, conv.fromCard, conv.pinned, (unsigned)crc,
-		       (unsigned)twinCrc, g_waitTicks);
+		       (unsigned)twinCrc, g_wait.ticks());
 		if (!isWaveTable || conv.converted != 1 || conv.fromCard != 0 || conv.pinned != kFullWaveTableClusters
 		    || crc == 0 || crc != twinCrc) {
-			printf("SC-WAVETABLE-CONVERTED FAIL a fully cached Sample claimed as a wavetable must be converted from "
-			       "memory, with every cluster pinned, into the WaveTable the card would have built\n");
-			g_failures++;
+			g_report.fail("WAVETABLE-CONVERTED a fully cached Sample claimed as a wavetable must be converted from "
+			              "memory, with every cluster pinned, into the WaveTable the card would have built");
 		}
 		break;
 	}
@@ -1992,16 +2005,14 @@ void checkLeg() {
 		const ConversionMark conv = conversionsSince(g_convBefore);
 		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d converted=%d fromCard=%d\n",
 		       bound ? 1 : 0, isWaveTable ? 1 : 0, static_cast<int>(osc),
-		       holder != nullptr ? holder->filePath.c_str() : "", g_waitTicks, conv.converted, conv.fromCard);
+		       holder != nullptr ? holder->filePath.c_str() : "", g_wait.ticks(), conv.converted, conv.fromCard);
 		if (conv.converted != 0 || conv.fromCard != 1) {
-			printf("SC-WAVETABLE-RESIDENT FAIL a Sample with clusters not yet cached must be built from the card, not "
-			       "converted\n");
-			g_failures++;
+			g_report.fail("WAVETABLE-RESIDENT a Sample with clusters not yet cached must be built from the card, not "
+			              "converted");
 		}
 		if (!bound || !isWaveTable || osc != OscType::WAVETABLE) {
-			printf("SC-WAVETABLE-RESIDENT FAIL a file resident as a Sample, most of its clusters not yet filled, must "
-			       "still be claimed as a wavetable\n");
-			g_failures++;
+			g_report.fail("WAVETABLE-RESIDENT a file resident as a Sample, most of its clusters not yet filled, must "
+			              "still be claimed as a wavetable");
 		}
 		break;
 	}
@@ -2013,10 +2024,9 @@ void checkLeg() {
 		const int32_t scanTicks = deluge::gui::sampleClaim.pitchScanTicks() - g_pitchTicksBefore;
 		const int32_t giveUps = deluge::gui::sampleClaim.pitchGiveUps() - g_pitchGiveUpsBefore;
 		printf("SC-PITCH bound=%d transpose=%d scanTicks=%d giveUps=%d ticks=%d\n", bound ? 1 : 0, transpose, scanTicks,
-		       giveUps, g_waitTicks);
+		       giveUps, g_wait.ticks());
 		if (!bound || transpose != kPitchTranspose || scanTicks < 1 || giveUps != 0) {
-			printf("SC-PITCH FAIL a detection whose clusters arrive late must wait for them and find the same note\n");
-			g_failures++;
+			g_report.fail("PITCH a detection whose clusters arrive late must wait for them and find the same note");
 		}
 		break;
 	}
@@ -2030,13 +2040,13 @@ void checkLeg() {
 		const bool inFlight = deluge::gui::sampleClaim.inFlight();
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
 		printf("SC-PITCH-STALL bound=%d noteError=%d transpose=%d giveUps=%d inFlight=%d released=%d ticks=%d\n",
-		       bound ? 1 : 0, noteError ? 1 : 0, transpose, giveUps, inFlight ? 1 : 0, released ? 1 : 0, g_waitTicks);
+		       bound ? 1 : 0, noteError ? 1 : 0, transpose, giveUps, inFlight ? 1 : 0, released ? 1 : 0,
+		       g_wait.ticks());
 		// inFlight()==false with the gate released is the claim machine able to take the next claim: routine() starts
 		// a queued claim only from Idle.
 		if (!bound || !noteError || transpose != kTransposeSentinel || giveUps != 1 || inFlight || !released) {
-			printf("SC-PITCH-STALL FAIL a detection whose clusters never arrive must give up once, leave the note an "
-			       "error and the transpose alone, and still finish the claim\n");
-			g_failures++;
+			g_report.fail("PITCH-STALL a detection whose clusters never arrive must give up once, leave the note an "
+			              "error and the transpose alone, and still finish the claim");
 		}
 		break;
 	}
@@ -2048,10 +2058,9 @@ void checkLeg() {
 		       holder != nullptr ? holder->filePath.c_str() : "",
 		       drum != nullptr ? static_cast<int>(drum->sources[0].repeatMode) : -1,
 		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
-		       g_waitTicks);
+		       g_wait.ticks());
 		if (!bound) {
-			printf("SC-KIT FAIL the claim bound no file\n");
-			g_failures++;
+			g_report.fail("KIT the claim bound no file");
 		}
 		break;
 	}
@@ -2059,55 +2068,47 @@ void checkLeg() {
 		auto* clip = static_cast<AudioClip*>(g_audioClip);
 		const bool bound = clip->sampleHolder.audioFile != nullptr;
 		printf("SC-AUDIOCLIP bound=%d path=%s loopLength=%d attack=%d ticks=%d\n", bound ? 1 : 0,
-		       clip->sampleHolder.filePath.c_str(), clip->loopLength(), clip->attack(), g_waitTicks);
+		       clip->sampleHolder.filePath.c_str(), clip->loopLength(), clip->attack(), g_wait.ticks());
 		if (!bound) {
-			printf("SC-AUDIOCLIP FAIL the claim bound no file\n");
-			g_failures++;
+			g_report.fail("AUDIOCLIP the claim bound no file");
 		}
 		break;
 	}
 	case Leg::ShellSlice:
-		checkRegionSlice("SC-SHELL-SLICE");
+		checkRegionSlice("SHELL-SLICE");
 		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d noticed=%d heldThrough=%d "
 		       "pending=%d\n",
 		       g_teardownHeld ? 1 : 0, g_teardownRootKept ? 1 : 0, g_teardownDropped ? 1 : 0, g_nextHeld ? 1 : 0,
 		       g_nextNoticed ? 1 : 0, g_nextHeldThrough ? 1 : 0, playbackHandler.nextSongPending_ ? 1 : 0);
 		if (!g_teardownHeld || !g_teardownRootKept) {
-			printf("SC-SHELL-SLICE FAIL no audition load was out under the root alone at the teardown, so nothing was "
-			       "tested\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE no audition load was out under the root alone at the teardown, so nothing was "
+			              "tested");
 		}
 		else if (!g_teardownDropped) {
-			printf("SC-SHELL-SLICE FAIL a teardown of every UI left the slicer's held audition out\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE a teardown of every UI left the slicer's held audition out");
 		}
 		if (!g_nextHeld) {
-			printf("SC-SHELL-SLICE FAIL a MIDI next-song during the slice was not held back for it\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE a MIDI next-song during the slice was not held back for it");
 		}
 		else if (!g_nextNoticed) {
-			printf("SC-SHELL-SLICE FAIL a MIDI next-song held back for the slice did not say so\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE a MIDI next-song held back for the slice did not say so");
 		}
 		else if (!g_nextHeldThrough || playbackHandler.nextSongPending_) {
-			printf("SC-SHELL-SLICE FAIL a next-song held back for the slice did not wait for it to land, then go\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE a next-song held back for the slice did not wait for it to land, then go");
 		}
 		playbackHandler.nextSongPending_ = false;
 		break;
 	case Leg::ShellSliceManual:
-		checkManualSlice("SC-SHELL-SLICE-MANUAL");
+		checkManualSlice("SHELL-SLICE-MANUAL");
 		break;
 	case Leg::ShellSliceBack:
 		printf("SC-SHELL-SLICE-BACK kept=%d noContextRefused=%d\n", g_shellBackKept ? 1 : 0,
 		       g_shellBackNoContextRefused ? 1 : 0);
 		if (!g_shellBackKept) {
-			printf("SC-SHELL-SLICE-BACK FAIL BACK out of manual mode changed a first drum that holds no file\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE-BACK BACK out of manual mode changed a first drum that holds no file");
 		}
 		if (!g_shellBackNoContextRefused) {
-			printf("SC-SHELL-SLICE-BACK FAIL a slice commit with no menu context was not refused\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE-BACK a slice commit with no menu context was not refused");
 		}
 		break;
 	case Leg::ShellSliceFail: {
@@ -2119,10 +2120,9 @@ void checkLeg() {
 		const bool ended = g_shellEnded && !deluge::gui::ui::shellSlicerBusy();
 		const bool opened = deluge::scenes::slicing::slicer_scene().has_sample();
 		printf("SC-SHELL-SLICE-FAIL drums=%d ended=%d opened=%d ticks=%d\n", drums, ended ? 1 : 0, opened ? 1 : 0,
-		       g_waitTicks);
+		       g_wait.ticks());
 		if (drums != 1 || !ended || opened) {
-			printf("SC-SHELL-SLICE-FAIL FAIL a slicer whose open stalled did not give up with the kit untouched\n");
-			g_failures++;
+			g_report.fail("SHELL-SLICE-FAIL a slicer whose open stalled did not give up with the kit untouched");
 		}
 		break;
 	}
@@ -2136,17 +2136,15 @@ void checkLeg() {
 		const bool completed = drums == kImportGateCount && !browserOnTop();
 		printf("IM-GATE whileRunning=%d secondRefused=%d backRefused=%d released=%d completed=%d ticks=%d\n",
 		       g_imGateWhileRunning ? 1 : 0, g_imGateSecondRefused ? 1 : 0, g_imGateBackRefused ? 1 : 0,
-		       released ? 1 : 0, completed ? 1 : 0, g_waitTicks);
+		       released ? 1 : 0, completed ? 1 : 0, g_wait.ticks());
 		if (!g_imGateWhileRunning) {
-			printf("IM-GATE FAIL the import had ended before its held loads could land: an import must wait on its "
-			       "loads with the gate closed\n");
-			g_failures++;
+			g_report.fail("IM-GATE the import had ended before its held loads could land: an import must wait on its "
+			              "loads with the gate closed");
 		}
 		else if (!g_imGateSecondRefused || !g_imGateBackRefused || !released || !completed) {
-			printf(
-			    "IM-GATE FAIL BACK or a second Select was taken while the import was out, or the gate stayed closed, "
-			    "or the import did not complete once its loads landed\n");
-			g_failures++;
+			g_report.fail(
+			    "IM-GATE BACK or a second Select was taken while the import was out, or the gate stayed closed, "
+			    "or the import did not complete once its loads landed");
 		}
 		break;
 	}
@@ -2165,9 +2163,8 @@ void checkLeg() {
 		       g_imEmptySucceeded ? 1 : 0, drums, browserClosed ? 1 : 0, onClipView ? 1 : 0, released ? 1 : 0,
 		       deluge::gui::folderImport.listingsRun());
 		if (!g_imEmptySucceeded || drums != 1 || !browserClosed || !onClipView || !released) {
-			printf("IM-EMPTY FAIL Load All on a folder with no audio file of its own did not land as main's: an "
-			       "import of nothing, the kit's one drum kept, the browser closed onto the clip view\n");
-			g_failures++;
+			g_report.fail("IM-EMPTY Load All on a folder with no audio file of its own did not land as main's: an "
+			              "import of nothing, the kit's one drum kept, the browser closed onto the clip view");
 		}
 		break;
 	}
@@ -2192,11 +2189,11 @@ void checkLeg() {
 		printf("IM-STALL rangesKept=%d reasonsKept=%d menuClosed=%d browserOpen=%d released=%d\n", rangesKept ? 1 : 0,
 		       reasonsKept ? 1 : 0, menuClosed ? 1 : 0, browserOpen ? 1 : 0, released ? 1 : 0);
 		if (!rangesKept || !reasonsKept || !menuClosed || !browserOpen || !released) {
-			printf("IM-STALL FAIL an import whose second file's load never answered did not abort cleanly: the synth's "
-			       "ranges and the loaded files' reasons must be as they were, just the menu closed, the browser open, "
-			       "and "
-			       "the gate released\n");
-			g_failures++;
+			g_report.fail(
+			    "IM-STALL an import whose second file's load never answered did not abort cleanly: the synth's "
+			    "ranges and the loaded files' reasons must be as they were, just the menu closed, the browser open, "
+			    "and "
+			    "the gate released");
 		}
 		break;
 	}
@@ -2207,14 +2204,12 @@ void checkLeg() {
 		const int32_t listingsRun = deluge::gui::folderImport.listingsRun();
 		printf("IM-TIER leg=%s listingsRun=%d sampleIo=%d\n", legName(g_leg), listingsRun, sampleIo);
 		if (sampleIo != 0) {
-			printf("IM-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a folder "
-			       "import's loads belong on the interaction tier\n",
-			       legName(g_leg), sampleIo);
-			g_failures++;
+			g_report.fail("IM-TIER leg=%s %d sample read(s) went to the card on the interaction tier -- a folder "
+			              "import's loads belong on the interaction tier",
+			              legName(g_leg), sampleIo);
 		}
 		if (listingsRun == 0) {
-			printf("IM-TIER FAIL leg=%s no folder listing ran at all\n", legName(g_leg));
-			g_failures++;
+			g_report.fail("IM-TIER leg=%s no folder listing ran at all", legName(g_leg));
 		}
 		const bool browserClosed = !browserOnTop();
 		if (g_leg == Leg::ImportKit) {
@@ -2245,14 +2240,13 @@ void checkLeg() {
 				}
 			}
 			printf("IM-KIT drums=%d matched=%d rowsWithDrum=%d edited=%d browserClosed=%d ticks=%d\n", drums, matched,
-			       rowsWithDrum, kit->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+			       rowsWithDrum, kit->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_wait.ticks());
 			if (drums != kImportKitCount || matched != kImportKitCount || rowsWithDrum < kImportKitCount
 			    || !kit->editedByUser || !browserClosed) {
-				printf(
-				    "IM-KIT FAIL the kit import did not end with one drum per file in filename order, each named after "
+				g_report.fail(
+				    "IM-KIT the kit import did not end with one drum per file in filename order, each named after "
 				    "its file without the prefix, bound to it and with a NoteRow, the kit edited and the browser "
-				    "closed\n");
-				g_failures++;
+				    "closed");
 			}
 		}
 		else {
@@ -2278,19 +2272,18 @@ void checkLeg() {
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
 			    ranges, matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
-			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_waitTicks);
+			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_wait.ticks());
 			if (editorRange != kImportMultiCount / 2) {
-				printf("IM-MULTI FAIL the menu context was not left on the middle range\n");
-				g_failures++;
+				g_report.fail("IM-MULTI the menu context was not left on the middle range");
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
 			    || source.repeatMode != SampleRepeatMode::ONCE || source.oscType != OscType::SAMPLE || !browserClosed) {
-				printf("IM-MULTI FAIL the multisample import did not end with one range per file in pitch order, each "
-				       "bound to its file with the top note today's importer gives it and the transpose its detection "
-				       "gives "
-				       "it, one-second files playing once, and "
-				       "the browser closed\n");
-				g_failures++;
+				g_report.fail(
+				    "IM-MULTI the multisample import did not end with one range per file in pitch order, each "
+				    "bound to its file with the top note today's importer gives it and the transpose its detection "
+				    "gives "
+				    "it, one-second files playing once, and "
+				    "the browser closed");
 			}
 		}
 		break;
@@ -2306,17 +2299,16 @@ void checkLeg() {
 		printf("RD-GATE whileRunning=%d secondWalkRefused=%d editPadRefused=%d editPadTakenAfter=%d released=%d "
 		       "ticks=%d\n",
 		       g_rdGateWhileRunning ? 1 : 0, g_rdGateSecondWalkRefused ? 1 : 0, g_rdGateEditRefused ? 1 : 0,
-		       g_rdGateEditTakenAfter ? 1 : 0, released ? 1 : 0, g_waitTicks);
+		       g_rdGateEditTakenAfter ? 1 : 0, released ? 1 : 0, g_wait.ticks());
 		if (!g_rdGateWhileRunning) {
-			printf("RD-GATE FAIL the walk had ended before its held load could land: a randomize must wait on its load "
-			       "with the gate closed\n");
-			g_failures++;
+			g_report.fail(
+			    "RD-GATE the walk had ended before its held load could land: a randomize must wait on its load "
+			    "with the gate closed");
 		}
 		else if (!g_rdGateSecondWalkRefused || !g_rdGateEditRefused || !g_rdGateEditTakenAfter || !released) {
-			printf(
-			    "RD-GATE FAIL a second randomize or the edit pad was taken while the walk was out, or the gate stayed "
-			    "closed once it ended\n");
-			g_failures++;
+			g_report.fail(
+			    "RD-GATE a second randomize or the edit pad was taken while the walk was out, or the gate stayed "
+			    "closed once it ended");
 		}
 		break;
 	}
@@ -2338,9 +2330,9 @@ void checkLeg() {
 		printf("RD-STALL keptFirst=%d secondUnbound=%d thirdUntouched=%d released=%d\n", keptFirst ? 1 : 0,
 		       secondUnbound ? 1 : 0, thirdUntouched ? 1 : 0, released ? 1 : 0);
 		if (!keptFirst || !secondUnbound || !thirdUntouched || !released) {
-			printf("RD-STALL FAIL a walk whose second row's load never answered did not stop there: the first row must "
-			       "keep its file, the second must be left unbound, the third untouched, and the gate released\n");
-			g_failures++;
+			g_report.fail(
+			    "RD-STALL a walk whose second row's load never answered did not stop there: the first row must "
+			    "keep its file, the second must be left unbound, the third untouched, and the gate released");
 		}
 		break;
 	}
@@ -2359,31 +2351,28 @@ void checkLeg() {
 		printf("RD-CANCELSCAN rounds=%d entered=%d collected=%d drained=%d rowUntouched=%d landed=%d released=%d "
 		       "ticks=%d\n",
 		       g_rdCancelRound, entered, collected, g_rdCancelDrained, g_rdCancelRowUntouched ? 1 : 0, landed ? 1 : 0,
-		       released ? 1 : 0, g_waitTicks);
+		       released ? 1 : 0, g_wait.ticks());
 		if (g_rdCancelRound != kRandomizeCancelRounds || entered != kRandomizeCancelRounds) {
 			// Without this the leg proves nothing: every claim below is about what a drain does, and a cancel that
 			// found nothing outstanding never drains, so a leg whose cancels all come too late goes quietly green.
-			printf("RD-CANCELSCAN FAIL only %d of %d walks were cancelled with the row's open still out, so the "
-			       "drain ran %d time(s)\n",
-			       g_rdCancelRound, kRandomizeCancelRounds, entered);
-			g_failures++;
+			g_report.fail("RD-CANCELSCAN only %d of %d walks were cancelled with the row's open still out, so the "
+			              "drain ran %d time(s)",
+			              g_rdCancelRound, kRandomizeCancelRounds, entered);
 		}
 		else if (collected != kRandomizeCancelRounds) {
-			printf("RD-CANCELSCAN FAIL %d of %d drains never collected the handle their cancelled open produced\n",
-			       kRandomizeCancelRounds - collected, kRandomizeCancelRounds);
-			g_failures++;
+			g_report.fail("RD-CANCELSCAN %d of %d drains never collected the handle their cancelled open produced",
+			              kRandomizeCancelRounds - collected, kRandomizeCancelRounds);
 		}
 		else if (!landed) {
-			printf("RD-CANCELSCAN FAIL a randomize made after %d cancelled opens did not bind a file from its folder: "
-			       "either the handles those opens produced were never given back, or its load is queued behind one "
-			       "an earlier leg left in the loader\n",
-			       kRandomizeCancelRounds);
-			g_failures++;
+			g_report.fail(
+			    "RD-CANCELSCAN a randomize made after %d cancelled opens did not bind a file from its folder: "
+			    "either the handles those opens produced were never given back, or its load is queued behind one "
+			    "an earlier leg left in the loader",
+			    kRandomizeCancelRounds);
 		}
 		else if (g_rdCancelDrained != 0 || !g_rdCancelRowUntouched || !released) {
-			printf("RD-CANCELSCAN FAIL a cancelled walk did more than discard: it must read no entries and leave the "
-			       "row's holder and name as they were, and the gate must be released at the end\n");
-			g_failures++;
+			g_report.fail("RD-CANCELSCAN a cancelled walk did more than discard: it must read no entries and leave the "
+			              "row's holder and name as they were, and the gate must be released at the end");
 		}
 		break;
 	}
@@ -2394,14 +2383,12 @@ void checkLeg() {
 		const int32_t scansRun = deluge::gui::randomizeDrums.scansRun();
 		printf("RD-TIER leg=%s scansRun=%d sampleIo=%d\n", legName(g_leg), scansRun, sampleIo);
 		if (sampleIo != 0) {
-			printf("RD-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a randomized "
-			       "drum's load belongs on the interaction tier\n",
-			       legName(g_leg), sampleIo);
-			g_failures++;
+			g_report.fail("RD-TIER leg=%s %d sample read(s) went to the card on the interaction tier -- a randomized "
+			              "drum's load belongs on the interaction tier",
+			              legName(g_leg), sampleIo);
 		}
 		if (scansRun == 0) {
-			printf("RD-TIER FAIL leg=%s no randomizer scan ran at all\n", legName(g_leg));
-			g_failures++;
+			g_report.fail("RD-TIER leg=%s no randomizer scan ran at all", legName(g_leg));
 		}
 
 		int32_t randomized = 0;
@@ -2429,20 +2416,20 @@ void checkLeg() {
 		const int32_t wantUntouched = kRandomizeDrumCount - wantRandomized;
 		if (g_leg == Leg::RandomizeOne) {
 			printf("RD-ONE randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched,
-			       (int)deluge::gui::randomizeDrums.scansRun(), g_waitTicks);
+			       (int)deluge::gui::randomizeDrums.scansRun(), g_wait.ticks());
 			if (randomized != wantRandomized || untouched != wantUntouched) {
-				printf("RD-ONE FAIL the selected drum did not end on a file from its own folder, named after it, with "
-				       "every other row untouched\n");
-				g_failures++;
+				g_report.fail(
+				    "RD-ONE the selected drum did not end on a file from its own folder, named after it, with "
+				    "every other row untouched");
 			}
 		}
 		else {
 			printf("RD-ALL randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched,
-			       (int)deluge::gui::randomizeDrums.scansRun(), g_waitTicks);
+			       (int)deluge::gui::randomizeDrums.scansRun(), g_wait.ticks());
 			if (randomized != wantRandomized || untouched != wantUntouched) {
-				printf("RD-ALL FAIL an affect-entire randomize did not end with every unmuted row that has notes on a "
-				       "file from its own folder, named after it, leaving the muted and empty rows alone\n");
-				g_failures++;
+				g_report.fail(
+				    "RD-ALL an affect-entire randomize did not end with every unmuted row that has notes on a "
+				    "file from its own folder, named after it, leaving the muted and empty rows alone");
 			}
 		}
 		break;
@@ -2468,7 +2455,7 @@ void tickSupersede() {
 	// and asks for the next claim at once.
 	const std::string_view second = supersedeSecond();
 	if (!deluge::harness::guestTurnTo(second.substr(second.rfind('/') + 1))) {
-		fail(legName(g_leg), "the cursor could not be moved onto the second file");
+		setupFailed(legName(g_leg), "the cursor could not be moved onto the second file");
 	}
 }
 
@@ -2534,64 +2521,78 @@ const char* recallFile() {
 	return legItemIsFolder() ? kImportKitFile : legFile();
 }
 
+/// What one step of bringing the browser to its item came to.
+enum class LandState : uint8_t { Done, Waiting, GaveUp };
+
 /// One step of bringing the browser to the leg's item, which it opened beside the file the sound holds: a favourite
 /// holding the file recalled, and for a folder item BACK out of the file's folder and a turn onto the item.
-/// @return Whether the leg is done with it, the browser on the item or never to get there; false while a step waits, or
-///         after one that started a listing (the step goes back to the listing wait).
-bool landStep() {
+/// @return Done when the browser is on the item or the leg is to go on regardless; Waiting while a step waits, or after
+///         one that started a listing (the step goes back to the listing wait); GaveUp when the wait or the step bound
+///         ran out, already reported.
+LandState landStep() {
 	const std::string target = legFile();
-	if (guestSelectedPath() == target || g_browseSteps >= kMaxBrowseSteps) {
-		return true;
+	if (guestSelectedPath() == target) {
+		return LandState::Done;
+	}
+	if (g_browseSteps >= kMaxBrowseSteps) {
+		g_report.fail("the browser never reached %s", target.c_str());
+		return LandState::GaveUp;
 	}
 	const std::string_view dir = std::string_view{target}.substr(0, target.rfind('/'));
 	const std::string_view current = deluge::scenes::browser::browser_scene().current_dir();
 	if (legItemIsFolder() && current == dir
 	    && deluge::harness::guestTurnTo(std::string_view{target}.substr(dir.size() + 1))) {
 		g_browseSteps++;
-		return true;
+		return LandState::Done;
 	}
 	if (legItemIsFolder() && current.size() > dir.size() && current.starts_with(dir) && current[dir.size()] == '/') {
 		g_browseSteps++;
 		guestBack();
+		startWait("a browser listing finishing", kMaxListingTicks);
 		g_step = Step::Listing;
-		return false;
+		return LandState::Waiting;
 	}
 	if (!deluge::harness::guestRecallFavourite(recallFile())) {
 		// The favourites bank is still loading.
-		return ++g_waitTicks > kMaxLegTicks;
+		return g_wait.poll(false) == WaitState::Expired ? LandState::GaveUp : LandState::Waiting;
 	}
 	g_browseSteps++;
-	g_waitTicks = 0;
+	startWait("a browser listing finishing", kMaxListingTicks);
 	g_step = Step::Listing;
-	return false;
+	return LandState::Waiting;
 }
 
 void nextLeg() {
 	// Whatever the leg did to a sound, its record, slot and snapshot say what it plays.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, legName(g_leg));
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, legName(g_leg)));
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
-	g_waitTicks = 0;
+	startWait("a claim from the leg before ending", kMaxLegTicks);
 }
 
 /// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
 /// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
 /// that landed would be working on an Instrument about to be replaced, which no user can do.
-bool bootSettled() {
-	static int32_t waited = 0;
-	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())
-	    && ++waited < 2000) {
-		return false;
-	}
-	return true;
+WaitState pollBoot() {
+	return g_bootWait.poll(currentSong == nullptr
+	                       || !(currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight()));
 }
 
 void runTick() {
-	if (!bootSettled()) {
-		return;
+	if (g_leg == Leg::Synth && g_step == Step::Prepare) {
+		// Only the first leg starts on the boot clip; later legs leave the loader alone for their own waits.
+		switch (pollBoot()) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			g_leg = Leg::Done;
+			return;
+		}
 	}
 	if (g_leg == Leg::Done) {
-		printf("SC-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		return;
@@ -2603,14 +2604,16 @@ void runTick() {
 		break;
 	case Step::Open:
 		// A claim still in flight from the leg before -- one that timed out -- would act on this leg's clip.
-		if (deluge::gui::sampleClaim.inFlight()) {
-			if (++g_waitTicks > kMaxLegTicks) {
-				fail(legName(g_leg), "a claim from the leg before never ended");
-				nextLeg();
-			}
+		switch (g_wait.poll(!deluge::gui::sampleClaim.inFlight())) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			nextLeg();
+			return;
 		}
-		g_waitTicks = 0;
+		startWait("a browser listing finishing", kMaxListingTicks);
 		g_browseSteps = 0;
 		if (openLeg()) {
 			// The randomizer legs press a pad in the clip view, and the ported slicer's host opens the file itself: no
@@ -2622,29 +2625,36 @@ void runTick() {
 		}
 		break;
 	case Step::Listing:
-		if (listingBusy()) {
-			if (++g_waitTicks > kMaxListingTicks) {
-				fail(legName(g_leg), "a browser listing never finished");
-				nextLeg();
-			}
+		switch (g_wait.poll(!listingBusy())) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			nextLeg();
+			return;
 		}
-		g_waitTicks = 0;
+		startWait("the favourites bank loading", kMaxLegTicks);
 		g_step = Step::Select;
 		break;
 	case Step::Select: {
-		if (!landStep()) {
+		const LandState landed = landStep();
+		if (landed == LandState::Waiting) {
+			break;
+		}
+		if (landed == LandState::GaveUp) {
+			nextLeg();
 			break;
 		}
 		deluge::harness::guestHideKeyboard();
 		const std::string selected = guestSelectedPath();
 		printf("SC-SELECT leg=%s file=%s steps=%d\n", legName(g_leg), selected.c_str(), g_browseSteps);
 		if (selected != legFile()) {
-			fail(legName(g_leg), "the browser could not be brought to the leg's item");
+			g_report.fail("SELECT leg=%s the browser could not be brought to the leg's item", legName(g_leg));
 			nextLeg();
 			break;
 		}
-		g_waitTicks = 0;
+		startWait("the browser's preview landing on the file", kMaxLegTicks);
 		// The resident-wavetable leg claims a file the preview has made resident as a Sample.
 		g_step = (isSupersede() || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted)
 		             ? Step::PreviewWait
@@ -2654,36 +2664,49 @@ void runTick() {
 	case Step::PreviewWait: {
 		// The legs that claim a previewed file wait for the browser's preview of it to land.
 		const Sample* landed = previewedSample();
-		if (landed != nullptr && landed->filePath == legFile()) {
-			printf("SC-PROBE leg=%s preview landed ticks=%d\n", legName(g_leg), g_waitTicks);
-			g_step = (g_leg == Leg::WaveTableConverted) ? Step::ResidentWait : Step::Act;
-			g_waitTicks = 0;
-			break;
+		const bool previewed = landed != nullptr && landed->filePath == legFile();
+		if (!previewed) {
+			guestTick();
 		}
-		guestTick();
-		if (++g_waitTicks > kMaxLegTicks) {
-			fail(legName(g_leg), "the browser's preview never landed on the file");
+		switch (g_wait.poll(previewed)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			printf("SC-PROBE leg=%s preview landed ticks=%d\n", legName(g_leg), g_wait.ticks());
+			g_step = (g_leg == Leg::WaveTableConverted) ? Step::ResidentWait : Step::Act;
+			startWait("the file becoming fully resident", kMaxLegTicks);
+			break;
+		case WaitState::Expired:
 			nextLeg();
+			break;
 		}
 		break;
 	}
 	case Step::ResidentWait: {
 		// The converted leg claims a file every cluster of which is cached: ask for each until all are there at once.
 		Sample* previewed = previewedSample();
-		if (previewed != nullptr && previewed->filePath == legFile() && acquireAllClusters(*previewed)) {
-			printf("SC-PROBE leg=%s fully resident ticks=%d\n", legName(g_leg), g_waitTicks);
+		const bool resident =
+		    previewed != nullptr && previewed->filePath == legFile() && acquireAllClusters(*previewed);
+		switch (g_wait.poll(resident)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			printf("SC-PROBE leg=%s fully resident ticks=%d\n", legName(g_leg), g_wait.ticks());
 			g_step = Step::Act;
 			break;
-		}
-		if (++g_waitTicks > kMaxLegTicks) {
-			fail(legName(g_leg), "the file never became fully resident");
+		case WaitState::Expired:
 			nextLeg();
+			break;
 		}
 		break;
 	}
 	case Step::Act:
 		actLeg();
-		g_waitTicks = 0;
+		startWait("the leg's claim ending",
+		          (g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall
+		           || g_leg == Leg::PitchStall || g_leg == Leg::ShellSliceFail)
+		              ? kMaxStallTicks
+		              : kMaxLegTicks);
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
@@ -2715,13 +2738,16 @@ void runTick() {
 		if (isShellSlice()) {
 			tickShellSlice();
 		}
-		if (legEnded()
-		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall
-		                         || g_leg == Leg::PitchStall || g_leg == Leg::ShellSliceFail)
-		                            ? kMaxStallTicks
-		                            : kMaxLegTicks)) {
+		switch (g_wait.poll(legEnded())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			checkLeg();
 			nextLeg();
+			break;
+		case WaitState::Expired:
+			nextLeg();
+			break;
 		}
 		break;
 	}
@@ -2737,8 +2763,9 @@ void deluge_scenario_sample_claim_begin(void) {
 	g_step = Step::Prepare;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
+	g_bootWait = Wait{g_report, "the boot song's preset arriving", kMaxBootTicks};
+	startWait("a claim from the leg before ending", kMaxLegTicks);
 	g_synth = nullptr;
 	g_kitClip = nullptr;
 	g_audioClip = nullptr;
@@ -2770,7 +2797,7 @@ bool deluge_scenario_sample_claim_step_done(void) {
 }
 
 int32_t deluge_scenario_sample_claim_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

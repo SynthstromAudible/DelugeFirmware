@@ -82,9 +82,9 @@ virtual clock, through the BSP's own input path, as the `ui-scripts` gate does. 
 
 ```sh
 ./dbt test -n ui-scripts
-GOLDEN_SCENARIO=ui_script UI_SCRIPT=tests/ui-scripts/app/menu.txt UI_SNAPSHOT_DIR=/tmp/got \
+GOLDEN_SCENARIO=ui_script UI_SCRIPT=tests/ui-scripts/app/a02-menu.txt UI_SNAPSHOT_DIR=/tmp/got \
     UI_CARD=tests/fixtures/card build/cargo-harness/release/golden_vt_render
-python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/menu
+python3 scripts/ui_snapshot_diff.py /tmp/got tests/golden/ui/app/a02-menu
 ```
 
 A snapshot writes `<name>.oled0.pbm` and `<name>.state`; it shows the surface as the app last drew it, so a press due
@@ -106,5 +106,5 @@ GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=browser_scene_spec SCENES_SPEC_CARD=test
 GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=--list build/cargo-harness/release/golden_vt_render
 ```
 
-`GFX_GOLDEN_UPDATE=1` re-records a file's goldens. The net is temporary: as each scene moves onto model addresses and
-Edits, its specs move down to unit specs.
+`./dbt test --update ui-scenes-spec` re-records the files' goldens. The net is temporary: as each scene moves onto
+model addresses and Edits, its specs move down to unit specs.

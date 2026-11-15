@@ -2,6 +2,7 @@
 # notification, CROSS-SCREEN pages the oscillator; the file selector opened while a keyboard note is held leaves
 # audition mode; the recorder opened from inside the menu (Shift + (0,4) on the oscillator page) returns, after a
 # take, to the source page with the file selector focused.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

@@ -28,14 +28,15 @@
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "support/mocks/fake_surfaces.h"
+#include "support/printers/rgb_printer.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
 #include <functional>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
@@ -154,7 +155,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 				blue += got ? 1 : 0;
 			}
 		}
-		expect(blue > size_t(4)).to_be_true();
+		expect(blue).to_be_greater_than(size_t(4));
 	});
 
 	it("uses the range rule while a source pad is held on a cable page", _ {
@@ -189,14 +190,14 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 			ctx.root_greyout = MenuContext::RootGreyout::Nothing;
 			ctx.root_is_keyboard = true;
 		});
-		expect(menu_scene().pad_regions() == PadRegions::None).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 		expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0});
 		r.shift(true);
-		expect(menu_scene().pad_regions() == PadRegions::Main).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::Main);
 		expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0xFFFFFFFF});
-		expect(r.pad_colour(8, 7) == RGB{0, 0, 0}).to_be_false(); // the cutoff's filter colour
+		expect(r.pad_colour(8, 7)).not_().to_equal(RGB{0, 0, 0}); // the cutoff's filter colour
 		r.shift(false);
-		expect(menu_scene().pad_regions() == PadRegions::None).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 		expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0});
 	});
 
@@ -221,10 +222,10 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		r.open(nodes::lpf_freq);
 		r.shift(true);
 		r.shift(false); // a tap: latched
-		expect(menu_scene().pad_regions() == PadRegions::Main).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::Main);
 		r.shift(true);
 		r.shift(false); // a second tap: released
-		expect(menu_scene().pad_regions() == PadRegions::None).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 		r.shell.lowering().set_shift_is_sticky(false);
 	});
 
@@ -233,11 +234,11 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		Rig r;
 		r.open(nodes::lpf_freq);
 		r.shift(true);
-		expect(menu_scene().pad_regions() == PadRegions::Main).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::Main);
 		menu_scene().state_for_spec().walk.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
 		deluge::notify::raise(deluge::notify::Dirty::Oled); // a render, so `after_render` drains the push
 		r.tick();
-		expect(menu_scene().pad_regions() == PadRegions::None).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(PadRegions::None);
 	});
 
 	it("keeps the blink flashing over the overlay", _ {
@@ -249,8 +250,9 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		for (int i = 0; i < 30; i++) {
 			r.tick(20);
 		}
-		expect(std::ranges::count(r.fake.flashes_sent, deluge::ui::grid::PadFlash{8, 7, deluge::ui::grid::FlashColour::Default}) > 0)
-		    .to_be_true();
+		expect(std::ranges::count(r.fake.flashes_sent,
+		                          deluge::ui::grid::PadFlash{8, 7, deluge::ui::grid::FlashColour::Default}))
+		    .to_be_greater_than(0);
 	});
 });
 // clang-format on

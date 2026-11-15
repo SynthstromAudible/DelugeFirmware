@@ -24,8 +24,8 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
-#include "spec/ui/support/frames.h"
+#include "support/spec_main.h"
+#include "unit/ui/support/frames.h"
 
 #include <algorithm>
 #include <new>
@@ -111,10 +111,15 @@ describe waveforms("a waveform by its address", ${
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
 		const auto info = waveforms.info(range);
-		expect(info.has_value() && info->length_samples == kSampleLength && info->sample_rate == 44100u
-		       && info->channels == 1 && info->centre == sample->getFoundValueCentrePoint()
-		       && info->span == sample->getValueSpan() && !info->recording)
-		    .to_be_true();
+		expect(info.has_value()).to_be_true();
+		if (info.has_value()) {
+			expect(info->length_samples).to_equal(kSampleLength);
+			expect(info->sample_rate).to_equal(44100u);
+			expect(info->channels).to_equal(1);
+			expect(info->centre).to_equal(sample->getFoundValueCentrePoint());
+			expect(info->span).to_equal(sample->getValueSpan());
+			expect(info->recording).to_be_false();
+		}
 
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		currentSong = audio.song;
@@ -122,7 +127,10 @@ describe waveforms("a waveform by its address", ${
 		                           .clip = deluge::project::ClipAddress{audio.clip->id()}};
 		expect(waveforms.info(clip).has_value()).to_be_false();
 		audio.clip->sampleHolder.audioFile = make_sample();
-		expect(waveforms.info(clip).has_value() && waveforms.info(clip)->length_samples == kSampleLength).to_be_true();
+		expect(waveforms.info(clip).has_value()).to_be_true();
+		if (waveforms.info(clip).has_value()) {
+			expect(waveforms.info(clip)->length_samples).to_equal(kSampleLength);
+		}
 		audio.clip->sampleHolder.audioFile = nullptr;
 		currentSong = saved;
 	});
@@ -144,7 +152,7 @@ describe waveforms("a waveform by its address", ${
 		WaveformRenderData direct{};
 		(void)menu::host_waveforms().peaks(range, 0, zoom, through);
 		(void)deluge::sample::find_peaks_per_col(sample, 0, zoom, &direct);
-		expect(through.colStatus[0] == COL_STATUS_INVESTIGATED).to_be_true();
+		expect(through.colStatus[0]).to_equal(COL_STATUS_INVESTIGATED);
 		expect(same_peaks(through, direct)).to_be_true();
 		multisample->sampleHolder.audioFile = nullptr;
 		currentSong = saved;
@@ -158,9 +166,13 @@ describe waveforms("a waveform by its address", ${
 		Sample* sample = make_sample();
 		sound.hold(sample);
 		const auto info = waveforms.info(preview);
-		expect(info.has_value() && info->length_samples == kSampleLength && info->centre == sample->getFoundValueCentrePoint()
-		       && info->span == sample->getValueSpan() && !info->recording)
-		    .to_be_true();
+		expect(info.has_value()).to_be_true();
+		if (info.has_value()) {
+			expect(info->length_samples).to_equal(kSampleLength);
+			expect(info->centre).to_equal(sample->getFoundValueCentrePoint());
+			expect(info->span).to_equal(sample->getValueSpan());
+			expect(info->recording).to_be_false();
+		}
 		sound.hold(nullptr);
 		expect(waveforms.info(preview).has_value()).to_be_false();
 	});
@@ -173,7 +185,11 @@ describe waveforms("a waveform by its address", ${
 		const std::optional<services::WaveformInfo> first = waveforms.info(preview);
 		sound.hold(make_sample());
 		const std::optional<services::WaveformInfo> second = waveforms.info(preview);
-		expect(first.has_value() && second.has_value() && first->identity != second->identity).to_be_true();
+		expect(first.has_value()).to_be_true();
+		expect(second.has_value()).to_be_true();
+		if (first.has_value() && second.has_value()) {
+			expect(first->identity).not_().to_equal(second->identity);
+		}
 		sound.hold(nullptr);
 	});
 
@@ -207,7 +223,7 @@ describe waveforms("a waveform by its address", ${
 				lit += legacy[y][x] == RGB{} ? 0 : 1;
 			}
 		}
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 		expect(differ).to_equal(0);
 		sound.hold(nullptr);
 	});

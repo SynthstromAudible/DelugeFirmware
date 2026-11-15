@@ -15,7 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/offset_io_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the offset-addressed I/O gate.
+///
+/// ## `OI-TRANSFER` writes THREE blocks, and that is the whole point
+///
+/// A `write_at` that truncated would leave only the final block, and a single-block round trip would
+/// pass happily against exactly that bug — which is what this gate most risks, because
+/// `efatfs::portable::create_context` truncates unconditionally and the correct open mode looks like a
+/// mistake. Three blocks at ascending offsets is what makes the guard real.
+///
+/// ## The tier count is not this gate's evidence
+///
+/// `smsysex` never begins a blocking operation after boot, so its tier count reads zero whichever
+/// way its I/O runs. This gate's evidence is `OI-CHANNEL served=` going non-zero, plus the truncation
+/// neutering failing.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
@@ -39,7 +56,13 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(offset_io);
+
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// A `MIDICable` that keeps what was sent to it instead of putting it on a wire. Same shape as
 /// `path_operations_scenario.cpp`'s, and `sendBufferSpace` is nonzero for the same reason: a zero
@@ -129,8 +152,9 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Fixture;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_verbTicks = 0;
+ScenarioReport g_report{"OI"};
+/// The wait of the stage running; each verb starts its own.
+Wait g_wait{g_report, "the verb's reply", kMaxVerbTicks};
 int32_t g_repliesBefore = 0;
 uint32_t g_blockIndex = 0;
 uint32_t g_writeFid = 0;
@@ -235,22 +259,26 @@ void runTick() {
 
 	case Stage::OpenWrite:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"open":{"path":")") + kTransferPath + R"(","write":1,"date":0,"time":0}})");
 		g_stage = Stage::OpenWriteCheck;
 		break;
 
 	case Stage::OpenWriteCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			printf("OI-SYSEX verb=open-write replied=0 fid=0 err=0\n");
+			g_stage = Stage::Report;
 			break;
 		}
 		const int32_t fid = replyAttr(g_cable.lastReply, "fid");
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
-		printf("OI-SYSEX verb=open-write replied=%d fid=%d err=%d\n", g_cable.replies > g_repliesBefore ? 1 : 0, fid,
-		       err);
+		printf("OI-SYSEX verb=open-write replied=1 fid=%d err=%d\n", fid, err);
 		if (err != 0 || fid <= 0) {
-			printf("OI-SYSEX FAIL open-for-write err=%d fid=%d\n", err, fid);
-			g_failures++;
+			g_report.fail("SYSEX open-for-write err=%d fid=%d", err, fid);
 			g_stage = Stage::Report;
 			break;
 		}
@@ -262,19 +290,23 @@ void runTick() {
 
 	case Stage::WriteBlocks:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendWriteBlock(g_blockIndex);
 		g_stage = Stage::WriteBlocksCheck;
 		break;
 
 	case Stage::WriteBlocksCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
 		if (err != 0) {
-			printf("OI-TRANSFER FAIL block %u write reported err=%d\n", g_blockIndex, err);
-			g_failures++;
+			g_report.fail("TRANSFER block %u write reported err=%d", g_blockIndex, err);
 		}
 		g_blockIndex++;
 		g_stage = (g_blockIndex < kBlockCount) ? Stage::WriteBlocks : Stage::CloseWrite;
@@ -283,27 +315,39 @@ void runTick() {
 
 	case Stage::CloseWrite:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"close":{"fid":)") + std::to_string(g_writeFid) + "}}");
 		g_stage = Stage::CloseWriteCheck;
 		break;
 
-	case Stage::CloseWriteCheck:
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+	case Stage::CloseWriteCheck: {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		g_stage = Stage::OpenRead;
 		break;
+	}
 
 	case Stage::OpenRead:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"open":{"path":")") + kTransferPath + R"(","write":0,"date":0,"time":0}})");
 		g_stage = Stage::OpenReadCheck;
 		break;
 
 	case Stage::OpenReadCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			printf("OI-SYSEX verb=open-read replied=0 fid=0 size=0\n");
+			g_stage = Stage::Report;
 			break;
 		}
 		const int32_t fid = replyAttr(g_cable.lastReply, "fid");
@@ -312,11 +356,10 @@ void runTick() {
 		// The size the open reports is the truncation guard's first witness: three blocks were
 		// written, so a file shorter than that has lost some of them.
 		if (size != static_cast<int32_t>(kBlock * kBlockCount)) {
-			printf("OI-TRANSFER FAIL file is %d bytes, expected %u\n", size, kBlock * kBlockCount);
-			g_failures++;
+			g_report.fail("TRANSFER file is %d bytes, expected %u", size, kBlock * kBlockCount);
 		}
 		if (fid <= 0) {
-			g_failures++;
+			g_report.fail("SYSEX open-for-read returned fid=%d", fid);
 			g_stage = Stage::Report;
 			break;
 		}
@@ -329,14 +372,19 @@ void runTick() {
 
 	case Stage::ReadBlocks:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"read":{"fid":)") + std::to_string(g_readFid) + R"(,"addr":)"
 		         + std::to_string(g_blockIndex * kBlock) + R"(,"size":)" + std::to_string(kBlock) + "}}");
 		g_stage = Stage::ReadBlocksCheck;
 		break;
 
 	case Stage::ReadBlocksCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		// The reply carries the block 7-bit packed after a separator. Rather than unpack it here,
@@ -355,7 +403,7 @@ void runTick() {
 				g_matched++;
 			}
 			else {
-				printf("OI-TRANSFER FAIL block %u does not match what was written\n", g_blockIndex);
+				printf("OI-TRANSFER block %u does not match what was written\n", g_blockIndex);
 			}
 			(void)file->close();
 		}
@@ -366,27 +414,38 @@ void runTick() {
 
 	case Stage::CloseRead:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"close":{"fid":)") + std::to_string(g_readFid) + "}}");
 		g_stage = Stage::CloseReadCheck;
 		break;
 
-	case Stage::CloseReadCheck:
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+	case Stage::CloseReadCheck: {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		g_stage = Stage::Copy;
 		break;
+	}
 
 	case Stage::Copy:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"copy":{"from":")") + kCopySrc + R"(","to":")" + kCopyDst + R"("}})");
 		g_stage = Stage::CopyCheck;
 		break;
 
 	case Stage::CopyCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		// Byte-for-byte against the source, not a length check: a copy that truncated or reordered
@@ -418,13 +477,18 @@ void runTick() {
 
 	case Stage::CopyMissing:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		sendJson(std::string(R"({"copy":{"from":")") + kMissing + R"(","to":"OI_TEST/NOPE.BIN"}})");
 		g_stage = Stage::CopyMissingCheck;
 		break;
 
 	case Stage::CopyMissingCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		// A case whose expected answer is an ERROR. Without one, a handler replying before its
@@ -438,7 +502,7 @@ void runTick() {
 
 	case Stage::Dir:
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the verb's reply", kMaxVerbTicks};
 		// The listing verb, whose directory OPEN goes through the directory channel. Included
 		// because a channel path nothing exercises looks identical to one that works -- this covers a
 		// site the gate would otherwise never drive.
@@ -447,7 +511,12 @@ void runTick() {
 		break;
 
 	case Stage::DirCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
@@ -460,26 +529,22 @@ void runTick() {
 	case Stage::Report: {
 		printf("OI-TRANSFER blocks=%u matched=%d\n", kBlockCount, g_matched);
 		if (g_matched != static_cast<int32_t>(kBlockCount)) {
-			printf("OI-TRANSFER FAIL only %d of %u blocks survived\n", g_matched, kBlockCount);
-			g_failures++;
+			g_report.fail("TRANSFER only %d of %u blocks survived", g_matched, kBlockCount);
 		}
 
 		printf("OI-COPY same=%d missingReports=%d\n", g_copySame, g_copyMissingReports);
 		if (g_copySame != 1) {
-			printf("OI-COPY FAIL the copy does not match its source\n");
-			g_failures++;
+			g_report.fail("COPY the copy does not match its source");
 		}
 		if (g_copyMissingReports != 1) {
-			printf("OI-COPY FAIL copying a missing source did not report an error\n");
-			g_failures++;
+			g_report.fail("COPY copying a missing source did not report an error");
 		}
 
 		// Reported, never asserted here. A build without the channel honestly answers zero, and
 		// `tests/integration/checks/offset_io.py` is what requires it non-zero.
 		printf("OI-DIR listed=%d\n", g_dirListed);
 		if (g_dirListed != 1) {
-			printf("OI-DIR FAIL the listing did not return the directory's contents\n");
-			g_failures++;
+			g_report.fail("DIR the listing did not return the directory's contents");
 		}
 
 		printf("OI-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
@@ -489,8 +554,7 @@ void runTick() {
 			const int32_t illegal = deluge::storage::bytes::illegalInline();
 			printf("OI-ILLEGAL illegal=%d\n", illegal);
 			if (illegal != 0) {
-				printf("OI-ILLEGAL FAIL a SysEx operation was refused for want of a legal place to run\n");
-				g_failures++;
+				g_report.fail("ILLEGAL a SysEx operation was refused for want of a legal place to run");
 			}
 		}
 		g_stage = Stage::GiveUp;
@@ -505,41 +569,39 @@ void runTick() {
 		deluge_file_bytes_set_latency_ms(kGiveUpLatencyMs);
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the give-up stage's reply", kMaxGiveUpTicks};
 		sendJson(std::string(R"({"copy":{"from":")") + kCopySrc + R"(","to":")" + kGiveUpDst + R"("}})");
 		g_stage = Stage::GiveUpCheck;
 		break;
 
 	case Stage::GiveUpCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxGiveUpTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
+			break;
+		}
+		if (reply == WaitState::Expired) {
+			deluge_file_bytes_set_latency_ms(0);
+			g_stage = Stage::DirStall;
 			break;
 		}
 		deluge_file_bytes_set_latency_ms(0);
-		const bool replied = g_cable.replies > g_repliesBefore;
-		const int32_t err = replied ? replyAttr(g_cable.lastReply, "err") : -1;
+		const int32_t err = replyAttr(g_cable.lastReply, "err");
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		auto dst = deluge::io::File::open(kGiveUpDst, DELUGE_FILE_READ);
 		const bool copied = dst.has_value();
 		if (dst.has_value()) {
 			(void)dst->close();
 		}
-		printf("OI-GIVEUP replied=%d err=%d illegal=%d copied=%d ticks=%d latencyMs=%u\n", (int)replied, err, illegal,
-		       (int)copied, g_verbTicks, (unsigned)kGiveUpLatencyMs);
-		if (!replied) {
-			printf("OI-GIVEUP FAIL the handler never replied to a copy whose channel stopped answering\n");
-			g_failures++;
-		}
-		if (replied && err <= 0) {
-			printf("OI-GIVEUP FAIL the handler reported success for a copy it could not make\n");
-			g_failures++;
+		printf("OI-GIVEUP replied=1 err=%d illegal=%d copied=%d ticks=%d latencyMs=%u\n", err, illegal, (int)copied,
+		       g_wait.ticks(), (unsigned)kGiveUpLatencyMs);
+		if (err <= 0) {
+			g_report.fail("GIVEUP the handler reported success for a copy it could not make");
 		}
 		if (illegal != 1) {
-			printf("OI-GIVEUP FAIL expected exactly one refused operation, got %d\n", illegal);
-			g_failures++;
+			g_report.fail("GIVEUP expected exactly one refused operation, got %d", illegal);
 		}
 		if (copied) {
-			printf("OI-GIVEUP FAIL the copy was made anyway\n");
-			g_failures++;
+			g_report.fail("GIVEUP the copy was made anyway");
 		}
 		g_stage = Stage::DirStall;
 		break;
@@ -550,46 +612,50 @@ void runTick() {
 		// and no entries, and popped, so the requests queued behind it are not left waiting too.
 		deluge_file_directory_set_latency_ms(kGiveUpLatencyMs);
 		g_repliesBefore = g_cable.replies;
-		g_verbTicks = 0;
+		g_wait = Wait{g_report, "the give-up stage's reply", kMaxGiveUpTicks};
 		sendJson(R"({"dir":{"path":"OI_TEST","offset":0,"lines":8}})");
 		g_stage = Stage::DirStallCheck;
 		break;
 
 	case Stage::DirStallCheck: {
-		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxGiveUpTicks) {
+		const WaitState reply = g_wait.poll(g_cable.replies != g_repliesBefore);
+		if (reply == WaitState::Pending) {
 			break;
 		}
 		deluge_file_directory_set_latency_ms(0);
-		const bool replied = g_cable.replies > g_repliesBefore;
-		const int32_t err = replied ? replyAttr(g_cable.lastReply, "err") : -1;
-		const bool listed = replied && g_cable.lastReply.find("SRC.BIN") != std::string::npos;
-		const int32_t timeout = static_cast<int32_t>(deluge::storage::FsWireStatus::Timeout);
-		printf("OI-DIR-STALL replied=%d err=%d listed=%d ticks=%d latencyMs=%u\n", (int)replied, err, (int)listed,
-		       g_verbTicks, (unsigned)kGiveUpLatencyMs);
-		if (!replied) {
-			printf("OI-DIR-STALL FAIL the handler never replied to a listing whose open never answered\n");
-			g_failures++;
+		if (reply == WaitState::Expired) {
+			// The listing's own evidence needs a reply; the tier count does not.
+			const int32_t expiredTier =
+			    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Sysex);
+			printf("OI-TIER sysex=%d\n", expiredTier);
+			if (expiredTier != 0) {
+				g_report.fail("TIER %d SysEx directory open(s) began synchronously after boot", expiredTier);
+			}
+			g_stage = Stage::Summary;
+			break;
 		}
-		else if (err != timeout) {
-			printf("OI-DIR-STALL FAIL the reply's err=%d, wanted the timeout (%d)\n", err, timeout);
-			g_failures++;
+		const int32_t err = replyAttr(g_cable.lastReply, "err");
+		const bool listed = g_cable.lastReply.find("SRC.BIN") != std::string::npos;
+		const int32_t timeout = static_cast<int32_t>(deluge::storage::FsWireStatus::Timeout);
+		printf("OI-DIR-STALL replied=1 err=%d listed=%d ticks=%d latencyMs=%u\n", err, (int)listed, g_wait.ticks(),
+		       (unsigned)kGiveUpLatencyMs);
+		if (err != timeout) {
+			g_report.fail("DIR-STALL the reply's err=%d, wanted the timeout (%d)", err, timeout);
 		}
 		if (listed) {
-			printf("OI-DIR-STALL FAIL the timeout reply listed an earlier listing's entries\n");
-			g_failures++;
+			g_report.fail("DIR-STALL the timeout reply listed an earlier listing's entries");
 		}
 		const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Sysex);
 		printf("OI-TIER sysex=%d\n", tier);
 		if (tier != 0) {
-			printf("OI-TIER FAIL %d SysEx directory open(s) began synchronously after boot\n", tier);
-			g_failures++;
+			g_report.fail("TIER %d SysEx directory open(s) began synchronously after boot", tier);
 		}
 		g_stage = Stage::Summary;
 		break;
 	}
 
 	case Stage::Summary:
-		printf("OI-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// Piped into a script stdout is block-buffered and the harness exits without flushing C
 		// stdio, so without this the entire gate output vanishes while the run reports success.
 		fflush(stdout);
@@ -611,8 +677,7 @@ void deluge_scenario_offset_io_begin(void) {
 	g_stage = Stage::Fixture;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_verbTicks = 0;
+	g_report.reset();
 	g_repliesBefore = 0;
 	g_blockIndex = 0;
 	g_writeFid = 0;
@@ -649,7 +714,7 @@ bool deluge_scenario_offset_io_step_done(void) {
 }
 
 int32_t deluge_scenario_offset_io_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

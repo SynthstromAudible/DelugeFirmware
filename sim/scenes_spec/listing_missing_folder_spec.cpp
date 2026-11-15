@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using deluge::scenes::spec::NoSdRoot;
 using namespace deluge::scenes::spec::listing;

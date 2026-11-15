@@ -1,6 +1,7 @@
 """The path-operations gate: SysEx path requests, the browser's folder creation, and deleting a file from a browser.
 
-What the checks cover (tests/integration/scenarios/path_operations_scenario.cpp writes the lines), and why each is separate:
+What the checks cover (tests/integration/scenarios/path_operations_scenario.cpp writes the lines), and why each is
+separate:
     PO-SYSEX     that the protocol still answers. A real request for each covered verb must produce its ^verb reply,
                  captured from a loopback MIDICable rather than inferred from the filesystem -- asserting the effect
                  alone would pass for a request path that stopped replying, which is exactly what deferring a reply
@@ -27,22 +28,35 @@ What the checks cover (tests/integration/scenarios/path_operations_scenario.cpp 
 
 The registry entry requires each marker and the result line; this module adds PO-CHANNEL's non-zero count and the
 probe.
+
+Gate path-operations:
+    real SysEx path requests must still get their ^verb replies, a nested path with every segment missing must be
+    created by one request and a second creation of an existing path must succeed, no browser folder creation or delete
+    may begin on the interaction tier, and a file deleted from a browser must go through the byte channel. Replies are
+    captured from a loopback MIDICable rather than inferred from the filesystem: asserting the effect alone would pass
+    for a request path that stopped replying, which is exactly what deferring a reply risks. PO-CHANNEL carries more
+    weight here than on any other gate -- PO-TIER counts only browser operations, so for the SysEx requests the served
+    count is the whole of their evidence. The delete stages drive the real delete menu in a save browser listing
+    PO_TEST/DELETE: PO-DELETE requires the removal pending on the byte channel, with BACK, a pad and the select encoder
+    refused meanwhile, and then the file gone from the card and the list; PO-DELETE-ABSENT requires a listed file
+    already gone to end as missing and stay listed; PO-DELETE-STALL requires a removal the channel never answers to end
+    as failed with the file listed and the menu closed. PO-QUEUE (sysex_queue_drains) requires three `ping` requests
+    queued before any of them is handled -- as three messages arriving within one midi-routine run would be -- to all
+    still be answered, one per run, in the order they arrived.
 """
 
-import re
-
-SERVED = re.compile(r"^PO-CHANNEL served=([0-9]*)$")
-PROBE = re.compile(r"^TIER-SYNC-PROBE n=([0-9]*)$")
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
-    served = next((m.group(1) for line in run.lines if (m := SERVED.match(line))), "")
-    if not served or int(served) == 0:
+    served = count_field(run.first("PO-CHANNEL "), "served")
+    if not served:
         gate.fail(
-            f"PO-CHANNEL served={served or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"PO-CHANNEL served={field(run.first('PO-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
-    probes = [m.group(1) for line in run.lines if (m := PROBE.match(line))]
+    probes = [field(line, "n") or "" for line in run.starting("TIER-SYNC-PROBE ")]
     if probes != ["1"]:
         found = "\n".join(probes) or "none"
         gate.fail(

@@ -1,4 +1,5 @@
 # The synth's folder menu on a folder of samples: MULTISAMPLES imports the folder as ranges.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

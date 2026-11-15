@@ -25,7 +25,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 #include <string_view>
@@ -92,13 +92,17 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 	it("an audio track with no clips keeps its saved params through a load", _ {
 		Song* const saved = currentSong;
 		Song* song = load_song(kAudioTrackNoClips);
-		expect(song != nullptr).to_be_true();
+		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			Output* audio = song->live.media.first_output;
-			expect(audio != nullptr && audio->type == OutputType::AUDIO && audio->id().has_value()).to_be_true();
+			expect(audio).not_().to_be_null();
+			if (audio != nullptr) {
+				expect(audio->type).to_equal(OutputType::AUDIO);
+				expect(audio->id().has_value()).to_be_true();
+			}
 			if (audio != nullptr && audio->id()) {
 				ParamManager* params = song->live.param_backup.getPreferablyWithClip(*audio, nullptr);
-				expect(params != nullptr).to_be_true();
+				expect(params).not_().to_be_null();
 				if (params != nullptr) {
 					expect(params->getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME))
 					    .to_equal(static_cast<int32_t>(0x30000000));
@@ -118,15 +122,18 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		Song* const saved = currentSong;
 		currentSong = f.song;
 		NoteRow* row = f.clip->noteRows.insertNoteRowAtIndex(0);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row != nullptr) {
 			alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithNoteRow* stack =
 			    setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip)->addNoteRow(0, row);
 			f.song->setCurrentClip(f.clip);
 			SoundDrum* drum = instrumentClipView.createDrumForRow(stack, false);
-			expect(drum != nullptr && row->drum == drum).to_be_true();
-			expect(drum != nullptr && drum->id().has_value()).to_be_true();
+			expect(drum).not_().to_be_null();
+			if (drum != nullptr) {
+				expect(row->drum).to_equal(drum);
+				expect(drum->id().has_value()).to_be_true();
+			}
 			expect(row->paramManager.containsAnyMainParamCollections()).to_be_true();
 			expect(f.song->live.param_backup.pending.empty()).to_be_true();
 		}
@@ -141,11 +148,11 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum));
 		auto* drum = new (memory) SoundDrum();
 		ParamManagerForTimeline params;
-		expect(params.setupWithPatching() == Error::NONE).to_be_true();
+		expect(params.setupWithPatching()).to_equal(Error::NONE);
 		Sound::initParams(&params);
 		f.song->live.param_backup.backUp(*drum, nullptr, &params, true);
 		expect(f.song->live.param_backup.pending.size()).to_equal(size_t{1});
-		expect(f.song->live.param_backup.getPreferablyWithClip(*drum, nullptr) != nullptr).to_be_true();
+		expect(f.song->live.param_backup.getPreferablyWithClip(*drum, nullptr)).not_().to_be_null();
 
 		static_cast<Kit*>(f.instrument)->addDrum(drum);
 		expect(drum->id().has_value()).to_be_true();
@@ -162,9 +169,10 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		currentSong = f.song;
 		Output* old = f.clip->output;
 		AudioOutput* made = f.song->createNewAudioOutput(old);
-		expect(made != nullptr).to_be_true();
+		expect(made).not_().to_be_null();
 		if (made != nullptr) {
-			expect(made->docOutput_ != nullptr && made->id().has_value()).to_be_true();
+			expect(made->docOutput_).not_().to_be_null();
+			expect(made->id().has_value()).to_be_true();
 			expect(f.song->live.param_backup.pending.empty()).to_be_true();
 			if (made->id()) {
 				expect(f.song->live.param_backup.map.count({OwnerId::instrument(*made->id()), std::nullopt}))

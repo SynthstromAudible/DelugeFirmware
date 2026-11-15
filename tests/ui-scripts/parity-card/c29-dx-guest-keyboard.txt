@@ -1,5 +1,6 @@
 # The ported menu open over the keyboard (SELECT from the keyboard screen) when Shift + a DX column pad is pressed:
 # the open menu moves to the DX7 parameter page on that operator, and BACK walks out of it.
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Mod6 down
 5100  button Synth down

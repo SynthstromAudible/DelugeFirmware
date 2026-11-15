@@ -28,7 +28,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <algorithm>
 #include <chrono>
@@ -194,7 +194,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			                                            .space = deluge::project::ParamSpace::ENGINE,
 			                                            .id = lpf,
 			                                            .clip_id = f.clip->id()};
-			expect(menu::host_runtime_facts().param_value(on_last) == std::optional<int32_t>{0x40000000}).to_be_true();
+			expect(menu::host_runtime_facts().param_value(on_last)).to_equal(std::optional<int32_t>{0x40000000});
 		}
 		nullifyUIs();
 	});
@@ -259,9 +259,9 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		       time_effect_gestures(*f.song, f.song->live.global_effectable, "audioCompressor/ratio", low, high));
 		report("kit-chain", kKitDrums, "audioCompressor/ratio",
 		       time_effect_gestures(*f.song, *static_cast<Kit*>(f.instrument), "audioCompressor/ratio", low, high));
-		expect(f.song->live.global_effectable.effects().compressor.ratio == (96 << 24)
-		       || f.song->live.global_effectable.effects().compressor.ratio == (64 << 24))
-		    .to_be_true();
+		expect(f.song->live.global_effectable.effects().compressor.ratio).to_satisfy([](auto ratio) {
+			return ratio == (96 << 24) || ratio == (64 << 24);
+		});
 	});
 });
 

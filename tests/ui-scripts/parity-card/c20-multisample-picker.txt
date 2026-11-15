@@ -1,6 +1,7 @@
 # The note-range picker on a multisample (MULTISAMPLES on the drums folder, as c18): it opens on the range the last
 # played note used, a turn moves the sidebar's highlight, a note on the audition column selects its range; an in-menu
 # shortcut to a range-dependent item opens it with no picker.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

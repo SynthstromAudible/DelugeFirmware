@@ -4,6 +4,16 @@
 // ActionLogger and allocator, on x86 and, through the qemu-arm build of golden_vt_render, on ARM.
 //
 // Exit: 0 = all checks pass, 1 = a failure.
+//
+// Gate edit-substrate:
+//     the Edit substrate on its own: the dispatcher's wiring, and SetParamValue, DeleteParamAutomation and
+//     PasteParamAutomation's mutation, Consequence, coalescence and undo, plus ParamSnapshot staying equivalent to the
+//     store through region and scalar edits (self-checking)
+//
+// Gate app-asan-edit-substrate:
+//     the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+//     poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its
+//     record's state, so a record freed under it would read freed memory)
 
 #include "definitions_cxx.hpp"
 #include "model/edits/edit.h"

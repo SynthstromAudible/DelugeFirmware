@@ -26,8 +26,8 @@
 
 namespace deluge::instrument {
 
-/// @brief The ids of the Deluge instrument's params. Pinned forever by tests/instruments/deluge/params_spec.cpp: an id
-/// never changes, is never reused, and a new param appends.
+/// @brief The ids of the Deluge instrument's params. Pinned forever by tests/unit/instruments/deluge/params_spec.cpp:
+/// an id never changes, is never reused, and a new param appends.
 namespace param {
 using plugin::ParamId;
 inline constexpr ParamId kOscAVolume{0};

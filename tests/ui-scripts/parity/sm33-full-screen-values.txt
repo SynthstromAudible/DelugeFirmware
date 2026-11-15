@@ -2,6 +2,7 @@
 # cursor starts on the units (`getDefaultEditPos`), a Select detent moves 1.00, and Horizontal moves the cursor
 # (`Decimal::horizontalEncoderAction`); a coming-soon pad pops "Feature not (yet?) implemented"; RETRIGGER PHASE's
 # cursor starts on the tens. A black encoder drops the first detent of its first turn after boot and of a reversal.
+# card: tests/fixtures/card-shell-menu-vertical.card
 100   snapshot boot
 300   button Shift down
 400   pad 2 1 down

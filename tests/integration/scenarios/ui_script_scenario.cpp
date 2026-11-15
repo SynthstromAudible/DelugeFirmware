@@ -15,11 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/ui_script_scenario.h"
+/// @file
+/// @brief A level-3 UI script (`UI_SCRIPT`) played into the whole app through the BSP's own input path, one virtual
+/// millisecond at a time: every step due by now, then every snapshot due (`UI_SNAPSHOT_DIR`). It completes when the
+/// script's `quit` has run and prints `UI-SCRIPT quit at <ms> ms`; a script that fails ends the run with exit 2.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "harness/level3/host_script.h"
 
 #include <cstdio>
+
+DELUGE_SCENARIO_DECLARE(ui_script);
 
 extern "C" {
 

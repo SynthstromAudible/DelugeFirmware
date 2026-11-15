@@ -18,14 +18,27 @@ collection, a repeat was not staged and swapped in at its loop end or an audio t
 a spare or a staged snapshot was left once recording ended (RS-TAKE-LEFT), or a collection's published lanes are not
 its model's after the take (RS-TAKE-STALE).
 
-ARRANGE_TAKE_UPDATE=1 records the baseline (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) instead of
-comparing with it, whatever else the run reports: a baseline is recorded on the commit the gate compares against.
+`./dbt test --update arrangement-take` records the baseline
+(tests/golden/arrangement_take/RS_ARRANGE_TAKE.txt) from a run whose other checks all passed, instead of
+comparing with it.
+
+Gate arrangement-take:
+    recording the session into the arrangement must make the takes it made when its baseline was recorded
+    (tests/golden/arrangement_take): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio
+    clip, a bar each) recorded from the start with a knob turned on each clip, cloning it into a take that repeats it at
+    every loop end, must leave every take's length and lanes byte for byte as the baseline's and render the same output
+    (RS-TAKE, RS-PCM); what the render plays across each repeat must be the take's appended lanes (RS-TAKE-PLAYED);
+    every knob turn must land in its take (RS-KNOB); every repeat, a half-bar row's at its own end included, must be
+    staged and swapped in at its loop end and each audio take's next take be a spare made on the interaction tier
+    (RS-TAKE-REPEATS); once recording ends no spare or staged snapshot may be left (RS-TAKE-LEFT) and every collection
+    must publish its model's lanes (RS-TAKE-STALE); and the render must neither read nor write a lane in the model
+    (RS-SNAPSHOT)
 """
 
 import importlib.util
-import os
 from pathlib import Path
 
+import golden_update
 from scenario_gate import int_field
 
 
@@ -41,7 +54,7 @@ def _load_sibling(name: str):
 render_song = _load_sibling("render_song")
 
 SONG = "RS_ARRANGE_TAKE"
-BASELINE = Path("tests/golden/arrangement_take_baselines") / f"{SONG}.txt"
+BASELINE = Path("tests/golden/arrangement_take") / f"{SONG}.txt"
 
 
 def _pcm_line(pcm: bytes) -> str:
@@ -56,16 +69,6 @@ def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     env["RENDER_PCM_OUT"] = str(pcm_path)
     result = gate.run(env=env)
-    takes = result.starting("RS-TAKE ")
-    pcm = pcm_path.read_bytes() if pcm_path.exists() else b""
-    observed = takes + [_pcm_line(pcm)]
-    baseline_path = gate.root / BASELINE
-    if os.environ.get("ARRANGE_TAKE_UPDATE") == "1":
-        baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        baseline_path.write_text("\n".join(observed) + "\n")
-        gate.say(f"RS-TAKE recorded {len(takes)} lines in {BASELINE}")
-        gate.show(result)
-        return
     if not gate.require_standard(result):
         return
     gate.show(result)
@@ -74,9 +77,19 @@ def run(gate):
             gate.fail(
                 f"RS-TAKE-PLAYED — the render plays other lanes than the take's: {line}"
             )
+    takes = result.starting("RS-TAKE ")
+    pcm = pcm_path.read_bytes() if pcm_path.exists() else b""
+    observed = takes + [_pcm_line(pcm)]
+    baseline_path = gate.root / BASELINE
+    if golden_update.updating(gate.env):
+        if not gate.failures:
+            golden_update.write_text(
+                baseline_path, "\n".join(observed) + "\n", str(BASELINE), env=gate.env
+            )
+        return
     if not baseline_path.exists():
         gate.fail(
-            f"RS-TAKE — no baseline at {BASELINE}; record one with ARRANGE_TAKE_UPDATE=1"
+            f"RS-TAKE — no baseline at {BASELINE}; ./dbt test --update arrangement-take records one"
         )
         return
     expected = baseline_path.read_text().splitlines()

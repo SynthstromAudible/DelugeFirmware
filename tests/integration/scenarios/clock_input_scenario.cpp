@@ -15,7 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/clock_input_scenario.h"
+/// @file
+/// @brief Trigger-clock input reaches the transport: edges delivered through the BSP's handler, with analog
+/// auto-start on, must start playback (TC-INPUT).
+///
+/// Gate clock-input:
+///     trigger-clock edges delivered through the BSP's handler, with analog auto-start on, must start playback
+///     (TC-INPUT), with none dropped when they arrive slower than PlaybackHandler::routine() runs. The input was dead
+///     while nothing installed the handler: the app polled globals that nothing wrote. Two edges with the same stamp
+///     right after playback starts must never drive the internal tick count negative (TC-BURST): the moving average
+///     over ticks that span no time is zero, and the tick position divides by it.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "libdeluge/cv_gate.h"
 #include "playback/playback_handler.h"
@@ -30,18 +42,24 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(clock_input);
+
 namespace {
 
 /// Edges to deliver. More than the ring holds, spaced so none is dropped.
 constexpr int32_t kEdges = 8;
 /// Ticks (virtual milliseconds) between edges: faster than the half-second auto-stop, slower than routine() runs.
+/// Part of the stimulus, so a count to elapse rather than a condition to wait for.
 constexpr int32_t kTicksBetweenEdges = 20;
-/// Ticks after the last edge before the check, so routine() has drained the ring.
+/// Ticks after the last edge before the check, so routine() has drained the ring. Part of the stimulus: the quiet the
+/// check is defined over, not a condition to wait for.
 constexpr int32_t kSettleTicks = 10;
-/// Ticks after the TC-INPUT leg ends playback before the burst, so its auto-start sees a stopped transport.
+/// Ticks after the TC-INPUT leg ends playback before the burst, so its auto-start sees a stopped transport. Part of the
+/// stimulus, not a condition to wait for.
 constexpr int32_t kBurstQuietTicks = 10;
 /// Ticks the burst's internal tick count is checked for. routine() pops one edge per call, so both edges are
-/// processed within the first few.
+/// processed within the first few. The observation window the TC-BURST check is defined over, not a condition to wait
+/// for.
 constexpr int32_t kBurstCheckTicks = 20;
 
 enum class Stage : uint8_t { Arm, Edges, Settle, Report, BurstQuiet, Burst, BurstCheck, Done };
@@ -49,21 +67,16 @@ enum class Stage : uint8_t { Arm, Edges, Settle, Report, BurstQuiet, Burst, Burs
 Stage g_stage = Stage::Arm;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+deluge::scenarios::ScenarioReport g_report{"TC"};
 int32_t g_ticks = 0;
 int32_t g_edges = 0;
 int64_t g_burstMinTick = 0;
-
-void fail(const char* what) {
-	printf("TC-FAIL %s\n", what);
-	g_failures++;
-}
 
 void runTick() {
 	switch (g_stage) {
 	case Stage::Arm:
 		if (playbackHandler.playbackState != 0) {
-			fail("playing before any edge");
+			g_report.fail("playing before any edge");
 		}
 		playbackHandler.analogClockInputAutoStart = true;
 		g_stage = Stage::Edges;
@@ -91,10 +104,10 @@ void runTick() {
 		printf("TC-INPUT playing=%d edges=%d dropped=%u\n", playing ? 1 : 0, static_cast<int>(g_edges),
 		       static_cast<unsigned>(dropped));
 		if (!playing) {
-			fail("trigger-clock edges with auto-start on did not start playback");
+			g_report.fail("trigger-clock edges with auto-start on did not start playback");
 		}
 		if (dropped != 0) {
-			fail("edges spaced wider than routine() runs were dropped");
+			g_report.fail("edges spaced wider than routine() runs were dropped");
 		}
 		if (playing) {
 			playbackHandler.endPlayback();
@@ -138,16 +151,16 @@ void runTick() {
 		const bool playing = playbackHandler.playbackState != 0;
 		printf("TC-BURST minTick=%lld ticks=%d\n", static_cast<long long>(g_burstMinTick), static_cast<int>(g_ticks));
 		if (g_burstMinTick < 0) {
-			fail("two same-stamp edges drove the internal tick count negative");
+			g_report.fail("two same-stamp edges drove the internal tick count negative");
 		}
 		if (!playing) {
-			fail("two same-stamp edges with auto-start on did not start playback");
+			g_report.fail("two same-stamp edges with auto-start on did not start playback");
 		}
 		else {
 			playbackHandler.endPlayback();
 		}
 		playbackHandler.analogClockInputAutoStart = false;
-		printf("TC-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_report.printResult();
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
 		break;
@@ -167,7 +180,7 @@ void deluge_scenario_clock_input_begin(void) {
 	g_stage = Stage::Arm;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_ticks = 0;
 	g_edges = 0;
 	g_burstMinTick = 0;
@@ -191,7 +204,7 @@ bool deluge_scenario_clock_input_step_done(void) {
 }
 
 int32_t deluge_scenario_clock_input_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -1,0 +1,6 @@
+# The song-load channel scenario's card: folders to save into, and the one sample its song carries. The gate saves
+# and loads a song it writes itself, so it needs no corpus.
+dir SYNTHS
+dir KITS
+dir SONGS
+sine SAMPLES/SL/SLSONG.WAV ch=1 frames=22050 hz=440

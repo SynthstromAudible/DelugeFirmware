@@ -15,7 +15,60 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/stale_ui_scenario.h"
+/// @file
+/// @brief A song load takes every UI down for its whole length. While the UI stack is empty, input and UI timers
+/// must reach no UI that was open before the load (SU-INERT), the arming gestures the load itself answers must still
+/// reach it (SU-REPEATS, SU-HOLD) and its popup stay up under a knob turn (SU-POPUP), and once the outgoing song has
+/// been swapped out nothing the empty stack reaches may still point into it (SU-RETIRED). Pads held when the UIs go
+/// down are released through them (SU-AUDITION) with no undo action left against the outgoing song (SU-UNDO), and a
+/// load that fails after that puts the surviving song's UI back (SU-FAILED).
+///
+/// Gate stale-ui:
+///     a song load takes every UI down for its whole length, and while the UI stack is empty nothing may act on a UI
+///     the load took down. inert_while_empty: with a probe UI open over the clip view and the song playing, a learned
+///     MIDI NEXT_SONG arrives on DIN; on every step the stack is empty, a button, a pad, the scroll and mod encoders
+///     are delivered through the app's own dispatchers and the UI-specific and BACK long-press timers are set to fire,
+///     and a mod encoder button is pressed before the swap and released after it; neither getCurrentUI() nor any of
+///     those, nor the graphics routine, may reach the probe (SU-INERT). The armed swap's loop count must still follow
+///     the select encoder, though the UI the load took down was not the load browser (SU-REPEATS), and a knob turn on
+///     the still-playing song must leave the load's LOADING popup up (SU-POPUP), and once the load is over no action
+///     the knobs logged against the outgoing song may be left in the undo history (SU-KNOBUNDO). retired_song: with the
+///     menu open on a synth clip, as the clip view's SELECT opens it, NEXT_SONG loads the next song; on both sides of
+///     the swap the stack is empty, and getCurrentUI() must not report the menu, whose sound belongs to the outgoing
+///     song the load frees; once the load is over the menu must not be open on that song, and the view must no longer
+///     point into it (SU-RETIRED). swap_work: in the same leg, MIDI follow holds the outgoing song's clip for a
+///     note-off when NEXT_SONG arrives; the render makes the armed swap and only asks the interaction tier for its side
+///     of it, so at the first interaction-tier entry after the swap -- where any MIDI handler or other job would run --
+///     no stored clip may name a clip outside the current song, the mode must be the load's new-song-playing mode, the
+///     loading animation must be up and the instrument load must have been told a song was made current, and a note an
+///     external MIDI keyboard auditioned on the outgoing song's synth while the load waited on the armed swap must no
+///     longer be auditioning once the swap's interaction side has run (SU-SWAPWORK). held_audition: an audition pad
+///     held on the clip view when NEXT_SONG arrives must be released, its pad no longer pressed and its instrument no
+///     longer auditioning, by the first step the stack is empty, while the song it plays is still current
+///     (SU-AUDITION). dropped_swap: in the same leg the request queue is flooded (a host-only knob) at the render's
+///     swap, so the swap's place in it is lost; its own slot must still carry it: the queue overflowed, the load ended
+///     (its mode moved on), and an external MIDI audition on the outgoing song was stopped (SU-SWAPDROP). tapped_note:
+///     a note on the clip is tapped again and NEXT_SONG arrives before the tap ends; the release the load gives that
+///     pad deletes the note and records an undo action against the outgoing song, and no action may be left in the undo
+///     history once the load ends (SU-UNDO). hold_load_to_launch: LOAD pressed in the load browser starts a load and,
+///     held, keeps the swap waiting; its release, with the stack empty, must arm the swap and the load must end
+///     (SU-HOLD). failed_load: playing, NEXT_SONG moves on to a song whose one clip names an instrument it lacks, so
+///     the parse fails after every UI was taken down; the old song must survive and be back in front of a root UI that
+///     getCurrentUI() reports (SU-FAILED). arrangement_record: an audio clip is recorded into the arranger through the
+///     session view's own gesture (RECORD held, SESSION pressed) and a knob turn writes the arrangement-only clip it
+///     records into; at the loop end the render moves the recording on to a new clone, and the knobs, still on the
+///     session clip, must resolve to the new clip, its param manager and its output (SU-ARRANGE). Only the interaction
+///     tier writes the knobs' render-visible words (the song they are in, the param manager automation is compared
+///     against) -- the render asks for a release and the interaction tier makes it before its next job -- so across the
+///     whole run, both armed swaps and the arranger recording included, no render block may change them (SU-STACK
+///     renderWrites=0, a host-only probe around every render block). Nor may any render block write the other state a
+///     swap changes that only the interaction tier owns: MIDI follow's stored clips, the loading animation (an armed
+///     launch's repeat countdown included), the instrument load's notification, currentUIMode, the load's deleted-parts
+///     flag or the outgoing song's auditioning (SU-SWAP, all six counts 0: the writers that are functions count a call
+///     made on the audio tier, the globals are compared across each render block).
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -67,6 +120,8 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(stale_ui);
+
 // MIDI follow's stored clips, one per note, for the note-off (io/midi/midi_follow.cpp).
 extern Clip* clipForLastNoteReceived[kMaxMIDIValue + 1];
 
@@ -77,6 +132,10 @@ uint32_t deluge_host_midi_script_released(void);
 }
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// A UI that counts every call made into it after it has left the UI stack. Anything that reaches it then is acting
 /// on a UI the user can no longer see, against whatever song it was opened over.
@@ -176,8 +235,9 @@ constexpr int32_t kAuditionX = kDisplayWidth + 1;
 
 Stage g_stage = Stage::Loading;
 bool g_stepDone = false;
-int32_t g_failures = 0;
-int32_t g_steps = 0;
+ScenarioReport g_report{"SU"};
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "SETUP the blank song's preset load", kMaxLoadSteps};
 
 std::string g_scriptPath;
 int32_t g_events = 0;
@@ -250,9 +310,19 @@ constexpr int32_t kNoteX = 0;
 constexpr int32_t kNoteY = 3;
 bool g_noteTapped = false;
 
-void fail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
+/// Starts the next stage's wait: @p what is the stage's tag and what it awaits ("INERT the NEXT_SONG load").
+void startWait(const char* what) {
+	g_wait = Wait{g_report, what, kMaxSettleSteps};
+}
+
+/// Polls the stage's wait with whether its condition holds now; true once it does. A wait that runs out ends the run at
+/// the report, having recorded its failure.
+bool settled(bool met) {
+	const WaitState state = g_wait.poll(met);
+	if (state == WaitState::Expired) {
+		g_stage = Stage::Report;
+	}
+	return state == WaitState::Met;
 }
 
 bool stackEmpty() {
@@ -311,10 +381,10 @@ std::string writeNextSongScript() {
 }
 
 /// The clip view in front of the song's first clip.
-Clip* frontClip(const char* marker) {
+Clip* frontClip(const char* stage) {
 	Clip* clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
 	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
-		fail(marker, "the song has no synth clip");
+		g_report.fail("%s the song has no synth clip", stage);
 		return nullptr;
 	}
 	currentSong->setCurrentClip(clip);
@@ -343,14 +413,10 @@ void deliverEverything() {
 }
 
 void stepLoading() {
-	if (currentSong->blankPresetPending || deluge::gui::instrumentLoad.acquisitionInFlight()) {
-		if (++g_steps > kMaxLoadSteps) {
-			fail("SU-SETUP", "the blank song's preset load never finished");
-			g_stage = Stage::Report;
-		}
+	if (!settled(!currentSong->blankPresetPending && !deluge::gui::instrumentLoad.acquisitionInFlight())) {
 		return;
 	}
-	if (frontClip("SU-SETUP") == nullptr) {
+	if (frontClip("SETUP") == nullptr) {
 		g_stage = Stage::Report;
 		return;
 	}
@@ -359,18 +425,17 @@ void stepLoading() {
 	writeSong(kSongB);
 	currentSong->setSongFullPath(kSongA);
 	(void)openUI(&loadSongUI);
-	g_steps = 0;
+	startWait("SETUP the load browser's listing");
 	g_stage = Stage::Listing;
 }
 
 /// The browser's listing is what NEXT_SONG walks. It is left the way a song loaded from the browser leaves it.
 void stepListing() {
-	if (Browser::isListingInProgress()) {
+	const bool listing = Browser::isListingInProgress();
+	if (listing) {
 		loadSongUI.graphicsRoutine();
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-SETUP", "the load browser's listing never finished");
-			g_stage = Stage::Report;
-		}
+	}
+	if (!settled(!listing)) {
 		return;
 	}
 	for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
@@ -381,7 +446,7 @@ void stepListing() {
 	closeUI(&loadSongUI);
 	currentUIMode = UI_MODE_NONE;
 	if (!listed) {
-		fail("SU-SETUP", "the load browser did not list a song for NEXT_SONG to move on to, so nothing was tested");
+		g_report.fail("SETUP the load browser did not list a song for NEXT_SONG to move on to, so nothing was tested");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -392,8 +457,8 @@ void stepListing() {
 
 	// inert_while_empty: NEXT_SONG moves on only while the song plays.
 	playbackHandler.setupPlaybackUsingInternalClock(0, false);
-	if (frontClip("SU-INERT") == nullptr || !openUI(&g_probe) || getCurrentUI() != &g_probe) {
-		fail("SU-INERT", "the probe UI could not be opened over the clip view");
+	if (frontClip("INERT") == nullptr || !openUI(&g_probe) || getCurrentUI() != &g_probe) {
+		g_report.fail("INERT the probe UI could not be opened over the clip view");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -403,11 +468,11 @@ void stepListing() {
 	g_scriptPath = writeNextSongScript();
 	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
 	if (g_events <= 0) {
-		fail("SU-INERT", "the DIN script could not be written or armed");
+		g_report.fail("INERT the DIN script could not be written or armed");
 		g_stage = Stage::Report;
 		return;
 	}
-	g_steps = 0;
+	startWait("INERT the MIDI NEXT_SONG load");
 	g_stage = Stage::InertRun;
 }
 
@@ -444,35 +509,31 @@ void stepInertRun() {
 			(void)Buttons::buttonAction(deluge::hid::button::MOD_ENCODER_0, false);
 		}
 	}
-	if (!loadOver()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-INERT", "the MIDI NEXT_SONG load never ended");
-			g_stage = Stage::Report;
-		}
+	if (!settled(loadOver())) {
 		return;
 	}
 	printf("SU-INERT loadSeen=%d emptySteps=%d staleCurrent=%d probeStale=%d probeCalls=%d modButton=%d/%d steps=%d\n",
 	       g_loadSeen ? 1 : 0, g_emptySteps, g_staleCurrent, g_probe.stale, g_probe.calls, g_modButtonPressed ? 1 : 0,
-	       g_modButtonReleased ? 1 : 0, g_steps);
+	       g_modButtonReleased ? 1 : 0, g_wait.ticks());
 	if (!g_loadSeen || g_emptySteps == 0) {
-		fail("SU-INERT", "no step saw the load with the UI stack empty, so nothing was tested");
+		g_report.fail("INERT no step saw the load with the UI stack empty, so nothing was tested");
 	}
 	if (!g_modButtonReleased) {
-		fail("SU-INERT", "no mod encoder button was held across the swap, so that was not tested");
+		g_report.fail("INERT no mod encoder button was held across the swap, so that was not tested");
 	}
 	if (g_staleCurrent != 0) {
-		fail("SU-INERT", "getCurrentUI() reported a UI from before the load while the stack was empty");
+		g_report.fail("INERT getCurrentUI() reported a UI from before the load while the stack was empty");
 	}
 	if (g_probe.stale != 0) {
-		fail("SU-INERT", "input or a UI timer reached a UI the load had taken down");
+		g_report.fail("INERT input or a UI timer reached a UI the load had taken down");
 	}
 	printf("SU-REPEATS tried=%d moved=%d repeats=%d\n", g_repeatsTried ? 1 : 0, g_repeatsMoved ? 1 : 0,
 	       static_cast<int>(session.numRepeatsTilLaunch));
 	if (!g_repeatsTried) {
-		fail("SU-REPEATS", "the swap was never armed while the stack was empty, so nothing was tested");
+		g_report.fail("REPEATS the swap was never armed while the stack was empty, so nothing was tested");
 	}
 	else if (!g_repeatsMoved) {
-		fail("SU-REPEATS", "the select encoder did not change the armed swap's loop count");
+		g_report.fail("REPEATS the select encoder did not change the armed swap's loop count");
 	}
 	printf("SU-POPUP tried=%d kept=%d\n", g_popupTried ? 1 : 0, g_popupKept ? 1 : 0);
 	// The knobs went on adjusting the outgoing song while it played, before and across the swap; an action they
@@ -480,15 +541,14 @@ void stepInertRun() {
 	const bool undoEmpty = actionLogger.firstAction[0] == nullptr && actionLogger.firstAction[1] == nullptr;
 	printf("SU-KNOBUNDO undoEmpty=%d\n", undoEmpty ? 1 : 0);
 	if (!undoEmpty) {
-		fail("SU-KNOBUNDO", "an action logged by a knob turn on the outgoing song survived the load");
+		g_report.fail("KNOBUNDO an action logged by a knob turn on the outgoing song survived the load");
 	}
 	if (g_popupTried && !g_popupKept) {
-		fail("SU-POPUP", "a knob turn during the load replaced its LOADING popup");
+		g_report.fail("POPUP a knob turn during the load replaced its LOADING popup");
 	}
 	if (isUIOpen(&g_probe)) {
-		fail("SU-INERT", "the probe UI is still on the stack after the load");
+		g_report.fail("INERT the probe UI is still on the stack after the load");
 	}
-	g_steps = 0;
 	g_stage = Stage::EditorSetup;
 }
 
@@ -499,7 +559,7 @@ void stepEditorSetup() {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
-	Clip* clip = frontClip("SU-RETIRED");
+	Clip* clip = frontClip("RETIRED");
 	if (clip == nullptr) {
 		g_stage = Stage::Report;
 		return;
@@ -512,7 +572,7 @@ void stepEditorSetup() {
 	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 	                                    /*kitGlobalFx=*/false)
 	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
-		fail("SU-RETIRED", "the ported menu could not be opened on the synth clip");
+		g_report.fail("RETIRED the ported menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -527,7 +587,7 @@ void stepEditorSetup() {
 	(void)deluge::playback::outgoingAuditioningAfterLastSwap();
 	g_loadSeen = false;
 	currentSong->loadNextSong();
-	g_steps = 0;
+	startWait("RETIRED the NEXT_SONG load");
 	g_stage = Stage::EditorRun;
 }
 
@@ -562,11 +622,7 @@ void stepEditorRun() {
 			g_outgoingAuditioning = deluge::playback::outgoingAuditioningAfterLastSwap();
 		}
 	}
-	if (!loadOver()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-RETIRED", "the NEXT_SONG load never ended");
-			g_stage = Stage::Report;
-		}
+	if (!settled(loadOver())) {
 		return;
 	}
 	// The load took every UI down; nothing may have put the menu back on the song it freed.
@@ -574,18 +630,19 @@ void stepEditorRun() {
 	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d guestOnOldSong=%d "
 	       "renderWrites=%d steps=%d\n",
 	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_guestOnOldSong ? 1 : 0,
-	       View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
+	       View::renderStackWrites() - g_stackWritesAtLegStart, g_wait.ticks());
 	if (g_preSwapSteps == 0 || g_postSwapSteps == 0) {
-		fail("SU-RETIRED", "no step saw the stack empty on both sides of the swap, so nothing was tested");
+		g_report.fail("RETIRED no step saw the stack empty on both sides of the swap, so nothing was tested");
 	}
 	if (g_staleEditor != 0) {
-		fail("SU-RETIRED", "input would have reached the ported menu on the outgoing song while the stack was empty");
+		g_report.fail(
+		    "RETIRED input would have reached the ported menu on the outgoing song while the stack was empty");
 	}
 	if (g_staleView != 0) {
-		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
+		g_report.fail("RETIRED the view still pointed into the swapped-out song");
 	}
 	if (g_guestOnOldSong) {
-		fail("SU-RETIRED", "the ported menu was left open on the song the load freed");
+		g_report.fail("RETIRED the ported menu was left open on the song the load freed");
 	}
 	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d "
@@ -593,29 +650,29 @@ void stepEditorRun() {
 	       g_swapWorkChecked ? 1 : 0, g_staleFollowClips, loadingMode ? 1 : 0, g_animationAfterSwap ? 1 : 0,
 	       g_madeCurrentAfterSwap, g_externalAuditioned ? 1 : 0, g_outgoingAuditioning);
 	if (!g_swapWorkChecked) {
-		fail("SU-SWAPWORK", "no step saw the load in flight after the swap, so nothing was tested");
+		g_report.fail("SWAPWORK no step saw the load in flight after the swap, so nothing was tested");
 	}
 	else {
 		if (g_staleFollowClips != 0) {
-			fail("SU-SWAPWORK", "MIDI follow still stored a swapped-out song's clip for a note-off");
+			g_report.fail("SWAPWORK MIDI follow still stored a swapped-out song's clip for a note-off");
 		}
 		if (!loadingMode) {
-			fail("SU-SWAPWORK", "the swap did not put the load in its new-song-playing mode");
+			g_report.fail("SWAPWORK the swap did not put the load in its new-song-playing mode");
 		}
 		if (!g_animationAfterSwap) {
-			fail("SU-SWAPWORK", "the swap did not show the loading animation");
+			g_report.fail("SWAPWORK the swap did not show the loading animation");
 		}
 		if (g_madeCurrentAfterSwap <= 0) {
-			fail("SU-SWAPWORK", "the instrument load was not told a song was made current");
+			g_report.fail("SWAPWORK the instrument load was not told a song was made current");
 		}
 		if (!g_externalAuditioned) {
-			fail("SU-SWAPWORK", "no external MIDI audition was started on the outgoing song, so that was not tested");
+			g_report.fail(
+			    "SWAPWORK no external MIDI audition was started on the outgoing song, so that was not tested");
 		}
 		else if (g_outgoingAuditioning != 0) {
-			fail("SU-SWAPWORK", "the outgoing song was still auditioning after the swap's interaction side ran");
+			g_report.fail("SWAPWORK the outgoing song was still auditioning after the swap's interaction side ran");
 		}
 	}
-	g_steps = 0;
 	g_stage = Stage::AuditionSetup;
 }
 
@@ -625,7 +682,7 @@ void stepAuditionSetup() {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
-	Clip* clip = frontClip("SU-AUDITION");
+	Clip* clip = frontClip("AUDITION");
 	if (clip == nullptr) {
 		g_stage = Stage::Report;
 		return;
@@ -636,7 +693,7 @@ void stepAuditionSetup() {
 	g_auditioned = static_cast<Instrument*>(clip->output);
 	(void)matrixDriver.padAction(kAuditionX, 0, 64);
 	if (!instrumentClipView.auditionPadIsPressed[0] || !g_auditioned->isAnyAuditioningHappening()) {
-		fail("SU-AUDITION", "the audition pad did not start an audition, so nothing was tested");
+		g_report.fail("AUDITION the audition pad did not start an audition, so nothing was tested");
 		(void)matrixDriver.padAction(kAuditionX, 0, 0);
 		g_stage = Stage::Report;
 		return;
@@ -648,7 +705,7 @@ void stepAuditionSetup() {
 	deluge::playback::floodRenderRequestsAtNextSwap();
 	(void)deluge::playback::outgoingAuditioningAfterLastSwap();
 	currentSong->loadNextSong();
-	g_steps = 0;
+	startWait("AUDITION the NEXT_SONG load");
 	g_stage = Stage::AuditionRun;
 }
 
@@ -670,33 +727,30 @@ void stepAuditionRun() {
 			g_dropOutgoingAuditioning = deluge::playback::outgoingAuditioningAfterLastSwap();
 		}
 	}
-	if (!loadOver()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-AUDITION", "the NEXT_SONG load never ended");
-			g_stage = Stage::Report;
-		}
+	if (!settled(loadOver())) {
 		return;
 	}
 	// The finger lifts once the new song's UI is up.
 	(void)matrixDriver.padAction(kAuditionX, 0, 0);
 	printf("SU-AUDITION checked=%d padStillPressed=%d stillAuditioning=%d steps=%d\n", g_auditionChecked ? 1 : 0,
-	       g_padStillPressed ? 1 : 0, g_stillAuditioning ? 1 : 0, g_steps);
+	       g_padStillPressed ? 1 : 0, g_stillAuditioning ? 1 : 0, g_wait.ticks());
 	if (!g_auditionChecked) {
-		fail("SU-AUDITION", "no step saw the stack empty before the swap, so nothing was tested");
+		g_report.fail("AUDITION no step saw the stack empty before the swap, so nothing was tested");
 	}
 	if (g_padStillPressed || g_stillAuditioning) {
-		fail("SU-AUDITION", "an audition held when the load took the UIs down was still sounding or pressed after it");
+		g_report.fail(
+		    "AUDITION an audition held when the load took the UIs down was still sounding or pressed after it");
 	}
 	const int32_t overflows = deluge::playback::renderRequestOverflows() - g_overflowsAtLegStart;
 	printf("SU-SWAPDROP overflows=%d externalAudition=%d outgoingAuditioning=%d loadEnded=1\n", overflows,
 	       g_dropAuditioned ? 1 : 0, g_dropOutgoingAuditioning);
 	if (overflows == 0 || !g_dropAuditioned) {
-		fail("SU-SWAPDROP", "the swap did not overflow the queue with an external audition on, so nothing was tested");
+		g_report.fail(
+		    "SWAPDROP the swap did not overflow the queue with an external audition on, so nothing was tested");
 	}
 	else if (g_dropOutgoingAuditioning != 0) {
-		fail("SU-SWAPDROP", "a swap whose place the full queue lost did not stop the outgoing song's auditioning");
+		g_report.fail("SWAPDROP a swap whose place the full queue lost did not stop the outgoing song's auditioning");
 	}
-	g_steps = 0;
 	g_stage = Stage::NoteSetup;
 }
 
@@ -707,7 +761,7 @@ void stepNoteSetup() {
 		(void)currentSong->ensureAtLeastOneSessionClip();
 		currentSong->blankPresetPending = false;
 	}
-	if (frontClip("SU-UNDO") == nullptr) {
+	if (frontClip("UNDO") == nullptr) {
 		g_stage = Stage::Report;
 		return;
 	}
@@ -721,43 +775,38 @@ void stepNoteSetup() {
 	g_songBefore = currentSong;
 	g_loadSeen = false;
 	currentSong->loadNextSong();
-	g_steps = 0;
+	startWait("UNDO the NEXT_SONG load");
 	g_stage = Stage::NoteRun;
 }
 
 void stepNoteRun() {
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
-	if (!loadOver()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-UNDO", "the NEXT_SONG load never ended");
-			g_stage = Stage::Report;
-		}
+	if (!settled(loadOver())) {
 		return;
 	}
 	(void)matrixDriver.padAction(kNoteX, kNoteY, 0);
 	const bool undoEmpty = actionLogger.firstAction[0] == nullptr && actionLogger.firstAction[1] == nullptr;
 	printf("SU-UNDO loadSeen=%d noteTapped=%d undoEmpty=%d steps=%d\n", g_loadSeen ? 1 : 0, g_noteTapped ? 1 : 0,
-	       undoEmpty ? 1 : 0, g_steps);
+	       undoEmpty ? 1 : 0, g_wait.ticks());
 	if (!g_noteTapped) {
-		fail("SU-UNDO", "no note pad was held when NEXT_SONG arrived, so nothing was tested");
+		g_report.fail("UNDO no note pad was held when NEXT_SONG arrived, so nothing was tested");
 	}
 	else if (!undoEmpty) {
-		fail("SU-UNDO", "an undo action recorded against the outgoing song survived the load");
+		g_report.fail("UNDO an undo action recorded against the outgoing song survived the load");
 	}
 	// hold_load_to_launch: the load browser, on the song now current.
 	(void)openUI(&loadSongUI);
-	g_steps = 0;
+	startWait("HOLD the load browser's listing");
 	g_stage = Stage::HoldStart;
 }
 
 /// LOAD pressed in the browser starts the load, and held, keeps the swap waiting for its release.
 void stepHoldStart() {
-	if (Browser::isListingInProgress()) {
+	const bool listing = Browser::isListingInProgress();
+	if (listing) {
 		loadSongUI.graphicsRoutine();
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-HOLD", "the load browser's listing never finished");
-			g_stage = Stage::Report;
-		}
+	}
+	if (!settled(!listing)) {
 		return;
 	}
 	for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
@@ -766,7 +815,7 @@ void stepHoldStart() {
 	g_songBefore = currentSong;
 	g_loadSeen = false;
 	(void)Buttons::buttonAction(deluge::hid::button::LOAD, true);
-	g_steps = 0;
+	startWait("HOLD the load held on LOAD, ending once LOAD is released");
 	g_stage = Stage::HoldRelease;
 }
 
@@ -776,21 +825,19 @@ void stepHoldRelease() {
 		g_unarmedSeen = true;
 		(void)Buttons::buttonAction(deluge::hid::button::LOAD, false);
 	}
-	if (!loadOver()) {
-		if (++g_steps > kMaxSettleSteps) {
+	if (!settled(loadOver())) {
+		if (g_wait.expired()) {
 			printf("SU-HOLD loadSeen=%d unarmedSeen=%d mode=%u steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0,
-			       currentUIMode, g_steps);
-			fail("SU-HOLD", "the load held on LOAD never ended once LOAD was released");
+			       currentUIMode, g_wait.ticks());
 			if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 				(void)Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			}
-			g_stage = Stage::Report;
 		}
 		return;
 	}
-	printf("SU-HOLD loadSeen=%d unarmedSeen=%d steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0, g_steps);
+	printf("SU-HOLD loadSeen=%d unarmedSeen=%d steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0, g_wait.ticks());
 	if (!g_loadSeen || !g_unarmedSeen) {
-		fail("SU-HOLD", "the load never waited on the held LOAD button, so nothing was tested");
+		g_report.fail("HOLD the load never waited on the held LOAD button, so nothing was tested");
 	}
 	// failed_load: whichever song NEXT_SONG moves on to cannot be read.
 	writeSong(kSongA, kUnreadableSongText);
@@ -804,31 +851,26 @@ void stepHoldRelease() {
 	g_loadSeen = loadSongUI.loadInFlight();
 	printf("SU-FAILED-START inFlight=%d stackEmpty=%d playing=%d\n", g_loadSeen ? 1 : 0, stackEmpty() ? 1 : 0,
 	       playbackHandler.isEitherClockActive() ? 1 : 0);
-	g_steps = 0;
+	startWait("FAILED the load of an unreadable song");
 	g_stage = Stage::FailedRun;
 }
 
 /// The load fails once it has taken every UI down; the song that survives it must be put back in front of the user.
 void stepFailedRun() {
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
-	if (loadSongUI.loadInFlight()) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-FAILED", "the load of an unreadable song never ended");
-			g_stage = Stage::Report;
-		}
+	if (!settled(!loadSongUI.loadInFlight())) {
 		return;
 	}
 	const bool survived = currentSong == g_songBefore;
 	const bool restored = !stackEmpty() && getCurrentUI() == getRootUI();
 	printf("SU-FAILED loadSeen=%d survived=%d restored=%d steps=%d\n", g_loadSeen ? 1 : 0, survived ? 1 : 0,
-	       restored ? 1 : 0, g_steps);
+	       restored ? 1 : 0, g_wait.ticks());
 	if (!g_loadSeen || !survived) {
-		fail("SU-FAILED", "the unreadable song did not fail to load with the old song kept, so nothing was tested");
+		g_report.fail("FAILED the unreadable song did not fail to load with the old song kept, so nothing was tested");
 	}
 	else if (!restored) {
-		fail("SU-FAILED", "after a failed load the surviving song has no UI to take input");
+		g_report.fail("FAILED after a failed load the surviving song has no UI to take input");
 	}
-	g_steps = 0;
 	g_stage = Stage::ArrangeSetup;
 }
 
@@ -848,7 +890,7 @@ void stepArrangeSetup() {
 	// A row past the last clip: the new clip goes on the end.
 	Clip* clip = sessionView.createNewAudioClipForHarness(1000);
 	if (clip == nullptr || getCurrentUI() != &sessionView) {
-		fail("SU-ARRANGE", "no audio clip in front of the session view, so nothing was tested");
+		g_report.fail("ARRANGE no audio clip in front of the session view, so nothing was tested");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -858,7 +900,7 @@ void stepArrangeSetup() {
 	(void)Buttons::buttonAction(button::SESSION_VIEW, false);
 	(void)Buttons::buttonAction(button::RECORD, false);
 	if (playbackHandler.recording != RecordingMode::ARRANGEMENT || !playbackHandler.isEitherClockActive()) {
-		fail("SU-ARRANGE", "RECORD and SESSION did not start recording into the arranger, so nothing was tested");
+		g_report.fail("ARRANGE RECORD and SESSION did not start recording into the arranger, so nothing was tested");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -867,14 +909,14 @@ void stepArrangeSetup() {
 	(void)encoders::interpretEncoders();
 	Clip* into = static_cast<Clip*>(View::KnobStack{view}.counter());
 	if (into == nullptr || into == clip || into->beingRecordedFromClip != clip) {
-		fail("SU-ARRANGE", "the knob turn did not move the knobs on to the clip the arranger records into");
+		g_report.fail("ARRANGE the knob turn did not move the knobs on to the clip the arranger records into");
 		g_stage = Stage::Report;
 		return;
 	}
 	g_recordedFrom = clip;
 	g_recordingInto = into;
 	g_stackWritesAtLegStart = View::renderStackWrites();
-	g_steps = 0;
+	startWait("ARRANGE the recording moving on to a new clip");
 	g_stage = Stage::ArrangeRun;
 }
 
@@ -882,11 +924,7 @@ void stepArrangeSetup() {
 /// into that. Once the interaction tier has run, the knobs must be on the new clip, with its params.
 void stepArrangeRun() {
 	Clip* active = g_recordedFrom->output->getActiveClip();
-	if (active == g_recordingInto || active == nullptr || active->beingRecordedFromClip != g_recordedFrom) {
-		if (++g_steps > kMaxSettleSteps) {
-			fail("SU-ARRANGE", "the recording never moved on to a new clip, so nothing was tested");
-			g_stage = Stage::Report;
-		}
+	if (!settled(active != g_recordingInto && active != nullptr && active->beingRecordedFromClip == g_recordedFrom)) {
 		return;
 	}
 	g_movedTo = active;
@@ -895,9 +933,9 @@ void stepArrangeRun() {
 	const bool params = knobs.params() == &g_movedTo->paramManager;
 	const bool output = knobs.owner() == g_movedTo->output->toModControllable();
 	printf("SU-ARRANGE moved=1 followed=%d params=%d output=%d renderWrites=%d steps=%d\n", followed ? 1 : 0,
-	       params ? 1 : 0, output ? 1 : 0, View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
+	       params ? 1 : 0, output ? 1 : 0, View::renderStackWrites() - g_stackWritesAtLegStart, g_wait.ticks());
 	if (!followed || !params || !output) {
-		fail("SU-ARRANGE", "the knobs did not follow the recording on to the new clip");
+		g_report.fail("ARRANGE the knobs did not follow the recording on to the new clip");
 	}
 	playbackHandler.endPlayback();
 	g_stage = Stage::Report;
@@ -911,8 +949,8 @@ void report() {
 	View::watchRenderStackWrites(false);
 	printf("SU-STACK renderWrites=%d\n", renderWrites);
 	if (renderWrites != 0) {
-		fail("SU-STACK",
-		     "a render block changed the gold knobs' render-visible words, which only the interaction tier writes");
+		g_report.fail("STACK a render block changed the gold knobs' render-visible words, which only the interaction "
+		              "tier writes");
 	}
 	using deluge::playback::InteractionOwned;
 	using deluge::playback::renderInteractionWrites;
@@ -926,12 +964,12 @@ void report() {
 	printf("SU-SWAP renderWrites midiFollow=%d animation=%d instrumentLoad=%d uiMode=%d loadFlag=%d audition=%d\n",
 	       followWrites, animationWrites, loadWrites, modeWrites, flagWrites, auditionWrites);
 	if (followWrites + animationWrites + loadWrites + modeWrites + flagWrites + auditionWrites != 0) {
-		fail("SU-SWAP", "the render wrote state only the interaction tier writes");
+		g_report.fail("SWAP the render wrote state only the interaction tier writes");
 	}
 	if (!g_scriptPath.empty()) {
 		std::remove(g_scriptPath.c_str());
 	}
-	printf("SU-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	g_stage = Stage::Done;
 }
 
@@ -943,8 +981,8 @@ void deluge_scenario_stale_ui_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Loading;
 	g_stepDone = false;
-	g_failures = 0;
-	g_steps = 0;
+	g_report.reset();
+	g_wait = Wait{g_report, "SETUP the blank song's preset load", kMaxLoadSteps};
 	// Every render block of the run, both armed swaps and the arranger recording among them.
 	View::watchRenderStackWrites(true);
 	deluge::playback::watchRenderInteractionWrites(true);
@@ -1013,7 +1051,7 @@ bool deluge_scenario_stale_ui_step_done(void) {
 }
 
 int32_t deluge_scenario_stale_ui_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

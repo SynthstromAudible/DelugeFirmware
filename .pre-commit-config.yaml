@@ -69,6 +69,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+      - id: registry-readme
+        name: tests/README.md's table matches tests/registry.toml
+        entry: python3 scripts/tasks/task-test.py --update-readme
+        language: system
+        pass_filenames: false
+        files: ^(tests/registry\.toml|tests/README\.md|scripts/tasks/(harness_registry|task-test)\.py)$
       - id: dsp-next-boundary
         name: dsp-next L0 boundary
         description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP
@@ -128,6 +134,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/gui/|src/scenes/|scripts/check_setting_menus\.py)
+      - id: test-support-names
+        name: no per-directory support/ file shadows tests/support/
+        description: a file under a support/ folder in tests/ or sim/ never has a path tests/support/ also has
+        entry: python3 scripts/check_test_support_names.py
+        language: system
+        pass_filenames: false
+        files: ^(tests/|sim/|scripts/check_test_support_names\.py)
       - id: check-layer-rules
         name: UI layer-rule ratchet
         description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)
@@ -146,21 +159,28 @@ repos:
         entry: python3 scripts/check_citations.py
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/spec/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
+        files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/unit/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
       - id: check-citations-ui
         name: the UI trees' legacy citations resolve
         description: a `foo.cpp:NN` citation in the ported UI must point at the code it names; cite the symbol instead
-        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/spec/shell tests/unit/spec/ui tests/unit/spec/gui tests/unit/spec/scenes tests/unit/spec/harness tests/ui-scripts tests/harness src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/shell tests/unit/ui tests/unit/deluge/gui tests/unit/scenes tests/unit/harness tests/ui-scripts tests/harness src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/(shell|ui|scenes|harness|deluge/gui)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
       - id: check-doc-hygiene
         name: the UI trees' docs carry no history and no line citations into our own code
         description: comments say what the code is and why; task, review and spec breadcrumbs and `our_file.cpp:NN` citations are refused
         entry: python3 scripts/check_doc_hygiene.py --strict
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/(shell|ui|scenes|harness|deluge/gui)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
+      - id: spec-comparisons
+        name: no spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy()
+        description: a staged spec may not add expect(a == b).to_be_true() or .to_be_truthy(), whose failure prints no value; use to_equal and the other value matchers (tests/README.md, "A unit spec")
+        entry: python3 scripts/check_spec_comparisons.py --staged
+        language: system
+        pass_filenames: false
+        files: ^(tests/|sim/scenes_spec/).*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
 # - repo: local
 
 #   hooks:

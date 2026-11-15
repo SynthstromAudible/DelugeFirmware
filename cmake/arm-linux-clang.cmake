@@ -1,5 +1,5 @@
 # clang cross toolchain for 32-bit ARM Linux (Cortex-A9 with NEON, hard float), for the host builds that run under
-# qemu-arm: the arm-linux host app (golden_vt_render's ARM build) and the ARM unit tree.
+# qemu-arm: the arm-linux host app (golden_vt_render's ARM build) and the ARM tree.
 #
 # clang, because the firmware ships built with it. The target is Linux, not the device's bare metal, so it takes the
 # C library and libstdc++ from the GCC cross toolchain's sysroot: arm-linux-gnueabihf-gcc must be installed.

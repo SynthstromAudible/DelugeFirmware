@@ -1,27 +1,41 @@
 """The offline stem export's regression gate.
 
 Renders the fixture's MIXDOWN (cordae unless GOLDEN_FIXTURE names another) through the Embassy host BSP's own offline
-export -- the default, scenario-less arm of golden_vt_render -- and checks:
+export -- run through the stem_export row of golden_vt_render's table -- and checks:
 
   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2 of the baseline). Checked
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.
-  ST-RENDER   the exported WAV's sha256 matches stem-export-<fixture>.sha256, beside this module (field 1).
+  ST-RENDER   the exported WAV's sha256 matches tests/golden/stem_export/<fixture>.sha256 (field 1).
 
-The baseline is the Embassy render itself, recorded in the repo.
+The scenario prints the ST-RESULT line itself; the gate judges it with the entry's markers.
 
-THE BASELINE IS NOT EXPECTED TO MOVE. A walk's cadence is an implementation detail; rendered audio is not. If
-ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
+The baseline is the Embassy render itself. It is not expected to move: a walk's cadence is an implementation detail,
+rendered audio is not. A red ST-RENDER is a finding to bisect, never a re-baseline, so the entry declares no `baseline`
+and `./dbt test --update stem-export` is refused. Once a bisect proves the change intended, re-record by hand: run the
+gate, take the sha256 from its ST-RENDER line and the byte count from its ST-BYTES line, write them as
+`<sha256>  <bytes>` to tests/golden/stem_export/<fixture>.sha256, then run `./dbt test stem-export` and
+confirm it passes, and say in the commit why the audio moved.
+
+Gate stem-export:
+    an offline stem export must render byte-identical audio and write it. It compares the Embassy render against ITSELF,
+    recorded in tests/golden/stem_export/cordae.sha256. ST-RENDER is the regression claim. ST-BYTES is not
+    redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its
+    stream-channel arm and the bytes never land -- and that failure must be reported as "the export wrote nothing"
+    rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an
+    implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline.
 """
 
 import hashlib
-import re
-from pathlib import Path
+
+from scenario_gate import field, starting
 
 
 def run(gate):
     fixture = gate.env.get("GOLDEN_FIXTURE") or "cordae"
     baseline = (
-        Path(__file__).with_name(f"stem-export-{fixture}.sha256").read_text().split()
+        (gate.root / "tests/golden/stem_export" / f"{fixture}.sha256")
+        .read_text()
+        .split()
     )
     want_hash, want_bytes = baseline[0], baseline[1]
     render = gate.tmp / "render"
@@ -39,21 +53,18 @@ def run(gate):
     log = result.lines + result.err.splitlines()
     if result.code != 0:
         gate.fail(f"the render exited {result.code} (crash or wedge)")
-        for line in [
-            line for line in log if re.match(r"ST-|\[golden-scenario\]", line)
-        ][-20:]:
+        for line in starting(log, "ST-", "[golden-scenario]")[-20:]:
             gate.say(line)
         return
 
-    for line in log:
-        if line.startswith("ST-"):
-            gate.say(line)
+    for line in starting(log, "ST-"):
+        gate.say(line)
 
-    sizes = [
-        m.group(1)
-        for m in (re.match(r"ST-BYTES size=([0-9]*) ", line) for line in log)
-        if m
-    ]
+    # ST-BYTES is on stderr, the result line on stdout: the entry's markers and result are judged over both.
+    if not gate.require_markers(log):
+        return
+
+    sizes = [field(line, "size") or "" for line in starting(log, "ST-BYTES ")]
     written = sizes[-1] if sizes else ""
     if written in ("", "0"):
         gate.fail(
@@ -78,16 +89,10 @@ def run(gate):
             gate.say(f"  rendered: {got}")
             gate.say("  This is a FINDING, not a re-baseline. Bisect it.")
 
-    if not any(line.startswith("ST-BYTES ") for line in log):
-        gate.fail("ST-BYTES never appeared; the gate did not observe what it claims to")
-
     if gate.failures:
-        gate.say(f"ST-RESULT failures={len(gate.failures)}")
         return
-    gate.say("ST-RESULT failures=0")
-    for line in log:
-        if re.match(r"TIER-SYNC(-AT)? ", line):
-            gate.say(line)
+    for line in starting(log, "TIER-SYNC ", "TIER-SYNC-AT "):
+        gate.say(line)
     gate.say(
         f"PASS — the export rendered byte-identical audio, and wrote {written} bytes"
     )

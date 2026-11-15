@@ -115,7 +115,7 @@ sidebar included. They go once the keyboard layouts paint through the frame dire
 ## Frames and the tick
 
 One `FrameContext` is built per tick per surface set, by the shell in the firmware and by the rigs
-in `tests/unit/spec/ui/support/frames.h` in the specs. Every frame in the tree holds a reference to
+in `tests/unit/ui/support/frames.h` in the specs. Every frame in the tree holds a reference to
 it, so a claim made deep inside a nested region lands in the one place the shell reads back.
 
 ```cpp
@@ -156,7 +156,7 @@ f.region(pane, InputMask{.turn = false}, [](OledFrame& p) { ... }); // all but t
 ## The input-consumption contract
 
 The authoritative text is on `FrameContext` in `core/frame_context.h`; these are its five rules.
-`tests/unit/spec/ui/frame_context_spec.cpp` pins all of them.
+`tests/unit/ui/frame_context_spec.cpp` pins all of them.
 
 1. **Widgets read input only through the frame.** `turn()`, `edit(0)`/`edit(1)`, `horizontal()`,
    `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `select_held()`, `now_ms()`, and
@@ -245,7 +245,7 @@ CI.
 | 6 | `length_slider`'s `min_pos` defaults to `true`, because legacy's `menu_item::Number::drawLengthSlider` defaults `bool min_slider_pos = 3` (truthy); every new call site inherits it | `length_slider` in `oled/meters.h` | `meters_spec.cpp` "puts the thumb one pixel right when min_pos, and defaults it on"; `meter_length_slider_48/64.pbm` | default `false`, re-record the two goldens |
 
 Five more are in the tweens `gfx/grid/tween.cpp` ports from `hid/led/pad_leds.cpp` (detail in
-`src/gfx/README.md`). Each is pinned by `tests/unit/spec/gfx/tween_spec.cpp`'s `legacy::` oracle,
+`src/gfx/README.md`). Each is pinned by `tests/unit/gfx/tween_spec.cpp`'s `legacy::` oracle,
 which byte-compares, so a fix changes the port and the oracle together.
 
 | # | quirk | legacy | fix |
@@ -262,7 +262,7 @@ which byte-compares, so a fix changes the port and the oracle together.
   by reference, and any POD state (add it to `core/state.h` if it is shared). Read input only
   through the frame's accessors, claim what you own even on an empty model, schedule motion through
   `f.gate()`, and lay out against legacy's nominal geometry. Add the `.cpp` to `deluge_ui_oled` in
-  `CMakeLists.txt`, a row to the catalogue above, and a spec in `tests/unit/spec/ui/` built on
+  `CMakeLists.txt`, a row to the catalogue above, and a spec in `tests/unit/ui/` built on
   `OledRig` that pins paired 48/64 goldens with `expect_golden`.
 - **A grid component:** a free function in `grid/` taking `GridFrame&`; paint and hit-test in one
   pass with `pad()`, and return a `Response` only if one response describes the interaction

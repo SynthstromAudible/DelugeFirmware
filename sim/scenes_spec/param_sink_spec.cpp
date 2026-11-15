@@ -40,7 +40,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <functional>
 #include <optional>
@@ -216,8 +216,11 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		                                      .polarity = deluge::instrument::Polarity::BIPOLAR}))
 		    .to_be_true();
 		PatchCable* made = engine_cable(synth, PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
-		expect(made != nullptr && made->polarity == Polarity::BIPOLAR && made->param.getCurrentValue() == 0x12345678)
-		    .to_be_true();
+		expect(made).not_().to_be_null();
+		if (made != nullptr) {
+			expect(made->polarity).to_equal(Polarity::BIPOLAR);
+			expect(made->param.getCurrentValue()).to_equal(0x12345678);
+		}
 	});
 
 	it("flips an existing cable's polarity through a polarity-only CABLE request, leaving its strength", _ {
@@ -234,9 +237,11 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		    .to_be_true();
 		PatchCable* existing =
 		    engine_cable(synth, PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
-		expect(existing != nullptr && existing->polarity == Polarity::UNIPOLAR
-		       && existing->param.getCurrentValue() == 0x12345678)
-		    .to_be_true();
+		expect(existing).not_().to_be_null();
+		if (existing != nullptr) {
+			expect(existing->polarity).to_equal(Polarity::UNIPOLAR);
+			expect(existing->param.getCurrentValue()).to_equal(0x12345678);
+		}
 	});
 
 	it("writes a param by address over a region without sending MIDI-follow feedback", _ {
@@ -248,7 +253,10 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		expect(taken).to_be_true();
 		expect(sent).to_equal(std::optional{0u});
 		const deluge::project::DocAutoParam* record = synth.song->project.resolveParam(lpf);
-		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->nodes.empty()).to_be_false();
+		}
 	});
 
 	it("deletes a param's automation by address, one undo step", _ {
@@ -260,7 +268,10 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		expect(menu::host_write_sink().delete_automation(lpf)).to_be_true();
 		expect(synth.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(synth.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		actionLogger.deleteAllLogs();
@@ -333,7 +344,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 			expect(read[i]).to_equal(std::optional{stack->autoParam->getValueAtPos(pos, stack)});
 			++i;
 		}
-		expect(read[0] != read[1]).to_be_true(); // the playhead moved the value
+		expect(read[0]).not_().to_equal(read[1]); // the playhead moved the value
 		const ParamAddress nowhere{.owner = deluge::project::OwnerId::instrument(*synth.instrument->id() + 1000),
 		                           .space = deluge::project::ParamSpace::ENGINE,
 		                           .id = kSoundLpf.param,

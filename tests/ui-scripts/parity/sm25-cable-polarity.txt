@@ -1,11 +1,13 @@
 # ShellMenu: a patch cable's strength page as `main` draws and drives it (`PatchCableStrength::renderOLED`,
 # `buttonAction`, `selectEncoderAction`): the value right-aligned in the 13 px face with a zero fraction hidden while
 # the cursor is left of it, the fraction marked by a tick under the digits, a one-row cursor; MIDI lit for a bipolar
-# cable and CV for a unipolar one, outside a horizontal page only; MIDI and CV switch the polarity; a Select turn
-# while Select is held switches it too, leaves the value and uses the press up; SHIFT + turn edits the value five
-# places a detent and leaves the polarity. The ENV2 -> LPF cable (22.00) is read with the cursor on the hundredths,
-# where nothing is hidden: with zero places hidden `main` truncates a non-zero value (D71). The ENV1 page holds 0,
-# which it draws exactly at every cursor place. Run on the ShellMenu card.
+# cable and CV for a unipolar one, outside a horizontal page only; MIDI and CV switch the polarity; a Select turn while
+# Select is held switches it too, leaves the value and uses the press up; SHIFT + turn edits the value five places a
+# detent and leaves the polarity. The ENV2 -> LPF cable (22.00) is read with the cursor on the hundredths, where nothing
+# is hidden: with zero places hidden `main` truncates a non-zero value (D71). The ENV1 page holds 0, which it draws
+# exactly at every cursor place.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down

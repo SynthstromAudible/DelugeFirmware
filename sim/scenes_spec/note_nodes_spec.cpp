@@ -38,6 +38,8 @@
 #include "gui/l10n/strings.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <iterator>
@@ -46,7 +48,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
@@ -58,6 +60,7 @@ using deluge::scenes::menu::ValueTextUse;
 using deluge::scenes::spec::FakeNoteBridge;
 using deluge::scenes::spec::FakeNoteBridgeGuard;
 using String = deluge::l10n::String;
+using deluge::test::matchers::address_of;
 
 namespace {
 
@@ -194,20 +197,20 @@ describe note_nodes_guards("scenes::menu note editor/note-row editor: the two gu
 	   "the step toggles", _ {
 		// The exact function, not merely non-null: a leaf gated on the wrong family's guard would
 		// still pass a `!= nullptr` check.
-		expect(nodes::note_velocity.bind.permitted == &nodes::permitted_note).to_be_true();
-		expect(nodes::note_editor_probability.bind.permitted == &nodes::permitted_note).to_be_true();
-		expect(nodes::note_iterance.bind.permitted == &nodes::permitted_note).to_be_true();
-		expect(nodes::note_fill.bind.permitted == &nodes::permitted_note).to_be_true();
-		expect(nodes::note_iterance_divisor.bind.permitted == &nodes::permitted_note).to_be_true();
-		expect(nodes::note_row_probability.bind.permitted == &nodes::permitted_row).to_be_true();
-		expect(nodes::note_row_iterance.bind.permitted == &nodes::permitted_row).to_be_true();
-		expect(nodes::note_row_fill.bind.permitted == &nodes::permitted_row).to_be_true();
-		expect(nodes::note_row_iterance_divisor.bind.permitted == &nodes::permitted_row).to_be_true();
+		expect(address_of(nodes::note_velocity.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_editor_probability.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_iterance.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_fill.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_iterance_divisor.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_row_probability.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_iterance.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_fill.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_iterance_divisor.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
 
-		expect(nodes::note_iterance_step_1.bind.permitted == nullptr).to_be_true();
-		expect(nodes::note_iterance_step_8.bind.permitted == nullptr).to_be_true();
-		expect(nodes::note_row_iterance_step_1.bind.permitted == nullptr).to_be_true();
-		expect(nodes::note_row_iterance_step_8.bind.permitted == nullptr).to_be_true();
+		expect(nodes::note_iterance_step_1.bind.permitted).to_be_null();
+		expect(nodes::note_iterance_step_8.bind.permitted).to_be_null();
+		expect(nodes::note_row_iterance_step_1.bind.permitted).to_be_null();
+		expect(nodes::note_row_iterance_step_8.bind.permitted).to_be_null();
 	});
 });
 
@@ -271,10 +274,11 @@ describe note_nodes_value_text("scenes::menu note editor/note-row editor: value_
 	});
 
 	it("gives note_row's probability/iterance/fill the identical value_text hooks", _ {
-		expect(nodes::note_row_probability.bind.value_text == nodes::note_editor_probability.bind.value_text)
-		    .to_be_true();
-		expect(nodes::note_row_iterance.bind.value_text == nodes::note_iterance.bind.value_text).to_be_true();
-		expect(nodes::note_row_fill.bind.value_text == nodes::note_fill.bind.value_text).to_be_true();
+		expect(address_of(nodes::note_row_probability.bind.value_text))
+		    .to_equal(address_of(nodes::note_editor_probability.bind.value_text));
+		expect(address_of(nodes::note_row_iterance.bind.value_text))
+		    .to_equal(address_of(nodes::note_iterance.bind.value_text));
+		expect(address_of(nodes::note_row_fill.bind.value_text)).to_equal(address_of(nodes::note_fill.bind.value_text));
 	});
 });
 
@@ -402,14 +406,14 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		// over the whole tree, including this one, with no bridge installed at all -- boot's real one
 		// taken down for the scope, and no fake put up.
 		const deluge::scenes::spec::NoNoteBridge no_bridge;
-		expect(menu::note_bridge() == nullptr).to_be_true();
+		expect(menu::note_bridge()).to_be_null();
 		menu::MenuContext ctx{};
 		menu::MenuState state{};
 
 		expect(nodes::note_iterance_step_1.relevant(ctx)).to_be_false();
 		expect(nodes::note_row_iterance_step_1.relevant(ctx)).to_be_false();
-		expect(nodes::note_iterance.select_chain(ctx, state) == nullptr).to_be_true();
-		expect(nodes::note_row_iterance.select_chain(ctx, state) == nullptr).to_be_true();
+		expect(nodes::note_iterance.select_chain(ctx, state)).to_be_null();
+		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_be_null();
 	});
 });
 
@@ -420,61 +424,60 @@ describe note_nodes_select_chain("scenes::menu note editor/note-row editor: the 
 		menu::MenuState state{};
 
 		guard.fake.note_iterance_value = Iterance{2, 0b1}.toInt(); // preset 1, not CUSTOM
-		expect(nodes::note_iterance.select_chain(ctx, state) == nullptr).to_be_true();
+		expect(nodes::note_iterance.select_chain(ctx, state)).to_be_null();
 
 		guard.fake.note_iterance_value = Iterance{1, 1}.toInt(); // maps to CUSTOM (36)
-		expect(nodes::note_iterance.select_chain(ctx, state) == &nodes::note_custom_iterance_root).to_be_true();
+		expect(nodes::note_iterance.select_chain(ctx, state)).to_equal(&nodes::note_custom_iterance_root);
 
 		guard.fake.row_iterance_value = Iterance{2, 0b1}.toInt();
-		expect(nodes::note_row_iterance.select_chain(ctx, state) == nullptr).to_be_true();
+		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_be_null();
 
 		guard.fake.row_iterance_value = Iterance{1, 1}.toInt();
-		expect(nodes::note_row_iterance.select_chain(ctx, state) == &nodes::note_row_custom_iterance_root)
-		    .to_be_true();
+		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_equal(&nodes::note_row_custom_iterance_root);
 	});
 
 	it("lists exactly its one chain target, matched with its own hook", _ {
 		expect(nodes::note_iterance.chain_targets.size()).to_equal(size_t(1));
-		expect(nodes::note_iterance.chain_targets[0] == &nodes::note_custom_iterance_root).to_be_true();
+		expect(nodes::note_iterance.chain_targets[0]).to_equal(&nodes::note_custom_iterance_root);
 		expect(nodes::note_row_iterance.chain_targets.size()).to_equal(size_t(1));
-		expect(nodes::note_row_iterance.chain_targets[0] == &nodes::note_row_custom_iterance_root).to_be_true();
+		expect(nodes::note_row_iterance.chain_targets[0]).to_equal(&nodes::note_row_custom_iterance_root);
 	});
 });
 
 describe note_nodes_shape("scenes::menu note editor/note-row editor: shape, as main's note editors have it", $ {
 	it("gives note_editor_root main's four children, in the horizontal menu itself", _ {
 		expect(nodes::note_editor_root.children.size()).to_equal(size_t(4));
-		expect(nodes::note_editor_root.layout == menu::Layout::Horizontal).to_be_true();
+		expect(nodes::note_editor_root.layout).to_equal(menu::Layout::Horizontal);
 	});
 
 	it("gives note_row_editor_root main's four children, sequence direction first", _ {
 		expect(nodes::note_row_editor_root.children.size()).to_equal(size_t(4));
-		expect(nodes::note_row_editor_root.children[0] == &nodes::sequence_direction).to_be_true();
-		expect(nodes::note_row_editor_root.layout == menu::Layout::Horizontal).to_be_true();
+		expect(nodes::note_row_editor_root.children[0]).to_equal(&nodes::sequence_direction);
+		expect(nodes::note_row_editor_root.layout).to_equal(menu::Layout::Horizontal);
 	});
 
 	it("gives note_custom_iterance_root main's nine children (divisor + 8 steps)", _ {
 		expect(nodes::note_custom_iterance_root.children.size()).to_equal(size_t(9));
-		expect(nodes::note_custom_iterance_root.layout == menu::Layout::Vertical).to_be_true();
+		expect(nodes::note_custom_iterance_root.layout).to_equal(menu::Layout::Vertical);
 	});
 
 	it("gives note_row_custom_iterance_root main's nine children (divisor + 8 steps)", _ {
 		expect(nodes::note_row_custom_iterance_root.children.size()).to_equal(size_t(9));
-		expect(nodes::note_row_custom_iterance_root.layout == menu::Layout::Vertical).to_be_true();
+		expect(nodes::note_row_custom_iterance_root.layout).to_equal(menu::Layout::Vertical);
 	});
 
 	it("lists both editor roots in kAllRootArray right after multi_range", _ {
 		const auto at = std::ranges::find(nodes::kAllRoots, &nodes::multi_range);
-		expect(at != nodes::kAllRoots.end()).to_be_true();
-		expect(std::distance(at, nodes::kAllRoots.end()) >= 3).to_be_true();
-		expect(*(at + 1) == &nodes::note_editor_root).to_be_true();
-		expect(*(at + 2) == &nodes::note_row_editor_root).to_be_true();
+		expect(nodes::kAllRoots).to_contain(&nodes::multi_range);
+		to_be_at_least(expect(std::distance(at, nodes::kAllRoots.end())), 3);
+		expect(*(at + 1)).to_equal(&nodes::note_editor_root);
+		expect(*(at + 2)).to_equal(&nodes::note_row_editor_root);
 	});
 
 	it("does not add either custom-iterance root to kAllRootArray -- chain_targets only", _ {
 		for (const Node* root : nodes::kAllRoots) {
-			expect(root == &nodes::note_custom_iterance_root).to_be_false();
-			expect(root == &nodes::note_row_custom_iterance_root).to_be_false();
+			expect(root).not_().to_equal(&nodes::note_custom_iterance_root);
+			expect(root).not_().to_equal(&nodes::note_row_custom_iterance_root);
 		}
 	});
 });

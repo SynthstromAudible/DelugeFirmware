@@ -1,0 +1,66 @@
+# The preset-load scenario's card. The scenario writes the presets into SYNTHS/ and KITS/ through the firmware's
+# serialisers, so both start empty (apart from the SYNTHS/WALK/ folders). The samples:
+# - SAMPLES/PL/: PLSYN.WAV (synth leg), PLROW.WAV (kit row leg), PLCLN.WAV (clone leg), PLKA..PLKC.WAV (kit leg's
+#   drums), PLBASE.WAV (the kit clip's own preset's drum, which the new-kit-track gesture picks up), PLRACE.WAV (race
+#   leg) and PLNEST.WAV (nested preset).
+# - SAMPLES/PLH/PLHA..PLHC.WAV: the supersession leg's heavy kit, loaded by nothing before it; SAMPLES/PLL/PLLITE.WAV
+#   its light kit.
+# - SAMPLES/PLG/PLGATE.WAV and SAMPLES/PLS/PLSTALL.WAV: the gate and stall legs' held samples.
+# - SAMPLES/AQ/AQSA.WAV, AQKA..AQKD.WAV and AQKL.WAV: the acquisition legs' synth, navigated kits and light kit;
+#   SAMPLES/AQH/AQHA..AQHC.WAV their heavy kit; SAMPLES/AQS/PLSTB.WAV the acquisition stall leg's held sample.
+dir KITS
+sine SAMPLES/PL/PLSYN.WAV ch=1 frames=22050 hz=440
+sine SAMPLES/PL/PLROW.WAV ch=1 frames=22050 hz=330
+sine SAMPLES/PL/PLCLN.WAV ch=1 frames=22050 hz=550
+wav SAMPLES/PL/PLKA.WAV ch=1 bits=16 bytes=2048 fill=0x91
+wav SAMPLES/PL/PLKB.WAV ch=1 bits=16 bytes=2560 fill=0x92
+wav SAMPLES/PL/PLKC.WAV ch=1 bits=16 bytes=3072 fill=0x93
+wav SAMPLES/PL/PLBASE.WAV ch=1 bits=16 bytes=2048 fill=0x94
+sine SAMPLES/PL/PLRACE.WAV ch=1 frames=22050 hz=660
+# The nested preset's sample. Its preset lives in a subfolder of SYNTHS, reachable only by descending: no other gate
+# covers the walk's recursion.
+sine SAMPLES/PL/PLNEST.WAV ch=1 frames=22050 hz=770
+# 24 empty subfolders plus the one holding the preset: more than FILE_ITEMS_MAX_NUM_ELEMENTS (20), so the folder pass
+# culls and the walk must page to see the last entry. ZNEST sorts after every W##, so the walk first returns from 24
+# empty descents -- the path a change to the walk is most likely to break.
+dir SYNTHS/WALK/W01
+dir SYNTHS/WALK/W02
+dir SYNTHS/WALK/W03
+dir SYNTHS/WALK/W04
+dir SYNTHS/WALK/W05
+dir SYNTHS/WALK/W06
+dir SYNTHS/WALK/W07
+dir SYNTHS/WALK/W08
+dir SYNTHS/WALK/W09
+dir SYNTHS/WALK/W10
+dir SYNTHS/WALK/W11
+dir SYNTHS/WALK/W12
+dir SYNTHS/WALK/W13
+dir SYNTHS/WALK/W14
+dir SYNTHS/WALK/W15
+dir SYNTHS/WALK/W16
+dir SYNTHS/WALK/W17
+dir SYNTHS/WALK/W18
+dir SYNTHS/WALK/W19
+dir SYNTHS/WALK/W20
+dir SYNTHS/WALK/W21
+dir SYNTHS/WALK/W22
+dir SYNTHS/WALK/W23
+dir SYNTHS/WALK/W24
+dir SYNTHS/WALK/ZNEST
+wav SAMPLES/PLH/PLHA.WAV ch=1 bits=16 bytes=8192 fill=0x95
+wav SAMPLES/PLH/PLHB.WAV ch=1 bits=16 bytes=8192 fill=0x96
+wav SAMPLES/PLH/PLHC.WAV ch=1 bits=16 bytes=8192 fill=0x97
+wav SAMPLES/PLL/PLLITE.WAV ch=1 bits=16 bytes=2048 fill=0x98
+sine SAMPLES/PLG/PLGATE.WAV ch=1 frames=22050 hz=220
+sine SAMPLES/PLS/PLSTALL.WAV ch=1 frames=22050 hz=110
+sine SAMPLES/AQ/AQSA.WAV ch=1 frames=22050 hz=880
+wav SAMPLES/AQ/AQKA.WAV ch=1 bits=16 bytes=2048 fill=0xA1
+wav SAMPLES/AQ/AQKB.WAV ch=1 bits=16 bytes=2048 fill=0xA2
+wav SAMPLES/AQ/AQKC.WAV ch=1 bits=16 bytes=2048 fill=0xA3
+wav SAMPLES/AQ/AQKD.WAV ch=1 bits=16 bytes=2048 fill=0xA4
+wav SAMPLES/AQ/AQKL.WAV ch=1 bits=16 bytes=2048 fill=0xA5
+wav SAMPLES/AQH/AQHA.WAV ch=1 bits=16 bytes=8192 fill=0xA6
+wav SAMPLES/AQH/AQHB.WAV ch=1 bits=16 bytes=8192 fill=0xA7
+wav SAMPLES/AQH/AQHC.WAV ch=1 bits=16 bytes=8192 fill=0xA8
+sine SAMPLES/AQS/PLSTB.WAV ch=1 frames=22050 hz=990

@@ -15,7 +15,33 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/song_save_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the song-save gate: build a song document in memory and place it on
+///        the card through the channel, then require that what landed is a song and not merely
+///        bytes.
+///
+/// ## Why the song has to be inflated first
+///
+/// The default song in this harness serialises to about 11.5 KB. The staging buffer starts at 32768
+/// bytes, so saving that song never grows the buffer once, and every check about the growth path
+/// would be running over code that cannot execute. `SS-GREW` reports the doubling count and fails
+/// below two, so a fixture that quietly stops being big enough fails instead of passing.
+///
+/// ## The two checks worth their runtime
+///
+/// `SS-PARSES` loads the saved document back through the real loader. A staged write that produced
+/// plausible bytes with a broken header or a missing closing tag would satisfy any comparison
+/// between two staged builds -- both would be broken identically -- and only reading it back as a
+/// song catches it.
+///
+/// `SS-INTACT` saves a second time over the first and requires that, when a save fails partway, the
+/// song already on the card is still there and still loads. That is the property that justifies
+/// writing to a temp name and renaming rather than writing straight over the target.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app`. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
@@ -33,6 +59,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/string.h"
@@ -48,6 +75,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(song_save_channel);
 
 /// Reaches the protected ENTER gesture. A save made by calling into the save machinery directly would not be
 /// the save a user makes, and this gate exists to test the one they make.
@@ -84,6 +113,10 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SSTEST01";
 /// A song's path in the save directory, in the format songs are saved in.
@@ -108,7 +141,8 @@ const std::string kUpgradePath = songPath(kUpgradeName);
 constexpr std::string_view kUpgradeXmlBytes = "<song></song>\n";
 /// Where "last opened" is recorded; the upgrade leg runs in that mode and requires the JSON copy recorded.
 constexpr const char* kSettingsPath = "SETTINGS/CommunityFeatures.XML";
-/// How long the settings write handed to the byte channel at the end of the save gets to land.
+/// How many ticks the settings write handed to the byte channel at the end of the save gets to land: the channel going
+/// idle.
 constexpr int32_t kSettingsTicks = 200;
 /// How long the byte channel holds the document write in the held leg, in virtual milliseconds. The save's own stall
 /// bound is `SaveSongUI::documentStallLimitUs()`; the check measures how long the save actually spent on the held
@@ -164,8 +198,7 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Inflate;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"SS"};
 int32_t g_notesAdded = 0;
 uint32_t g_crcFirst = 0;
 size_t g_bytesFirst = 0;
@@ -187,6 +220,9 @@ bool g_loadBegun = false;
 StartupSongMode g_startupModeBefore = StartupSongMode::BLANK;
 
 constexpr int32_t kMaxWaitTicks = 200000;
+
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "the save finishing", kMaxWaitTicks};
 
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
@@ -225,8 +261,7 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 void inflateSong() {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip == nullptr) {
-		printf("SS-SETUP FAIL there is no clip to add notes to\n");
-		g_failures++;
+		g_report.fail("SETUP there is no clip to add notes to");
 		return;
 	}
 
@@ -235,8 +270,7 @@ void inflateSong() {
 
 	const int32_t clipLength = clip->loopLength();
 	if (clipLength <= 0) {
-		printf("SS-SETUP FAIL the clip has no length to place notes in\n");
-		g_failures++;
+		g_report.fail("SETUP the clip has no length to place notes in");
 		return;
 	}
 
@@ -323,7 +357,7 @@ void runTick() {
 			(void)deluge::io::unlink(temp);
 		}
 		inflateSong();
-		g_stage = (g_failures == 0) ? Stage::Fixture : Stage::Report;
+		g_stage = g_report.clean() ? Stage::Fixture : Stage::Report;
 		break;
 	}
 	case Stage::Fixture: {
@@ -358,40 +392,38 @@ void runTick() {
 		const bool backBlocked = getCurrentUI() == &saveSongUI;
 		printf("SS-BACKMIDSAVE inFlight=%d back=%d\n", (int)inFlight, (int)backBlocked);
 		if (!inFlight) {
-			printf("SS-BACKMIDSAVE FAIL the save had already finished; nothing was pressed mid-save, so this proves "
-			       "nothing\n");
-			g_failures++;
+			g_report.fail("BACKMIDSAVE the save had already finished; nothing was pressed mid-save, so this proves "
+			              "nothing");
 		}
 		else if (!backBlocked) {
-			printf("SS-BACKMIDSAVE FAIL BACK closed the save screen while the save was still running\n");
-			g_failures++;
+			g_report.fail("BACKMIDSAVE BACK closed the save screen while the save was still running");
 		}
 		if (backBlocked) {
 			(void)saveSongUI.exitUI();
 			const bool exitBlocked = getCurrentUI() == &saveSongUI;
 			printf("SS-EXITMIDSAVE exit=%d\n", (int)exitBlocked);
 			if (!exitBlocked) {
-				printf("SS-EXITMIDSAVE FAIL a long-press exit closed the save screen while the save was running\n");
-				g_failures++;
+				g_report.fail("EXITMIDSAVE a long-press exit closed the save screen while the save was running");
 			}
 		}
 		else {
 			printf("SS-EXITMIDSAVE exit=skipped\n");
 		}
 		deluge_file_bytes_set_latency_ms(0);
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the first save finishing", kMaxWaitTicks};
 		g_stage = Stage::SaveFirstWait;
 		break;
 	}
 	case Stage::SaveFirstWait: {
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::SaveFirstCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-SAVED FAIL the save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -402,15 +434,13 @@ void runTick() {
 		const int32_t doublings = SaveSongUI::stagedDocumentGrowths();
 		printf("SS-GREW doublings=%d\n", doublings);
 		if (doublings < 2) {
-			printf("SS-GREW FAIL the song did not outgrow the staging buffer twice; the growth path was"
-			       " not exercised and the fixture needs to be bigger\n");
-			g_failures++;
+			g_report.fail("GREW the song did not outgrow the staging buffer twice; the growth path was"
+			              " not exercised and the fixture needs to be bigger");
 		}
 
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(kSavePath, bytes)) {
-			printf("SS-SAVED FAIL the save wrote no file at %s\n", kSavePath);
-			g_failures++;
+			g_report.fail("SAVED the save wrote no file at %s", kSavePath);
 			g_stage = Stage::Report;
 			break;
 		}
@@ -425,30 +455,29 @@ void runTick() {
 		const int32_t completed = SaveSongUI::documentSavesCompleted();
 		printf("SS-VERIFIED completedSaves=%d\n", completed);
 		if (completed != 1) {
-			printf("SS-VERIFIED FAIL the save wrote a file but never completed; its read-back check"
-			       " rejected what it had written\n");
-			g_failures++;
+			g_report.fail("VERIFIED the save wrote a file but never completed; its read-back check"
+			              " rejected what it had written");
 		}
 
 		if (!beginSavedSongLoad(kSavePath)) {
-			printf("SS-PARSES FAIL the saved document could not even be opened for loading\n");
-			g_failures++;
+			g_report.fail("PARSES the saved document could not even be opened for loading");
 			g_stage = Stage::Reopen;
 			break;
 		}
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the saved song loading", kMaxWaitTicks};
 		g_stage = Stage::ParseWait;
 		break;
 	}
 	case Stage::ParseWait: {
-		if (!savedSongLoadRunning()) {
+		switch (g_wait.poll(!savedSongLoadRunning())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::ParseCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-PARSES FAIL the saved document never finished loading (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Reopen;
+			break;
 		}
 		break;
 	}
@@ -470,28 +499,28 @@ void runTick() {
 	case Stage::SaveSecond: {
 		SongSaveChannelProbe::typeName(kSaveName);
 		SongSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the occupied save answering", kMaxWaitTicks};
 		g_stage = Stage::SaveSecondWait;
 		break;
 	}
 	case Stage::SaveSecondWait: {
 		// The existence answer lands on a LATER tick than the key press, so this check must wait rather
 		// than read the prompt on the same tick as the key press.
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::SaveSecondCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-INTACT FAIL the occupied save never answered (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::SaveSecondCheck: {
 		if (!SongSaveChannelProbe::overwritePromptOpen()) {
-			printf("SS-INTACT FAIL saving onto an existing song did not prompt\n");
-			g_failures++;
+			g_report.fail("INTACT saving onto an existing song did not prompt");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -500,20 +529,21 @@ void runTick() {
 	}
 	case Stage::Confirm: {
 		SongSaveChannelProbe::confirmOverwrite();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the confirmed overwrite finishing", kMaxWaitTicks};
 		g_stage = Stage::ConfirmWait;
 		break;
 	}
 	case Stage::ConfirmWait: {
 		// Confirming STARTS the overwrite; it does not perform it.
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::ConfirmCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-INTACT FAIL the confirmed overwrite never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -523,16 +553,14 @@ void runTick() {
 		// which is the property that justifies writing to a temp name and renaming.
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(kSavePath, bytes)) {
-			printf("SS-INTACT FAIL nothing is left at %s after the overwrite\n", kSavePath);
-			g_failures++;
+			g_report.fail("INTACT nothing is left at %s after the overwrite", kSavePath);
 		}
 		else if (!beginSavedSongLoad(kSavePath)) {
-			printf("SS-INTACT FAIL what is left at %s could not be opened for loading\n", kSavePath);
-			g_failures++;
+			g_report.fail("INTACT what is left at %s could not be opened for loading", kSavePath);
 		}
 		else {
 			g_bytesFirst = bytes.size();
-			g_waitTicks = 0;
+			g_wait = Wait{g_report, "the surviving song loading", kMaxWaitTicks};
 			g_stage = Stage::IntactWait;
 			break;
 		}
@@ -540,14 +568,15 @@ void runTick() {
 		break;
 	}
 	case Stage::IntactWait: {
-		if (!savedSongLoadRunning()) {
+		switch (g_wait.poll(!savedSongLoadRunning())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::IntactCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-INTACT FAIL what is left at %s never finished loading (%d ticks)\n", kSavePath, g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -568,21 +597,27 @@ void runTick() {
 	case Stage::ReferenceSave: {
 		SongSaveChannelProbe::typeName(kReferenceName);
 		SongSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the reference save finishing", kMaxWaitTicks};
 		g_stage = Stage::ReferenceWait;
 		break;
 	}
 	case Stage::ReferenceWait: {
-		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::ReferenceCheck;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::ReferenceCheck: {
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(kReferencePath, bytes)) {
-			printf("SS-HELD FAIL the unheld reference save wrote no file\n");
-			g_failures++;
+			g_report.fail("HELD the unheld reference save wrote no file");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -613,7 +648,7 @@ void runTick() {
 		g_heldTicksBefore = SaveSongUI::channelDocumentTicks();
 		deluge_file_bytes_set_write_from_latency_ms(kHeldLatencyMs);
 		SongSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the held save finishing", kMaxWaitTicks};
 		g_stage = Stage::HeldWait;
 		break;
 	}
@@ -629,9 +664,18 @@ void runTick() {
 			g_heldTicks = SaveSongUI::channelDocumentTicks() - g_heldTicksBefore;
 			deluge_file_bytes_set_write_from_latency_ms(0);
 		}
-		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			deluge_file_bytes_set_write_from_latency_ms(0);
 			g_stage = Stage::HeldCheck;
+			break;
+		case WaitState::Expired:
+			deluge_file_bytes_set_write_from_latency_ms(0);
+			(void)deluge::io::unlink(kHeldPath);
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -643,21 +687,18 @@ void runTick() {
 		const auto heldUs = static_cast<long long>(g_heldWriteUs);
 		const auto bound = static_cast<long long>(saveSongUI.documentStallLimitUs());
 		printf("SS-HELD completed=%d present=%d bytes=%zu crc=%08X heldUs=%lld heldTicks=%d boundUs=%lld ticks=%d\n",
-		       (int)completed, (int)present, bytes.size(), crc, heldUs, (int)g_heldTicks, bound, g_waitTicks);
+		       (int)completed, (int)present, bytes.size(), crc, heldUs, (int)g_heldTicks, bound, g_wait.ticks());
 		if (heldUs <= bound) {
-			printf("SS-HELD FAIL the document write landed within the stall bound; nothing was held past it, so this "
-			       "proves nothing\n");
-			g_failures++;
+			g_report.fail("HELD the document write landed within the stall bound; nothing was held past it, so this "
+			              "proves nothing");
 		}
 		else if (completed != 1) {
-			printf("SS-HELD FAIL a save whose write the channel held past the stall bound gave up\n");
-			g_failures++;
+			g_report.fail("HELD a save whose write the channel held past the stall bound gave up");
 		}
 		else if (!present || bytes.size() != g_bytesReference || crc != g_crcReference) {
-			printf("SS-HELD FAIL the held save's file is not the document an unheld save of the same song writes "
-			       "(%zu bytes, %08X)\n",
-			       g_bytesReference, g_crcReference);
-			g_failures++;
+			g_report.fail("HELD the held save's file is not the document an unheld save of the same song writes "
+			              "(%zu bytes, %08X)",
+			              g_bytesReference, g_crcReference);
 		}
 		(void)deluge::io::unlink(kHeldPath);
 		g_stage = Stage::UpgradeOpen;
@@ -673,8 +714,7 @@ void runTick() {
 		    && file->write(std::as_bytes(std::span{kUpgradeXmlBytes.data(), kUpgradeXmlBytes.size()})).has_value()
 		    && file->close().has_value();
 		if (!written) {
-			printf("SS-UPGRADE FAIL the XML song could not be written\n");
-			g_failures++;
+			g_report.fail("UPGRADE the XML song could not be written");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -690,19 +730,20 @@ void runTick() {
 	case Stage::UpgradeSave: {
 		SongSaveChannelProbe::typeName(kUpgradeName);
 		SongSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the upgrade save finishing", kMaxWaitTicks};
 		g_stage = Stage::UpgradeWait;
 		break;
 	}
 	case Stage::UpgradeWait: {
-		if (saveMachineryIdle()) {
+		switch (g_wait.poll(saveMachineryIdle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::UpgradeCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SS-UPGRADE FAIL the save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -716,41 +757,39 @@ void runTick() {
 		const std::string path = currentSong->getSongFullPath();
 		printf("SS-UPGRADE prompted=%d kept=%d saved=%d path=%s\n", (int)prompted, (int)kept, (int)saved, path.c_str());
 		if (prompted) {
-			printf("SS-UPGRADE FAIL saving over a song loaded from XML asked to overwrite\n");
-			g_failures++;
+			g_report.fail("UPGRADE saving over a song loaded from XML asked to overwrite");
 			SongSaveChannelProbe::pressBack();
 		}
 		if (!kept) {
-			printf("SS-UPGRADE FAIL the XML song is gone or changed\n");
-			g_failures++;
+			g_report.fail("UPGRADE the XML song is gone or changed");
 		}
 		if (!saved) {
-			printf("SS-UPGRADE FAIL nothing was saved at %s\n", kUpgradePath.c_str());
-			g_failures++;
+			g_report.fail("UPGRADE nothing was saved at %s", kUpgradePath.c_str());
 		}
 		if (path != kUpgradePath) {
-			printf("SS-UPGRADE FAIL the song is now %s, not %s\n", path.c_str(), kUpgradePath.c_str());
-			g_failures++;
+			g_report.fail("UPGRADE the song is now %s, not %s", path.c_str(), kUpgradePath.c_str());
 		}
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the settings write landing", kSettingsTicks};
 		g_stage = Stage::UpgradeSettingsCheck;
 		break;
 	}
 	case Stage::UpgradeSettingsCheck: {
 		// With LASTOPENED, the song recorded must be the copy the save wrote: the XML beside it no longer has the
 		// song's latest state.
-		if (++g_waitTicks < kSettingsTicks) {
+		const WaitState landed = g_wait.poll(deluge::storage::bytes::idle());
+		if (landed == WaitState::Pending) {
 			break;
 		}
-		std::vector<uint8_t> settings;
-		const bool read = readWholeFile(kSettingsPath, settings);
-		const std::string text(settings.begin(), settings.end());
-		const bool recorded = read && text.find(kUpgradePath) != std::string::npos;
-		printf("SS-UPGRADE lastOpened recorded=%d\n", (int)recorded);
-		if (!recorded) {
-			printf("SS-UPGRADE FAIL with LASTOPENED, the settings do not name %s after the save\n",
-			       kUpgradePath.c_str());
-			g_failures++;
+		if (landed == WaitState::Met) {
+			std::vector<uint8_t> settings;
+			const bool read = readWholeFile(kSettingsPath, settings);
+			const std::string text(settings.begin(), settings.end());
+			const bool recorded = read && text.find(kUpgradePath) != std::string::npos;
+			printf("SS-UPGRADE lastOpened recorded=%d\n", (int)recorded);
+			if (!recorded) {
+				g_report.fail("UPGRADE with LASTOPENED, the settings do not name %s after the save",
+				              kUpgradePath.c_str());
+			}
 		}
 		FlashStorage::defaultStartupSongMode = g_startupModeBefore;
 		(void)deluge::io::unlink(kUpgradePath);
@@ -766,7 +805,7 @@ void runTick() {
 		       (int)SaveSongUI::documentChannelServedOps(), (int)SaveSongUI::documentInlineServedOps(),
 		       (int)SaveSongUI::channelDocumentTicks(), (int)SaveSongUI::documentSteps(),
 		       (int)SaveSongUI::documentWriteChannelServedOps());
-		printf("SS-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
@@ -786,8 +825,7 @@ void deluge_scenario_song_save_channel_begin(void) {
 	g_stage = Stage::Inflate;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
 	g_notesAdded = 0;
 	g_crcFirst = 0;
 	g_bytesFirst = 0;
@@ -820,7 +858,7 @@ bool deluge_scenario_song_save_channel_step_done(void) {
 }
 
 int32_t deluge_scenario_song_save_channel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

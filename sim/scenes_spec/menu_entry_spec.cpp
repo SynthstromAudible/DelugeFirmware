@@ -4,7 +4,7 @@
 ///
 /// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the routed
 /// ones, one example per *argument shape*. It is at this level and not
-/// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
+/// in `tests/unit/deluge/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
 /// `SceneId::arg`, and `openUI(&shellHostUI)` against the real `uiNavigationHierarchy`.
@@ -84,10 +84,12 @@
 
 #include "support/card_access.h"
 #include "support/feature_setting.h"
+#include "support/printers/scene_printer.h"
 #include "support/song_fixture.h"
 #include "support/ui_mode_guard.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
@@ -97,8 +99,8 @@
 #include <optional>
 #include <string>
 
-#include "spec/support/spec_main.h"
-#include "spec/ui/support/frames.h"
+#include "support/spec_main.h"
+#include "unit/ui/support/frames.h"
 
 /// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
 ///       these (`hid/buttons.cpp`) and the header does not export them.
@@ -378,10 +380,10 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		// All four UI facts false -- SHIFT is held at that site, so `setup()`'s two view tests are
 		// false and the root is `settingsRootMenu` (`gui/ui/sound_editor.cpp:1816-1825`).
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_settings).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_settings);
 		// `arg == 0` is "the root the context chose" (`MenuScene::on_enter`'s `arg == 0` branch, `scenes/menu/menu_scene.cpp`).
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0}).to_be_true();
+		expect(opened_on()).to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0});
 		closeGuest();
 	});
 
@@ -395,14 +397,14 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		expect(entry::openShellMenu(nullptr, 0, false, /*sessionOrArrangerRoot=*/true,
 		                            /*sessionViewRoot=*/true, false))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_song);
 		expect(deluge::scenes::menu_scene().menu_context().is_session_view).to_be_true();
 		closeGuest();
 
 		expect(entry::openShellMenu(nullptr, 0, false, /*sessionOrArrangerRoot=*/true,
 		                            /*sessionViewRoot=*/false, false))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_song);
 		expect(deluge::scenes::menu_scene().menu_context().is_session_view).to_be_false();
 		closeGuest();
 	});
@@ -415,7 +417,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		// The example varies only `performanceView` against the settings-root call above, so a
 		// mapping that ignored the argument would fail here rather than pass by coincidence.
 		expect(entry::openShellMenu(nullptr, 0, /*performanceView=*/true, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_performance).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_performance);
 		closeGuest();
 	});
 
@@ -423,7 +425,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_audio_clip);
 		closeGuest();
 	});
 
@@ -433,12 +435,12 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		// sound root" and "always whatever the last call resolved" both fail.
 		deluge::scenes::spec::SongFixture synth = deluge::scenes::spec::make_synth_song();
 		expect(entry::openShellMenu(synth.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::sound_root).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::sound_root);
 		closeGuest();
 
 		deluge::scenes::spec::SongFixture midi = deluge::scenes::spec::make_midi_song();
 		expect(entry::openShellMenu(midi.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_midi_or_cv).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_midi_or_cv);
 		closeGuest();
 
 		// And the kit-global-FX argument, which is the one fact the site computes for itself
@@ -446,7 +448,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		static_cast<InstrumentClip*>(kit.clip)->affectEntire = true;
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/true)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_kit_global_fx).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_kit_global_fx);
 		closeGuest();
 	});
 
@@ -458,7 +460,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		// is `!rootUIIsClipMinderScreen()`. `sessionViewRoot` stays false -- the automation view is
 		// not the session view -- which is what separates this from site 2.
 		expect(entry::openShellMenu(nullptr, 0, false, /*sessionOrArrangerRoot=*/true, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_song);
 		expect(deluge::scenes::menu_scene().menu_context().is_session_view).to_be_false();
 		closeGuest();
 	});
@@ -466,11 +468,11 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	it("a UI teardown empties the guest and forgets the song the menu was open on", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().song != nullptr).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().song).not_().to_be_null();
 		// A song load or a clear takes every UI down (`nullifyUIs`) before the song the menu was open on goes.
 		nullifyUIs();
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t{0});
-		expect(deluge::scenes::menu_scene().menu_context().song == nullptr).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
 		closeGuest();
 	});
 
@@ -482,9 +484,9 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		shellHostUI.closeNow(); // the guest's own close, the clip view beneath
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().song == f.song).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().song).to_equal(f.song);
 		nullifyUIs();
-		expect(deluge::scenes::menu_scene().menu_context().song == nullptr).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
 		entry::clearShellKitGlobalFx();
 	});
 
@@ -503,7 +505,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		drum->setupAsSample(&params);
 		f.song->live.param_backup.backUp(drum, f.clip, &params, true);
 		kit->addDrum(drum);
-		expect(kit->getFirstUnassignedDrum(static_cast<InstrumentClip*>(f.clip)) == drum).to_be_true();
+		expect(kit->getFirstUnassignedDrum(static_cast<InstrumentClip*>(f.clip))).to_equal(drum);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellDrumCreator(static_cast<InstrumentClip*>(f.clip), drum)).to_be_true();
 		nullifyUIs();
@@ -530,24 +532,24 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		const uint16_t id = menu::node_id(nodes::file0_selector);
 		// The id is what makes the mapping possible at all, and it is `scenes::assigned_node_ids()`
 		// that produces it. Asserted non-zero here because zero means "the context's
 		// root" downstream, which would silently open the sound root instead.
-		expect(id != 0).to_be_true();
+		expect(id).not_().to_equal(0);
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false,
 		                            entry::ShellMenuNode::Osc0FileSelector))
 		    .to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = id}).to_be_true();
+		expect(opened_on()).to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = id});
 		// And it landed there rather than merely being asked to: `MenuScene::on_enter` resolves the
 		// arg through `node_by_id` and re-roots the path at it (`MenuScene::on_enter`).
-		expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::file0_selector);
 		// ...and the log survived, which is the half a `clip != nullptr` test alone would get wrong.
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 	});
 
@@ -563,7 +565,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 			deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
 			setRootUILowLevel(&instrumentClipView);
 			DrumRowStack row{f};
-			expect(row.stack != nullptr).to_be_true();
+			expect(row.stack).not_().to_be_null();
 			if (row.stack == nullptr) {
 				break;
 			}
@@ -573,7 +575,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 			instrumentClipView.enterDrumCreator(row.stack, take);
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			expect(isUIOpen(&shellHostUI)).to_be_false();
-			expect(spy.last_error == Error::UNSPECIFIED).to_be_true();
+			expect(spy.last_error).to_equal(Error::UNSPECIFIED);
 			nullifyUIs();
 		}
 	});
@@ -604,10 +606,10 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false, entry::ShellMenuNode::Dx)).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_menu)})
-		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_menu).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(opened_on())
+		    .to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_menu)});
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::dx_menu);
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 	});
 
@@ -633,12 +635,12 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 			column.handlePad(nullptr, release, nullptr);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
-		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(opened_on())
+		    .to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)});
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 16);
 		expect(deluge::scenes::menu_scene().state().dx.pad_blink).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		// With the guest open the press is the menu's: the same operator again toggles to its coarse tuning.
 		expect(entry::openShellDxColumn(2)).to_be_true();
 		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(2 * 21 + 18);
@@ -651,8 +653,8 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0}).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::sound_root).to_be_true();
+		expect(opened_on()).to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0});
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::sound_root);
 		closeGuest();
 	});
 });
@@ -662,14 +664,14 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it,
 		// focused on it (`maybeGetParentMenu` and `parent->focusChild`, `gui/ui/sound_editor.cpp`).
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7) == &nodes::lpf_freq).to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7)).to_equal(&nodes::lpf_freq);
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::filters_group)})
-		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::filters_group).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(opened_on())
+		    .to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::filters_group)});
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::filters_group);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(deluge::scenes::menu_scene().menu_context().source_index).to_equal(int8_t{0});
 		closeGuest();
 	});
@@ -677,18 +679,18 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	it("an odd column addresses source 1", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, false, 3, 2);
-		expect(node != nullptr).to_be_true();
+		expect(node).not_().to_be_null();
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 3, 2, false, false, false, false)).to_be_true();
 		expect(is_horizontal_page(deluge::scenes::menu_scene().focused())).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == node).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(node);
 		expect(deluge::scenes::menu_scene().menu_context().source_index).to_equal(int8_t{1});
 		closeGuest();
 	});
 
 	it("a cell with no shortcut opens nothing", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 15, 0) == nullptr).to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 15, 0)).to_be_null();
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 15, 0, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -713,7 +715,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 				}
 			}
 		}
-		expect(px >= 0).to_be_true();
+		to_be_at_least(expect(px), 0);
 
 		expect(entry::openShellMenuAtShortcut(f.clip, px, py, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -727,11 +729,11 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 	});
 
@@ -762,12 +764,12 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
 		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0) == &nodes::modulator0_volume).to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0)).to_equal(&nodes::modulator0_volume);
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)})
-		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::dx_param).to_be_true();
+		expect(opened_on())
+		    .to_equal(shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::dx_param)});
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().depth)).to_equal(0);
 		expect(static_cast<int32_t>(deluge::scenes::menu_scene().state().dx.param)).to_equal(3 * 21 + 2);
 		closeGuest();
@@ -792,8 +794,8 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		setRootUILowLevel(&instrumentClipView);
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		(void)entry::menuShortcutPadAction(8, 7, true);
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		nullifyUIs();
 		deluge::hid::display::OLED::removePopup();
 		display = saved_display;
@@ -839,18 +841,18 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		// Settings root, no clip: legacy's wipe is inside `if (item) ... else if (clip)`, so it does
 		// not happen, and neither does this one.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		// Same call, same process, one argument different -- the clip -- and the log goes.
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		closeGuest();
 	});
 });
@@ -892,7 +894,7 @@ describe menu_entry_screensaver("legacy's screensaver stands down while the gues
 
 		// ---- the guest on top: same settings, same call, same already-showing screensaver ----
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
 		uiTimerManager.unsetTimer(TimerName::SCREENSAVER);
 		deluge::hid::display::Screensaver::timerEvent();
 		// Re-armed at the full idle period (2 minutes), so it is ready the instant the guest closes,
@@ -964,13 +966,17 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 			expect(opened).to_be_true();
 
 			const std::optional<uint32_t> timer = deluge::scenes::menu_scene().next_timer();
-			expect(!timer.has_value() || *timer > 0).to_be_true();
+			if (timer.has_value()) {
+				expect(*timer).to_be_greater_than(0);
+			}
 
 			shellHostUI.shell().tick(now);
 			const std::optional<uint32_t> wake = shellHostUI.shell().next_wake();
 			// The condition that would end the reprieve is a deadline AT `now`, which is what a
 			// zero `next_timer()` produces. A deadline in the future is a normal blink.
-			expect(!wake.has_value() || *wake != now).to_be_true();
+			if (wake.has_value()) {
+				expect(*wake).not_().to_equal(now);
+			}
 			closeGuest();
 		}
 	});
@@ -989,31 +995,31 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		const ::LearnedMIDI saved_slot = slot;
 
 		expect(openGuestOnPlayCommand(*f.song)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::midi_command_play).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::midi_command_play);
 		press_learn(true);
 		bool thru = false;
 
 		expect(poison(slot)).to_be_true();
 		playbackHandler.noteMessageReceived(cable(), true, 9, 64, 100, &thru);
-		expect(slot.cable == &cable()).to_be_true();
-		expect(slot.channelOrZone == 9).to_be_true();
-		expect(slot.noteOrCC == 64).to_be_true();
+		expect(slot.cable).to_equal(&cable());
+		expect(slot.channelOrZone).to_equal(9);
+		expect(slot.noteOrCC).to_equal(64);
 
 		expect(poison(slot)).to_be_true();
 		playbackHandler.programChangeReceived(cable(), 3, 7);
-		expect(slot.channelOrZone == 3 + IS_A_PC).to_be_true();
-		expect(slot.noteOrCC == 7).to_be_true();
+		expect(slot.channelOrZone).to_equal(3 + IS_A_PC);
+		expect(slot.noteOrCC).to_equal(7);
 
 		expect(poison(slot)).to_be_true();
 		playbackHandler.midiCCReceived(cable(), 15, 20, 127, &thru);
-		expect(slot.channelOrZone == 15 + IS_A_CC).to_be_true();
-		expect(slot.noteOrCC == 20).to_be_true();
+		expect(slot.channelOrZone).to_equal(15 + IS_A_CC);
+		expect(slot.noteOrCC).to_equal(20);
 
 		// Released: the next message is the song's, not the menu's.
 		press_learn(false);
 		expect(poison(slot)).to_be_true();
 		expect(shellHostUI.noteOnReceivedForMidiLearn(cable(), 9, 65, 100)).to_be_false();
-		expect(slot.channelOrZone == kPoisonChannel).to_be_true();
+		expect(slot.channelOrZone).to_equal(kPoisonChannel);
 
 		closeGuest();
 		slot = saved_slot;
@@ -1036,17 +1042,17 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		// `FirstApp + 6` is `overlay::param_popup_scene()` (`scenes/registry.h`), which is input-transparent.
 		const auto popup = static_cast<shell::SceneKind>(static_cast<uint8_t>(shell::SceneKind::FirstApp) + 6);
 		expect(shellHostUI.shell().stack().push(shell::SceneId{.kind = popup, .arg = 0})).to_be_true();
-		expect(shellHostUI.shell().stack().top().kind() == popup).to_be_true();
+		expect(shellHostUI.shell().stack().top().kind()).to_equal(popup);
 		expect(poison(slot)).to_be_true();
 		expect(shellHostUI.noteOnReceivedForMidiLearn(cable(), 3, 40, 100)).to_be_true();
-		expect(slot.channelOrZone == 3).to_be_true();
-		expect(slot.noteOrCC == 40).to_be_true();
+		expect(slot.channelOrZone).to_equal(3);
+		expect(slot.noteOrCC).to_equal(40);
 
 		// The menu gone with LEARN still held: the note is not used, so it plays.
 		expect(shellHostUI.shell().stack().remove(shell::SceneKind::FirstApp)).to_be_true();
 		expect(poison(slot)).to_be_true();
 		expect(shellHostUI.noteOnReceivedForMidiLearn(cable(), 3, 40, 100)).to_be_false();
-		expect(slot.channelOrZone == kPoisonChannel).to_be_true();
+		expect(slot.channelOrZone).to_equal(kPoisonChannel);
 
 		press_learn(false);
 		closeGuest();
@@ -1067,7 +1073,7 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		expect(openGuestOnPlayCommand(*f.song)).to_be_true();
 		expect(poison(slot)).to_be_true();
 		expect(shellHostUI.noteOnReceivedForMidiLearn(cable(), 3, 40, 100)).to_be_false();
-		expect(slot.channelOrZone == kPoisonChannel).to_be_true();
+		expect(slot.channelOrZone).to_equal(kPoisonChannel);
 
 		press_learn(false);
 		closeGuest();
@@ -1114,14 +1120,14 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 		// `ActionLogger::getNewAction` takes an action only while the root is the current UI, which it is here.
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 
 		held.select();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::note_editor_root).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::NoteEditor);
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_editor_root);
 		// `setup(clip)` with no item wipes before it picks `noteEditorRootMenu`, unlike `enterNoteEditor`'s named root.
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		closeGuest();
 	});
 
@@ -1132,8 +1138,8 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 		HeldPadInAutomation held;
 
 		held.select();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::NoteEditor);
 		expect(clip->affectEntire).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_true();
 		closeGuest();
@@ -1149,15 +1155,15 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 			// here a fault. The gate reads only the clip, so this half keeps the audio clip view as the root.
 			setRootUILowLevel(&audioClipView);
 			held.select();
-			expect(getCurrentUI() == &shellHostUI).to_be_true();
-			expect(deluge::scenes::menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+			expect(getCurrentUI()).to_equal(&shellHostUI);
+			expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_audio_clip);
 			closeGuest();
 		}
 		{
 			HeldPadInAutomation held{/*arranger=*/true};
 			held.select();
-			expect(getCurrentUI() == &shellHostUI).to_be_true();
-			expect(deluge::scenes::menu_scene().focused() == &nodes::root_song).to_be_true();
+			expect(getCurrentUI()).to_equal(&shellHostUI);
+			expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_song);
 			closeGuest();
 		}
 	});
@@ -1175,7 +1181,7 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		expect(entry::forwardMenuAffectEntire(deluge::hid::button::AFFECT_ENTIRE, true).has_value()).to_be_true();
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR});
 
-		expect(shellHostUI.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(shellHostUI.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
 	});
@@ -1232,7 +1238,7 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		setRootUILowLevel(&instrumentClipView);
 		DrumRowStack row{kit};
-		expect(row.stack != nullptr).to_be_true();
+		expect(row.stack).not_().to_be_null();
 		if (row.stack == nullptr) {
 			return;
 		}
@@ -1266,15 +1272,14 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		setRootUILowLevel(&instrumentClipView);
 		DrumRowStack row{kit};
-		expect(row.stack != nullptr).to_be_true();
+		expect(row.stack).not_().to_be_null();
 		if (row.stack == nullptr) {
 			return;
 		}
 		instrumentClipView.enterDrumCreator(row.stack, /*doRecording=*/false);
 		expect(isUIOpen(&shellHostUI)).to_be_true();
 		(void)shellHostUI.timerCallback(); // the file selector's hook pushes the browser
-		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
-		    .to_be_true();
+		expect(shellHostUI.shell().stack().input_top().kind()).to_equal(deluge::scenes::browser::kBrowserSceneKind);
 		currentUIMode = UI_MODE_AUDITIONING; // an audition pad held over the browser
 
 		(void)shellHostUI.exitUI(); // the browser goes; the menu goes up from its root on the resume
@@ -1292,7 +1297,7 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		setRootUILowLevel(&instrumentClipView);
 		DrumRowStack row{kit};
-		expect(row.stack != nullptr).to_be_true();
+		expect(row.stack).not_().to_be_null();
 		if (row.stack == nullptr) {
 			return;
 		}
@@ -1317,7 +1322,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)f;
 		setRootUILowLevel(&keyboardScreen);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Settings).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Settings);
 		{
 			// `GridPadClaim::None` on the settings root: the guest forwards the pad to `keyboardScreen.padAction`, whose
 			// first statement is the shortcut entry.
@@ -1325,14 +1330,14 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 			(void)shellHostUI.padAction(8, 7, 64);
 		}
 		(void)shellHostUI.timerCallback(); // the `Replace` the re-root filed
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Sound).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Sound);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 
 		// One guest on the hierarchy: one exit leaves the keyboard screen current.
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(getCurrentUI() == &keyboardScreen).to_be_true();
+		expect(getCurrentUI()).to_equal(&keyboardScreen);
 	});
 
 	it("keeps the kit-global-FX fact the menu was opened with, so Shift + a pad edits the selected drum", _ {
@@ -1355,7 +1360,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
 		expect(ctx.is_kit_global_fx).to_be_false();
 		expect(ctx.is_drum).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		(void)shellHostUI.exitUI();
 	});
 
@@ -1380,9 +1385,9 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		}
 		(void)shellHostUI.timerCallback();
 		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
-		expect(ctx.root == menu::MenuContext::Root::KitGlobalFx).to_be_true();
+		expect(ctx.root).to_equal(menu::MenuContext::Root::KitGlobalFx);
 		expect(ctx.is_kit_global_fx).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::global_lpf_freq);
 		(void)shellHostUI.exitUI();
 	});
 
@@ -1412,7 +1417,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
 		expect(ctx.is_kit_global_fx).to_be_false();
 		expect(ctx.is_drum).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		(void)shellHostUI.exitUI();
 	});
 
@@ -1437,12 +1442,12 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(isUIOpen(&shellHostUI)).to_be_true();
 		// `SoundEditor::setup`: the root from the clip's affect-entire, what it edits from `setupKitGlobalFXMenu`.
 		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
-		expect(ctx.root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(ctx.root).to_equal(menu::MenuContext::Root::Drum);
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.is_drum).to_be_false();
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(ctx.addresses.chain.has_value()).to_be_true();
-		expect(entry::soundMenuModControllable() == f.instrument->toModControllable()).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(f.instrument->toModControllable());
 		// The automation view under it agrees: the kit's own context.
 		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.exitUI();
@@ -1458,11 +1463,11 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		k.f.clip->affectEntire = false; // SELECT then opens the drum's root on the kit's own effects
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Drum);
 		HeldShift shift;
 		guest_shortcut(8, 7);
 		// `get_basic_shortcut_action(x, y, editingKitAffectEntire())` reads the latch: the kit's own LPF.
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::global_lpf_freq);
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
 		// With affect-entire off `updatePadLightsFor` scans the sound table, which has no kit LPF: nothing blinks.
 		(void)shellHostUI.timerCallback();
@@ -1479,15 +1484,15 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false,
 		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteEditor))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::NoteEditor);
 		// `setup()` reads the latch for the note editor too: it opens on the kit's own effects.
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
 		const menu::Node* const before = deluge::scenes::menu_scene().focused();
 		HeldShift shift;
 		guest_shortcut(8, 7);
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == before).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() != &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::NoteEditor);
+		expect(deluge::scenes::menu_scene().focused()).to_equal(before);
+		expect(deluge::scenes::menu_scene().focused_value()).not_().to_equal(&nodes::global_lpf_freq);
 		closeGuest();
 	});
 
@@ -1499,7 +1504,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		k.f.clip->affectEntire = false;
 		setRootUILowLevel(&automationView);
 		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Drum);
 		// `getAffectEntire` reads `setupKitGlobalFXMenu` under the sound menu, which the latch is.
 		expect(automationView.getAffectEntire()).to_be_true();
 		HeldShift shift;
@@ -1508,7 +1513,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		// One tick: the press, then the drains that hand the move to the automation view. The editor is on the kit's
 		// own effects by then, as legacy's `setup()` re-points it before the view refreshes.
 		(void)shellHostUI.timerCallback();
-		expect(entry::soundMenuModControllable() == k.f.instrument->toModControllable()).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(k.f.instrument->toModControllable());
 		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.padAction(8, 7, 0);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
@@ -1528,7 +1533,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		deluge::scenes::menu_scene().reroot_at(*menu::MenuScene::roots()[static_cast<size_t>(drum_ctx.root)],
 		                                       drum_ctx, menu::node_id(nodes::filters_group), nullptr);
 		(void)shellHostUI.timerCallback();
-		expect(deluge::scenes::menu_scene().state().path[0] == &nodes::filters_group).to_be_true();
+		expect(deluge::scenes::menu_scene().state().path[0]).to_equal(&nodes::filters_group);
 		// Past the page buttons' 140 ms debounce, which runs on the guest's clock.
 		AudioEngine::audioSampleTimer += 44'100;
 		HeldShift shift;
@@ -1541,8 +1546,8 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		const menu::Node* const page = deluge::scenes::menu_scene().state().path[0];
 		const std::span<const menu::Node* const> kit_chain = menu::chain_for(menu::MenuContext::Root::KitGlobalFx);
 		const std::span<const menu::Node* const> sound_chain = menu::chain_for(menu::MenuContext::Root::Drum);
-		expect(std::ranges::find(kit_chain, page) != kit_chain.end()).to_be_true();
-		expect(std::ranges::find(sound_chain, page) == sound_chain.end()).to_be_true();
+		expect(kit_chain).to_contain(page);
+		expect(sound_chain).not_().to_contain(page);
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
 		closeGuest();
 	});
@@ -1558,7 +1563,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		LatchedKit k;
 		k.f.clip->affectEntire = false;
 		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Drum);
 		HeldShift shift;
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
 		(void)shellHostUI.timerCallback();
@@ -1577,8 +1582,8 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
 		(void)shellHostUI.timerCallback();
 		const auto drum_map = shown();
-		expect(kit_map != deluge::ui::test::GridRig{}.state()).to_be_true();
-		expect(kit_map != drum_map).to_be_true();
+		expect(kit_map).not_().to_equal(deluge::ui::test::GridRig{}.state());
+		expect(kit_map).not_().to_equal(drum_map);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		closeGuest();
 	});
@@ -1596,7 +1601,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(entry::shellKitGlobalFx()).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
 		DrumRowStack row{kit};
-		expect(row.stack != nullptr).to_be_true();
+		expect(row.stack).not_().to_be_null();
 		if (row.stack == nullptr) {
 			return;
 		}
@@ -1651,15 +1656,14 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   entry::clearShellKitGlobalFx();
 		   expect(entry::openShellMenu(f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
 		   const menu::MenuContext drum_ctx = deluge::scenes::menu_scene().menu_context();
-		   expect(drum_ctx.root == menu::MenuContext::Root::Drum).to_be_true();
+		   expect(drum_ctx.root).to_equal(menu::MenuContext::Root::Drum);
 		   // SAMPLE > START: the marker editor over the menu.
 		   deluge::scenes::menu_scene().reroot_at(*menu::MenuScene::roots()[static_cast<size_t>(drum_ctx.root)],
 		                                          drum_ctx, menu::node_id(nodes::sample0_start), nullptr);
 		   for (int i = 0; i < 3; i++) {
 			   (void)shellHostUI.timerCallback();
 		   }
-		   expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::marker::kMarkerSceneKind)
-		       .to_be_true();
+		   expect(shellHostUI.shell().stack().input_top().kind()).to_equal(deluge::scenes::marker::kMarkerSceneKind);
 		   HeldShift shift;
 		   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
 		   const auto shortcut = [] {
@@ -1672,15 +1676,15 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   };
 		   // Both firmwares land on the drum's LPF; legacy's re-entry from the marker editor latches the fact.
 		   shortcut();
-		   expect(shellHostUI.shell().stack().input_top().kind() == shell::SceneKind::FirstApp).to_be_true();
-		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		   expect(shellHostUI.shell().stack().input_top().kind()).to_equal(shell::SceneKind::FirstApp);
+		   expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		   expect(entry::shellKitGlobalFx()).to_be_true();
 		   // `updatePadLightsFor` takes the kit's own table from now on, which has no drum LPF: nothing blinks.
 		   (void)shellHostUI.timerCallback();
 		   expect(deluge::scenes::menu_scene().state().blink_plan.param.valid).to_be_false();
 		   // The next press reads it: the kit's own LPF.
 		   shortcut();
-		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		   expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::global_lpf_freq);
 		   expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
 		   (void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		   closeGuest();
@@ -1703,8 +1707,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		                            entry::ShellMenuNode::Osc0FileSelector))
 		    .to_be_true();
 		(void)shellHostUI.timerCallback();
-		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
-		    .to_be_true();
+		expect(shellHostUI.shell().stack().input_top().kind()).to_equal(deluge::scenes::browser::kBrowserSceneKind);
 		HeldShift shift;
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
 		// The claim lands with SHIFT held: legacy's `claimCurrentFile` re-enters its editor and latches the fact.
@@ -1715,13 +1718,13 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 			(void)shellHostUI.timerCallback();
 		}
 		expect(entry::shellKitGlobalFx()).to_be_true();
-		expect(shellHostUI.shell().stack().input_top().kind() == shell::SceneKind::FirstApp).to_be_true();
+		expect(shellHostUI.shell().stack().input_top().kind()).to_equal(shell::SceneKind::FirstApp);
 		(void)shellHostUI.padAction(8, 7, 64);
 		for (int i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
 		(void)shellHostUI.padAction(8, 7, 0);
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::global_lpf_freq);
 		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		closeGuest();
@@ -1756,7 +1759,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   expect(entry::shellKitGlobalFx()).to_be_true();
 		   const menu::Node* const group = deluge::scenes::menu_scene().focused();
 		   expect(is_horizontal_page(group)).to_be_true();
-		   expect(deluge::scenes::menu_scene().focused_value() == &nodes::file0_selector).to_be_true();
+		   expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::file0_selector);
 		   const auto column = deluge::scenes::menu_scene().state().columns[0].focused;
 		   // SELECT on the file selector opens the browser; a second claim, SHIFT released, goes back up one level.
 		   (void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
@@ -1764,15 +1767,14 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		   for (int i = 0; i < 3; i++) {
 			   (void)shellHostUI.timerCallback();
 		   }
-		   expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::browser::kBrowserSceneKind)
-		       .to_be_true();
+		   expect(shellHostUI.shell().stack().input_top().kind()).to_equal(deluge::scenes::browser::kBrowserSceneKind);
 		   entry::shellSampleClaimDone(true);
 		   (void)shellHostUI.shell().stack().remove(deluge::scenes::browser::kBrowserSceneKind);
 		   for (int i = 0; i < 3; i++) {
 			   (void)shellHostUI.timerCallback();
 		   }
-		   expect(deluge::scenes::menu_scene().focused() == group).to_be_true();
-		   expect(deluge::scenes::menu_scene().state().columns[0].focused == column).to_be_true();
+		   expect(deluge::scenes::menu_scene().focused()).to_equal(group);
+		   expect(deluge::scenes::menu_scene().state().columns[0].focused).to_equal(column);
 		   closeGuest();
 	   });
 
@@ -1784,10 +1786,10 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		expect(entry::openShellMenuAtShortcut(f.clip, 9, 7, false, false, false, false)).to_be_true();
 		(void)shellHostUI.timerCallback();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::hpf_freq);
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(getCurrentUI() == &instrumentClipView).to_be_true();
+		expect(getCurrentUI()).to_equal(&instrumentClipView);
 	});
 });
 
@@ -1845,7 +1847,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(entry::menuShortcutPadAction(4, 0, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 0, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
@@ -1863,7 +1865,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 2, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
@@ -1879,7 +1881,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 2, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(std::string{});
@@ -1895,9 +1897,9 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			(void)entry::menuShortcutPadAction(8, 7, true);
 		}
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Performance).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::global_lpf_freq).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Performance);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::global_lpf_freq);
 		closeGuest();
 	});
 
@@ -1912,7 +1914,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 			HeldShift shift;
 			(void)shellHostUI.padAction(8, 7, 64);
 		}
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
 		closeGuest();
 	});
 
@@ -1927,16 +1929,14 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		HeldAudition audition{2};
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 7) == &nodes::sequence_direction)
-		    .to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 7)).to_equal(&nodes::sequence_direction);
 
-		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteRowEditor)
-		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::NoteRowEditor);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
 		// The page with the column focused, as `focusChild` leaves it: not PLAY DIRECTION's own screen.
-		expect(deluge::scenes::menu_scene().focused() != &nodes::sequence_direction).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).not_().to_equal(&nodes::sequence_direction);
 		closeGuest();
 	});
 
@@ -1958,14 +1958,14 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		for (int32_t i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::note_row_probability).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::note_row_probability);
 		closeGuest();
 		// The close ended the mode the audition pad is still holding, and the hierarchy it was closed over.
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;
 
-		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
 		closeGuest();
 	});
 
@@ -1989,16 +1989,16 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		for (int32_t i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::note_row_probability).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::note_row_probability);
 
 		const int32_t cancels = spy.cancels;
 		expect(entry::openShellNoteRowEditor(f.clip, true)).to_be_true();
 		for (int32_t i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(spy.cancels > cancels).to_be_true();
-		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() != &nodes::sequence_direction).to_be_true();
+		expect(spy.cancels).to_be_greater_than(cancels);
+		expect(deluge::scenes::menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
+		expect(deluge::scenes::menu_scene().focused()).not_().to_equal(&nodes::sequence_direction);
 		closeGuest();
 	});
 
@@ -2009,12 +2009,11 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 2, 1) == &nodes::source0_transpose)
-		    .to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 2, 1)).to_equal(&nodes::source0_transpose);
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 2, 1, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(deluge::scenes::menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::multi_range);
+		expect(deluge::scenes::menu_scene().state().walk.pending_after_range).to_equal(&nodes::source0_transpose);
 		closeGuest();
 	});
 
@@ -2034,9 +2033,9 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		HeldAudition audition{2};
 		HeldShift shift;
 
-		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == before).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getCurrentUI()).to_equal(&shellHostUI);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(before);
 		closeGuest();
 	});
 
@@ -2046,10 +2045,10 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 		setRootUILowLevel(&instrumentClipView);
-		expect(entry::menuShortcutPadAction(8, 7, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(8, 7, true)).to_equal(ActionResult::NOT_DEALT_WITH);
 		HeldShift shift;
-		expect(entry::menuShortcutPadAction(8, 7, false) == ActionResult::NOT_DEALT_WITH).to_be_true();
-		expect(entry::menuShortcutPadAction(kDisplayWidth, 3, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(8, 7, false)).to_equal(ActionResult::NOT_DEALT_WITH);
+		expect(entry::menuShortcutPadAction(kDisplayWidth, 3, true)).to_equal(ActionResult::NOT_DEALT_WITH);
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 });
@@ -2063,8 +2062,8 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable() == static_cast<ModControllableAudio*>(drum)).to_be_true();
-		expect(entry::soundMenuParamManager() == &row->paramManager).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllableAudio*>(drum));
+		expect(entry::soundMenuParamManager()).to_equal(&row->paramManager);
 		closeGuest();
 	});
 
@@ -2081,10 +2080,10 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		ModelStackWithAutoParam* param = kit.instrument->getModelStackWithParam(
 		    stack, kit.clip, deluge::modulation::params::LOCAL_LPF_FREQ, deluge::modulation::params::Kind::PATCHED,
 		    /*affectEntire=*/false, /*useMenuStack=*/true, /*forEdit=*/false);
-		expect(param != nullptr).to_be_true();
+		expect(param).not_().to_be_null();
 		if (param != nullptr) {
-			expect(param->paramManager == &row->paramManager).to_be_true();
-			expect(param->modControllable == static_cast<ModControllableAudio*>(drum)).to_be_true();
+			expect(param->paramManager).to_equal(&row->paramManager);
+			expect(param->modControllable).to_equal(static_cast<ModControllableAudio*>(drum));
 		}
 		closeGuest();
 	});
@@ -2100,18 +2099,18 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		k.f.clip->affectEntire = false;
 		setRootUILowLevel(&automationView);
 		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(menu::MenuContext::Root::Drum);
 		expect(automationView.getAffectEntire()).to_be_true();
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, k.f.song, k.f.clip);
 		ModelStackWithAutoParam* param = automationView.getModelStackWithParamForClip(
 		    stack, k.f.clip, /*forEdit=*/false, deluge::modulation::params::UNPATCHED_STUTTER_RATE,
 		    deluge::modulation::params::Kind::UNPATCHED_GLOBAL);
-		expect(param != nullptr).to_be_true();
+		expect(param).not_().to_be_null();
 		if (param != nullptr) {
-			expect(param->paramManager == &static_cast<InstrumentClip*>(k.f.clip)->paramManager).to_be_true();
-			expect(param->paramManager != &row->paramManager).to_be_true();
-			expect(param->modControllable == k.f.instrument->toModControllable()).to_be_true();
+			expect(param->paramManager).to_equal(&static_cast<InstrumentClip*>(k.f.clip)->paramManager);
+			expect(param->paramManager).not_().to_equal(&row->paramManager);
+			expect(param->modControllable).to_equal(k.f.instrument->toModControllable());
 		}
 		closeGuest();
 	});
@@ -2218,13 +2217,13 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		for (int i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(deluge::scenes::menu_scene().focused() == &nodes::edit_name).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::edit_name);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		for (int i = 0; i < 3; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::rename::kRenameSceneKind).to_be_true();
+		expect(shellHostUI.shell().stack().input_top().kind()).to_equal(deluge::scenes::rename::kRenameSceneKind);
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_AUDITIONING});
 	});
 

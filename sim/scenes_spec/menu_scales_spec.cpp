@@ -36,11 +36,12 @@
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <bitset>
@@ -51,7 +52,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -213,14 +214,14 @@ describe menu_scales_table("scenes::menu the two scale checklists: the table", $
 			}
 		}
 		const std::set<const Node*> expected{&nodes::active_scales, &nodes::default_active_scale};
-		expect(found == expected).to_be_true();
+		expect(found).to_equal(expected);
 	});
 
 	it("is not a placeholder any more", _ {
 		expect(nodes::active_scales.custom->is_placeholder()).to_be_false();
 		expect(nodes::default_active_scale.custom->is_placeholder()).to_be_false();
 		// Two instances, not one shared: the bitset an item edits is its only state.
-		expect(nodes::active_scales.custom == nodes::default_active_scale.custom).to_be_false();
+		expect(nodes::active_scales.custom).not_().to_equal(nodes::default_active_scale.custom);
 	});
 
 	it("draws one row per preset scale, and no scalelike beyond them", _ {
@@ -273,7 +274,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 			expect(path + " " + bits_hex(currentSong->project.scale.disabled_preset_scales))
 			    .to_equal(path + " " + table().value(path, "bits"));
 			// ... and something actually moved, or the comparison proves nothing.
-			expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_false();
+			expect(currentSong->project.scale.disabled_preset_scales).not_().to_equal(sentinel_bits());
 		}
 	});
 
@@ -298,19 +299,19 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 				}
 			}
 		}
-		expect(index >= 0).to_be_true();
+		to_be_at_least(expect(index), 0);
 		uint32_t at = 10;
 		r.walk_to(index, at);
 		r.press(at);
 		r.shell.tick(at + 5);
 		at += 10;
-		expect(scene().focused() == &nodes::active_scales).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::active_scales);
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
 		// Now press: the bit flips and the page stays.
 		r.press(at);
 		r.shell.tick(at + 5);
-		expect(scene().focused() == &nodes::active_scales).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::active_scales);
 		expect(bool{currentSong->project.scale.disabled_preset_scales[0]}).to_be_true();
 	});
 
@@ -324,7 +325,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		uint32_t at = 10;
 		r.walk_to(5, at);
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(5);
-		expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_true();
+		expect(currentSong->project.scale.disabled_preset_scales).to_equal(sentinel_bits());
 	});
 
 	it("each item edits its own bitset and leaves the other alone", _ {
@@ -364,8 +365,8 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 		const MenuContext ctx = menu::context_for(*currentSong, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		const auto* song_item = dynamic_cast<const nodes::ActiveScalesItem*>(nodes::active_scales.custom);
 		const auto* default_item = dynamic_cast<const nodes::ActiveScalesItem*>(nodes::default_active_scale.custom);
-		expect(song_item != nullptr).to_be_true();
-		expect(default_item != nullptr).to_be_true();
+		expect(song_item).not_().to_be_null();
+		expect(default_item).not_().to_be_null();
 		expect(static_cast<int>(song_item->set())).to_equal(static_cast<int>(ScaleSet::Song));
 		expect(static_cast<int>(default_item->set())).to_equal(static_cast<int>(ScaleSet::Default));
 
@@ -376,7 +377,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 			expect(default_item->is_disabled(ctx, i)).to_equal(bool{FlashStorage::defaultDisabledPresetScales[i]});
 			// The complement makes "read the wrong bitset" a failure at every index rather than at
 			// two thirds of them.
-			expect(song_item->is_disabled(ctx, i) == default_item->is_disabled(ctx, i)).to_be_false();
+			expect(song_item->is_disabled(ctx, i)).not_().to_equal(default_item->is_disabled(ctx, i));
 		}
 	});
 
@@ -446,7 +447,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		uint32_t at = 10;
 		r.walk_to(4, at);
 		r.shell.tick(at + 10);
-		expect_golden(self, "../ui/menu/menu_active_scales_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_active_scales_48.pbm", r.fake.pbm(0));
 
 		Rig r64{board_64(), profile_64()};
 		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
@@ -455,7 +456,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		uint32_t at64 = 10;
 		r64.walk_to(4, at64);
 		r64.shell.tick(at64 + 10);
-		expect_golden(self, "../ui/menu/menu_active_scales_64.pbm", r64.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_active_scales_64.pbm", r64.fake.pbm(0));
 	});
 
 	it("is byte-identical after twenty quiet ticks, and toggles nothing", _ {
@@ -472,7 +473,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 			r.shell.tick(5 + t * 15);
 			expect(r.fake.pbm(0)).to_equal(first);
 		}
-		expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_true();
+		expect(currentSong->project.scale.disabled_preset_scales).to_equal(sentinel_bits());
 	});
 });
 
@@ -480,7 +481,7 @@ describe menu_scales_reference_rows("scenes::menu the two scale checklists: the 
 	it("parses menu_scales.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{20}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{20});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

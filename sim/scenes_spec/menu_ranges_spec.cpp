@@ -31,9 +31,9 @@
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -47,7 +47,7 @@
 #include <string_view>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -306,7 +306,7 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		}
 		const std::set<const Node*> expected{&nodes::default_tempo, &nodes::default_swing_amount,
 		                                     &nodes::default_key};
-		expect(found == expected).to_be_true();
+		expect(found).to_equal(expected);
 		expect(static_cast<int>(found.size())).to_equal(3);
 	});
 
@@ -317,10 +317,10 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		const Node* order[] = {&nodes::default_tempo, &nodes::default_swing_amount, &nodes::default_key};
 		std::vector<int> observed;
 		for (const Node* n : order) {
-			expect(n->bind.range_spec != nullptr).to_be_true();
-			expect(n->bind.range_spec->format != nullptr).to_be_true();
-			expect(n->bind.range_spec->get_upper != nullptr).to_be_true();
-			expect(n->bind.range_spec->set_upper != nullptr).to_be_true();
+			expect(n->bind.range_spec).not_().to_be_null();
+			expect(n->bind.range_spec->format).not_().to_be_null();
+			expect(n->bind.range_spec->get_upper).not_().to_be_null();
+			expect(n->bind.range_spec->set_upper).not_().to_be_null();
 			observed.push_back(static_cast<int>(slot_of(*n)));
 		}
 		const std::vector<int> expected{FlashStorage::DEFAULT_RANGE_TEMPO, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT,
@@ -328,7 +328,7 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		expect(observed).to_equal(expected);
 		std::vector<int> swapped = observed;
 		std::swap(swapped[0], swapped[2]);
-		expect(swapped == expected).to_be_false();
+		expect(swapped).not_().to_equal(expected);
 	});
 
 	it("takes main's bounds", _ {
@@ -375,7 +375,7 @@ describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
 				    .to_equal(path + " " + table().value(path, "text"));
 			}
 		}
-		expect(table().value("key/sharps/3", "text") == table().value("key/flats/3", "text")).to_be_false();
+		expect(table().value("key/sharps/3", "text")).not_().to_equal(table().value("key/flats/3", "text"));
 	});
 });
 
@@ -429,8 +429,8 @@ describe menu_range_edit("scenes::menu Kind::Range -- editing", $ {
 		    .to_equal(frozen_edit("tempo", 5, 5, RangeEdge::Left, 1));
 		expect(port_edit(nodes::default_key, FlashStorage::DEFAULT_RANGE_KEY, 5, 5, RangeEdge::Left, 1))
 		    .to_equal(frozen_edit("key", 5, 5, RangeEdge::Left, 1));
-		expect(frozen_edit("tempo", 5, 5, RangeEdge::Left, 1) == frozen_edit("key", 5, 5, RangeEdge::Left, 1))
-		    .to_be_false();
+		expect(frozen_edit("tempo", 5, 5, RangeEdge::Left, 1))
+		    .not_().to_equal(frozen_edit("key", 5, 5, RangeEdge::Left, 1));
 	});
 
 	it("selects an edge on a horizontal turn as main does", _ {
@@ -523,14 +523,14 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels", $ {
 			(void)r.open(nodes::default_tempo);
 			r.shell.tick(5);   // enter_leaf seeds LEFT on a split pair
 			r.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_tempo_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_tempo_48.pbm", r.fake.pbm(0));
 
 			Rig r64{board_64(), profile_64()};
 			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 90, .upper = 150};
 			(void)r64.open(nodes::default_tempo);
 			r64.shell.tick(5);
 			r64.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_tempo_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_tempo_64.pbm", r64.fake.pbm(0));
 		}
 		{
 			RangeStorageGuard guard;
@@ -540,14 +540,14 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels", $ {
 			(void)k.open(nodes::default_key);
 			k.shell.tick(5);
 			k.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_key_48.pbm", k.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_key_48.pbm", k.fake.pbm(0));
 
 			Rig k64{board_64(), profile_64()};
 			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {.lower = 1, .upper = 4};
 			(void)k64.open(nodes::default_key);
 			k64.shell.tick(5);
 			k64.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_key_64.pbm", k64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_key_64.pbm", k64.fake.pbm(0));
 		}
 	});
 
@@ -573,7 +573,7 @@ describe menu_range_reference_rows("scenes::menu Kind::Range: the reference rows
 	it("parses menu_ranges.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{200}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{200});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

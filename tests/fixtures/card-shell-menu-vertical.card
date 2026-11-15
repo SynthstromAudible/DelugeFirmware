@@ -1,0 +1,8 @@
+# The fixture card with Horizontal Menus off, where every horizontal page is a vertical list.
+base tests/fixtures/card
+text SETTINGS/CommunityFeatures.XML <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<runtimeFeatureSettings>
+	<setting name="enableHorizontalMenus" value="0"></setting>
+</runtimeFeatureSettings>
+EOF

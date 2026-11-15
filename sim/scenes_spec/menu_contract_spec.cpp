@@ -25,16 +25,19 @@
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "support/mocks/fake_surfaces.h"
+#include "support/printers/mapping_printer.h"
+#include "support/printers/param_id_printer.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
 #include <span>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
@@ -170,7 +173,7 @@ describe menu_contract_drain("scenes::MenuScene::after_render -- the drain order
 		const std::vector<Band> want{Band::RangeChoice, Band::SourceChoice, Band::ValueCommit, Band::Navigation,
 		                             Band::PendingAction, Band::Repaint,     Band::PendingScene};
 		const std::span<const Band> got = menu_scene().drain_trace();
-		expect(std::vector<Band>(got.begin(), got.end()) == want).to_be_true();
+		expect(std::vector<Band>(got.begin(), got.end())).to_equal(want);
 	});
 });
 
@@ -215,8 +218,8 @@ describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
 		const deluge::ui::PadMask pads{};
 		const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
 		(void)menu_scene().handle(
-		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button,
-		                               .button = deluge::ui::shell::ButtonId::Learn, .on = true},
+		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button, .on = true,
+		                               .button = deluge::ui::shell::ButtonId::Learn},
 		    ui);
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0xFFFF})).to_be_false();
@@ -304,12 +307,14 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		expect(back.handled).to_be_true();
 		expect(back.actions.empty()).to_be_true();
 		expect(menu_scene().state_for_spec().depth).to_equal(depth);
-		expect(menu_scene().focused() == focused).to_be_true();
+		expect(menu_scene().focused()).to_equal(focused);
 
 		(void)button(ButtonId::Learn, false);
 		const Result back_after = button(ButtonId::Back, true);
 		r.shell.tick(20);
-		expect(!back_after.actions.empty() || menu_scene().state_for_spec().depth != depth).to_be_true();
+		expect(std::tuple{back_after.actions.empty(), menu_scene().state_for_spec().depth})
+		    .not_()
+		    .to_equal(std::tuple{true, depth}, "Back neither acted nor changed the depth");
 	});
 
 	it("on a horizontal page, learns onto and unlearns the focused column's param", _ {
@@ -318,23 +323,23 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		Rig r;
 		r.open(nodes::sound_root, nodes::lpf);
 		r.shell.tick(0);
-		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::lpf);
 		MenuState& st = menu_scene().state_for_spec();
 		st.columns[st.depth].focused = 1; // LPF's columns: MODE, FREQUENCY, RESONANCE, MORPH
-		expect(menu::MenuLearn::node(r.menu_context(), st) == &nodes::lpf_freq).to_be_true();
+		expect(menu::MenuLearn::node(r.menu_context(), st)).to_equal(&nodes::lpf_freq);
 		const MenuContext ctx = r.menu_context();
 		const std::optional<deluge::project::OwnerParamTarget> column = menu::bindings::learn_target(nodes::lpf_freq, ctx);
 		expect(column.has_value()).to_be_true();
-		expect(menu_scene().learn_target() == column).to_be_true();
+		expect(menu_scene().learn_target()).to_equal(column);
 		if (!column) {
 			return;
 		}
 		expect(ctx.sink->learn(*column, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
 		                       std::nullopt))
 		    .to_be_true();
-		expect(ctx.model->mappings.find(*column) != nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*column)).not_().to_be_null();
 		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true);
-		expect(ctx.model->mappings.find(*column) == nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*column)).to_be_null();
 	});
 
 	it("a gold turn while learning makes that knob move the param, and pops LEARNED", _ {
@@ -349,12 +354,12 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		const uint8_t mode = r.song.clip->output->modKnobMode;
-		expect(knob_param(target->owner, mode, 1) != std::optional{target->param}).to_be_true();
+		expect(knob_param(target->owner, mode, 1)).not_().to_equal(std::optional{target->param});
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
 		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
-		expect(knob_param(target->owner, mode, 1) == std::optional{target->param}).to_be_true();
+		expect(knob_param(target->owner, mode, 1)).to_equal(std::optional{target->param});
 		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
 	});
 
@@ -377,14 +382,14 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* cc = ctx.model->mappings.find(*target);
-		expect(cc != nullptr).to_be_true();
+		expect(cc).not_().to_be_null();
 		if (cc != nullptr) {
 			expect(int(cc->source.channel_or_zone)).to_equal(2);
 			expect(int(cc->source.note_or_cc)).to_equal(74);
 		}
 		(void)button(ButtonId::Learn, false);
 		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true); // unlearn
-		expect(ctx.model->mappings.find(*target) == nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*target)).to_be_null();
 
 		(void)button(ButtonId::Learn, true);
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5, .data1 = 0, .data2 = 64,
@@ -392,7 +397,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* bend = ctx.model->mappings.find(*target);
-		expect(bend != nullptr).to_be_true();
+		expect(bend).not_().to_be_null();
 		if (bend != nullptr) {
 			expect(int(bend->source.channel_or_zone)).to_equal(5);
 			expect(int(bend->source.note_or_cc)).to_equal(128);
@@ -443,7 +448,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
 		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
-		expect(knob_param(target->owner, mode, 1) == before).to_be_true();
+		expect(knob_param(target->owner, mode, 1)).to_equal(before);
 		expect(last_notice_string()).to_equal(uint16_t(0));
 	});
 });

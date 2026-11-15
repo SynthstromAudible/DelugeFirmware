@@ -1,6 +1,7 @@
-# ShellMenu: the sample browser's waveform. On CLIPS' first file, X_ENC held with Horizontal turns zooms the
-# waveform, released a Horizontal turn scrolls it (zoomed in) and back; a Vertical turn goes to the clip view behind;
-# the mute column closes the browser. Run on the content ShellMenu card.
+# ShellMenu: the sample browser's waveform. On CLIPS' first file, X_ENC held with Horizontal turns zooms the waveform,
+# released a Horizontal turn scrolls it (zoomed in) and back; a Vertical turn goes to the clip view behind; the mute
+# column closes the browser.
+# card: content/sweep-bare.img
 100   snapshot boot
 300   button Shift down
 400   pad 0 5 down

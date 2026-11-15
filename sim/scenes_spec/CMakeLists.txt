@@ -25,11 +25,11 @@ set(_support_sources
 add_library(deluge_scenes_spec STATIC ${_spec_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
 target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_scenes c++spec)
 target_include_directories(deluge_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests ${REPO_ROOT}/tests/unit)
+target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests)
 target_compile_definitions(deluge_scenes_spec PRIVATE
-    GFX_GOLDEN_DIR="${REPO_ROOT}/tests/golden/gfx"
     DELUGE_REPO_ROOT="${REPO_ROOT}"
     UI_SCRIPTS_DIR="${REPO_ROOT}/tests/ui-scripts/shell"
-    UI_GOLDEN_DIR="${REPO_ROOT}/tests/golden/ui/shell"
     UI_GOT_DIR="${CMAKE_BINARY_DIR}/got")
+include(${REPO_ROOT}/tests/support/cmake/golden.cmake)
+deluge_golden_root(deluge_scenes_spec)
 set_target_properties(deluge_scenes_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)

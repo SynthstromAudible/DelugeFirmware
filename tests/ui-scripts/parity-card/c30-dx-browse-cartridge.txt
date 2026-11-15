@@ -2,6 +2,7 @@
 # turn loads a program. BACK from the cartridge page reopens the browser (the browse row is under it), and BACK from
 # the browser returns to "DX7 source". A bank in a subfolder loads too, and SELECT on the cartridge list leaves the
 # menu with the program's name on the unsaved synth.
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Mod6 down
 5100  button Synth down

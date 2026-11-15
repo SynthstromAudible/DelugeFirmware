@@ -1,0 +1,131 @@
+# Patch-cable menus: MODULATE WITH (source selection), the cable strength menu, MODULATE DEPTH (range source
+# selection) and the range strength menu, from OSC1 level on the boot synth clip, every source in each list.
+# card: content/bare.img
+100   button Shift down
+350   pad 2 0 down
+470   pad 2 0 up
+720   button Shift up
+970   button SelectEnc down
+1090  button SelectEnc up
+1340  snapshot sources_0
+2340  encoder Select +1
+2590  snapshot sources_1
+3590  encoder Select +1
+3840  snapshot sources_2
+4840  encoder Select +1
+5090  snapshot sources_3
+6090  encoder Select +1
+6340  snapshot sources_4
+7340  encoder Select +1
+7590  snapshot sources_5
+8590  encoder Select +1
+8840  snapshot sources_6
+9840  encoder Select +1
+10090 snapshot sources_7
+11090 encoder Select +1
+11340 snapshot sources_8
+12340 encoder Select +1
+12590 snapshot sources_9
+13590 encoder Select +1
+13840 snapshot sources_10
+14840 encoder Select +1
+15090 snapshot sources_11
+16090 encoder Select +1
+16340 snapshot sources_12
+17340 encoder Select +1
+17590 snapshot sources_13
+18590 encoder Select +1
+18840 snapshot sources_14
+19840 encoder Select +1
+20090 snapshot sources_15
+21090 encoder Select +1
+21340 snapshot sources_16
+22340 encoder Select +1
+22590 snapshot sources_17
+23590 encoder Select +1
+23840 snapshot sources_18
+24840 encoder Select +1
+25090 snapshot sources_19
+26090 encoder Select -16
+26340 snapshot sources_back
+27340 button SelectEnc down
+27460 button SelectEnc up
+27710 snapshot strength
+28710 encoder Select +1
+28960 snapshot strength_0
+29960 encoder Select +1
+30210 snapshot strength_1
+31210 encoder Select +1
+31460 snapshot strength_2
+32460 encoder Select +1
+32710 snapshot strength_3
+33710 encoder Select +1
+33960 snapshot strength_4
+34960 encoder Select +1
+35210 snapshot strength_5
+36210 button SelectEnc down
+36330 button SelectEnc up
+36580 snapshot depth_sources_0
+37580 encoder Select +1
+37830 snapshot depth_sources_1
+38830 encoder Select +1
+39080 snapshot depth_sources_2
+40080 encoder Select +1
+40330 snapshot depth_sources_3
+41330 encoder Select +1
+41580 snapshot depth_sources_4
+42580 encoder Select +1
+42830 snapshot depth_sources_5
+43830 encoder Select +1
+44080 snapshot depth_sources_6
+45080 encoder Select +1
+45330 snapshot depth_sources_7
+46330 encoder Select +1
+46580 snapshot depth_sources_8
+47580 encoder Select +1
+47830 snapshot depth_sources_9
+48830 encoder Select +1
+49080 snapshot depth_sources_10
+50080 encoder Select +1
+50330 snapshot depth_sources_11
+51330 encoder Select +1
+51580 snapshot depth_sources_12
+52580 encoder Select +1
+52830 snapshot depth_sources_13
+53830 encoder Select +1
+54080 snapshot depth_sources_14
+55080 encoder Select +1
+55330 snapshot depth_sources_15
+56330 encoder Select +1
+56580 snapshot depth_sources_16
+57580 encoder Select +1
+57830 snapshot depth_sources_17
+58830 encoder Select +1
+59080 snapshot depth_sources_18
+60080 encoder Select +1
+60330 snapshot depth_sources_19
+61330 encoder Select -17
+61580 button SelectEnc down
+61700 button SelectEnc up
+61950 snapshot range
+62950 encoder Select +1
+63200 snapshot range_0
+64200 encoder Select +1
+64450 snapshot range_1
+65450 encoder Select +1
+65700 snapshot range_2
+66700 encoder Select +1
+66950 snapshot range_3
+67950 button Back down
+68070 button Back up
+68320 snapshot back_1
+69320 button Back down
+69440 button Back up
+69690 snapshot back_2
+70690 button Back down
+70810 button Back up
+71060 snapshot back_3
+72060 button Back down
+72180 button Back up
+72430 snapshot back_4
+73430 quit

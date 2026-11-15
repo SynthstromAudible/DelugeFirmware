@@ -8,6 +8,10 @@
 // (scenarios/drivers/driver.h): XMLDeserializer is not available to CppSpec.
 //
 // Run:  ./dbt test xml-replay-diff
+//
+// Gate xml-replay-diff:
+//     ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does: each fragment's readFromFile-shaped
+//     script, run against both, must return the same transcript token for token
 
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"

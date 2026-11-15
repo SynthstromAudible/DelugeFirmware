@@ -193,7 +193,7 @@ Phase 0 is the regression net that makes Phases 1–5 safe: it pins the
 **serialization behaviour** of the model so that any accidental change to *what
 gets written to disk* is caught. It is the serialization analogue of the synth
 audio golden-master harness (`tests/golden`), and reuses its conventions
-(committed fixtures, SHA anchors, x86≡ARM oracle, `--update` re-baselining).
+(committed fixtures, SHA anchors, x86≡ARM oracle, `./dbt test --update` re-baselining).
 
 ### The invariant (this is the crux)
 
@@ -215,7 +215,8 @@ fills defaults, normalizes ordering, and drops tags it doesn't understand. So
 - **Regression contract during the refactor:** for every corpus song,
   `save(load(original))` must keep producing the committed `gen1` bytes. A
   refactor that changes serialization output breaks the hash → must be justified
-  and re-baselined (`--update`), exactly like the audio harness.
+  and re-baselined (`./dbt test --update <name>`, with its GOLDEN-UPDATED
+  lines and the reason in the commit), exactly like the audio harness.
 
 ### Driver: direct in-memory round-trip
 
@@ -325,7 +326,8 @@ conflation this effort targets, surfaced precisely at the load/save boundary.
 
 ### Corpus (tiers, sample-free first)
 
-Assemble `tests/golden/songs/` (real `SONGS/*.XML`, committed pristine):
+Assemble a private corpus of real `SONGS/*.XML` (only `fixtures.json` and `synthetic/` are committed under
+`tests/golden/songs/`; real songs stay private):
 
 - **Format coverage:** legacy tag-format songs *and* modern attribute-format
   songs (exercises the upgrade transforms — the riskiest serialization surface).
@@ -352,18 +354,18 @@ once the extraction is underway.
       audio yields were out of its way (see above).
 - [x] Take the in-load audio yields out of a headless load. Minimal song now
       loads headless, clean exit. Real-song validation pending corpus.
-- [x] Round-trip driver (`tests/golden/song_roundtrip.cpp`, target
+- [x] Round-trip driver (`tests/integration/scenarios/drivers/song_roundtrip.cpp`, target
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.
-- [x] Runner `tests/golden/songs_run.py` + `songs_fixtures.json` (SHA-256 of
-      `gen1`); `--update` to re-baseline; fails only on a committed-hash
+- [x] Runner `tests/integration/corpus/songs_run.py` + `tests/golden/songs/fixtures.json` (SHA-256 of
+      `gen1`); `./dbt test --update song-roundtrip` to re-baseline; fails only on a committed-hash
       `REGRESS`. Verified: detects a tampered fixture (exit 1), clean (exit 0).
 - [x] CTest registration (`ctest -R song_roundtrip`, `SKIP_RETURN_CODE 77`) +
-      `tests/golden/README`.
-- [x] **Bring-your-own corpus:** only `songs_fixtures.json` (14 SHA-256 hashes,
+      `tests/integration/corpus/README.md`.
+- [x] **Bring-your-own corpus:** only `tests/golden/songs/fixtures.json` (14 SHA-256 hashes,
       keyed by corpus-relative path) is in-repo; song `.XML` stays out-of-repo
-      (privacy/licensing). Corpus via `$DELUGE_SONG_CORPUS`/`--corpus` (default
-      gitignored `tests/golden/songs/`). No corpus → check SKIPs (exit 77, CTest
+      (privacy/licensing). Corpus via `$DELUGE_SONG_CORPUS`/`--corpus` (else `$DELUGE_BACKUP/SONGS`, else
+      `~/Deluge Backup/SONGS`). No corpus → check SKIPs (exit 77, CTest
       *Skipped*) so CI stays green; with the corpus the gate verifies the
       committed hashes. Verified against `~/Deluge Backup/SONGS`: OK=14.
 - [x] ARM/qemu oracle: built `build-sim-arm/song_roundtrip` (Cortex-A9/NEON,
@@ -371,7 +373,7 @@ once the extraction is underway.
       Serialization is arch-independent; fixtures trustworthy on both backends.
 - [x] Outliers triaged: `Glitchy_2` fixed (now a fixture; 15 total),
       `CLickybasswobble` is a misfiled `<sound>` preset (correctly excluded).
-      `--update` takes `--exclude` (default `problem_songs`) to keep the baseline
+      A re-record skips `problem_songs` (the runner's `--exclude`) to keep the baseline
       curated.
 - [ ] Broaden corpus across formats / firmware versions / features.
 

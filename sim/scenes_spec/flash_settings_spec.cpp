@@ -8,6 +8,7 @@
 #include "scenes/menu/shortcuts.h"
 #include "storage/flash_storage.h"
 #include "support/host_flash.h"
+#include "support/printers/rgb_printer.h"
 #include "util/functions.h"
 #include "util/synth_noise.h"
 
@@ -17,7 +18,7 @@
 #include <cstdint>
 #include <iterator>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 
@@ -73,11 +74,11 @@ describe flash_shortcuts_byte("the shortcut layout is flash byte 60", $ {
 	it("reads the byte for the layout, any value but 0 as the current one, as main's switch does", _ {
 		ShortcutsByteGuard guard;
 		FlashStorage::shortcutsVersion = 0;
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = 1;
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
 		FlashStorage::shortcutsVersion = 7;
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
 	});
 });
 
@@ -89,7 +90,7 @@ describe flash_pad_colours("a pad-colour setting paints main's colour for its va
 		                                               c::magenta, c::amber, c::white, c::pink};
 		for (uint8_t v = 0; v < deluge::gui::kNumPadColours; v++) {
 			FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE] = v;
-			expect(deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE) == want[v]).to_be_true();
+			expect(deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE)).to_equal(want[v]);
 		}
 	});
 
@@ -97,7 +98,7 @@ describe flash_pad_colours("a pad-colour setting paints main's colour for its va
 		SettingsGuard guard;
 		FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE] = deluge::gui::RED;
 		FlashStorage::padColours[FlashStorage::PAD_COLOUR_MUTED] = deluge::gui::BLUE;
-		expect(deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED) == deluge::gui::colours::blue).to_be_true();
+		expect(deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED)).to_equal(deluge::gui::colours::blue);
 	});
 
 	it("reads a stored colour past the nine as the slot's default, which has a colour to paint", _ {

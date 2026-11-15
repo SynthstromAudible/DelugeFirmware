@@ -1,7 +1,7 @@
 """The render-song gate: a song played as the device plays it, rendered on the audio tier.
 
 `render_song` loads the song through the real load browser, plays it in real time, and reports each stage with the
-evidence that it happened (tests/integration/scenarios/render_song_scenario.h lists the lines). The scenario itself
+evidence that it happened (tests/integration/scenarios/render_song_scenario.cpp lists the lines). The scenario itself
 fails a run whose song did not load, whose playback stopped, or whose render made a synchronous card call. This module
 adds what depends on the song, and why each check is here:
     RS-VOICES audio   sample voices rendered on the audio tier. A sample-backed song that renders none played
@@ -43,17 +43,16 @@ adds what depends on the song, and why each check is here:
                       RENDER_MODFX_CLEAR, RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER, RENDER_METRONOME) only:
                       the same song rendered
                       unswitched must render differently, or the switches never reached the render.
-    RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
+    RS-PCM            the rendered output, against its record in tests/golden/render/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
 
-By default the song is generated for each run by tests/integration/golden/songs/make_render_song.py, so the card holds
+By default the song is generated for each run by tests/golden/render/songs/make_render_song.py, so the card holds
 exactly the bytes the record was made from. An entry that names its own RENDER_SONG plays that song from its
 GOLDEN_FIXTURE corpus card instead (render-song-corpus). Either way the record is keyed by the song's name.
-RENDER_SONG_UPDATE=1 records the output instead of comparing it; a changed hash is a finding to explain in the commit
-that records the new one.
+`./dbt test --update <entry>` records the output instead of comparing it, once every other check of the run has
+passed; a changed hash is a finding to explain in the commit that records it.
 """
 
-import fcntl
 import hashlib
 import importlib.util
 import json
@@ -63,7 +62,10 @@ import re
 import struct
 from pathlib import Path
 
+import golden_update
 from scenario_gate import field, int_field
+
+RECORDS = Path("tests/golden/render/songs.json")
 
 
 def _load_sibling(name: str):
@@ -117,20 +119,6 @@ def _generate(gate, name: str = "RS_STREAM") -> dict[str, str] | None:
     return {"RENDER_TREE": str(tree), "RENDER_SONG": f"SONGS/{name}.XML"}
 
 
-def update_record(path: Path, name: str, record: dict) -> None:
-    """Record @p record as @p name in the records file @p path, holding a lock on it across the read and the write:
-    gates running at once update the same file."""
-    with open(path, "a+") as records_file:
-        fcntl.flock(records_file, fcntl.LOCK_EX)
-        records_file.seek(0)
-        text = records_file.read()
-        records = json.loads(text) if text else {}
-        records[name] = record
-        records_file.seek(0)
-        records_file.truncate()
-        records_file.write(json.dumps(records, indent=1, sort_keys=True) + "\n")
-
-
 def generated_song(env: dict[str, str]) -> str:
     """The generated song a gate plays: its own `RENDER_GENERATED` (the registry's, over the shell's, in @p env), else
     RS_STREAM."""
@@ -151,7 +139,7 @@ def dry_twin(name: str, songs) -> str | None:
 
 def _dry_twin(gate, name: str) -> str | None:
     """The generator's dry twin of generated song @p name (see dry_twin)."""
-    path = gate.root / "tests/integration/golden/songs/make_render_song.py"
+    path = gate.root / "tests/golden/render/songs/make_render_song.py"
     spec = importlib.util.spec_from_file_location("make_render_song", path)
     generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)
@@ -473,18 +461,18 @@ def run(gate):
     gate.say(
         f"RS-PCM sha256={record['sha256']} frames={record['frames']} peak={record['peak']} rms_db={record['rms_db']}"
     )
-    records_path = gate.root / "tests/integration/golden/songs.json"
-    if os.environ.get("RENDER_SONG_UPDATE") == "1":
-        update_record(records_path, record_name, record)
-        gate.say(
-            f"RS-PCM recorded as {record_name} in {records_path.relative_to(gate.root)}"
-        )
+    records_path = gate.root / RECORDS
+    if golden_update.updating(gate.env):
+        if not gate.failures:
+            golden_update.update_json_key(
+                records_path, record_name, record, str(RECORDS), indent=1, env=gate.env
+            )
         return
     records = json.loads(records_path.read_text()) if records_path.exists() else {}
     expected = records.get(record_name)
     if expected is None:
         gate.fail(
-            f"RS-PCM — no record for {record_name}; run with RENDER_SONG_UPDATE=1 to make one"
+            f"RS-PCM — no record for {record_name}; ./dbt test --update {gate.name} records one"
         )
     elif expected != record:
         gate.fail(

@@ -29,8 +29,8 @@
 #include <utility>
 #include <vector>
 
-#ifndef DELUGE_REPO_ROOT
-#error "DELUGE_REPO_ROOT must be defined by CMake"
+#ifndef GOLDEN_ROOT
+#error "GOLDEN_ROOT must be defined by CMake (deluge_golden_root, tests/support/cmake/golden.cmake)"
 #endif
 
 namespace deluge::scenes::spec {
@@ -79,7 +79,7 @@ inline std::string oracle_unescape(std::string_view escaped) {
 
 /// @brief The directory the tables live in.
 inline std::string oracle_dir() {
-	return std::string{DELUGE_REPO_ROOT} + "/tests/golden/ui/menu_oracle";
+	return std::string{GOLDEN_ROOT} + "/ui/menu_oracle";
 }
 
 /// @brief A reference table: its rows, and which of them a spec has asked.

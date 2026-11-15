@@ -1,5 +1,6 @@
 # The arranger: load a song, switch the song view to the arranger, scroll, play and stop there.
 # Snapshots leave up to 8 s before the next step: a long name scrolls on the OLED, and the window takes its whole cycle.
+# card: content/sweep-bare.img
 100   snapshot boot
 8200  button Session down
 8220  button Session up

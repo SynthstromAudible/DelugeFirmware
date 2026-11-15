@@ -25,11 +25,11 @@
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 #include <algorithm>
 #include <string>
 
@@ -141,7 +141,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 1); // VELOCITY
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 		expect(int(r.st().depth)).to_equal(1);
 		expect(int(r.st().walk.patch_source)).to_equal(int(PatchSource::VELOCITY));
 	});
@@ -154,7 +154,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.open(nodes::master_volume);
 		r.shift_press(15, 1); // VELOCITY
 		expect(int(r.st().walk.patching_param)).to_equal(int(params::LOCAL_VOLUME));
-		expect(r.st().edit_int != 0).to_be_true(); // the existing cable's depth, not an empty one
+		expect(r.st().edit_int).not_().to_equal(0); // the existing cable's depth, not an empty one
 	});
 
 	it("a second press of the active source on a patch-cable page takes its second layer", _ {
@@ -164,7 +164,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.shift_press(14, 6); // ENVELOPE_0
 		expect(int(r.st().walk.patch_source)).to_equal(int(PatchSource::ENVELOPE_0));
 		r.shift_press(14, 6); // the active source's pad again: ENVELOPE_2
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 		expect(int(r.st().walk.patch_source)).to_equal(int(PatchSource::ENVELOPE_2));
 	});
 
@@ -175,7 +175,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.shift(true);
 		r.pad(15, 1, true); // VELOCITY, held
 		r.pad(15, 2, true); // RANDOM, on that cable's depth
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_range);
 		expect(int(r.st().walk.patch_source)).to_equal(int(PatchSource::VELOCITY));
 		expect(int(r.st().walk.patch_range_source)).to_equal(int(PatchSource::RANDOM));
 	});
@@ -200,7 +200,10 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		const deluge::ui::shell::UiContext ui{held, held_pads, true, false, 0, deluge_profile()};
 		const std::optional<deluge::ui::shell::Result> got =
 		    pads.source_press(menu::MenuCore{core_ctx, st}, walk, session, 15, 2, ui);
-		expect(got.has_value() && got->handled).to_be_true();
+		expect(got.has_value()).to_be_true();
+		if (got.has_value()) {
+			expect(got->handled).to_be_true();
+		}
 		const bool removes = got.has_value() && !got->actions.empty()
 		                     && got->actions[0].kind == deluge::ui::shell::Action::Kind::Remove;
 		expect(removes).to_be_true();
@@ -212,8 +215,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.open(nodes::synth_mode);
 		r.shift_press(15, 1);
 		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, false, 15, 1);
-		expect(randomizer != nullptr).to_be_true();
-		expect(menu_scene().focused_value() == randomizer).to_be_true();
+		expect(randomizer).not_().to_be_null();
+		expect(menu_scene().focused_value()).to_equal(randomizer);
 	});
 
 	it("swallows a source cell past the last patch source", _ {
@@ -227,7 +230,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		deluge::notify::Notice notice;
 		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(menu_scene().focused() == &nodes::master_volume).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::master_volume);
 	});
 
 	it("keeps the second-layer flag when a source pad is pressed", _ {
@@ -255,14 +258,14 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open_velocity_cable();
 		r.press(kCvX, kCvY);
-		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(r.st().walk.patch_polarity).to_equal(Polarity::UNIPOLAR);
 		expect(r.led(kCvLed)).to_be_true();
 		expect(r.led(kMidiLed)).to_be_false();
 		r.press(kMidiX, kMidiY);
-		expect(r.st().walk.patch_polarity == Polarity::BIPOLAR).to_be_true();
+		expect(r.st().walk.patch_polarity).to_equal(Polarity::BIPOLAR);
 		expect(r.led(kMidiLed)).to_be_true();
 		expect(r.led(kCvLed)).to_be_false();
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 	});
 
 	it("puts MIDI and CV out on BACK from the page", _ {
@@ -272,7 +275,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.open_velocity_cable();
 		r.press(kMidiX, kMidiY);
 		r.press(kBackX, kBackY);
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_false();
+		expect(menu_scene().focused()).not_().to_equal(&nodes::patch_cable_strength_regular);
 		expect(r.led(kMidiLed)).to_be_false();
 		expect(r.led(kCvLed)).to_be_false();
 	});
@@ -284,8 +287,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		select_language();
 		Rig r;
 		r.open(nodes::sidechain);
-		expect(menu_scene().focused() == &nodes::sidechain).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::sidechain_volume).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::sidechain);
+		expect(menu_scene().focused_value()).to_equal(&nodes::sidechain_volume);
 		expect(r.led(kMidiLed)).to_be_false();
 		expect(r.led(kCvLed)).to_be_false();
 	});
@@ -299,18 +302,18 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		const int32_t strength = r.st().edit_int;
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true);
 		r.turn(2);
-		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(r.st().walk.patch_polarity).to_equal(Polarity::UNIPOLAR);
 		expect(r.st().edit_int).to_equal(strength);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false);
 		r.tick();
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true);
 		r.turn(-2);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false);
 		r.tick();
-		expect(r.st().walk.patch_polarity == Polarity::BIPOLAR).to_be_true();
+		expect(r.st().walk.patch_polarity).to_equal(Polarity::BIPOLAR);
 		expect(r.st().edit_int).to_equal(strength);
-		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 	});
 
 	it("SHIFT and a turn edits the strength five places a detent and leaves the polarity", _ {
@@ -325,7 +328,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.turn(-1);
 		r.shift(false);
 		expect(r.st().edit_int).to_equal(std::max(strength - 500, int32_t{kMinMenuPatchCableValue}));
-		expect(r.st().walk.patch_polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(r.st().walk.patch_polarity).to_equal(Polarity::UNIPOLAR);
 	});
 });
 // clang-format on

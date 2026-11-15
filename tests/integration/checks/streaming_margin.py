@@ -1,6 +1,6 @@
 """The streaming-margin gate: whether sample playback keeps up when storage is as slow as the device's.
 
-Plays the render-song song (tests/integration/golden/songs/make_render_song.py) under a storage model: the fill task
+Plays the render-song song (tests/golden/render/songs/make_render_song.py) under a storage model: the fill task
 waits `fill_delay_ms` to be scheduled before each pass, and each chunk's read takes `fill_read_us`. The figures are
 the device's, measured per interval on the Rust BSP (storage-execution-model design, Appendix C): a 16 ms mean wait
 (25 ms at most) in steady playback, 260 ms during a song load, and 5.8 ms to read a 32 KB chunk. On the device about
@@ -17,12 +17,23 @@ Three runs, and what each is for:
 
 With MARGIN_SWEEP set (a comma-separated list of waits in ms) the gate instead prints the underrun count at each
 wait -- the margin curve -- and checks nothing.
+
+Gate streaming-margin:
+    sample playback must keep up when storage is as slow as the device's: the render-song song, played with the fill
+    task waiting 16 ms to be scheduled and each chunk taking 5.8 ms to read (the device's steady figures), must stream
+    without an underrun (SM-STEADY). A 500 ms wait must drop voices (SM-STARVED), which is what shows the gate can see
+    an underrun at all. A 260 ms wait for half a second, as a song load imposes on the device, is reported and not gated
+    (SM-BURST): the device drops voices there too.
+
+Gate streaming-margin-sweep:
+    prints the margin curve: underruns at each fill-task wait in MARGIN_SWEEP, with the device's 5.8 ms chunk read.
+    Checks nothing.
 """
 
 import importlib.util
 from pathlib import Path
 
-from scenario_gate import int_field
+from scenario_gate import after, int_field
 
 STEADY = {"RENDER_FILL_DELAY_MS": "16", "RENDER_FILL_READ_US": "5800"}
 STARVED = {"RENDER_FILL_DELAY_MS": "500", "RENDER_FILL_READ_US": "5800"}
@@ -53,7 +64,7 @@ def _play(gate, card_env, model, label):
     wait, unassign = _underruns(result)
     reads = int_field(result.last("RS-STREAM "), "reads")
     gate.say(
-        f"SM-{label} {result.last('RS-MODEL ')[len('RS-MODEL ') :]} reads={reads} wait={wait} unassign={unassign}"
+        f"SM-{label} {after(result.last('RS-MODEL '), 'RS-MODEL ')} reads={reads} wait={wait} unassign={unassign}"
     )
     return result
 

@@ -16,6 +16,23 @@ What the checks cover, and why each is separate:
   SL-EVICT      that the round trip still produces the SAME bytes when the song has to be staged into an SDRAM heap too
                 small to hold it without evicting. Staging a song can give up cached sample chunks; that is a decision,
                 so it gets measured. SL_EVICT_SDRAM_MB sets the clamp (2 MB by default).
+
+Gate save-roundtrip:
+    a song saved through the real SaveSongUI ENTER gesture must round-trip byte-identically (save, load it back,
+    overwrite, compare a CRC of both writes -- a length check would miss a truncation or a reorder), and the overwrite
+    seam must prompt exactly when the target name is taken and not otherwise and must close on confirmation. Two further
+    checks guard parsing from memory. SL-NOSTREAM is a SOURCE check, deliberately: none of the three StorageManager
+    openers that would parse a document while streaming it off the card may exist, and a gate cannot observe a path that
+    is not compiled, so a grep is the only way to notice one appearing -- a reader that streams a document off the card
+    blocks the parsing tier for the whole parse, however rarely it runs. SL-EVICT re-runs the whole round trip with
+    DELUGE_SIM_SDRAM_MB clamped low enough that staging a song cannot happen without the resource manager evicting
+    cached chunks first, and requires the identical CRC: staging a song can give up cached sample chunks, which is a
+    decision and so gets measured rather than assumed harmless. Single-leg and self-checking: unlike the A/B gates
+    beside it there is no second backing to diff against, because the subject is a C++ structural change rather than a
+    Rust backing chosen by a feature -- so there is no baseline here that anyone can re-baseline into passing. The
+    second save deliberately overwrites the SAME name: the save records the name it was dispatched with as the song's
+    name, so a different name would produce legitimately different bytes and the comparison would fail for a reason that
+    is not a defect.
 """
 
 import subprocess

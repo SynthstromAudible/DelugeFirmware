@@ -275,7 +275,7 @@ describe descriptor_legacy_reference_rows("descriptor_legacy_spec: the reference
 	it("parses descriptors.tsv clean and asks every row of its range, read, write, applicability and probe columns", _ {
 		spec::OracleTable& t = spec::OracleTable::named("descriptors");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{3000}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{3000});
 		expect(t.unasked({"range", "read/", "write/", "legacy_shows", "probe"})).to_equal(std::string{});
 	});
 });

@@ -21,7 +21,7 @@
 /// calls the host (the shadows, the clock, …) and so cannot be linked into `deluge_spec`
 /// -- this header/TU pair carries only the two lookups, nothing else.
 ///
-/// `tests/spec/harness/tables_spec.cpp` cross-checks the tables here against
+/// `tests/unit/harness/tables_spec.cpp` cross-checks the tables here against
 /// `deluge_profile()` (`src/shell/profiles/deluge.cpp`), so the two copies cannot silently drift.
 #ifndef HOST_SCRIPT_TABLES_H
 #define HOST_SCRIPT_TABLES_H
@@ -36,7 +36,7 @@ extern "C" {
 ///
 /// The table is `src/shell/profiles/deluge.cpp`'s `kMatrix` (itself from
 /// `src/definitions_cxx.hpp:59-84`), copied into C because the BSP may not depend on the app.
-/// `tests/spec/harness/tables_spec.cpp` cross-checks the copy against `deluge_profile()` so the
+/// `tests/unit/harness/tables_spec.cpp` cross-checks the copy against `deluge_profile()` so the
 /// two cannot drift.
 /// @param name Button name, spelled as `shell::button_name()` spells it.
 /// @param x    Set to the matrix column on success.

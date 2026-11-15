@@ -1,4 +1,5 @@
 # The sound menu over a loaded song's clip, whose pads are lit: the clip stays showing under the menu, greyed.
+# card: content/sweep-bare.img
 100   snapshot boot
 8200  button Session down
 8220  button Session up

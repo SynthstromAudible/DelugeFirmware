@@ -51,11 +51,37 @@ than none.
 
 One leg plus the offline drain: the stream channel has no feature switch, so there is no build without it to compare
 against.
+
+Gate recorder-write:
+    a real recording must still read back byte-correctly -- mid-recording, finalized multi-cluster, and through the
+    alteration transform -- while its per-cluster write is served asynchronously and all THREE of its card steps run
+    from the caller's ticks through their own machines: the drain, the finish, and the file creation. Three counters,
+    because they answer three separate questions and none can be inferred from the served count, which says operations
+    went through the channel but not which machine issued them. Each reads zero the moment its own step stops running
+    through its machine. RW-ROUNDTRIP is not ceremony either -- a recycled stream handle collecting a previous
+    recorder's answer reported a cluster as written when nothing had been, and only the byte-level readback noticed. The
+    ticked_ cases exist because the oracle's eight cases do not take these shapes: none of them aborts, meets a busy or
+    stalled channel, or sets allowFileAlterationAfter -- so the ticked_ alteration case is the batch machine's only
+    coverage. TWO GAPS ARE KNOWN AND DELIBERATE. RW-LEAK checks an aborted recording gives its clusters back but does
+    NOT catch a premature unlink, because single-flight sends that unlink down its synchronous arm regardless, so that
+    ordering holds by construction rather than by observation. And the stem-export folder search's inline arm is not
+    exercised: the offline drain render starts the export after boot, so only its CHANNEL arm runs, and RW-DRAIN-STEMS
+    checks its result -- one stem per track of the fixture, each with audio in its data chunk. There is no stem case
+    among the ticked_ cases: routing a harness recording down the stem path needs more engine state than processStarted
+    plus currentStemExportType plus lastFolderNameForStemExport, and a case that silently records to RESAMPLE while
+    calling itself a stem case is worse than none. RW-DIR-STALL holds the recording-folder scan's directory open past
+    the recorder's bound and requires the create to fail with a card error, with no file made and no synchronous open.
+    RW-ABORT-OPEN aborts while the channel is opening the file, once for the create and once for finalize's reopen to
+    alter it, and requires no file left behind and every stream-write slot free afterwards: the open cannot be
+    cancelled, so an abort that does not wait it out leaks the handle it returns. RW-OPEN-IOERR unmounts the card under
+    the create's held open and refuses the channel the mount, so the open fails with NO_FILESYSTEM, and requires the
+    recording to fail with a card error without making its folder: only NOT_FOUND earns the folder retry.
 """
 
-import re
 import struct
 from pathlib import Path
+
+from scenario_gate import field, int_field, starting
 
 # The stems the offline drain's TRACK export of the Cordae fixture writes: one per kit track.
 _DRAIN_STEMS = 8
@@ -76,10 +102,9 @@ def _wav_data_bytes(path: Path) -> int:
     return 0
 
 
-def _largest(lines: list[str], pattern: str) -> int:
-    """The largest number `pattern`'s group captures across `lines`, or 0 when none does."""
-    found = [re.match(pattern, line) for line in lines]
-    return max((int(m.group(1) or 0) for m in found if m), default=0)
+def _largest(lines: list[str], key: str) -> int:
+    """The largest `key` on any of `lines`, or 0 when none carries it."""
+    return max((int_field(line, key) or 0 for line in lines), default=0)
 
 
 def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
@@ -97,10 +122,13 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
         return None
     if not run.has("8/8 cases passed"):
         gate.fail("RW-ROUNDTRIP — a recording did not read back correctly")
-        for line in [line for line in run.lines if re.search(r"^CASE|FAIL", line)][:20]:
+        for line in [
+            line for line in run.lines if line.startswith("CASE") or "FAIL" in line
+        ][:20]:
             gate.say(line)
-    if not run.has_line("RW-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("RW-RESULT")))
+    # Judged without stopping: the lines after say which check went red.
+    if (why := gate.shortfall(run.lines)) is not None:
+        gate.fail(f"{why} {' '.join(run.starting('RW-RESULT'))}".strip())
 
     # The `ticked_` cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own lines.
     for case in ("recording", "alterfile", "abort"):
@@ -117,16 +145,14 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
             gate.say(line)
 
     # A recording finished without the finalize machine reads zero here while everything else stays green.
-    tk_fin = _largest(tk, r".*channelFinalizeTicks=([0-9]*)")
+    tk_fin = _largest(tk, "channelFinalizeTicks")
     if tk_fin == 0:
         gate.fail(
             "RW-TICKED-FINALIZE — finalize never ran through the channel across ticks"
         )
 
     leak = run.starting("TK-LEAK ")
-    if not leak:
-        gate.fail("RW-LEAK — no TK-LEAK line; the abort case did not finish")
-    elif not any(re.match(r"TK-LEAK .*ok=1", line) for line in leak):
+    if leak and not any(field(line, "ok") == "1" for line in leak):
         gate.fail(
             f"RW-LEAK — {chr(10).join(leak)}; an aborted recording did not give its clusters back"
         )
@@ -141,10 +167,7 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
         gate.say(line)
 
     tier_lines = run.starting("RW-TIER ")
-    tier_match = (
-        re.match(r"RW-TIER violations=([0-9]*)", tier_lines[0]) if tier_lines else None
-    )
-    tier = int(tier_match.group(1)) if tier_match and tier_match.group(1) else None
+    tier = int_field(tier_lines[0], "violations") if tier_lines else None
     if tier is None:
         gate.fail("RW-TIER — no RW-TIER line; the ticked cases did not report")
         tier = 0
@@ -167,34 +190,19 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
                 gate.fail(f"{tag} — see the line above")
 
     # Reading zero means the recorder created its file without the create machine, blocking on the card instead.
-    tk_create = _largest(tk, r".*channelCreateTicks=([0-9]*)")
+    tk_create = _largest(tk, "channelCreateTicks")
     if tk_create == 0:
         gate.fail(
             "RW-TICKED-CREATE — the create tick never ran through the channel across ticks"
         )
 
-    tk_served = _largest(tk, r"TK-RESULT ok=[0-9]* served=([0-9]*)")
+    tk_served = _largest(tk, "served")
 
-    summary = [
-        m for m in (re.match(r"RW-SUMMARY (.*)", line) for line in run.lines) if m
-    ]
-    served_match = next(
-        (re.match(r"served=([0-9]*)", m.group(1)) for m in summary), None
-    )
-    if served_match is None:
+    summary = run.first("RW-SUMMARY ")
+    if summary is None:
         gate.fail("no RW-SUMMARY line")
-        served = 0
-    else:
-        served = int(served_match.group(1) or 0)
-    ticks_match = next(
-        (
-            t
-            for t in (re.match(r".*channelTicks=([0-9]*)", m.group(1)) for m in summary)
-            if t
-        ),
-        None,
-    )
-    channel_ticks = int(ticks_match.group(1) or 0) if ticks_match else 0
+    served = int_field(summary, "served") or 0
+    channel_ticks = int_field(summary, "channelTicks") or 0
 
     if tk_served <= served:
         gate.fail(
@@ -219,7 +227,9 @@ def run(gate):
     # renders go to this gate's own temporary directory and nowhere else.
     gate.say("recorder write: running the offline drain")
     drain = gate.run(
-        scenario="", env={"GOLDEN_STEM_OUT": str(gate.tmp / "drain-stems")}, timeout=900
+        scenario="stem_export",
+        env={"GOLDEN_STEM_OUT": str(gate.tmp / "drain-stems")},
+        timeout=900,
     )
     if drain.code != 0:
         gate.fail(
@@ -249,9 +259,8 @@ def run(gate):
     if gate.failures:
         gate.say("recorder write: FAILED")
         return
-    for line in roundtrip.lines + drain.lines:
-        if re.match(r"TIER-SYNC(-AT)? ", line):
-            gate.say(line)
+    for line in starting(roundtrip.lines + drain.lines, "TIER-SYNC ", "TIER-SYNC-AT "):
+        gate.say(line)
     served, tk_served, channel_ticks, tk_fin, tk_create, tier = counts
     gate.say(
         f"recorder write: OK (served={served}->{tk_served} channel drain={channel_ticks} finalize={tk_fin} "

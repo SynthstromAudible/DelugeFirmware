@@ -2,6 +2,8 @@
 # LEARN held two select turns edit nothing (SoundEditor::selectEncoderAction acts only in selectEncoderUIModes), and
 # after LEARN's release the same turns edit the frequency. The page blinks the patching sources' pads every 800 ms, so
 # every snapshot's window runs at least a second.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 5100  button Shift down
 5200  pad 8 7 down

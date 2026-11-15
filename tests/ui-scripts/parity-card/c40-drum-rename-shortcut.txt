@@ -1,6 +1,8 @@
-# The drum rename from its shortcut pad (content card). KIT loads the first kit and row 0's drum is selected with its audition pad (the shortcut needs a selected drum); SHIFT +
-# (11,5) opens the drum rename at the menu's root, where main draws only the rename window (no menu title or rule
-# beside it). BACK leaves the rename and the menu together and the clip view returns.
+# The drum rename from its shortcut pad. KIT loads the first kit and row 0's drum is selected with its audition pad (the
+# shortcut needs a selected drum); SHIFT + (11,5) opens the drum rename at the menu's root, where main draws only the
+# rename window (no menu title or rule beside it). BACK leaves the rename and the menu together and the clip view
+# returns.
+# card: content/sweep-bare.img
 100   snapshot boot
 6000  button Kit down
 6020  button Kit up

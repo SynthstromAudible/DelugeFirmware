@@ -29,19 +29,26 @@ while counting every settings operation that began on the interaction tier.
 An abort (a tier assertion firing) exits before SC-RESULT is printed, which is what turns a freeze into a gate failure
 rather than a silently truncated log. The registry entry requires each marker and the result line; this module adds
 SC-CHANNEL's count.
+
+Gate settings-channel:
+    a settings value written through the real consumer entry point must survive a read back, and no settings file
+    operation may begin on the interaction tier. Two halves on purpose: the round trip catches a change that moved the
+    I/O and broke the settings on the way, while SC-TIER, required zero, is the only check that shows where the I/O ran
+    -- a round trip passes the same whichever tier did the I/O, so a gate with only a round trip would report success
+    with every settings operation still on the interaction tier. The count is taken inside the consumer's own I/O path
+    rather than at the point of dispatch, so it cannot report success for an operation that dispatched and then ran
+    inline anyway.
 """
 
-import re
-
-CHANNEL = re.compile(r"SC-CHANNEL served=([0-9]*)")
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
-    counts = [m.group(1) for line in run.lines if (m := CHANNEL.fullmatch(line))]
-    served = counts[0] if counts else ""
-    if not served or int(served) == 0:
+    served = count_field(run.first("SC-CHANNEL "), "served")
+    if not served:
         gate.fail(
-            f"SC-CHANNEL served={served or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"SC-CHANNEL served={field(run.first('SC-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(

@@ -40,9 +40,9 @@
 /// `src/scenes` may not include (`scenes-includes-outside`, `scripts/check_layer_rules.py`), which
 /// is the whole reason the seam exists. **Its own translation unit** because it also names
 /// `deluge::scenes::menu_scene()`, and so belongs to the `deluge_scenes` closure the host spec
-/// suite deliberately never builds (`tests/spec/CMakeLists.txt:28-35`): naming it inside
+/// suite deliberately never builds (`tests/trees/host/CMakeLists.txt`): naming it inside
 /// `gui/ui/shell_host_ui.cpp` would take that file's specs off the board. The host suite stubs this
-/// one symbol in `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs
+/// one symbol in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, exactly as it stubs
 /// `wireShellGuestServices`.
 ///
 /// The header stays in `gui/ui/` rather than moving to `src/deluge/util/` the way

@@ -49,6 +49,27 @@ What this gate does NOT prove on its own: that the temp-file ordering is load-be
 fail the read-back and the save must fail while SS-INTACT stays green, which is what says the original survives a
 failure. Failing the RENAME instead turns SS-INTACT red, and that is not a defect in this gate: it is the inherited
 unlink-then-rename window, reported rather than papered over.
+
+Gate song-save-channel:
+    a song save must build its whole document in memory and place it on the card through the byte channel's write-from,
+    then read it back and check its length, head and tail. One leg: the byte channel has no feature switch, so the
+    document write rides its write-from and every other step its other operations, with nothing on the inline arm
+    (SS-ACCOUNTED). The document write uses a DIFFERENT operation from the rest of the flow, and that is the whole
+    difficulty: the byte channel's copying write stages through a fixed buffer and refuses anything over 8 KiB, and no
+    song has ever fitted it -- the smallest measured is 11.5 KB and the largest 1.10 MB. SS-GREW is what keeps the rest
+    honest, because the default harness song is about 11.5 KB against a 32 KB initial buffer and a save of it never
+    grows the buffer at all; the fixture is inflated to 100 KB and SS-GREW fails if it stops being big enough. SS-PARSES
+    loads the result back as a song, because bytes of the right length are not the claim. SS-INTACT requires that
+    overwriting an existing song leaves a song behind whichever way the save went, which is the property that justifies
+    writing to a temp name and renaming. SS-BACKMIDSAVE and SS-EXITMIDSAVE press BACK and fire the long-press exit while
+    the save is still running, and require the save screen to stay open: leaving it mid-save would let the save's own
+    close() read below the bottom of the UI stack. Both first require that the save really is still in flight, so a save
+    that finished early fails the check instead of passing it for free. SS-HELD holds the byte channel's document write
+    far past the save's stall bound, fails unless the write really landed past that bound, and requires the save to
+    complete anyway, with the same bytes an unheld save of the same song writes: a running write cannot be cancelled, so
+    giving up on it only releases the serialiser it is still copying from. SS-UPGRADE saves a song loaded from NAME.XML
+    under the same name and requires NAME.json written beside it with no overwrite prompt, NAME.XML unchanged, and the
+    song then naming NAME.json.
 """
 
 from scenario_gate import int_field

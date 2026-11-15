@@ -19,6 +19,11 @@
 // and back through the bridge, and every table that names params by target gives, cell by cell, the runtime param
 // its recorded characterisation holds.
 // Exit: 0 agree; 3 a check disagrees (each printed).
+//
+// Gate param-target-check:
+//     the host names params by target: every runtime param of the instrument and of the global effectable maps to a
+//     target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params
+//     by target gives cell by cell the runtime param its recorded characterisation holds
 
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"

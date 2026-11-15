@@ -27,10 +27,6 @@ FetchContent_Declare(simde
         GIT_TAG v0.8.4-rc3
         GIT_SHALLOW TRUE
 )
-FetchContent_Declare(CppUTest
-        GIT_REPOSITORY https://github.com/cpputest/cpputest.git
-        GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
-)
 FetchContent_Declare(CppSpec
-        URL https://github.com/toroidal-code/cppspec/archive/8fc585ca23288a8aa489ab6593f15651535771a9.tar.gz
+        URL https://github.com/toroidal-code/cppspec/archive/refs/tags/v1.1.0.tar.gz
 )

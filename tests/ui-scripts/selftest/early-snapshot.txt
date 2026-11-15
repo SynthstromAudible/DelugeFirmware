@@ -1,3 +1,0 @@
-# A snapshot before the app has drawn anything fails the run.
-0 snapshot too_early
-100 quit

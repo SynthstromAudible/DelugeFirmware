@@ -24,6 +24,13 @@
 #                             unless the render needs it)
 #   PADS                      pad sizes compared against pad=0 (default: "16 64 256 4096")
 #
+#
+# Gate embassy-layout-invariance:
+#     the Embassy host's cordae MIXDOWN must not depend on any allocation address: renders at heap pads 16, 64, 256 and
+#     4096 bytes (DELUGE_SIM_HEAP_PAD, which shifts every allocation) must each be byte-identical to the unpadded
+#     render. The renders are compared with each other, not with a recorded hash, so this catches a layout-dependent
+#     render (an uninitialised read, an address-ordered container) that stem-export's single recorded hash would only
+#     see as an unexplained mismatch after a layout change.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,7 +60,8 @@ render_pad() {
 	local out="$OUT_ROOT/$tag"
 	mkdir -p "$out"
 	set +e
-	GOLDEN_FIXTURE="$FIXTURE" \
+	GOLDEN_SCENARIO=stem_export \
+		GOLDEN_FIXTURE="$FIXTURE" \
 		GOLDEN_STEM_MODE=MIXDOWN \
 		GOLDEN_STEM_OUT="$out" \
 		GOLDEN_VIRTUAL_BUDGET_MS="${GOLDEN_VIRTUAL_BUDGET_MS:-1800000}" \

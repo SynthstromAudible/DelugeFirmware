@@ -18,8 +18,9 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 #include <vector>
@@ -68,11 +69,11 @@ describe set_kit_setting("one setting across a kit's sound drums, as one Edit", 
 		spec::SongFixture f = full_kit();
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetKitSetting priority{kit_id(f), "voicePriority", Value::makeScalar("2"), {}};
-		expect(deluge::edits::apply(ctx, priority) == Error::NONE).to_be_true();
+		expect(deluge::edits::apply(ctx, priority)).to_equal(Error::NONE);
 		expect(priority.drums_written()).to_equal(uint32_t(kKitDrums));
 		expect(disagreeing(f, "voicePriority", "2")).to_equal(std::vector<int>{});
 		deluge::edits::SetKitSetting transpose{kit_id(f), "transpose", Value::makeNumber(7), {}};
-		expect(deluge::edits::apply(ctx, transpose) == Error::NONE).to_be_true();
+		expect(deluge::edits::apply(ctx, transpose)).to_equal(Error::NONE);
 		expect(transpose.drums_written()).to_equal(uint32_t(kKitDrums));
 		expect(disagreeing(f, "transpose", "7")).to_equal(std::vector<int>{});
 	});
@@ -88,7 +89,7 @@ describe set_kit_setting("one setting across a kit's sound drums, as one Edit", 
 		const int before = mono->boundState()->max_voice_count;
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetKitSetting voices{kit_id(f), "maxVoices", Value::makeNumber(3), menu::fan_out::kPolyphonic};
-		expect(deluge::edits::apply(ctx, voices) == Error::NONE).to_be_true();
+		expect(deluge::edits::apply(ctx, voices)).to_equal(Error::NONE);
 		expect(voices.drums_written()).to_equal(uint32_t(kKitDrums - 1));
 		expect(static_cast<int>(mono->boundState()->max_voice_count)).to_equal(before);
 		// A saw drum does not take a sample's reverse: the rest of the kit does, and the Edit succeeds.
@@ -97,17 +98,17 @@ describe set_kit_setting("one setting across a kit's sound drums, as one Edit", 
 			deluge::edits::settingFor(*static_cast<SoundDrum*>(drum), "osc1/type", Value::makeScalar("sample"));
 		}
 		deluge::edits::SetKitSetting reverse{kit_id(f), "osc1/reversed", Value::makeNumber(1), {}};
-		expect(deluge::edits::apply(ctx, reverse) == Error::NONE).to_be_true();
-		expect(reverse.drums_written() >= uint32_t(kKitDrums - 1)).to_be_true();
+		expect(deluge::edits::apply(ctx, reverse)).to_equal(Error::NONE);
+		to_be_at_least(expect(reverse.drums_written()), uint32_t(kKitDrums - 1));
 	});
 
 	it("refuses a kit the song does not hold, and a value no drum's row takes", _ {
 		spec::SongFixture f = full_kit();
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetKitSetting gone{9999, "voicePriority", Value::makeScalar("2"), {}};
-		expect(deluge::edits::apply(ctx, gone) == Error::NONE).to_be_false();
+		expect(deluge::edits::apply(ctx, gone)).not_().to_equal(Error::NONE);
 		deluge::edits::SetKitSetting nonsense{kit_id(f), "voicePriority", Value::makeScalar("loud"), {}};
-		expect(deluge::edits::apply(ctx, nonsense) == Error::NONE).to_be_false();
+		expect(deluge::edits::apply(ctx, nonsense)).not_().to_equal(Error::NONE);
 	});
 });
 

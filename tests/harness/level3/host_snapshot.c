@@ -16,7 +16,7 @@
  */
 
 /// See `host_snapshot.h` for why this is its own translation unit: it must link into both the
-/// host BSP and `deluge_spec` (`tests/spec/harness/identity_spec.cpp`'s cross-check against
+/// host BSP and `deluge_spec` (`tests/unit/harness/identity_spec.cpp`'s cross-check against
 /// `tests/harness/snapshot.cpp`), and `host_script.c` proper cannot -- it pulls in BSP statics.
 /// This file depends on nothing beyond the C standard library and `harness/ui_script.h`'s shared
 /// `UI_SCRIPT_STATE_LINE_BYTES` constant.

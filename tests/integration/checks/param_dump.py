@@ -5,6 +5,11 @@ holds every pass.
     PD-PARSE    the dump reads back, version 1
     PD-PASSES   a sound-scope pass, and a voice-scope pass and source states for each note-on
     PD-ORDER    each key's times never go back
+
+Gate param-dump:
+    the audible window's parameter dump: a render dumped through RENDER_PARAM_DUMP is byte-identical to a plain one
+    (PD-SAME), the dump reads back (PD-PARSE), and it holds the sound's pass and each note's voice passes and source
+    states (PD-PASSES) in time order (PD-ORDER)
 """
 
 import sys
@@ -28,14 +33,13 @@ def _render(gate, corpus: Path, where: Path, dump: Path | None) -> bytes | None:
     if dump is not None:
         env["RENDER_PARAM_DUMP"] = str(dump)
     run = gate.run(env=env, timeout=render_preset.RUN_TIMEOUT)
-    if run.code != 0:
-        gate.fail(f"the {'dumped' if dump else 'plain'} render exited {run.code}")
+    if not gate.require_standard(run):
         return None
     return (where / "out.pcm").read_bytes()
 
 
 def run(gate):
-    corpus = gate.root / "tests" / "integration" / "golden" / "presets"
+    corpus = gate.root / "tests/golden/render/presets"
     dump_path = gate.tmp / "dump.params"
     plain = _render(gate, corpus, gate.tmp / "plain", None)
     dumped = _render(gate, corpus, gate.tmp / "dumped", dump_path)

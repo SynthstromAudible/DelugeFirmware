@@ -1,0 +1,13 @@
+# The sample-collect scenario's card: small WAVs with different lengths and fills, so a copy that fetched the wrong
+# file shows in the checksum.
+#
+# The two RECORD/ files make the ordering check able to fail. A collect-media save renames only a recording (REC +
+# five characters + .WAV), appending a random _XXXXX; ordinary samples never move in the audio-file vector.
+# REC12345.WAV is that recording. REC123450.WAV is not renamed, and sorts (case-insensitively) after REC12345.WAV and
+# before REC12345_XXXXX.WAV (. < 0 < _), so the rename must move the recording across it: rewriting the path without
+# removing and reinserting the entry leaves the vector out of order at that index.
+dir SONGS
+wav SAMPLES/COLL1.WAV ch=1 bits=16 bytes=512 fill=0x41
+wav SAMPLES/COLL2.WAV ch=2 bits=16 bytes=1024 fill=0x42
+wav SAMPLES/RECORD/REC12345.WAV ch=1 bits=16 bytes=768 fill=0x43
+wav SAMPLES/RECORD/REC123450.WAV ch=1 bits=16 bytes=640 fill=0x44

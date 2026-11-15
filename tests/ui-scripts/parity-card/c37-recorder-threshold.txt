@@ -1,7 +1,8 @@
-# The recorder's threshold take (ShellMenu card): RECORD held with two Select turns sets the song's threshold to LOW
-# (the first turn shows the mode), Shift + (0,4) lands on the SAMPLE RECORDER page and SELECT opens the recorder, which
-# draws the level-meter screen: WAITING..., the channel labels, the caution line and the blinking threshold line.
-# BACK ends the take.
+# The recorder's threshold take: RECORD held with two Select turns sets the song's threshold to LOW (the first turn
+# shows the mode), Shift + (0,4) lands on the SAMPLE RECORDER page and SELECT opens the recorder, which draws the
+# level-meter screen: WAITING..., the channel labels, the caution line and the blinking threshold line. BACK ends the
+# take.
+# card: content/sweep-bare.img
 1000  button Record down
 1300  encoder Select +2
 1700  encoder Select +1

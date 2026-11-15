@@ -17,6 +17,11 @@
 
 // document_version — the firmware version a document is read as is that document's own: its stamp, or the oldest
 // official version when it has none, whatever was read before it.
+//
+// Gate document-version:
+//     the firmware version a document is read as is that document's own: its stamp, or the oldest official version when
+//     it has none -- never the stamp of whatever was read before it, which would skip an unstamped file's old-file
+//     rules
 
 #include "scenarios/drivers/driver.h"
 #include "storage/storage_manager.h"

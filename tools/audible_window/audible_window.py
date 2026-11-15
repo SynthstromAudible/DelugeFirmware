@@ -8,6 +8,17 @@ audible_window.py identity [REF]                     the reference compared with
 
 The reference snapshot lives in .superpowers/estate/audible-window/reference/<commit>/; identity takes REF, else
 $AUDIBLE_WINDOW_REFERENCE, else the newest snapshot there.
+
+Gate audible-window-tooling:
+    the audible window's analyser and song set: identical render sets compare as identical; a changed final value is
+    reported with its LSB delta, first time and block count; records sharing a time are matched in order; a threshold
+    crossing is a flip; a voice that starts late is a lifetime change, not a run of parameter changes; a shifted render
+    aligns before its null test; dumps pack losslessly; the song set is Glitchy_2 then the songs with the most cables,
+    kit rows and automated params
+
+Gate audible-window-identity:
+    the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE)
+    compared with itself reports nothing moved: every render identical in audio and dumps
 """
 
 import argparse

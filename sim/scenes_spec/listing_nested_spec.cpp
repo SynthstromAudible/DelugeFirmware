@@ -16,7 +16,7 @@
 #include <filesystem>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using deluge::scenes::spec::SdRoot;
 using namespace deluge::scenes::spec::listing;

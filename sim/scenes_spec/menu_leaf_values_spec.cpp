@@ -51,17 +51,18 @@
 #include "support/forwarding_facts.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -74,6 +75,8 @@ using deluge::ui::shell::ShellConfig;
 using deluge::ui::shell::SurfaceRole;
 
 namespace {
+
+using deluge::test::matchers::address_of;
 
 namespace nodes = deluge::scenes::menu::nodes;
 
@@ -249,7 +252,7 @@ describe leaf_horizontal("scenes::menu full-screen Decimal horizontal turn", $ {
 		                      &nodes::audio_clip_transpose}) {
 			Rig r;
 			r.open(*n);
-			expect(menu_scene().route_horizontal_turn(-1, false, 10) == HorizontalTurn::Menu).to_be_true();
+			expect(menu_scene().route_horizontal_turn(-1, false, 10)).to_equal(HorizontalTurn::Menu);
 		}
 	});
 
@@ -257,7 +260,7 @@ describe leaf_horizontal("scenes::menu full-screen Decimal horizontal turn", $ {
 		using HorizontalTurn = menu::MenuScene::HorizontalTurn;
 		Rig r;
 		r.open(nodes::lpf_freq);
-		expect(menu_scene().route_horizontal_turn(-1, false, 10) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(-1, false, 10)).to_equal(HorizontalTurn::Root);
 	});
 });
 // clang-format on
@@ -417,7 +420,7 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 
 	it("wraps a MIDI bank, sub-bank and program round 0..128, 128 being none", _ {
 		for (const Node* n : {&nodes::midi_bank, &nodes::midi_sub_bank, &nodes::midi_pgm}) {
-			expect(n->bind.turn != nullptr).to_be_true();
+			expect(n->bind.turn).not_().to_be_null();
 			if (n->bind.turn == nullptr) {
 				continue;
 			}
@@ -498,7 +501,7 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("draws the default resolution as one number, 96 << value, over seven values", _ {
 		Rig r;
-		expect(nodes::default_magnitude.kind == menu::Kind::Int).to_be_true();
+		expect(nodes::default_magnitude.kind).to_equal(menu::Kind::Int);
 		expect(menu::bindings::range(nodes::default_magnitude, r.ctx).min).to_equal(0);
 		expect(menu::bindings::range(nodes::default_magnitude, r.ctx).max).to_equal(6);
 		expect(screen_text(nodes::default_magnitude, r.ctx, 0)).to_equal(std::string{"96"});
@@ -615,10 +618,10 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		// preset parts. Every other value item adds and clamps.
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::turn_follow_channel; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::stutter_rate_turn; })).to_equal(size_t(1));
-		expect(nodes::stutter_rate.bind.turn == &nodes::stutter_rate_turn).to_be_true();
+		expect(address_of(nodes::stutter_rate.bind.turn)).to_equal(address_of(&nodes::stutter_rate_turn));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::swing_interval_turn; })).to_equal(size_t(2));
-		expect(nodes::swing_interval.bind.turn == &nodes::swing_interval_turn).to_be_true();
-		expect(nodes::default_swing_interval.bind.turn == &nodes::swing_interval_turn).to_be_true();
+		expect(address_of(nodes::swing_interval.bind.turn)).to_equal(address_of(&nodes::swing_interval_turn));
+		expect(address_of(nodes::default_swing_interval.bind.turn)).to_equal(address_of(&nodes::swing_interval_turn));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::midi_preset_turn; })).to_equal(size_t(3));
 		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(25));
 	});
@@ -636,7 +639,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		// CV volts names 0 as Hz/V; the four retrigger phases name a value below 0 as OFF and restart a turn up
 		// from it.
 		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::cv_volts_word; })).to_equal(size_t(1));
-		expect(nodes::cv_volts.bind.decimal_word == &nodes::cv_volts_word).to_be_true();
+		expect(address_of(nodes::cv_volts.bind.decimal_word)).to_equal(address_of(&nodes::cv_volts_word));
 		expect(count_where([](const Node& n) { return n.bind.decimal_word == &nodes::retrigger_phase_text; })).to_equal(size_t(4));
 		expect(count_where([](const Node& n) { return n.bind.decimal_word != nullptr; })).to_equal(size_t(5));
 		expect(count_where([](const Node& n) { return n.bind.decimal_restart_from_negative; })).to_equal(size_t(4));
@@ -649,7 +652,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(count_where([](const Node& n) { return n.bind.leaf_text != nullptr; })).to_equal(size_t(21));
 		expect(count_where([](const Node& n) { return n.bind.leaf_draw != nullptr; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return !n.bind.style.unit.empty(); })).to_equal(size_t(1));
-		expect(!nodes::screensaver_timeout.bind.style.unit.empty()).to_be_true();
+		expect(nodes::screensaver_timeout.bind.style.unit.empty()).to_be_false();
 		expect(count_where([](const Node& n) { return n.bind.style.label_in_digits; })).to_equal(size_t(1));
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
 	});
@@ -657,8 +660,8 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 	it("names a sync level against the song's own magnitude but for the two items main overrides", _ {
 		// The default swing interval and the record quantize level.
 		expect(count_where([](const Node& n) { return n.bind.sync_name_magnitude != nullptr; })).to_equal(size_t(2));
-		expect(nodes::default_swing_interval.bind.sync_name_magnitude != nullptr).to_be_true();
-		expect(nodes::record_quantize.bind.sync_name_magnitude != nullptr).to_be_true();
+		expect(nodes::default_swing_interval.bind.sync_name_magnitude).not_().to_be_null();
+		expect(nodes::record_quantize.bind.sync_name_magnitude).not_().to_be_null();
 	});
 
 	it("wraps a horizontal-page turn on the two oscillator types and turns five columns the other way", _ {
@@ -671,7 +674,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(count_where([](const Node& n) { return n.bind.reverse_in_horizontal != nullptr; })).to_equal(size_t(5));
 		for (const Node* n : {&nodes::hpf_morph, &nodes::global_hpf_morph, &nodes::audio_clip_reverse,
 		                      &nodes::sample0_reverse, &nodes::sample1_reverse}) {
-			expect(n->bind.reverse_in_horizontal != nullptr).to_be_true();
+			expect(n->bind.reverse_in_horizontal).not_().to_be_null();
 		}
 	});
 

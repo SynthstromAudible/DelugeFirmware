@@ -1,7 +1,8 @@
 # The sample browser stays up while SELECT's load runs. On the synth's oscillator 1 (Shift + pad (0,5)), two detents
 # down and into SAMPLES/AUDIO FILES, then SELECT on REC00003: `main` keeps the browser's list under the working
-# animation until the load lands on the OSCILLATOR 1 page. `claim-running` is a short window just after the load
-# begins; `loaded` reads the page it lands on. Run on the content card (`sweep-shellmenu.img`).
+# animation until the load lands on the OSCILLATOR 1 page. `claim-running` is a short window just after the load begins;
+# `loaded` reads the page it lands on.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

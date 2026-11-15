@@ -37,13 +37,15 @@
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
+#include "support/printers/arp_record_printer.h"
+#include "support/printers/groove_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;
 
@@ -115,7 +117,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetSetting edit{kSong, "swingInterval", Value::makeNumber(99)};
 		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
-		expect(f.song->project.groove == before).to_be_true();
+		expect(f.song->project.groove).to_equal(before);
 	});
 	it("projects every reverb path onto the engine and flags a parameter update", _ {
 		spec::SongFixture f = spec::make_synth_song();
@@ -141,7 +143,10 @@ describe song_settings_edit("SetSetting", $ {
 		    .to_equal(static_cast<int>(deluge::project::ReverbModel::DIGITAL));
 		expect(static_cast<int>(AudioEngine::reverb.model())).to_equal(static_cast<int>(deluge::effects::ReverbModel::DIGITAL));
 		const Value saved = deluge::project::encode(f.song->project.reverb, 0);
-		expect(saved.find("model") != nullptr && saved.find("model")->str() == "2").to_be_true();
+		expect(saved.find("model")).not_().to_be_null();
+		if (saved.find("model") != nullptr) {
+			expect(saved.find("model")->str()).to_equal("2");
+		}
 	});
 
 	it("loads a song saved before reverb models as freeverb", _ {
@@ -231,7 +236,7 @@ describe song_settings_edit("SetSetting", $ {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = f.song->setupModelStackWithCurrentClip(memory);
 		NoteRow* row = instrumentClipView.createNoteRowForYDisplay(stack, 0)->getNoteRowAllowNull();
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		const auto address = deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song);
 		expect(address.has_value()).to_be_true();
 		deluge::edits::noteRowSettingFor(*row, *f.clip, "sequenceDirection", Value::makeScalar("reverse"));
@@ -297,7 +302,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::songSettingFor("swingInterval", Value::makeNumber(5));
 		deluge::edits::trackSettingFor(*f.instrument, "name", Value::makeScalar("NOSONG"));
 		currentSong = song;
-		expect(f.instrument->name == "NOSONG").to_be_false();
+		expect(f.instrument->name).not_().to_equal("NOSONG");
 	});
 	it("renames a clip in its record and on the clip", _ {
 		spec::SongFixture f = spec::make_synth_song();
@@ -315,7 +320,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::clipSettingFor(*f.clip, "sequenceDirection", Value::makeScalar("reverse"));
 		expect(recorded(*f.song, {SettingGroupId::CLIP, *clip}, "sequenceDirection")).to_equal(std::string{"reverse"});
 		expect(f.clip->lastProcessedPos).to_equal(f.clip->loopLength() - 10);
-		expect(f.clip->sequenceDirectionMode == SequenceDirection::REVERSE).to_be_true();
+		expect(f.clip->sequenceDirectionMode).to_equal(SequenceDirection::REVERSE);
 	});
 	it("writes a clip value into the clip's layer and onto the clip", _ {
 		spec::SongFixture f = spec::make_midi_song();
@@ -367,7 +372,7 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		NoteRow* row = f.clip->getNoteRowForDrum(drum);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		deluge::edits::bendRangeFor(*f.clip, row->paramManager, BEND_RANGE_FINGER_LEVEL, 24);
 		const auto address = deluge::bridge::noteRowAddressOf(*row, *f.clip, *f.song);
 		expect(recorded(*f.song, {SettingGroupId::NOTE_ROW, *address}, "bendRange")).to_equal(std::string{"24"});
@@ -377,13 +382,13 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::songSettingFor("syncScalingClip", Value::makeNumber(f.clip->id()));
 		expect(recorded(*f.song, kSong, "syncScalingClip")).to_equal(std::to_string(f.clip->id()));
-		expect(f.song->getSyncScalingClip() == f.clip).to_be_true();
+		expect(f.song->getSyncScalingClip()).to_equal(f.clip);
 		const int32_t magnitude = f.song->project.transport.inside_world_tick_magnitude;
 		f.song->setInputTickScaleClip(nullptr);
 		f.song->setInputTickScaleClip(f.clip);
 		expect(f.song->project.transport.inside_world_tick_magnitude).to_equal(magnitude);
 		deluge::edits::songSettingFor("syncScalingClip", Value::makeNumber(-1));
-		expect(f.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(f.song->getSyncScalingClip()).to_be_null();
 	});
 
 	it("clears the sync-scaling clip's id when the clip goes, leaving the tempo as it was", _ {
@@ -395,7 +400,7 @@ describe song_settings_edit("SetSetting", $ {
 		clips.erase(clips.begin() + clips.getIndexForClip(f.clip));
 		f.song->deleteClipObject(f.clip, false, InstrumentRemoval::NONE);
 		expect(recorded(*f.song, kSong, "syncScalingClip")).to_equal(std::string{"-1"});
-		expect(f.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(f.song->getSyncScalingClip()).to_be_null();
 		expect(f.song->project.transport.inside_world_tick_magnitude).to_equal(magnitude);
 	});
 	it("records an audio track's input and the track it records from, by id", _ {
@@ -410,8 +415,8 @@ describe song_settings_edit("SetSetting", $ {
 		expect(recorded(*f.song, input, "inputChannel")).to_equal(std::string{"specificTrack"});
 		expect(recorded(*f.song, input, "outputRecordingFrom")).to_equal(std::to_string(*source->id()));
 		expect(recorded(*f.song, input, "mode")).to_equal(std::string{"Looper/FX"});
-		expect(f.output->getOutputRecordingFrom() == source).to_be_true();
-		expect(f.output->mode == AudioOutputMode::looper).to_be_true();
+		expect(f.output->getOutputRecordingFrom()).to_equal(source);
+		expect(f.output->mode).to_equal(AudioOutputMode::looper);
 		expect(projected(*f.song, input, "outputRecordingFrom")).to_equal(std::to_string(*source->id()));
 	});
 
@@ -423,7 +428,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::audioInputSettingFor(*f.output, "outputRecordingFrom", Value::makeNumber(*source->id()));
 		f.song->clearRecordingFromReferencesTo(source);
 		expect(recorded(*f.song, input, "outputRecordingFrom")).to_equal(std::string{"-1"});
-		expect(f.output->getOutputRecordingFrom() == nullptr).to_be_true();
+		expect(f.output->getOutputRecordingFrom()).to_be_null();
 	});
 	it("saves hide-unlabeled even on a MIDI track never otherwise edited", _ {
 		spec::SongFixture f = spec::make_midi_song();
@@ -467,10 +472,10 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.clip->arpSettings.flagForceArpRestart = false;
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("down"));
-		expect(f.clip->arpSettings.mode == ArpMode::ARP).to_be_true();
-		expect(f.clip->arpSettings.octaveMode == ArpOctaveMode::DOWN).to_be_true();
-		expect(f.clip->arpSettings.noteMode == ArpNoteMode::DOWN).to_be_true();
-		expect(f.clip->arpSettings.preset == ArpPreset::DOWN).to_be_true();
+		expect(f.clip->arpSettings.mode).to_equal(ArpMode::ARP);
+		expect(f.clip->arpSettings.octaveMode).to_equal(ArpOctaveMode::DOWN);
+		expect(f.clip->arpSettings.noteMode).to_equal(ArpNoteMode::DOWN);
+		expect(f.clip->arpSettings.preset).to_equal(ArpPreset::DOWN);
 		expect(f.clip->arpSettings.flagForceArpRestart).to_be_true();
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/noteMode")).to_equal(std::string{"down"});
@@ -479,15 +484,15 @@ describe song_settings_edit("SetSetting", $ {
 	it("shows the custom preset a clip's arp was given, so its menu chains to the mode pages", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("custom"));
-		expect(f.clip->arpSettings.preset == ArpPreset::CUSTOM).to_be_true();
-		expect(f.clip->arpSettings.mode == ArpMode::ARP).to_be_true();
+		expect(f.clip->arpSettings.preset).to_equal(ArpPreset::CUSTOM);
+		expect(f.clip->arpSettings.mode).to_equal(ArpMode::ARP);
 	});
 
 	it("re-derives the preset a clip's arp shows when its note mode changes", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/preset", Value::makeScalar("up"));
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/noteMode", Value::makeScalar("upDown"));
-		expect(f.clip->arpSettings.preset == ArpPreset::CUSTOM).to_be_true();
+		expect(f.clip->arpSettings.preset).to_equal(ArpPreset::CUSTOM);
 	});
 
 	it("sets a kit row's arp in its lane record", _ {
@@ -496,7 +501,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::laneArpSettingFor(*drum, "arpeggiator/arpMode", Value::makeScalar("arp"));
 		const SettingAddress arp{SettingGroupId::LANE_ARP, *deluge::bridge::laneAddressOf(*drum, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/arpMode")).to_equal(std::string{"arp"});
-		expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
+		expect(drum->arpSettings.mode).to_equal(ArpMode::ARP);
 	});
 
 	it("holds a MIDI clip's arp rate, and refuses one on a synth clip, where the rate is a param", _ {
@@ -632,7 +637,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::clipArpSettingFor(*f.clip, "arpeggiator/numOctaves", Value::makeNumber(3));
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *deluge::bridge::clipAddressOf(*f.clip, *f.song)};
 		expect(recorded(*f.song, arp, "arpeggiator/syncLevel")).to_equal(std::string{"7"});
-		expect(f.clip->arpSettings.syncLevel == SyncLevel::SIXTY_FOURTH).to_be_true();
+		expect(f.clip->arpSettings.syncLevel).to_equal(SyncLevel::SIXTY_FOURTH);
 	});
 
 	it("records a new kit row's arp as the row holds it", _ {
@@ -664,7 +669,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::edits::SetSetting edit{{SettingGroupId::CLIP_ARP, deluge::project::ClipAddress{.clip_id = 4242}},
 		                               "arpeggiator/preset", Value::makeScalar("down")};
 		expect(static_cast<int>(deluge::edits::apply(ctx, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
-		expect(*orphan.values.arp == before).to_be_true();
+		expect(*orphan.values.arp).to_equal(before);
 	});
 
 	it("records a hibernating kit row's arp", _ {
@@ -683,9 +688,9 @@ describe song_settings_edit("SetSetting", $ {
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
-		expect(state != nullptr).to_be_true();
+		expect(state).not_().to_be_null();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
-		expect(state->polyphonic == PolyphonyMode::LEGATO).to_be_true();
+		expect(state->polyphonic).to_equal(PolyphonyMode::LEGATO);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 5);
 		expect(static_cast<int>(state->max_voice_count)).to_equal(5);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 0);
@@ -701,7 +706,7 @@ describe song_settings_edit("SetSetting", $ {
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
-		expect(state != nullptr).to_be_true();
+		expect(state).not_().to_be_null();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
 		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiNoteForDrum)).to_equal(61);
@@ -717,7 +722,7 @@ describe song_settings_edit("SetSetting", $ {
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
 		for (SoundDrum* drum : {first, second}) {
 			const deluge::instrument::SoundState* state = drum->boundState();
-			expect(state != nullptr).to_be_true();
+			expect(state).not_().to_be_null();
 			expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(72);
 		}
 	});
@@ -753,7 +758,7 @@ describe song_settings_edit_reference_rows("SetSetting: the reference rows", $ {
 	it("parses song_settings_edit.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{1}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{1});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

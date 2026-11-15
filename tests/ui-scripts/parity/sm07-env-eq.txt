@@ -1,7 +1,9 @@
 # ShellMenu: the pages drawn whole. SHIFT + the LPF frequency shortcut, then SHIFT + SCALE twice back along the sound
 # chain to the envelope group (ENV1 1/4); CROSS_SCREEN to ENV2 and an edit; then SHIFT + CROSS_SCREEN forward to EQ and
 # an edit there; SHIFT + SCALE back along the chain to MASTER, and a select detent on TRAN (a semitone; a cent with
-# SHIFT held). Run on the ShellMenu card.
+# SHIFT held).
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down

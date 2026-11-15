@@ -16,7 +16,7 @@
  */
 
 /// See `host_script_tables.h` for why this is its own translation unit: it must link into both
-/// the host BSP and `deluge_spec` (`tests/spec/harness/tables_spec.cpp`'s cross-check), and
+/// the host BSP and `deluge_spec` (`tests/unit/harness/tables_spec.cpp`'s cross-check), and
 /// `host_script.c` proper cannot -- it pulls in BSP statics. This file depends on nothing beyond
 /// the C standard library.
 

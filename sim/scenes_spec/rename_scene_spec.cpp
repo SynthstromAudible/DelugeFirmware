@@ -21,7 +21,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
-#include "spec/ui/support/frames.h"
+#include "unit/ui/support/frames.h"
 
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -41,10 +41,11 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -52,7 +53,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -380,7 +381,7 @@ describe rename_targets("scenes::rename target table", $ {
 describe rename_composition("scenes::rename::RenameScene composition", $ {
 	it("registers at FirstApp + 1 and composes over the view underneath", _ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
-		expect(reg.find(rename::kRenameSceneKind) == &rename_scene()).to_be_true();
+		expect(reg.find(rename::kRenameSceneKind)).to_equal(&rename_scene());
 		expect(static_cast<int>(rename::kRenameSceneKind))
 		    .to_equal(static_cast<int>(SceneKind::FirstApp) + 1);
 
@@ -399,7 +400,7 @@ describe rename_composition("scenes::rename::RenameScene composition", $ {
 		// `QwertyUI::drawKeys` clears and draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`);
 		// `RenameUI::getGreyoutColsAndRows` greys the two sidebar columns (`rename/rename_ui.cpp:63-66`).
 		const deluge::ui::shell::Scene& s = rename_scene();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
@@ -467,7 +468,7 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		for (uint32_t t = 1310; t <= 1540; t += 10) {
 			r.tick(t);
 		}
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 		expect(back_lit()).to_be_true(); // restarted at the open, inside its lit 250 ms
 		for (uint32_t t = 1570; t <= 1600; t += 10) {
 			r.tick(t);
@@ -578,7 +579,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// `RenameUI::exitUI` -> `close()`: the editor leaves, and it names itself rather than
 		// blindly popping whatever is on top.
 		const ShellAction* removal = find_action(done, ShellAction::Kind::Remove);
-		expect(removal != nullptr).to_be_true();
+		expect(removal).not_().to_be_null();
 		expect(static_cast<int>(removal->pop_to)).to_equal(static_cast<int>(rename::kRenameSceneKind));
 	});
 
@@ -723,7 +724,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// the ticks below, which is the assertion a wrong constant fails.)
 		const std::optional<uint32_t> armed = rename_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		expect(armed.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
+		to_be_at_most(expect(armed.value()), deluge::ui::grid::kBackspaceRepeatDelayMs);
 
 		// One millisecond short of the delay: still four characters.
 		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs - 1);
@@ -870,7 +871,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// One half-period later, with NOTHING queued: the panel must have been redrawn, dark.
 		r.tick(deluge::ui::kFlashTime);
 		const std::string dark = r.fake.pbm(0);
-		expect(dark != lit).to_be_true();
+		expect(dark).not_().to_equal(lit);
 
 		// And back again on the next one -- a square wave, not a one-shot.
 		r.tick(2 * deluge::ui::kFlashTime);
@@ -901,7 +902,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(rename_scene().cursor()).to_equal(5);
 		const std::optional<uint32_t> next = rename_scene().next_timer();
 		expect(next.has_value()).to_be_true();
-		expect(next.value() <= 110u).to_be_true();
+		to_be_at_most(expect(next.value()), 110u);
 	});
 
 	it("walks the cursor with the horizontal encoder and stops at both ends", _ {
@@ -938,7 +939,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		Drum* other = spec::add_drum<SoundDrum>(f);
 		Drum* being_renamed = spec::add_drum<SoundDrum>(f);
 		other->setName("Snare");
-		expect(kit_of(f)->selectedDrum == being_renamed).to_be_true();
+		expect(kit_of(f)->selectedDrum).to_equal(being_renamed);
 
 		Rig r;
 		r.open_rename(context_of(f), TargetId::Drum);
@@ -959,7 +960,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		// And the popup legacy raises from inside `trySetName`
 		// (`display->displayPopup(STRING_FOR_DUPLICATE_NAMES)`).
 		const ShellAction* popup = find_action(rejected, ShellAction::Kind::Popup);
-		expect(popup != nullptr).to_be_true();
+		expect(popup).not_().to_be_null();
 		expect(static_cast<int>(popup->popup_string))
 		    .to_equal(static_cast<int>(String::STRING_FOR_DUPLICATE_NAMES));
 	});
@@ -994,7 +995,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		expect(popup_stacked).to_be_true();
 		expect(std::string{being_renamed->name()}).to_equal(std::string{""});
 		// Still the scene taking input: a popup is drawn over it, never instead of it.
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 	});
 
 	it("accepts a name that only collides with the drum being renamed", _ {
@@ -1106,12 +1107,12 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.tick(10);
-		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::drum_name_edit);
 
 		// `EditName::beginSession` -> `openUI(renameDrumUI)`: the editor is on top, seeded from the
 		// drum, on the same tick the item was entered.
 		expect(r.shell.stack().depth()).to_equal(size_t(2));
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 		expect(static_cast<int>(rename_scene().target_id())).to_equal(static_cast<int>(TargetId::Drum));
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 
@@ -1123,7 +1124,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.tick(100);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
-		expect(menu_scene().focused() == &nodes::drum_actions).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::drum_actions);
 		// ...and it stays closed.
 		r.tick(110);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
@@ -1136,7 +1137,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
 		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, false, 11, 5);
-		expect(node == &nodes::drum_name_edit).to_be_true();
+		expect(node).to_equal(&nodes::drum_name_edit);
 
 		// Shift + (11,5) opens the menu ON the name item, so the item is the menu's root and
 		// `SoundEditor::renderOLED` returns before drawing anything beneath the rename window.
@@ -1144,15 +1145,15 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.open_menu(*node, *node, ctx);
 		r.tick(0);
 		r.tick(10);
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
 
 		// The title's rule runs the panel's width on its last title row; the rename window covers
 		// only the middle, so its two ends show whatever the menu beneath drew.
 		const std::string pbm = r.fake.pbm(0);
 		constexpr int32_t kRuleRow = kVisibleTop48 + deluge::ui::kTitleSeparatorY;
-		expect(pbm_lit(pbm, 1, kRuleRow) == std::optional<bool>{false}).to_be_true();
-		expect(pbm_lit(pbm, 126, kRuleRow) == std::optional<bool>{false}).to_be_true();
+		expect(pbm_lit(pbm, 1, kRuleRow)).to_equal(std::optional<bool>{false});
+		expect(pbm_lit(pbm, 126, kRuleRow)).to_equal(std::optional<bool>{false});
 	});
 
 	it("reopens the editor when a menu parked on the item is restored", _ {
@@ -1167,7 +1168,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.tick(10);
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 
 		// The state `replace_root` would carry across, taken while the menu is parked on the item.
 		deluge::ui::shell::SceneState saved{};
@@ -1177,20 +1178,20 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		r.button(kBackX, kBackY, true, 100);
 		r.tick(100);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(menu_scene().focused() == &nodes::drum_actions).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::drum_actions);
 
 		// `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
 		// and the editor comes back -- legacy's `focusRegained` -> `beginScreen` -> `beginSession`
 		// (`sound_editor.cpp:330,1053`), which `EditName` answers by opening `RenameUI`
 		// unconditionally. Restoring the user's place means restoring the editor they were in.
 		menu_scene().restore_state(saved);
-		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::drum_name_edit);
 		// `SceneStack::replace_root` flags the stack changed, which redraws every surface; a bare restore asks for
 		// that frame itself.
 		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 		r.tick(200);
 		expect(r.shell.stack().depth()).to_equal(size_t(2));
-		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 	});
 
@@ -1204,7 +1205,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 			r.open_menu(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)],
 			            nodes::edit_clip_name, context_of(f));
 			r.tick(0);
-			expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+			expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 			expect(static_cast<int>(rename_scene().target_id())).to_equal(static_cast<int>(TargetId::Clip));
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Verse"});
 		}
@@ -1215,7 +1216,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 			r.open_menu(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)],
 			            nodes::edit_track_name, context_of(f));
 			r.tick(0);
-			expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+			expect(&r.shell.stack().input_top()).to_equal(&rename_scene());
 			expect(static_cast<int>(rename_scene().target_id())).to_equal(static_cast<int>(TargetId::Output));
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Lead"});
 		}
@@ -1239,13 +1240,13 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 			Rig r;
 			draw(r, f, "");
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{""});
-			expect_golden(self, "../ui/scenes/rename_empty_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_empty_48.pbm", r.fake.pbm(0));
 		}
 		{
 			spec::SongFixture f = kit_fixture();
 			Rig r64{board_64(), profile_64()};
 			draw(r64, f, "");
-			expect_golden(self, "../ui/scenes/rename_empty_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_empty_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -1256,13 +1257,13 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 			Rig r;
 			draw(r, f, "KICK");
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Kick"});
-			expect_golden(self, "../ui/scenes/rename_typed_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_typed_48.pbm", r.fake.pbm(0));
 		}
 		{
 			spec::SongFixture f = kit_fixture();
 			Rig r64{board_64(), profile_64()};
 			draw(r64, f, "KICK");
-			expect_golden(self, "../ui/scenes/rename_typed_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_typed_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });

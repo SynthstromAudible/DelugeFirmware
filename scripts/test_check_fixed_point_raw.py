@@ -2,7 +2,16 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for check_fixed_point_raw.py: what it counts, what it exempts, and that its raw and view counts only shrink."""
+"""Tests for check_fixed_point_raw.py: what it counts, what it exempts, and that its raw and view counts only shrink.
+
+Gate fixed-point-raw-selftest:
+    the fixed-point raw-arithmetic ratchet counts raw detail/raw_ops.h helper calls and DSP-instruction inline asm (asm
+    or __asm__, any instruction of the template), buffer_view.h's typed_view/raw_view seam views, and typed-boundary
+    crossings (from_raw, .raw(), ->raw(), reinterpret_bits), each apart, outside comments but not inside strings;
+    exempts the core headers that define them (fixed_point.h, fixed_point_neon.h, buffer_view.h, high_word_asm.h and
+    detail/raw_ops.h); fails on a raw site, a view or a crossing in an unlisted file, a grown count, or an entry with
+    headroom left; and refuses to rewrite a count upward
+"""
 
 from __future__ import annotations
 

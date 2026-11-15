@@ -5,15 +5,18 @@
 #include "shell/profiles/deluge.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <cstdint>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge;
 
 namespace {
+
+using deluge::test::matchers::address_of;
 
 /// @brief Do two spans view the same storage? Compared by `.data()` and `.size()` --
 ///        `std::span` has no `operator==`, and the shell's spans are supposed to be the SAME
@@ -33,8 +36,8 @@ describe scenes_profile("scenes::deluge_profile", $ {
 
 	it("wires the l10n bridge the shell's own profile deliberately leaves null", _ {
 		const ui::shell::BoardProfile& p = scenes::deluge_profile();
-		expect(p.text == &scenes::text_lookup).to_be_true();
-		expect(p.error_text == &scenes::error_lookup).to_be_true();
+		expect(address_of(p.text)).to_equal(address_of(&scenes::text_lookup));
+		expect(address_of(p.error_text)).to_equal(address_of(&scenes::error_lookup));
 	});
 
 	it("copies every other field from ui::shell::deluge_profile(), unchanged", _ {

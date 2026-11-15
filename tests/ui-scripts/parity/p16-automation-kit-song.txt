@@ -1,0 +1,3086 @@
+# Automation view on a kit row and on a kit with affect-entire, and on the song (global params).
+# Boot is a synth clip; KIT makes it a kit and the select encoder loads kit 001; the song's from the arranger.
+# card: content/bare.img
+100     button Kit down
+220     button Kit up
+2470    encoder Select +1
+6720    snapshot kit_loaded
+# the selected drum's audition pad shows its row's random colour
+7720    random_colour 17 0
+7720    pad 17 0 down
+7840    pad 17 0 up
+8090    button Clip down
+8210    button Clip up
+8460    snapshot row_overview
+9460    pad 0 0 down
+9580    pad 0 0 up
+9830    snapshot row_0_0
+10830   button Shift down
+11080   button Clip down
+11200   button Clip up
+11450   button Shift up
+11700   pad 0 1 down
+11820   pad 0 1 up
+12070   snapshot row_0_1
+13070   button Shift down
+13320   button Clip down
+13440   button Clip up
+13690   button Shift up
+13940   pad 0 2 down
+14060   pad 0 2 up
+14310   snapshot row_0_2
+15310   button Shift down
+15560   button Clip down
+15680   button Clip up
+15930   button Shift up
+16180   pad 0 3 down
+16300   pad 0 3 up
+16550   snapshot row_0_3
+17550   button Shift down
+17800   button Clip down
+17920   button Clip up
+18170   button Shift up
+18420   pad 0 4 down
+18540   pad 0 4 up
+18790   snapshot row_0_4
+19790   button Shift down
+20040   button Clip down
+20160   button Clip up
+20410   button Shift up
+20660   pad 0 5 down
+20780   pad 0 5 up
+21030   snapshot row_0_5
+22030   button Shift down
+22280   button Clip down
+22400   button Clip up
+22650   button Shift up
+22900   pad 0 6 down
+23020   pad 0 6 up
+23270   snapshot row_0_6
+24270   button Shift down
+24520   button Clip down
+24640   button Clip up
+24890   button Shift up
+25140   pad 0 7 down
+25260   pad 0 7 up
+25510   snapshot row_0_7
+26510   button Shift down
+26760   button Clip down
+26880   button Clip up
+27130   button Shift up
+27380   pad 1 0 down
+27500   pad 1 0 up
+27750   snapshot row_1_0
+28750   button Shift down
+29000   button Clip down
+29120   button Clip up
+29370   button Shift up
+29620   pad 1 1 down
+29740   pad 1 1 up
+29990   snapshot row_1_1
+30990   button Shift down
+31240   button Clip down
+31360   button Clip up
+31610   button Shift up
+31860   pad 1 2 down
+31980   pad 1 2 up
+32230   snapshot row_1_2
+33230   button Shift down
+33480   button Clip down
+33600   button Clip up
+33850   button Shift up
+34100   pad 1 3 down
+34220   pad 1 3 up
+34470   snapshot row_1_3
+35470   button Shift down
+35720   button Clip down
+35840   button Clip up
+36090   button Shift up
+36340   pad 1 4 down
+36460   pad 1 4 up
+36710   snapshot row_1_4
+37710   button Shift down
+37960   button Clip down
+38080   button Clip up
+38330   button Shift up
+38580   pad 1 5 down
+38700   pad 1 5 up
+38950   snapshot row_1_5
+39950   button Shift down
+40200   button Clip down
+40320   button Clip up
+40570   button Shift up
+40820   pad 1 6 down
+40940   pad 1 6 up
+41190   snapshot row_1_6
+42190   button Shift down
+42440   button Clip down
+42560   button Clip up
+42810   button Shift up
+43060   pad 1 7 down
+43180   pad 1 7 up
+43430   snapshot row_1_7
+44430   button Shift down
+44680   button Clip down
+44800   button Clip up
+45050   button Shift up
+45300   pad 2 0 down
+45420   pad 2 0 up
+45670   snapshot row_2_0
+46670   button Shift down
+46920   button Clip down
+47040   button Clip up
+47290   button Shift up
+47540   pad 2 1 down
+47660   pad 2 1 up
+47910   snapshot row_2_1
+48910   button Shift down
+49160   button Clip down
+49280   button Clip up
+49530   button Shift up
+49780   pad 2 2 down
+49900   pad 2 2 up
+50150   snapshot row_2_2
+51150   button Shift down
+51400   button Clip down
+51520   button Clip up
+51770   button Shift up
+52020   pad 2 3 down
+52140   pad 2 3 up
+52390   snapshot row_2_3
+53390   button Shift down
+53640   button Clip down
+53760   button Clip up
+54010   button Shift up
+54260   pad 2 4 down
+54380   pad 2 4 up
+54630   snapshot row_2_4
+55630   button Shift down
+55880   button Clip down
+56000   button Clip up
+56250   button Shift up
+56500   pad 2 5 down
+56620   pad 2 5 up
+56870   snapshot row_2_5
+57870   button Shift down
+58120   button Clip down
+58240   button Clip up
+58490   button Shift up
+58740   pad 2 6 down
+58860   pad 2 6 up
+59110   snapshot row_2_6
+60110   button Shift down
+60360   button Clip down
+60480   button Clip up
+60730   button Shift up
+60980   pad 2 7 down
+61100   pad 2 7 up
+61350   snapshot row_2_7
+62350   button Shift down
+62600   button Clip down
+62720   button Clip up
+62970   button Shift up
+63220   pad 3 0 down
+63340   pad 3 0 up
+63590   snapshot row_3_0
+64590   button Shift down
+64840   button Clip down
+64960   button Clip up
+65210   button Shift up
+65460   pad 3 1 down
+65580   pad 3 1 up
+65830   snapshot row_3_1
+66830   button Shift down
+67080   button Clip down
+67200   button Clip up
+67450   button Shift up
+67700   pad 3 2 down
+67820   pad 3 2 up
+68070   snapshot row_3_2
+69070   button Shift down
+69320   button Clip down
+69440   button Clip up
+69690   button Shift up
+69940   pad 3 3 down
+70060   pad 3 3 up
+70310   snapshot row_3_3
+71310   button Shift down
+71560   button Clip down
+71680   button Clip up
+71930   button Shift up
+72180   pad 3 4 down
+72300   pad 3 4 up
+72550   snapshot row_3_4
+73550   button Shift down
+73800   button Clip down
+73920   button Clip up
+74170   button Shift up
+74420   pad 3 5 down
+74540   pad 3 5 up
+74790   snapshot row_3_5
+75790   button Shift down
+76040   button Clip down
+76160   button Clip up
+76410   button Shift up
+76660   pad 3 6 down
+76780   pad 3 6 up
+77030   snapshot row_3_6
+78030   button Shift down
+78280   button Clip down
+78400   button Clip up
+78650   button Shift up
+78900   pad 3 7 down
+79020   pad 3 7 up
+79270   snapshot row_3_7
+80270   button Shift down
+80520   button Clip down
+80640   button Clip up
+80890   button Shift up
+81140   pad 4 0 down
+81260   pad 4 0 up
+81510   snapshot row_4_0
+82510   button Shift down
+82760   button Clip down
+82880   button Clip up
+83130   button Shift up
+83380   pad 4 1 down
+83500   pad 4 1 up
+83750   snapshot row_4_1
+84750   button Shift down
+85000   button Clip down
+85120   button Clip up
+85370   button Shift up
+85620   pad 4 2 down
+85740   pad 4 2 up
+85990   snapshot row_4_2
+86990   button Shift down
+87240   button Clip down
+87360   button Clip up
+87610   button Shift up
+87860   pad 4 3 down
+87980   pad 4 3 up
+88230   snapshot row_4_3
+89230   button Shift down
+89480   button Clip down
+89600   button Clip up
+89850   button Shift up
+90100   pad 4 4 down
+90220   pad 4 4 up
+90470   snapshot row_4_4
+91470   button Shift down
+91720   button Clip down
+91840   button Clip up
+92090   button Shift up
+92340   pad 4 5 down
+92460   pad 4 5 up
+92710   snapshot row_4_5
+93710   button Shift down
+93960   button Clip down
+94080   button Clip up
+94330   button Shift up
+94580   pad 4 6 down
+94700   pad 4 6 up
+94950   snapshot row_4_6
+95950   button Shift down
+96200   button Clip down
+96320   button Clip up
+96570   button Shift up
+96820   pad 4 7 down
+96940   pad 4 7 up
+97190   snapshot row_4_7
+98190   button Shift down
+98440   button Clip down
+98560   button Clip up
+98810   button Shift up
+99060   pad 5 0 down
+99180   pad 5 0 up
+99430   snapshot row_5_0
+100430  button Shift down
+100680  button Clip down
+100800  button Clip up
+101050  button Shift up
+101300  pad 5 1 down
+101420  pad 5 1 up
+101670  snapshot row_5_1
+102670  button Shift down
+102920  button Clip down
+103040  button Clip up
+103290  button Shift up
+103540  pad 5 2 down
+103660  pad 5 2 up
+103910  snapshot row_5_2
+104910  button Shift down
+105160  button Clip down
+105280  button Clip up
+105530  button Shift up
+105780  pad 5 3 down
+105900  pad 5 3 up
+106150  snapshot row_5_3
+107150  button Shift down
+107400  button Clip down
+107520  button Clip up
+107770  button Shift up
+108020  pad 5 4 down
+108140  pad 5 4 up
+108390  snapshot row_5_4
+109390  button Shift down
+109640  button Clip down
+109760  button Clip up
+110010  button Shift up
+110260  pad 5 5 down
+110380  pad 5 5 up
+110630  snapshot row_5_5
+111630  button Shift down
+111880  button Clip down
+112000  button Clip up
+112250  button Shift up
+112500  pad 5 6 down
+112620  pad 5 6 up
+112870  snapshot row_5_6
+113870  button Shift down
+114120  button Clip down
+114240  button Clip up
+114490  button Shift up
+114740  pad 5 7 down
+114860  pad 5 7 up
+115110  snapshot row_5_7
+116110  button Shift down
+116360  button Clip down
+116480  button Clip up
+116730  button Shift up
+116980  pad 6 0 down
+117100  pad 6 0 up
+117350  snapshot row_6_0
+118350  button Shift down
+118600  button Clip down
+118720  button Clip up
+118970  button Shift up
+119220  pad 6 1 down
+119340  pad 6 1 up
+119590  snapshot row_6_1
+120590  button Shift down
+120840  button Clip down
+120960  button Clip up
+121210  button Shift up
+121460  pad 6 2 down
+121580  pad 6 2 up
+121830  snapshot row_6_2
+122830  button Shift down
+123080  button Clip down
+123200  button Clip up
+123450  button Shift up
+123700  pad 6 3 down
+123820  pad 6 3 up
+124070  snapshot row_6_3
+125070  button Shift down
+125320  button Clip down
+125440  button Clip up
+125690  button Shift up
+125940  pad 6 4 down
+126060  pad 6 4 up
+126310  snapshot row_6_4
+127310  button Shift down
+127560  button Clip down
+127680  button Clip up
+127930  button Shift up
+128180  pad 6 5 down
+128300  pad 6 5 up
+128550  snapshot row_6_5
+129550  button Shift down
+129800  button Clip down
+129920  button Clip up
+130170  button Shift up
+130420  pad 6 6 down
+130540  pad 6 6 up
+130790  snapshot row_6_6
+131790  button Shift down
+132040  button Clip down
+132160  button Clip up
+132410  button Shift up
+132660  pad 6 7 down
+132780  pad 6 7 up
+133030  snapshot row_6_7
+134030  button Shift down
+134280  button Clip down
+134400  button Clip up
+134650  button Shift up
+134900  pad 7 0 down
+135020  pad 7 0 up
+135270  snapshot row_7_0
+136270  button Shift down
+136520  button Clip down
+136640  button Clip up
+136890  button Shift up
+137140  pad 7 1 down
+137260  pad 7 1 up
+137510  snapshot row_7_1
+138510  button Shift down
+138760  button Clip down
+138880  button Clip up
+139130  button Shift up
+139380  pad 7 2 down
+139500  pad 7 2 up
+139750  snapshot row_7_2
+140750  button Shift down
+141000  button Clip down
+141120  button Clip up
+141370  button Shift up
+141620  pad 7 3 down
+141740  pad 7 3 up
+141990  snapshot row_7_3
+142990  button Shift down
+143240  button Clip down
+143360  button Clip up
+143610  button Shift up
+143860  pad 7 4 down
+143980  pad 7 4 up
+144230  snapshot row_7_4
+145230  button Shift down
+145480  button Clip down
+145600  button Clip up
+145850  button Shift up
+146100  pad 7 5 down
+146220  pad 7 5 up
+146470  snapshot row_7_5
+147470  button Shift down
+147720  button Clip down
+147840  button Clip up
+148090  button Shift up
+148340  pad 7 6 down
+148460  pad 7 6 up
+148710  snapshot row_7_6
+149710  button Shift down
+149960  button Clip down
+150080  button Clip up
+150330  button Shift up
+150580  pad 7 7 down
+150700  pad 7 7 up
+150950  snapshot row_7_7
+151950  button Shift down
+152200  button Clip down
+152320  button Clip up
+152570  button Shift up
+152820  pad 8 0 down
+152940  pad 8 0 up
+153190  snapshot row_8_0
+154190  button Shift down
+154440  button Clip down
+154560  button Clip up
+154810  button Shift up
+155060  pad 8 1 down
+155180  pad 8 1 up
+155430  snapshot row_8_1
+156430  button Shift down
+156680  button Clip down
+156800  button Clip up
+157050  button Shift up
+157300  pad 8 2 down
+157420  pad 8 2 up
+157670  snapshot row_8_2
+158670  button Shift down
+158920  button Clip down
+159040  button Clip up
+159290  button Shift up
+159540  pad 8 3 down
+159660  pad 8 3 up
+159910  snapshot row_8_3
+160910  button Shift down
+161160  button Clip down
+161280  button Clip up
+161530  button Shift up
+161780  pad 8 4 down
+161900  pad 8 4 up
+162150  snapshot row_8_4
+163150  button Shift down
+163400  button Clip down
+163520  button Clip up
+163770  button Shift up
+164020  pad 8 5 down
+164140  pad 8 5 up
+164390  snapshot row_8_5
+165390  button Shift down
+165640  button Clip down
+165760  button Clip up
+166010  button Shift up
+166260  pad 8 6 down
+166380  pad 8 6 up
+166630  snapshot row_8_6
+167630  button Shift down
+167880  button Clip down
+168000  button Clip up
+168250  button Shift up
+168500  pad 8 7 down
+168620  pad 8 7 up
+168870  snapshot row_8_7
+169870  button Shift down
+170120  button Clip down
+170240  button Clip up
+170490  button Shift up
+170740  pad 9 0 down
+170860  pad 9 0 up
+171110  snapshot row_9_0
+172110  button Shift down
+172360  button Clip down
+172480  button Clip up
+172730  button Shift up
+172980  pad 9 1 down
+173100  pad 9 1 up
+173350  snapshot row_9_1
+174350  button Shift down
+174600  button Clip down
+174720  button Clip up
+174970  button Shift up
+175220  pad 9 2 down
+175340  pad 9 2 up
+175590  snapshot row_9_2
+176590  button Shift down
+176840  button Clip down
+176960  button Clip up
+177210  button Shift up
+177460  pad 9 3 down
+177580  pad 9 3 up
+177830  snapshot row_9_3
+178830  button Shift down
+179080  button Clip down
+179200  button Clip up
+179450  button Shift up
+179700  pad 9 4 down
+179820  pad 9 4 up
+180070  snapshot row_9_4
+181070  button Shift down
+181320  button Clip down
+181440  button Clip up
+181690  button Shift up
+181940  pad 9 5 down
+182060  pad 9 5 up
+182310  snapshot row_9_5
+183310  button Shift down
+183560  button Clip down
+183680  button Clip up
+183930  button Shift up
+184180  pad 9 6 down
+184300  pad 9 6 up
+184550  snapshot row_9_6
+185550  button Shift down
+185800  button Clip down
+185920  button Clip up
+186170  button Shift up
+186420  pad 9 7 down
+186540  pad 9 7 up
+186790  snapshot row_9_7
+187790  button Shift down
+188040  button Clip down
+188160  button Clip up
+188410  button Shift up
+188660  pad 10 0 down
+188780  pad 10 0 up
+189030  snapshot row_10_0
+190030  button Shift down
+190280  button Clip down
+190400  button Clip up
+190650  button Shift up
+190900  pad 10 1 down
+191020  pad 10 1 up
+191270  snapshot row_10_1
+192270  button Shift down
+192520  button Clip down
+192640  button Clip up
+192890  button Shift up
+193140  pad 10 2 down
+193260  pad 10 2 up
+193510  snapshot row_10_2
+194510  button Shift down
+194760  button Clip down
+194880  button Clip up
+195130  button Shift up
+195380  pad 10 3 down
+195500  pad 10 3 up
+195750  snapshot row_10_3
+196750  button Shift down
+197000  button Clip down
+197120  button Clip up
+197370  button Shift up
+197620  pad 10 4 down
+197740  pad 10 4 up
+197990  snapshot row_10_4
+198990  button Shift down
+199240  button Clip down
+199360  button Clip up
+199610  button Shift up
+199860  pad 10 5 down
+199980  pad 10 5 up
+200230  snapshot row_10_5
+201230  button Shift down
+201480  button Clip down
+201600  button Clip up
+201850  button Shift up
+202100  pad 10 6 down
+202220  pad 10 6 up
+202470  snapshot row_10_6
+203470  button Shift down
+203720  button Clip down
+203840  button Clip up
+204090  button Shift up
+204340  pad 10 7 down
+204460  pad 10 7 up
+204710  snapshot row_10_7
+205710  button Shift down
+205960  button Clip down
+206080  button Clip up
+206330  button Shift up
+206580  pad 11 0 down
+206700  pad 11 0 up
+206950  snapshot row_11_0
+207950  button Shift down
+208200  button Clip down
+208320  button Clip up
+208570  button Shift up
+208820  pad 11 1 down
+208940  pad 11 1 up
+209190  snapshot row_11_1
+210190  button Shift down
+210440  button Clip down
+210560  button Clip up
+210810  button Shift up
+211060  pad 11 2 down
+211180  pad 11 2 up
+211430  snapshot row_11_2
+212430  button Shift down
+212680  button Clip down
+212800  button Clip up
+213050  button Shift up
+213300  pad 11 3 down
+213420  pad 11 3 up
+213670  snapshot row_11_3
+214670  button Shift down
+214920  button Clip down
+215040  button Clip up
+215290  button Shift up
+215540  pad 11 4 down
+215660  pad 11 4 up
+215910  snapshot row_11_4
+216910  button Shift down
+217160  button Clip down
+217280  button Clip up
+217530  button Shift up
+217780  pad 11 5 down
+217900  pad 11 5 up
+218150  snapshot row_11_5
+219150  button Shift down
+219400  button Clip down
+219520  button Clip up
+219770  button Shift up
+220020  pad 11 6 down
+220140  pad 11 6 up
+220390  snapshot row_11_6
+221390  button Shift down
+221640  button Clip down
+221760  button Clip up
+222010  button Shift up
+222260  pad 11 7 down
+222380  pad 11 7 up
+222630  snapshot row_11_7
+223630  button Shift down
+223880  button Clip down
+224000  button Clip up
+224250  button Shift up
+224500  pad 12 0 down
+224620  pad 12 0 up
+224870  snapshot row_12_0
+225870  button Shift down
+226120  button Clip down
+226240  button Clip up
+226490  button Shift up
+226740  pad 12 1 down
+226860  pad 12 1 up
+227110  snapshot row_12_1
+228110  button Shift down
+228360  button Clip down
+228480  button Clip up
+228730  button Shift up
+228980  pad 12 2 down
+229100  pad 12 2 up
+229350  snapshot row_12_2
+230350  button Shift down
+230600  button Clip down
+230720  button Clip up
+230970  button Shift up
+231220  pad 12 3 down
+231340  pad 12 3 up
+231590  snapshot row_12_3
+232590  button Shift down
+232840  button Clip down
+232960  button Clip up
+233210  button Shift up
+233460  pad 12 4 down
+233580  pad 12 4 up
+233830  snapshot row_12_4
+234830  button Shift down
+235080  button Clip down
+235200  button Clip up
+235450  button Shift up
+235700  pad 12 5 down
+235820  pad 12 5 up
+236070  snapshot row_12_5
+237070  button Shift down
+237320  button Clip down
+237440  button Clip up
+237690  button Shift up
+237940  pad 12 6 down
+238060  pad 12 6 up
+238310  snapshot row_12_6
+239310  button Shift down
+239560  button Clip down
+239680  button Clip up
+239930  button Shift up
+240180  pad 12 7 down
+240300  pad 12 7 up
+240550  snapshot row_12_7
+241550  button Shift down
+241800  button Clip down
+241920  button Clip up
+242170  button Shift up
+242420  pad 13 0 down
+242540  pad 13 0 up
+242790  snapshot row_13_0
+243790  button Shift down
+244040  button Clip down
+244160  button Clip up
+244410  button Shift up
+244660  pad 13 1 down
+244780  pad 13 1 up
+245030  snapshot row_13_1
+246030  button Shift down
+246280  button Clip down
+246400  button Clip up
+246650  button Shift up
+246900  pad 13 2 down
+247020  pad 13 2 up
+247270  snapshot row_13_2
+248270  button Shift down
+248520  button Clip down
+248640  button Clip up
+248890  button Shift up
+249140  pad 13 3 down
+249260  pad 13 3 up
+249510  snapshot row_13_3
+250510  button Shift down
+250760  button Clip down
+250880  button Clip up
+251130  button Shift up
+251380  pad 13 4 down
+251500  pad 13 4 up
+251750  snapshot row_13_4
+252750  button Shift down
+253000  button Clip down
+253120  button Clip up
+253370  button Shift up
+253620  pad 13 5 down
+253740  pad 13 5 up
+253990  snapshot row_13_5
+254990  button Shift down
+255240  button Clip down
+255360  button Clip up
+255610  button Shift up
+255860  pad 13 6 down
+255980  pad 13 6 up
+256230  snapshot row_13_6
+257230  button Shift down
+257480  button Clip down
+257600  button Clip up
+257850  button Shift up
+258100  pad 13 7 down
+258220  pad 13 7 up
+258470  snapshot row_13_7
+259470  button Shift down
+259720  button Clip down
+259840  button Clip up
+260090  button Shift up
+260340  pad 14 0 down
+260460  pad 14 0 up
+260710  snapshot row_14_0
+261710  button Shift down
+261960  button Clip down
+262080  button Clip up
+262330  button Shift up
+262580  pad 14 1 down
+262700  pad 14 1 up
+262950  snapshot row_14_1
+263950  button Shift down
+264200  button Clip down
+264320  button Clip up
+264570  button Shift up
+264820  pad 14 2 down
+264940  pad 14 2 up
+265190  snapshot row_14_2
+266190  button Shift down
+266440  button Clip down
+266560  button Clip up
+266810  button Shift up
+267060  pad 14 3 down
+267180  pad 14 3 up
+267430  snapshot row_14_3
+268430  button Shift down
+268680  button Clip down
+268800  button Clip up
+269050  button Shift up
+269300  pad 14 4 down
+269420  pad 14 4 up
+269670  snapshot row_14_4
+270670  button Shift down
+270920  button Clip down
+271040  button Clip up
+271290  button Shift up
+271540  pad 14 5 down
+271660  pad 14 5 up
+271910  snapshot row_14_5
+272910  button Shift down
+273160  button Clip down
+273280  button Clip up
+273530  button Shift up
+273780  pad 14 6 down
+273900  pad 14 6 up
+274150  snapshot row_14_6
+275150  button Shift down
+275400  button Clip down
+275520  button Clip up
+275770  button Shift up
+276020  pad 14 7 down
+276140  pad 14 7 up
+276390  snapshot row_14_7
+277390  button Shift down
+277640  button Clip down
+277760  button Clip up
+278010  button Shift up
+278260  pad 15 0 down
+278380  pad 15 0 up
+278630  snapshot row_15_0
+279630  button Shift down
+279880  button Clip down
+280000  button Clip up
+280250  button Shift up
+280500  pad 15 1 down
+280620  pad 15 1 up
+280870  snapshot row_15_1
+281870  button Shift down
+282120  button Clip down
+282240  button Clip up
+282490  button Shift up
+282740  pad 15 2 down
+282860  pad 15 2 up
+283110  snapshot row_15_2
+284110  button Shift down
+284360  button Clip down
+284480  button Clip up
+284730  button Shift up
+284980  pad 15 3 down
+285100  pad 15 3 up
+285350  snapshot row_15_3
+286350  button Shift down
+286600  button Clip down
+286720  button Clip up
+286970  button Shift up
+287220  pad 15 4 down
+287340  pad 15 4 up
+287590  snapshot row_15_4
+288590  button Shift down
+288840  button Clip down
+288960  button Clip up
+289210  button Shift up
+289460  pad 15 5 down
+289580  pad 15 5 up
+289830  snapshot row_15_5
+290830  button Shift down
+291080  button Clip down
+291200  button Clip up
+291450  button Shift up
+291700  pad 15 6 down
+291820  pad 15 6 up
+292070  snapshot row_15_6
+293070  button Shift down
+293320  button Clip down
+293440  button Clip up
+293690  button Shift up
+293940  pad 15 7 down
+294060  pad 15 7 up
+294310  snapshot row_15_7
+295310  button Shift down
+295560  button Clip down
+295680  button Clip up
+295930  button Shift up
+296180  pad 8 7 down
+296300  pad 8 7 up
+296550  encoder Select +1
+296800  snapshot row_walk_up_0
+297800  encoder Select +1
+298050  snapshot row_walk_up_1
+299050  encoder Select +1
+299300  snapshot row_walk_up_2
+300300  encoder Select +1
+300550  snapshot row_walk_up_3
+301550  encoder Select +1
+301800  snapshot row_walk_up_4
+302800  encoder Select +1
+303050  snapshot row_walk_up_5
+304050  encoder Select +1
+304300  snapshot row_walk_up_6
+305300  encoder Select +1
+305550  snapshot row_walk_up_7
+306550  encoder Select +1
+306800  snapshot row_walk_up_8
+307800  encoder Select +1
+308050  snapshot row_walk_up_9
+309050  encoder Select +1
+309300  snapshot row_walk_up_10
+310300  encoder Select +1
+310550  snapshot row_walk_up_11
+311550  encoder Select +1
+311800  snapshot row_walk_up_12
+312800  encoder Select +1
+313050  snapshot row_walk_up_13
+314050  encoder Select +1
+314300  snapshot row_walk_up_14
+315300  encoder Select +1
+315550  snapshot row_walk_up_15
+316550  encoder Select +1
+316800  snapshot row_walk_up_16
+317800  encoder Select +1
+318050  snapshot row_walk_up_17
+319050  encoder Select +1
+319300  snapshot row_walk_up_18
+320300  encoder Select +1
+320550  snapshot row_walk_up_19
+321550  encoder Select +1
+321800  snapshot row_walk_up_20
+322800  encoder Select +1
+323050  snapshot row_walk_up_21
+324050  encoder Select +1
+324300  snapshot row_walk_up_22
+325300  encoder Select +1
+325550  snapshot row_walk_up_23
+326550  encoder Select +1
+326800  snapshot row_walk_up_24
+327800  encoder Select +1
+328050  snapshot row_walk_up_25
+329050  encoder Select +1
+329300  snapshot row_walk_up_26
+330300  encoder Select +1
+330550  snapshot row_walk_up_27
+331550  encoder Select +1
+331800  snapshot row_walk_up_28
+332800  encoder Select +1
+333050  snapshot row_walk_up_29
+334050  encoder Select +1
+334300  snapshot row_walk_up_30
+335300  encoder Select +1
+335550  snapshot row_walk_up_31
+336550  encoder Select +1
+336800  snapshot row_walk_up_32
+337800  encoder Select +1
+338050  snapshot row_walk_up_33
+339050  encoder Select +1
+339300  snapshot row_walk_up_34
+340300  encoder Select +1
+340550  snapshot row_walk_up_35
+341550  encoder Select +1
+341800  snapshot row_walk_up_36
+342800  encoder Select +1
+343050  snapshot row_walk_up_37
+344050  encoder Select +1
+344300  snapshot row_walk_up_38
+345300  encoder Select +1
+345550  snapshot row_walk_up_39
+346550  encoder Select +1
+346800  snapshot row_walk_up_40
+347800  encoder Select +1
+348050  snapshot row_walk_up_41
+349050  encoder Select +1
+349300  snapshot row_walk_up_42
+350300  encoder Select +1
+350550  snapshot row_walk_up_43
+351550  encoder Select +1
+351800  snapshot row_walk_up_44
+352800  encoder Select +1
+353050  snapshot row_walk_up_45
+354050  encoder Select +1
+354300  snapshot row_walk_up_46
+355300  encoder Select +1
+355550  snapshot row_walk_up_47
+356550  encoder Select +1
+356800  snapshot row_walk_up_48
+357800  encoder Select +1
+358050  snapshot row_walk_up_49
+359050  encoder Select +1
+359300  snapshot row_walk_up_50
+360300  encoder Select +1
+360550  snapshot row_walk_up_51
+361550  encoder Select +1
+361800  snapshot row_walk_up_52
+362800  encoder Select +1
+363050  snapshot row_walk_up_53
+364050  encoder Select +1
+364300  snapshot row_walk_up_54
+365300  encoder Select +1
+365550  snapshot row_walk_up_55
+366550  encoder Select +1
+366800  snapshot row_walk_up_56
+367800  encoder Select +1
+368050  snapshot row_walk_up_57
+369050  encoder Select +1
+369300  snapshot row_walk_up_58
+370300  encoder Select +1
+370550  snapshot row_walk_up_59
+371550  encoder Select +1
+371800  snapshot row_walk_up_60
+372800  encoder Select +1
+373050  snapshot row_walk_up_61
+374050  encoder Select +1
+374300  snapshot row_walk_up_62
+375300  encoder Select +1
+375550  snapshot row_walk_up_63
+376550  encoder Select +1
+376800  snapshot row_walk_up_64
+377800  encoder Select +1
+378050  snapshot row_walk_up_65
+379050  encoder Select +1
+379300  snapshot row_walk_up_66
+380300  encoder Select +1
+380550  snapshot row_walk_up_67
+381550  encoder Select +1
+381800  snapshot row_walk_up_68
+382800  encoder Select +1
+383050  snapshot row_walk_up_69
+384050  encoder Select +1
+384300  snapshot row_walk_up_70
+385300  encoder Select +1
+385550  snapshot row_walk_up_71
+386550  encoder Select +1
+386800  snapshot row_walk_up_72
+387800  encoder Select +1
+388050  snapshot row_walk_up_73
+389050  encoder Select +1
+389300  snapshot row_walk_up_74
+390300  encoder Select +1
+390550  snapshot row_walk_up_75
+391550  encoder Select +1
+391800  snapshot row_walk_up_76
+392800  encoder Select +1
+393050  snapshot row_walk_up_77
+394050  encoder Select +1
+394300  snapshot row_walk_up_78
+395300  encoder Select +1
+395550  snapshot row_walk_up_79
+396550  encoder Select +1
+396800  snapshot row_walk_up_80
+397800  encoder Select +1
+398050  snapshot row_walk_up_81
+399050  encoder Select +1
+399300  snapshot row_walk_up_82
+400300  encoder Select +1
+400550  snapshot row_walk_up_83
+401550  encoder Select +1
+401800  snapshot row_walk_up_84
+402800  encoder Select +1
+403050  snapshot row_walk_up_85
+404050  encoder Select +1
+404300  snapshot row_walk_up_86
+405300  encoder Select +1
+405550  snapshot row_walk_up_87
+406550  encoder Select +1
+406800  snapshot row_walk_up_88
+407800  encoder Select +1
+408050  snapshot row_walk_up_89
+409050  button Clip down
+409170  button Clip up
+409420  button AffectEntire down
+409540  button AffectEntire up
+409790  button Clip down
+409910  button Clip up
+410160  snapshot entire_overview
+411160  pad 0 0 down
+411280  pad 0 0 up
+411530  snapshot entire_0_0
+412530  button Shift down
+412780  button Clip down
+412900  button Clip up
+413150  button Shift up
+413400  pad 0 1 down
+413520  pad 0 1 up
+413770  snapshot entire_0_1
+414770  button Shift down
+415020  button Clip down
+415140  button Clip up
+415390  button Shift up
+415640  pad 0 2 down
+415760  pad 0 2 up
+416010  snapshot entire_0_2
+417010  button Shift down
+417260  button Clip down
+417380  button Clip up
+417630  button Shift up
+417880  pad 0 3 down
+418000  pad 0 3 up
+418250  snapshot entire_0_3
+419250  button Shift down
+419500  button Clip down
+419620  button Clip up
+419870  button Shift up
+420120  pad 0 4 down
+420240  pad 0 4 up
+420490  snapshot entire_0_4
+421490  button Shift down
+421740  button Clip down
+421860  button Clip up
+422110  button Shift up
+422360  pad 0 5 down
+422480  pad 0 5 up
+422730  snapshot entire_0_5
+423730  button Shift down
+423980  button Clip down
+424100  button Clip up
+424350  button Shift up
+424600  pad 0 6 down
+424720  pad 0 6 up
+424970  snapshot entire_0_6
+425970  button Shift down
+426220  button Clip down
+426340  button Clip up
+426590  button Shift up
+426840  pad 0 7 down
+426960  pad 0 7 up
+427210  snapshot entire_0_7
+428210  button Shift down
+428460  button Clip down
+428580  button Clip up
+428830  button Shift up
+429080  pad 1 0 down
+429200  pad 1 0 up
+429450  snapshot entire_1_0
+430450  button Shift down
+430700  button Clip down
+430820  button Clip up
+431070  button Shift up
+431320  pad 1 1 down
+431440  pad 1 1 up
+431690  snapshot entire_1_1
+432690  button Shift down
+432940  button Clip down
+433060  button Clip up
+433310  button Shift up
+433560  pad 1 2 down
+433680  pad 1 2 up
+433930  snapshot entire_1_2
+434930  button Shift down
+435180  button Clip down
+435300  button Clip up
+435550  button Shift up
+435800  pad 1 3 down
+435920  pad 1 3 up
+436170  snapshot entire_1_3
+437170  button Shift down
+437420  button Clip down
+437540  button Clip up
+437790  button Shift up
+438040  pad 1 4 down
+438160  pad 1 4 up
+438410  snapshot entire_1_4
+439410  button Shift down
+439660  button Clip down
+439780  button Clip up
+440030  button Shift up
+440280  pad 1 5 down
+440400  pad 1 5 up
+440650  snapshot entire_1_5
+441650  button Shift down
+441900  button Clip down
+442020  button Clip up
+442270  button Shift up
+442520  pad 1 6 down
+442640  pad 1 6 up
+442890  snapshot entire_1_6
+443890  button Shift down
+444140  button Clip down
+444260  button Clip up
+444510  button Shift up
+444760  pad 1 7 down
+444880  pad 1 7 up
+445130  snapshot entire_1_7
+446130  button Shift down
+446380  button Clip down
+446500  button Clip up
+446750  button Shift up
+447000  pad 2 0 down
+447120  pad 2 0 up
+447370  snapshot entire_2_0
+448370  button Shift down
+448620  button Clip down
+448740  button Clip up
+448990  button Shift up
+449240  pad 2 1 down
+449360  pad 2 1 up
+449610  snapshot entire_2_1
+450610  button Shift down
+450860  button Clip down
+450980  button Clip up
+451230  button Shift up
+451480  pad 2 2 down
+451600  pad 2 2 up
+451850  snapshot entire_2_2
+452850  button Shift down
+453100  button Clip down
+453220  button Clip up
+453470  button Shift up
+453720  pad 2 3 down
+453840  pad 2 3 up
+454090  snapshot entire_2_3
+455090  button Shift down
+455340  button Clip down
+455460  button Clip up
+455710  button Shift up
+455960  pad 2 4 down
+456080  pad 2 4 up
+456330  snapshot entire_2_4
+457330  button Shift down
+457580  button Clip down
+457700  button Clip up
+457950  button Shift up
+458200  pad 2 5 down
+458320  pad 2 5 up
+458570  snapshot entire_2_5
+459570  button Shift down
+459820  button Clip down
+459940  button Clip up
+460190  button Shift up
+460440  pad 2 6 down
+460560  pad 2 6 up
+460810  snapshot entire_2_6
+461810  button Shift down
+462060  button Clip down
+462180  button Clip up
+462430  button Shift up
+462680  pad 2 7 down
+462800  pad 2 7 up
+463050  snapshot entire_2_7
+464050  button Shift down
+464300  button Clip down
+464420  button Clip up
+464670  button Shift up
+464920  pad 3 0 down
+465040  pad 3 0 up
+465290  snapshot entire_3_0
+466290  button Shift down
+466540  button Clip down
+466660  button Clip up
+466910  button Shift up
+467160  pad 3 1 down
+467280  pad 3 1 up
+467530  snapshot entire_3_1
+468530  button Shift down
+468780  button Clip down
+468900  button Clip up
+469150  button Shift up
+469400  pad 3 2 down
+469520  pad 3 2 up
+469770  snapshot entire_3_2
+470770  button Shift down
+471020  button Clip down
+471140  button Clip up
+471390  button Shift up
+471640  pad 3 3 down
+471760  pad 3 3 up
+472010  snapshot entire_3_3
+473010  button Shift down
+473260  button Clip down
+473380  button Clip up
+473630  button Shift up
+473880  pad 3 4 down
+474000  pad 3 4 up
+474250  snapshot entire_3_4
+475250  button Shift down
+475500  button Clip down
+475620  button Clip up
+475870  button Shift up
+476120  pad 3 5 down
+476240  pad 3 5 up
+476490  snapshot entire_3_5
+477490  button Shift down
+477740  button Clip down
+477860  button Clip up
+478110  button Shift up
+478360  pad 3 6 down
+478480  pad 3 6 up
+478730  snapshot entire_3_6
+479730  button Shift down
+479980  button Clip down
+480100  button Clip up
+480350  button Shift up
+480600  pad 3 7 down
+480720  pad 3 7 up
+480970  snapshot entire_3_7
+481970  button Shift down
+482220  button Clip down
+482340  button Clip up
+482590  button Shift up
+482840  pad 4 0 down
+482960  pad 4 0 up
+483210  snapshot entire_4_0
+484210  button Shift down
+484460  button Clip down
+484580  button Clip up
+484830  button Shift up
+485080  pad 4 1 down
+485200  pad 4 1 up
+485450  snapshot entire_4_1
+486450  button Shift down
+486700  button Clip down
+486820  button Clip up
+487070  button Shift up
+487320  pad 4 2 down
+487440  pad 4 2 up
+487690  snapshot entire_4_2
+488690  button Shift down
+488940  button Clip down
+489060  button Clip up
+489310  button Shift up
+489560  pad 4 3 down
+489680  pad 4 3 up
+489930  snapshot entire_4_3
+490930  button Shift down
+491180  button Clip down
+491300  button Clip up
+491550  button Shift up
+491800  pad 4 4 down
+491920  pad 4 4 up
+492170  snapshot entire_4_4
+493170  button Shift down
+493420  button Clip down
+493540  button Clip up
+493790  button Shift up
+494040  pad 4 5 down
+494160  pad 4 5 up
+494410  snapshot entire_4_5
+495410  button Shift down
+495660  button Clip down
+495780  button Clip up
+496030  button Shift up
+496280  pad 4 6 down
+496400  pad 4 6 up
+496650  snapshot entire_4_6
+497650  button Shift down
+497900  button Clip down
+498020  button Clip up
+498270  button Shift up
+498520  pad 4 7 down
+498640  pad 4 7 up
+498890  snapshot entire_4_7
+499890  button Shift down
+500140  button Clip down
+500260  button Clip up
+500510  button Shift up
+500760  pad 5 0 down
+500880  pad 5 0 up
+501130  snapshot entire_5_0
+502130  button Shift down
+502380  button Clip down
+502500  button Clip up
+502750  button Shift up
+503000  pad 5 1 down
+503120  pad 5 1 up
+503370  snapshot entire_5_1
+504370  button Shift down
+504620  button Clip down
+504740  button Clip up
+504990  button Shift up
+505240  pad 5 2 down
+505360  pad 5 2 up
+505610  snapshot entire_5_2
+506610  button Shift down
+506860  button Clip down
+506980  button Clip up
+507230  button Shift up
+507480  pad 5 3 down
+507600  pad 5 3 up
+507850  snapshot entire_5_3
+508850  button Shift down
+509100  button Clip down
+509220  button Clip up
+509470  button Shift up
+509720  pad 5 4 down
+509840  pad 5 4 up
+510090  snapshot entire_5_4
+511090  button Shift down
+511340  button Clip down
+511460  button Clip up
+511710  button Shift up
+511960  pad 5 5 down
+512080  pad 5 5 up
+512330  snapshot entire_5_5
+513330  button Shift down
+513580  button Clip down
+513700  button Clip up
+513950  button Shift up
+514200  pad 5 6 down
+514320  pad 5 6 up
+514570  snapshot entire_5_6
+515570  button Shift down
+515820  button Clip down
+515940  button Clip up
+516190  button Shift up
+516440  pad 5 7 down
+516560  pad 5 7 up
+516810  snapshot entire_5_7
+517810  button Shift down
+518060  button Clip down
+518180  button Clip up
+518430  button Shift up
+518680  pad 6 0 down
+518800  pad 6 0 up
+519050  snapshot entire_6_0
+520050  button Shift down
+520300  button Clip down
+520420  button Clip up
+520670  button Shift up
+520920  pad 6 1 down
+521040  pad 6 1 up
+521290  snapshot entire_6_1
+522290  button Shift down
+522540  button Clip down
+522660  button Clip up
+522910  button Shift up
+523160  pad 6 2 down
+523280  pad 6 2 up
+523530  snapshot entire_6_2
+524530  button Shift down
+524780  button Clip down
+524900  button Clip up
+525150  button Shift up
+525400  pad 6 3 down
+525520  pad 6 3 up
+525770  snapshot entire_6_3
+526770  button Shift down
+527020  button Clip down
+527140  button Clip up
+527390  button Shift up
+527640  pad 6 4 down
+527760  pad 6 4 up
+528010  snapshot entire_6_4
+529010  button Shift down
+529260  button Clip down
+529380  button Clip up
+529630  button Shift up
+529880  pad 6 5 down
+530000  pad 6 5 up
+530250  snapshot entire_6_5
+531250  button Shift down
+531500  button Clip down
+531620  button Clip up
+531870  button Shift up
+532120  pad 6 6 down
+532240  pad 6 6 up
+532490  snapshot entire_6_6
+533490  button Shift down
+533740  button Clip down
+533860  button Clip up
+534110  button Shift up
+534360  pad 6 7 down
+534480  pad 6 7 up
+534730  snapshot entire_6_7
+535730  button Shift down
+535980  button Clip down
+536100  button Clip up
+536350  button Shift up
+536600  pad 7 0 down
+536720  pad 7 0 up
+536970  snapshot entire_7_0
+537970  button Shift down
+538220  button Clip down
+538340  button Clip up
+538590  button Shift up
+538840  pad 7 1 down
+538960  pad 7 1 up
+539210  snapshot entire_7_1
+540210  button Shift down
+540460  button Clip down
+540580  button Clip up
+540830  button Shift up
+541080  pad 7 2 down
+541200  pad 7 2 up
+541450  snapshot entire_7_2
+542450  button Shift down
+542700  button Clip down
+542820  button Clip up
+543070  button Shift up
+543320  pad 7 3 down
+543440  pad 7 3 up
+543690  snapshot entire_7_3
+544690  button Shift down
+544940  button Clip down
+545060  button Clip up
+545310  button Shift up
+545560  pad 7 4 down
+545680  pad 7 4 up
+545930  snapshot entire_7_4
+546930  button Shift down
+547180  button Clip down
+547300  button Clip up
+547550  button Shift up
+547800  pad 7 5 down
+547920  pad 7 5 up
+548170  snapshot entire_7_5
+549170  button Shift down
+549420  button Clip down
+549540  button Clip up
+549790  button Shift up
+550040  pad 7 6 down
+550160  pad 7 6 up
+550410  snapshot entire_7_6
+551410  button Shift down
+551660  button Clip down
+551780  button Clip up
+552030  button Shift up
+552280  pad 7 7 down
+552400  pad 7 7 up
+552650  snapshot entire_7_7
+553650  button Shift down
+553900  button Clip down
+554020  button Clip up
+554270  button Shift up
+554520  pad 8 0 down
+554640  pad 8 0 up
+554890  snapshot entire_8_0
+555890  button Shift down
+556140  button Clip down
+556260  button Clip up
+556510  button Shift up
+556760  pad 8 1 down
+556880  pad 8 1 up
+557130  snapshot entire_8_1
+558130  button Shift down
+558380  button Clip down
+558500  button Clip up
+558750  button Shift up
+559000  pad 8 2 down
+559120  pad 8 2 up
+559370  snapshot entire_8_2
+560370  button Shift down
+560620  button Clip down
+560740  button Clip up
+560990  button Shift up
+561240  pad 8 3 down
+561360  pad 8 3 up
+561610  snapshot entire_8_3
+562610  button Shift down
+562860  button Clip down
+562980  button Clip up
+563230  button Shift up
+563480  pad 8 4 down
+563600  pad 8 4 up
+563850  snapshot entire_8_4
+564850  button Shift down
+565100  button Clip down
+565220  button Clip up
+565470  button Shift up
+565720  pad 8 5 down
+565840  pad 8 5 up
+566090  snapshot entire_8_5
+567090  button Shift down
+567340  button Clip down
+567460  button Clip up
+567710  button Shift up
+567960  pad 8 6 down
+568080  pad 8 6 up
+568330  snapshot entire_8_6
+569330  button Shift down
+569580  button Clip down
+569700  button Clip up
+569950  button Shift up
+570200  pad 8 7 down
+570320  pad 8 7 up
+570570  snapshot entire_8_7
+571570  button Shift down
+571820  button Clip down
+571940  button Clip up
+572190  button Shift up
+572440  pad 9 0 down
+572560  pad 9 0 up
+572810  snapshot entire_9_0
+573810  button Shift down
+574060  button Clip down
+574180  button Clip up
+574430  button Shift up
+574680  pad 9 1 down
+574800  pad 9 1 up
+575050  snapshot entire_9_1
+576050  button Shift down
+576300  button Clip down
+576420  button Clip up
+576670  button Shift up
+576920  pad 9 2 down
+577040  pad 9 2 up
+577290  snapshot entire_9_2
+578290  button Shift down
+578540  button Clip down
+578660  button Clip up
+578910  button Shift up
+579160  pad 9 3 down
+579280  pad 9 3 up
+579530  snapshot entire_9_3
+580530  button Shift down
+580780  button Clip down
+580900  button Clip up
+581150  button Shift up
+581400  pad 9 4 down
+581520  pad 9 4 up
+581770  snapshot entire_9_4
+582770  button Shift down
+583020  button Clip down
+583140  button Clip up
+583390  button Shift up
+583640  pad 9 5 down
+583760  pad 9 5 up
+584010  snapshot entire_9_5
+585010  button Shift down
+585260  button Clip down
+585380  button Clip up
+585630  button Shift up
+585880  pad 9 6 down
+586000  pad 9 6 up
+586250  snapshot entire_9_6
+587250  button Shift down
+587500  button Clip down
+587620  button Clip up
+587870  button Shift up
+588120  pad 9 7 down
+588240  pad 9 7 up
+588490  snapshot entire_9_7
+589490  button Shift down
+589740  button Clip down
+589860  button Clip up
+590110  button Shift up
+590360  pad 10 0 down
+590480  pad 10 0 up
+590730  snapshot entire_10_0
+591730  button Shift down
+591980  button Clip down
+592100  button Clip up
+592350  button Shift up
+592600  pad 10 1 down
+592720  pad 10 1 up
+592970  snapshot entire_10_1
+593970  button Shift down
+594220  button Clip down
+594340  button Clip up
+594590  button Shift up
+594840  pad 10 2 down
+594960  pad 10 2 up
+595210  snapshot entire_10_2
+596210  button Shift down
+596460  button Clip down
+596580  button Clip up
+596830  button Shift up
+597080  pad 10 3 down
+597200  pad 10 3 up
+597450  snapshot entire_10_3
+598450  button Shift down
+598700  button Clip down
+598820  button Clip up
+599070  button Shift up
+599320  pad 10 4 down
+599440  pad 10 4 up
+599690  snapshot entire_10_4
+600690  button Shift down
+600940  button Clip down
+601060  button Clip up
+601310  button Shift up
+601560  pad 10 5 down
+601680  pad 10 5 up
+601930  snapshot entire_10_5
+602930  button Shift down
+603180  button Clip down
+603300  button Clip up
+603550  button Shift up
+603800  pad 10 6 down
+603920  pad 10 6 up
+604170  snapshot entire_10_6
+605170  button Shift down
+605420  button Clip down
+605540  button Clip up
+605790  button Shift up
+606040  pad 10 7 down
+606160  pad 10 7 up
+606410  snapshot entire_10_7
+607410  button Shift down
+607660  button Clip down
+607780  button Clip up
+608030  button Shift up
+608280  pad 11 0 down
+608400  pad 11 0 up
+608650  snapshot entire_11_0
+609650  button Shift down
+609900  button Clip down
+610020  button Clip up
+610270  button Shift up
+610520  pad 11 1 down
+610640  pad 11 1 up
+610890  snapshot entire_11_1
+611890  button Shift down
+612140  button Clip down
+612260  button Clip up
+612510  button Shift up
+612760  pad 11 2 down
+612880  pad 11 2 up
+613130  snapshot entire_11_2
+614130  button Shift down
+614380  button Clip down
+614500  button Clip up
+614750  button Shift up
+615000  pad 11 3 down
+615120  pad 11 3 up
+615370  snapshot entire_11_3
+616370  button Shift down
+616620  button Clip down
+616740  button Clip up
+616990  button Shift up
+617240  pad 11 4 down
+617360  pad 11 4 up
+617610  snapshot entire_11_4
+618610  button Shift down
+618860  button Clip down
+618980  button Clip up
+619230  button Shift up
+619480  pad 11 5 down
+619600  pad 11 5 up
+619850  snapshot entire_11_5
+620850  button Shift down
+621100  button Clip down
+621220  button Clip up
+621470  button Shift up
+621720  pad 11 6 down
+621840  pad 11 6 up
+622090  snapshot entire_11_6
+623090  button Shift down
+623340  button Clip down
+623460  button Clip up
+623710  button Shift up
+623960  pad 11 7 down
+624080  pad 11 7 up
+624330  snapshot entire_11_7
+625330  button Shift down
+625580  button Clip down
+625700  button Clip up
+625950  button Shift up
+626200  pad 12 0 down
+626320  pad 12 0 up
+626570  snapshot entire_12_0
+627570  button Shift down
+627820  button Clip down
+627940  button Clip up
+628190  button Shift up
+628440  pad 12 1 down
+628560  pad 12 1 up
+628810  snapshot entire_12_1
+629810  button Shift down
+630060  button Clip down
+630180  button Clip up
+630430  button Shift up
+630680  pad 12 2 down
+630800  pad 12 2 up
+631050  snapshot entire_12_2
+632050  button Shift down
+632300  button Clip down
+632420  button Clip up
+632670  button Shift up
+632920  pad 12 3 down
+633040  pad 12 3 up
+633290  snapshot entire_12_3
+634290  button Shift down
+634540  button Clip down
+634660  button Clip up
+634910  button Shift up
+635160  pad 12 4 down
+635280  pad 12 4 up
+635530  snapshot entire_12_4
+636530  button Shift down
+636780  button Clip down
+636900  button Clip up
+637150  button Shift up
+637400  pad 12 5 down
+637520  pad 12 5 up
+637770  snapshot entire_12_5
+638770  button Shift down
+639020  button Clip down
+639140  button Clip up
+639390  button Shift up
+639640  pad 12 6 down
+639760  pad 12 6 up
+640010  snapshot entire_12_6
+641010  button Shift down
+641260  button Clip down
+641380  button Clip up
+641630  button Shift up
+641880  pad 12 7 down
+642000  pad 12 7 up
+642250  snapshot entire_12_7
+643250  button Shift down
+643500  button Clip down
+643620  button Clip up
+643870  button Shift up
+644120  pad 13 0 down
+644240  pad 13 0 up
+644490  snapshot entire_13_0
+645490  button Shift down
+645740  button Clip down
+645860  button Clip up
+646110  button Shift up
+646360  pad 13 1 down
+646480  pad 13 1 up
+646730  snapshot entire_13_1
+647730  button Shift down
+647980  button Clip down
+648100  button Clip up
+648350  button Shift up
+648600  pad 13 2 down
+648720  pad 13 2 up
+648970  snapshot entire_13_2
+649970  button Shift down
+650220  button Clip down
+650340  button Clip up
+650590  button Shift up
+650840  pad 13 3 down
+650960  pad 13 3 up
+651210  snapshot entire_13_3
+652210  button Shift down
+652460  button Clip down
+652580  button Clip up
+652830  button Shift up
+653080  pad 13 4 down
+653200  pad 13 4 up
+653450  snapshot entire_13_4
+654450  button Shift down
+654700  button Clip down
+654820  button Clip up
+655070  button Shift up
+655320  pad 13 5 down
+655440  pad 13 5 up
+655690  snapshot entire_13_5
+656690  button Shift down
+656940  button Clip down
+657060  button Clip up
+657310  button Shift up
+657560  pad 13 6 down
+657680  pad 13 6 up
+657930  snapshot entire_13_6
+658930  button Shift down
+659180  button Clip down
+659300  button Clip up
+659550  button Shift up
+659800  pad 13 7 down
+659920  pad 13 7 up
+660170  snapshot entire_13_7
+661170  button Shift down
+661420  button Clip down
+661540  button Clip up
+661790  button Shift up
+662040  pad 14 0 down
+662160  pad 14 0 up
+662410  snapshot entire_14_0
+663410  button Shift down
+663660  button Clip down
+663780  button Clip up
+664030  button Shift up
+664280  pad 14 1 down
+664400  pad 14 1 up
+664650  snapshot entire_14_1
+665650  button Shift down
+665900  button Clip down
+666020  button Clip up
+666270  button Shift up
+666520  pad 14 2 down
+666640  pad 14 2 up
+666890  snapshot entire_14_2
+667890  button Shift down
+668140  button Clip down
+668260  button Clip up
+668510  button Shift up
+668760  pad 14 3 down
+668880  pad 14 3 up
+669130  snapshot entire_14_3
+670130  button Shift down
+670380  button Clip down
+670500  button Clip up
+670750  button Shift up
+671000  pad 14 4 down
+671120  pad 14 4 up
+671370  snapshot entire_14_4
+672370  button Shift down
+672620  button Clip down
+672740  button Clip up
+672990  button Shift up
+673240  pad 14 5 down
+673360  pad 14 5 up
+673610  snapshot entire_14_5
+674610  button Shift down
+674860  button Clip down
+674980  button Clip up
+675230  button Shift up
+675480  pad 14 6 down
+675600  pad 14 6 up
+675850  snapshot entire_14_6
+676850  button Shift down
+677100  button Clip down
+677220  button Clip up
+677470  button Shift up
+677720  pad 14 7 down
+677840  pad 14 7 up
+678090  snapshot entire_14_7
+679090  button Shift down
+679340  button Clip down
+679460  button Clip up
+679710  button Shift up
+679960  pad 15 0 down
+680080  pad 15 0 up
+680330  snapshot entire_15_0
+681330  button Shift down
+681580  button Clip down
+681700  button Clip up
+681950  button Shift up
+682200  pad 15 1 down
+682320  pad 15 1 up
+682570  snapshot entire_15_1
+683570  button Shift down
+683820  button Clip down
+683940  button Clip up
+684190  button Shift up
+684440  pad 15 2 down
+684560  pad 15 2 up
+684810  snapshot entire_15_2
+685810  button Shift down
+686060  button Clip down
+686180  button Clip up
+686430  button Shift up
+686680  pad 15 3 down
+686800  pad 15 3 up
+687050  snapshot entire_15_3
+688050  button Shift down
+688300  button Clip down
+688420  button Clip up
+688670  button Shift up
+688920  pad 15 4 down
+689040  pad 15 4 up
+689290  snapshot entire_15_4
+690290  button Shift down
+690540  button Clip down
+690660  button Clip up
+690910  button Shift up
+691160  pad 15 5 down
+691280  pad 15 5 up
+691530  snapshot entire_15_5
+692530  button Shift down
+692780  button Clip down
+692900  button Clip up
+693150  button Shift up
+693400  pad 15 6 down
+693520  pad 15 6 up
+693770  snapshot entire_15_6
+694770  button Shift down
+695020  button Clip down
+695140  button Clip up
+695390  button Shift up
+695640  pad 15 7 down
+695760  pad 15 7 up
+696010  snapshot entire_15_7
+697010  button Shift down
+697260  button Clip down
+697380  button Clip up
+697630  button Shift up
+697880  pad 8 7 down
+698000  pad 8 7 up
+698250  encoder Select +1
+698500  snapshot entire_walk_up_0
+699500  encoder Select +1
+699750  snapshot entire_walk_up_1
+700750  encoder Select +1
+701000  snapshot entire_walk_up_2
+702000  encoder Select +1
+702250  snapshot entire_walk_up_3
+703250  encoder Select +1
+703500  snapshot entire_walk_up_4
+704500  encoder Select +1
+704750  snapshot entire_walk_up_5
+705750  encoder Select +1
+706000  snapshot entire_walk_up_6
+707000  encoder Select +1
+707250  snapshot entire_walk_up_7
+708250  encoder Select +1
+708500  snapshot entire_walk_up_8
+709500  encoder Select +1
+709750  snapshot entire_walk_up_9
+710750  encoder Select +1
+711000  snapshot entire_walk_up_10
+712000  encoder Select +1
+712250  snapshot entire_walk_up_11
+713250  encoder Select +1
+713500  snapshot entire_walk_up_12
+714500  encoder Select +1
+714750  snapshot entire_walk_up_13
+715750  encoder Select +1
+716000  snapshot entire_walk_up_14
+717000  encoder Select +1
+717250  snapshot entire_walk_up_15
+718250  encoder Select +1
+718500  snapshot entire_walk_up_16
+719500  encoder Select +1
+719750  snapshot entire_walk_up_17
+720750  encoder Select +1
+721000  snapshot entire_walk_up_18
+722000  encoder Select +1
+722250  snapshot entire_walk_up_19
+723250  encoder Select +1
+723500  snapshot entire_walk_up_20
+724500  encoder Select +1
+724750  snapshot entire_walk_up_21
+725750  encoder Select +1
+726000  snapshot entire_walk_up_22
+727000  encoder Select +1
+727250  snapshot entire_walk_up_23
+728250  encoder Select +1
+728500  snapshot entire_walk_up_24
+729500  encoder Select +1
+729750  snapshot entire_walk_up_25
+730750  encoder Select +1
+731000  snapshot entire_walk_up_26
+732000  encoder Select +1
+732250  snapshot entire_walk_up_27
+733250  encoder Select +1
+733500  snapshot entire_walk_up_28
+734500  encoder Select +1
+734750  snapshot entire_walk_up_29
+735750  encoder Select +1
+736000  snapshot entire_walk_up_30
+737000  encoder Select +1
+737250  snapshot entire_walk_up_31
+738250  encoder Select +1
+738500  snapshot entire_walk_up_32
+739500  encoder Select +1
+739750  snapshot entire_walk_up_33
+740750  encoder Select +1
+741000  snapshot entire_walk_up_34
+742000  encoder Select +1
+742250  snapshot entire_walk_up_35
+743250  encoder Select +1
+743500  snapshot entire_walk_up_36
+744500  encoder Select +1
+744750  snapshot entire_walk_up_37
+745750  encoder Select +1
+746000  snapshot entire_walk_up_38
+747000  encoder Select +1
+747250  snapshot entire_walk_up_39
+748250  encoder Select +1
+748500  snapshot entire_walk_up_40
+749500  encoder Select +1
+749750  snapshot entire_walk_up_41
+750750  encoder Select +1
+751000  snapshot entire_walk_up_42
+752000  encoder Select +1
+752250  snapshot entire_walk_up_43
+753250  encoder Select +1
+753500  snapshot entire_walk_up_44
+754500  button Clip down
+754620  button Clip up
+754870  button Session down
+754990  button Session up
+# the arranger: its automation view is the song's
+756240  button Session down
+756360  button Session up
+757610  button Clip down
+757730  button Clip up
+757980  snapshot song_overview
+758980  pad 0 0 down
+759100  pad 0 0 up
+759350  snapshot song_0_0
+760350  button Shift down
+760600  button Clip down
+760720  button Clip up
+760970  button Shift up
+761220  pad 0 1 down
+761340  pad 0 1 up
+761590  snapshot song_0_1
+762590  button Shift down
+762840  button Clip down
+762960  button Clip up
+763210  button Shift up
+763460  pad 0 2 down
+763580  pad 0 2 up
+763830  snapshot song_0_2
+764830  button Shift down
+765080  button Clip down
+765200  button Clip up
+765450  button Shift up
+765700  pad 0 3 down
+765820  pad 0 3 up
+766070  snapshot song_0_3
+767070  button Shift down
+767320  button Clip down
+767440  button Clip up
+767690  button Shift up
+767940  pad 0 4 down
+768060  pad 0 4 up
+768310  snapshot song_0_4
+769310  button Shift down
+769560  button Clip down
+769680  button Clip up
+769930  button Shift up
+770180  pad 0 5 down
+770300  pad 0 5 up
+770550  snapshot song_0_5
+771550  button Shift down
+771800  button Clip down
+771920  button Clip up
+772170  button Shift up
+772420  pad 0 6 down
+772540  pad 0 6 up
+772790  snapshot song_0_6
+773790  button Shift down
+774040  button Clip down
+774160  button Clip up
+774410  button Shift up
+774660  pad 0 7 down
+774780  pad 0 7 up
+775030  snapshot song_0_7
+776030  button Shift down
+776280  button Clip down
+776400  button Clip up
+776650  button Shift up
+776900  pad 1 0 down
+777020  pad 1 0 up
+777270  snapshot song_1_0
+778270  button Shift down
+778520  button Clip down
+778640  button Clip up
+778890  button Shift up
+779140  pad 1 1 down
+779260  pad 1 1 up
+779510  snapshot song_1_1
+780510  button Shift down
+780760  button Clip down
+780880  button Clip up
+781130  button Shift up
+781380  pad 1 2 down
+781500  pad 1 2 up
+781750  snapshot song_1_2
+782750  button Shift down
+783000  button Clip down
+783120  button Clip up
+783370  button Shift up
+783620  pad 1 3 down
+783740  pad 1 3 up
+783990  snapshot song_1_3
+784990  button Shift down
+785240  button Clip down
+785360  button Clip up
+785610  button Shift up
+785860  pad 1 4 down
+785980  pad 1 4 up
+786230  snapshot song_1_4
+787230  button Shift down
+787480  button Clip down
+787600  button Clip up
+787850  button Shift up
+788100  pad 1 5 down
+788220  pad 1 5 up
+788470  snapshot song_1_5
+789470  button Shift down
+789720  button Clip down
+789840  button Clip up
+790090  button Shift up
+790340  pad 1 6 down
+790460  pad 1 6 up
+790710  snapshot song_1_6
+791710  button Shift down
+791960  button Clip down
+792080  button Clip up
+792330  button Shift up
+792580  pad 1 7 down
+792700  pad 1 7 up
+792950  snapshot song_1_7
+793950  button Shift down
+794200  button Clip down
+794320  button Clip up
+794570  button Shift up
+794820  pad 2 0 down
+794940  pad 2 0 up
+795190  snapshot song_2_0
+796190  button Shift down
+796440  button Clip down
+796560  button Clip up
+796810  button Shift up
+797060  pad 2 1 down
+797180  pad 2 1 up
+797430  snapshot song_2_1
+798430  button Shift down
+798680  button Clip down
+798800  button Clip up
+799050  button Shift up
+799300  pad 2 2 down
+799420  pad 2 2 up
+799670  snapshot song_2_2
+800670  button Shift down
+800920  button Clip down
+801040  button Clip up
+801290  button Shift up
+801540  pad 2 3 down
+801660  pad 2 3 up
+801910  snapshot song_2_3
+802910  button Shift down
+803160  button Clip down
+803280  button Clip up
+803530  button Shift up
+803780  pad 2 4 down
+803900  pad 2 4 up
+804150  snapshot song_2_4
+805150  button Shift down
+805400  button Clip down
+805520  button Clip up
+805770  button Shift up
+806020  pad 2 5 down
+806140  pad 2 5 up
+806390  snapshot song_2_5
+807390  button Shift down
+807640  button Clip down
+807760  button Clip up
+808010  button Shift up
+808260  pad 2 6 down
+808380  pad 2 6 up
+808630  snapshot song_2_6
+809630  button Shift down
+809880  button Clip down
+810000  button Clip up
+810250  button Shift up
+810500  pad 2 7 down
+810620  pad 2 7 up
+810870  snapshot song_2_7
+811870  button Shift down
+812120  button Clip down
+812240  button Clip up
+812490  button Shift up
+812740  pad 3 0 down
+812860  pad 3 0 up
+813110  snapshot song_3_0
+814110  button Shift down
+814360  button Clip down
+814480  button Clip up
+814730  button Shift up
+814980  pad 3 1 down
+815100  pad 3 1 up
+815350  snapshot song_3_1
+816350  button Shift down
+816600  button Clip down
+816720  button Clip up
+816970  button Shift up
+817220  pad 3 2 down
+817340  pad 3 2 up
+817590  snapshot song_3_2
+818590  button Shift down
+818840  button Clip down
+818960  button Clip up
+819210  button Shift up
+819460  pad 3 3 down
+819580  pad 3 3 up
+819830  snapshot song_3_3
+820830  button Shift down
+821080  button Clip down
+821200  button Clip up
+821450  button Shift up
+821700  pad 3 4 down
+821820  pad 3 4 up
+822070  snapshot song_3_4
+823070  button Shift down
+823320  button Clip down
+823440  button Clip up
+823690  button Shift up
+823940  pad 3 5 down
+824060  pad 3 5 up
+824310  snapshot song_3_5
+825310  button Shift down
+825560  button Clip down
+825680  button Clip up
+825930  button Shift up
+826180  pad 3 6 down
+826300  pad 3 6 up
+826550  snapshot song_3_6
+827550  button Shift down
+827800  button Clip down
+827920  button Clip up
+828170  button Shift up
+828420  pad 3 7 down
+828540  pad 3 7 up
+828790  snapshot song_3_7
+829790  button Shift down
+830040  button Clip down
+830160  button Clip up
+830410  button Shift up
+830660  pad 4 0 down
+830780  pad 4 0 up
+831030  snapshot song_4_0
+832030  button Shift down
+832280  button Clip down
+832400  button Clip up
+832650  button Shift up
+832900  pad 4 1 down
+833020  pad 4 1 up
+833270  snapshot song_4_1
+834270  button Shift down
+834520  button Clip down
+834640  button Clip up
+834890  button Shift up
+835140  pad 4 2 down
+835260  pad 4 2 up
+835510  snapshot song_4_2
+836510  button Shift down
+836760  button Clip down
+836880  button Clip up
+837130  button Shift up
+837380  pad 4 3 down
+837500  pad 4 3 up
+837750  snapshot song_4_3
+838750  button Shift down
+839000  button Clip down
+839120  button Clip up
+839370  button Shift up
+839620  pad 4 4 down
+839740  pad 4 4 up
+839990  snapshot song_4_4
+840990  button Shift down
+841240  button Clip down
+841360  button Clip up
+841610  button Shift up
+841860  pad 4 5 down
+841980  pad 4 5 up
+842230  snapshot song_4_5
+843230  button Shift down
+843480  button Clip down
+843600  button Clip up
+843850  button Shift up
+844100  pad 4 6 down
+844220  pad 4 6 up
+844470  snapshot song_4_6
+845470  button Shift down
+845720  button Clip down
+845840  button Clip up
+846090  button Shift up
+846340  pad 4 7 down
+846460  pad 4 7 up
+846710  snapshot song_4_7
+847710  button Shift down
+847960  button Clip down
+848080  button Clip up
+848330  button Shift up
+848580  pad 5 0 down
+848700  pad 5 0 up
+848950  snapshot song_5_0
+849950  button Shift down
+850200  button Clip down
+850320  button Clip up
+850570  button Shift up
+850820  pad 5 1 down
+850940  pad 5 1 up
+851190  snapshot song_5_1
+852190  button Shift down
+852440  button Clip down
+852560  button Clip up
+852810  button Shift up
+853060  pad 5 2 down
+853180  pad 5 2 up
+853430  snapshot song_5_2
+854430  button Shift down
+854680  button Clip down
+854800  button Clip up
+855050  button Shift up
+855300  pad 5 3 down
+855420  pad 5 3 up
+855670  snapshot song_5_3
+856670  button Shift down
+856920  button Clip down
+857040  button Clip up
+857290  button Shift up
+857540  pad 5 4 down
+857660  pad 5 4 up
+857910  snapshot song_5_4
+858910  button Shift down
+859160  button Clip down
+859280  button Clip up
+859530  button Shift up
+859780  pad 5 5 down
+859900  pad 5 5 up
+860150  snapshot song_5_5
+861150  button Shift down
+861400  button Clip down
+861520  button Clip up
+861770  button Shift up
+862020  pad 5 6 down
+862140  pad 5 6 up
+862390  snapshot song_5_6
+863390  button Shift down
+863640  button Clip down
+863760  button Clip up
+864010  button Shift up
+864260  pad 5 7 down
+864380  pad 5 7 up
+864630  snapshot song_5_7
+865630  button Shift down
+865880  button Clip down
+866000  button Clip up
+866250  button Shift up
+866500  pad 6 0 down
+866620  pad 6 0 up
+866870  snapshot song_6_0
+867870  button Shift down
+868120  button Clip down
+868240  button Clip up
+868490  button Shift up
+868740  pad 6 1 down
+868860  pad 6 1 up
+869110  snapshot song_6_1
+870110  button Shift down
+870360  button Clip down
+870480  button Clip up
+870730  button Shift up
+870980  pad 6 2 down
+871100  pad 6 2 up
+871350  snapshot song_6_2
+872350  button Shift down
+872600  button Clip down
+872720  button Clip up
+872970  button Shift up
+873220  pad 6 3 down
+873340  pad 6 3 up
+873590  snapshot song_6_3
+874590  button Shift down
+874840  button Clip down
+874960  button Clip up
+875210  button Shift up
+875460  pad 6 4 down
+875580  pad 6 4 up
+875830  snapshot song_6_4
+876830  button Shift down
+877080  button Clip down
+877200  button Clip up
+877450  button Shift up
+877700  pad 6 5 down
+877820  pad 6 5 up
+878070  snapshot song_6_5
+879070  button Shift down
+879320  button Clip down
+879440  button Clip up
+879690  button Shift up
+879940  pad 6 6 down
+880060  pad 6 6 up
+880310  snapshot song_6_6
+881310  button Shift down
+881560  button Clip down
+881680  button Clip up
+881930  button Shift up
+882180  pad 6 7 down
+882300  pad 6 7 up
+882550  snapshot song_6_7
+883550  button Shift down
+883800  button Clip down
+883920  button Clip up
+884170  button Shift up
+884420  pad 7 0 down
+884540  pad 7 0 up
+884790  snapshot song_7_0
+885790  button Shift down
+886040  button Clip down
+886160  button Clip up
+886410  button Shift up
+886660  pad 7 1 down
+886780  pad 7 1 up
+887030  snapshot song_7_1
+888030  button Shift down
+888280  button Clip down
+888400  button Clip up
+888650  button Shift up
+888900  pad 7 2 down
+889020  pad 7 2 up
+889270  snapshot song_7_2
+890270  button Shift down
+890520  button Clip down
+890640  button Clip up
+890890  button Shift up
+891140  pad 7 3 down
+891260  pad 7 3 up
+891510  snapshot song_7_3
+892510  button Shift down
+892760  button Clip down
+892880  button Clip up
+893130  button Shift up
+893380  pad 7 4 down
+893500  pad 7 4 up
+893750  snapshot song_7_4
+894750  button Shift down
+895000  button Clip down
+895120  button Clip up
+895370  button Shift up
+895620  pad 7 5 down
+895740  pad 7 5 up
+895990  snapshot song_7_5
+896990  button Shift down
+897240  button Clip down
+897360  button Clip up
+897610  button Shift up
+897860  pad 7 6 down
+897980  pad 7 6 up
+898230  snapshot song_7_6
+899230  button Shift down
+899480  button Clip down
+899600  button Clip up
+899850  button Shift up
+900100  pad 7 7 down
+900220  pad 7 7 up
+900470  snapshot song_7_7
+901470  button Shift down
+901720  button Clip down
+901840  button Clip up
+902090  button Shift up
+902340  pad 8 0 down
+902460  pad 8 0 up
+902710  snapshot song_8_0
+903710  button Shift down
+903960  button Clip down
+904080  button Clip up
+904330  button Shift up
+904580  pad 8 1 down
+904700  pad 8 1 up
+904950  snapshot song_8_1
+905950  button Shift down
+906200  button Clip down
+906320  button Clip up
+906570  button Shift up
+906820  pad 8 2 down
+906940  pad 8 2 up
+907190  snapshot song_8_2
+908190  button Shift down
+908440  button Clip down
+908560  button Clip up
+908810  button Shift up
+909060  pad 8 3 down
+909180  pad 8 3 up
+909430  snapshot song_8_3
+910430  button Shift down
+910680  button Clip down
+910800  button Clip up
+911050  button Shift up
+911300  pad 8 4 down
+911420  pad 8 4 up
+911670  snapshot song_8_4
+912670  button Shift down
+912920  button Clip down
+913040  button Clip up
+913290  button Shift up
+913540  pad 8 5 down
+913660  pad 8 5 up
+913910  snapshot song_8_5
+914910  button Shift down
+915160  button Clip down
+915280  button Clip up
+915530  button Shift up
+915780  pad 8 6 down
+915900  pad 8 6 up
+916150  snapshot song_8_6
+917150  button Shift down
+917400  button Clip down
+917520  button Clip up
+917770  button Shift up
+918020  pad 8 7 down
+918140  pad 8 7 up
+918390  snapshot song_8_7
+919390  button Shift down
+919640  button Clip down
+919760  button Clip up
+920010  button Shift up
+920260  pad 9 0 down
+920380  pad 9 0 up
+920630  snapshot song_9_0
+921630  button Shift down
+921880  button Clip down
+922000  button Clip up
+922250  button Shift up
+922500  pad 9 1 down
+922620  pad 9 1 up
+922870  snapshot song_9_1
+923870  button Shift down
+924120  button Clip down
+924240  button Clip up
+924490  button Shift up
+924740  pad 9 2 down
+924860  pad 9 2 up
+925110  snapshot song_9_2
+926110  button Shift down
+926360  button Clip down
+926480  button Clip up
+926730  button Shift up
+926980  pad 9 3 down
+927100  pad 9 3 up
+927350  snapshot song_9_3
+928350  button Shift down
+928600  button Clip down
+928720  button Clip up
+928970  button Shift up
+929220  pad 9 4 down
+929340  pad 9 4 up
+929590  snapshot song_9_4
+930590  button Shift down
+930840  button Clip down
+930960  button Clip up
+931210  button Shift up
+931460  pad 9 5 down
+931580  pad 9 5 up
+931830  snapshot song_9_5
+932830  button Shift down
+933080  button Clip down
+933200  button Clip up
+933450  button Shift up
+933700  pad 9 6 down
+933820  pad 9 6 up
+934070  snapshot song_9_6
+935070  button Shift down
+935320  button Clip down
+935440  button Clip up
+935690  button Shift up
+935940  pad 9 7 down
+936060  pad 9 7 up
+936310  snapshot song_9_7
+937310  button Shift down
+937560  button Clip down
+937680  button Clip up
+937930  button Shift up
+938180  pad 10 0 down
+938300  pad 10 0 up
+938550  snapshot song_10_0
+939550  button Shift down
+939800  button Clip down
+939920  button Clip up
+940170  button Shift up
+940420  pad 10 1 down
+940540  pad 10 1 up
+940790  snapshot song_10_1
+941790  button Shift down
+942040  button Clip down
+942160  button Clip up
+942410  button Shift up
+942660  pad 10 2 down
+942780  pad 10 2 up
+943030  snapshot song_10_2
+944030  button Shift down
+944280  button Clip down
+944400  button Clip up
+944650  button Shift up
+944900  pad 10 3 down
+945020  pad 10 3 up
+945270  snapshot song_10_3
+946270  button Shift down
+946520  button Clip down
+946640  button Clip up
+946890  button Shift up
+947140  pad 10 4 down
+947260  pad 10 4 up
+947510  snapshot song_10_4
+948510  button Shift down
+948760  button Clip down
+948880  button Clip up
+949130  button Shift up
+949380  pad 10 5 down
+949500  pad 10 5 up
+949750  snapshot song_10_5
+950750  button Shift down
+951000  button Clip down
+951120  button Clip up
+951370  button Shift up
+951620  pad 10 6 down
+951740  pad 10 6 up
+951990  snapshot song_10_6
+952990  button Shift down
+953240  button Clip down
+953360  button Clip up
+953610  button Shift up
+953860  pad 10 7 down
+953980  pad 10 7 up
+954230  snapshot song_10_7
+955230  button Shift down
+955480  button Clip down
+955600  button Clip up
+955850  button Shift up
+956100  pad 11 0 down
+956220  pad 11 0 up
+956470  snapshot song_11_0
+957470  button Shift down
+957720  button Clip down
+957840  button Clip up
+958090  button Shift up
+958340  pad 11 1 down
+958460  pad 11 1 up
+958710  snapshot song_11_1
+959710  button Shift down
+959960  button Clip down
+960080  button Clip up
+960330  button Shift up
+960580  pad 11 2 down
+960700  pad 11 2 up
+960950  snapshot song_11_2
+961950  button Shift down
+962200  button Clip down
+962320  button Clip up
+962570  button Shift up
+962820  pad 11 3 down
+962940  pad 11 3 up
+963190  snapshot song_11_3
+964190  button Shift down
+964440  button Clip down
+964560  button Clip up
+964810  button Shift up
+965060  pad 11 4 down
+965180  pad 11 4 up
+965430  snapshot song_11_4
+966430  button Shift down
+966680  button Clip down
+966800  button Clip up
+967050  button Shift up
+967300  pad 11 5 down
+967420  pad 11 5 up
+967670  snapshot song_11_5
+968670  button Shift down
+968920  button Clip down
+969040  button Clip up
+969290  button Shift up
+969540  pad 11 6 down
+969660  pad 11 6 up
+969910  snapshot song_11_6
+970910  button Shift down
+971160  button Clip down
+971280  button Clip up
+971530  button Shift up
+971780  pad 11 7 down
+971900  pad 11 7 up
+972150  snapshot song_11_7
+973150  button Shift down
+973400  button Clip down
+973520  button Clip up
+973770  button Shift up
+974020  pad 12 0 down
+974140  pad 12 0 up
+974390  snapshot song_12_0
+975390  button Shift down
+975640  button Clip down
+975760  button Clip up
+976010  button Shift up
+976260  pad 12 1 down
+976380  pad 12 1 up
+976630  snapshot song_12_1
+977630  button Shift down
+977880  button Clip down
+978000  button Clip up
+978250  button Shift up
+978500  pad 12 2 down
+978620  pad 12 2 up
+978870  snapshot song_12_2
+979870  button Shift down
+980120  button Clip down
+980240  button Clip up
+980490  button Shift up
+980740  pad 12 3 down
+980860  pad 12 3 up
+981110  snapshot song_12_3
+982110  button Shift down
+982360  button Clip down
+982480  button Clip up
+982730  button Shift up
+982980  pad 12 4 down
+983100  pad 12 4 up
+983350  snapshot song_12_4
+984350  button Shift down
+984600  button Clip down
+984720  button Clip up
+984970  button Shift up
+985220  pad 12 5 down
+985340  pad 12 5 up
+985590  snapshot song_12_5
+986590  button Shift down
+986840  button Clip down
+986960  button Clip up
+987210  button Shift up
+987460  pad 12 6 down
+987580  pad 12 6 up
+987830  snapshot song_12_6
+988830  button Shift down
+989080  button Clip down
+989200  button Clip up
+989450  button Shift up
+989700  pad 12 7 down
+989820  pad 12 7 up
+990070  snapshot song_12_7
+991070  button Shift down
+991320  button Clip down
+991440  button Clip up
+991690  button Shift up
+991940  pad 13 0 down
+992060  pad 13 0 up
+992310  snapshot song_13_0
+993310  button Shift down
+993560  button Clip down
+993680  button Clip up
+993930  button Shift up
+994180  pad 13 1 down
+994300  pad 13 1 up
+994550  snapshot song_13_1
+995550  button Shift down
+995800  button Clip down
+995920  button Clip up
+996170  button Shift up
+996420  pad 13 2 down
+996540  pad 13 2 up
+996790  snapshot song_13_2
+997790  button Shift down
+998040  button Clip down
+998160  button Clip up
+998410  button Shift up
+998660  pad 13 3 down
+998780  pad 13 3 up
+999030  snapshot song_13_3
+1000030 button Shift down
+1000280 button Clip down
+1000400 button Clip up
+1000650 button Shift up
+1000900 pad 13 4 down
+1001020 pad 13 4 up
+1001270 snapshot song_13_4
+1002270 button Shift down
+1002520 button Clip down
+1002640 button Clip up
+1002890 button Shift up
+1003140 pad 13 5 down
+1003260 pad 13 5 up
+1003510 snapshot song_13_5
+1004510 button Shift down
+1004760 button Clip down
+1004880 button Clip up
+1005130 button Shift up
+1005380 pad 13 6 down
+1005500 pad 13 6 up
+1005750 snapshot song_13_6
+1006750 button Shift down
+1007000 button Clip down
+1007120 button Clip up
+1007370 button Shift up
+1007620 pad 13 7 down
+1007740 pad 13 7 up
+1007990 snapshot song_13_7
+1008990 button Shift down
+1009240 button Clip down
+1009360 button Clip up
+1009610 button Shift up
+1009860 pad 14 0 down
+1009980 pad 14 0 up
+1010230 snapshot song_14_0
+1011230 button Shift down
+1011480 button Clip down
+1011600 button Clip up
+1011850 button Shift up
+1012100 pad 14 1 down
+1012220 pad 14 1 up
+1012470 snapshot song_14_1
+1013470 button Shift down
+1013720 button Clip down
+1013840 button Clip up
+1014090 button Shift up
+1014340 pad 14 2 down
+1014460 pad 14 2 up
+1014710 snapshot song_14_2
+1015710 button Shift down
+1015960 button Clip down
+1016080 button Clip up
+1016330 button Shift up
+1016580 pad 14 3 down
+1016700 pad 14 3 up
+1016950 snapshot song_14_3
+1017950 button Shift down
+1018200 button Clip down
+1018320 button Clip up
+1018570 button Shift up
+1018820 pad 14 4 down
+1018940 pad 14 4 up
+1019190 snapshot song_14_4
+1020190 button Shift down
+1020440 button Clip down
+1020560 button Clip up
+1020810 button Shift up
+1021060 pad 14 5 down
+1021180 pad 14 5 up
+1021430 snapshot song_14_5
+1022430 button Shift down
+1022680 button Clip down
+1022800 button Clip up
+1023050 button Shift up
+1023300 pad 14 6 down
+1023420 pad 14 6 up
+1023670 snapshot song_14_6
+1024670 button Shift down
+1024920 button Clip down
+1025040 button Clip up
+1025290 button Shift up
+1025540 pad 14 7 down
+1025660 pad 14 7 up
+1025910 snapshot song_14_7
+1026910 button Shift down
+1027160 button Clip down
+1027280 button Clip up
+1027530 button Shift up
+1027780 pad 15 0 down
+1027900 pad 15 0 up
+1028150 snapshot song_15_0
+1029150 button Shift down
+1029400 button Clip down
+1029520 button Clip up
+1029770 button Shift up
+1030020 pad 15 1 down
+1030140 pad 15 1 up
+1030390 snapshot song_15_1
+1031390 button Shift down
+1031640 button Clip down
+1031760 button Clip up
+1032010 button Shift up
+1032260 pad 15 2 down
+1032380 pad 15 2 up
+1032630 snapshot song_15_2
+1033630 button Shift down
+1033880 button Clip down
+1034000 button Clip up
+1034250 button Shift up
+1034500 pad 15 3 down
+1034620 pad 15 3 up
+1034870 snapshot song_15_3
+1035870 button Shift down
+1036120 button Clip down
+1036240 button Clip up
+1036490 button Shift up
+1036740 pad 15 4 down
+1036860 pad 15 4 up
+1037110 snapshot song_15_4
+1038110 button Shift down
+1038360 button Clip down
+1038480 button Clip up
+1038730 button Shift up
+1038980 pad 15 5 down
+1039100 pad 15 5 up
+1039350 snapshot song_15_5
+1040350 button Shift down
+1040600 button Clip down
+1040720 button Clip up
+1040970 button Shift up
+1041220 pad 15 6 down
+1041340 pad 15 6 up
+1041590 snapshot song_15_6
+1042590 button Shift down
+1042840 button Clip down
+1042960 button Clip up
+1043210 button Shift up
+1043460 pad 15 7 down
+1043580 pad 15 7 up
+1043830 snapshot song_15_7
+1044830 button Shift down
+1045080 button Clip down
+1045200 button Clip up
+1045450 button Shift up
+1045700 pad 8 7 down
+1045820 pad 8 7 up
+1046070 encoder Select +1
+1046320 snapshot song_walk_up_0
+1047320 encoder Select +1
+1047570 snapshot song_walk_up_1
+1048570 encoder Select +1
+1048820 snapshot song_walk_up_2
+1049820 encoder Select +1
+1050070 snapshot song_walk_up_3
+1051070 encoder Select +1
+1051320 snapshot song_walk_up_4
+1052320 encoder Select +1
+1052570 snapshot song_walk_up_5
+1053570 encoder Select +1
+1053820 snapshot song_walk_up_6
+1054820 encoder Select +1
+1055070 snapshot song_walk_up_7
+1056070 encoder Select +1
+1056320 snapshot song_walk_up_8
+1057320 encoder Select +1
+1057570 snapshot song_walk_up_9
+1058570 encoder Select +1
+1058820 snapshot song_walk_up_10
+1059820 encoder Select +1
+1060070 snapshot song_walk_up_11
+1061070 encoder Select +1
+1061320 snapshot song_walk_up_12
+1062320 encoder Select +1
+1062570 snapshot song_walk_up_13
+1063570 encoder Select +1
+1063820 snapshot song_walk_up_14
+1064820 encoder Select +1
+1065070 snapshot song_walk_up_15
+1066070 encoder Select +1
+1066320 snapshot song_walk_up_16
+1067320 encoder Select +1
+1067570 snapshot song_walk_up_17
+1068570 encoder Select +1
+1068820 snapshot song_walk_up_18
+1069820 encoder Select +1
+1070070 snapshot song_walk_up_19
+1071070 encoder Select +1
+1071320 snapshot song_walk_up_20
+1072320 encoder Select +1
+1072570 snapshot song_walk_up_21
+1073570 encoder Select +1
+1073820 snapshot song_walk_up_22
+1074820 encoder Select +1
+1075070 snapshot song_walk_up_23
+1076070 encoder Select +1
+1076320 snapshot song_walk_up_24
+1077320 encoder Select +1
+1077570 snapshot song_walk_up_25
+1078570 encoder Select +1
+1078820 snapshot song_walk_up_26
+1079820 encoder Select +1
+1080070 snapshot song_walk_up_27
+1081070 encoder Select +1
+1081320 snapshot song_walk_up_28
+1082320 encoder Select +1
+1082570 snapshot song_walk_up_29
+1083570 encoder Select +1
+1083820 snapshot song_walk_up_30
+1084820 encoder Select +1
+1085070 snapshot song_walk_up_31
+1086070 encoder Select +1
+1086320 snapshot song_walk_up_32
+1087320 encoder Select +1
+1087570 snapshot song_walk_up_33
+1088570 encoder Select +1
+1088820 snapshot song_walk_up_34
+1089820 encoder Select +1
+1090070 snapshot song_walk_up_35
+1091070 encoder Select +1
+1091320 snapshot song_walk_up_36
+1092320 encoder Select +1
+1092570 snapshot song_walk_up_37
+1093570 encoder Select +1
+1093820 snapshot song_walk_up_38
+1094820 encoder Select +1
+1095070 snapshot song_walk_up_39
+1096070 encoder Select +1
+1096320 snapshot song_walk_up_40
+1097320 encoder Select +1
+1097570 snapshot song_walk_up_41
+1098570 encoder Select +1
+1098820 snapshot song_walk_up_42
+1099820 encoder Select +1
+1100070 snapshot song_walk_up_43
+1101070 encoder Select +1
+1101320 snapshot song_walk_up_44
+1102320 quit

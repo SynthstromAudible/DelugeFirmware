@@ -1,4 +1,5 @@
 # The sample marker editor's mute column: with a marker held it does not exit (main's UI-mode gate); released, it does.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

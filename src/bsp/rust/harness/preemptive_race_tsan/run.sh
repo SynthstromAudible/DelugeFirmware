@@ -56,6 +56,10 @@
 # ~2.5GB-sparse image and every later run with the same corpus reuses it (and skips mtools
 # entirely). Each run mounts its own unlinked sparse copy (`sd_image_path::private_copy`), so
 # what one run records never reaches the next run's card, and nothing is left to clean up.
+#
+# Gate preemptive-race-tsan:
+#     every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in
+#     races.txt (the second invariant's inventory); an uncatalogued site fails
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

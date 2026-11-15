@@ -39,7 +39,7 @@
 #include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 // The two file-scope globals `readFileItemsForFolder` sets and `getNewFileItem`/`cullSomeFileItems`
 // read (`maxNumFileItemsNow` and `catalogSearchDirection` in `storage/file_catalogue.cpp`). They
@@ -243,7 +243,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 		FileCatalogue::currentDir = "NO_SUCH_FOLDER";
 		Error error = browser.readFileItemsForFolder(nullptr, /*allowFolders=*/true, allowedFileExtensionsXML, "",
 		                                             FILE_ITEMS_MAX_NUM_ELEMENTS);
-		expect(static_cast<int32_t>(error) != static_cast<int32_t>(Error::NONE)).to_be_true();
+		expect(static_cast<int32_t>(error)).not_().to_equal(static_cast<int32_t>(Error::NONE));
 		expect(static_cast<int32_t>(FileCatalogue::fileItems.size())).to_equal(0);
 	});
 
@@ -538,8 +538,8 @@ describe file_catalogue("the browser's file catalogue", $ {
 		const std::vector<std::string> sorted = thirty();
 		read_in_order(thirty_in_card_order(), "N15.WAV", CATALOG_SEARCH_BOTH);
 		expect(window_is_contiguous(sorted)).to_be_true();
-		expect(FileCatalogue::searchFileItems("N15.WAV") < static_cast<int32_t>(FileCatalogue::fileItems.size()))
-		    .to_be_true();
+		expect(FileCatalogue::searchFileItems("N15.WAV"))
+		    .to_be_less_than(static_cast<int32_t>(FileCatalogue::fileItems.size()));
 	});
 
 	it("reaches every file of a folder of more than one window, one turn at a time across its reloads", _ {
@@ -567,7 +567,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 			visited.push_back(current);
 		}
 		FileCatalogue::filenameToStartSearchAt = nullptr;
-		expect(visited == sorted).to_be_true();
+		expect(visited).to_equal(sorted);
 	});
 
 	it("reaches every file from the folder's end, one turn back at a time across its reloads", _ {
@@ -578,7 +578,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 		// keeping what sorts before it, so the window is the folder's last files.
 		read_in_order(order, nullptr, CATALOG_SEARCH_LEFT);
 		expect(FileCatalogue::fileItems.back().displayName()).to_equal(sorted.back());
-		expect(FileCatalogue::numFileItemsDeletedAtStart != 0).to_be_true();
+		expect(FileCatalogue::numFileItemsDeletedAtStart).not_().to_equal(0);
 		std::vector<std::string> visited{FileCatalogue::fileItems.back().displayName()};
 		std::string current = visited.back();
 		std::string centre; // outlives each reload's read, which keeps a pointer to it
@@ -597,7 +597,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 			visited.push_back(current);
 		}
 		FileCatalogue::filenameToStartSearchAt = nullptr;
-		expect(std::vector<std::string>(visited.rbegin(), visited.rend()) == sorted).to_be_true();
+		expect(std::vector<std::string>(visited.rbegin(), visited.rend())).to_equal(sorted);
 	});
 
 	it("survives a cull whose deletions would reallocate the vector out from under a name", _ {
@@ -655,19 +655,19 @@ describe file_catalogue("the browser's file catalogue", $ {
 		const int b = 0;
 
 		expect(deluge::storage::FileCatalogue::claim(&a)).to_be_true();
-		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant()).to_equal(&a);
 		// A second claim from anyone -- including `a` itself -- fails, with no partial claim.
 		expect(deluge::storage::FileCatalogue::claim(&b)).to_be_false();
 		expect(deluge::storage::FileCatalogue::claim(&a)).to_be_false();
-		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant()).to_equal(&a);
 
 		// A non-claimant's release is a no-op, which is what lets a caller release
 		// unconditionally without first working out whether it was holding anything.
 		deluge::storage::FileCatalogue::release(&b);
-		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant()).to_equal(&a);
 
 		deluge::storage::FileCatalogue::release(&a);
-		expect(deluge::storage::FileCatalogue::claimant() == nullptr).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant()).to_be_null();
 		expect(deluge::storage::FileCatalogue::claim(&b)).to_be_true();
 		deluge::storage::FileCatalogue::release(&b);
 	});

@@ -1,6 +1,7 @@
 # Every DX7 parameter page layout, reached from "DX7 parameters" on a new FM synth through oscillator 1's type (DX7):
 # the global rows, operator 1's rows, the scaling and envelope steps, the horizontal wrap, Shift+horizontal to the
 # next operator, the list's remembered cursor and the engine version's three values (no wrap).
+# card: content/dx-bare.img
 100   snapshot boot
 5000  button Mod6 down
 5100  button Synth down

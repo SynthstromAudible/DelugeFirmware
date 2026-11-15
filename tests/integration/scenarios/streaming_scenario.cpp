@@ -18,6 +18,7 @@
 #include "scenarios/streaming_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -44,6 +45,8 @@ namespace {
 /// deluge_scenario_song_load_begin_done() below.
 bool g_song_load_begin_finished = false;
 bool g_song_load_begin_result = false;
+/// The song deluge_scenario_begin_song_load() was asked for, which the commit checks the browser landed on.
+std::string g_song_load_path;
 
 } // namespace
 
@@ -53,6 +56,7 @@ bool deluge_scenario_begin_song_load(const char* full_path) {
 	if (currentSong == nullptr) {
 		return false;
 	}
+	g_song_load_path = full_path;
 	currentSong->setSongFullPath(full_path);
 	return openUI(&loadSongUI);
 }
@@ -81,8 +85,15 @@ bool deluge_scenario_song_load_begin_ok() {
 }
 
 bool deluge_scenario_commit_song_load() {
-	// beginLoad() starts the load and returns straight away; the scenario then polls
-	// deluge_scenario_song_load_in_progress() as it did before.
+	// A song that is not on the card leaves the browser on its nearest neighbour, and loading that would stand
+	// another song in for the one asked for.
+	const FileItem* item = Browser::getCurrentFileItem();
+	if (item == nullptr || item->isFolder
+	    || strcasecmp((Browser::currentDir + "/" + item->getFilenameWithExtension()).c_str(), g_song_load_path.c_str())
+	           != 0) {
+		return false;
+	}
+	// beginLoad() starts the load and returns straight away; the caller polls deluge_scenario_song_load_in_progress().
 	loadSongUI.beginLoad();
 	return true;
 }

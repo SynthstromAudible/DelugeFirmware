@@ -1,48 +1,44 @@
-#include "hid/display/display.h"
-#include "hid/display/oled.h"
-#include "util/misc.h"
+#include "mock_display.h"
+
 #include <iostream>
 
-class MockDisplay : public deluge::hid::Display {
+namespace deluge::test {
+Error lastDisplayedError = Error::NONE;
+} // namespace deluge::test
+
+namespace {
+
+/// Shows nothing; records the last error and prints a freeze's message. Every other call is a no-op.
+class TestDisplay final : public deluge::hid::Display {
 public:
-	MockDisplay() = default;
+	constexpr size_t getNumBrowserAndMenuLines() override { return 0; }
 
-	~MockDisplay() = default;
+	using Display::displayPopup;
+	void displayPopup(char const* /*newText*/, int8_t /*numFlashes*/, bool /*alignRight*/, uint8_t /*drawDot*/,
+	                  int32_t /*blinkSpeed*/, PopupType /*type*/) override {}
 
-	constexpr size_t getNumBrowserAndMenuLines() { return 0; };
+	void popupText(char const* /*text*/, PopupType /*type*/) override {}
+	void popupTextTemporary(char const* /*text*/, PopupType /*type*/) override {}
 
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t = 255, int32_t = 1,
-	                  PopupType type = PopupType::GENERAL) {};
+	void cancelPopup() override {}
+	void freezeWithError(char const* text) override { std::cout << text << std::endl; }
+	void displayError(Error error) override { deluge::test::lastDisplayedError = error; }
 
-	void popupText(char const* text, PopupType type = PopupType::GENERAL) {};
-	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) {};
+	void removeWorkingAnimation() override {}
 
-	void cancelPopup() {};
-	void freezeWithError(char const* text) { std::cout << text << std::endl; };
-	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; };
+	void displayLoadingAnimationText(char const* /*text*/, bool /*delayed*/, bool /*transparent*/) override {}
+	void removeLoadingAnimation() override {}
 
-	void removeWorkingAnimation() {};
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType /*type*/) override { return false; }
 
-	// Loading animations
-	void displayLoadingAnimation() {};
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) {};
-	void removeLoadingAnimation() {};
+	void consoleText(char const* /*text*/) override {}
 
-	bool hasPopup() { return false; };
-	bool hasPopupOfType(PopupType type) { return false; };
-
-	void consoleText(char const* text) {};
-
-	void timerRoutine() {};
+	void timerRoutine() override {}
 };
 
-extern "C" void freezeWithError(char const* error) {
-	display->freezeWithError(error);
-}
+TestDisplay testDisplay;
 
-extern "C" void displayPopup(char const* text) {
-	display->displayPopup(text);
-}
+} // namespace
 
-MockDisplay mockdisplay;
-deluge::hid::Display* display = &mockdisplay;
+deluge::hid::Display* display = &testDisplay;

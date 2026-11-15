@@ -1,4 +1,6 @@
 # The view buttons from the boot clip view.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Session down
 320   button Session up

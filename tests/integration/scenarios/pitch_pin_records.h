@@ -22,6 +22,9 @@
 
 /// @file
 /// @brief The pitch each pinned sample's detection finds: PitchScan::result() by its bits.
+///
+/// `./dbt test --update load-policy` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 namespace pitch_pin_records {
 
 /// @brief One sample's recorded detection.
@@ -31,10 +34,14 @@ struct Record {
 };
 
 inline constexpr std::array<Record, 4> kRecords{{
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kRecords
     {"SINE55.WAV", 0x425BDEBFU},
     {"SINE440.WAV", 0x43DBE84AU},
     {"SINE1760.WAV", 0x44DBFBECU},
     {"PARTIALS.WAV", 0x4343E5B1U},
+// GOLDEN-RECORDS END kRecords
+    // clang-format on
 }};
 
 } // namespace pitch_pin_records

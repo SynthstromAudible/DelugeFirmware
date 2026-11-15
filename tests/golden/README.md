@@ -1,96 +1,35 @@
-# Golden harnesses (host)
+# Golden data
 
-## Song serialization round-trip (`songs_run.py`)
+What the tests compare with, one directory per consumer. The corpus runners that read and record part of it are
+in `tests/integration/corpus/` (its README says how they run).
 
-Regression net for the **project-model extraction** (Phase 0 — see
-[docs/dev/project_model_extraction.md](../../docs/dev/project_model_extraction.md)).
-It pins the *serialization behaviour* of `Song` so any accidental change to what
-gets written to disk during the extraction is caught.
+## Layout
 
-### What it checks — the canonical fixed point
+One directory per consumer: what reads it, and which registry entry re-records it (`./dbt test --update <entry>`).
+C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/golden.cmake`), e.g.
+`gfx/oled/icons.pbm`; Python checks by its repository path, and the corpus runners through `driver.GOLDEN`.
 
-`Song::writeToFile` does not reproduce the input byte-for-byte (it upgrades
-legacy → modern format, fills defaults, normalises order). So the invariant is a
-fixed point, not "output == input":
+| Directory | Holds | Read by | Re-recorded by |
+| --- | --- | --- | --- |
+| `gfx/` | the gfx primitives' OLED panels (`oled/`) and grid states (`grid/`) | the gfx specs | `unit` |
+| `shell/` | the shell's popup and overlay panels | the shell specs | `unit` |
+| `ui/widgets/` | the UI widgets' panels and grid states | the ui specs | `unit` |
+| `ui/shell/<script>/` | each level-2 script's snapshots (`tests/ui-scripts/shell/`) | `expect_script_goldens`, in the unit specs and `sim/scenes_spec` | `unit`, `ui-scenes-spec` |
+| `ui/menu/`, `ui/scenes/` | the ported menu's and scenes' panels | `sim/scenes_spec` | `ui-scenes-spec` |
+| `ui/app/<script>/` | each level-3 app script's snapshots (`tests/ui-scripts/app/`) | `tests/integration/checks/ui_scripts.py` | `ui-scripts` |
+| `ui/menu_oracle/` | upstream `main`'s menu answers (below) | `sim/scenes_spec/support/oracle_table.h`, `oracle_files.h` | nothing: rows change by hand to follow `main` |
+| `render/` | the synth golden masters' presets (`presets/`, made by `presets/make_corpus.py`) and their records (`presets.json`); the render-song generator (`songs/make_render_song.py`) and its records (`songs.json`); synthetic wavetables (`wavetable_pins/`); `compare_renders.py`, which compares two sets of renders | `render_preset.py`, `render_song.py`, `render_card_cache.py`, `streaming_margin.py`, `param_dump.py`, `tools/audible_window/compare.py`, `load_policy.card`, the dsp band-builder and FFT specs, `engine_settings_run.py`, `upgrade_run.py` | `golden-synth` (`presets.json`), each render-song entry (`songs.json`) |
+| `songs/` | save(load(song)) hashes (`fixtures.json`) and the committed synthetic songs (`synthetic/`) | `songs_run.py`, `upgrade_run.py`, `model_decode_diff_run.py`, `model_equality_synthetic` | `song-roundtrip` |
+| `presets/` | save(load(preset)) hashes (`fixtures.json`) | `presets_run.py`, `upgrade_run.py` | `preset-roundtrip` |
+| `cable_decode/` | each file's decoded cables, fingerprinted (`fixtures.json`) | `cable_decode_run.py` | `cable-decode` |
+| `param_record/` | each song's recorded lanes, their undo and redo, and its reload (`<song>.txt`) | `param_record_run.py` | `param-record-diff` |
+| `audio_clip_edit/` | each song's audio-clip descriptor edits (`<song>.txt`) | `audio_clip_edit_run.py` | `audio-clip-edit-diff` |
+| `arrangement_take/` | the arrangement takes' lanes and render (`RS_ARRANGE_TAKE.txt`) | `arrangement_take.py` | `arrangement-take` |
+| `upgrade/` | the upgrader's legacy fixtures (`<group>/<name>.<kind>.XML`, each oracle beside its fixture, made by `make_fixtures.py`) and their hashes (`fixtures.json`, keyed by path under `tests/golden/`) | `upgrade_run.py` | `upgrade-differential` |
+| `stem_export/` | the stem export's render hash and size (`<fixture>.sha256`) | `stem_export.py` | by hand only (`stem_export.py` says how) |
 
-```
-gen1 = save(load(original))
-gen2 = save(load(gen1))
-require gen1 == gen2            # the driver asserts this ("settled")
-fixture = sha256(gen1)          # committed in songs_fixtures.json
-```
-
-The committed hash is the regression anchor: a refactor that changes serialized
-output breaks it and must be justified + re-baselined.
-
-### How it runs
-
-`song_roundtrip` is a host driver (tests/integration/scenarios/drivers/): golden_vt_render runs it on the
-booted app as the `song_roundtrip` scenario, one song per run, from the state the driver's own process once
-started in (no current song, the random streams at their seeds, the settings unread). The song is read from the
-host file and loaded through the Value tree beside the booted one; view selection is cleared before save. It
-emits `gen1`; the runner hashes it (SHA-256) and compares to `songs_fixtures.json`.
-
-```sh
-./dbt test -n song-roundtrip                           # build golden_vt_render
-export DELUGE_SONG_CORPUS=~/path/to/SONGS              # your songs dir (BYO, see below)
-python3 tests/golden/songs_run.py                      # check fixtured songs (exit 1 on regression)
-python3 tests/golden/songs_run.py --update             # discover+re-baseline (walks the corpus)
-python3 tests/golden/songs_run.py --filter Bass        # subset (substring on path)
-./dbt test song-roundtrip                              # same, as the registry gate
-```
-
-In check mode the runner iterates the **committed fixtures** (the contract) and
-verifies each song that's present locally; a song that no longer settles to its
-committed hash is a `REGRESS` (exit 1). Songs not present locally are `ABSENT`
-(skipped). A driver exit means: `0` settled · `1` load error · `3` fixed-point
-mismatch.
-
-### Corpus is bring-your-own (out-of-repo)
-
-Only the **hashes** (`songs_fixtures.json`) are committed; the song `.XML` files
-stay out-of-repo (privacy/licensing). Point the runner at your songs via
-`$DELUGE_SONG_CORPUS` or `--corpus` (default `$DELUGE_BACKUP/SONGS`, else `~/Deluge Backup/SONGS`).
-Fixtures are keyed by path **relative to the corpus root**, so anyone with the
-same songs at the same relative layout can verify the exact same hashes.
-
-Fixtured songs that are not present are *ABSENT* and skipped, so CI and contributors
-without the corpus still check the committed synthetic songs, while the gate protects
-anyone who has the rest.
-
-### The ARM-NEON oracle
-
-x86 runs SIMDe; firmware runs NEON. Fixtures are only trustworthy if both agree
-(serialization is mostly integer/string formatting, so divergence is unlikely —
-but it's cheap insurance against width/format bugs):
-
-```sh
-./dbt test -n golden-synth-arm                         # the qemu-arm build of golden_vt_render
-python3 tests/golden/songs_run.py --binary <that build's golden_vt_render> \
-    --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
-```
-
-### Adding coverage
-
-`songs_fixtures.json` maps each settled song (path relative to the corpus root)
-to its `gen1` SHA-256. To add coverage: put songs in your corpus dir and run
-`--update` (it walks the corpus, runs the driver, and writes a fixture for every
-song that settles; songs that don't settle are skipped, not committed). Aim for
-spread across formats (legacy tag-format **and** modern attribute-format),
-firmware versions, and features (synth/kit/MIDI/CV, arrangement, automation,
-scales). Re-baselining after an intended change is the same `--update`.
-
-### Synthetic fixtures (committed, for rare structures)
-
-Some structures never appear in a given BYO corpus (e.g. a **sync-scale clip**),
-so a read for them would be golden-blind. For those, commit a small,
-privacy-clean hand-authored song under `tests/golden/synthetic/`. Its fixture key
-is prefixed `synthetic/` and resolves against this directory rather than the
-corpus, so it is **always present** — it runs (and gives real coverage) even in
-CI with no corpus, instead of *Skipped*. `--update` re-baselines these alongside
-the corpus. To make one: author a minimal song that exercises the structure, run
-it through the driver until it *settles* (exit 0), commit the emitted `gen1`, and
-`--update` (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
+Record headers stay beside the specs that compile them; their entries list them in `baseline` too, and the loader
+accepts any `tests/**/*_records.h` there by its name.
 
 ## Menu reference tables (`ui/menu_oracle/`)
 

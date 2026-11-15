@@ -24,11 +24,12 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/multi_range/multi_range.h"
 
+#include "support/printers/doc_clip_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 
@@ -107,7 +108,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		st.depth = 0;
 		st.list[0].cursor = 99; // the cables it was on deleted under it
 		menu::ValueSession{}.read_again({ctx, st});
-		expect(st.list[0].cursor < 99).to_be_true();
+		expect(st.list[0].cursor).to_be_less_than(99);
 	});
 
 	it("opens the range picker on the range already selected, and remembers it for the source", _ {
@@ -145,7 +146,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(*ctx.addresses.slot);
-		expect(state != nullptr && !state->sources[0].ranges.empty()).to_be_true();
+		expect(state).not_().to_be_null();
+		if (state != nullptr) {
+			expect(state->sources[0].ranges.empty()).to_be_false();
+		}
 		const std::string recorded = state != nullptr && !state->sources[0].ranges.empty()
 		                                 ? state->sources[0].ranges[0].file_path
 		                                 : std::string{};
@@ -184,7 +188,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		menu::bindings::write(nodes::sequence_direction, ctx, 1);
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
-			expect(recording.requests[0].target.group == deluge::project::SettingGroupId::NOTE_ROW).to_be_true();
+			expect(recording.requests[0].target.group).to_equal(deluge::project::SettingGroupId::NOTE_ROW);
 		}
 	});
 
@@ -208,7 +212,8 @@ describe menu_records("a menu's questions, answered from the record", ${
 		size_t written = 0;
 		for (const Case& c : cases) {
 			const MenuContext ctx = menu::context_for(*c.song, deluge::gui::menuViewOf(c.clip), 0, false, false, false, false);
-			expect(ctx.facts == nullptr && ctx.sink == nullptr).to_be_true();
+			expect(ctx.facts).to_be_null();
+			expect(ctx.sink).to_be_null();
 			const deluge::project::DocClip before =
 			    *c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()});
 			const auto swing = c.song->project.groove.swing_interval;
@@ -229,10 +234,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 					written++;
 				}
 			}
-			expect(*c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()}) == before).to_be_true();
-			expect(c.song->project.groove.swing_interval == swing).to_be_true();
+			expect(*c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()})).to_equal(before);
+			expect(c.song->project.groove.swing_interval).to_equal(swing);
 		}
-		expect(written > size_t{100}).to_be_true();
+		expect(written).to_be_greater_than(size_t{100});
 		currentSong = playing.song;
 	});
 });

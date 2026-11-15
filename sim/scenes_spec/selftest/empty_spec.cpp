@@ -17,7 +17,7 @@
 
 /// The scenes_spec runner's own check: a file that runs no examples is reported as failing, so a file whose examples
 /// have all gone cannot pass with nothing asserted.
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 describe selftest_empty("scenes_spec runner self-test: no examples", ${});
 

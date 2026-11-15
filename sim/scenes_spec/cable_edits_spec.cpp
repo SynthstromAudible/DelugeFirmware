@@ -28,7 +28,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <optional>
 
@@ -107,9 +107,17 @@ describe cable_edits("a patch cable set by its address", ${
 		deluge::edits::SetPatchCable edit{address, 0x12345678, asked};
 		expect(apply(f, edit)).to_equal(Error::NONE);
 		PatchCable* made = engine_cable(f, source, params::LOCAL_LPF_RESONANCE);
-		expect(made != nullptr && made->polarity == asked && made->param.getCurrentValue() == 0x12345678).to_be_true();
+		expect(made).not_().to_be_null();
+		if (made != nullptr) {
+			expect(made->polarity).to_equal(asked);
+			expect(made->param.getCurrentValue()).to_equal(0x12345678);
+		}
 		const std::optional<Recorded> entry = recorded(f, source, params::LOCAL_LPF_RESONANCE);
-		expect(entry && entry->polarity == asked && entry->amount == 0x12345678).to_be_true();
+		expect(entry.has_value()).to_be_true();
+		if (entry) {
+			expect(entry->polarity).to_equal(asked);
+			expect(entry->amount).to_equal(0x12345678);
+		}
 	});
 
 	it("sets an existing cable's strength without touching its polarity", _ {
@@ -120,9 +128,11 @@ describe cable_edits("a patch cable set by its address", ${
 		deluge::edits::SetPatchCable second{address, 0x02000000, Polarity::UNIPOLAR};
 		expect(apply(f, second)).to_equal(Error::NONE);
 		PatchCable* existing = engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
-		expect(existing != nullptr && existing->polarity == Polarity::BIPOLAR
-		       && existing->param.getCurrentValue() == 0x02000000)
-		    .to_be_true();
+		expect(existing).not_().to_be_null();
+		if (existing != nullptr) {
+			expect(existing->polarity).to_equal(Polarity::BIPOLAR);
+			expect(existing->param.getCurrentValue()).to_equal(0x02000000);
+		}
 	});
 
 	it("refuses a cable on a full set, leaving the set as it was", _ {
@@ -138,7 +148,7 @@ describe cable_edits("a patch cable set by its address", ${
 		                                      Polarity::UNIPOLAR};
 		expect(apply(f, one_more)).to_equal(Error::UNSPECIFIED);
 		expect(cables_of(f).numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
-		expect(engine_cable(f, PatchSource::AFTERTOUCH, params::LOCAL_LPF_FREQ) == nullptr).to_be_true();
+		expect(engine_cable(f, PatchSource::AFTERTOUCH, params::LOCAL_LPF_FREQ)).to_be_null();
 	});
 
 	it("is one undo step for a strength write, which restores the strength", _ {
@@ -151,7 +161,10 @@ describe cable_edits("a patch cable set by its address", ${
 		deluge::edits::SetPatchCable turned{address, 0x03000000, Polarity::BIPOLAR};
 		expect(apply(f, turned)).to_equal(Error::NONE);
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->param.getCurrentValue())
 		    .to_equal(0x01000000);
@@ -168,11 +181,14 @@ describe cable_edits("a patch cable set by its address", ${
 		actionLogger.deleteAllLogs();
 		deluge::edits::SetCablePolarity flip{address, Polarity::UNIPOLAR};
 		expect(apply(f, flip)).to_equal(Error::NONE);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
-		expect(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->polarity == Polarity::UNIPOLAR)
-		    .to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
+		expect(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->polarity)
+		    .to_equal(Polarity::UNIPOLAR);
 		const std::optional<Recorded> entry = recorded(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
-		expect(entry && entry->polarity == Polarity::UNIPOLAR).to_be_true();
+		expect(entry.has_value()).to_be_true();
+		if (entry) {
+			expect(entry->polarity).to_equal(Polarity::UNIPOLAR);
+		}
 		nullifyUIs();
 	});
 
@@ -185,14 +201,17 @@ describe cable_edits("a patch cable set by its address", ${
 		ParamCollectionSummary* summary = f.clip->paramManager.getPatchCableSetSummary();
 		ModelStackWithParamId* with_id = stack->addParamCollectionSummary(summary)->addParamId(
 		    PatchCableSet::getParamId(just(params::LOCAL_PITCH_ADJUST), PatchSource::LFO_GLOBAL_1));
-		expect(summary->paramCollection->getAutoParamFromId(with_id, true)->autoParam != nullptr).to_be_true();
+		expect(summary->paramCollection->getAutoParamFromId(with_id, true)->autoParam).not_().to_be_null();
 		const ParamAddress address = cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
 		const Polarity flipped =
 		    other_than(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->polarity);
 		deluge::edits::SetCablePolarity flip{address, flipped};
 		expect(apply(f, flip)).to_equal(Error::NONE);
 		const std::optional<Recorded> entry = recorded(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
-		expect(entry && entry->polarity == flipped).to_be_true();
+		expect(entry.has_value()).to_be_true();
+		if (entry) {
+			expect(entry->polarity).to_equal(flipped);
+		}
 	});
 
 	it("refuses a polarity change on a cable that does not exist", _ {
@@ -200,7 +219,7 @@ describe cable_edits("a patch cable set by its address", ${
 		deluge::edits::SetCablePolarity flip{cable(f, PatchSource::LFO_GLOBAL_2, params::LOCAL_OSC_A_VOLUME),
 		                                     Polarity::UNIPOLAR};
 		expect(apply(f, flip)).to_equal(Error::UNSPECIFIED);
-		expect(engine_cable(f, PatchSource::LFO_GLOBAL_2, params::LOCAL_OSC_A_VOLUME) == nullptr).to_be_true();
+		expect(engine_cable(f, PatchSource::LFO_GLOBAL_2, params::LOCAL_OSC_A_VOLUME)).to_be_null();
 	});
 
 	it("raises the reverb's recompute after a write to the sidechain-to-reverb cable", _ {

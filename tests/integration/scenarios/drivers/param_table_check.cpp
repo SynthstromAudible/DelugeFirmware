@@ -19,6 +19,12 @@
 // name for its runtime index, every runtime param has a row, and each row's scope, flags and default are the
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
+//
+// Gate param-table-check:
+//     the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the
+//     provisional global-effectable table has the runtime's file name, scope, bipolarity and default (what the engine's
+//     own init gives a fresh instance) for its runtime index, the boundary map gives that index the row's id, and every
+//     runtime param has a row
 
 #include "effects/bitcrush.h"
 #include "effects/compressor.h"

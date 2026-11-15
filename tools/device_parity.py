@@ -2,14 +2,14 @@
 """Run level-3 UI scripts on the real Deluge on the J-Trace rig and compare what its panel shows with delugemu.
 
 Usage:
-    tools/device_parity.py --emu-ref ELF --device HARNESS_ELF (--card DIR | --sd IMG) [--host HOST]
+    tools/device_parity.py --emu-ref ELF --device HARNESS_ELF [--card DIR | --sd IMG] [--host HOST]
                            [--flash FILE] [--out DIR] [-j N] scripts...
 
 The device side boots HARNESS_ELF (a `rig-harness` build: tools/bench_image.py --features rig-harness) once per
-script through tools/rig_session.py and drives it in real time; the reference side runs --emu-ref in delugemu,
-on the card --card/--sd describes, which must hold what the rig's SD card holds. Both go through
-tools/emu_parity.py's script runner and its comparison, so the output is emu_parity's: one MATCH/DIFF line per
-snapshot and DIR/report.json.
+script through tools/rig_session.py and drives it in real time; the reference side runs --emu-ref in delugemu, on the
+card the scripts' `# card:` header names, or --card/--sd, which must hold what the rig's SD card holds. Both go
+through tools/emu_parity.py's script runner and its `differences`: one MATCH/DIFF line per snapshot, and
+DIR/report.json mapping each snapshot to its differences.
 
 Settings: unless --flash names a flash image, the rig's own settings sector is read (read only: the core is
 halted for the copy, and QSPI is never written) and delugemu starts from it, so a difference in saved settings
@@ -19,7 +19,16 @@ during a PIC scroll animation (the PIC moves them itself; tools/rig_session.py r
 MIDI script steps (`note`, `cc`, `midi <hex bytes>`, ...) go to the Deluge's USB-MIDI through `amidi` on the probe
 host (--midi-port), and to delugemu's DIN MIDI input.
 
-Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run failed; 3 the rig failed; 4 usage.
+Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run
+failed; 3 the rig failed; 4 usage, or a card that does not image.
+
+Gate ui-device:
+    tests/ui-scripts/device's compared scripts run on the real Deluge on the probe rig and in delugemu on the same
+    rig-harness image and the rig's settings, and every snapshot must match
+
+Gate ui-device-record:
+    tests/ui-scripts/device's record-only scripts run on the rig and keep its snapshots and debug output (the
+    playhead-move timings an ALPHA image prints) for reading by hand
 """
 
 from __future__ import annotations
@@ -38,6 +47,7 @@ sys.path.insert(0, str(REPO / "tools"))
 
 import emu_parity
 import rig
+import ui_script_cards
 from rig_session import DeviceSession
 
 # libdeluge's settings sector: the flash offset (flash::DELUGE_SETTINGS_OFFSET), its size, and the uncached
@@ -82,8 +92,8 @@ def parked_after(host: str, run, *args, park=None, stop=None):
 
 
 def retried(run, *args, tries: int = 2, **kwargs):
-    """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going silent):
-    those come and go with the network to the probe host. Any other failure is the device's answer."""
+    """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going
+    silent): those come and go with the network to the probe host. Any other failure is the device's answer."""
     for attempt in range(tries):
         try:
             return run(*args, **kwargs)
@@ -111,6 +121,16 @@ def read_device_settings(host: str, elf: Path, out: Path) -> bytes:
     return base64.b64decode(got.stdout.strip())
 
 
+def header_card(scripts: list[Path]) -> Path:
+    """The card every one of `scripts` names first in its `# card:` header: the rig holds one card at a time."""
+    firsts = {(ui_script_cards.cards(s) or [None])[0] for s in scripts}
+    if len(firsts) != 1 or None in firsts:
+        raise ValueError(
+            f"the scripts' headers name {sorted(map(str, firsts))} first; give --card or --sd"
+        )
+    return ui_script_cards.resolve(firsts.pop())
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument(
@@ -121,7 +141,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     card = ap.add_mutually_exclusive_group()
     card.add_argument(
-        "--card", type=Path, help="SD content directory matching the rig's card"
+        "--card",
+        type=Path,
+        help="SD content directory or card manifest matching the rig's card (default: the scripts' header card)",
     )
     card.add_argument("--sd", type=Path, help="SD image matching the rig's card")
     ap.add_argument(
@@ -134,7 +156,13 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="delugemu's starting flash (default: the rig's settings)",
     )
-    ap.add_argument("--delugemu", type=Path, default=Path.home() / "GitHub/delugemu")
+    ap.add_argument(
+        "--delugemu",
+        type=Path,
+        default=Path(
+            os.environ.get("DELUGEMU_ROOT") or Path.home() / "GitHub/delugemu"
+        ),
+    )
     ap.add_argument(
         "--out", type=Path, default=REPO / ".superpowers/emu-runs/device-latest"
     )
@@ -156,19 +184,24 @@ def main(argv: list[str] | None = None) -> int:
             "device_parity: no --host and $DELUGE_PROBE_HOST is unset", file=sys.stderr
         )
         return 4
-    if not args.record_only and (
-        args.emu_ref is None or (args.card or args.sd) is None
-    ):
-        print(
-            "device_parity: --emu-ref and --card or --sd, or --record-only",
-            file=sys.stderr,
-        )
+    if not args.record_only and args.emu_ref is None:
+        print("device_parity: --emu-ref, or --record-only", file=sys.stderr)
         return 4
     return parked_after(args.host, run, args)
 
 
 def run(args: argparse.Namespace) -> int:
     """Runs the scripts on the device (and delugemu); the caller parks the rig afterwards."""
+    if not args.record_only and args.card is None and args.sd is None:
+        try:
+            card = header_card(args.scripts)
+        except ValueError as exc:
+            print(f"device_parity: {exc}", file=sys.stderr)
+            return 4
+        if card.suffix == ".img":
+            args.sd = card
+        else:
+            args.card = card
     for name in ("emu_ref", "device", "card", "sd", "flash", "out"):
         if getattr(args, name) is not None:
             setattr(args, name, getattr(args, name).resolve())
@@ -193,6 +226,8 @@ def run(args: argparse.Namespace) -> int:
             out / script.stem / "test",
             buttons,
             session=session,
+            # The rig's MIDI is USB; the device has no DIN output to read.
+            din_out=False,
         )
 
     if args.record_only:
@@ -224,18 +259,38 @@ def run(args: argparse.Namespace) -> int:
         flash = out / "flash.bin"
         flash.write_bytes(image)
 
-    sd = args.sd
-    if sd is None:
-        sd = out / "card.img"
-        subprocess.run(
-            [str(args.delugemu / "scripts/mksd.sh"), str(args.card), str(sd)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-        )
+    if args.sd:
+        sd, made = args.sd, False
+    else:
+        try:
+            sd, made = emu_parity.sd_image(args.card, out / "card.img", args.delugemu)
+        except subprocess.CalledProcessError as exc:
+            emu_parity.remove_card(out / "card.img")
+            print(
+                f"device_parity: card {args.card} did not image: {exc}", file=sys.stderr
+            )
+            return 4
+    try:
+        return compare(args, sd, flash, device, buttons)
+    finally:
+        if made:
+            emu_parity.remove_card(sd)
+
+
+def compare(args: argparse.Namespace, sd: Path, flash: Path, device, buttons) -> int:
+    """Runs every script on the device (`device`) and in delugemu on `sd`, and reports the differences."""
+    out = args.out
 
     def reference(script: Path):
+        # The device's MIDI is USB, so the reference's DIN output has nothing to compare against.
         return emu_parity.run_image(
-            args.emu_ref, sd, flash, script, out / script.stem / "ref", buttons
+            args.emu_ref,
+            sd,
+            flash,
+            script,
+            out / script.stem / "ref",
+            buttons,
+            din_out=False,
         )
 
     report, failed = {}, False
@@ -249,14 +304,7 @@ def run(args: argparse.Namespace) -> int:
                 got["test"] = exc
             try:
                 got["ref"] = refs[script].result()
-            except (
-                AssertionError,
-                RuntimeError,
-                OSError,
-                KeyError,
-                ValueError,
-                TypeError,
-            ) as exc:
+            except emu_parity.RUN_FAILURES as exc:
                 got["ref"] = exc
             errors = [
                 f"{side}: {r}"
@@ -280,8 +328,6 @@ def run(args: argparse.Namespace) -> int:
                     flush=True,
                 )
                 failed |= bool(diff)
-    if args.sd is None:
-        sd.unlink()
     (out / "report.json").write_text(json.dumps(report, indent=1))
     print(f"device_parity: artifacts in {out}")
     return 1 if failed else 0

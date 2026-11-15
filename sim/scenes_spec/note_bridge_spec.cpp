@@ -89,7 +89,7 @@
 #include <span>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 using deluge::scenes::spec::open_note_mode_over_clip_view;
@@ -179,7 +179,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("installs a non-null bridge", _ {
-		expect(menu::note_bridge() != nullptr).to_be_true();
+		expect(menu::note_bridge()).not_().to_be_null();
 	});
 
 	it("reads note_selected and note_velocity against a note selected the way InstrumentClipView does", _ {
@@ -301,7 +301,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* before = f.clip->getNoteRowOnScreen(1, modelStack);
-		expect(before->getNoteRowAllowNull() == nullptr).to_be_true();
+		expect(before->getNoteRowAllowNull()).to_be_null();
 
 		const menu::NoteBridge* bridge = menu::note_bridge();
 		// The assertion that matters is that a row now EXISTS -- `SelectedNoteRow::getIndividualNoteRow`
@@ -312,7 +312,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		alignas(ModelStackWithAutoParam) char modelStackMemory2[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack2 = currentSong->setupModelStackWithCurrentClip(modelStackMemory2);
 		ModelStackWithNoteRow* after = f.clip->getNoteRowOnScreen(1, modelStack2);
-		expect(after->getNoteRowAllowNull() != nullptr).to_be_true();
+		expect(after->getNoteRowAllowNull()).not_().to_be_null();
 	});
 
 	it("row_sequence_direction answers false on a KIT clip even though a drum's own row exists at "
@@ -336,7 +336,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* existing = f.clip->getNoteRowOnScreen(0, modelStack);
-		expect(existing->getNoteRowAllowNull() != nullptr).to_be_true();
+		expect(existing->getNoteRowAllowNull()).not_().to_be_null();
 
 		int32_t direction = -1;
 		expect(menu::note_bridge()->row_sequence_direction(&direction)).to_be_false();
@@ -345,19 +345,19 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	it("iterance_preset_label matches legacy's compact `%d:%d` for preset 3", _ {
 		char buf[20] = {};
 		size_t n = menu::note_bridge()->iterance_preset_label(3, /*compact=*/true, std::span<char>(buf, sizeof(buf)));
-		expect(n > 0).to_be_true();
+		expect(n).to_be_greater_than(0);
 		std::string_view text(buf, n);
 		// Preset 3 is `iterancePresets[2]` == `Iterance{2, 0b1}` (`util/lookuptables/preset_tables.cpp:35`,
 		// after FIRST and LAST): divisor 2, step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
-		expect(text == "1:2").to_be_true();
+		expect(text).to_equal("1:2");
 	});
 
 	it("iterance_preset_label matches legacy's non-compact `%d of %d` for the same preset", _ {
 		char buf[20] = {};
 		size_t n = menu::note_bridge()->iterance_preset_label(3, /*compact=*/false, std::span<char>(buf, sizeof(buf)));
-		expect(n > 0).to_be_true();
+		expect(n).to_be_greater_than(0);
 		std::string_view text(buf, n);
-		expect(text == "1 of 2").to_be_true();
+		expect(text).to_equal("1 of 2");
 	});
 
 	it("iterance_preset_label answers nothing outside 1..kNumIterancePresets", _ {

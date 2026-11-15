@@ -17,11 +17,12 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "synth/modulation/cable.h"
 
+#include "support/printers/rgb_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <cstdint>
 #include <cstring>
@@ -94,8 +95,8 @@ describe automation_cable_lane("AutomationView -- a shortcut cable's lane before
 		on_overview(fx.clip);
 		Image image;
 		render(image);
-		expect(image[2][6] == colours::grey).to_be_true();
-		expect(image[2][10] == colours::grey).to_be_true();
+		expect(image[2][6]).to_equal(colours::grey);
+		expect(image[2][10]).to_equal(colours::grey);
 	});
 
 	it("draws a missing cable's lane in the editor", _ {
@@ -106,7 +107,7 @@ describe automation_cable_lane("AutomationView -- a shortcut cable's lane before
 		render(image);
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(image[y][x] == kUndrawn).to_be_false();
+				expect(image[y][x]).not_().to_equal(kUndrawn);
 			}
 		}
 	});

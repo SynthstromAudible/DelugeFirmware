@@ -15,7 +15,46 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/song_preview_ab_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the song-preview gate: draw every fixture song's artwork through the
+///        REAL `LoadSongUI` over the prefix channel, and hold each song's rendered image and decode
+///        outcome to the same file decoded synchronously, inline.
+///
+/// The channel has no switch, so there is one build and one run: the reference that a second,
+/// file-backed build would otherwise provide is decoded in-process instead (`SP-REFERENCE`, beside
+/// each `SP-CASE`). `./dbt test song-preview-ab` runs it; `tests/integration/checks/song_preview_ab.py` checks it.
+///
+/// ## What is compared, and why pixels alone are not enough
+///
+/// Each `SP-CASE` line carries a CRC of the rendered pad image AND the `SongPreviewOutcome` the
+/// decode reported, plus the `Error` it put on screen. The outcome is not decoration: an unreadable
+/// song, a song with no artwork, and a preview that falls past the read window all draw an
+/// IDENTICAL blank screen, so a gate that compared only images would pass while one backing shows
+/// the user an error popup and the other shows nothing at all.
+///
+/// ## The re-ask is under test, not simulated
+///
+/// Every case calls `LoadSongUI::drawSongPreview()` ONCE -- the shipped entry a cursor move
+/// reaches -- and from then on drives only `LoadSongUI::graphicsRoutine()`, the per-tick surface,
+/// with no further input of any kind. Nothing here runs a retry loop of its own. If the browser
+/// ever stops re-asking for a preview whose bytes have not arrived, the async leg simply never
+/// lands and every one of its cases fails.
+///
+/// ## Deferrals are asserted PER CASE
+///
+/// A run-wide deferral total is satisfied by one deferral anywhere, which would leave the async
+/// path inert for every other song while the gate stayed green. Each case carries its own count and
+/// each is required to be non-zero on the async leg.
+///
+/// @note Runs as a STEP MACHINE rather than one blocking call, because that is what the async
+///       backing requires: a preview whose prefix has not arrived is answered on a later tick, and
+///       the caller must return to its own loop for the Embassy reader task to be polled at all.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
@@ -67,6 +106,7 @@
 #include <cstring>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
@@ -77,12 +117,14 @@
 #undef printf
 #endif
 
+DELUGE_SCENARIO_DECLARE(song_preview_ab);
+
 using deluge::storage::SongPreviewOutcome;
 
 /// Drives the real `LoadSongUI` preview path, including its private members.
 ///
-/// A `friend` of `LoadSongUI` (declared there), for the reason `SlicerPreviewProbe` is a friend of
-/// `Slicer`: a gate that restated the caller instead of calling it would not have caught the defect
+/// A `friend` of `LoadSongUI` (declared there), for the reason `slicer_preview_spec.cpp` drives the real
+/// `SliceCore`: a gate that restated the caller instead of calling it would not have caught the defect
 /// this exists for. Everything below goes through `drawSongPreview()` and `graphicsRoutine()` -- the
 /// two surfaces the browser itself uses -- and reads only what no out-of-process observer can see.
 class SongPreviewAbProbe {
@@ -388,7 +430,13 @@ public:
 	static void endGridPress() { sessionView.clipPressEnded(); }
 };
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 namespace {
+
+ScenarioReport g_report{"SP"};
 
 // ── The fixture ─────────────────────────────────────────────────────────────
 //
@@ -552,7 +600,9 @@ constexpr const char* kSwapFilename = "SWAP.XML";
 /// The "other card's" song, staged elsewhere and moved onto `kSwapFilename` at the swap.
 constexpr const char* kSwapReplacementFilename = "SWAPB.XML";
 
-/// Steps spent not collecting, which the rehearsal MEASURES is enough for a read to publish.
+/// Steps spent not collecting, which the rehearsal MEASURES is enough for a read to publish. Not a Wait: it is the
+/// property under measurement, not a bound on something awaited, and the rehearsal's single-tick collect is what
+/// proves it long enough.
 ///
 /// Generous: each step is one dispatch round trip through the platform driver's executor, and a
 /// prefix read is one open, one size and one read.
@@ -587,6 +637,7 @@ enum class SwapStep : uint8_t { RehearseRequest, RehearseWait, RehearseCollect, 
 SwapStep g_swapStep = SwapStep::RehearseRequest;
 int32_t g_swapWaited = 0;
 int32_t g_swapCollectDeferrals = 0;
+/// Whether the swap or its collect did not complete, so there is nothing for the stage to judge.
 bool g_swapFailed = false;
 
 size_t g_caseIndex = 0;
@@ -603,6 +654,8 @@ bool g_caseStarted = false;
 /// Whether the case in progress has settled and is waiting only for its reference decode.
 bool g_caseSettled = false;
 int32_t g_caseTicks = 0;
+/// The bound on the case in progress settling, when it has no virtual-time window of its own.
+Wait g_caseWait{g_report, "the case settling", kMaxCaseTicks};
 /// When the stall case in progress started, on the stall bounds' clock.
 uint64_t g_stallStartUs = 0;
 /// Whether the stall case in progress has waited its whole window.
@@ -610,7 +663,6 @@ bool stallWindowPassed(uint64_t windowUs) {
 	return deluge::runtime::nowUs() - g_stallStartUs >= windowUs;
 }
 int32_t g_caseDeferrals = 0;
-int32_t g_failures = 0;
 bool g_stepDone = true;
 bool g_summaryPrinted = false;
 
@@ -765,58 +817,53 @@ void checkAgainstReference(const char* label, uint32_t crc, bool expectTruncated
 	g_referenceDispatched = false;
 	if (expectTruncated) {
 		if (g_reference.outcome != SongPreviewOutcome::Rendered || g_reference.crc != uniformImageCrc(kLatePad)) {
-			printf("FAIL [songPreviewAB/%s]: the file read of the read-window song did not render its late artwork "
-			       "(outcome=%s crc=%08X) -- its preview no longer sits past the window, and Truncated is not under "
-			       "test\n",
-			       label, outcomeName(g_reference.outcome), g_reference.crc);
-			g_failures++;
+			g_report.fail(
+			    "[%s]: the file read of the read-window song did not render its late artwork "
+			    "(outcome=%s crc=%08X) -- its preview no longer sits past the window, and Truncated is not under "
+			    "test",
+			    label, outcomeName(g_reference.outcome), g_reference.crc);
 		}
 		return;
 	}
 	if (SongPreviewAbProbe::outcome() != g_reference.outcome || SongPreviewAbProbe::error() != g_reference.error
 	    || crc != g_reference.crc) {
-		printf("FAIL [songPreviewAB/%s]: the browser and the file read disagree: outcome=%s/%s error=%d/%d "
-		       "crc=%08X/%08X (browser/file)\n",
-		       label, outcomeName(SongPreviewAbProbe::outcome()), outcomeName(g_reference.outcome),
-		       static_cast<int>(SongPreviewAbProbe::error()), static_cast<int>(g_reference.error), crc,
-		       g_reference.crc);
-		g_failures++;
+		g_report.fail("[%s]: the browser and the file read disagree: outcome=%s/%s error=%d/%d "
+		              "crc=%08X/%08X (browser/file)",
+		              label, outcomeName(SongPreviewAbProbe::outcome()), outcomeName(g_reference.outcome),
+		              static_cast<int>(SongPreviewAbProbe::error()), static_cast<int>(g_reference.error), crc,
+		              g_reference.crc);
 	}
 }
 
 /// The absolute half of a case's check: what BOTH backings must independently produce.
 void checkCase(const char* label, const Case& expected, uint32_t crc) {
 	if (SongPreviewAbProbe::outcome() != expected.outcome) {
-		printf("FAIL [songPreviewAB/%s]: outcome=%s, expected %s -- the two backings must report the SAME "
-		       "outcome, and an unreadable song, a song with no artwork and a preview past the read window "
-		       "all draw the same blank pads, so nothing else can tell them apart\n",
-		       label, outcomeName(SongPreviewAbProbe::outcome()), outcomeName(expected.outcome));
-		g_failures++;
+		g_report.fail("[%s]: outcome=%s, expected %s -- the two backings must report the SAME "
+		              "outcome, and an unreadable song, a song with no artwork and a preview past the read window "
+		              "all draw the same blank pads, so nothing else can tell them apart",
+		              label, outcomeName(SongPreviewAbProbe::outcome()), outcomeName(expected.outcome));
 	}
 	if (SongPreviewAbProbe::error() != expected.error) {
-		printf("FAIL [songPreviewAB/%s]: error=%d, expected %d -- the two backings must put the SAME thing "
-		       "on screen for this song\n",
-		       label, static_cast<int>(SongPreviewAbProbe::error()), static_cast<int>(expected.error));
-		g_failures++;
+		g_report.fail("[%s]: error=%d, expected %d -- the two backings must put the SAME thing "
+		              "on screen for this song",
+		              label, static_cast<int>(SongPreviewAbProbe::error()), static_cast<int>(expected.error));
 	}
 	const uint32_t want = (expected.image == ExpectedImage::Uniform) ? uniformImageCrc(expected.pad) : blankImageCrc();
 	if (expected.image != ExpectedImage::Unchecked && crc != want) {
-		printf("FAIL [songPreviewAB/%s]: image crc=%08X, expected %08X -- asserted absolutely, not merely "
-		       "against the other leg, because both backings share the decode and a regression there takes "
-		       "them down together\n",
-		       label, crc, want);
-		g_failures++;
+		g_report.fail("[%s]: image crc=%08X, expected %08X -- asserted absolutely, not merely "
+		              "against the other leg, because both backings share the decode and a regression there takes "
+		              "them down together",
+		              label, crc, want);
 	}
 }
 
 /// Did anything render at all? See poisonImage().
 void checkRendered(const char* label, uint32_t crc) {
 	if (crc == poisonImageCrc()) {
-		printf("FAIL [songPreviewAB/%s]: the pad image is untouched after the whole case -- no render ever ran, "
-		       "so the browser drew nothing and reported nothing, which to the user is indistinguishable "
-		       "from a song that does not exist\n",
-		       label);
-		g_failures++;
+		g_report.fail("[%s]: the pad image is untouched after the whole case -- no render ever ran, "
+		              "so the browser drew nothing and reported nothing, which to the user is indistinguishable "
+		              "from a song that does not exist",
+		              label);
 	}
 }
 
@@ -830,15 +877,24 @@ void startCase(const char* dir, const char* filename) {
 	g_caseStarted = true;
 	g_caseSettled = false;
 	g_caseTicks = 0;
+	g_caseWait.restart();
 	g_caseDeferrals = 0;
 	poisonImage();
 	SongPreviewAbProbe::select(dir, filename);
 	SongPreviewAbProbe::draw();
 }
 
-/// Drive one tick of a case in progress. @return true once it has settled or wedged.
+/// Where a case in progress stands after a tick.
+enum class CaseDrive : uint8_t {
+	Running,
+	Settled,
+	/// Its wait ran out and the failure is recorded: nothing it left is judged.
+	Wedged,
+};
+
+/// Drive one tick of a case in progress.
 /// @param windowUs How long, in virtual time, the case may wait before it is called wedged; 0 for kMaxCaseTicks.
-bool driveCase(const char* label, uint64_t windowUs = 0) {
+CaseDrive driveCase(const char* label, uint64_t windowUs = 0) {
 	g_caseTicks++;
 	if (SongPreviewAbProbe::pending()) {
 		g_caseDeferrals++;
@@ -846,17 +902,28 @@ bool driveCase(const char* label, uint64_t windowUs = 0) {
 	// The per-tick surface, and the ONLY thing driven from here on. Nothing in this file retries a
 	// deferred preview itself: if `graphicsRoutine()` stops re-asking, the async leg never lands.
 	SongPreviewAbProbe::tick();
+	if (windowUs == 0) {
+		switch (g_caseWait.poll(caseSettled())) {
+		case WaitState::Pending:
+			return CaseDrive::Running;
+		case WaitState::Met:
+			return CaseDrive::Settled;
+		case WaitState::Expired:
+			// The wait is shared by every case, so the evidence line says which one hung.
+			printf("SP-CASE-WEDGED case=%s ticks=%d\n", label, g_caseTicks);
+			return CaseDrive::Wedged;
+		}
+	}
 	if (caseSettled()) {
-		return true;
+		return CaseDrive::Settled;
 	}
-	if (windowUs == 0 ? g_caseTicks >= kMaxCaseTicks : stallWindowPassed(windowUs)) {
-		printf("FAIL [songPreviewAB/%s]: still waiting after %d graphicsRoutine() tick(s) with no further "
-		       "input -- a deferred preview nothing asks for again is blank, errorless and silent\n",
-		       label, g_caseTicks);
-		g_failures++;
-		return true;
+	if (stallWindowPassed(windowUs)) {
+		g_report.fail("[%s]: still waiting after %d graphicsRoutine() tick(s) with no further "
+		              "input -- a deferred preview nothing asks for again is blank, errorless and silent",
+		              label, g_caseTicks);
+		return CaseDrive::Wedged;
 	}
-	return false;
+	return CaseDrive::Running;
 }
 
 std::string songPath(const char* dir, const char* filename) {
@@ -865,6 +932,16 @@ std::string songPath(const char* dir, const char* filename) {
 
 // ── Stages ──────────────────────────────────────────────────────────────────
 
+/// Move on from the case just judged, or abandoned as wedged.
+void finishCase() {
+	g_caseStarted = false;
+	g_caseSettled = false;
+	g_caseIndex++;
+	if (g_caseIndex == kCases.size()) {
+		g_stage = Stage::Window;
+	}
+}
+
 void runCasesTick() {
 	const Case& c = kCases[g_caseIndex];
 	if (!g_caseStarted) {
@@ -872,10 +949,16 @@ void runCasesTick() {
 		return;
 	}
 	if (!g_caseSettled) {
-		if (!driveCase(c.label)) {
+		switch (driveCase(c.label)) {
+		case CaseDrive::Running:
 			return;
+		case CaseDrive::Wedged:
+			finishCase();
+			return;
+		case CaseDrive::Settled:
+			g_caseSettled = true;
+			break;
 		}
-		g_caseSettled = true;
 	}
 	const std::string path = songPath(kSongsDir, c.filename);
 	if (!referenceReady(path)) {
@@ -888,13 +971,7 @@ void runCasesTick() {
 	checkCase(c.label, c, crc);
 	checkAgainstReference(c.label, crc);
 	g_deferralsByCase[g_caseIndex] = g_caseDeferrals;
-
-	g_caseStarted = false;
-	g_caseSettled = false;
-	g_caseIndex++;
-	if (g_caseIndex == kCases.size()) {
-		g_stage = Stage::Window;
-	}
+	finishCase();
 }
 
 /// The read-window case: the one song the browser must NOT draw as the file read does.
@@ -904,10 +981,17 @@ void runWindowTick() {
 		return;
 	}
 	if (!g_caseSettled) {
-		if (!driveCase(kWindowLabel)) {
+		switch (driveCase(kWindowLabel)) {
+		case CaseDrive::Running:
 			return;
+		case CaseDrive::Wedged:
+			g_caseStarted = false;
+			g_stage = Stage::CorpusCount;
+			return;
+		case CaseDrive::Settled:
+			g_caseSettled = true;
+			break;
 		}
-		g_caseSettled = true;
 	}
 	if (!referenceReady(songPath(kSongsDir, kWindowFilename))) {
 		return;
@@ -948,11 +1032,10 @@ std::string corpusFilename(size_t index) {
 void readCorpusCount(void*) {
 	auto opened = deluge::io::File::open(kCorpusCountPath, DELUGE_FILE_READ);
 	if (!opened.has_value()) {
-		printf("FAIL [songPreviewAB/corpus]: '%s' is missing, so this side cannot know how many real songs the "
-		       "packer staged -- the scenario and its packer are one fixture, and a card without this file is "
-		       "not that fixture\n",
-		       kCorpusCountPath);
-		g_failures++;
+		g_report.fail("[corpus]: '%s' is missing, so this side cannot know how many real songs the "
+		              "packer staged -- the scenario and its packer are one fixture, and a card without this file is "
+		              "not that fixture",
+		              kCorpusCountPath);
 		g_corpusCountFailed = true;
 		return;
 	}
@@ -960,8 +1043,7 @@ void readCorpusCount(void*) {
 	std::array<std::byte, 8 + kMaxCorpusCases> buffer{};
 	const auto read = opened->read(buffer);
 	if (!read.has_value()) {
-		printf("FAIL [songPreviewAB/corpus]: '%s' could not be read\n", kCorpusCountPath);
-		g_failures++;
+		g_report.fail("[corpus]: '%s' could not be read", kCorpusCountPath);
 		g_corpusCountFailed = true;
 		return;
 	}
@@ -978,8 +1060,7 @@ void readCorpusCount(void*) {
 		anyDigit = true;
 	}
 	if (!anyDigit) {
-		printf("FAIL [songPreviewAB/corpus]: '%s' holds no decimal count\n", kCorpusCountPath);
-		g_failures++;
+		g_report.fail("[corpus]: '%s' holds no decimal count", kCorpusCountPath);
 		g_corpusCountFailed = true;
 		return;
 	}
@@ -987,10 +1068,9 @@ void readCorpusCount(void*) {
 		// The one thing that actually catches the two hand-duplicated bounds drifting apart. Without
 		// it, a packer that staged more than this side can hold would simply run fewer cases and say
 		// nothing.
-		printf("FAIL [songPreviewAB/corpus]: the packer staged %zu song(s), more than the %zu this side can "
-		       "hold -- kMaxCorpusCases and MAX_CORPUS_CASES have drifted apart\n",
-		       count, kMaxCorpusCases);
-		g_failures++;
+		g_report.fail("[corpus]: the packer staged %zu song(s), more than the %zu this side can "
+		              "hold -- kMaxCorpusCases and MAX_CORPUS_CASES have drifted apart",
+		              count, kMaxCorpusCases);
 		g_corpusCountFailed = true;
 		return;
 	}
@@ -998,9 +1078,7 @@ void readCorpusCount(void*) {
 	for (size_t i = 0; i < count; i++, at++) {
 		const char kind = at < bytes.size() ? static_cast<char>(bytes[at]) : '\0';
 		if (kind != 'X' && kind != 'J') {
-			printf("FAIL [songPreviewAB/corpus]: '%s' does not say whether staged song %zu is XML or JSON\n",
-			       kCorpusCountPath, i);
-			g_failures++;
+			g_report.fail("[corpus]: '%s' does not say whether staged song %zu is XML or JSON", kCorpusCountPath, i);
 			g_corpusCountFailed = true;
 			return;
 		}
@@ -1034,10 +1112,18 @@ void runCorpusTick() {
 		return;
 	}
 	if (!g_caseSettled) {
-		if (!driveCase(filename.c_str())) {
+		switch (driveCase(filename.c_str())) {
+		case CaseDrive::Running:
 			return;
+		case CaseDrive::Wedged:
+			g_caseStarted = false;
+			g_corpusRan++;
+			g_corpusIndex++;
+			return;
+		case CaseDrive::Settled:
+			g_caseSettled = true;
+			break;
 		}
-		g_caseSettled = true;
 	}
 	if (!referenceReady(path)) {
 		return;
@@ -1054,11 +1140,10 @@ void runCorpusTick() {
 	if (SongPreviewAbProbe::outcome() == SongPreviewOutcome::Truncated) {
 		// A real song whose preview falls outside the read window is not a fixture decision, it is the
 		// window being too small -- which is what `kSongPreviewWindow` was measured to avoid and what
-		// `song_preview_window_tests.cpp` asserts over the same corpus.
-		printf("FAIL [songPreviewAB/%s]: a REAL song's preview fell past the read window (%u bytes), so the "
-		       "prefix backing draws it blank while the file backing draws its artwork\n",
-		       filename.c_str(), static_cast<unsigned>(deluge::storage::kSongPreviewWindow));
-		g_failures++;
+		// `song_preview_window_spec.cpp` asserts over the same corpus.
+		g_report.fail("[%s]: a REAL song's preview fell past the read window (%u bytes), so the "
+		              "prefix backing draws it blank while the file backing draws its artwork",
+		              filename.c_str(), static_cast<unsigned>(deluge::storage::kSongPreviewWindow));
 	}
 
 	g_caseStarted = false;
@@ -1077,12 +1162,11 @@ bool performCardSwap() {
 	const std::string swapPath = songPath(kSongsDir, kSwapFilename);
 	const std::string replacementPath = songPath(kSongsDir, kSwapReplacementFilename);
 	if (!deluge::io::unlink(swapPath).has_value()) {
-		printf("FAIL [songPreviewAB/swap]: could not remove '%s' to stage the swapped card\n", swapPath.c_str());
+		g_report.fail("[swap]: could not remove '%s' to stage the swapped card", swapPath.c_str());
 		return false;
 	}
 	if (!deluge::io::rename(replacementPath, swapPath).has_value()) {
-		printf("FAIL [songPreviewAB/swap]: could not move '%s' into place at '%s'\n", replacementPath.c_str(),
-		       swapPath.c_str());
+		g_report.fail("[swap]: could not move '%s' into place at '%s'", replacementPath.c_str(), swapPath.c_str());
 		return false;
 	}
 	return true;
@@ -1096,7 +1180,6 @@ void runSwapEject(void*) {
 	audioFileManager.setCardEjected();
 	if (!performCardSwap()) {
 		g_swapFailed = true;
-		g_failures++;
 		g_swapStep = SwapStep::Finished;
 		return;
 	}
@@ -1105,6 +1188,7 @@ void runSwapEject(void*) {
 	g_swapStep = SwapStep::Collect;
 	g_caseStarted = true; // the pending re-ask from Arm IS this case; do not start a new one
 	g_caseTicks = 0;
+	g_caseWait.restart();
 	g_caseDeferrals = 0;
 }
 
@@ -1123,11 +1207,10 @@ void finishSwapStage() {
 	//     reachable while a prefix from the previous card is still servable, because that answers
 	//     READY on tick 1 and the case settles there.
 	if (!g_swapFailed && g_swapCollectDeferrals < 2) {
-		printf("FAIL [songPreviewAB/swap]: the post-swap collect deferred %d time(s), fewer than the 2 a refused "
-		       "prefix forces -- so it was answered from a prefix read BEFORE the ejection rather than from the "
-		       "card now in the slot\n",
-		       g_swapCollectDeferrals);
-		g_failures++;
+		g_report.fail("[swap]: the post-swap collect deferred %d time(s), fewer than the 2 a refused "
+		              "prefix forces -- so it was answered from a prefix read BEFORE the ejection rather than from the "
+		              "card now in the slot",
+		              g_swapCollectDeferrals);
 	}
 }
 
@@ -1159,10 +1242,9 @@ void runSwapTick() {
 		SongPreviewAbProbe::tick();
 		const uint32_t crc = imageCrc();
 		if (!caseSettled()) {
-			printf("FAIL [songPreviewAB/swap]: '%s' had not published after %d step(s) of waiting, so this stage "
-			       "cannot know a result was in the channel when the card was pulled -- raise kPublishTicks\n",
-			       kSwapFilename, kPublishTicks);
-			g_failures++;
+			g_report.fail("[swap]: '%s' had not published after %d step(s) of waiting, so this stage "
+			              "cannot know a result was in the channel when the card was pulled -- raise kPublishTicks",
+			              kSwapFilename, kPublishTicks);
 			g_swapFailed = true;
 			g_swapStep = SwapStep::Finished;
 			return;
@@ -1193,11 +1275,18 @@ void runSwapTick() {
 
 	case SwapStep::Collect: {
 		if (!g_caseSettled) {
-			if (!driveCase("swap")) {
+			switch (driveCase("swap")) {
+			case CaseDrive::Running:
 				return;
+			case CaseDrive::Wedged:
+				g_swapFailed = true;
+				g_swapStep = SwapStep::Finished;
+				return;
+			case CaseDrive::Settled:
+				g_caseSettled = true;
+				g_swapCollectDeferrals = g_caseDeferrals;
+				break;
 			}
-			g_caseSettled = true;
-			g_swapCollectDeferrals = g_caseDeferrals;
 		}
 		// The reference reads the file now at the swap path: the new card's song.
 		if (!referenceReady(songPath(kSongsDir, kSwapFilename))) {
@@ -1317,6 +1406,8 @@ constexpr const char* kVariationExpected = "JAM 13";
 constexpr uint32_t kDirectoryHoldMs = 5;
 /// Ticks one run gets before it is called wedged. A run here takes a few dozen.
 constexpr int32_t kMaxRunTicks = 400;
+/// Ticks the DX cartridge page gets to land once the read has ended: the menu reaches it on the ticks after.
+constexpr int32_t kMaxDxLandTicks = 16;
 
 enum class ListingStep : uint8_t {
 	Fixture,
@@ -1336,9 +1427,9 @@ enum class ListingStep : uint8_t {
 	Finished,
 };
 ListingStep g_listingStep = ListingStep::Fixture;
-bool g_listingRunning = false;   ///< a run is in flight and being ticked
-int32_t g_listingTicks = 0;      ///< tick budget guard for the run in flight
-int32_t g_listingRuns = 0;       ///< runs that finished
+bool g_listingRunning = false;                                           ///< a run is in flight and being ticked
+Wait g_listingWait{g_report, "the listing run finishing", kMaxRunTicks}; ///< the bound on the run in flight
+int32_t g_listingRuns = 0;                                               ///< runs that finished
 int32_t g_runRequestsBefore = 0; ///< Browser::directoryRequests() when the run in flight began
 int32_t g_runOpensBefore = 0;    ///< Browser::totalDirectoryOpens() when the run in flight began
 int32_t g_slotCallsBefore = 0;   ///< Browser::unusedSlotCalls() when the new-name run began
@@ -1448,7 +1539,7 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 	// a green run -- the "gate that covers nothing" shape this branch has hit twice.
 	auto opened = deluge::io::Directory::open(dir);
 	if (!opened.has_value()) {
-		printf("SP-LISTING FAIL could not open fixture %s\n", dir);
+		g_report.fail("LISTING could not open fixture %s", dir);
 		return false;
 	}
 	int32_t counted = 0;
@@ -1462,7 +1553,7 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 		}
 	}
 	if (counted < count) {
-		printf("SP-LISTING FAIL fixture %s has %d entries, needs %d\n", dir, counted, count);
+		g_report.fail("LISTING fixture %s has %d entries, needs %d", dir, counted, count);
 		return false;
 	}
 	return true;
@@ -1488,14 +1579,12 @@ void checkResumed(const char* label) {
 	const int32_t requests = runRequests();
 	const int32_t opens = runOpens();
 	if (opens == 0) {
-		printf("SP-LISTING FAIL %s made no open at all\n", label);
-		g_failures++;
+		g_report.fail("LISTING %s made no open at all", label);
 	}
 	else if (requests != opens) {
-		printf("SP-LISTING FAIL %s made %d request(s) for %d open(s) -- an open was asked for again, so the run "
-		       "restarted instead of resuming\n",
-		       label, requests, opens);
-		g_failures++;
+		g_report.fail("LISTING %s made %d request(s) for %d open(s) -- an open was asked for again, so the run "
+		              "restarted instead of resuming",
+		              label, requests, opens);
 	}
 }
 
@@ -1504,7 +1593,7 @@ void beginRun(ListingStep step) {
 	g_listingStep = step;
 	markCounters();
 	g_itemsWhenRunBegan = Browser::listing.size();
-	g_listingTicks = 0;
+	g_listingWait.restart();
 	g_listingRunning = true;
 }
 
@@ -1515,6 +1604,7 @@ void finishListingStage() {
 	g_listingStep = ListingStep::Finished;
 }
 
+/// The marker name of a listing step.
 const char* listingStepName(ListingStep step) {
 	switch (step) {
 	case ListingStep::Fixture:
@@ -1589,23 +1679,20 @@ void finishRun() {
 		       runRequests(), deferrals);
 		checkResumed("reference");
 		if (runOpens() < 2) {
-			printf("SP-LISTING FAIL reference made only %d open(s) -- the re-read after the cull never happened\n",
-			       runOpens());
-			g_failures++;
+			g_report.fail("LISTING reference made only %d open(s) -- the re-read after the cull never happened",
+			              runOpens());
 		}
 		// Each request is one UNKNOWN answer, and so one deferral. Deferrals beyond that are PENDING answers: an open
 		// still in flight when asked again. None at all means the hold kept nothing pending and resuming from PENDING
 		// went untested.
 		if (deferrals <= runRequests()) {
-			printf("SP-LISTING FAIL reference deferred %d time(s) for %d request(s) -- no open was ever still pending "
-			       "when asked again\n",
-			       deferrals, runRequests());
-			g_failures++;
+			g_report.fail("LISTING reference deferred %d time(s) for %d request(s) -- no open was ever still pending "
+			              "when asked again",
+			              deferrals, runRequests());
 		}
 		if (!listsReferenceNames(got) || got.entered != "SONG000" || got.selected != 0) {
-			printf("SP-LISTING FAIL reference listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
-			       joinNames(got).c_str(), got.entered.c_str(), got.selected);
-			g_failures++;
+			g_report.fail("LISTING reference listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0",
+			              joinNames(got).c_str(), got.entered.c_str(), got.selected);
 		}
 		// A prediction searches the list a listing leaves, as a keystroke does, so it runs straight after this one.
 		beginRun(ListingStep::Predict);
@@ -1618,9 +1705,8 @@ void finishRun() {
 		       runRequests());
 		checkResumed("predict");
 		if (got.entered != kPredictText || got.selected != kPredictSelected || runOpens() < kPredictMinReads) {
-			printf("SP-PREDICT FAIL text=%s selected=%d reads=%d, wanted %s selected=%d reads>=%d\n",
-			       got.entered.c_str(), got.selected, runOpens(), kPredictText, kPredictSelected, kPredictMinReads);
-			g_failures++;
+			g_report.fail("PREDICT text=%s selected=%d reads=%d, wanted %s selected=%d reads>=%d", got.entered.c_str(),
+			              got.selected, runOpens(), kPredictText, kPredictSelected, kPredictMinReads);
 		}
 		// Only the pad-typing caller undoes. Its undo must happen even when the prediction fails on a LATER tick, long
 		// after that caller returned true and moved on.
@@ -1635,9 +1721,8 @@ void finishRun() {
 		       BrowserListingAbProbe::editPos(), wanted, runOpens(), runRequests());
 		checkResumed("retraction(undone)");
 		if (BrowserListingAbProbe::editPos() != wanted) {
-			printf("SP-PREDICT FAIL the pad site's failure left editPos=%d, wanted %d\n",
-			       BrowserListingAbProbe::editPos(), wanted);
-			g_failures++;
+			g_report.fail("PREDICT the pad site's failure left editPos=%d, wanted %d", BrowserListingAbProbe::editPos(),
+			              wanted);
 		}
 		beginRun(ListingStep::RetractKept);
 		BrowserListingAbProbe::beginPrediction(kPredictDir, kMissingPrefix, std::nullopt);
@@ -1650,9 +1735,8 @@ void finishRun() {
 		       BrowserListingAbProbe::editPos(), wanted, runOpens(), runRequests());
 		checkResumed("retraction(kept)");
 		if (BrowserListingAbProbe::editPos() != wanted) {
-			printf("SP-PREDICT FAIL a non-pad failure moved editPos to %d, wanted %d\n",
-			       BrowserListingAbProbe::editPos(), wanted);
-			g_failures++;
+			g_report.fail("PREDICT a non-pad failure moved editPos to %d, wanted %d", BrowserListingAbProbe::editPos(),
+			              wanted);
 		}
 		printf("SP-PREDICT-SUMMARY runs=3\n");
 		// Surviving the open at all is the property of the next run: >230 entries once panicked the snapshot arena on
@@ -1667,9 +1751,8 @@ void finishRun() {
 		       runRequests(), BrowserListingAbProbe::deferrals());
 		checkResumed("big");
 		if (!listsReferenceNames(got) || got.entered != "SONG000" || got.selected != 0) {
-			printf("SP-LISTING FAIL big listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
-			       joinNames(got).c_str(), got.entered.c_str(), got.selected);
-			g_failures++;
+			g_report.fail("LISTING big listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0",
+			              joinNames(got).c_str(), got.entered.c_str(), got.selected);
 		}
 		// The missing-folder fallback, landing on a directory big enough to CULL, entered WITH a search string. All
 		// three matter. The fallback drops the search string, and dropping it without also resetting
@@ -1684,16 +1767,14 @@ void finishRun() {
 		       runRequests(), BrowserListingAbProbe::deferrals());
 		checkResumed("fallback");
 		if (!deluge::string::caselessEquals(got.dir, kBigDir) || !listsReferenceNames(got)) {
-			printf("SP-LISTING FAIL fallback landed on dir=%s listing %s, wanted %s listing SONG000-008\n",
-			       got.dir.c_str(), joinNames(got).c_str(), kBigDir);
-			g_failures++;
+			g_report.fail("LISTING fallback landed on dir=%s listing %s, wanted %s listing SONG000-008",
+			              got.dir.c_str(), joinNames(got).c_str(), kBigDir);
 		}
 		// Now the same fallback against a default directory that does NOT exist, so it has to be created. After boot
 		// the creation rides the channel's request, on the storage tier, with the open.
 		(void)deluge::io::unlink(kMakeDir);
 		if (deluge::io::Directory::open(kMakeDir).has_value()) {
-			printf("SP-LISTING FAIL fixture: %s still exists, the create case would test nothing\n", kMakeDir);
-			g_failures++;
+			g_report.fail("LISTING fixture: %s still exists, the create case would test nothing", kMakeDir);
 			finishListingStage();
 			return;
 		}
@@ -1707,9 +1788,8 @@ void finishRun() {
 		       runRequests(), BrowserListingAbProbe::deferrals());
 		checkResumed("create");
 		if (!exists || !deluge::string::caselessEquals(got.dir, kMakeDir) || !got.names.empty()) {
-			printf("SP-LISTING FAIL create: landed on %s listing %zu entries, %s exists=%d\n", got.dir.c_str(),
-			       got.names.size(), kMakeDir, exists ? 1 : 0);
-			g_failures++;
+			g_report.fail("LISTING create: landed on %s listing %zu entries, %s exists=%d", got.dir.c_str(),
+			              got.names.size(), kMakeDir, exists ? 1 : 0);
 		}
 		// A listing that finds NO files names a brand-new slot, and naming it reads the folder again (getUnusedSlot)
 		// from INSIDE the listing. A deferral there must SUSPEND the listing, not fail it and not restart it --
@@ -1728,9 +1808,8 @@ void finishRun() {
 		       runRequests(), Browser::unusedSlotCalls() - g_slotCallsBefore, BrowserListingAbProbe::deferrals());
 		checkResumed("newname");
 		if (got.entered != kNewName || runOpens() != kNewNameOpens) {
-			printf("SP-NEWNAME FAIL the save browser named %s in %d open(s), wanted %s in %d\n", got.entered.c_str(),
-			       runOpens(), kNewName, kNewNameOpens);
-			g_failures++;
+			g_report.fail("NEWNAME the save browser named %s in %d open(s), wanted %s in %d", got.entered.c_str(),
+			              runOpens(), kNewName, kNewNameOpens);
 		}
 		// The same naming in a folder that already holds numbered songs, as a user saving a new song there sees it.
 		buildSlotFixture();
@@ -1742,10 +1821,9 @@ void finishRun() {
 		printf("SP-SLOT dir=%s name=%s\n", kSlotDir, got.entered.c_str());
 		checkResumed("slotname");
 		if (got.entered != kSlotExpected) {
-			printf("SP-SLOT FAIL named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
-			       "and the slot was numbered from it\n",
-			       got.entered.c_str(), kSlotExpected);
-			g_failures++;
+			g_report.fail("SLOT named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
+			              "and the slot was numbered from it",
+			              got.entered.c_str(), kSlotExpected);
 		}
 		// Saving over a song whose family runs past the listing's window.
 		buildVariationFixture();
@@ -1757,10 +1835,9 @@ void finishRun() {
 		printf("SP-VARIATION dir=%s name=%s opens=%d\n", kVariationDir, got.entered.c_str(), runOpens());
 		checkResumed("variation");
 		if (got.entered != kVariationExpected) {
-			printf("SP-VARIATION FAIL saving over %s proposed %s, wanted %s -- the name's family was judged from the "
-			       "listing's window, not the whole folder\n",
-			       kVariationStartAt, got.entered.c_str(), kVariationExpected);
-			g_failures++;
+			g_report.fail("VARIATION saving over %s proposed %s, wanted %s -- the name's family was judged from the "
+			              "listing's window, not the whole folder",
+			              kVariationStartAt, got.entered.c_str(), kVariationExpected);
 		}
 		g_listingStep = ListingStep::Unmount;
 		return;
@@ -1775,17 +1852,14 @@ void finishRun() {
 		       runRequests(), BrowserListingAbProbe::deferrals());
 		checkResumed("mount");
 		if (!listsReferenceNames(got)) {
-			printf("SP-LISTING FAIL mount: listed %s from an unmounted card, wanted SONG000-008\n",
-			       joinNames(got).c_str());
-			g_failures++;
+			g_report.fail("LISTING mount: listed %s from an unmounted card, wanted SONG000-008",
+			              joinNames(got).c_str());
 		}
 		if (notices != 1) {
-			printf("SP-LISTING FAIL mount: the mount edge fired %u times, wanted exactly 1\n", notices);
-			g_failures++;
+			g_report.fail("LISTING mount: the mount edge fired %u times, wanted exactly 1", notices);
 		}
 		if (g_sawBlankWhileSuspended) {
-			printf("SP-LISTING FAIL a suspended listing blanked the folder it was replacing\n");
-			g_failures++;
+			g_report.fail("LISTING a suspended listing blanked the folder it was replacing");
 		}
 		printf("SP-LISTING-SUMMARY runs=%d big=%d blanked=%d\n", g_listingRuns, kBigEntries,
 		       g_sawBlankWhileSuspended ? 1 : 0);
@@ -1803,13 +1877,16 @@ void finishRun() {
 
 void runListingTick() {
 	if (g_listingRunning) {
-		if (!tickRun()) {
-			if (++g_listingTicks > kMaxRunTicks) {
-				printf("SP-LISTING FAIL %s never finished -- nothing re-asked\n", listingStepName(g_listingStep));
-				g_failures++;
-				finishListingStage();
-			}
+		const bool finished = tickRun();
+		switch (g_listingWait.poll(finished)) {
+		case WaitState::Pending:
 			return; // still waiting on the channel; the tick surface runs it again
+		case WaitState::Expired:
+			printf("SP-LISTING-WEDGED step=%s\n", listingStepName(g_listingStep));
+			finishListingStage();
+			return;
+		case WaitState::Met:
+			break;
 		}
 		g_listingRunning = false;
 		g_listingRuns++;
@@ -1822,7 +1899,6 @@ void runListingTick() {
 		// Every fixture up front: the prediction runs straight after the reference listing and searches BIGLIST.
 		if (!buildFixtureDir(kListingDir, kListingEntries) || !buildFixtureDir(kEmptyDir, 0)
 		    || !buildFixtureDir(kBigDir, kBigEntries)) {
-			g_failures++;
 			finishListingStage();
 			return;
 		}
@@ -1903,13 +1979,13 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 			continue; // already present from a previous run
 		}
 		if (!writeBlankSynthPresetFile(path)) {
-			printf("SP-ACQUIRE FAIL could not write preset fixture %s\n", path);
+			g_report.fail("ACQUIRE could not write preset fixture %s", path);
 			return false;
 		}
 	}
 	auto opened = deluge::io::Directory::open(dir);
 	if (!opened.has_value()) {
-		printf("SP-ACQUIRE FAIL could not open fixture %s\n", dir);
+		g_report.fail("ACQUIRE could not open fixture %s", dir);
 		return false;
 	}
 	int32_t counted = 0;
@@ -1923,7 +1999,7 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 		}
 	}
 	if (counted < count) {
-		printf("SP-ACQUIRE FAIL fixture %s has %d entries, needs %d\n", dir, counted, count);
+		g_report.fail("ACQUIRE fixture %s has %d entries, needs %d", dir, counted, count);
 		return false;
 	}
 	return true;
@@ -2126,17 +2202,14 @@ void runAcquireTick() {
 	case AcquireStep::Fixture: {
 		// The duplicated "SYNTHS" literal (kAcqDir), pinned against the two silently drifting apart.
 		if (std::string{kAcqDir} != getInstrumentFolder(OutputType::SYNTH)) {
-			printf("SP-ACQUIRE FAIL kAcqDir=%s no longer matches getInstrumentFolder(SYNTH)=%s\n", kAcqDir,
-			       getInstrumentFolder(OutputType::SYNTH));
-			g_failures++;
+			g_report.fail("ACQUIRE kAcqDir=%s no longer matches getInstrumentFolder(SYNTH)=%s", kAcqDir,
+			              getInstrumentFolder(OutputType::SYNTH));
 		}
 		// One top-level preset, and a nested folder holding several more: see the recursive-descent
 		// doc above AcquireStep's declaration for why the counts are exactly this shape.
-		if (!buildPresetFixture(kAcqDir, "PRESET", kAcqTopLevelCount)
-		    || !buildPresetFixture(kAcqSubDir, "NESTED", kAcqNestedCount)) {
-			printf("SP-ACQUIRE FAIL could not build the preset fixture under %s\n", kAcqDir);
-			g_failures++;
-		}
+		// Each fixture builder reports its own failure.
+		(void)(buildPresetFixture(kAcqDir, "PRESET", kAcqTopLevelCount)
+		       && buildPresetFixture(kAcqSubDir, "NESTED", kAcqNestedCount));
 		g_acquireStep = AcquireStep::Reference;
 		break;
 	}
@@ -2149,8 +2222,7 @@ void runAcquireTick() {
 		g_acqReferenceName = currentAcquiredName();
 		printf("SP-ACQUIRE reference name=%s\n", g_acqReferenceName.c_str());
 		if (g_acqReferenceName.empty()) {
-			printf("SP-ACQUIRE FAIL reference acquired nothing -- the stage would compare two failures\n");
-			g_failures++;
+			g_report.fail("ACQUIRE reference acquired nothing -- the stage would compare two failures");
 		}
 		else {
 			// Pinned absolutely, not just non-empty: with exactly one top-level preset, the walk has
@@ -2158,9 +2230,8 @@ void runAcquireTick() {
 			// alters the acquired preset: AcquireStep::Converted below only compares the walk with
 			// itself, so it cannot see one.
 			if (g_acqReferenceName != kAcqTopLevelName) {
-				printf("SP-ACQUIRE FAIL reference acquired %s, expected the top-level preset %s\n",
-				       g_acqReferenceName.c_str(), kAcqTopLevelName);
-				g_failures++;
+				g_report.fail("ACQUIRE reference acquired %s, expected the top-level preset %s",
+				              g_acqReferenceName.c_str(), kAcqTopLevelName);
 			}
 			// Release it so AcquireStep::Converted asks the SAME question the reference did, rather
 			// than the next one along -- see releaseAcquiredInstrument's doc.
@@ -2183,9 +2254,8 @@ void runAcquireTick() {
 		const std::string name = currentAcquiredName();
 		printf("SP-ACQUIRE converted name=%s dispatches=%d\n", name.c_str(), acqDispatches());
 		if (name != g_acqReferenceName) {
-			printf("SP-ACQUIRE FAIL converted acquired %s, reference acquired %s\n", name.c_str(),
-			       g_acqReferenceName.c_str());
-			g_failures++;
+			g_report.fail("ACQUIRE converted acquired %s, reference acquired %s", name.c_str(),
+			              g_acqReferenceName.c_str());
 		}
 		// Deliberately NOT released: the top-level preset is now permanently consumed, so every
 		// acquisition from here on must descend into SYNTHS/NESTED to find anything at all.
@@ -2207,9 +2277,8 @@ void runAcquireTick() {
 		const std::string name = currentAcquiredName();
 		printf("SP-ACQUIRE nested name=%s\n", name.c_str());
 		if (name != kAcqNestedFirstName) {
-			printf("SP-ACQUIRE FAIL acquisition did not descend into the subfolder: got %s, expected %s\n",
-			       name.c_str(), kAcqNestedFirstName);
-			g_failures++;
+			g_report.fail("ACQUIRE acquisition did not descend into the subfolder: got %s, expected %s", name.c_str(),
+			              kAcqNestedFirstName);
 		}
 		g_acquireStep = AcquireStep::Coalesce;
 		break;
@@ -2240,9 +2309,8 @@ void runAcquireTick() {
 		// dispatch mechanism silently broken) pass as "fewer than 3", same vacuous-pass shape as the
 		// NonAudio bug below. The lower bound requires that SOMETHING actually completed.
 		if (loads < 1 || loads >= kCoalesceGestures) {
-			printf("SP-ACQUIRE FAIL coalescing produced %d load(s) for %d gesture(s) -- expected 1..%d\n", loads,
-			       kCoalesceGestures, kCoalesceGestures - 1);
-			g_failures++;
+			g_report.fail("ACQUIRE coalescing produced %d load(s) for %d gesture(s) -- expected 1..%d", loads,
+			              kCoalesceGestures, kCoalesceGestures - 1);
 		}
 		g_acquireStep = AcquireStep::NonAudio;
 		break;
@@ -2269,8 +2337,7 @@ void runAcquireTick() {
 		const int32_t dispatched = acqDispatches() - g_acqNonAudioBefore;
 		printf("SP-ACQUIRE nonaudio dispatches=%d\n", dispatched);
 		if (dispatched != 0) {
-			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
-			g_failures++;
+			g_report.fail("ACQUIRE a CV switch dispatched a storage op; it reads no card");
 		}
 		g_acquireStep = AcquireStep::ViewNavigate;
 		break;
@@ -2285,8 +2352,7 @@ void runAcquireTick() {
 		// PresetConsumer::ViewNavigateClipPreset's switch arm still an empty `break;`.
 		g_viewClip = getCurrentInstrumentClip();
 		if (g_viewClip == nullptr || g_viewClip->output == nullptr) {
-			printf("SP-ACQUIRE FAIL no current InstrumentClip to drive View's gestures with\n");
-			g_failures++;
+			g_report.fail("ACQUIRE no current InstrumentClip to drive View's gestures with");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2302,19 +2368,17 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE view-navigate dispatches=%d before=%s after=%s\n", dispatched, g_acqViewNameBefore.c_str(),
 		       nameAfter.c_str());
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL View::navigateThroughPresetsForInstrumentClip's Synth/Kit arm ran "
-			       "%d op(s), expected 1\n",
-			       dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE View::navigateThroughPresetsForInstrumentClip's Synth/Kit arm ran "
+			              "%d op(s), expected 1",
+			              dispatched);
 		}
 		// The real outcome: the boot clip's Output ("0") does not match anything in the fixture, so a
 		// working ViewNavigateClipPreset arm MUST land on the top-level PRESET00 -- proving
 		// completeNavigateThroughPresetsForInstrumentClip() actually ran the swap, not merely that the
 		// op executed.
 		if (nameAfter == g_acqViewNameBefore) {
-			printf("SP-ACQUIRE FAIL navigate did not change the clip's Output -- "
-			       "ViewNavigateClipPreset's switch arm may not be wired\n");
-			g_failures++;
+			g_report.fail("ACQUIRE navigate did not change the clip's Output -- "
+			              "ViewNavigateClipPreset's switch arm may not be wired");
 		}
 		g_acquireStep = AcquireStep::ViewChangeTypeCV;
 		break;
@@ -2329,8 +2393,7 @@ void runAcquireTick() {
 		const bool ok = BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::CV);
 		printf("SP-ACQUIRE view-changetype-cv ok=%d type=%d\n", ok ? 1 : 0, static_cast<int>(g_viewClip->output->type));
 		if (!ok || g_viewClip->output->type != OutputType::CV) {
-			printf("SP-ACQUIRE FAIL View::changeOutputType(CV) did not complete synchronously\n");
-			g_failures++;
+			g_report.fail("ACQUIRE View::changeOutputType(CV) did not complete synchronously");
 		}
 		g_acquireStep = AcquireStep::ViewChangeTypeCVCheck;
 		break;
@@ -2339,8 +2402,7 @@ void runAcquireTick() {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
 		printf("SP-ACQUIRE view-changetype-cv dispatches=%d\n", dispatched);
 		if (dispatched != 0) {
-			printf("SP-ACQUIRE FAIL View::changeOutputType(CV) dispatched a storage op; it reads no card\n");
-			g_failures++;
+			g_report.fail("ACQUIRE View::changeOutputType(CV) dispatched a storage op; it reads no card");
 		}
 		g_acquireStep = AcquireStep::ViewChangeTypeSynth;
 		break;
@@ -2371,14 +2433,11 @@ void runAcquireTick() {
 		const OutputType typeAfter = g_viewClip->output->type;
 		printf("SP-ACQUIRE view-changetype-synth dispatches=%d type=%d\n", dispatched, static_cast<int>(typeAfter));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL View::changeOutputType(SYNTH)'s Synth/Kit arm ran %d op(s), expected 1\n",
-			       dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE View::changeOutputType(SYNTH)'s Synth/Kit arm ran %d op(s), expected 1", dispatched);
 		}
 		if (typeAfter != OutputType::SYNTH) {
-			printf("SP-ACQUIRE FAIL clip did not actually become SYNTH -- "
-			       "ViewChangeType's switch arm may not be wired\n");
-			g_failures++;
+			g_report.fail("ACQUIRE clip did not actually become SYNTH -- "
+			              "ViewChangeType's switch arm may not be wired");
 		}
 		g_acquireStep = AcquireStep::SessionChangeTypeCV;
 		break;
@@ -2388,8 +2447,7 @@ void runAcquireTick() {
 		// call completeChangeOutputType() INLINE, reading no card. Readable in the SAME tick precisely
 		// because it is the synchronous arm -- see AcquireStep::NonAudio's doc.
 		if (!BrowserListingAbProbe::aimGridPressAt(g_viewClip)) {
-			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the session clip\n");
-			g_failures++;
+			g_report.fail("ACQUIRE grid coordinates do not resolve back to the session clip");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2397,8 +2455,7 @@ void runAcquireTick() {
 		BrowserListingAbProbe::sessionButtonChangeOutputType(deluge::hid::button::CV);
 		printf("SP-ACQUIRE session-changetype-cv type=%d\n", static_cast<int>(g_viewClip->output->type));
 		if (g_viewClip->output->type != OutputType::CV) {
-			printf("SP-ACQUIRE FAIL SessionView's Grid changeOutputType(CV) did not complete synchronously\n");
-			g_failures++;
+			g_report.fail("ACQUIRE SessionView's Grid changeOutputType(CV) did not complete synchronously");
 		}
 		g_acquireStep = AcquireStep::SessionChangeTypeCVCheck;
 		break;
@@ -2407,8 +2464,7 @@ void runAcquireTick() {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
 		printf("SP-ACQUIRE session-changetype-cv dispatches=%d\n", dispatched);
 		if (dispatched != 0) {
-			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
-			g_failures++;
+			g_report.fail("ACQUIRE a CV switch dispatched a storage op; it reads no card");
 		}
 		g_acquireStep = AcquireStep::SessionChangeTypeSynth;
 		break;
@@ -2418,8 +2474,7 @@ void runAcquireTick() {
 		// clip on CV. SYNTH rather than KIT for the same reason AcquireStep::ViewChangeTypeSynth gives:
 		// the two share this code path exactly, and only SYNTH has a fixture proven safe to load.
 		if (!BrowserListingAbProbe::aimGridPressAt(g_viewClip)) {
-			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the session clip\n");
-			g_failures++;
+			g_report.fail("ACQUIRE grid coordinates do not resolve back to the session clip");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2433,13 +2488,11 @@ void runAcquireTick() {
 		const OutputType typeAfter = g_viewClip->output->type;
 		printf("SP-ACQUIRE session-changetype-synth dispatches=%d type=%d\n", dispatched, static_cast<int>(typeAfter));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL SessionView's Grid changeOutputType(SYNTH) ran %d op(s), expected 1\n", dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE SessionView's Grid changeOutputType(SYNTH) ran %d op(s), expected 1", dispatched);
 		}
 		if (typeAfter != OutputType::SYNTH) {
-			printf("SP-ACQUIRE FAIL clip did not actually become SYNTH -- "
-			       "SessionChangeType's switch arm may not be wired\n");
-			g_failures++;
+			g_report.fail("ACQUIRE clip did not actually become SYNTH -- "
+			              "SessionChangeType's switch arm may not be wired");
 		}
 		g_acquireStep = AcquireStep::SessionNewTrack;
 		break;
@@ -2454,8 +2507,7 @@ void runAcquireTick() {
 		BrowserListingAbProbe::pressEmptyPad(kAcqNewTrackX, kAcqNewTrackY);
 		// Nothing may have been created yet: the op is only ENQUEUED here.
 		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
-			printf("SP-ACQUIRE FAIL the empty-pad gesture created a clip synchronously; it reads the card\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the empty-pad gesture created a clip synchronously; it reads the card");
 		}
 		g_acquireStep = AcquireStep::SessionNewTrackCheck;
 		break;
@@ -2467,16 +2519,14 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE session-newtrack dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL the empty-pad gesture ran %d op(s), expected 1\n", dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE the empty-pad gesture ran %d op(s), expected 1", dispatched);
 		}
 		// The real outcome: a clip that did not exist before now does, with an Instrument loaded off
 		// the card. An unwired SessionNewTrack arm dispatches and counts identically but adds nothing.
 		if (added != 1) {
-			printf("SP-ACQUIRE FAIL the empty-pad gesture added %d session clip(s), expected 1 -- "
-			       "SessionNewTrack's switch arm may not be wired\n",
-			       added);
-			g_failures++;
+			g_report.fail("ACQUIRE the empty-pad gesture added %d session clip(s), expected 1 -- "
+			              "SessionNewTrack's switch arm may not be wired",
+			              added);
 		}
 		else {
 			Clip* created =
@@ -2485,8 +2535,7 @@ void runAcquireTick() {
 			const std::string name = acquiredName(created->output);
 			printf("SP-ACQUIRE session-newtrack name=%s\n", name.c_str());
 			if (created->output == nullptr || created->output->type != OutputType::SYNTH || name.empty()) {
-				printf("SP-ACQUIRE FAIL the created clip has no SYNTH Instrument from the fixture\n");
-				g_failures++;
+				g_report.fail("ACQUIRE the created clip has no SYNTH Instrument from the fixture");
 			}
 		}
 		// The gesture's own tail, which runs from completeNewTrack() a tick later, off the caller's stack.
@@ -2494,12 +2543,10 @@ void runAcquireTick() {
 		// release was injected), so the held mode being set proves beginHoldingClipPress() actually ran
 		// after the acquisition.
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-			printf("SP-ACQUIRE FAIL the created clip was not left held -- completeNewTrack()'s tail did not run\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the created clip was not left held -- completeNewTrack()'s tail did not run");
 		}
 		if (BrowserListingAbProbe::newTrackPressHeld()) {
-			printf("SP-ACQUIRE FAIL the new-track held marker outlived its gesture\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the new-track held marker outlived its gesture");
 		}
 		g_acquireStep = AcquireStep::SessionNavigate;
 		break;
@@ -2516,14 +2563,12 @@ void runAcquireTick() {
 		// The freshly created clip's Instrument came from SYNTHS/NESTED, which holds many, so a working
 		// arm MUST land on a different preset.
 		if (g_acqNewTrackClip == nullptr) {
-			printf("SP-ACQUIRE FAIL no created clip to drive the Grid navigate gesture with\n");
-			g_failures++;
+			g_report.fail("ACQUIRE no created clip to drive the Grid navigate gesture with");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
 		if (!BrowserListingAbProbe::aimGridPressAt(g_acqNewTrackClip)) {
-			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the created clip\n");
-			g_failures++;
+			g_report.fail("ACQUIRE grid coordinates do not resolve back to the created clip");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2539,16 +2584,14 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE session-navigate dispatches=%d before=%s after=%s\n", dispatched,
 		       g_acqViewNameBefore.c_str(), nameAfter.c_str());
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL SessionView's Grid navigate arm ran %d op(s), expected 1\n", dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE SessionView's Grid navigate arm ran %d op(s), expected 1", dispatched);
 		}
 		// The real outcome, not the dispatch count: presetAcquisitionsRun_ increments at the TOP of
 		// runPresetAcquisitionOp, before the follow-up switch, so a count-only check passes identically
 		// with SessionNavigate's arm still an empty `break;`.
 		if (nameAfter == g_acqViewNameBefore) {
-			printf("SP-ACQUIRE FAIL navigate did not change the clip's Output -- "
-			       "SessionNavigate's switch arm may not be wired\n");
-			g_failures++;
+			g_report.fail("ACQUIRE navigate did not change the clip's Output -- "
+			              "SessionNavigate's switch arm may not be wired");
 		}
 		g_acquireStep = AcquireStep::SessionNewTrackEnter;
 		break;
@@ -2564,8 +2607,7 @@ void runAcquireTick() {
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::beginGridNewTrackEnter(kAcqEnterX, kAcqEnterY);
 		if (std::ssize(currentSong->live.clips.session_clips) != g_acqNewTrackClipsBefore) {
-			printf("SP-ACQUIRE FAIL the grid ENTER gesture created a clip synchronously; it reads the card\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the grid ENTER gesture created a clip synchronously; it reads the card");
 		}
 		// The caller's tail, which is what resets the coordinates the completion must NOT re-read.
 		BrowserListingAbProbe::endGridPress();
@@ -2579,22 +2621,19 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE session-newtrack-enter dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
 		       static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL the grid ENTER gesture ran %d op(s), expected 1\n", dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE the grid ENTER gesture ran %d op(s), expected 1", dispatched);
 		}
 		if (added != 1) {
-			printf("SP-ACQUIRE FAIL the grid ENTER gesture added %d session clip(s), expected 1 -- "
-			       "SessionNewTrackEnter's switch arm may not be wired\n",
-			       added);
-			g_failures++;
+			g_report.fail("ACQUIRE the grid ENTER gesture added %d session clip(s), expected 1 -- "
+			              "SessionNewTrackEnter's switch arm may not be wired",
+			              added);
 		}
 		// The outcome the snapshot exists to preserve: still holding the clip, NOT transitioned into
 		// it. A completion that re-read gridFirstPressedX/Y would have taken the released branch and
 		// left currentUIMode alone.
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-			printf("SP-ACQUIRE FAIL the grid ENTER gesture did not leave the new clip held -- "
-			       "gridNewTrackClipEntered() read the reset press coordinates instead of the snapshot\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the grid ENTER gesture did not leave the new clip held -- "
+			              "gridNewTrackClipEntered() read the reset press coordinates instead of the snapshot");
 		}
 		g_acquireStep = AcquireStep::ViewNewInstrument;
 		break;
@@ -2630,10 +2669,9 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE view-newinstrument dispatches=%d before=%s after=%s\n", dispatched,
 		       g_acqViewNameBefore.c_str(), nameAfter.c_str());
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL InstrumentClipView::createNewInstrument()'s dispatch ran %d op(s), "
-			       "expected 1\n",
-			       dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE InstrumentClipView::createNewInstrument()'s dispatch ran %d op(s), "
+			              "expected 1",
+			              dispatched);
 		}
 		// The real outcome: getUnusedSlot() names the new instrument from the "SYNT:"-prefixed slot
 		// search (browser.cpp), which nothing in this fixture's SYNTHS folder collides with, so a
@@ -2643,10 +2681,9 @@ void runAcquireTick() {
 		// executed (a dispatch-count-only check would pass identically with the switch arm still an
 		// empty `break;`).
 		if (nameAfter == g_acqViewNameBefore || !nameAfter.starts_with("SYNT")) {
-			printf("SP-ACQUIRE FAIL createNewInstrument did not create a new, unused-slot-named "
-			       "instrument -- ViewNewInstrument's switch arm may not be wired, or "
-			       "Browser::getUnusedSlot() never ran\n");
-			g_failures++;
+			g_report.fail("ACQUIRE createNewInstrument did not create a new, unused-slot-named "
+			              "instrument -- ViewNewInstrument's switch arm may not be wired, or "
+			              "Browser::getUnusedSlot() never ran");
 		}
 		g_acquireStep = AcquireStep::ArrangerAuditionPad;
 		break;
@@ -2667,9 +2704,8 @@ void runAcquireTick() {
 		currentUIMode = UI_MODE_NONE;
 		g_acqAuditionRow = BrowserListingAbProbe::firstEmptyArrangerRow();
 		if (g_acqAuditionRow < 0) {
-			printf("SP-ACQUIRE FAIL no empty arranger row left to press -- the new-instrument branch is "
-			       "unreachable, so this step would pass without covering it\n");
-			g_failures++;
+			g_report.fail("ACQUIRE no empty arranger row left to press -- the new-instrument branch is "
+			              "unreachable, so this step would pass without covering it");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2678,10 +2714,9 @@ void runAcquireTick() {
 		// The press must NOT have entered the audition mode yet: on this backing the Output does not
 		// exist, so anything the handler did with it here would be acting on a row it has not filled.
 		if (currentUIMode != UI_MODE_NONE) {
-			printf("SP-ACQUIRE FAIL the audition pad entered mode %d synchronously; the Instrument it "
-			       "auditions has not been acquired yet\n",
-			       static_cast<int>(currentUIMode));
-			g_failures++;
+			g_report.fail("ACQUIRE the audition pad entered mode %d synchronously; the Instrument it "
+			              "auditions has not been acquired yet",
+			              static_cast<int>(currentUIMode));
 		}
 		g_acquireStep = AcquireStep::ArrangerAuditionPadCheck;
 		break;
@@ -2692,20 +2727,17 @@ void runAcquireTick() {
 		printf("SP-ACQUIRE arranger-audition-pad row=%d dispatches=%d name=%s uiMode=%d\n", g_acqAuditionRow,
 		       dispatched, name.c_str(), static_cast<int>(currentUIMode));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL the audition pad press ran %d op(s), expected 1\n", dispatched);
-			g_failures++;
+			g_report.fail("ACQUIRE the audition pad press ran %d op(s), expected 1", dispatched);
 		}
 		if (name.empty()) {
-			printf("SP-ACQUIRE FAIL the audition pad press left the row empty -- no Instrument was placed\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the audition pad press left the row empty -- no Instrument was placed");
 		}
 		// completeNewInstrument() must restore the audition state as well as the row and its repaint;
 		// otherwise the press ends in UI_MODE_NONE with no note sounding -- the whole point of holding
 		// an audition pad. A row-only check would pass either way.
 		if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-			printf("SP-ACQUIRE FAIL the audition pad press did not enter the audition mode -- "
-			       "completeNewInstrument() is missing the rest of the press's tail\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the audition pad press did not enter the audition mode -- "
+			              "completeNewInstrument() is missing the rest of the press's tail");
 		}
 		// Release it, and require the release to land: exitSubModeWithoutAction() only fires when the
 		// released row matches yPressedActual, so this also proves the completion left that member
@@ -2713,10 +2745,9 @@ void runAcquireTick() {
 		// there. Without it the stage would also walk away leaving a note sounding.
 		BrowserListingAbProbe::pressArrangerAuditionPad(g_acqAuditionRow, /*on=*/false);
 		if (currentUIMode != UI_MODE_NONE) {
-			printf("SP-ACQUIRE FAIL releasing the audition pad left mode %d -- the completion's "
-			       "yPressedActual does not match the pad that was pressed\n",
-			       static_cast<int>(currentUIMode));
-			g_failures++;
+			g_report.fail("ACQUIRE releasing the audition pad left mode %d -- the completion's "
+			              "yPressedActual does not match the pad that was pressed",
+			              static_cast<int>(currentUIMode));
 		}
 		g_acquireStep = AcquireStep::ArrangerAuditionRelease;
 		break;
@@ -2734,8 +2765,7 @@ void runAcquireTick() {
 		currentUIMode = UI_MODE_NONE;
 		g_acqAuditionRow = BrowserListingAbProbe::firstEmptyArrangerRow();
 		if (g_acqAuditionRow < 0) {
-			printf("SP-ACQUIRE FAIL no empty arranger row left for the release-during-flight press\n");
-			g_failures++;
+			g_report.fail("ACQUIRE no empty arranger row left for the release-during-flight press");
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
@@ -2753,14 +2783,12 @@ void runAcquireTick() {
 		// The acquisition still has to happen -- the row is filled either way, which is what the
 		// synchronous version did too. Only the audition is conditional.
 		if (dispatched != 1 || name.empty()) {
-			printf("SP-ACQUIRE FAIL a released press still has to acquire: ran %d op(s), row name=%s\n", dispatched,
-			       name.c_str());
-			g_failures++;
+			g_report.fail("ACQUIRE a released press still has to acquire: ran %d op(s), row name=%s", dispatched,
+			              name.c_str());
 		}
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-			printf("SP-ACQUIRE FAIL the completion auditioned a pad that was already released -- "
-			       "that note has nothing left to end it\n");
-			g_failures++;
+			g_report.fail("ACQUIRE the completion auditioned a pad that was already released -- "
+			              "that note has nothing left to end it");
 			// Do not leave it sounding for the rest of the process.
 			currentUIMode = UI_MODE_NONE;
 		}
@@ -2804,7 +2832,8 @@ static_assert(uint64_t{kStallHoldMs} * 1000 > kListingStallWindowUs && uint64_t{
               "every hold must outlast the wait for the give-up it holds for");
 
 /// Turns the forward reload may take to reach the window's edge: LISTTEST holds 25 songs against a 20-entry window, so
-/// no position in the window is more than 20 turns from its last entry.
+/// no position in the window is more than 20 turns from its last entry. Not a Wait: it counts encoder turns, not
+/// ticks, and the reload check judges what its exhaustion leaves.
 constexpr int32_t kMaxReloadTurns = 25;
 /// The folder's first song, where a turn UP wraps round and has to reload from the other end.
 constexpr const char* kReloadFirst = "LISTTEST/SONG000.XML";
@@ -2837,7 +2866,11 @@ enum class ByPathStep : uint8_t {
 	Finished,
 };
 ByPathStep g_byPathStep = ByPathStep::Open;
+/// Ticks the stall legs have waited, printed in their evidence lines; their bound is a virtual-time window.
 int32_t g_byPathTicks = 0;
+/// The bound on the listing in flight, and what it awaits: a leg that waits for a different listing starts a fresh one.
+Wait g_byPathWait{g_report, "", kMaxRunTicks};
+std::string_view g_byPathWaitFor;
 int32_t g_listingFailuresBefore = 0;
 /// What the load browser showed before a listing that is expected to fail, to check that it is put back.
 ListingSnapshot g_byPathBefore;
@@ -2859,19 +2892,32 @@ void finishByPathStage() {
 	g_byPathStep = ByPathStep::Finished;
 }
 
-/// Tick the load browser while its listing runs. @return Whether the listing has finished; reports a wedge itself.
-bool byPathListingSettled(const char* label) {
-	if (!BrowserListingAbProbe::inProgress()) {
-		return true;
+/// Start the next poll of byPathListingSettled() with a fresh wait, even for the listing it last awaited.
+void restartByPathWait() {
+	g_byPathWaitFor = {};
+}
+
+/// Tick the load browser while its listing runs. @return Whether the listing has finished; ends the stage itself when
+/// its wait expires.
+/// @param what What the listing is, as a literal: a different @p what than the last poll's starts a fresh wait.
+bool byPathListingSettled(const char* what) {
+	if (g_byPathWaitFor != what) {
+		g_byPathWait = Wait{g_report, what, kMaxRunTicks};
+		g_byPathWaitFor = what;
 	}
-	BrowserListingAbProbe::tick();
-	if (!BrowserListingAbProbe::inProgress()) {
-		return true;
+	bool settled = !BrowserListingAbProbe::inProgress();
+	if (!settled) {
+		BrowserListingAbProbe::tick();
+		settled = !BrowserListingAbProbe::inProgress();
 	}
-	if (++g_byPathTicks > kMaxRunTicks) {
-		printf("SP-BYPATH FAIL %s never finished -- nothing re-asked\n", label);
-		g_failures++;
+	switch (g_byPathWait.poll(settled)) {
+	case WaitState::Pending:
+		return false;
+	case WaitState::Met:
+		return true;
+	case WaitState::Expired:
 		finishByPathStage();
+		return false;
 	}
 	return false;
 }
@@ -2911,11 +2957,10 @@ void reportReload(const char* kase, const std::string& want) {
 	       g_reloadKeptWhilePending ? 1 : 0, runOpens(), runRequests(), open ? 1 : 0, g_reloadTurns);
 	checkResumed(kase);
 	if (Browser::enteredText != want || run != 1 || !g_reloadKeptWhilePending || !open) {
-		printf("SP-RELOAD FAIL case=%s entered=%s want=%s run=%d kept=%d open=%d: a reload must run once, keep the "
-		       "window it replaces on screen until it lands, and land on %s\n",
-		       kase, Browser::enteredText.c_str(), want.c_str(), run, g_reloadKeptWhilePending ? 1 : 0, open ? 1 : 0,
-		       want.c_str());
-		g_failures++;
+		g_report.fail("RELOAD case=%s entered=%s want=%s run=%d kept=%d open=%d: a reload must run once, keep the "
+		              "window it replaces on screen until it lands, and land on %s",
+		              kase, Browser::enteredText.c_str(), want.c_str(), run, g_reloadKeptWhilePending ? 1 : 0,
+		              open ? 1 : 0, want.c_str());
 	}
 }
 
@@ -2925,10 +2970,9 @@ void runByPathTick() {
 		// openUI() needs a root UI beneath it, and this harness boots without one.
 		changeRootUI(&arrangerView);
 		deluge_file_directory_set_latency_ms(kDirectoryHoldMs);
-		g_byPathTicks = 0;
+		restartByPathWait();
 		if (!openUI(&loadSongUI)) {
-			printf("SP-BYPATH FAIL the load browser did not open\n");
-			g_failures++;
+			g_report.fail("BYPATH the load browser did not open");
 			finishByPathStage();
 			return;
 		}
@@ -2944,9 +2988,8 @@ void runByPathTick() {
 			return;
 		}
 		if (getCurrentUI() != &loadSongUI) {
-			printf("SP-BYPATH FAIL the load browser's own listing failed (error %d) and closed it\n",
-			       static_cast<int>(Browser::lastListingFailure()));
-			g_failures++;
+			g_report.fail("BYPATH the load browser's own listing failed (error %d) and closed it",
+			              static_cast<int>(Browser::lastListingFailure()));
 			finishByPathStage();
 			return;
 		}
@@ -2955,7 +2998,7 @@ void runByPathTick() {
 
 	case ByPathStep::Present:
 		markCounters();
-		g_byPathTicks = 0;
+		restartByPathWait();
 		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathPresent);
 		g_byPathStep = ByPathStep::PresentWait;
 		return;
@@ -2970,9 +3013,8 @@ void runByPathTick() {
 		       Browser::enteredText.c_str(), open ? 1 : 0, runOpens(), runRequests());
 		checkResumed("bypath(present)");
 		if (!exact || Browser::enteredText != kByPathPresentName || !open) {
-			printf("SP-BYPATH FAIL a file that exists did not open by path: exact=%d entered=%s open=%d\n",
-			       exact ? 1 : 0, Browser::enteredText.c_str(), open ? 1 : 0);
-			g_failures++;
+			g_report.fail("BYPATH a file that exists did not open by path: exact=%d entered=%s open=%d", exact ? 1 : 0,
+			              Browser::enteredText.c_str(), open ? 1 : 0);
 		}
 		if (!open) {
 			finishByPathStage();
@@ -2984,7 +3026,7 @@ void runByPathTick() {
 
 	case ByPathStep::Absent:
 		markCounters();
-		g_byPathTicks = 0;
+		restartByPathWait();
 		g_listingFailuresBefore = Browser::listingFailures();
 		g_byPathBefore = takeListingSnapshot();
 		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathAbsent);
@@ -3003,12 +3045,11 @@ void runByPathTick() {
 		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, runOpens(), runRequests());
 		checkResumed("bypath(absent)");
 		if (failed != 1 || error != Error::FILE_NOT_FOUND || !open || !restored) {
-			printf(
-			    "SP-BYPATH FAIL a file that does not exist was not refused in place: failed=%d error=%d open=%d "
+			g_report.fail(
+			    "BYPATH a file that does not exist was not refused in place: failed=%d error=%d open=%d "
 			    "restored=%d, wanted one FILE_NOT_FOUND with the browser still open on the listing it had -- it must "
-			    "neither open whatever sorted into the missing file's place nor throw the user out of the browser\n",
+			    "neither open whatever sorted into the missing file's place nor throw the user out of the browser",
 			    failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
-			g_failures++;
 		}
 		if (!open) {
 			finishByPathStage();
@@ -3025,12 +3066,11 @@ void runByPathTick() {
 			return;
 		}
 		if (++g_reloadTurns > kMaxReloadTurns) {
-			printf("SP-RELOAD FAIL case=fwd %d turns and none began a reload\n", kMaxReloadTurns);
-			g_failures++;
+			g_report.fail("RELOAD case=fwd %d turns and none began a reload", kMaxReloadTurns);
 			finishByPathStage();
 			return;
 		}
-		g_byPathTicks = 0;
+		restartByPathWait();
 		if (!beginReloadTurn(+1)) {
 			return; // still inside the window: turn again next tick
 		}
@@ -3055,7 +3095,7 @@ void runByPathTick() {
 	}
 
 	case ByPathStep::ReloadWrapSeek:
-		g_byPathTicks = 0;
+		restartByPathWait();
 		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kReloadFirst);
 		g_byPathStep = ByPathStep::ReloadWrapSeekWait;
 		return;
@@ -3067,11 +3107,10 @@ void runByPathTick() {
 		if (Browser::enteredText != kReloadFirstName || Browser::listing.numDeletedAtEnd() == 0) {
 			// Not a reload failure: without songs culled from the END, turning up from the first wraps within the
 			// window and no reload happens, so the leg would prove nothing.
-			printf("SP-RELOAD FAIL case=wrap the seek left entered=%s culledAtEnd=%d, wanted %s with songs culled "
-			       "from the end\n",
-			       Browser::enteredText.c_str(), static_cast<int>(Browser::listing.numDeletedAtEnd()),
-			       kReloadFirstName);
-			g_failures++;
+			g_report.fail("RELOAD case=wrap the seek left entered=%s culledAtEnd=%d, wanted %s with songs culled "
+			              "from the end",
+			              Browser::enteredText.c_str(), static_cast<int>(Browser::listing.numDeletedAtEnd()),
+			              kReloadFirstName);
 			finishByPathStage();
 			return;
 		}
@@ -3082,10 +3121,9 @@ void runByPathTick() {
 		// SP-RELOAD wrap. Up from the folder's first song, with songs culled from the end: the browser must reload
 		// from the far end and land on the last song.
 		g_reloadTurns = 1;
-		g_byPathTicks = 0;
+		restartByPathWait();
 		if (!beginReloadTurn(-1)) {
-			printf("SP-RELOAD FAIL case=wrap turning up from %s began no reload\n", kReloadFirstName);
-			g_failures++;
+			g_report.fail("RELOAD case=wrap turning up from %s began no reload", kReloadFirstName);
 			finishByPathStage();
 			return;
 		}
@@ -3112,11 +3150,9 @@ void runByPathTick() {
 		// stalled open of this same folder stays in flight for the whole hold after the browser has given up on it,
 		// and a reload asking for the folder in that time is answered PENDING until it ends.
 		g_reloadTurns = 1;
-		g_byPathTicks = 0;
+		restartByPathWait();
 		if (!beginReloadTurn(+1)) {
-			printf("SP-RELOAD FAIL case=wrapdown turning down from %s began no reload\n",
-			       g_reloadBefore.entered.c_str());
-			g_failures++;
+			g_report.fail("RELOAD case=wrapdown turning down from %s began no reload", g_reloadBefore.entered.c_str());
 			finishByPathStage();
 			return;
 		}
@@ -3144,8 +3180,7 @@ void runByPathTick() {
 		g_stallStartUs = deluge::runtime::nowUs();
 		g_listingFailuresBefore = Browser::listingFailures();
 		if (!beginReloadTurn(-1)) {
-			printf("SP-RELOAD-STALL FAIL turning up from %s began no reload\n", kReloadFirstName);
-			g_failures++;
+			g_report.fail("RELOAD-STALL turning up from %s began no reload", kReloadFirstName);
 			finishByPathStage();
 			return;
 		}
@@ -3158,8 +3193,7 @@ void runByPathTick() {
 			if (BrowserListingAbProbe::inProgress()) {
 				++g_byPathTicks;
 				if (stallWindowPassed(kListingStallWindowUs)) {
-					printf("SP-RELOAD-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_byPathTicks);
-					g_failures++;
+					g_report.fail("RELOAD-STALL still waiting after %d ticks -- it never gave up", g_byPathTicks);
 					finishByPathStage();
 				}
 				return;
@@ -3173,10 +3207,9 @@ void runByPathTick() {
 		printf("SP-RELOAD-STALL failed=%d error=%d open=%d restored=%d entered=%s ticks=%d\n", failed,
 		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, Browser::enteredText.c_str(), g_byPathTicks);
 		if (failed != 1 || error != Error::SD_CARD || !open || !restored) {
-			printf("SP-RELOAD-STALL FAIL failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the browser "
-			       "still open on the window it had\n",
-			       failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
-			g_failures++;
+			g_report.fail("RELOAD-STALL failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the browser "
+			              "still open on the window it had",
+			              failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
 		}
 		if (!open) {
 			finishByPathStage();
@@ -3204,9 +3237,8 @@ void runByPathTick() {
 			if (BrowserListingAbProbe::inProgress()) {
 				++g_byPathTicks;
 				if (stallWindowPassed(kListingStallWindowUs)) {
-					printf("SP-LISTING-STALL FAIL inside: still waiting after %d ticks -- it never gave up\n",
-					       g_byPathTicks);
-					g_failures++;
+					g_report.fail("LISTING-STALL inside: still waiting after %d ticks -- it never gave up",
+					              g_byPathTicks);
 					finishByPathStage();
 				}
 				return;
@@ -3219,10 +3251,9 @@ void runByPathTick() {
 		printf("SP-LISTING-STALL inside failed=%d error=%d open=%d restored=%d ticks=%d\n", failed,
 		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, g_byPathTicks);
 		if (failed != 1 || error != Error::SD_CARD || !open || !restored) {
-			printf("SP-LISTING-STALL FAIL inside: failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the "
-			       "browser still open on the listing it had\n",
-			       failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
-			g_failures++;
+			g_report.fail("LISTING-STALL inside: failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the "
+			              "browser still open on the listing it had",
+			              failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
 		}
 		g_byPathStep = ByPathStep::StallEntry;
 		return;
@@ -3238,8 +3269,7 @@ void runByPathTick() {
 		g_stallStartUs = deluge::runtime::nowUs();
 		g_listingFailuresBefore = Browser::listingFailures();
 		if (!openUI(&loadSongUI)) {
-			printf("SP-LISTING-STALL FAIL entry: the load browser did not open\n");
-			g_failures++;
+			g_report.fail("LISTING-STALL entry: the load browser did not open");
 			finishByPathStage();
 			return;
 		}
@@ -3252,9 +3282,8 @@ void runByPathTick() {
 			if (BrowserListingAbProbe::inProgress()) {
 				++g_byPathTicks;
 				if (stallWindowPassed(kListingStallWindowUs)) {
-					printf("SP-LISTING-STALL FAIL entry: still waiting after %d ticks -- it never gave up\n",
-					       g_byPathTicks);
-					g_failures++;
+					g_report.fail("LISTING-STALL entry: still waiting after %d ticks -- it never gave up",
+					              g_byPathTicks);
 					finishByPathStage();
 				}
 				return;
@@ -3266,10 +3295,9 @@ void runByPathTick() {
 		printf("SP-LISTING-STALL entry failed=%d error=%d closed=%d ticks=%d\n", failed, static_cast<int>(error),
 		       closed ? 1 : 0, g_byPathTicks);
 		if (failed != 1 || error != Error::SD_CARD || !closed) {
-			printf("SP-LISTING-STALL FAIL entry: failed=%d error=%d closed=%d, wanted one SD_CARD and a closed "
-			       "browser\n",
-			       failed, static_cast<int>(error), closed ? 1 : 0);
-			g_failures++;
+			g_report.fail("LISTING-STALL entry: failed=%d error=%d closed=%d, wanted one SD_CARD and a closed "
+			              "browser",
+			              failed, static_cast<int>(error), closed ? 1 : 0);
 		}
 		finishByPathStage();
 		return;
@@ -3300,8 +3328,12 @@ enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, Reope
 DxStep g_dxStep = DxStep::Fixture;
 /// Where the listing wait goes on to once the browser is listed.
 DxStep g_dxAfterListing = DxStep::Enter;
-/// Ticks the menu has had to land after the read ended.
-int32_t g_dxLandTicks = 0;
+/// The bound on the DX browser's listing finishing, and on the cartridge read finishing.
+Wait g_dxListingWait{g_report, "the DX browser's listing finishing", kMaxRunTicks};
+Wait g_dxLoadWait{g_report, "the cartridge load finishing", kMaxRunTicks};
+/// The bound on the menu landing on the cartridge page after the read ended.
+Wait g_dxLandWait{g_report, "the DX cartridge page landing", kMaxDxLandTicks};
+/// Ticks the stall leg has waited, printed in its evidence line; its bound is a virtual-time window.
 int32_t g_dxTicks = 0;
 int32_t g_dxGiveUpsBefore = 0;
 
@@ -3364,21 +3396,13 @@ bool dxLanded() {
 	       && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::dx_cartridge;
 }
 
-/// Fail the stage as hung on @p what.
-void dxStall(const char* what) {
-	printf("SP-DX FAIL %s\n", what);
-	g_failures++;
-	finishDxStage();
-}
-
 void runDxTick() {
 	using deluge::harness::browserOnTop;
 	using deluge::harness::guestTick;
 	switch (g_dxStep) {
 	case DxStep::Fixture:
 		if (!buildDxFixture()) {
-			printf("SP-DX FAIL the fixture bank %s could not be written whole\n", kDxBankPath);
-			g_failures++;
+			g_report.fail("DX the fixture bank %s could not be written whole", kDxBankPath);
 			finishDxStage();
 			return;
 		}
@@ -3390,13 +3414,12 @@ void runDxTick() {
 		// by-path stage, not after: its stall cases leave a 30 s directory-channel hold in flight, and the DX
 		// browser's listing would queue behind it.
 		changeRootUI(&arrangerView);
-		g_dxTicks = 0;
+		g_dxListingWait.restart();
 		Clip* clip = makeDxClip();
 		if (clip == nullptr
 		    || !deluge::gui::ui::openShellMenu(clip, 0, false, false, false, false,
 		                                       deluge::gui::ui::ShellMenuNode::Dx)) {
-			printf("SP-DX FAIL the DX7 menu did not open on a DX7 synth clip\n");
-			g_failures++;
+			g_report.fail("DX the DX7 menu did not open on a DX7 synth clip");
 			finishDxStage();
 			return;
 		}
@@ -3410,16 +3433,18 @@ void runDxTick() {
 	case DxStep::ListingWait:
 		// Nothing ticks the guest in this harness unless the scenario does.
 		guestTick();
-		if (deluge::scenes::browser::browser_scene().listing_in_flight()) {
-			if (++g_dxTicks > kMaxRunTicks) {
-				dxStall("the DX browser's listing never finished");
-			}
+		switch (g_dxListingWait.poll(!deluge::scenes::browser::browser_scene().listing_in_flight())) {
+		case WaitState::Pending:
 			return;
+		case WaitState::Expired:
+			finishDxStage();
+			return;
+		case WaitState::Met:
+			break;
 		}
 		if (!browserOnTop()) {
-			printf("SP-DX FAIL the DX browser's listing failed (error %d) and closed it\n",
-			       static_cast<int>(Browser::lastListingFailure()));
-			g_failures++;
+			g_report.fail("DX the DX browser's listing failed (error %d) and closed it",
+			              static_cast<int>(Browser::lastListingFailure()));
 			finishDxStage();
 			return;
 		}
@@ -3427,12 +3452,11 @@ void runDxTick() {
 		return;
 
 	case DxStep::Enter:
-		g_dxTicks = 0;
-		g_dxLandTicks = 0;
+		g_dxLoadWait.restart();
+		g_dxLandWait.restart();
 		deluge::harness::guestSelect();
 		if (!deluge::gui::ui::dxCartridgeRead().busy()) {
-			printf("SP-DX FAIL Select on the listed bank started no load\n");
-			g_failures++;
+			g_report.fail("DX Select on the listed bank started no load");
 			finishDxStage();
 			return;
 		}
@@ -3442,15 +3466,24 @@ void runDxTick() {
 	case DxStep::LoadWait: {
 		// The collect runs in the guest's tick.
 		guestTick();
-		if (deluge::gui::ui::dxCartridgeRead().busy()) {
-			if (++g_dxTicks > kMaxRunTicks) {
-				dxStall("the cartridge load never finished");
-			}
+		switch (g_dxLoadWait.poll(!deluge::gui::ui::dxCartridgeRead().busy())) {
+		case WaitState::Pending:
 			return;
+		case WaitState::Expired:
+			finishDxStage();
+			return;
+		case WaitState::Met:
+			break;
 		}
 		// A good read ends on the cartridge page, which the menu reaches on the ticks after the read.
-		if (!dxLanded() && ++g_dxLandTicks < 16) {
+		switch (g_dxLandWait.poll(dxLanded())) {
+		case WaitState::Pending:
 			return;
+		case WaitState::Expired:
+			finishDxStage();
+			return;
+		case WaitState::Met:
+			break;
 		}
 		DX7Cartridge* pd = deluge::gui::dxCartridgeBank();
 		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;
@@ -3458,17 +3491,11 @@ void runDxTick() {
 		if (pd != nullptr) {
 			pd->getProgramName(0, first);
 		}
-		const bool landed = dxLanded();
-		printf("SP-DX inFlight=0 patches=%d first=%s landed=%d\n", patches, first, landed ? 1 : 0);
-		if (patches != 32 || strcmp(first, kDxFirstName) != 0 || !landed) {
-			printf("SP-DX FAIL the bank did not arrive whole: patches=%d first=%s landed=%d, wanted patches=32 "
-			       "first=%s landed=1\n",
-			       patches, first, landed ? 1 : 0, kDxFirstName);
-			g_failures++;
-		}
-		if (!landed) {
-			finishDxStage();
-			return;
+		// The landing wait has been met, so the menu is on the cartridge page.
+		printf("SP-DX inFlight=0 patches=%d first=%s landed=1\n", patches, first);
+		if (patches != 32 || strcmp(first, kDxFirstName) != 0) {
+			g_report.fail("DX the bank did not arrive whole: patches=%d first=%s, wanted patches=32 first=%s", patches,
+			              first, kDxFirstName);
 		}
 		g_dxStep = DxStep::Reopen;
 		return;
@@ -3476,7 +3503,7 @@ void runDxTick() {
 
 	case DxStep::Reopen:
 		// BACK from the cartridge page reopens the browser on the folder it read from.
-		g_dxTicks = 0;
+		g_dxListingWait.restart();
 		deluge::harness::guestBack();
 		g_dxAfterListing = DxStep::StallEnter;
 		g_dxStep = DxStep::ListingWait;
@@ -3492,8 +3519,7 @@ void runDxTick() {
 		g_dxGiveUpsBefore = deluge::gui::ui::dxCartridgeRead().give_ups();
 		deluge::harness::guestSelect();
 		if (!deluge::gui::ui::dxCartridgeRead().busy()) {
-			printf("SP-DX-STALL FAIL Select on the listed bank started no load\n");
-			g_failures++;
+			g_report.fail("DX-STALL Select on the listed bank started no load");
 			finishDxStage();
 			return;
 		}
@@ -3505,8 +3531,7 @@ void runDxTick() {
 		if (deluge::gui::ui::dxCartridgeRead().busy()) {
 			++g_dxTicks;
 			if (stallWindowPassed(kDxStallWindowUs)) {
-				printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
-				g_failures++;
+				g_report.fail("DX-STALL still waiting after %d ticks -- it never gave up", g_dxTicks);
 				finishDxStage();
 			}
 			return;
@@ -3515,9 +3540,8 @@ void runDxTick() {
 		const bool open = browserOnTop();
 		printf("SP-DX-STALL giveUps=%d inFlight=0 open=%d ticks=%d\n", giveUps, open ? 1 : 0, g_dxTicks);
 		if (giveUps != 1 || !open) {
-			printf("SP-DX-STALL FAIL giveUps=%d open=%d, wanted one give-up with the browser still open\n", giveUps,
-			       open ? 1 : 0);
-			g_failures++;
+			g_report.fail("DX-STALL giveUps=%d open=%d, wanted one give-up with the browser still open", giveUps,
+			              open ? 1 : 0);
 		}
 		finishDxStage();
 		return;
@@ -3549,7 +3573,16 @@ void runPreviewStallTick() {
 		return;
 
 	case PreviewStallStep::Wait: {
-		if (!driveCase("preview-stall", kPreviewStallWindowUs)) {
+		const CaseDrive drive = driveCase("preview-stall", kPreviewStallWindowUs);
+		if (drive == CaseDrive::Running) {
+			return;
+		}
+		if (drive == CaseDrive::Wedged) {
+			currentUIMode = UI_MODE_NONE;
+			deluge_file_prefix_set_latency_ms(0);
+			g_caseStarted = false;
+			g_caseSettled = false;
+			g_previewStallStep = PreviewStallStep::Finished;
 			return;
 		}
 		const uint32_t crc = imageCrc();
@@ -3560,11 +3593,10 @@ void runPreviewStallTick() {
 		       scroll, g_caseTicks);
 		if (SongPreviewAbProbe::outcome() != SongPreviewOutcome::Error || SongPreviewAbProbe::error() != Error::SD_CARD
 		    || !blank || scroll != 0) {
-			printf("SP-PREVIEW-STALL FAIL a preview whose read never answered did not give up: outcome=%s error=%d "
-			       "blank=%d scroll=%d, wanted error/%d, a blank image and the scroll-in released\n",
-			       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()),
-			       blank ? 1 : 0, scroll, static_cast<int>(Error::SD_CARD));
-			g_failures++;
+			g_report.fail("PREVIEW-STALL a preview whose read never answered did not give up: outcome=%s error=%d "
+			              "blank=%d scroll=%d, wanted error/%d, a blank image and the scroll-in released",
+			              outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()),
+			              blank ? 1 : 0, scroll, static_cast<int>(Error::SD_CARD));
 		}
 		// The released scroll-in set the UI mode, and the stages after this one gate on UI_MODE_NONE.
 		currentUIMode = UI_MODE_NONE;
@@ -3604,7 +3636,15 @@ void runOpenScrollTick() {
 		return;
 
 	case OpenScrollStep::Wait: {
-		if (!driveCase("open-scroll")) {
+		const CaseDrive drive = driveCase("open-scroll");
+		if (drive == CaseDrive::Running) {
+			return;
+		}
+		if (drive == CaseDrive::Wedged) {
+			currentUIMode = UI_MODE_NONE;
+			g_caseStarted = false;
+			g_caseSettled = false;
+			g_openScrollStep = OpenScrollStep::Finished;
 			return;
 		}
 		// The rest of the scroll, in this one tick: the app's render pass may repaint the live image between ticks.
@@ -3619,10 +3659,9 @@ void runOpenScrollTick() {
 		printf("SP-OPEN-SCROLL pendingAtTimer=%d finished=%d whole=%d rendered=%d timers=%d\n",
 		       g_openScrollPendingAtTimer ? 1 : 0, finished ? 1 : 0, whole ? 1 : 0, rendered ? 1 : 0, timers);
 		if (!g_openScrollPendingAtTimer || !finished || !whole || !rendered) {
-			printf("SP-OPEN-SCROLL FAIL the browser's opening scroll-in did not bring in the whole preview: "
-			       "pendingAtTimer=%d finished=%d whole=%d rendered=%d, wanted all 1\n",
-			       g_openScrollPendingAtTimer ? 1 : 0, finished ? 1 : 0, whole ? 1 : 0, rendered ? 1 : 0);
-			g_failures++;
+			g_report.fail("OPEN-SCROLL the browser's opening scroll-in did not bring in the whole preview: "
+			              "pendingAtTimer=%d finished=%d whole=%d rendered=%d, wanted all 1",
+			              g_openScrollPendingAtTimer ? 1 : 0, finished ? 1 : 0, whole ? 1 : 0, rendered ? 1 : 0);
 		}
 		currentUIMode = UI_MODE_NONE;
 		g_caseStarted = false;
@@ -3637,7 +3676,7 @@ void runOpenScrollTick() {
 }
 
 void printSummary() {
-	printf("SP-SUMMARY cases=%zu corpus=%zu failures=%d\n", kCases.size(), g_corpusRan, g_failures);
+	printf("SP-SUMMARY cases=%zu corpus=%zu failures=%d\n", kCases.size(), g_corpusRan, g_report.failures());
 
 	printf("SP-DEFER");
 	for (size_t i = 0; i < kCases.size(); i++) {
@@ -3653,15 +3692,13 @@ void printSummary() {
 	// "as many as a per-index existence probe happened to find", which is a count that can quietly
 	// go to zero and take fourteen real songs with it while the run stays green.
 	if (g_corpusRan != g_corpusExpected) {
-		printf("FAIL [songPreviewAB]: the packer staged %zu corpus song(s) and only %zu ran\n", g_corpusExpected,
-		       g_corpusRan);
-		g_failures++;
+		g_report.fail("[songPreviewAB]: the packer staged %zu corpus song(s) and only %zu ran", g_corpusExpected,
+		              g_corpusRan);
 	}
 	if (g_corpusRan > 0 && g_corpusRendered == 0) {
-		printf("FAIL [songPreviewAB]: %zu corpus song(s) ran and not one of them rendered artwork -- the corpus "
-		       "leg proved nothing\n",
-		       g_corpusRan);
-		g_failures++;
+		g_report.fail("[songPreviewAB]: %zu corpus song(s) ran and not one of them rendered artwork -- the corpus "
+		              "leg proved nothing",
+		              g_corpusRan);
 	}
 	printf("SP-ACQUIRE-SUMMARY loads=%d dispatches=%d\n", g_acqLoads, acqDispatches());
 
@@ -3671,11 +3708,10 @@ void printSummary() {
 	const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
 	printf("SP-TIER browser=%d\n", tier);
 	if (tier != 0) {
-		printf("SP-TIER FAIL %d browser directory operation(s) began synchronously after boot\n", tier);
-		g_failures++;
+		g_report.fail("TIER %d browser directory operation(s) began synchronously after boot", tier);
 	}
 
-	printf("SP-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	fflush(stdout);
 }
 
@@ -3704,14 +3740,14 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_windowDeferrals = 0;
 	g_reference = Reference{};
 	g_referenceDispatched = false;
-	g_failures = 0;
+	g_report.reset();
 	g_stepDone = true;
 	g_summaryPrinted = false;
 	g_deferralsByCase.fill(0);
 	g_deferralsByCorpusCase.fill(0);
 	g_listingStep = ListingStep::Fixture;
 	g_listingRunning = false;
-	g_listingTicks = 0;
+	g_listingWait.restart();
 	g_listingRuns = 0;
 	g_runRequestsBefore = 0;
 	g_runOpensBefore = 0;
@@ -3721,6 +3757,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_sawBlankWhileSuspended = false;
 	g_byPathStep = ByPathStep::Open;
 	g_byPathTicks = 0;
+	restartByPathWait();
 	g_listingFailuresBefore = 0;
 	g_byPathBefore = {};
 	g_reloadTurns = 0;
@@ -3729,6 +3766,9 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_reloadsRunBefore = 0;
 	g_dxStep = DxStep::Fixture;
 	g_dxTicks = 0;
+	g_dxListingWait.restart();
+	g_dxLoadWait.restart();
+	g_dxLandWait.restart();
 	g_dxGiveUpsBefore = 0;
 	g_previewStallStep = PreviewStallStep::Start;
 	g_openScrollStep = OpenScrollStep::Start;
@@ -3829,7 +3869,7 @@ bool deluge_scenario_song_preview_ab_step_done(void) {
 }
 
 int32_t deluge_scenario_song_preview_ab_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

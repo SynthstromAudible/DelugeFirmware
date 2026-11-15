@@ -1,7 +1,9 @@
 # ShellMenu: the horizontal-menu chain. SHIFT + the LPF frequency shortcut lands on the filters group (LPF 1/3);
-# CROSS_SCREEN pages to HPF and FILTER ROUTE; SHIFT + CROSS_SCREEN and SHIFT + SCALE switch the chained menu at
-# depth 0. Then from the sound menu, FILTERS > FILTER ROUTE opens the group on its routing page, and ACTIONS >
-# RECORD TO SAMPLE opens the SAMPLE RECORDER page. Run on the ShellMenu card.
+# CROSS_SCREEN pages to HPF and FILTER ROUTE; SHIFT + CROSS_SCREEN and SHIFT + SCALE switch the chained menu at depth 0.
+# Then from the sound menu, FILTERS > FILTER ROUTE opens the group on its routing page, and ACTIONS > RECORD TO SAMPLE
+# opens the SAMPLE RECORDER page.
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down

@@ -15,13 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/audio_header_dump_scenario.h"
+/// @file
+/// @brief The C++ oracle for the `deluge_audio_format` corpus differential
+/// (crates/deluge_rust/tests/audio_format_corpus.rs), run as `GOLDEN_SCENARIO=audio_header_dump`.
+///
+/// Reads host filesystem paths from stdin, one per line, until EOF, and prints one line for each:
+/// `AUDIO-HEADER ` then `dumpAudioHeaderAsJson()`'s JSON (scenarios/audio_header_dump.h). The prefix lets the
+/// test take its lines from stdout among the harness's own. It runs on the booted app, so the parsers see the
+/// same global state every other scenario does, and reads the files directly: the card is not involved.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "scenarios/audio_header_dump.h"
 
 #include <cstdio>
 #include <iostream>
 #include <string>
+
+DELUGE_SCENARIO_DECLARE(audio_header_dump);
 
 void deluge_scenario_audio_header_dump_begin(void) {
 	std::string path;

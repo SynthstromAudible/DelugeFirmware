@@ -27,6 +27,14 @@ Usage:
     scripts/check_fixed_point_raw.py            # check, exit 1 on growth or a stale entry
     scripts/check_fixed_point_raw.py --list     # print every file's counts, exit 0
     scripts/check_fixed_point_raw.py --write    # rewrite the allowlist; refuses to raise a count or add a counted file
+
+Gate fixed-point-raw:
+    raw fixed-point arithmetic outside the core headers that define it (dsp-next/core/fixed_point.h, fixed_point_neon.h,
+    buffer_view.h, high_word_asm.h and detail/raw_ops.h), the raw seam views of dsp-next/core/buffer_view.h, and the
+    typed-boundary crossings, only shrink: no file's count of raw helper calls and DSP-instruction asm, of
+    typed_view/raw_view calls, or of from_raw/.raw()/reinterpret_bits crossings differs from
+    scripts/fixed_point_raw_allowlist.txt (a lower count fails until the list is rewritten, so freed headroom cannot be
+    spent again), and no new file has any
 """
 
 from __future__ import annotations

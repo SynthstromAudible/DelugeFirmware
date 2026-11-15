@@ -18,12 +18,12 @@
 /// The scenes_spec runner's own check: a file whose examples pass is reported as passing, and it runs before boot
 /// installs a root UI.
 #include "gui/ui/ui.h"
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 describe selftest_pass(
     "scenes_spec runner self-test: pass", $ {
 	    it("passes", _ { expect(1).to_equal(1); });
-	    it("runs before boot installs a root UI", _ { expect(getRootUI() == nullptr).to_be_true(); });
+	    it("runs before boot installs a root UI", _ { expect(getRootUI()).to_be_null(); });
     });
 
 DELUGE_SPEC(selftest_pass_spec, selftest_pass)

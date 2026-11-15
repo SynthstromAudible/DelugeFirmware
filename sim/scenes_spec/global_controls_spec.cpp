@@ -97,7 +97,7 @@
 #include <span>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::services::GlobalControls;
@@ -432,7 +432,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 	it("transport tail: toggles PlaybackHandler::recording exactly as legacy's own RECORD tap does", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		expect(fixture.song != nullptr).to_be_true();
+		expect(fixture.song).not_().to_be_null();
 
 		// --- Legacy, from its own reset ---------------------------------------------------
 		release_all_legacy_buttons();
@@ -441,11 +441,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		// Legacy moved: `PlaybackHandler::recordButtonPressed`.
-		expect(legacy_result != RecordingMode::OFF).to_be_true();
+		expect(legacy_result).not_().to_equal(RecordingMode::OFF);
 
 		// --- Poison, so a port that writes nothing cannot inherit the answer ---------------
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
-		expect(playbackHandler.recording == RecordingMode::ARRANGEMENT).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::ARRANGEMENT);
 
 		// --- The port, from its own reset --------------------------------------------------
 		release_all_legacy_buttons();
@@ -456,8 +456,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, false, 1'010);
 		const RecordingMode port_result = playbackHandler.recording;
 
-		expect(port_result != RecordingMode::OFF).to_be_true();
-		expect(port_result == legacy_result).to_be_true();
+		expect(port_result).not_().to_equal(RecordingMode::OFF);
+		expect(port_result).to_equal(legacy_result);
 	});
 
 	it("transport tail: suppresses the RECORD release after a PLAY press -- the record combo, both sides", _ {
@@ -475,7 +475,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		// The whole point: the release did NOT toggle recording on.
-		expect(legacy_result == RecordingMode::OFF).to_be_true();
+		expect(legacy_result).to_equal(RecordingMode::OFF);
 
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 
@@ -493,9 +493,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, false, 2'010);
 		const RecordingMode port_result = playbackHandler.recording;
 
-		expect(port_result == RecordingMode::OFF).to_be_true();
-		expect(port_result == legacy_result).to_be_true();
-		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+		expect(port_result).to_equal(RecordingMode::OFF);
+		expect(port_result).to_equal(legacy_result);
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 	});
 
 	it("transport tail: shift+RECORD begins an output recording, both sides", _ {
@@ -511,7 +511,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		Buttons::commandToggleShift(false);
 		Buttons::clearShiftSticky();
-		expect(legacy_source == AudioInputChannel::OUTPUT).to_be_true();
+		expect(legacy_source).to_equal(AudioInputChannel::OUTPUT);
 
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -519,11 +519,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Shift, true, 3'000);
 		rig.press(ButtonId::Record, true, 3'005);
-		expect(AudioEngine::foregroundRecordingSource() == legacy_source).to_be_true();
+		expect(AudioEngine::foregroundRecordingSource()).to_equal(legacy_source);
 		rig.press(ButtonId::Record, false, 3'010);
 		rig.press(ButtonId::Shift, false, 3'015);
 		// The press was used up, so its release did not also arm recording.
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 		expect(reset_transport(100'000)).to_be_true();
 	});
 
@@ -543,7 +543,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 			playbackHandler.endPlayback();
 		}
 		expect(legacy_playing).to_be_true();
-		expect(legacy_source == AudioInputChannel::OUTPUT).to_be_true();
+		expect(legacy_source).to_equal(AudioInputChannel::OUTPUT);
 
 		GcRig rig;
 		rig.gc.set_song(fixture.song);
@@ -551,8 +551,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, true, 4'000);
 		rig.press(ButtonId::Play, true, 4'005);
 		const bool port_playing = playbackHandler.playbackState != 0;
-		expect(port_playing == legacy_playing).to_be_true();
-		expect(AudioEngine::foregroundRecordingSource() == legacy_source).to_be_true();
+		expect(port_playing).to_equal(legacy_playing);
+		expect(AudioEngine::foregroundRecordingSource()).to_equal(legacy_source);
 		rig.press(ButtonId::Play, false, 4'010);
 		rig.press(ButtonId::Record, false, 4'015);
 		if (playbackHandler.playbackState != 0) {
@@ -575,7 +575,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		const bool legacy_still_capturing = deluge::recording::isCurrentlyResampling();
 		const RecordingMode legacy_mode = playbackHandler.recording;
 		expect(legacy_still_capturing).to_be_false();
-		expect(legacy_mode == RecordingMode::OFF).to_be_true();
+		expect(legacy_mode).to_equal(RecordingMode::OFF);
 
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -585,8 +585,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(deluge::recording::isCurrentlyResampling()).to_be_true();
 		rig.press(ButtonId::Record, true, 5'000);
 		rig.press(ButtonId::Record, false, 5'010);
-		expect(deluge::recording::isCurrentlyResampling() == legacy_still_capturing).to_be_true();
-		expect(playbackHandler.recording == legacy_mode).to_be_true();
+		expect(deluge::recording::isCurrentlyResampling()).to_equal(legacy_still_capturing);
+		expect(playbackHandler.recording).to_equal(legacy_mode);
 		expect(reset_transport(100'000)).to_be_true();
 	});
 
@@ -604,7 +604,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		AudioEngine::audioSampleTimer += kSampleRate; // two short-press windows
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
-		expect(legacy_result == RecordingMode::OFF).to_be_true();
+		expect(legacy_result).to_equal(RecordingMode::OFF);
 
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 
@@ -614,8 +614,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press(ButtonId::Record, true, 3'000);
 		rig.press(ButtonId::Record, false, 3'000 + 2 * GlobalControls::kShortPressMs);
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
-		expect(playbackHandler.recording == legacy_result).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
+		expect(playbackHandler.recording).to_equal(legacy_result);
 	});
 
 	it("transport tail: does not toggle recording on the release of a RECORD press a UI took, both sides", _ {
@@ -632,7 +632,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		setRootUILowLevel(&stub_ui());
 		const RecordingMode legacy_result = playbackHandler.recording;
-		expect(legacy_result == RecordingMode::OFF).to_be_true();
+		expect(legacy_result).to_equal(RecordingMode::OFF);
 
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 
@@ -642,8 +642,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		rig.press_elsewhere(ButtonId::Record, true, 5'000);
 		rig.press(ButtonId::Record, false, 5'010);
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
-		expect(playbackHandler.recording == legacy_result).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
+		expect(playbackHandler.recording).to_equal(legacy_result);
 	});
 
 	it("transport tail: a RECORD press a UI took does not toggle on release even right after a tail tap", _ {
@@ -659,11 +659,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, true, 6'000);
 		rig.press(ButtonId::Record, false, 6'050);
 		const RecordingMode after_tap = playbackHandler.recording;
-		expect(after_tap != RecordingMode::OFF).to_be_true(); // the tail's own tap toggled
+		expect(after_tap).not_().to_equal(RecordingMode::OFF); // the tail's own tap toggled
 
 		rig.press_elsewhere(ButtonId::Record, true, 6'200);
 		rig.press(ButtonId::Record, false, 6'250);
-		expect(playbackHandler.recording == after_tap).to_be_true();
+		expect(playbackHandler.recording).to_equal(after_tap);
 	});
 
 	it("transport tail: declines PLAY and RECORD while MIDI learn is active, and claims them otherwise", _ {
@@ -678,20 +678,20 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 
 		rig.learn.on = true;
-		expect(rig.gc.effective_ui_mode() == GlobalControls::UiMode::MidiLearn).to_be_true();
+		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::MidiLearn);
 		const Result under_learn = rig.press(ButtonId::Record, true, 4'000);
 		expect(under_learn.handled).to_be_false();
 		// The transport tail did not run: nothing was marked used up and nothing moved.
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 		rig.press(ButtonId::Record, false, 4'010);
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 
 		rig.learn.on = false;
-		expect(rig.gc.effective_ui_mode() == GlobalControls::UiMode::None).to_be_true();
+		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::None);
 		const Result outside_learn = rig.press(ButtonId::Record, true, 5'000);
 		expect(outside_learn.handled).to_be_true();
 		rig.press(ButtonId::Record, false, 5'010);
-		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::NORMAL);
 	});
 
 	it("transport tail: reports SHIFT handled without re-porting commandToggleShift", _ {
@@ -755,16 +755,16 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		pending_global_midi_clusters() = kPoison;
 		const Result back_off_root = rig.press(ButtonId::Back, true, 42'000);
 		expect(back_off_root.handled).to_be_false();
-		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // `view.cpp:418` never ran
+		expect(pending_global_midi_clusters()).to_equal(kPoison); // `view.cpp:418` never ran
 		rig.press(ButtonId::Back, false, 42'010);
 
 		// The tail is NOT gated: a RECORD tap from the same non-root scene still toggles recording,
 		// exactly as `hid/buttons.cpp:173-203` does under a menu.
-		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 		const Result record_off_root = rig.press(ButtonId::Record, true, 43'000);
 		expect(record_off_root.handled).to_be_true();
 		rig.press(ButtonId::Record, false, 43'010);
-		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::NORMAL);
 	});
 
 	it("tap tempo / tempo encoder: toggles the metronome on shift+TAP_TEMPO, both sides", _ {
@@ -804,7 +804,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		const Result r = rig.press(ButtonId::TapTempo, true, 7'005);
 		expect(r.handled).to_be_true();
 		expect(playbackHandler.metronomeOn).to_be_true();
-		expect(playbackHandler.metronomeOn == legacy_result).to_be_true();
+		expect(playbackHandler.metronomeOn).to_equal(legacy_result);
 
 		// The port declares the LED rather than writing it, so the comparison is the declaration
 		// resolved through `shell::led_is_on` against the bool legacy left in `ledStates`.
@@ -812,8 +812,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		const std::optional<deluge::ui::LedState> tap = led_state(f, ButtonId::TapTempo);
 		expect(tap.has_value()).to_be_true();
-		expect(deluge::ui::shell::led_is_on(tap.value_or(deluge::ui::LedState{}), rig.now_ms) == legacy_led)
-		    .to_be_true();
+		expect(deluge::ui::shell::led_is_on(tap.value_or(deluge::ui::LedState{}), rig.now_ms)).to_equal(legacy_led);
 		rig.press(ButtonId::Shift, false, 7'010);
 	});
 
@@ -831,7 +830,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		GlobalControls::ViewState vs;
 		vs.ui_mode = GlobalControls::UiMode::RecordCountIn;
 		rig.gc.set_view_state(vs);
-		expect(rig.gc.effective_ui_mode() == GlobalControls::UiMode::RecordCountIn).to_be_true();
+		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::RecordCountIn);
 
 		rig.press(ButtonId::Shift, true, 8'000);
 		const Result r = rig.press(ButtonId::TapTempo, true, 8'005);
@@ -893,13 +892,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		expect(rig.press(ButtonId::Save, true, 10'000).handled).to_be_true();
 		expect(rig.gc.holding_save()).to_be_true(); // `:240`
-		expect(rig.gc.effective_ui_mode() == GlobalControls::UiMode::HoldingSave).to_be_true();
-		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::HoldingSave);
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
 		rig.press(ButtonId::Save, false, 10'000 + GlobalControls::kShortPressMs - 1);
 		expect(rig.gc.holding_save()).to_be_false(); // `:253`
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong) == uint32_t(1)).to_be_true(); // `:261`
-		expect(rig.gc.unported_opens_total() == uint32_t(1)).to_be_true();
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1)); // `:261`
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(1));
 	});
 
 	it("SAVE/LOAD decision: does not open on a long press, and does not hold with shift or a type button", _ {
@@ -913,7 +912,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, true, 11'000);
 		rig.press(ButtonId::Save, false, 11'000 + GlobalControls::kShortPressMs);
 		expect(rig.gc.holding_save()).to_be_false();
-		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
 		// Shift: `:239`'s `&& !Buttons::isShiftButtonPressed()`.
 		rig.press(ButtonId::Shift, true, 12'000);
@@ -921,7 +920,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 12'010);
 		rig.press(ButtonId::Shift, false, 12'015);
-		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
 		// SYNTH held: `:233`'s four-button guard suppresses the whole body -- but the arm is
 		// still reported handled, because legacy still falls through to `:469`.
@@ -930,7 +929,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 13'010);
 		rig.press(ButtonId::Synth, false, 13'015);
-		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 	});
 
 	it("SAVE/LOAD decision: refuses to save while overdubs are pending, with legacy's own popup string", _ {
@@ -945,8 +944,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(fixture.song->hasAnyPendingNextOverdubs()).to_be_false();
 		rig.press(ButtonId::Save, true, 14'000);
 		const Result plain = rig.press(ButtonId::Save, false, 14'010);
-		expect(plain.actions.size() == size_t(0)).to_be_true();
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong) == uint32_t(1)).to_be_true();
+		expect(plain.actions.size()).to_equal(size_t(0));
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1));
 	});
 
 	it("SAVE/LOAD decision: takes the clear-song branch on shift+LOAD and the hold branch otherwise", _ {
@@ -960,7 +959,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, true, 15'000);
 		expect(rig.press(ButtonId::Load, true, 15'005).handled).to_be_true();
 		expect(rig.gc.holding_load()).to_be_false();                // `:286` took the other branch
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong) == uint32_t(1)).to_be_true(); // `:292`
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong)).to_equal(uint32_t(1)); // `:292`
 		rig.press(ButtonId::Load, false, 15'010);
 		rig.press(ButtonId::Shift, false, 15'015);
 
@@ -968,8 +967,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_load()).to_be_true(); // `:297`
 		rig.press(ButtonId::Load, false, 16'010);
 		expect(rig.gc.holding_load()).to_be_false();                // `:310`
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong) == uint32_t(1)).to_be_true(); // `:313`
-		expect(rig.gc.unported_opens_total() == uint32_t(2)).to_be_true();
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong)).to_equal(uint32_t(1)); // `:313`
+		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(2));
 	});
 
 	it("sync scaling: sets and clears the song's sync-scaling clip exactly as legacy does", _ {
@@ -982,14 +981,14 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
 		                           RuntimeFeatureStateSyncScalingAction::SyncScaling);
 		legacy_fixture.song->setInputTickScaleClip(nullptr);
-		expect(legacy_fixture.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null();
 
 		// Legacy needs a clip-minder current UI for `:373`; `StubUI::toClipMinder()` is null,
 		// so legacy takes the alert arm instead. That arm IS the comparison here: it is the
 		// one `:373-376` decision this spec can drive on both sides, and the two model writes
 		// below are driven on the port alone with `Song` asserted directly.
 		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true);
-		expect(legacy_fixture.song->getSyncScalingClip() == nullptr).to_be_true(); // refused
+		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null(); // refused
 		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), false);
 
 		release_all_legacy_buttons();
@@ -998,7 +997,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		// Same refusal, same reason, port side.
 		expect(rig.press(ButtonId::SyncScaling, true, 17'000).handled).to_be_true();
-		expect(legacy_fixture.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null();
 		rig.press(ButtonId::SyncScaling, false, 17'005);
 
 		// Now with a clip minder on screen, the arm sets the clip (`:388`) and a second press
@@ -1010,10 +1009,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		deluge::scenes::services::view_state().set_current_view(
 		    deluge::gui::menuViewOf(legacy_fixture.song->getCurrentClip()));
 		rig.press(ButtonId::SyncScaling, true, 18'000);
-		expect(legacy_fixture.song->getSyncScalingClip() == legacy_fixture.song->getCurrentClip()).to_be_true();
+		expect(legacy_fixture.song->getSyncScalingClip()).to_equal(legacy_fixture.song->getCurrentClip());
 		rig.press(ButtonId::SyncScaling, false, 18'005);
 		rig.press(ButtonId::SyncScaling, true, 19'000);
-		expect(legacy_fixture.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null();
 		rig.press(ButtonId::SyncScaling, false, 19'005);
 	});
 
@@ -1032,12 +1031,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		const Result r = rig.press(ButtonId::SyncScaling, true, 20'000);
 		expect(r.handled).to_be_true();
-		expect(r.actions.size() == size_t(1)).to_be_true();
-		expect(r.actions[0].kind == ShellAction::Kind::Popup).to_be_true();
-		expect(r.actions[0].popup_string
-		       == static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT))
-		    .to_be_true();
-		expect(fixture.song->getSyncScalingClip() == nullptr).to_be_true();
+		expect(r.actions.size()).to_equal(size_t(1));
+		expect(r.actions[0].kind).to_equal(ShellAction::Kind::Popup);
+		expect(r.actions[0].popup_string)
+		    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+		expect(fixture.song->getSyncScalingClip()).to_be_null();
 		rig.press(ButtonId::SyncScaling, false, 20'005);
 		playbackHandler.recording = RecordingMode::OFF;
 	});
@@ -1066,7 +1064,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_song(fixture.song);
 		rig.press(ButtonId::SyncScaling, true, 21'000);
 		expect(fixture.song->isFillModeActive()).to_be_true();
-		expect(fixture.song->isFillModeActive() == legacy_result).to_be_true();
+		expect(fixture.song->isFillModeActive()).to_equal(legacy_result);
 		rig.press(ButtonId::SyncScaling, false, 21'005);
 		expect(fixture.song->isFillModeActive()).to_be_false();
 
@@ -1104,19 +1102,19 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), true);
 		const int32_t legacy_result = pending_global_midi_clusters();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), false);
-		expect(legacy_result == 0).to_be_true(); // `view.cpp:418` ran
+		expect(legacy_result).to_equal(0); // `view.cpp:418` ran
 
 		// Re-poison, so a port that writes nothing cannot inherit legacy's zero.
 		pending_global_midi_clusters() = kPoison;
-		expect(pending_global_midi_clusters() == kPoison).to_be_true();
+		expect(pending_global_midi_clusters()).to_equal(kPoison);
 
 		release_all_legacy_buttons();
 		GcRig rig;
 		rig.gc.set_song(fixture.song);
 		const Result r = rig.press(ButtonId::Back, true, 22'000);
 		expect(r.handled).to_be_true();
-		expect(pending_global_midi_clusters() == 0).to_be_true();
-		expect(pending_global_midi_clusters() == legacy_result).to_be_true();
+		expect(pending_global_midi_clusters()).to_equal(0);
+		expect(pending_global_midi_clusters()).to_equal(legacy_result);
 		rig.press(ButtonId::Back, false, 22'005);
 
 		// And the `:409` guard: with no song, `allowedToDoReversion()` is false and the body is
@@ -1127,7 +1125,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(actionLogger.allowedToDoReversion()).to_be_false();
 		const Result guarded = rig.press(ButtonId::Back, true, 22'100);
 		expect(guarded.handled).to_be_true();
-		expect(pending_global_midi_clusters() == kPoison).to_be_true();
+		expect(pending_global_midi_clusters()).to_equal(kPoison);
 		rig.press(ButtonId::Back, false, 22'105);
 		currentSong = saved;
 	});
@@ -1147,17 +1145,17 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// names SELECT_ENC either.
 		const Result no_shift = rig.press(ButtonId::SelectEnc, true, 23'000);
 		expect(no_shift.handled).to_be_false();
-		expect(no_shift.actions.size() == size_t(0)).to_be_true();
+		expect(no_shift.actions.size()).to_equal(size_t(0));
 		rig.press(ButtonId::SelectEnc, false, 23'005);
 
 		rig.press(ButtonId::Shift, true, 24'000);
 		const Result r = rig.press(ButtonId::SelectEnc, true, 24'005);
 		expect(r.handled).to_be_true();
-		expect(r.actions.size() == size_t(1)).to_be_true();
-		expect(r.actions[0].kind == ShellAction::Kind::Push).to_be_true();
-		expect(r.actions[0].id.kind == SceneKind::FirstApp).to_be_true();
+		expect(r.actions.size()).to_equal(size_t(1));
+		expect(r.actions[0].kind).to_equal(ShellAction::Kind::Push);
+		expect(r.actions[0].id.kind).to_equal(SceneKind::FirstApp);
 		// And the interpreter really was retargeted at the settings root.
-		expect(menu_scene().focused() != nullptr).to_be_true();
+		expect(menu_scene().focused()).not_().to_be_null();
 		rig.press(ButtonId::SelectEnc, false, 24'010);
 		rig.press(ButtonId::Shift, false, 24'015);
 	});
@@ -1195,8 +1193,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, true, 25'000);
 		const Result r = rig.press(ButtonId::SelectEnc, true, 25'005);
 		expect(r.handled).to_be_true();
-		expect(r.actions.size() == size_t(1)).to_be_true();
-		expect(r.actions[0].kind == ShellAction::Kind::Popup).to_be_true();
+		expect(r.actions.size()).to_equal(size_t(1));
+		expect(r.actions[0].kind).to_equal(ShellAction::Kind::Popup);
 		rig.press(ButtonId::SelectEnc, false, 25'010);
 		rig.press(ButtonId::Shift, false, 25'015);
 		playbackHandler.recording = RecordingMode::OFF;
@@ -1222,7 +1220,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
 		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:325`
 		};
-		expect(got == want).to_be_true();
+		expect(got).to_equal(want);
 	});
 
 	it("LEDs: tracks the model: playback, recording, metronome, sync scaling, and the two holds", _ {
@@ -1270,9 +1268,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		deluge::ui::LedFrame f4;
 		rig.gc.leds(f4);
 		expect(led_is(f4, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
-		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::LedState{}).rate
-		       == deluge::ui::BlinkRate::Normal)
-		    .to_be_true();
+		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::LedState{}).rate)
+		    .to_equal(deluge::ui::BlinkRate::Normal);
 		fixture.song->setInputTickScaleClip(nullptr);
 	});
 
@@ -1287,18 +1284,17 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// after FIVE further `kFastFlashTime` timeouts, not six. Driven here by stepping legacy's
 		// `ledBlinkTimeout` until the blinker deactivates and counting the steps.
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
-		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) == 255).to_be_true();
+		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW)).to_equal(255);
 		indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
-		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) != 255).to_be_true();
+		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW)).not_().to_equal(255);
 		int32_t legacy_timeouts = 0;
 		while (indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) != 255 && legacy_timeouts < 20) {
 			indicator_leds::ledBlinkTimeout(/*blinkingType=*/1);
 			legacy_timeouts++;
 		}
 		expect(legacy_timeouts).to_equal(5);
-		expect(GlobalControls::kAlertMs
-		       == static_cast<uint32_t>(legacy_timeouts) * GlobalControls::kClipArmFlashMs)
-		    .to_be_true();
+		expect(GlobalControls::kAlertMs)
+		    .to_equal(static_cast<uint32_t>(legacy_timeouts) * GlobalControls::kClipArmFlashMs);
 		// And it really did fold back to the state it was armed from (`:128`), which is the state the
 		// shell's hand-back restores once nothing declares the LED (`SurfaceSet::release_led`).
 		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::CLIP_VIEW)]).to_be_false();
@@ -1318,7 +1314,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		deluge::ui::LedFrame f;
 		rig.gc.leds(f);
 		expect(led_is(f, ButtonId::Clip, deluge::ui::LedState::Kind::Shared)).to_be_true();
-		expect(led_state(f, ButtonId::Clip)->rate == deluge::ui::BlinkRate::Fast).to_be_true(); // `blinkingType` 1
+		expect(led_state(f, ButtonId::Clip)->rate).to_equal(deluge::ui::BlinkRate::Fast); // `blinkingType` 1
 
 		rig.gc.tick(27'000 + GlobalControls::kAlertMs, GlobalControls::kAlertMs);
 		deluge::ui::LedFrame f2;
@@ -1343,7 +1339,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.tick(30'000, 0);
 		rig.gc.flash_play_enable(30'000);
 		expect(rig.gc.next_timer().has_value()).to_be_true();
-		expect(*rig.gc.next_timer() == GlobalControls::kClipArmFlashMs).to_be_true();
+		expect(*rig.gc.next_timer()).to_equal(GlobalControls::kClipArmFlashMs);
 
 		rig.gc.tick(30'000 + GlobalControls::kClipArmFlashMs - 1, GlobalControls::kClipArmFlashMs - 1);
 		expect(rig.gc.clip_arm_flash_on()).to_be_false(); // not yet
@@ -1384,7 +1380,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f);
 		expect(led_is(f, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
 		const deluge::ui::LedState blink = led_state(f, ButtonId::SyncScaling).value_or(deluge::ui::LedState{});
-		expect(blink.rate == deluge::ui::BlinkRate::Normal).to_be_true();
+		expect(blink.rate).to_equal(deluge::ui::BlinkRate::Normal);
 		const deluge::ui::BlinkPhase phases[2] = {{.origin_ms = 0, .initially_on = true, .running = true}, {}};
 		expect(deluge::ui::shell::led_next_change(blink, 0, phases).has_value()).to_be_true();
 

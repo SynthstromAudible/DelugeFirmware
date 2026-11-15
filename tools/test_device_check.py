@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Tests for device_check.py's capture analysis: `python3 -m unittest test_device_check`."""
+"""Tests for device_check.py's capture analysis: `python3 -m unittest test_device_check`.
+
+Gate device-check-parser:
+    device_check's reading of a rig capture: a rig-harness image passes only with its ready line and a heartbeat after
+    the app's first frame, and harness lines are never read as log lines (a frame's hex is no error)
+"""
 
 import unittest
 

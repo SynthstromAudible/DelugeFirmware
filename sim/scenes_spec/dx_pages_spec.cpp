@@ -34,17 +34,21 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"
+#include "support/mocks/fake_surfaces.h"
 #include "support/oracle_table.h"
+#include "support/printers/dx_pad_printer.h"
+#include "support/printers/rgb_printer.h"
+#include "support/printers/shortcut_blink_printer.h"
+#include "support/printers/sound_state_printer.h"
 #include "support/song_fixture.h"
+#include "unit/gfx/support/pbm.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <array>
 #include <optional>
@@ -139,7 +143,10 @@ describe dx_pages("the DX7 menu pages", ${
 				}
 				const std::string path = "dx/shift_h/" + std::to_string(p) + "/" + std::to_string(mask);
 				const std::vector<std::string>* frozen = table().find(path, "to");
-				expect(frozen != nullptr && frozen->size() == 2).to_be_true();
+				expect(frozen).not_().to_be_null();
+				if (frozen != nullptr) {
+					expect(frozen->size()).to_equal(2);
+				}
 				for (size_t k = 0; frozen != nullptr && frozen->size() == 2 && k < 2; k++) {
 					const int32_t offset = k == 0 ? -1 : 1;
 					const std::optional<int16_t> mine = dx::step_operator(p, offset, r.patch().params);
@@ -177,10 +184,10 @@ describe dx_pages("the DX7 menu pages", ${
 		want.engine_mode = 2;
 		want.random_detune = 42;
 		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, want)).to_be_true();
-		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]) == std::optional{want}).to_be_true();
+		expect(deluge::bridge::dxPatchOf(r.sound->sources[0])).to_equal(std::optional{want});
 		expect(static_cast<int32_t>(r.patch().engineMode)).to_equal(2);
 		expect(r.patch().random_detune).to_equal(42);
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 	});
 
 	it("leaves the engine the auto mode chose, as main's page does, where the new algorithm would choose another", _ {
@@ -191,7 +198,7 @@ describe dx_pages("the DX7 menu pages", ${
 		want.params[134] = 3; // algorithm 4 with feedback: `updateEngineMode` would choose MkI
 		want.params[135] = 5;
 		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, want)).to_be_true();
-		expect(r.patch().engine == before).to_be_true();
+		expect(r.patch().engine).to_equal(before);
 	});
 
 	it("refuses a source that is not a DX7 one", _ {
@@ -209,13 +216,13 @@ describe dx_pages("the DX7 menu pages", ${
 			MenuRig r;
 			r.open(nodes::osc0_type);
 			r.select();
-			expect(r.focused() == &nodes::dx_menu).to_be_true();
+			expect(r.focused()).to_equal(&nodes::dx_menu);
 		}
 		{
 			MenuRig r;
 			r.open(nodes::source0); // the page opens on its first column, the type
 			r.select();
-			expect(r.focused() == &nodes::dx_menu).to_be_true();
+			expect(r.focused()).to_equal(&nodes::dx_menu);
 		}
 	});
 
@@ -224,8 +231,8 @@ describe dx_pages("the DX7 menu pages", ${
 		r.sound->sources[0].setOscType(OscType::SAW);
 		r.open(nodes::source0);
 		r.select();
-		expect(r.focused() != &nodes::dx_menu).to_be_true();
-		expect(nodes::osc1_type_chain(r.menu_context(), r.state()) == nullptr).to_be_true();
+		expect(r.focused()).not_().to_equal(&nodes::dx_menu);
+		expect(nodes::osc1_type_chain(r.menu_context(), r.state())).to_be_null();
 	});
 
 	it("a re-read of the engine version takes the patch's mode again", _ {
@@ -270,9 +277,9 @@ describe dx_pages("the DX7 menu pages", ${
 		r.turn(1);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
 		expect(sink.gestures.size()).to_equal(size_t{1});
-		expect(sink.gestures.back().kind == bind::GestureRequest::Kind::DX_PATCH).to_be_true();
+		expect(sink.gestures.back().kind).to_equal(bind::GestureRequest::Kind::DX_PATCH);
 		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->engine_mode)).to_equal(2);
-		expect(sink.gestures.back().dx_patch->params == r.patch().params).to_be_true();
+		expect(sink.gestures.back().dx_patch->params).to_equal(r.patch().params);
 		r.turn(1);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(2);
 		expect(sink.gestures.size()).to_equal(size_t{1});
@@ -326,17 +333,17 @@ describe dx_pages("the DX7 menu pages", ${
 		MenuRig r;
 		r.open(nodes::dx_global_params);
 		r.select();
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(134);
 		r.back();
-		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_global_params);
 		r.turn(4); // "operator 2", which is operator index 4: the DX7 counts its operators from the other end
 		r.select();
-		expect(r.focused() == &nodes::dx_operator_params).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_operator_params);
 		expect(static_cast<int32_t>(r.state().dx.op)).to_equal(4);
 		r.turn(1); // "level"
 		r.select();
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
 	});
 
@@ -402,7 +409,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.open(nodes::dx_param, &sink);
 		r.turn(5);
 		expect(sink.gestures.size()).to_equal(size_t{1});
-		expect(sink.gestures.back().source == 0).to_be_true();
+		expect(sink.gestures.back().source).to_equal(0);
 		expect(static_cast<int32_t>(sink.gestures.back().dx_patch->params[134])).to_equal(31); // the algorithm's limit
 		menu_scene().land_dx(menu::DxState{.param = dx::kRandomDetune});
 		r.open(nodes::dx_param, &sink);
@@ -453,7 +460,7 @@ describe dx_pages("the DX7 menu pages", ${
 			r.turn(1, kHorizontalEncoder);
 			r.button(kShiftX, kShiftY, false);
 			expect(static_cast<int32_t>(r.state().dx.param)).to_equal(static_cast<int32_t>(param));
-			expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::BlinkPlan{}).to_be_true();
+			expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param)).to_equal(menu::BlinkPlan{});
 		}
 	});
 
@@ -461,31 +468,31 @@ describe dx_pages("the DX7 menu pages", ${
 		MenuRig r;
 		menu_scene().land_dx(menu::DxState{.param = 40});
 		r.open(nodes::dx_global_params);
-		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4) == &nodes::dx_param).to_be_true();
-		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 5) == nullptr).to_be_true();
-		expect(nodes::dx_shortcut_fallback(nodes::modulator1_volume, r.menu_context(), 4) == nullptr).to_be_true();
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4)).to_equal(&nodes::dx_param);
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 5)).to_be_null();
+		expect(nodes::dx_shortcut_fallback(nodes::modulator1_volume, r.menu_context(), 4)).to_be_null();
 		r.button(kShiftX, kShiftY, true);
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 4, 0, 64}, r.now += 10);
 		r.tick();
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 4, 0, 0}, r.now += 10);
 		r.button(kShiftX, kShiftY, false);
 		r.tick();
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(40);
 		r.sound->sources[0].setOscType(OscType::SAW);
-		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4) == nullptr).to_be_true();
+		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4)).to_be_null();
 	});
 
 	it("goes up from the parameter page on SELECT and on BACK", _ {
 		MenuRig r;
 		r.open(nodes::dx_global_params);
 		r.select();
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		r.select();
-		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_global_params);
 		r.select();
 		r.back();
-		expect(r.focused() == &nodes::dx_global_params).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_global_params);
 	});
 
 	it("blinks the pad main's page blinks for every param, every other cycle, and none for the scaling params", _ {
@@ -499,18 +506,21 @@ describe dx_pages("the DX7 menu pages", ${
 			const std::optional<dx::Pad> pad = dx::param_pad(param);
 			const std::string path = "dx/" + std::to_string(param);
 			const std::vector<std::string>* frozen = table().find(path, "blink");
-			expect(frozen != nullptr && !frozen->empty()).to_be_true();
+			expect(frozen).not_().to_be_null();
+			if (frozen != nullptr) {
+				expect(frozen->empty()).to_be_false();
+			}
 			if (frozen == nullptr || frozen->empty()) {
 				continue;
 			}
 			expect(path + " " + pad_text(pad)).to_equal(path + " " + frozen->front());
 			if (!pad) {
-				expect(plan == menu::BlinkPlan{}).to_be_true();
+				expect(plan).to_equal(menu::BlinkPlan{});
 			}
 			else {
 				expect(frozen->size()).to_equal(size_t{2});
 				expect(frozen->size() == 2 ? (*frozen)[1] : std::string{}).to_equal(std::string{"1"});
-				expect(plan == menu::exclusive_blink(pad->x, pad->y)).to_be_true();
+				expect(plan).to_equal(menu::exclusive_blink(pad->x, pad->y));
 			}
 		}
 	});
@@ -520,14 +530,13 @@ describe dx_pages("the DX7 menu pages", ${
 		menu_scene().land_dx(menu::DxState{.param = 2 * 21 + 3, .pad_blink = true});
 		r.open(nodes::dx_global_params);
 		r.select(); // "algorithm"
-		expect(r.focused() == &nodes::dx_param).to_be_true();
-		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::BlinkPlan{}).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param)).to_equal(menu::BlinkPlan{});
 		r.turn(1, kHorizontalEncoder);
-		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::exclusive_blink(9, 1))
-		    .to_be_true(); // feedback's pad
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param))
+		    .to_equal(menu::exclusive_blink(9, 1)); // feedback's pad
 		r.turn(1); // an edit leaves the blink as it is
-		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param) == menu::exclusive_blink(9, 1))
-		    .to_be_true();
+		expect(menu::plan_blinks(r.menu_context(), r.state(), nodes::dx_param)).to_equal(menu::exclusive_blink(9, 1));
 	});
 
 	it("keeps both lists' cursors across leaving them and across another menu, the operators sharing one", _ {
@@ -555,7 +564,7 @@ describe dx_pages("the DX7 menu pages", ${
 				    .to_equal(path + " " + table().value(path, "param"));
 				if (mine) {
 					if (const std::optional<dx::Pad> back = dx::param_pad(*mine)) {
-						expect(*back == dx::Pad{x, y}).to_be_true();
+						expect(*back).to_equal(dx::Pad{x, y});
 					}
 				}
 			}
@@ -570,7 +579,7 @@ describe dx_pages("the DX7 menu pages", ${
 		menu_scene().land_dx(menu::DxState{.param = 16});
 		r.open(nodes::dx_param);
 		r.shift_pad(3, 4); // operator index 3's rate 4
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(3 * 21 + 3);
 		expect(r.state().dx.pad_blink).to_be_true();
 		r.shift_pad(5, 1); // the pitch envelope's level 2
@@ -578,7 +587,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.shift_pad(7, 0); // random detune
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
 		r.shift_pad(12, 0); // no param: swallowed, the page stays on the param
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(-1);
 	});
 
@@ -589,7 +598,7 @@ describe dx_pages("the DX7 menu pages", ${
 		menu_scene().land_dx(menu::DxState{.param = 16});
 		r.open(nodes::dx_param);
 		r.shift_pad(3, 4);
-		expect(r.focused() == &nodes::dx_param).to_be_false();
+		expect(r.focused()).not_().to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(16);
 	});
 
@@ -616,7 +625,10 @@ describe dx_pages("the DX7 menu pages", ${
 			for (uint8_t x = 0; x < 16; x++) {
 				const std::vector<std::string>* rgb = table().find(
 				    "dx/overlay/" + std::to_string(x) + "," + std::to_string(y), "rgb");
-				expect(rgb != nullptr && rgb->size() == 3).to_be_true();
+				expect(rgb).not_().to_be_null();
+				if (rgb != nullptr) {
+					expect(rgb->size()).to_equal(3);
+				}
 				if (rgb != nullptr && rgb->size() == 3) {
 					want[y][x] = RGB{static_cast<uint8_t>(std::stoi((*rgb)[0])), static_cast<uint8_t>(std::stoi((*rgb)[1])),
 					                 static_cast<uint8_t>(std::stoi((*rgb)[2]))};
@@ -624,8 +636,8 @@ describe dx_pages("the DX7 menu pages", ${
 			}
 		}
 		const auto dx_map = painted(nodes::dx_param);
-		expect(dx_map == want).to_be_true();
-		expect(painted(nodes::dx_global_params) == dx_map).to_be_false();
+		expect(dx_map).to_equal(want);
+		expect(painted(nodes::dx_global_params)).not_().to_equal(dx_map);
 	});
 
 	it("shows the DX7 colour map under Shift on the parameter page", _ {
@@ -653,9 +665,9 @@ describe dx_pages("the DX7 menu pages", ${
 		const auto on_page = shown();
 		r.open(nodes::dx_global_params);
 		const auto elsewhere = shown();
-		expect(on_page == elsewhere).to_be_false();
+		expect(on_page).not_().to_equal(elsewhere);
 		// The LFO row's first pad: pastel blue in the DX7 map, dimmed as every overlay pad is.
-		expect(on_page[0][0] == elsewhere[0][0]).to_be_false();
+		expect(on_page[0][0]).not_().to_equal(elsewhere[0][0]);
 	});
 	it("moves the param as main's openForOpOrGlobal does for every DX column pad, on the page and off it", _ {
 		for (int32_t op = 0; op < 8; op++) {
@@ -684,7 +696,7 @@ describe dx_pages("the DX7 menu pages", ${
 		menu_scene().dx_column_press(4); // from another page: the parameter page, on operator index 4's level
 		r.tick();
 		r.tick();
-		expect(r.focused() == &nodes::dx_param).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(4 * 21 + 16);
 		expect(r.state().dx.pad_blink).to_be_true();
 	});
@@ -705,7 +717,10 @@ describe dx_pages("the DX7 menu pages", ${
 					const std::string path = "dx/breakpoint/" + std::to_string(scroll) + "/" + std::to_string(interval)
 					                         + "/" + std::to_string(breakpoint);
 					const std::vector<std::string>* frozen = table().find(path, "pad");
-					expect(frozen != nullptr && !frozen->empty()).to_be_true();
+					expect(frozen).not_().to_be_null();
+					if (frozen != nullptr) {
+						expect(frozen->empty()).to_be_false();
+					}
 					if (frozen == nullptr || frozen->empty()) {
 						continue;
 					}
@@ -732,14 +747,21 @@ describe dx_pages("the DX7 menu pages", ${
 		const std::optional<menu::ItemBlink> blink = nodes::kDxParam.own_blink(r.menu_context(), r.state());
 		const std::optional<dx::Pad> want = dx::breakpoint_pad(45, 40, 5);
 		expect(want.has_value()).to_be_true();
-		expect(blink.has_value() && blink->valid).to_be_true();
-		expect(blink->x == want->x && blink->y == want->y).to_be_true();
+		expect(blink.has_value()).to_be_true();
+		if (blink.has_value()) {
+			expect(blink->valid).to_be_true();
+		}
+		expect(blink->x).to_equal(want->x);
+		expect(blink->y).to_equal(want->y);
 		expect(static_cast<int32_t>(blink->freq_mask)).to_equal(2);
 		// Off the scaling params the page's own rule holds.
 		menu_scene().land_dx(menu::DxState{.param = 1 * 21 + 3});
 		r.open(nodes::dx_param);
 		const std::optional<menu::ItemBlink> other = nodes::kDxParam.own_blink(r.menu_context(), r.state());
-		expect(other.has_value() && !other->valid).to_be_true(); // the page opens with no blink
+		expect(other.has_value()).to_be_true();
+		if (other.has_value()) {
+			expect(other->valid).to_be_false(); // the page opens with no blink
+		}
 	});
 
 	it("flashes the edited operator's column row white for 100 ms in every 400 over the keyboard, from each change", _ {
@@ -759,7 +781,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.now += 250;
 		r.turn(1, kHorizontalEncoder);  // to the operator's mode...
 		r.turn(-1, kHorizontalEncoder); // ...and back to its level
-		expect(*r.state().dx.flash_anchor_ms > anchor).to_be_true();
+		expect(*r.state().dx.flash_anchor_ms).to_be_greater_than(anchor);
 		const uint32_t again = *r.state().dx.flash_anchor_ms;
 		expect(menu_scene().dx_column_flash(again).value_or(-1)).to_equal(5);
 		// Not over another root.
@@ -772,7 +794,7 @@ describe dx_pages_reference_rows("the DX7 menu pages: the reference rows", ${
 	it("parses dx_pages.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{10000}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{10000});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

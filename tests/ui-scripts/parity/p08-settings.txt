@@ -1,4 +1,6 @@
 # The settings menu from the song view, then VOICE USAGE (its counters, sampled every 500 ms).
+# card: content/bare.img
+# card: content/card.img
 100   snapshot boot
 300   button Session down
 320   button Session up

@@ -1,7 +1,7 @@
 """The startup fail-safe gate: none of the fail-safe's file I/O begins on the interaction tier.
 
-Drives the real startup fail-safe. What the checks cover (tests/integration/scenarios/startup_failsafe_scenario.cpp writes the
-lines), and why each is separate:
+Drives the real startup fail-safe. What the checks cover
+(tests/integration/scenarios/startup_failsafe_scenario.cpp writes the lines), and why each is separate:
     SF-ORDER    the machine never advances past the canary write without a terminal answer, and the canary is on the
                 card before the load is allowed to proceed.
     SF-TIER     that no fail-safe file operation ran on the interaction tier. This is the evidence.
@@ -16,18 +16,25 @@ song-missing path instead: the canary creation, the existence checks and the cle
 UI. Which tier those run on does not depend on which branch reached them.
 
 The registry entry requires each marker and the result line; this module adds SF-CHANNEL's non-zero count.
+
+Gate startup-failsafe:
+    no file operation in the startup song fail-safe may begin on the interaction tier. SF-TIER is the evidence, required
+    zero: it is the only check that shows which tier the fail-safe's I/O ran on. SF-CHANNEL is required non-zero,
+    because a channel that is compiled but never runs would otherwise leave this gate green. The fail-safe's happy path
+    ends in openUI and this harness has no UI stack, so the scenario drives the song-missing path: the canary creation,
+    the existence checks and the cleanup unlink, then a return before the UI. Which tier those run on does not depend on
+    which branch reached them.
 """
 
-import re
-
-SERVED = re.compile(r"^SF-CHANNEL served=([0-9]*)$")
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
-    served = next((m.group(1) for line in run.lines if (m := SERVED.match(line))), "")
-    if not served or int(served) == 0:
+    served = count_field(run.first("SF-CHANNEL "), "served")
+    if not served:
         gate.fail(
-            f"SF-CHANNEL served={served or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"SF-CHANNEL served={field(run.first('SF-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(

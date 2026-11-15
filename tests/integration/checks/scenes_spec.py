@@ -3,15 +3,32 @@
 The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under sim/scenes_spec,
 selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
-on exit 0 and its own SCENES-SPEC-RESULT failures=0 line, so a crash or a file that never reaches its result line
-fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
-card checks pass and that a failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
-state (a stack song in currentSong, a guard it left open) can reach another.
+on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never
+reaches its result line fails by name, as does one still running after RUN_TIMEOUT_S. The gate fails when no spec file
+ran at all. The runner's self-specs pin that a passing file and the card checks pass and that a failing, a crashing and
+an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover state (a stack song in
+currentSong, a guard it left open) can reach another.
+
+Gate ui-scenes-spec:
+    the scenes' specs (sim/scenes_spec) run on golden_vt_render, one file per process from the app's own init, each on
+    its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table
+    must list exactly the spec files under sim/scenes_spec (selftest/ aside), and every file must exit 0 and print its
+    own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one still running after two
+    minutes fails by name. The runner's self-specs pin a passing file and the card checks (SdRoot/NoSdRoot) passing and
+    a failing and a crashing one failing; each file's process is fresh, so one file's leftover state cannot reach
+    another. A file that runs no examples fails. The net is temporary: as each scene moves onto model addresses and
+    Edits its specs move down to unit specs, and the gate goes when the directory is empty.
+
+Gate app-asan-ui-scenes-spec:
+    the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+    poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its
+    record's state, so a record freed under it would read freed memory)
 """
 
 from pathlib import Path
 
-RESULT_OK = "SCENES-SPEC-RESULT failures=0"
+from scenario_gate import after
+
 FIXTURE_CARD = "tests/fixtures/card"
 # A spec runs synchronously inside the app's init, where golden_vt_render's own deadlines cannot fire, so a hung file
 # is ended here (exit 124) and reported by name. Every file takes well under a second.
@@ -49,11 +66,11 @@ def _listed(gate) -> list[str] | None:
         gate.fail(f"--list exited {run.code}")
         gate.show(run)
         return None
-    return [line.split()[1] for line in run.lines if line.startswith("SCENES-SPEC-ID ")]
+    return [after(line, "SCENES-SPEC-ID ") for line in run.starting("SCENES-SPEC-ID ")]
 
 
-def _passes(run) -> bool:
-    return run.code == 0 and run.has_line(RESULT_OK)
+def _passes(gate, run) -> bool:
+    return run.code == 0 and gate.shortfall(run.lines) is None
 
 
 def _run_spec(gate, spec_id: str, cards: dict[str, str]):
@@ -67,9 +84,12 @@ def _run_spec(gate, spec_id: str, cards: dict[str, str]):
 
 
 def _report(gate, spec_id: str, run) -> None:
-    gate.fail(
-        f"{spec_id}: exit {run.code}, {'its result line' if run.has_line(RESULT_OK) else 'no passing result line'}"
+    seen = (
+        "its result line"
+        if run.has_line(gate.entry.result)
+        else "no passing result line"
     )
+    gate.fail(f"{spec_id}: exit {run.code}, {seen}")
     for line in run.lines[-30:]:
         gate.say(f"    {line}")
     for line in run.err.splitlines()[-10:]:
@@ -94,10 +114,14 @@ def run(gate) -> None:
             f"{spec_id}: scenes_spec_cards.txt names a card for a file that does not exist"
         )
 
+    if not in_table & files:
+        gate.fail(
+            "no scenes spec file ran: the entry table and sim/scenes_spec share none"
+        )
     passed = 0
     for spec_id in sorted(in_table & files):
         run = _run_spec(gate, spec_id, cards)
-        if _passes(run):
+        if _passes(gate, run):
             passed += 1
         else:
             _report(gate, spec_id, run)
@@ -112,8 +136,8 @@ def run(gate) -> None:
         ("selftest/crash_spec", False),
     ):
         run = _run_spec(gate, spec_id, cards)
-        if _passes(run) != should_pass:
+        if _passes(gate, run) != should_pass:
             gate.fail(
-                f"{spec_id}: the runner reported it {'passing' if _passes(run) else 'failing'}"
+                f"{spec_id}: the runner reported it {'passing' if _passes(gate, run) else 'failing'}"
             )
             gate.show(run)
