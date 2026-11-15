@@ -24,6 +24,7 @@
 #include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
 #include <cstdint>
@@ -123,6 +124,15 @@ public:
 	/// @return The learned knobs held outside a song's table.
 	[[nodiscard]] KnobCarrier& knobs() { return knobs_; }
 	[[nodiscard]] const KnobCarrier& knobs() const { return knobs_; }
+	/// @return The channel's effects, as the functions over an effects owner take them.
+	[[nodiscard]] EffectsOwner effectsOwner() {
+		return EffectsOwner{.core = &core(), .binding = &binding_, .view = &view_, .knobs = &knobs_};
+	}
+
+	/// @brief Takes @p other's filters, saturation, mod FX, sidechain, delay, stutter, view and held knobs, as a cloned
+	/// audio track does; this channel's compressor stays its own.
+	/// @param other The channel cloned from.
+	void cloneFrom(TrackChannel& other);
 
 	/// @brief Renders one block: @p content, then the chain over it, added into @p output, then the clip's param
 	/// automation ticks. Once the content has gone silent and the chain's tails have died away, the chain is skipped

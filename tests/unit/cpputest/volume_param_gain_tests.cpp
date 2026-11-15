@@ -1,5 +1,5 @@
 #include "CppUTest/TestHarness.h"
-#include "model/global_effectable/output_stage_gain.h"
+#include "model/fx/output_stage_gain.h"
 #include "util/volume_param_gain.h"
 
 #include <cstdint>

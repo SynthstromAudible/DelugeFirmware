@@ -14,6 +14,7 @@
 #include "memory/heaps.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_type.h"
@@ -56,7 +57,7 @@ Song* freshSong() {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	return song;
 }
 

@@ -45,6 +45,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
 #include "model/fx/chain_codec.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -208,7 +209,7 @@ Sound::Sound()
 
 void Sound::initParams(ParamManager* paramManager) {
 
-	ModControllableAudio::initParams(paramManager, params::Kind::UNPATCHED_SOUND);
+	deluge::model::initSharedParams(paramManager, params::Kind::UNPATCHED_SOUND);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;

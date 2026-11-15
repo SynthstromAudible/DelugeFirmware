@@ -21,6 +21,7 @@
 #include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include "model/fx/effects_owner.h"
 #include "model/fx/knob_carrier.h"
 
 namespace deluge::model {
@@ -52,6 +53,10 @@ public:
 	/// @return The learned knobs held outside a song's table.
 	[[nodiscard]] KnobCarrier& knobs() { return knobs_; }
 	[[nodiscard]] const KnobCarrier& knobs() const { return knobs_; }
+	/// @return The channel's effects, as the functions over an effects owner take them.
+	[[nodiscard]] EffectsOwner effectsOwner() {
+		return EffectsOwner{.core = &core(), .binding = &binding_, .view = &view_, .knobs = &knobs_};
+	}
 	/// @return The chain's remembered param conversions. Render tier only.
 	[[nodiscard]] ChainConversions& conversions() { return conversions_; }
 

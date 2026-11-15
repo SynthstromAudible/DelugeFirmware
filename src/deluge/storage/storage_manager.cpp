@@ -29,6 +29,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/edits/setting_edit.h"
 #include "model/favourite/favourite_manager.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -516,7 +517,7 @@ paramManagerSetupError:
 				goto paramManagerSetupError;
 			}
 
-			GlobalEffectableForClip::initParams(paramManager);
+			deluge::model::initGlobalParams(paramManager);
 		}
 		newInstrument = new (instrumentMemory) Kit();
 	}

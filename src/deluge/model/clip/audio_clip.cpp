@@ -21,6 +21,7 @@
 #include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "model/fx/chain_codec.h"
+#include "model/fx/chain_params.h"
 #include "model/sample/clip_increment.h"
 #include "modulation/params/staged_repeat.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
@@ -1414,9 +1415,9 @@ someError:
 
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
-			GlobalEffectableForClip::initParams(&paramManager);
+			deluge::model::initGlobalParams(&paramManager);
 			// Read the <params> block DOM-first so the store holds the authoritative current_value, not just the
-			// nodes (initParams wrote the defaults straight into the store).
+			// nodes (initAudioClipParams wrote the defaults straight into the store).
 			reader.match('{'); // descend into the params object (needed for JSON; no-op in XML), as InstrumentClip does
 			deluge::model::readGlobalParamsDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');

@@ -57,6 +57,7 @@
 #include "model/edits/set_tempo.h"
 #include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -124,7 +125,7 @@ Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 
 	// Load via the record-first Value tree: parse the whole XML to a Value, then
 	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.

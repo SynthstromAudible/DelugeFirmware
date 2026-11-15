@@ -15,6 +15,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
@@ -114,7 +115,7 @@ SoundInstrument* makeLooseSynth(::Song& song) {
 Kit* makeLooseKit(::Song& song) {
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	song.live.param_backup.backUp(kit, nullptr, &params, true);
 	return kit;

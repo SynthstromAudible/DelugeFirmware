@@ -33,7 +33,6 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "model/fx/chain_params.h"
-#include "model/mod_controllable/mod_fx_names.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -55,76 +54,3 @@
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
-
-void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
-	ModControllableAudio::cloneFrom(other);
-
-	const auto& from = static_cast<GlobalEffectable&>(*other);
-	deluge::model::setChainView(*effectsOwner(), from.chainView().modFXParam(), from.chainView().filterType());
-}
-
-void GlobalEffectable::initParams(ParamManager* paramManager) {
-	deluge::model::initGlobalParams(paramManager);
-}
-
-void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
-	deluge::model::initAudioClipParams(paramManager);
-}
-
-namespace modfx {
-const char* getParamName(ModFXType type, ModFXParam param, bool shortName) {
-	using enum deluge::l10n::String;
-	using namespace deluge;
-
-	switch (type) {
-	case ModFXType::GRAIN: {
-		switch (param) {
-		case ModFXParam::DEPTH:
-			return l10n::get(shortName ? STRING_FOR_GRAIN_AMOUNT_SHORT : STRING_FOR_GRAIN_AMOUNT);
-		case ModFXParam::FEEDBACK:
-			return l10n::get(shortName ? STRING_FOR_GRAIN_RANDOMNESS_SHORT : STRING_FOR_GRAIN_RANDOMNESS);
-		case ModFXParam::OFFSET:
-			return l10n::get(shortName ? STRING_FOR_GRAIN_DENSITY_SHORT : STRING_FOR_GRAIN_DENSITY);
-		default:
-			return l10n::get(STRING_FOR_NONE);
-		}
-	}
-
-	default: {
-		switch (param) {
-		case ModFXParam::DEPTH:
-			return l10n::get(shortName ? STRING_FOR_DEPTH_SHORT : STRING_FOR_DEPTH);
-		case ModFXParam::FEEDBACK:
-			return l10n::get(shortName ? STRING_FOR_FEEDBACK_SHORT : STRING_FOR_FEEDBACK);
-		case ModFXParam::OFFSET:
-			return l10n::get(shortName ? STRING_FOR_OFFSET_SHORT : STRING_FOR_OFFSET);
-		default:
-			return l10n::get(STRING_FOR_NONE);
-		}
-	}
-	}
-}
-
-const char* modFXToString(ModFXType type) {
-	switch (type) {
-		using namespace deluge;
-		using enum deluge::l10n::String;
-	case ModFXType::FLANGER:
-		return l10n::get(STRING_FOR_FLANGER);
-	case ModFXType::PHASER:
-		return l10n::get(STRING_FOR_PHASER);
-	case ModFXType::CHORUS:
-		return l10n::get(STRING_FOR_CHORUS);
-	case ModFXType::CHORUS_STEREO:
-		return l10n::get(STRING_FOR_STEREO_CHORUS);
-	case ModFXType::DIMENSION:
-		return l10n::get(STRING_FOR_DIMENSION);
-	case ModFXType::GRAIN:
-		return l10n::get(STRING_FOR_GRAIN);
-	case ModFXType::WARBLE:
-		return l10n::get(STRING_FOR_WARBLE);
-	default:
-		return l10n::get(STRING_FOR_DISABLED);
-	}
-}
-} // namespace modfx

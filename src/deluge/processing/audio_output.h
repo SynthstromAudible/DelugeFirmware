@@ -38,15 +38,12 @@ class AudioOutput final : public Output, public GlobalEffectableForClip {
 public:
 	AudioOutput();
 	~AudioOutput() override;
-	void cloneFrom(ModControllableAudio* other) override;
+	/// @brief Takes @p other's channel strip (TrackChannel::cloneFrom), input and mode, as a cloned audio track does.
+	/// @param other The audio track cloned from.
+	void cloneFrom(AudioOutput* other);
 	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return deluge::model::EffectsOwner{.core = &channel_.core(),
-		                                   .binding = &channel_.binding(),
-		                                   .view = &channel_.view(),
-		                                   .knobs = &channel_.knobs()};
-	}
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override { return channel_.effectsOwner(); }
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,

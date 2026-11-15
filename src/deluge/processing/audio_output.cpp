@@ -140,9 +140,9 @@ void AudioOutput::seedDocOutputIdentity() {
 	}
 }
 
-void AudioOutput::cloneFrom(ModControllableAudio* other) {
-	GlobalEffectableForClip::cloneFrom(other);
-	auto ao = ((AudioOutput*)other);
+void AudioOutput::cloneFrom(AudioOutput* other) {
+	channel_.cloneFrom(other->channel_);
+	auto ao = other;
 	setInputChannel(ao->inputChannel);
 
 	auto modeInt = util::to_underlying(ao->mode);

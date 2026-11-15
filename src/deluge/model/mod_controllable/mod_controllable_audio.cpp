@@ -66,26 +66,6 @@ ModControllableAudio::ModControllableAudio() = default;
 
 ModControllableAudio::~ModControllableAudio() = default;
 
-void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
-	// A clone takes the other's filters, saturation, mod-FX, sidechain, delay and stutter; it keeps its own
-	// compressor.
-	const deluge::effects::EffectStates& from = other->effects();
-	deluge::effects::EffectStates next = effects();
-	next.filter = from.filter;
-	next.saturation = from.saturation;
-	next.mod_fx = from.mod_fx;
-	next.sidechain = from.sidechain;
-	next.delay = from.delay;
-	next.stutter = from.stutter;
-	setEffects(next);
-	// An owner no song holds keeps its knobs here (empty for one a song holds).
-	effectsOwner()->knobs->loaded = other->effectsOwner()->knobs->loaded;
-}
-
-void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {
-	deluge::model::initSharedParams(paramManager, defaults);
-}
-
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
 	deluge::model::storeEffects(*effectsOwner(), next);
 }

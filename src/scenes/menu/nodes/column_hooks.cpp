@@ -33,8 +33,8 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
+#include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_fx_names.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 #include "scenes/bind/runtime_facts.h"

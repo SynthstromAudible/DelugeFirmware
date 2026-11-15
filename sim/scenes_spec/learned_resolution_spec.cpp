@@ -21,6 +21,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -166,7 +167,7 @@ World makeWorld() {
 	w.audioClip = spec::detail::place<AudioClip>(*w.song);
 	w.audioClip->setLoopLength(kDefaultClipLength << w.song->project.transport.inside_world_tick_magnitude);
 	w.audioClip->paramManager.setupUnpatched();
-	GlobalEffectableForClip::initParams(&w.audioClip->paramManager);
+	deluge::model::initGlobalParams(&w.audioClip->paramManager);
 	(void)w.song->live.clips.session_clips.insertClipAt(w.audioClip, 0);
 	w.audio = w.song->createNewAudioOutput();
 	w.audioClip->output = w.audio;

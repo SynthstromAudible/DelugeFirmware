@@ -2,6 +2,7 @@
 // adopts it, and by the owner itself until then, so a backup made while a song is read (before its ids are final)
 // keeps them and moves under the owner's id with the adoption.
 
+#include "model/fx/chain_params.h"
 #include "model/project_bridge/param_backup.h"
 
 #include "gui/views/instrument_clip_view.h"
@@ -50,7 +51,7 @@ Song* load_song(std::string_view xml) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
 	if (!tree) {
 		return nullptr;

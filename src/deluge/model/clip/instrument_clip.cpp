@@ -36,6 +36,7 @@
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
 #include "model/fx/chain_codec.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
@@ -2997,10 +2998,10 @@ loadInstrument:
 				goto someError;
 			}
 
-			GlobalEffectableForClip::initParams(&paramManager);
+			deluge::model::initGlobalParams(&paramManager);
 			reader.match('{');
 			// Read the kit clip-level FX block DOM-first so the store holds the authoritative current_value, not
-			// just the nodes (initParams wrote the defaults into the store).
+			// just the nodes (initGlobalParams wrote the defaults into the store).
 			deluge::model::readGlobalParamsDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');
 		}
@@ -3166,7 +3167,7 @@ doReadBendRange:
 							goto someError;
 						}
 
-						GlobalEffectableForClip::initParams(&paramManager);
+						deluge::model::initGlobalParams(&paramManager);
 					}
 
 					else {

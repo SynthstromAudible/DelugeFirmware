@@ -7,6 +7,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/edits/edit.h"
+#include "model/fx/chain_params.h"
 #include <cstdio>
 
 #include "deluge-project/param_edit.h" // setNodeAtPos
@@ -1217,7 +1218,7 @@ Song* readFixtureSong(const char* path) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
 	Error e = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
 	if (e == Error::NONE) {
@@ -1491,7 +1492,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	currentSong = song;
 
 	// ActionLogger::getNewAction snapshots an ActionClipState per clip and sizes that allocation to the clip
@@ -1502,7 +1503,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
 	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
 	audioClip->paramManager.setupUnpatched();
-	GlobalEffectable::initParamsForAudioClip(&audioClip->paramManager);
+	deluge::model::initAudioClipParams(&audioClip->paramManager);
 	audioClip->output = song->createNewAudioOutput(); // a clip's params are found through its output, as in a song
 	g_audioClip = audioClip;
 

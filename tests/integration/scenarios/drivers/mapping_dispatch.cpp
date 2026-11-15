@@ -63,10 +63,10 @@
 #include "model/drum/drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -79,6 +79,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/tree_load.h"
@@ -257,7 +258,7 @@ Song* loadSong(std::string_view text, FILE* err) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(text, deluge::storage::DocumentFormat::XML);
 	if (!tree) {
 		std::fprintf(err, "MAPPING-DISPATCH FAIL the song does not parse\n");
@@ -302,23 +303,22 @@ std::string describe(const Hit& hit) {
 	std::visit(
 	    [&]<typename T>(const T& t) {
 		    if constexpr (std::is_same_v<T, deluge::project::OwnerParamTarget>) {
-			    std::snprintf(buf, sizeof buf, "knob(%d:%u)#%u", static_cast<int>(t.owner.kind), t.owner.id,
-			                  hit.ordinal);
+			    snprintf(buf, sizeof buf, "knob(%d:%u)#%u", static_cast<int>(t.owner.kind), t.owner.id, hit.ordinal);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::ClipMuteTarget>) {
-			    std::snprintf(buf, sizeof buf, "clip(%u)#%u", t.clip_id, hit.ordinal);
+			    snprintf(buf, sizeof buf, "clip(%u)#%u", t.clip_id, hit.ordinal);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::DrumMuteTarget>) {
-			    std::snprintf(buf, sizeof buf, "rowmute(%u)#%u", t.drum_id, hit.ordinal);
+			    snprintf(buf, sizeof buf, "rowmute(%u)#%u", t.drum_id, hit.ordinal);
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::SectionLaunchTarget>) {
-			    std::snprintf(buf, sizeof buf, "section(%u)", static_cast<unsigned>(t.section));
+			    snprintf(buf, sizeof buf, "section(%u)", static_cast<unsigned>(t.section));
 		    }
 		    else if constexpr (std::is_same_v<T, deluge::project::TrackInputTarget>) {
-			    std::snprintf(buf, sizeof buf, "track(%u)", t.output_id);
+			    snprintf(buf, sizeof buf, "track(%u)", t.output_id);
 		    }
 		    else {
-			    std::snprintf(buf, sizeof buf, "rowinput(%u)#%u", t.drum_id, hit.ordinal);
+			    snprintf(buf, sizeof buf, "rowinput(%u)#%u", t.drum_id, hit.ordinal);
 		    }
 	    },
 	    hit.target);
@@ -877,15 +877,10 @@ Output* audioClone(Song& song, Output& from) {
 			to = o;
 		}
 	}
-	auto* fromKnobs = static_cast<ModControllableAudio*>(
-	    deluge::bridge::controlsSlotAt(song, {ControlsAddress::Kind::OUTPUT, *from.id()}));
-	auto* toKnobs = to != nullptr && to->id() ? static_cast<ModControllableAudio*>(deluge::bridge::controlsSlotAt(
-	                                                song, {ControlsAddress::Kind::OUTPUT, *to->id()}))
-	                                          : nullptr;
-	if (fromKnobs == nullptr || toKnobs == nullptr) {
+	if (from.type != OutputType::AUDIO || to == nullptr || to->type != OutputType::AUDIO) {
 		return nullptr;
 	}
-	toKnobs->cloneFrom(fromKnobs);
+	static_cast<AudioOutput*>(to)->cloneFrom(static_cast<AudioOutput*>(&from));
 	return to;
 }
 
@@ -1872,10 +1867,10 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 			const std::array<int32_t, 3> encoded{channel, port.channelToZone(channel) + IS_A_CC, channel + IS_A_PC};
 			const int32_t commandChannel = encoded[rng() % encoded.size()];
 			char message[96];
-			std::snprintf(message, sizeof message, "table=%d cable=%s diff=%d zones=%u/%u ch=%d cmdch=%d n=%d", t,
-			              &cable == cables[0] ? "din" : "usb1", MIDIDeviceManager::differentiatingInputsByDevice,
-			              port.mpeLowerZoneLastMemberChannel, port.mpeUpperZoneLastMemberChannel, channel,
-			              commandChannel, number);
+			snprintf(message, sizeof message, "table=%d cable=%s diff=%d zones=%u/%u ch=%d cmdch=%d n=%d", t,
+			         &cable == cables[0] ? "din" : "usb1", MIDIDeviceManager::differentiatingInputsByDevice,
+			         port.mpeLowerZoneLastMemberChannel, port.mpeUpperZoneLastMemberChannel, channel, commandChannel,
+			         number);
 			cases++;
 
 			std::vector<Hit> fromIndex;

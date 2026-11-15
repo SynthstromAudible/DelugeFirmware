@@ -4,7 +4,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
-#include "model/global_effectable/output_stage_gain.h"
+#include "model/fx/output_stage_gain.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"

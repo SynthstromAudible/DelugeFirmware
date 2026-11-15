@@ -26,6 +26,7 @@
 #include "deluge-project/arp_codec.h"
 #include "deluge-project/document.h"
 #include "memory/general_memory_allocator.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
@@ -60,7 +61,7 @@ Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(std::string_view(xml, xmlLen), format);
 	Error e = Error::FILE_CORRUPTED;
 	if (tree) {

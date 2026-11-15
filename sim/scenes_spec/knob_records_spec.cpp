@@ -5,6 +5,7 @@
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/setting_edit.h"
+#include "model/fx/chain_params.h"
 
 #include "board_controls.hpp"
 #include "controls/knob_focus.h"
@@ -84,7 +85,7 @@ Song* load_song(std::string_view xml) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
 	if (!tree) {
 		return nullptr;

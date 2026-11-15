@@ -32,12 +32,7 @@ public:
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return channel_.core(); }
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return deluge::model::EffectsOwner{.core = &channel_.core(),
-		                                   .binding = &channel_.binding(),
-		                                   .view = &channel_.view(),
-		                                   .knobs = &channel_.knobs()};
-	}
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override { return channel_.effectsOwner(); }
 
 private:
 	/// @brief The song's master channel: its chain around the reverb, its settings and view.

@@ -38,7 +38,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
-#include "model/mod_controllable/mod_fx_names.h"
+#include "model/fx/mod_fx_names.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"

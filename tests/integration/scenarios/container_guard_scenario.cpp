@@ -48,6 +48,7 @@
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/chain_inputs.h"
+#include "model/fx/chain_params.h"
 #include "model/fx/song_stutter.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/global_effectable/global_effectable.h"
@@ -1639,7 +1640,16 @@ void editLeg() {
 		bool clone = false;
 		if (other != nullptr) {
 			auto* second = static_cast<SoundInstrument*>(other->output);
-			second->cloneFrom(synth);
+			// A clone's effects: the other's filters, saturation, mod FX, sidechain, delay and stutter.
+			const deluge::effects::EffectStates& from = synth->effects();
+			deluge::model::changeEffects(*second->effectsOwner(), [&](deluge::effects::EffectStates& e) {
+				e.filter = from.filter;
+				e.saturation = from.saturation;
+				e.mod_fx = from.mod_fx;
+				e.sidechain = from.sidechain;
+				e.delay = from.delay;
+				e.stutter = from.stutter;
+			});
 			clone = second->core().delay().counted() && second->effects().delay.type == DelayType::DIGITAL;
 		}
 		const bool count = arena.owners_on() == ownersWithDelayOn();
@@ -1767,7 +1777,7 @@ void editLeg() {
 		AudioEngine::songSwapAboutToHappen();
 		preLoadedSong = new (deluge::memory::alloc_fast(sizeof(Song))) Song();
 		std::ignore = preLoadedSong->paramManager.setupUnpatched();
-		GlobalEffectable::initParams(&preLoadedSong->paramManager);
+		deluge::model::initGlobalParams(&preLoadedSong->paramManager);
 		preLoadedSong->setupDefault();
 		std::ignore = preLoadedSong->ensureAtLeastOneSessionClip();
 		const bool playing = playbackHandler.isEitherClockActive();

@@ -17,8 +17,8 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
+#include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_fx_names.h"
 #include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
 

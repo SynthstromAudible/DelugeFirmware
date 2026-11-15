@@ -10,6 +10,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/set_mod_knob_mode.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -181,7 +182,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	currentSong = song;
 
 	ParamManagerForTimeline synthParams;

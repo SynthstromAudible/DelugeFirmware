@@ -30,6 +30,7 @@
 #include "instruments/deluge/pages.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
+#include "model/fx/chain_params.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
@@ -439,7 +440,7 @@ void checkKnobs(Checker& check) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	Song* previous = currentSong;
 	currentSong = song;
 	ParamManagerForTimeline synthParams;

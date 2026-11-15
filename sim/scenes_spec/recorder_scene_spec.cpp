@@ -36,6 +36,7 @@
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/fx/chain_params.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
@@ -412,7 +413,7 @@ bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {
 Kit* loose_kit(::Song& song) {
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	song.live.param_backup.backUp(kit, nullptr, &params, true);
 	return kit;

@@ -29,15 +29,6 @@ class Serializer;
 
 class GlobalEffectable : public ModControllableAudio {
 public:
-	void cloneFrom(ModControllableAudio* other) override;
-
-	/// @brief Sets a host chain's params to their defaults (model::initGlobalParams).
-	/// @param paramManager The param manager to initialise.
-	static void initParams(ParamManager* paramManager);
-	/// @brief Sets an audio clip's params to their defaults (model::initAudioClipParams).
-	/// @param paramManager The param manager to initialise.
-	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
-
 	/// @brief Which values the chain's knobs edit: the view the chain's owner holds.
 	/// @return The chain's view.
 	[[nodiscard]] virtual deluge::model::ChainView& chainView() = 0;

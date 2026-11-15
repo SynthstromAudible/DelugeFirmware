@@ -14,6 +14,7 @@
 // is cleared before save, because writeToFile serialises UI state.
 
 #include "memory/general_memory_allocator.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
@@ -41,7 +42,7 @@ long load_then_save(char* xml, size_t xmlLen, deluge::storage::DocumentFormat fo
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 
 	// Do NOT set currentSong before readFromFile. On firmware the song under load is
 	// `preLoadedSong`; `currentSong` still points at the *old* song, so the action logger

@@ -58,6 +58,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/fx/chain_codec.h"
 #include "model/fx/chain_inputs.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -1919,11 +1920,11 @@ loadOutput:
 					if (error != Error::NONE) {
 						return error;
 					}
-					GlobalEffectable::initParams(&paramManager);
+					deluge::model::initGlobalParams(&paramManager);
 				}
-				// initParams wrote each default straight into the set's own DOM store (via docForParam), so it holds
-				// the authoritative defaults with no engine-to-store copy. Relocate that store into the project tree
-				// and re-bind the engine set to the tree copy; the reader then lands the present params on top of
+				// initGlobalParams wrote each default straight into the set's own DOM store (via docForParam), so it
+				// holds the authoritative defaults with no engine-to-store copy. Relocate that store into the project
+				// tree and re-bind the engine set to the tree copy; the reader then lands the present params on top of
 				// the defaults, and nodes are never copied out (avoids a projection self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
@@ -2149,7 +2150,7 @@ loadOutput:
 			ParamManagerForTimeline paramManager{};
 
 			paramManager.setupUnpatched();
-			GlobalEffectable::initParams(&paramManager);
+			deluge::model::initGlobalParams(&paramManager);
 
 			this->live.param_backup.backUp(*thisOutput, nullptr, &paramManager);
 		}
@@ -5261,7 +5262,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	newOutput->setInputChannel(defaultAudioOutputInputChannel);
 
-	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
+	deluge::model::initAudioClipParams(&newParamManager);
 
 	live.param_backup.backUp(*newOutput, nullptr, &newParamManager, true);
 

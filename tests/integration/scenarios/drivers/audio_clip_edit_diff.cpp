@@ -21,6 +21,7 @@
 #include "deluge-project/doc_audio_clip.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/fx/chain_params.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/tree_load.h"
@@ -50,7 +51,7 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 
 	std::optional<deluge::storage::Value> tree =
 	    parseDocument(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)), format);

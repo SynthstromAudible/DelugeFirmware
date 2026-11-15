@@ -8,7 +8,7 @@
 #include "gui/ui/browser/sample_preview.h"
 
 #include "model/clip/instrument_clip.h"
-#include "model/global_effectable/output_stage_gain.h"
+#include "model/fx/output_stage_gain.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"

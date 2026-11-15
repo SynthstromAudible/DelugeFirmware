@@ -16,6 +16,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_setting.h"
+#include "model/fx/chain_params.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -58,7 +59,7 @@ Song* loadSong(std::string_view bytes, deluge::storage::DocumentFormat format) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(bytes, format);
 	if (!tree) {
 		return nullptr;

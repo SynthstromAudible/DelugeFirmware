@@ -56,7 +56,6 @@ class ModControllableAudio : public ModControllable {
 public:
 	ModControllableAudio();
 	virtual ~ModControllableAudio();
-	virtual void cloneFrom(ModControllableAudio* other);
 
 	/// @brief This owner's effect settings, as its binding holds them: a bound record's, else the binding's own.
 	/// @return The effect settings.
@@ -76,10 +75,6 @@ public:
 	}
 	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// @brief Sets the shared params to their defaults (model::initSharedParams).
-	/// @param paramManager The param manager to initialise.
-	/// @param defaults     Whose table's defaults.
-	static void initParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
 	/// @brief This owner as a sound.
 	/// @return The sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
