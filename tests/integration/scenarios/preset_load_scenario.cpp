@@ -613,7 +613,8 @@ bool writeLegacyDelay(const char* path) {
 /// @param owner The loaded sound, kit or drum to inspect.
 /// @return True if the type is resolved and OFF.
 bool delayResolvedOff(ModControllableAudio& owner) {
-	return !owner.delayTypePending && owner.effects().delay.type == deluge::effects::DelayType::OFF;
+	return !owner.effectsOwner()->binding->delay_type_pending
+	       && owner.effects().delay.type == deluge::effects::DelayType::OFF;
 }
 
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).

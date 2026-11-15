@@ -56,6 +56,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
+#include "model/fx/chain_codec.h"
 #include "model/fx/chain_inputs.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
@@ -1206,7 +1207,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	live.global_effectable.writeAttributesToFile(writer, false);
+	deluge::model::writeChainAttributes(writer, *live.global_effectable.effectsOwner());
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
@@ -1221,8 +1222,8 @@ weAreInArrangementEditorOrInClipInstance:
 	members.set("reverb", deluge::project::encode(project.reverb, getInputTickMagnitude()));
 	writer.writeValue(members);
 
-	live.global_effectable.writeTagsToFile(
-	    writer, NULL, false, this, deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
+	deluge::model::writeEffectTags(writer, *live.global_effectable.effectsOwner(), nullptr, false, this,
+	                               deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
 
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 
@@ -1239,9 +1240,9 @@ weAreInArrangementEditorOrInClipInstance:
 		deluge::bridge::serializeGlobalEffectableParamTags(*songStore, writer, true, valuesForOverride);
 	}
 	else {
-		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
+		deluge::model::writeGlobalParamAttributes(writer, &paramManager, true, valuesForOverride);
 		writer.writeOpeningTagEnd();
-		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
+		deluge::model::writeGlobalParamTags(writer, &paramManager, true, valuesForOverride);
 	}
 	writer.writeClosingTag("songParams");
 
@@ -1440,7 +1441,7 @@ void Song::adoptOutput(Output* output) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		// The track's own arp, which a new clip on it starts from, is its record's when its element held one.
-		if (sound->arpRead) {
+		if (sound->arpRead()) {
 			d.arp = deluge::bridge::arpRecordOf(static_cast<SoundInstrument*>(output)->defaultArpSettings, false);
 		}
 	}
@@ -1961,8 +1962,8 @@ loadOutput:
 			}
 
 			else {
-				Error result =
-				    live.global_effectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
+				Error result = deluge::model::readEffectTag(reader, tagName, *live.global_effectable.effectsOwner(),
+				                                            &paramManager, 2147483647, nullptr, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -1980,7 +1981,7 @@ loadOutput:
 			}
 		}
 	}
-	live.global_effectable.readEffectsFromElement(*element, getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*live.global_effectable.effectsOwner(), *element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);
 

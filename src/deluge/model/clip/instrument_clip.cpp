@@ -35,6 +35,7 @@
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
+#include "model/fx/chain_codec.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
@@ -2615,9 +2616,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	if (output->type == OutputType::KIT) {
 		writer.writeOpeningTagBeginning("kitParams");
-		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
+		deluge::model::writeGlobalParamAttributes(writer, &paramManager, true);
 		writer.writeOpeningTagEnd();
-		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true);
+		deluge::model::writeGlobalParamTags(writer, &paramManager, true);
 		writer.writeClosingTag("kitParams");
 	}
 	else if (output->type == OutputType::SYNTH) {
@@ -3000,7 +3001,7 @@ loadInstrument:
 			reader.match('{');
 			// Read the kit clip-level FX block DOM-first so the store holds the authoritative current_value, not
 			// just the nodes (initParams wrote the defaults into the store).
-			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
+			deluge::model::readGlobalParamsDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');
 		}
 

@@ -32,6 +32,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
+#include "model/fx/chain_params.h"
 #include "model/mod_controllable/mod_fx_names.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/param_projection.h"
@@ -55,10 +56,6 @@
 using namespace deluge;
 namespace params = deluge::modulation::params;
 
-GlobalEffectable::GlobalEffectable() {
-	unpatchedParamKind_ = params::Kind::UNPATCHED_GLOBAL;
-}
-
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	ModControllableAudio::cloneFrom(other);
 
@@ -67,149 +64,11 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
-	ModControllableAudio::initParams(paramManager, params::Kind::UNPATCHED_GLOBAL);
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	setParamsToDefaults(*unpatchedParams, params::Kind::UNPATCHED_GLOBAL,
-	                    {params::UNPATCHED_ARP_RATE, params::UNPATCHED_MOD_FX_RATE, params::UNPATCHED_MOD_FX_DEPTH,
-	                     params::UNPATCHED_DELAY_RATE, params::UNPATCHED_PAN, params::UNPATCHED_DELAY_AMOUNT,
-	                     params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_VOLUME,
-	                     params::UNPATCHED_SIDECHAIN_VOLUME, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_RES,
-	                     params::UNPATCHED_LPF_FREQ, params::UNPATCHED_HPF_RES, params::UNPATCHED_HPF_FREQ,
-	                     params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH});
+	deluge::model::initGlobalParams(paramManager);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
-	initParams(paramManager);
-	// An audio track starts quieter than the song and a kit's affect-entire, which keep the table's default
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setBase(*unpatchedParams->docForParam(params::UNPATCHED_VOLUME),
-	                                                          -536870912);
-}
-
-void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-	// Its record's, while it plays one.
-	writer.writeAttribute("modFXCurrentParam", modFXParamToString(chainView().modFXParam()));
-	writer.writeAttribute("currentFilterType", filterTypeToString(chainView().filterType()));
-	ModControllableAudio::writeAttributesToFile(writer, effects());
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	// <--
-}
-
-void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-                                       Song* knobsSong, std::optional<deluge::project::ControlsAddress> knobsOwner) {
-	if (paramManager) {
-		writer.writeOpeningTagBeginning("defaultParams");
-		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
-		writer.writeOpeningTagEnd();
-		GlobalEffectable::writeParamTagsToFile(writer, paramManager, writeAutomation);
-		writer.writeClosingTag("defaultParams");
-	}
-
-	// A track chain's render follows its threshold param; the file holds the setting, as the record does.
-	ModControllableAudio::writeTagsToFile(writer, effects(), knobsSong, knobsOwner);
-}
-
-void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-                                                  int32_t* valuesForOverride) {
-	// Serialize from the value DOM (deluge::project). serializeGlobalEffectableParamAttributes emits the global flat
-	// attrs around the shared ModControllableAudio attrs and the community attrs.
-	deluge::project::DocParamSet unpatched =
-	    deluge::bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	deluge::bridge::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
-}
-
-void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-                                            int32_t* valuesForOverride) {
-	deluge::project::DocParamSet unpatched =
-	    deluge::bridge::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
-	deluge::bridge::serializeGlobalEffectableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
-}
-
-void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
-                                          int32_t readAutomationUpToPos) {
-	char const* tagName;
-
-	reader.match('{'); // descend into the <defaultParams> object (needed for JSON; a no-op in XML)
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
-		else {
-			reader.exitTag(tagName);
-		}
-	}
-	reader.match('}');
-}
-
-void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamManagerForTimeline* paramManager,
-                                                  int32_t readAutomationUpToPos) {
-	// initParams already wrote each default straight into the set's own DOM store (via docForParam), so file-omitted
-	// params keep their default with NO engine->store copy. Read the present params into the store via the same
-	// tables the engine reader uses, then project each engine RT cursor from the store.
-	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
-	ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
-	unpatched->bindDomStore();
-	deluge::project::DocParamSet* store = unpatched->domStore();
-	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (deluge::bridge::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
-		else {
-			reader.exitTag(tagName);
-		}
-	}
-	unpatched->projectFromStoreAfterRead(summary);
-}
-
-bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* tagName,
-                                            ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
-	// Read the GlobalEffectable param block from the value DOM (deluge::project), as the writer writes it.
-	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
-	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-	return deluge::bridge::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                                    readAutomationUpToPos);
-}
-
-// paramManager is optional
-Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagName,
-                                        ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-                                        ArpeggiatorSettings* arpSettings, Song* song) {
-
-	// else
-	if (paramManager && !strcmp(tagName, "defaultParams")) {
-
-		if (!paramManager->containsAnyMainParamCollections()) {
-			Error error = paramManager->setupUnpatched();
-			if (error != Error::NONE) {
-				return error;
-			}
-			initParams(paramManager);
-		}
-
-		GlobalEffectable::readParamsFromFile(reader, paramManager, readAutomationUpToPos);
-		reader.exitTag("defaultParams");
-	}
-
-	else {
-		return ModControllableAudio::readTagFromFile(reader, tagName, NULL, readAutomationUpToPos, arpSettings, song);
-	}
-
-	return Error::NONE;
-}
-
-void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude) {
-	deluge::effects::EffectStates next = effects();
-	deluge::effects::decode(element, next, {.input_tick_magnitude = tickMagnitude});
-	delayTypePending = !deluge::effects::saves_delay_type(element);
-	ModFXParam param = chainView().modFXParam();
-	FilterType type = chainView().filterType();
-	if (const deluge::serialization::Value* word = element.find("modFXCurrentParam"); word && word->isScalar()) {
-		param = stringToModFXParam(word->str().c_str());
-	}
-	if (const deluge::serialization::Value* word = element.find("currentFilterType"); word && word->isScalar()) {
-		type = stringToFilterType(word->str().c_str());
-	}
-	chainView().write(param, type);
-	setEffects(next); // projects the view with the effects
+	deluge::model::initAudioClipParams(paramManager);
 }
 
 namespace modfx {

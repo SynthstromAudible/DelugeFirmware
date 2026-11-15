@@ -14,6 +14,7 @@
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
+#include "model/fx/chain_codec.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -1038,7 +1039,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		ModControllableAudio::writeParamAttributesToFile(smSerializer, &pm, true);
+		{
+			deluge::project::DocParamSet engine = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
+			deluge::bridge::serializeModControllableParamAttributes(engine, smSerializer, true);
+		}
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
@@ -1049,7 +1053,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		ModControllableAudio::writeParamTagsToFile(smSerializer, &pm, true);
+		{
+			deluge::project::DocParamSet engine = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
+			deluge::bridge::serializeModControllableParamTags(engine, smSerializer, true);
+		}
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
@@ -1135,7 +1142,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true);
+		deluge::model::writeGlobalParamAttributes(smSerializer, &pm, true);
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
@@ -1146,7 +1153,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true);
+		deluge::model::writeGlobalParamTags(smSerializer, &pm, true);
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
@@ -1459,7 +1466,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true, ovr.data());
+		deluge::model::writeGlobalParamAttributes(smSerializer, &pm, true, ovr.data());
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
@@ -1476,7 +1483,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true, ovr.data());
+		deluge::model::writeGlobalParamTags(smSerializer, &pm, true, ovr.data());
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();

@@ -103,7 +103,6 @@ src/deluge/model/instrument/cv_instrument.cpp raw=0 boundary=3
 src/deluge/model/instrument/kit.cpp raw=0 boundary=1
 src/deluge/model/instrument/midi_instrument.cpp raw=0 boundary=6
 src/deluge/model/instrument/non_audio_instrument.cpp raw=0 boundary=1
-src/deluge/model/mod_controllable/mod_controllable_audio.h raw=0 boundary=1
 src/deluge/model/sample/clip_increment.h raw=0 boundary=3
 src/deluge/model/sample/pitch_scan.cpp raw=0 boundary=3
 src/deluge/model/sample/sample.cpp raw=0 boundary=4
@@ -124,7 +123,7 @@ src/deluge/processing/audio_output.cpp raw=0 boundary=5
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=26
 src/deluge/processing/engines/input_monitor.h raw=0 boundary=2
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=2
-src/deluge/processing/sound/sound.cpp raw=0 boundary=9
+src/deluge/processing/sound/sound.cpp raw=0 boundary=10
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
 src/deluge/util/functions.h raw=0 boundary=4

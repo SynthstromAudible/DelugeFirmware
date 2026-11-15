@@ -329,6 +329,10 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
+	/// @return Whether the last read of this sound's element held an arpeggiator (a synth track's own, which its record
+	/// then keeps).
+	[[nodiscard]] bool arpRead() const { return arp_read_; }
+
 	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target.
 	/// @param target      The param the knob turns.
 	/// @param whichKnob   The mod knob: 0 lower, 1 upper.
@@ -532,6 +536,8 @@ private:
 	deluge::effects::SoundChain chain_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
+	/// @brief Set by a read whose element held an arpeggiator.
+	bool arp_read_{false};
 
 	/// @brief the list of active voices for this sound
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.

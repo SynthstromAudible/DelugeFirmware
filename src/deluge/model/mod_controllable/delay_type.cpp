@@ -160,10 +160,11 @@ namespace {
 
 /// @brief Gives @p owner its type, when its file saved none, from whether any of its param managers could sound.
 void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
-	if (!owner.delayTypePending) {
+	bool& pending = owner.effectsOwner()->binding->delay_type_pending;
+	if (!pending) {
 		return;
 	}
-	owner.delayTypePending = false;
+	pending = false;
 	const deluge::effects::DelayType type = owner.effects().delay.type;
 	deluge::effects::DelayType resolved = type;
 	if (!couldSound) {
@@ -185,7 +186,7 @@ void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
 void resolveWhere(Song& song, const std::function<bool(const ModControllableAudio&)>& wanted) {
 	std::vector<std::pair<ModControllableAudio*, bool>> owners;
 	forEachDelayParamManager(song, [&](ModControllableAudio& owner, ParamManager& paramManager) {
-		if (!owner.delayTypePending || !wanted(owner)) {
+		if (!owner.effectsOwner()->binding->delay_type_pending || !wanted(owner)) {
 			return;
 		}
 		const bool could = delayCouldSound(paramManager, owner.asSound() != nullptr);

@@ -44,6 +44,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/fx/chain_codec.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -164,7 +165,6 @@ void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages
 Sound::Sound()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 	bindBinding(effectsBinding_);
-	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
@@ -596,8 +596,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("defaultParams");
 	}
 	else {
-		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos,
-		                                                     arpSettings, song);
+		Error result = deluge::model::readEffectTag(reader, tagName, *effectsOwner(), nullptr, readAutomationUpToPos,
+		                                            arpSettings, &arp_read_, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
@@ -2757,7 +2757,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
 		return Error::FILE_CORRUPTED;
 	}
-	delayTypePending = !deluge::effects::saves_delay_type(*element);
+	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
 
 	char const* tagName;
 
@@ -3235,8 +3235,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		unbound = seededState(); // a sound under preview or audition saves what its runtime fields hold
 	}
 	const deluge::instrument::SoundState& state = state_ != nullptr ? *state_ : *unbound;
-	const deluge::instrument::SoundPieces pieces = deluge::instrument::encode_pieces(
-	    state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()}, savedCompressorThreshold());
+	const deluge::instrument::SoundPieces pieces =
+	    deluge::instrument::encode_pieces(state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
+	                                      // the threshold the render last applied, its param's
+	                                      core().compressor().dsp().threshold().raw());
 
 	writer.writeValue(pieces.head);
 	writer.writeValue(pieces.effect_attributes);
@@ -3285,7 +3287,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeValue(pieces.midi_output);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer, knobsSong, deluge::bridge::controlsAddressOf(*this));
+	deluge::model::writeMidiKnobs(writer, *effectsOwner(), knobsSong, deluge::bridge::controlsAddressOf(*this));
 	writer.writeValue(pieces.effect_tags);
 }
 

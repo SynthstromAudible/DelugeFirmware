@@ -29,6 +29,7 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/fx/chain_codec.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -430,7 +431,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	}
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
-	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
+	deluge::model::writeChainAttributes(writer, *effectsOwner());
 
 	writer.writeOpeningTagEnd();
 
@@ -441,7 +442,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 	}
 
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true, song, ownControlsAddress());
+	deluge::model::writeEffectTags(writer, *effectsOwner(), paramManager, true, song, ownControlsAddress());
 
 	return true;
 }
@@ -484,7 +485,8 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 
 		else {
 
-			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, nullptr, song);
+			Error result = deluge::model::readEffectTag(reader, tagName, *effectsOwner(), &paramManager, 0, nullptr,
+			                                            nullptr, song);
 			if (result == Error::NONE) {}
 			else if (result == Error::RESULT_TAG_UNUSED) {
 				reader.exitTag();
@@ -495,7 +497,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
-	readEffectsFromElement(*element, song->getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*effectsOwner(), *element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		song->live.param_backup.backUp(this, NULL, &paramManager);

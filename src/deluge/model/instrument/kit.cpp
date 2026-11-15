@@ -35,6 +35,7 @@
 #include "model/drum/midi_drum.h"
 #include "model/drum/non_audio_drum.h"
 #include "model/edits/bend_range_for.h"
+#include "model/fx/chain_codec.h"
 #include "model/fx/chain_inputs.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/note/note_row.h"
@@ -166,7 +167,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 		}
 	}
 
-	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
+	deluge::model::writeChainAttributes(writer, *effectsOwner());
 
 	writer.writeOpeningTagEnd();
 	// Attributes end
@@ -182,8 +183,8 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 			deluge::bridge::write_command(writer, "MIDIInput", input->source, MIDI_MESSAGE_NOTE);
 		}
 	}
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == nullptr, song,
-	                                         ownControlsAddress());
+	deluge::model::writeEffectTags(writer, *effectsOwner(), paramManager, clipForSavingOutputOnly == nullptr, song,
+	                               ownControlsAddress());
 
 	writer.writeArrayStart("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
@@ -408,8 +409,8 @@ doReadDrum:
 			reader.exitTag();
 		}
 		else {
-			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager,
-			                                                        readAutomationUpToPos, &defaultArpSettings, song);
+			Error result = deluge::model::readEffectTag(reader, tagName, *effectsOwner(), &paramManager,
+			                                            readAutomationUpToPos, &defaultArpSettings, nullptr, song);
 			if (result == Error::NONE) {}
 			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
@@ -430,7 +431,7 @@ doReadDrum:
 	if (selectedDrumIndex != -1) {
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
-	readEffectsFromElement(*element, song->getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*effectsOwner(), *element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		song->live.param_backup.backUp(this, clip, &paramManager, true);

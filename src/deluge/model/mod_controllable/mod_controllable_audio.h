@@ -58,36 +58,6 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	/// @brief Writes @p states' effect attributes.
-	/// @param writer Destination.
-	/// @param states The effect settings to write.
-	void writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states);
-	/// @brief Writes @p states' effect tags, the learned MIDI knobs among them; @p compressorThreshold, when given, in
-	/// place of the state's threshold.
-	/// @param writer              Destination.
-	/// @param states              The effect settings to write.
-	/// @param knobsSong           The song whose table the learned knobs are written from (see writeMidiKnobsToFile).
-	/// @param knobsOwner          Whose controls these are, for the learned knobs (see writeMidiKnobsToFile).
-	/// @param compressorThreshold Threshold (Q31) to write instead of the state's, if given.
-	void writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states, Song* knobsSong,
-	                     std::optional<deluge::project::ControlsAddress> knobsOwner,
-	                     std::optional<int32_t> compressorThreshold = std::nullopt);
-	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: the
-	/// knobs @p song's mapping table holds for @p owner, in table order. An owner @p song does not hold (a preset
-	/// loaded outside it) writes those it holds outside a table (model::KnobCarrier::loaded), and none when it holds
-	/// none.
-	/// @param writer Destination.
-	/// @param song   The song being saved, or the one a preset is saved from; nullptr when there is none.
-	/// @param owner  Whose controls these are, if known.
-	void writeMidiKnobsToFile(Serializer& writer, Song* song, std::optional<deluge::project::ControlsAddress> owner);
-	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude, even when
-	/// the song being saved is another (the learned knobs take the saved song; this does not).
-	/// @return The codec context.
-	[[nodiscard]] static deluge::plugin::CodecContext effectsCodecContext();
-	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
-	/// @return The threshold (Q31).
-	[[nodiscard]] int32_t savedCompressorThreshold() const { return core().compressor().dsp().threshold().raw(); }
-
 	/// @brief This owner's effect settings, as its binding holds them: a bound record's, else the binding's own.
 	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return binding_->effects(); }
@@ -106,16 +76,9 @@ public:
 	}
 	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
-	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = nullptr);
-	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = nullptr);
-	/// @brief Sets the shared params (EQ, arpeggiator, stutter, mod FX, bitcrush, compressor) to their defaults.
+	/// @brief Sets the shared params to their defaults (model::initSharedParams).
 	/// @param paramManager The param manager to initialise.
-	/// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global
-	/// effectable.
+	/// @param defaults     Whose table's defaults.
 	static void initParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
 	/// @brief This owner as a sound.
 	/// @return The sound, or nullptr for a kit, an audio track or the song master.
@@ -123,11 +86,6 @@ public:
 	/// @brief This owner as a host chain's owner (a kit, an audio track, the song master), or null for a sound.
 	/// @return The owner, or null.
 	[[nodiscard]] virtual const ::GlobalEffectable* asGlobalEffectable() const { return nullptr; }
-	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
-	/// (deluge::model::resolvePendingDelayTypes).
-	bool delayTypePending = false;
-	/// @brief Set by a read whose element held an arpeggiator (a synth track's own, which its record then keeps).
-	bool arpRead = false;
 
 	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
 	/// @return The chain's core.
@@ -143,10 +101,4 @@ protected:
 	/// constructor, before anything reads its effects.
 	/// @param binding The owner's binding, which outlives every use through this owner.
 	void bindBinding(deluge::model::EffectsBinding& binding) { binding_ = &binding; }
-
-	/// What kind of unpatched parameters this ModControllable uses.
-	///
-	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
-	/// subclass is
-	deluge::modulation::params::Kind unpatchedParamKind_;
 };

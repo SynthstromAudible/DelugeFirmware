@@ -29,47 +29,15 @@ class Serializer;
 
 class GlobalEffectable : public ModControllableAudio {
 public:
-	GlobalEffectable();
 	void cloneFrom(ModControllableAudio* other) override;
 
+	/// @brief Sets a host chain's params to their defaults (model::initGlobalParams).
+	/// @param paramManager The param manager to initialise.
 	static void initParams(ParamManager* paramManager);
+	/// @brief Sets an audio clip's params to their defaults (model::initAudioClipParams).
+	/// @param paramManager The param manager to initialise.
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
 
-	void writeAttributesToFile(Serializer& writer, bool writeToFile);
-	/// @brief Writes this owner's tags: its default params, when @p paramManager, then its effect tags and learned
-	/// knobs.
-	/// @param writer          Destination.
-	/// @param paramManager    The params to write, or nullptr for none.
-	/// @param writeAutomation Whether the params' automation is written.
-	/// @param knobsSong       The song being saved, whose table holds the learned knobs, or nullptr for none.
-	/// @param knobsOwner      Whose controls these are: the learned knobs @p knobsSong's table holds for it are
-	/// written.
-	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation, Song* knobsSong,
-	                     std::optional<deluge::project::ControlsAddress> knobsOwner);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;
-	/// @brief Reads this owner's effects and its view (which values its knobs edit) from its element, as the effects
-	/// library decodes them, sync levels relative to @p tickMagnitude.
-	/// @param element       The owner's serialized element.
-	/// @param tickMagnitude Tick magnitude that sync levels are relative to.
-	void readEffectsFromElement(const deluge::serialization::Value& element, int32_t tickMagnitude);
-	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = nullptr);
-	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = nullptr);
-	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
-	                               int32_t readAutomationUpToPos);
-	/// @brief Reads the param block into the owner's DOM store, then projects each engine RT cursor from the store.
-	///
-	/// The defaults must already be written to the store by initParams. The DOM thereby holds the authoritative
-	/// current_value, not just the automation nodes. Used by audio and kit clips.
-	/// @param reader               Source of the param block.
-	/// @param paramManager         The owner's param manager.
-	/// @param readAutomationUpToPos Automation is read up to this position.
-	static void readParamsFromFileDomFirst(Deserializer& reader, ParamManagerForTimeline* paramManager,
-	                                       int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                                 int32_t readAutomationUpToPos);
 	/// @brief Which values the chain's knobs edit: the view the chain's owner holds.
 	/// @return The chain's view.
 	[[nodiscard]] virtual deluge::model::ChainView& chainView() = 0;

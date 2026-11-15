@@ -58,6 +58,10 @@ public:
 	/// copy keeps the value it has.
 	void project(deluge::effects::ChainCore& core, std::size_t delayReserve, std::optional<ModFXParam> modFXParam);
 
+	/// Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
+	/// (deluge::model::resolvePendingDelayTypes), which clears it.
+	bool delay_type_pending{false};
+
 private:
 	deluge::effects::EffectStates own_{};
 	deluge::effects::EffectStates* bound_{nullptr};
