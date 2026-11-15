@@ -379,7 +379,8 @@ A spec judges a value with the matcher that prints it when it fails: `expect(a).
 `expect(...)`, in `#include "support/matchers/value_matchers.h"`; the others, `to_contain` among them, are CppSpec's
 members. A matcher's last argument is a message naming the subject,
 which a failure prints on the line above the matcher's own: `expect(x).to_equal(want, "the row count")`.
-Two function pointers compare as addresses through `address_of` (`tests/support/matchers/address_of.h`):
+Two function pointers compare as addresses through `address_of` (`tests/support/matchers/address_of.h`, with
+`using deluge::test::matchers::address_of;`):
 `expect(address_of(node.get)).to_equal(address_of(&get_level))`, since `std::ostream` prints one as `1`.
 
 A type CppSpec cannot print shows as its address. A type a spec compares gets an inline `operator<<` in its own
