@@ -330,10 +330,9 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		                                                           of_sound.filter->hpf_mode)});
 
 		// A chain's: the song's own, its high-pass a ladder.
-		GlobalEffectable& master = synth.song->live.global_effectable;
-		const deluge::model::EffectsOwner master_fx = *synth.song->live.global_effectable.effectsOwner();
+		const deluge::model::EffectsOwner master_fx = *synth.song->live.master_channel.effectsOwner();
 		overlay::PopupContext of_chain;
-		of_chain.filter = master.effects().filter;
+		of_chain.filter = master_fx.effects().filter;
 		expect(shown(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH, of_chain).first)
 		    .to_equal(std::string{params::getParamDisplayName(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH,
 		                                                      &master_fx)});
@@ -345,7 +344,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 					deluge::effects::EffectStates own = mca->effects();
 					own.stutter.use_song_stutter = use_song;
 					own.stutter.quantized = own_quantized;
-					deluge::effects::EffectStates song = master.effects();
+					deluge::effects::EffectStates song = master_fx.effects();
 					song.stutter.quantized = song_quantized;
 					const bool port = services::stutter_quantized(own, song);
 					const bool legacy = use_song ? song_quantized : own_quantized;

@@ -48,20 +48,28 @@ deluge::model::EffectsOwner effectsOf(ModControllable& owner) {
 } // namespace
 
 void changeEffect(ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+	changeEffect(effectsOf(owner), path, std::move(value));
+}
+
+void changeEffect(::Song& song, ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+	changeEffect(song, effectsOf(owner), path, std::move(value));
+}
+
+void changeEffect(deluge::model::EffectsOwner effects, std::string_view path, deluge::serialization::Value value) {
 	if (currentSong == nullptr) {
 		// An owner outside any song holds its effects itself.
-		if (deluge::bridge::applyEffectSetting(effectsOf(owner), path, value) != Error::NONE) {
+		if (deluge::bridge::applyEffectSetting(effects, path, value) != Error::NONE) {
 			D_PRINTLN("effect setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(),
 			          value.str().c_str());
 		}
 		return;
 	}
-	changeEffect(*currentSong, owner, path, std::move(value));
+	changeEffect(*currentSong, effects, path, std::move(value));
 }
 
-void changeEffect(::Song& song, ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+void changeEffect(::Song& song, deluge::model::EffectsOwner effects, std::string_view path,
+                  deluge::serialization::Value value) {
 	Error error = Error::NONE;
-	const deluge::model::EffectsOwner effects = effectsOf(owner);
 	::Sound* sound = effects.sound;
 	const std::optional<deluge::project::SlotAddress> slot =
 	    sound != nullptr ? deluge::bridge::slotAddressOf(*sound) : std::nullopt;

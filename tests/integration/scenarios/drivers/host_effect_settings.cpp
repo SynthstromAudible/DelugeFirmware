@@ -311,7 +311,7 @@ void costLeg(Song& song) {
 /// coherent.
 void ringFailureLeg(Song& song) {
 	const HostOwner owner{.address = {.kind = ChainAddress::Kind::SONG}, .name = "master"};
-	GlobalEffectable& master = song.live.global_effectable;
+	ModControllable& master = song.live.master_channel;
 	const Value none = Value::makeScalar("none");
 	if (setEffect(song, owner, "modFXType", none) != Error::NONE) {
 		fail(owner, "modFXType", none, "refused");
@@ -328,7 +328,8 @@ void ringFailureLeg(Song& song) {
 	else if (error != Error::NONE) {
 		fail(owner, "modFXType", chorus, "refused when its ring could not be allocated");
 	}
-	else if (master.effects().mod_fx.type != ModFXType::CHORUS || master.core().mod_fx().holdsRing()) {
+	else if (master.effectsOwner()->effects().mod_fx.type != ModFXType::CHORUS
+	         || master.effectsOwner()->core->mod_fx().holdsRing()) {
 		fail(owner, "modFXType", chorus, "the type is not held, or a ring is");
 	}
 	else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {

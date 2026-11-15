@@ -223,7 +223,7 @@ void forEachOutput(::Song& song, Visit visit) {
 
 std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song) {
 	using Kind = deluge::project::ControlsAddress::Kind;
-	if (&owner == static_cast<::ModControllable*>(&song.live.global_effectable)) {
+	if (&owner == static_cast<::ModControllable*>(&song.live.master_channel)) {
 		return deluge::project::ControlsAddress{Kind::SONG, 0};
 	}
 	std::optional<deluge::project::ControlsAddress> found;
@@ -288,7 +288,7 @@ Drum* drumWithId(::Song& song, uint32_t id) {
 std::optional<deluge::model::EffectsOwner> effectsOwnerAt(::Song& song, deluge::project::ControlsAddress address) {
 	using Kind = deluge::project::ControlsAddress::Kind;
 	if (address.kind == Kind::SONG) {
-		return song.live.global_effectable.effectsOwner();
+		return song.live.master_channel.effectsOwner();
 	}
 	if (address.kind == Kind::OUTPUT) {
 		Output* output = outputWithId(song, address.id);
@@ -302,7 +302,7 @@ std::optional<deluge::model::EffectsOwner> effectsOwnerAt(::Song& song, deluge::
 ::ModControllable* controlsSlotAt(::Song& song, deluge::project::ControlsAddress address) {
 	using Kind = deluge::project::ControlsAddress::Kind;
 	if (address.kind == Kind::SONG) {
-		return &song.live.global_effectable;
+		return &song.live.master_channel;
 	}
 	if (address.kind == Kind::OUTPUT) {
 		Output* output = outputWithId(song, address.id);

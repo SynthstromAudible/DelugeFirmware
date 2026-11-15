@@ -125,7 +125,7 @@ public:
 	[[nodiscard]] KnobCarrier& knobs() { return knobs_; }
 	[[nodiscard]] const KnobCarrier& knobs() const { return knobs_; }
 	/// @return The channel's effects, as the functions over an effects owner take them.
-	[[nodiscard]] EffectsOwner effectsOwner() {
+	[[nodiscard]] EffectsOwner asEffectsOwner() {
 		return EffectsOwner{.core = &core(), .binding = &binding_, .view = &view_, .knobs = &knobs_};
 	}
 

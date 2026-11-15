@@ -75,12 +75,6 @@ public:
 	}
 	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// @brief This owner as a sound.
-	/// @return The sound, or nullptr for a kit, an audio track or the song master.
-	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
-	/// @brief This owner as a host chain's owner (a kit, an audio track, the song master), or null for a sound.
-	/// @return The owner, or null.
-	[[nodiscard]] virtual const ::GlobalEffectable* asGlobalEffectable() const { return nullptr; }
 
 	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
 	/// @return The chain's core.

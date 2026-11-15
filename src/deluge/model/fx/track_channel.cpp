@@ -261,7 +261,7 @@ ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManager
 }
 
 void TrackChannel::cloneFrom(TrackChannel& other) {
-	const EffectsOwner mine = effectsOwner();
+	const EffectsOwner mine = asEffectsOwner();
 	const effects::EffectStates& from = other.binding_.effects();
 	effects::EffectStates next = mine.effects();
 	next.filter = from.filter;

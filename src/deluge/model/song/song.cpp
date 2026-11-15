@@ -253,7 +253,7 @@ Song::Song() {
 	project.reverb.model = deluge::project::ReverbModel::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	live.global_effectable.core().compressor().dsp().set_base_gain(0.85f);
+	live.master_channel.core().compressor().dsp().set_base_gain(0.85f);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = params::kNoParamID;
@@ -270,7 +270,7 @@ Song::Song() {
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 	// The master plays its chain record from the start: a read of its effects lands in the record.
-	deluge::bridge::adoptChainState(*live.global_effectable.effectsOwner(), project.master_effects,
+	deluge::bridge::adoptChainState(*live.master_channel.effectsOwner(), project.master_effects,
 	                                deluge::project::ChainHome::MASTER);
 }
 
@@ -1208,7 +1208,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	deluge::model::writeChainAttributes(writer, *live.global_effectable.effectsOwner());
+	deluge::model::writeChainAttributes(writer, *live.master_channel.effectsOwner());
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
@@ -1223,7 +1223,7 @@ weAreInArrangementEditorOrInClipInstance:
 	members.set("reverb", deluge::project::encode(project.reverb, getInputTickMagnitude()));
 	writer.writeValue(members);
 
-	deluge::model::writeEffectTags(writer, *live.global_effectable.effectsOwner(), nullptr, false, this,
+	deluge::model::writeEffectTags(writer, *live.master_channel.effectsOwner(), nullptr, false, this,
 	                               deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
 
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
@@ -1963,7 +1963,7 @@ loadOutput:
 			}
 
 			else {
-				Error result = deluge::model::readEffectTag(reader, tagName, *live.global_effectable.effectsOwner(),
+				Error result = deluge::model::readEffectTag(reader, tagName, *live.master_channel.effectsOwner(),
 				                                            &paramManager, 2147483647, nullptr, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
@@ -1982,7 +1982,7 @@ loadOutput:
 			}
 		}
 	}
-	deluge::model::readEffectsFromElement(*live.global_effectable.effectsOwner(), *element, getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*live.master_channel.effectsOwner(), *element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);
 
@@ -5872,7 +5872,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	if (persistentView.affectEntire) {
 		modelStack->setTimelineCounter(this);
-		modelStack->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
+		modelStack->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
@@ -6098,7 +6098,7 @@ void Song::displayMasterTransposeInterval() {
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &live.global_effectable, this, &paramManager);
+	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &live.master_channel, this, &paramManager);
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
@@ -6106,7 +6106,7 @@ ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
-	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
+	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 }
 
 ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {

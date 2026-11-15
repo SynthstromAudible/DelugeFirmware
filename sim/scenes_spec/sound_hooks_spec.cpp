@@ -120,8 +120,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 
 	it("copies the song's stutter onto a sound set to 'use song'", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		deluge::edits::changeEffect(*f.song, f.song->live.global_effectable, "stutter/quantized", Value::makeNumber(1));
-		deluge::edits::changeEffect(*f.song, f.song->live.global_effectable, "stutter/reverse", Value::makeNumber(1));
+		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/quantized", Value::makeNumber(1));
+		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/reverse", Value::makeNumber(1));
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
 		MenuContext recorded = ctx;

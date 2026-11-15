@@ -855,7 +855,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// 167772160.
 		expect(rig.knobs.focus().comp.editing).to_be_true();
 		expect(rig.knobs.focus().comp.param).to_equal(uint8_t{2});
-		expect(song.song->live.global_effectable.effects().compressor.release).to_equal(167772160);
+		expect(song.song->live.master_channel.binding().effects().compressor.release).to_equal(167772160);
 		const auto* recorded = song.song->project.master_effects.effects.as<deluge::effects::DelugeEffects>();
 		expect(recorded != nullptr).to_be_true();
 		if (recorded != nullptr) {
@@ -2193,7 +2193,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
 		expect(record != nullptr && record->mod_knob_mode == 5).to_be_true();
 
-		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		rig.set_target_without_timeline(&f.song->live.master_channel, &f.song->paramManager);
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{3});
@@ -2233,7 +2233,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(upper_target == std::optional{deluge::instrument::param::kHpfFrequency}).to_be_true();
 		expect(lower_target == std::optional{deluge::instrument::param::kHpfResonance}).to_be_true();
 
-		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		rig.set_target_without_timeline(&f.song->live.master_channel, &f.song->paramManager);
 		const uint8_t before = f.song->project.master_effects.filter_type;
 		rig.knobs.mod_button_action(1, true);
 		rig.knobs.mod_button_action(1, false);

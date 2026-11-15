@@ -92,7 +92,7 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 	     sleeping = sleeping->next) {
 		visit(*sleeping);
 	}
-	check(song.live.global_effectable, "song");
+	check(song.live.master_channel, "song");
 	if (const std::string what = knobIndexIncoherence(song); !what.empty()) {
 		std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
 		failures++;
@@ -226,7 +226,7 @@ std::string chainIncoherence(::Song& song) {
 			}
 		}
 	}
-	if (const std::string d = chainDifference(*song.live.global_effectable.effectsOwner(), song.project.master_effects,
+	if (const std::string d = chainDifference(*song.live.master_channel.effectsOwner(), song.project.master_effects,
 	                                          song.getInputTickMagnitude());
 	    !d.empty()) {
 		return "master effects: " + d;

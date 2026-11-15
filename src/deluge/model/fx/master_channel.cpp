@@ -17,6 +17,7 @@
 
 #include "model/fx/master_channel.h"
 #include "model/fx/channel_setup.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 
@@ -27,6 +28,8 @@ MasterChannel::MasterChannel() : chain_{kModFxRingAllocator, kGranularAllocator,
 }
 
 MasterChannel::~MasterChannel() {
+	// No later chain at the song's address plays the stutter's tape.
+	endStutterIfStuttering(chain_.core());
 	releaseDelayMemory(chain_.core().delay());
 }
 

@@ -786,7 +786,7 @@ void recordLoadedMappings(::Song& song) {
 	if (&song == currentSong) {
 		deluge::midi::takeoverStore().clear(); // a reload loses its knobs' states
 	}
-	recordKnobs({ControlsAddress::Kind::SONG, 0}, *song.live.global_effectable.effectsOwner()->knobs, song);
+	recordKnobs({ControlsAddress::Kind::SONG, 0}, *song.live.master_channel.effectsOwner()->knobs, song);
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		recordOutputBindings(*output, song);
 	}

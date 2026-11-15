@@ -119,7 +119,7 @@ const deluge::project::ChainCodec& chainCodec() {
 
 std::optional<deluge::model::EffectsOwner> chainAt(ChainAddress address, ::Song& song) {
 	if (address.kind == ChainAddress::Kind::SONG) {
-		return song.live.global_effectable.effectsOwner();
+		return song.live.master_channel.effectsOwner();
 	}
 	std::optional<deluge::model::EffectsOwner> found;
 	forEachOutput(song, [&](::Output& output) {
@@ -132,7 +132,7 @@ std::optional<deluge::model::EffectsOwner> chainAt(ChainAddress address, ::Song&
 
 ::ModControllable* chainSlotAt(ChainAddress address, ::Song& song) {
 	if (address.kind == ChainAddress::Kind::SONG) {
-		return &song.live.global_effectable;
+		return &song.live.master_channel;
 	}
 	::ModControllable* found = nullptr;
 	forEachOutput(song, [&](::Output& output) {

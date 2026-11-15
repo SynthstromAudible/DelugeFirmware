@@ -99,59 +99,60 @@ bool delayCouldSound(ParamManager& paramManager, bool sound, const ParamBefore& 
 	       || cableReachesFeedback(*paramManager.getPatchCableSet(), before);
 }
 
-void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit) {
+void forEachChain(Song& song, const std::function<void(EffectsOwner, ParamManager&)>& visit) {
 	for (InstrumentClip* clip : InstrumentClips::everywhere(&song)) {
 		Output* output = clip->output;
 		if (output == nullptr) {
 			continue;
 		}
 		if (output->type == OutputType::SYNTH) {
-			visit(*static_cast<SoundInstrument*>(output), clip->paramManager);
+			visit(*static_cast<SoundInstrument*>(output)->effectsOwner(), clip->paramManager);
 		}
 		else if (output->type == OutputType::KIT) {
-			visit(*static_cast<Kit*>(output), clip->paramManager);
+			visit(*static_cast<Kit*>(output)->effectsOwner(), clip->paramManager);
 			for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 				NoteRow& row = clip->noteRows[i];
 				if (row.drum != nullptr && row.drum->type == DrumType::SOUND) {
-					visit(*static_cast<SoundDrum*>(row.drum), row.paramManager);
+					visit(*static_cast<SoundDrum*>(row.drum)->effectsOwner(), row.paramManager);
 				}
 			}
 		}
 	}
 	for (AudioClip* clip : AudioClips::everywhere(&song)) {
 		if (clip->output != nullptr) {
-			visit(*static_cast<AudioOutput*>(clip->output), clip->paramManager);
+			visit(*static_cast<AudioOutput*>(clip->output)->effectsOwner(), clip->paramManager);
 		}
 	}
-	visit(song.live.global_effectable, song.paramManager);
+	visit(song.live.master_channel.asEffectsOwner(), song.paramManager);
 	// An output with an effects chain (a synth, a kit or an audio track) as that owner; null for MIDI and CV.
-	const auto audioOwnerOf = [](Output* output) -> ModControllableAudio* {
+	const auto audioOwnerOf = [](Output* output) -> std::optional<EffectsOwner> {
 		const bool hasChain =
 		    output->type == OutputType::SYNTH || output->type == OutputType::KIT || output->type == OutputType::AUDIO;
-		return hasChain ? static_cast<ModControllableAudio*>(output->toModControllable()) : nullptr;
+		return hasChain ? output->toModControllable()->effectsOwner() : std::nullopt;
 	};
 	// A backup's owner by its address, or (not yet adopted) itself.
-	const auto engineOf = [&](deluge::project::OwnerId owner) -> ModControllableAudio* {
+	const auto engineOf = [&](deluge::project::OwnerId owner) -> std::optional<EffectsOwner> {
 		if (owner.kind == deluge::project::OwnerId::Kind::DRUM) {
 			Drum* drum = deluge::bridge::drumWithId(song, owner.id);
-			return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
+			return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum)->effectsOwner()
+			                                                        : std::nullopt;
 		}
 		Output* output = deluge::bridge::outputWithId(song, owner.id); // hibernating instruments too
-		return output != nullptr ? audioOwnerOf(output) : nullptr;
+		return output != nullptr ? audioOwnerOf(output) : std::nullopt;
 	};
 	for (auto& [key, paramManager] : song.live.param_backup.map) {
-		if (ModControllableAudio* owner = engineOf(key.owner)) {
+		if (const std::optional<EffectsOwner> owner = engineOf(key.owner)) {
 			visit(*owner, paramManager);
 		}
 	}
 	for (deluge::bridge::ParamBackup::Pending& entry : song.live.param_backup.pending) {
 		if (Output* output = entry.owner.output()) {
-			if (ModControllableAudio* owner = audioOwnerOf(output)) {
+			if (const std::optional<EffectsOwner> owner = audioOwnerOf(output)) {
 				visit(*owner, entry.params);
 			}
 		}
 		else if (Drum* drum = entry.owner.drum(); drum->type == DrumType::SOUND) {
-			visit(*static_cast<SoundDrum*>(drum), entry.params);
+			visit(*static_cast<SoundDrum*>(drum)->effectsOwner(), entry.params);
 		}
 	}
 }
@@ -159,8 +160,8 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 namespace {
 
 /// @brief Gives @p owner its type, when its file saved none, from whether any of its param managers could sound.
-void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
-	bool& pending = owner.effectsOwner()->binding->delay_type_pending;
+void resolve(Song& song, EffectsOwner owner, bool couldSound) {
+	bool& pending = owner.binding->delay_type_pending;
 	if (!pending) {
 		return;
 	}
@@ -183,23 +184,23 @@ void resolve(Song& song, ModControllableAudio& owner, bool couldSound) {
 }
 
 /// @brief Resolves each pending owner of @p song that @p wanted accepts, from all of its param managers.
-void resolveWhere(Song& song, const std::function<bool(const ModControllableAudio&)>& wanted) {
-	std::vector<std::pair<ModControllableAudio*, bool>> owners;
-	forEachDelayParamManager(song, [&](ModControllableAudio& owner, ParamManager& paramManager) {
-		if (!owner.effectsOwner()->binding->delay_type_pending || !wanted(owner)) {
+void resolveWhere(Song& song, const std::function<bool(const EffectsOwner&)>& wanted) {
+	std::vector<std::pair<EffectsOwner, bool>> owners;
+	forEachChain(song, [&](EffectsOwner owner, ParamManager& paramManager) {
+		if (!owner.binding->delay_type_pending || !wanted(owner)) {
 			return;
 		}
-		const bool could = delayCouldSound(paramManager, owner.asSound() != nullptr);
-		auto found = std::ranges::find_if(owners, [&](const auto& entry) { return entry.first == &owner; });
+		const bool could = delayCouldSound(paramManager, owner.sound != nullptr);
+		auto found = std::ranges::find_if(owners, [&](const auto& entry) { return entry.first.core == owner.core; });
 		if (found == owners.end()) {
-			owners.emplace_back(&owner, could);
+			owners.emplace_back(owner, could);
 		}
 		else {
 			found->second = found->second || could;
 		}
 	});
 	for (const auto& [owner, could] : owners) {
-		resolve(song, *owner, could);
+		resolve(song, owner, could);
 	}
 }
 
@@ -241,11 +242,10 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	if (role == DelayParamRole::NONE) {
 		return;
 	}
-	const deluge::model::EffectsOwner effects = *modelStack.modControllable->effectsOwner();
-	auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
+	const EffectsOwner effects = *modelStack.modControllable->effectsOwner();
 	if (role == DelayParamRole::RATE) {
 		if (currentSong != nullptr && effects.effects().delay.type != deluge::effects::DelayType::OFF) {
-			refreshDelayReserve(*currentSong, owner);
+			refreshDelayReserve(*currentSong, effects);
 		}
 		return;
 	}
@@ -262,7 +262,7 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 	// The Edit a press of the feedback knob makes: the press cycle's step from OFF. It is applied here, inside the
 	// change that lifted the feedback (itself an Edit when it is the knob's), as an undo step of its own; it reads and
 	// writes only the owner's delay type, so the outer Edit, still applying, is not disturbed by it.
-	deluge::edits::changeEffect(owner, "delay/type",
+	deluge::edits::changeEffect(effects, "delay/type",
 	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
 	                                deluge::effects::next_delay_type(deluge::effects::DelayType::OFF)))));
 }
@@ -291,11 +291,11 @@ std::size_t reserveIn(ParamManager& paramManager, bool sound, const deluge::effe
 }
 
 /// @brief Sets each of @p reserves' owners its reserve inside one section, then maintains the arena.
-void applyReserves(std::span<const std::pair<ModControllableAudio*, std::size_t>> reserves) {
+void applyReserves(std::span<const std::pair<EffectsOwner, std::size_t>> reserves) {
 	{
 		AudioExcludedSection section; // the render reads the arena's slots
 		for (const auto& [owner, frames] : reserves) {
-			owner->core().delay().setReserve(frames);
+			owner.core->delay().setReserve(frames);
 		}
 		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
 	}
@@ -311,35 +311,32 @@ std::size_t delayReserveFrames(Song& song, const deluge::effects::ChainCore& cor
 	}
 	const uint32_t inverse = tickInverseFor(song);
 	std::size_t frames = 0;
-	forEachDelayParamManager(song, [&](ModControllableAudio& candidate, ParamManager& paramManager) {
-		if (&candidate.core() == &core) {
+	forEachChain(song, [&](EffectsOwner candidate, ParamManager& paramManager) {
+		if (candidate.core == &core) {
 			frames = std::max(frames, reserveIn(paramManager, sound, settings, inverse));
 		}
 	});
 	return frames;
 }
 
-std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner) {
-	return delayReserveFrames(song, owner.core(), owner.effects().delay, owner.asSound() != nullptr);
-}
-
-void refreshDelayReserve(Song& song, ModControllableAudio& owner) {
-	const std::pair<ModControllableAudio*, std::size_t> reserve{&owner, delayReserveFrames(song, owner)};
+void refreshDelayReserve(Song& song, EffectsOwner owner) {
+	const std::pair<EffectsOwner, std::size_t> reserve{
+	    owner, delayReserveFrames(song, *owner.core, owner.effects().delay, owner.sound != nullptr)};
 	applyReserves({&reserve, 1});
 }
 
 void refreshDelayReserves(Song& song) {
 	const uint32_t inverse = tickInverseFor(song);
-	std::vector<std::pair<ModControllableAudio*, std::size_t>> reserves;
-	forEachDelayParamManager(song, [&](ModControllableAudio& owner, ParamManager& paramManager) {
+	std::vector<std::pair<EffectsOwner, std::size_t>> reserves;
+	forEachChain(song, [&](EffectsOwner owner, ParamManager& paramManager) {
 		const deluge::effects::DelayState& settings = owner.effects().delay;
 		if (settings.type == deluge::effects::DelayType::OFF) {
 			return;
 		}
-		const std::size_t frames = reserveIn(paramManager, owner.asSound() != nullptr, settings, inverse);
-		auto found = std::ranges::find_if(reserves, [&](const auto& entry) { return entry.first == &owner; });
+		const std::size_t frames = reserveIn(paramManager, owner.sound != nullptr, settings, inverse);
+		auto found = std::ranges::find_if(reserves, [&](const auto& entry) { return entry.first.core == owner.core; });
 		if (found == reserves.end()) {
-			reserves.emplace_back(&owner, frames);
+			reserves.emplace_back(owner, frames);
 		}
 		else {
 			found->second = std::max(found->second, frames);
@@ -356,7 +353,7 @@ void settleLoadedDelays(Song& song) {
 }
 
 void resolvePendingDelayTypes(Song& song) {
-	resolveWhere(song, [](const ModControllableAudio&) { return true; });
+	resolveWhere(song, [](const EffectsOwner&) { return true; });
 }
 
 } // namespace deluge::model

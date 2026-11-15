@@ -299,8 +299,6 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	[[nodiscard]] ::Sound* asSound() override { return this; }
-
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,

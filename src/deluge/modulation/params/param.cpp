@@ -87,7 +87,7 @@ bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::Ef
 	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && owner != nullptr
 	       && (owner->effects().stutter.use_song_stutter
-	               ? currentSong->live.global_effectable.effects().stutter.quantized
+	               ? currentSong->live.master_channel.binding().effects().stutter.quantized
 	               : owner->effects().stutter.quantized);
 }
 

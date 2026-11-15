@@ -39,7 +39,9 @@ public:
 	Kit();
 	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
-	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override { return channel_.effectsOwner(); }
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
+		return channel_.asEffectsOwner();
+	}
 
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;

@@ -57,7 +57,7 @@ public:
 	void focusRegained() override;
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
-	ActionResult clipCreationButtonPressed(hid::Button i, bool on);
+	ActionResult clipCreationButtonPressed(deluge::hid::Button i, bool on);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset) override;

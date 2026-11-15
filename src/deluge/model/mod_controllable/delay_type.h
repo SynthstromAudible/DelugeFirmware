@@ -19,13 +19,13 @@
 
 #include "effects/chain_core.h"
 #include "effects/state.h"
+#include "model/fx/effects_owner.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 
 class AutoParam;
 class ModelStackWithAutoParam;
-class ModControllableAudio;
 class ParamManager;
 class Song;
 
@@ -53,8 +53,8 @@ struct ParamBefore {
 /// synth or kit and its kit's sound drums' note rows, each audio clip's track, the master with the song's param
 /// manager, and every backed-up param manager.
 /// @param song  The song to walk.
-/// @param visit Called once per (owner, param manager) pair.
-void forEachDelayParamManager(Song& song, const std::function<void(ModControllableAudio&, ParamManager&)>& visit);
+/// @param visit Called once per (owner's effects, param manager) pair.
+void forEachChain(Song& song, const std::function<void(EffectsOwner, ParamManager&)>& visit);
 
 /// What a param is to its owner's delay, for onDelayParamModified().
 enum class DelayParamRole : uint8_t {
@@ -76,13 +76,6 @@ DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack);
 /// @param automatedBefore Whether it was automated before the change.
 void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore);
 
-/// @brief The tape, in frames, @p owner's delay settings need: its rate param in each of its param managers in
-/// @p song (the largest tape), synced to its sync settings at the playback's tempo.
-/// @param song  The song the owner belongs to.
-/// @param owner The delay's owner.
-/// @return The tape length in frames; 0 when its type is OFF.
-[[nodiscard]] std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner);
-
 /// @brief The tape, in frames, a delay with @p settings needs on the chain whose core is @p core: its owner's rate
 /// param in each of its param managers in @p song (the largest tape), synced to @p settings at the playback's tempo.
 /// @param song     The song the chain's owner belongs to.
@@ -96,7 +89,7 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 /// @brief [task] Sets @p owner's reserve in the delay arena from its settings, then maintains the arena.
 /// @param song  The song the owner belongs to.
 /// @param owner The delay's owner.
-void refreshDelayReserve(Song& song, ModControllableAudio& owner);
+void refreshDelayReserve(Song& song, EffectsOwner owner);
 
 /// @brief [task] Sets every delay of @p song that is on its reserve from its settings, then maintains the arena: on
 /// a load, and when the tempo changes.

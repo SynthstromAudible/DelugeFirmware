@@ -2322,7 +2322,7 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 		if (modKnobMode == 4 && editingComp) { // upper
 			counter = (counter + 1) % 5;
 			if (counter == 0) {
-				uint8_t gr = currentSong->live.global_effectable.core().compressor().dsp().gain_reduction();
+				uint8_t gr = currentSong->live.master_channel.core().compressor().dsp().gain_reduction();
 
 				indicator_leds::setMeterLevel(1, gr); // Gain Reduction LED
 			}

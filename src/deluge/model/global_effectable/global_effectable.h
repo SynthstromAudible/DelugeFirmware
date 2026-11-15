@@ -33,5 +33,4 @@ public:
 	/// @return The chain's view.
 	[[nodiscard]] virtual deluge::model::ChainView& chainView() = 0;
 	[[nodiscard]] virtual const deluge::model::ChainView& chainView() const = 0;
-	[[nodiscard]] const ::GlobalEffectable* asGlobalEffectable() const override { return this; }
 };

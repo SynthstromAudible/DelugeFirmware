@@ -387,7 +387,7 @@ void checkChainKnobs(Checker& check) {
 		bind::KnobFocus focus;
 		if (clip) {
 			focus.owner = bind::ChainFocus{.chain = {.kind = project::ChainAddress::Kind::OUTPUT, .id = kKit},
-			                               .owner = controls::ChainOwner::KIT,
+			                               .owner = deluge::controls::ChainOwner::KIT,
 			                               .clip = project::ClipAddress{.clip_id = kClip}};
 		}
 		else {
