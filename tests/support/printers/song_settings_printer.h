@@ -84,7 +84,7 @@ inline std::ostream& operator<<(std::ostream& os, const ReverbSettings& r) {
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const SessionMacro& m) {
 	using deluge::test::printers::print_optional;
-	os << "{kind " << int{std::to_underlying(m.kind)} << ", clip ";
+	os << "{kind " << +std::to_underlying(m.kind) << ", clip ";
 	print_optional(os, m.clip_id) << ", output ";
 	return print_optional(os, m.output_id) << ", section " << int{m.section} << "}";
 }

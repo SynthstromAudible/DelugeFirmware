@@ -38,7 +38,7 @@ namespace deluge::instrument {
 /// @param r The route.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const CableRoute& r) {
-	return os << "{source " << int{std::to_underlying(r.source)} << ", destination " << r.destination << "}";
+	return os << "{source " << +std::to_underlying(r.source) << ", destination " << r.destination << "}";
 }
 
 } // namespace deluge::instrument

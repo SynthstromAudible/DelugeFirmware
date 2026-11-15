@@ -58,7 +58,7 @@ template <typename E, std::size_t N>
 std::ostream& print_enums(std::ostream& os, const std::array<E, N>& values) {
 	os << '[';
 	for (std::size_t i = 0; i < N; ++i) {
-		os << (i == 0 ? "" : " ") << int{std::to_underlying(values[i])};
+		os << (i == 0 ? "" : " ") << +std::to_underlying(values[i]);
 	}
 	return os << ']';
 }
