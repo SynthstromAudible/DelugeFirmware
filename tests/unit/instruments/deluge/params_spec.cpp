@@ -104,6 +104,62 @@ constexpr std::array<Pinned, 82> kPinned{{
     {116, "portamento"},
 }};
 constexpr std::array<uint32_t, 6> kCentred{23, 25, 26, 27, 28, 29};
+namespace plugin = deluge::plugin;
+
+/// The rows written out field for field: the oracle the table's rows must equal, however the table builds them.
+constexpr std::array<plugin::ParamInfo, 22> kRecordedEffectRows{{
+    {.id = param::kLpfResonance, .file_name = "lpfResonance", .scope = plugin::ParamScope::PER_VOICE},
+    {.id = param::kHpfResonance,
+     .file_name = "hpfResonance",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kLpfMorph,
+     .file_name = "lpfMorph",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kHpfMorph,
+     .file_name = "hpfMorph",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kLpfFrequency,
+     .file_name = "lpfFrequency",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .flags = plugin::ParamFlag::SMOOTHED_USER_ONLY},
+    {.id = param::kHpfFrequency,
+     .file_name = "hpfFrequency",
+     .scope = plugin::ParamScope::PER_VOICE,
+     .default_value = std::numeric_limits<int32_t>::min(),
+     .flags = plugin::ParamFlag::SMOOTHED_USER_ONLY},
+    {.id = param::kReverbAmount,
+     .file_name = "reverbAmount",
+     .default_value = std::numeric_limits<int32_t>::min(),
+     .flags = plugin::ParamFlag::SMOOTHED_USER_ONLY},
+    {.id = param::kModFXDepth, .file_name = "modFXDepth", .flags = plugin::ParamFlag::SMOOTHED},
+    {.id = param::kDelayFeedback,
+     .file_name = "delayFeedback",
+     .default_value = std::numeric_limits<int32_t>::min(),
+     .flags = plugin::ParamFlag::MIDDLE_DETENT | plugin::ParamFlag::SMOOTHED},
+    {.id = param::kDelayRate, .file_name = "delayRate", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kModFXRate, .file_name = "modFXRate"},
+    {.id = param::kStutterRate, .file_name = "stutterRate"},
+    {.id = param::kBass, .file_name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kTreble, .file_name = "treble", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kBassFreq, .file_name = "bassFreq"},
+    {.id = param::kTrebleFreq, .file_name = "trebleFreq"},
+    {.id = param::kSampleRateReduction,
+     .file_name = "sampleRateReduction",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kBitcrushAmount, .file_name = "bitcrushAmount", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kModFXOffset, .file_name = "modFXOffset"},
+    {.id = param::kModFXFeedback, .file_name = "modFXFeedback"},
+    {.id = param::kCompressorShape, .file_name = "compressorShape", .default_value = -601295438},
+    {.id = param::kCompressorThreshold, .file_name = "compressorThreshold", .mapping = plugin::MappingKind::UNIPOLAR},
+}};
+
+bool same_row(const plugin::ParamInfo& a, const plugin::ParamInfo& b) {
+	return a.id == b.id && a.file_name == b.file_name && a.scope == b.scope && a.units == b.units
+	       && a.default_value == b.default_value && a.range == b.range && a.mapping == b.mapping && a.flags == b.flags;
+}
 } // namespace
 
 // clang-format off
@@ -180,6 +236,14 @@ describe params("the Deluge instrument's param table", ${
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
 			expect(deluge::plugin::find_param(kParams, row.file_name)).to_equal(&row);
+		}
+	});
+
+	it("keeps every effect row's fields as recorded", _ {
+		for (const auto& recorded : kRecordedEffectRows) {
+			const auto* row = deluge::plugin::find_param(kParams, recorded.id);
+			expect(row != nullptr).to_equal(true);
+			expect(same_row(*row, recorded)).to_equal(true);
 		}
 	});
 });

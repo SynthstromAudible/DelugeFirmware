@@ -24,7 +24,8 @@
 //     the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the
 //     provisional global-effectable table has the runtime's file name, scope, bipolarity and default (what the engine's
 //     own init gives a fresh instance) for its runtime index, the boundary map gives that index the row's id, and every
-//     runtime param has a row
+//     runtime param has a row; each chain's init leaves every cursor at its lane's base, its set's kind and store as
+//     recorded
 
 #include "effects/bitcrush.h"
 #include "effects/compressor.h"
@@ -372,6 +373,10 @@ void checkEffectFragments(Checker& check) {
 	}
 }
 
+/// The first id of the store a fresh sound's or host chain's unpatched set binds to: bridge::firstParamId of the kind
+/// the set has when its init first reaches a lane.
+constexpr uint32_t kRecordedStoreFirst = 90;
+
 /// The recorded default of param @p id of @p table.
 int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
 	for (const param_defaults_reference::Default& d : param_defaults_reference::kDefaults) {
@@ -418,6 +423,50 @@ void checkDefaults(Checker& check) {
 	}
 }
 
+/// What a chain's init leaves: every unpatched cursor at its lane's base, the set's kind and its store's first id as
+/// recorded, and an audio clip's volume below a host chain's.
+void checkInitState(Checker& check) {
+	auto check_set = [&](const char* owner, UnpatchedParamSet& set, params::Kind kind, uint32_t first) {
+		if (set.kind != kind) {
+			std::fprintf(check.io.err, "init %s: kind %d, recorded %d\n", owner, static_cast<int>(set.kind),
+			             static_cast<int>(kind));
+			++check.disagreements;
+		}
+		if (set.domStore() == nullptr || set.domStore()->first.value != first) {
+			std::fprintf(check.io.err, "init %s: store first id %u, recorded %u\n", owner,
+			             set.domStore() == nullptr ? 0U : set.domStore()->first.value, first);
+			++check.disagreements;
+		}
+		for (int32_t p = 0; p < set.getNumParams(); ++p) {
+			const deluge::project::DocAutoParam* lane = set.findDocParamForId(p);
+			if (lane == nullptr || lane->current_value != set.getValue(p)) {
+				std::fprintf(check.io.err, "init %s %d: cursor %d, lane %d\n", owner, p, set.getValue(p),
+				             lane == nullptr ? 0 : lane->current_value);
+				++check.disagreements;
+			}
+		}
+	};
+	ParamManagerForTimeline sound;
+	sound.setupWithPatching();
+	Sound::initParams(&sound);
+	check_set("sound", *sound.getUnpatchedParamSet(), params::Kind::UNPATCHED_SOUND, kRecordedStoreFirst);
+
+	ParamManagerForTimeline global;
+	global.setupUnpatched();
+	deluge::model::initGlobalParams(&global);
+	check_set("host chain", *global.getUnpatchedParamSet(), params::Kind::UNPATCHED_GLOBAL, kRecordedStoreFirst);
+
+	ParamManagerForTimeline clip;
+	clip.setupUnpatched();
+	deluge::model::initAudioClipParams(&clip);
+	check_set("audio clip", *clip.getUnpatchedParamSet(), params::Kind::UNPATCHED_GLOBAL, kRecordedStoreFirst);
+	if (clip.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME) != -536870912) {
+		std::fprintf(check.io.err, "init audio clip: volume %d, recorded -536870912\n",
+		             clip.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME));
+		++check.disagreements;
+	}
+}
+
 int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	using namespace deluge::instrument;
@@ -448,6 +497,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkNames(check);
 	checkEffectFragments(check);
 	checkDefaults(check);
+	checkInitState(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

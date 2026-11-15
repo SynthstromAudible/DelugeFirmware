@@ -61,6 +61,88 @@ constexpr std::array<Pinned, 43> kPinned{{
     {131, "pitchAdjust"},
     {132, "tempo"},
 }};
+namespace plugin = deluge::plugin;
+
+/// The rows written out field for field: the oracle the table's rows must equal, however the table builds them.
+constexpr std::array<plugin::ParamInfo, 43> kRecordedRows{{
+
+    {.id = param::kStutterRate, .file_name = "stutterRate"},
+    {.id = param::kBass, .file_name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kTreble, .file_name = "treble", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kBassFreq, .file_name = "bassFreq"},
+    {.id = param::kTrebleFreq, .file_name = "trebleFreq"},
+    {.id = param::kSampleRateReduction,
+     .file_name = "sampleRateReduction",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kBitcrushAmount, .file_name = "bitcrushAmount", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kModFXOffset, .file_name = "modFXOffset"},
+    {.id = param::kModFXFeedback, .file_name = "modFXFeedback", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kCompressorShape, .file_name = "compressorShape", .default_value = -601295438},
+    {.id = param::kCompressorThreshold, .file_name = "compressorThreshold", .mapping = plugin::MappingKind::UNIPOLAR},
+    {.id = param::kArpGate, .file_name = "arpGate", .default_value = std::numeric_limits<int32_t>::max()},
+    {.id = param::kRhythm, .file_name = "rhythm", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kSequenceLength, .file_name = "sequenceLength", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kChordPolyphony, .file_name = "chordPolyphony", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kRatchetAmount, .file_name = "ratchetAmount", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kNoteProbability,
+     .file_name = "noteProbability",
+     .default_value = std::numeric_limits<int32_t>::max()},
+    {.id = param::kReverseProbability,
+     .file_name = "reverseProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kBassProbability,
+     .file_name = "bassProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kSwapProbability,
+     .file_name = "swapProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kGlideProbability,
+     .file_name = "glideProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kChordProbability,
+     .file_name = "chordProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kRatchetProbability,
+     .file_name = "ratchetProbability",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kSpreadGate, .file_name = "spreadGate", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kSpreadOctave, .file_name = "spreadOctave", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kSpreadVelocity, .file_name = "spreadVelocity", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kModFXRate, .file_name = "modFXRate", .default_value = -536870912},
+    {.id = param::kModFXDepth, .file_name = "modFXDepth"},
+    {.id = param::kDelayRate, .file_name = "delayRate", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kDelayFeedback,
+     .file_name = "delayFeedback",
+     .default_value = std::numeric_limits<int32_t>::min(),
+     .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kArpRate, .file_name = "arpRate"},
+    {.id = param::kPan,
+     .file_name = "pan",
+     .mapping = plugin::MappingKind::PAN,
+     .flags = plugin::ParamFlag::CENTRED | plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kLpfFrequency, .file_name = "lpfFrequency", .default_value = std::numeric_limits<int32_t>::max()},
+    {.id = param::kLpfResonance, .file_name = "lpfResonance", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kLpfMorph, .file_name = "lpfMorph", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kHpfFrequency, .file_name = "hpfFrequency", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kHpfResonance, .file_name = "hpfResonance", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kHpfMorph, .file_name = "hpfMorph", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kReverbAmount, .file_name = "reverbAmount", .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kVolume, .file_name = "volume"},
+    {.id = param::kSidechainCompressorVolume,
+     .file_name = "sidechainCompressorVolume",
+     .default_value = std::numeric_limits<int32_t>::min()},
+    {.id = param::kPitchAdjust,
+     .file_name = "pitchAdjust",
+     .flags = plugin::ParamFlag::CENTRED | plugin::ParamFlag::MIDDLE_DETENT},
+    {.id = param::kTempo,
+     .file_name = "tempo",
+     .flags = plugin::ParamFlag::NO_UNDO | plugin::ParamFlag::FLOAT_INTERPOLATION},
+}};
+
+bool same_row(const plugin::ParamInfo& a, const plugin::ParamInfo& b) {
+	return a.id == b.id && a.file_name == b.file_name && a.scope == b.scope && a.units == b.units
+	       && a.default_value == b.default_value && a.range == b.range && a.mapping == b.mapping && a.flags == b.flags;
+}
 } // namespace
 
 // clang-format off
@@ -106,6 +188,12 @@ describe params("the provisional global-effectable param table", ${
 	it("has one row per name", _ {
 		for (const auto& row : kParams) {
 			expect(deluge::plugin::find_param(kParams, row.file_name)).to_equal(&row);
+		}
+	});
+
+	it("keeps every row's fields as recorded", _ {
+		for (size_t i = 0; i < kRecordedRows.size(); ++i) {
+			expect(same_row(kParams[i], kRecordedRows[i])).to_equal(true);
 		}
 	});
 });
