@@ -56,17 +56,20 @@ void applyToCurrentSong(Edit& edit) {
 }
 
 /// The current song's param target for @p param of @p owner, when @p owner holds controls of the current song.
-std::optional<deluge::project::OwnerParamTarget> knobTargetIn(::ModControllableAudio& owner,
+std::optional<deluge::project::OwnerParamTarget> knobTargetIn(::ModControllable& owner,
                                                               const deluge::modulation::KnobTarget& param) {
 	if (currentSong == nullptr) {
 		return std::nullopt;
 	}
 	const std::optional<deluge::project::ControlsAddress> address =
 	    deluge::bridge::controlsAddressOf(owner, *currentSong);
-	bool isSound = false;
-	if (!address || deluge::bridge::controlsOwnerAt(*currentSong, *address, &isSound) != &owner) {
+	const std::optional<deluge::model::EffectsOwner> effects = owner.effectsOwner();
+	const std::optional<deluge::model::EffectsOwner> holder =
+	    address ? deluge::bridge::effectsOwnerAt(*currentSong, *address) : std::nullopt;
+	if (!effects || !holder || holder->core != effects->core) {
 		return std::nullopt;
 	}
+	const bool isSound = effects->sound != nullptr;
 	namespace params = deluge::modulation::params;
 	return deluge::project::OwnerParamTarget{
 	    *address,
@@ -311,7 +314,7 @@ void unlearnMappingFor(deluge::project::MappingTarget target) {
 	applyToCurrentSong(edit);
 }
 
-bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+bool learnKnobFor(::ModControllable& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                   uint8_t noteOrCC, uint8_t channel) {
 	const std::optional<deluge::project::OwnerParamTarget> target = knobTargetIn(owner, param);
 	if (!target) {
@@ -336,11 +339,13 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
 
-bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+bool learnKnobOn(::ModControllable& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                  int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	if (midiChannel >= 16) { // a mod knob: the owner's controls
-		if (!owner.learnModKnob(param, static_cast<uint8_t>(whichKnob), static_cast<uint8_t>(modKnobMode),
-		                        currentSong)) {
+	if (midiChannel >= 16) { // a mod knob: the owner's controls, which only a sound has
+		const std::optional<deluge::model::EffectsOwner> effects = owner.effectsOwner();
+		if (!effects || effects->sound == nullptr
+		    || !effects->sound->learnModKnob(param, static_cast<uint8_t>(whichKnob), static_cast<uint8_t>(modKnobMode),
+		                                     currentSong)) {
 			return false;
 		}
 		recordControlsOf(owner);

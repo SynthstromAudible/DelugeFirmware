@@ -11,10 +11,12 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/chain_bridge.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/song/song.h"
 #include "plugin-api/types/sync.h"
 #include "processing/audio_output.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
@@ -226,6 +228,36 @@ describe effects_owner("an owner's EffectsOwner", ${
 			expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
 			currentUIMode = saved;
 			spec::make_current(nullptr);
+		});
+	});
+
+	context("owners by controls address", _ {
+		it("finds a sound only for a synth or a sound row, and each owner's effects and slot", _ {
+			using deluge::project::ControlsAddress;
+			spec::SongFixture kit = spec::make_kit_song();
+			auto* drum = spec::add_drum<SoundDrum>(kit);
+			auto& k = *static_cast<Kit*>(kit.instrument);
+			const ControlsAddress song{ControlsAddress::Kind::SONG, 0};
+			const ControlsAddress ofKit{ControlsAddress::Kind::OUTPUT, *k.id()};
+			const ControlsAddress ofRow{ControlsAddress::Kind::DRUM, *drum->id()};
+			expect(deluge::bridge::soundAt(*kit.song, song) == nullptr).to_be_true();
+			expect(deluge::bridge::soundAt(*kit.song, ofKit) == nullptr).to_be_true();
+			expect(deluge::bridge::soundAt(*kit.song, ofRow) == static_cast<Sound*>(drum)).to_be_true();
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, song)->core == &kit.song->live.master_channel.core())
+			    .to_be_true();
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofKit)->core == &k.channel().core()).to_be_true();
+			expect(deluge::bridge::effectsOwnerAt(*kit.song, ofRow)->sound == static_cast<Sound*>(drum)).to_be_true();
+			expect(deluge::bridge::controlsSlotAt(*kit.song, ofKit) == static_cast<ModControllable*>(&k)).to_be_true();
+
+			spec::SongFixture synth = spec::make_synth_song();
+			const ControlsAddress ofSynth{ControlsAddress::Kind::OUTPUT, *synth.instrument->id()};
+			expect(deluge::bridge::soundAt(*synth.song, ofSynth)
+			       == static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument)))
+			    .to_be_true();
+
+			spec::SongFixture midi = spec::make_midi_song();
+			const ControlsAddress ofMidi{ControlsAddress::Kind::OUTPUT, *midi.instrument->id()};
+			expect(deluge::bridge::effectsOwnerAt(*midi.song, ofMidi).has_value()).to_be_false();
 		});
 	});
 

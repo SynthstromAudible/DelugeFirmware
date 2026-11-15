@@ -375,8 +375,7 @@ std::vector<Hit> engineCommands(Song& song, MIDICable& cable, int32_t channel, i
 /// hibernating owner is never offered MIDI.
 std::vector<Hit> tableKnobs(Song& song, ControlsAddress owner, MIDICable& cable, int32_t channel, int32_t cc) {
 	std::vector<Hit> hits;
-	bool isSound = false;
-	if (deluge::bridge::controlsOwnerAt(song, owner, &isSound) == nullptr) {
+	if (!deluge::bridge::effectsOwnerAt(song, owner)) {
 		return hits;
 	}
 	if (owner.kind != ControlsAddress::Kind::SONG) {
@@ -878,13 +877,11 @@ Output* audioClone(Song& song, Output& from) {
 			to = o;
 		}
 	}
-	bool isSound = false;
-	ModControllableAudio* fromKnobs =
-	    deluge::bridge::controlsOwnerAt(song, {ControlsAddress::Kind::OUTPUT, *from.id()}, &isSound);
-	ModControllableAudio* toKnobs =
-	    to != nullptr && to->id()
-	        ? deluge::bridge::controlsOwnerAt(song, {ControlsAddress::Kind::OUTPUT, *to->id()}, &isSound)
-	        : nullptr;
+	auto* fromKnobs = static_cast<ModControllableAudio*>(
+	    deluge::bridge::controlsSlotAt(song, {ControlsAddress::Kind::OUTPUT, *from.id()}));
+	auto* toKnobs = to != nullptr && to->id() ? static_cast<ModControllableAudio*>(deluge::bridge::controlsSlotAt(
+	                                                song, {ControlsAddress::Kind::OUTPUT, *to->id()}))
+	                                          : nullptr;
 	if (fromKnobs == nullptr || toKnobs == nullptr) {
 		return nullptr;
 	}

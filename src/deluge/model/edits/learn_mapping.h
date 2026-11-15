@@ -15,7 +15,7 @@
 class Clip;
 class LearnedMIDI;
 class MIDICable;
-class ModControllableAudio;
+class ModControllable;
 class Song;
 
 namespace deluge::edits {
@@ -109,7 +109,7 @@ void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMID
 /// @param noteOrCC The CC number (128 for pitch bend).
 /// @param channel  The channel it was heard on.
 /// @return Whether the knob was learned.
-bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+bool learnKnobFor(::ModControllable& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                   uint8_t noteOrCC, uint8_t channel);
 
 /// @brief A menu's learn of a knob onto @p param of @p owner: a mod knob (@p midiChannel 16 or more) is reassigned on
@@ -121,7 +121,7 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
 /// @param modKnobMode The mod knob mode a mod knob is learned in.
 /// @param midiChannel The channel a MIDI knob was heard on, or 16 or more for a mod knob.
 /// @return Whether the knob was learned.
-bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+bool learnKnobOn(::ModControllable& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                  int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
 
 /// @brief A gesture's learn: @p source to @p target in the current song, through LearnMapping (no-op without a song).

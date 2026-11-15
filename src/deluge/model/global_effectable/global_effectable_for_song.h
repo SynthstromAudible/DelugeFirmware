@@ -33,8 +33,10 @@ public:
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return deluge::model::EffectsOwner{
-		    .core = &channel_.core(), .binding = &channel_.binding(), .view = &channel_.view()};
+		return deluge::model::EffectsOwner{.core = &channel_.core(),
+		                                   .binding = &channel_.binding(),
+		                                   .view = &channel_.view(),
+		                                   .knobs = &channel_.knobs()};
 	}
 
 private:

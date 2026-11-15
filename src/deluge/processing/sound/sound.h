@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
 #include "model/fx/channel_setup.h"
+#include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -129,7 +130,8 @@ public:
 	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
-		return deluge::model::EffectsOwner{.core = &chain_.core(), .binding = &effectsBinding_, .sound = this};
+		return deluge::model::EffectsOwner{
+		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
@@ -306,7 +308,7 @@ public:
 	            bool shouldLimitDelayFeedback = false, deluge::dsp::Q<24> pitchAdjust = deluge::dsp::Q<24>::one(),
 	            SampleRecorder* recorder = nullptr);
 
-	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
+	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song); // Song may be NULL
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack);
 	/// @param song The song whose table holds this sound's learned knobs, or null for none.
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
@@ -315,7 +317,7 @@ public:
 	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p, Song* song);
 	/// @brief Whether a learned MIDI knob of this sound turns patched param @p p: one @p song's table holds at this
 	/// sound's id, or, before the table takes them, one it holds outside the table
-	/// (ModControllableAudio::loaded_knobs).
+	/// (model::KnobCarrier::loaded).
 	/// @param song The song, or null for none.
 	/// @param p    The patched param.
 	/// @return True if one does.
@@ -327,7 +329,13 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) final;
+	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target.
+	/// @param target      The param the knob turns.
+	/// @param whichKnob   The mod knob: 0 lower, 1 upper.
+	/// @param modKnobMode The mod knob mode it is learned in.
+	/// @param song        The song the sound belongs to, or nullptr.
+	/// @return Whether the knob was learned.
+	bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song);
 
 	bool hasFilters();
 
@@ -522,6 +530,8 @@ private:
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;
+	/// @brief The learned knobs the sound holds outside a song's table.
+	deluge::model::KnobCarrier knobs_;
 
 	/// @brief the list of active voices for this sound
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.

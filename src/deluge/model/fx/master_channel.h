@@ -21,6 +21,7 @@
 #include "model/fx/chain_conversions.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include "model/fx/knob_carrier.h"
 
 namespace deluge::model {
 
@@ -48,12 +49,16 @@ public:
 	/// @return Which values the chain's knobs edit.
 	[[nodiscard]] ChainView& view() { return view_; }
 	[[nodiscard]] const ChainView& view() const { return view_; }
+	/// @return The learned knobs held outside a song's table.
+	[[nodiscard]] KnobCarrier& knobs() { return knobs_; }
+	[[nodiscard]] const KnobCarrier& knobs() const { return knobs_; }
 	/// @return The chain's remembered param conversions. Render tier only.
 	[[nodiscard]] ChainConversions& conversions() { return conversions_; }
 
 private:
 	EffectsBinding binding_;
 	ChainView view_;
+	KnobCarrier knobs_;
 	effects::MasterChain chain_;
 	ChainConversions conversions_;
 };

@@ -325,7 +325,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			deluge::edits::changeEffect(*f.song, *source, "stutter/reverse", Value::makeNumber(1));
 			deluge::edits::changeEffect(*f.song, *source, "audioCompressor/ratio", Value::makeNumber(7 << 24));
 			deluge::edits::changeView(*source, "modFXCurrentParam", "feedback");
-			source->loaded_knobs.emplace_back();
+			source->effectsOwner()->knobs->loaded.emplace_back();
 			const deluge::effects::CompressorState compressor = effectsOf(*clone).compressor;
 
 			clone->cloneFrom(source);
@@ -340,9 +340,9 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			expect(got.stutter == from.stutter).to_be_true();
 			expect(got.compressor == compressor).to_be_true();
 			expect(clone->channel().view().modFXParam() == ModFXParam::FEEDBACK).to_be_true();
-			expect(clone->loaded_knobs.size()).to_equal(static_cast<std::size_t>(1));
-			source->loaded_knobs.clear();
-			clone->loaded_knobs.clear();
+			expect(clone->effectsOwner()->knobs->loaded.size()).to_equal(static_cast<std::size_t>(1));
+			source->effectsOwner()->knobs->loaded.clear();
+			clone->effectsOwner()->knobs->loaded.clear();
 			spec::make_current(nullptr);
 		});
 	});

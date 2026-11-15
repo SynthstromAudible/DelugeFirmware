@@ -918,11 +918,13 @@ bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, 
 	if (currentSong == nullptr) {
 		return false;
 	}
-	bool isSound = false;
-	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(*currentSong, target.owner, &isSound);
-	if (owner == nullptr) {
+	const std::optional<deluge::model::EffectsOwner> effects =
+	    deluge::bridge::effectsOwnerAt(*currentSong, target.owner);
+	::ModControllable* owner = deluge::bridge::controlsSlotAt(*currentSong, target.owner);
+	if (!effects || owner == nullptr) {
 		return false;
 	}
+	const bool isSound = effects->sound != nullptr;
 	namespace params = deluge::modulation::params;
 	const deluge::modulation::KnobTarget knob = deluge::bridge::knobOfControl(
 	    target.param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL);

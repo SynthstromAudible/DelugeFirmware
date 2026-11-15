@@ -74,7 +74,8 @@ public:
 	                     std::optional<int32_t> compressorThreshold = std::nullopt);
 	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: the
 	/// knobs @p song's mapping table holds for @p owner, in table order. An owner @p song does not hold (a preset
-	/// loaded outside it) writes those it holds outside a table (loaded_knobs), and none when it holds none.
+	/// loaded outside it) writes those it holds outside a table (model::KnobCarrier::loaded), and none when it holds
+	/// none.
 	/// @param writer Destination.
 	/// @param song   The song being saved, or the one a preset is saved from; nullptr when there is none.
 	/// @param owner  Whose controls these are, if known.
@@ -127,34 +128,11 @@ public:
 	bool delayTypePending = false;
 	/// @brief Set by a read whose element held an arpeggiator (a synth track's own, which its record then keeps).
 	bool arpRead = false;
-	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target. Only a sound has mod knobs; a learned
-	/// MIDI knob lives in the song's mapping table.
-	/// @param target      The param the knob turns.
-	/// @param whichKnob   The mod knob: 0 lower, 1 upper.
-	/// @param modKnobMode The mod knob mode it is learned in.
-	/// @param song        The song the owner belongs to, or nullptr.
-	/// @return Whether the knob was learned.
-	virtual bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
-	                          Song* song) {
-		return false;
-	}
-	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 
 	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
 	/// @return The chain's core.
 	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
 	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
-
-	/// @brief The learned knobs this owner holds outside a song's table: those its file's `midiKnobs` read, in file
-	/// order, each target's owner a placeholder. The table takes them when the owner joins a song (a song's load, an
-	/// arrival, a preset change's hand-over), and they are emptied then; an owner a song holds keeps its knobs in the
-	/// table alone. A save of an owner no song holds writes these.
-	std::vector<deluge::project::Mapping> loaded_knobs{};
-
-	/// @brief The output whose learned knobs this one, a clone the render made, takes in the table, until the app loop
-	/// copies them there (bridge::cloneOutputMappings). Should the render's held copy be lost, the drain that finds the
-	/// loss copies them from it, before any held forget lands.
-	std::optional<uint32_t> knobs_cloned_from{};
 
 private:
 	/// The binding that holds this owner's settings and the render's copy; set first in each owner's constructor.

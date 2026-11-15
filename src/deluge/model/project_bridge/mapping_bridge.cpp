@@ -51,18 +51,17 @@ using deluge::project::MidiCommand;
 
 namespace {
 
-/// The owner of @p output's own learned knobs: a synth's sound, a kit or an audio track; null for any other output.
-::ModControllableAudio* knobsOwnerOf(::Output& output) {
-	switch (output.type) {
-	case OutputType::SYNTH:
-		return static_cast<SoundInstrument*>(&output);
-	case OutputType::KIT:
-		return static_cast<Kit*>(&output);
-	case OutputType::AUDIO:
-		return static_cast<AudioOutput*>(&output);
-	default:
-		return nullptr;
-	}
+/// The learned knobs @p output holds outside the table: a synth's sound's, a kit's or an audio track's; null for any
+/// other output.
+deluge::model::KnobCarrier* knobsOf(::Output& output) {
+	::ModControllable* own = output.toModControllable();
+	const std::optional<deluge::model::EffectsOwner> effects = own != nullptr ? own->effectsOwner() : std::nullopt;
+	return effects ? effects->knobs : nullptr;
+}
+
+/// The learned knobs @p drum holds outside the table: a sound row's; null for any other row.
+deluge::model::KnobCarrier* knobsOf(::Drum& drum) {
+	return drum.type == DrumType::SOUND ? static_cast<SoundDrum&>(drum).effectsOwner()->knobs : nullptr;
 }
 
 /// Record @p learned as @p target's binding, when it holds something and the table holds nothing for @p target.
@@ -84,18 +83,18 @@ void makeKnobDevices(const MappingTable& mappings, ControlsAddress address) {
 	}
 }
 
-/// Put the learned knobs @p owner holds outside the table (ModControllableAudio::loaded_knobs) into @p song's table as
-/// @p address's, when the table holds none for @p address, and empty them: the table holds them from now on. Each
-/// device they name has its entry.
-void recordKnobs(ControlsAddress address, ::ModControllableAudio& owner, ::Song& song) {
+/// Put the learned knobs an owner holds outside the table (@p knobs) into @p song's table as @p address's, when the
+/// table holds none for @p address, and empty them: the table holds them from now on. Each device they name has its
+/// entry.
+void recordKnobs(ControlsAddress address, deluge::model::KnobCarrier& knobs, ::Song& song) {
 	MappingTable& mappings = song.project.mappings;
-	if (!owner.loaded_knobs.empty() && mappings.params_of(address).empty()) {
-		for (Mapping& knob : owner.loaded_knobs) {
+	if (!knobs.loaded.empty() && mappings.params_of(address).empty()) {
+		for (Mapping& knob : knobs.loaded) {
 			std::get<deluge::project::OwnerParamTarget>(knob.target).owner = address;
 		}
-		mappings.set_params(address, owner.loaded_knobs);
+		mappings.set_params(address, knobs.loaded);
 	}
-	owner.loaded_knobs.clear();
+	knobs.loaded.clear();
 	makeKnobDevices(mappings, address);
 }
 
@@ -105,7 +104,7 @@ void recordDrumBindings(Drum& drum, ::Song& song) {
 		return;
 	}
 	if (drum.type == DrumType::SOUND) {
-		recordKnobs({ControlsAddress::Kind::DRUM, *drum.id()}, *static_cast<SoundDrum*>(&drum), song);
+		recordKnobs({ControlsAddress::Kind::DRUM, *drum.id()}, *knobsOf(drum), song);
 	}
 	recordLearned(song, drum.muteMIDICommand, deluge::project::DrumMuteTarget{*drum.id()});
 	recordLearned(song, drum.midiInput, deluge::project::LaneInputTarget{*drum.id()});
@@ -115,7 +114,7 @@ void recordDrumBindings(Drum& drum, ::Song& song) {
 /// row's knob, mute or input. A fresh output brings none, and recording it touches nothing: an auto-overdub's audio
 /// track is made on the song's tick.
 bool bringsBindings(Output& output) {
-	if (const ::ModControllableAudio* knobs = knobsOwnerOf(output); knobs != nullptr && !knobs->loaded_knobs.empty()) {
+	if (const deluge::model::KnobCarrier* knobs = knobsOf(output); knobs != nullptr && !knobs->loaded.empty()) {
 		return true;
 	}
 	if (output.type == OutputType::AUDIO) {
@@ -129,7 +128,7 @@ bool bringsBindings(Output& output) {
 	}
 	for (Drum* drum = static_cast<Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 		if (drum->muteMIDICommand.containsSomething() || drum->midiInput.containsSomething()
-		    || (drum->type == DrumType::SOUND && !static_cast<SoundDrum*>(drum)->loaded_knobs.empty())) {
+		    || (drum->type == DrumType::SOUND && !knobsOf(*drum)->loaded.empty())) {
 			return true;
 		}
 	}
@@ -144,13 +143,11 @@ void recordOutputBindings(Output& output, ::Song& song) {
 	const ControlsAddress address{ControlsAddress::Kind::OUTPUT, *output.id()};
 	switch (output.type) {
 	case OutputType::SYNTH:
-		recordKnobs(address, *static_cast<SoundInstrument*>(&output), song);
-		break;
 	case OutputType::KIT:
-		recordKnobs(address, *static_cast<Kit*>(&output), song);
+		recordKnobs(address, *knobsOf(output), song);
 		break;
 	case OutputType::AUDIO:
-		recordKnobs(address, *static_cast<AudioOutput*>(&output), song);
+		recordKnobs(address, *knobsOf(output), song);
 		return; // an audio track has no MIDI input
 	default:
 		break;
@@ -301,8 +298,8 @@ void cloneNow(::Song& song, uint32_t from, uint32_t to) {
 	if (clone == nullptr) {
 		return; // the clone left the song before its copy landed: there is no one to copy to
 	}
-	if (::ModControllableAudio* knobs = knobsOwnerOf(*clone)) {
-		knobs->knobs_cloned_from.reset(); // the copy is made here
+	if (deluge::model::KnobCarrier* knobs = knobsOf(*clone)) {
+		knobs->cloned_from.reset(); // the copy is made here
 	}
 	if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, from}).empty()) {
 		return;
@@ -319,12 +316,12 @@ void copyMarkedClones(::Song& song) {
 	for (Output* first :
 	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
 		for (Output* output = first; output != nullptr; output = output->next) {
-			::ModControllableAudio* knobs = knobsOwnerOf(*output);
-			if (knobs == nullptr || !knobs->knobs_cloned_from || !output->id()) {
+			deluge::model::KnobCarrier* knobs = knobsOf(*output);
+			if (knobs == nullptr || !knobs->cloned_from || !output->id()) {
 				continue;
 			}
-			const uint32_t from = *knobs->knobs_cloned_from;
-			knobs->knobs_cloned_from.reset();
+			const uint32_t from = *knobs->cloned_from;
+			knobs->cloned_from.reset();
 			if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *output->id()}).empty()) {
 				cloneNow(song, from, *output->id());
 			}
@@ -541,8 +538,8 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song) {
 		return;
 	}
 	if (holdForAppLoop(song, {.kind = PendingOp::Kind::CLONE_OUTPUT, .id = *from.id(), .to = *to.id()})) {
-		if (::ModControllableAudio* knobs = knobsOwnerOf(to)) {
-			knobs->knobs_cloned_from = *from.id(); // the reconcile's way to the copy, should the held one be lost
+		if (deluge::model::KnobCarrier* knobs = knobsOf(to)) {
+			knobs->cloned_from = *from.id(); // the reconcile's way to the copy, should the held one be lost
 		}
 		return;
 	}
@@ -789,7 +786,7 @@ void recordLoadedMappings(::Song& song) {
 	if (&song == currentSong) {
 		deluge::midi::takeoverStore().clear(); // a reload loses its knobs' states
 	}
-	recordKnobs({ControlsAddress::Kind::SONG, 0}, song.live.global_effectable, song);
+	recordKnobs({ControlsAddress::Kind::SONG, 0}, *song.live.global_effectable.effectsOwner()->knobs, song);
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		recordOutputBindings(*output, song);
 	}
@@ -819,8 +816,7 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 		    if constexpr (std::is_same_v<T, deluge::project::OwnerParamTarget>) {
 			    // A knob plays from the table, through the index: there is its owner to find, and the devices its knobs
 			    // name to give entries.
-			    bool isSound = false;
-			    if (controlsOwnerAt(song, t.owner, &isSound) == nullptr) {
+			    if (!effectsOwnerAt(song, t.owner)) {
 				    return Error::UNSPECIFIED;
 			    }
 			    makeKnobDevices(mappings, t.owner);
@@ -883,11 +879,11 @@ std::vector<Mapping> loadedKnobsOf(const deluge::serialization::Value& element, 
 }
 
 bool handsOverKnobs(::Song& song, ::Output& output) {
-	const ::ModControllableAudio* knobs = knobsOwnerOf(output);
+	const deluge::model::KnobCarrier* knobs = knobsOf(output);
 	if (knobs == nullptr) {
 		return false;
 	}
-	if (!knobs->loaded_knobs.empty()) {
+	if (!knobs->loaded.empty()) {
 		return true;
 	}
 	if (!output.id()) {
@@ -901,12 +897,12 @@ bool handsOverKnobs(::Song& song, ::Output& output) {
 	                           });
 }
 
-bool learnedKnobTurns(::Song* song, const ::ModControllableAudio& owner, std::optional<ControlsAddress> address,
+bool learnedKnobTurns(::Song* song, const deluge::model::EffectsOwner& owner, std::optional<ControlsAddress> address,
                       const deluge::project::ParamTarget& param) {
 	const auto turns = [&](const Mapping& knob) {
 		return std::get<deluge::project::OwnerParamTarget>(knob.target).param == param;
 	};
-	if (std::ranges::any_of(owner.loaded_knobs, turns)) {
+	if (std::ranges::any_of(owner.knobs->loaded, turns)) {
 		return true;
 	}
 	if (song == nullptr || !address) {
@@ -916,16 +912,18 @@ bool learnedKnobTurns(::Song* song, const ::ModControllableAudio& owner, std::op
 	// no owner at the address, the entries there are another's only when an owner that had the id has left the song and
 	// the render's forget of its entries is still held; the next drain drops them, and until then the zeroing at worst
 	// keeps a pitch adjust it would have zeroed.
-	bool isSound = false;
-	const ::ModControllableAudio* holder = controlsOwnerAt(*song, *address, &isSound);
-	return (holder == nullptr || holder == &owner)
+	const std::optional<deluge::model::EffectsOwner> holder = effectsOwnerAt(*song, *address);
+	return (!holder || holder->core == owner.core)
 	       && std::ranges::any_of(song->project.mappings.params_of(*address), turns);
 }
 
-std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
+std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const deluge::model::EffectsOwner& owner,
                                                  std::optional<ControlsAddress> address) {
-	bool isSound = false;
-	if (!address || controlsOwnerAt(song, *address, &isSound) != &owner) {
+	if (!address) {
+		return std::nullopt;
+	}
+	const std::optional<deluge::model::EffectsOwner> holder = effectsOwnerAt(song, *address);
+	if (!holder || holder->core != owner.core) {
 		return std::nullopt;
 	}
 	return song.project.mappings.params_of(*address);

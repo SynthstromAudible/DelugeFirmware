@@ -22,6 +22,7 @@
 #include "effects/state.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include "model/fx/knob_carrier.h"
 #include "modulation/params/param.h"
 
 class Sound;
@@ -35,6 +36,7 @@ struct EffectsOwner {
 	EffectsBinding* binding{};  ///< The owner's settings and render copy; never null.
 	ChainView* view{};          ///< A host chain's view (a kit, an audio track, the master); null for a sound.
 	::Sound* sound{};           ///< The sound, for a sound; null for a host chain.
+	KnobCarrier* knobs{};       ///< The learned knobs the owner holds outside a song's table; never null.
 
 	/// @return The owner's settings.
 	[[nodiscard]] const effects::EffectStates& effects() const { return binding->effects(); }

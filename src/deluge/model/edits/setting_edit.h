@@ -153,14 +153,13 @@ inline void recordControlsOf(::ModControllable& owner) {
 	if (!address || address->kind == deluge::project::ControlsAddress::Kind::SONG) {
 		return;
 	}
-	bool isSound = false;
-	::ModControllableAudio* audio = deluge::bridge::controlsOwnerAt(*currentSong, *address, &isSound);
-	if (audio == nullptr) {
+	if (!deluge::bridge::effectsOwnerAt(*currentSong, *address)) {
 		return;
 	}
+	::Sound* sound = deluge::bridge::soundAt(*currentSong, *address);
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	deluge::edits::SetControls edit{*address, isSound ? deluge::bridge::controlsOf(static_cast<::Sound&>(*audio))
-	                                                  : std::vector<deluge::project::ControllerMapping>{}};
+	deluge::edits::SetControls edit{*address, sound != nullptr ? deluge::bridge::controlsOf(*sound)
+	                                                           : std::vector<deluge::project::ControllerMapping>{}};
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 		D_PRINTLN("controls refused");
 	}

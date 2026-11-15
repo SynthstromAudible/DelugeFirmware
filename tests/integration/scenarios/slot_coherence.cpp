@@ -63,15 +63,15 @@ void forEachSound(Output& output, const std::function<void(Sound&, const std::st
 }
 
 /// Whether @p owner, which a song holds, keeps its learned knobs in the song's table alone: none outside it.
-bool knobsCoherent(const ::ModControllableAudio& owner) {
-	return owner.loaded_knobs.empty();
+bool knobsCoherent(::ModControllable& owner) {
+	return owner.effectsOwner()->knobs->loaded.empty();
 }
 
 /// The kits', audio tracks' and the song's own learned knobs checked to be the song's table's alone, and the index to
 /// play the table's knobs; each break printed. How many broke.
 int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) {
 	int32_t failures = 0;
-	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
+	auto check = [&](::ModControllable& owner, const std::string& name) {
 		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
 		if (address && !knobsCoherent(owner)) {
 			std::printf("SLOT-COHERENT %s leg=%s %s: controls\n", label, leg, name.c_str());
@@ -80,7 +80,7 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 	};
 	auto visit = [&](Output& output) {
 		if (output.type == OutputType::KIT || output.type == OutputType::AUDIO) {
-			if (auto* own = static_cast<::ModControllableAudio*>(output.toModControllable())) {
+			if (::ModControllable* own = output.toModControllable()) {
 				check(*own, "output " + output.name);
 			}
 		}

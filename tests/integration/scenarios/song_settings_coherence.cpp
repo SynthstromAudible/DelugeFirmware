@@ -250,9 +250,8 @@ std::string describe(deluge::plugin::ParamId param, const deluge::project::MidiC
 /// The first break of @p address's learned knobs: its runtime owner holds none outside the song's table, whose entries
 /// are its knobs alone.
 std::string knobsIncoherence(::Song& song, ControlsAddress address) {
-	bool isSound = false;
-	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(song, address, &isSound);
-	if (owner == nullptr || owner->loaded_knobs.empty()) {
+	const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::effectsOwnerAt(song, address);
+	if (!owner || owner->knobs->loaded.empty()) {
 		return {};
 	}
 	const auto knobs = [](std::span<const Mapping> entries) {
@@ -268,7 +267,7 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	                   : address.kind == ControlsAddress::Kind::DRUM ? "DRUM_KNOBS"
 	                                                                 : "OUTPUT_KNOBS";
 	return std::string{"MAPPINGS "} + kind + " " + std::to_string(address.id) + ": table=["
-	       + knobs(song.project.mappings.params_of(address)) + "] outside=[" + knobs(owner->loaded_knobs) + "]";
+	       + knobs(song.project.mappings.params_of(address)) + "] outside=[" + knobs(owner->knobs->loaded) + "]";
 }
 
 /// The first break between @p target's table entry and @p field, the engine field that plays it.

@@ -77,7 +77,8 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
-	loaded_knobs = other->loaded_knobs; // an owner no song holds keeps its knobs here (empty for one a song holds)
+	// An owner no song holds keeps its knobs here (empty for one a song holds).
+	effectsOwner()->knobs->loaded = other->effectsOwner()->knobs->loaded;
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {
@@ -168,9 +169,9 @@ void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, de
 void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
                                                 std::optional<deluge::project::ControlsAddress> owner) {
 	std::optional<std::vector<deluge::project::Mapping>> saved =
-	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *this, owner) : std::nullopt;
-	if (!saved && !loaded_knobs.empty()) {
-		saved = loaded_knobs; // an owner no song holds keeps its knobs here
+	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *effectsOwner(), owner) : std::nullopt;
+	if (!saved && !effectsOwner()->knobs->loaded.empty()) {
+		saved = effectsOwner()->knobs->loaded; // an owner no song holds keeps its knobs here
 	}
 	if (saved) {
 		// The file names engine params only.
@@ -233,7 +234,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "midiKnobs")) {
 		// The model's codec reads the learned knobs; the song's table takes them once a song holds this owner.
 		if (const deluge::storage::Value* knobs = deluge::storage::treeReaderOf(reader).currentValue()) {
-			loaded_knobs = deluge::bridge::loadedKnobsOf(
+			effectsOwner()->knobs->loaded = deluge::bridge::loadedKnobsOf(
 			    *knobs, unpatchedParamKind_ == deluge::modulation::params::Kind::UNPATCHED_SOUND);
 		}
 		reader.exitTag("midiKnobs");

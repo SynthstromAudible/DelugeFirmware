@@ -21,6 +21,7 @@
 #include "deluge-project/param_address.h"
 #include "foundation/function_ref.h"
 #include "instruments/deluge/pages.h"
+#include "model/fx/effects_owner.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin-api/types/param.h"
@@ -32,7 +33,6 @@
 class Drum;
 class ModControllable;
 class Output;
-class ModControllableAudio;
 class Sound;
 class Song;
 
@@ -134,21 +134,32 @@ void refreshControls(::Song& song);
 /// @return The drum, or nullptr.
 [[nodiscard]] ::Drum* drumWithId(::Song& song, uint32_t id);
 
-/// @brief The runtime owner of @p address's controls in @p song (outputs and hibernating instruments), with whether it
-/// is a sound (which has mod knobs), or nullptr.
+/// @brief The sound whose controls @p address names in @p song (a synth, or a kit's sound row; outputs and hibernating
+/// instruments), which has mod knobs.
 /// @param song    The song to look in.
 /// @param address Whose controls.
-/// @param isSound Out: whether the owner is a sound.
+/// @return The sound, or nullptr (the song, a kit, an audio track, another kind of row, or none).
+[[nodiscard]] ::Sound* soundAt(::Song& song, deluge::project::ControlsAddress address);
+
+/// @brief The effects of the owner whose controls @p address names in @p song: the song's master, a synth, a kit, an
+/// audio track or a sound row (outputs and hibernating instruments).
+/// @param song    The song to look in.
+/// @param address Whose controls.
+/// @return The owner's effects, or nullopt when @p address names none.
+[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwnerAt(::Song& song,
+                                                                        deluge::project::ControlsAddress address);
+
+/// @brief The owner whose controls @p address names in @p song, as a ModelStack's owner slot holds it. A bridge: it
+/// goes with the slot.
+/// @param song    The song to look in.
+/// @param address Whose controls.
 /// @return The owner, or nullptr.
-[[nodiscard]] ::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address,
-                                                      bool* isSound);
+[[nodiscard]] ::ModControllable* controlsSlotAt(::Song& song, deluge::project::ControlsAddress address);
 
 /// @brief Make a sound's mod knobs what @p controls say. Its learned MIDI knobs are left as they are.
-/// @param owner    The owner whose knobs are set.
-/// @param isSound  Whether @p owner is a sound (only a sound has mod knobs).
+/// @param sound    The sound whose knobs are set.
 /// @param controls The controls to apply.
-void applyControls(::ModControllableAudio& owner, bool isSound,
-                   const std::vector<deluge::project::ControllerMapping>& controls);
+void applyControls(::Sound& sound, const std::vector<deluge::project::ControllerMapping>& controls);
 
 /// @brief Set @p output's own controls record (a synth's sound's mod knobs) from its runtime mod knobs, when it is
 /// bound in @p song.

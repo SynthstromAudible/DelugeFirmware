@@ -3627,24 +3627,24 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// A synth or kit replaced by a preset of its own type hands its learned knobs to the preset, which drops its own
 	// (a kit's are its affect-entire knobs): a knob learned to the clip's params keeps controlling the same params
 	// through the preset change. One with none leaves the preset's own.
-	ModControllableAudio* handedOverFrom = nullptr;
+	std::optional<deluge::model::EffectsOwner> handedOverFrom;
 	if (newOutput->type == oldOutput->type
 	    && (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT)) {
-		auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
-		if (old_mca != nullptr && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
-			auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
+		const std::optional<deluge::model::EffectsOwner> old = oldOutput->toModControllable()->effectsOwner();
+		if (old && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
+			const deluge::model::EffectsOwner now = *newOutput->toModControllable()->effectsOwner();
 			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
-			new_mca.loaded_knobs = std::move(old_mca->loaded_knobs);
-			old_mca->loaded_knobs.clear();
-			handedOverFrom = old_mca;
+			now.knobs->loaded = std::move(old->knobs->loaded);
+			old->knobs->loaded.clear();
+			handedOverFrom = old;
 		}
 	}
 
 	if (tableFollows) {
-		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), handedOverFrom != nullptr);
+		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), handedOverFrom.has_value());
 	}
-	if (handedOverFrom != nullptr) {
-		handedOverFrom->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+	if (handedOverFrom && handedOverFrom->sound != nullptr) { // a kit's presets have no knob-less params to zero
+		handedOverFrom->sound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
 	}
 	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
 	// their devices. The handover above leaves every row's entry as it was.

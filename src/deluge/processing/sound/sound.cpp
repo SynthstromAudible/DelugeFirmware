@@ -2372,7 +2372,7 @@ bool Sound::learnedKnobTurns(Song* song, int32_t p) {
 	    isDrum() ? static_cast<SoundDrum*>(this)->id() : static_cast<SoundInstrument*>(this)->id();
 	const std::optional<deluge::project::ControlsAddress> address =
 	    id ? std::optional{deluge::project::ControlsAddress{isDrum() ? Kind::DRUM : Kind::OUTPUT, *id}} : std::nullopt;
-	return deluge::bridge::learnedKnobTurns(song, *this, address, param);
+	return deluge::bridge::learnedKnobTurns(song, *effectsOwner(), address, param);
 }
 
 const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
