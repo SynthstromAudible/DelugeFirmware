@@ -22,6 +22,7 @@ ParamManager, but don't know anything about settings, UI or the larger applicati
   app's UI (`gui/ui/stutter_ui.cpp`), so this directory calls no UI.
 - `chain_codec`: an owner's part of its file (a host chain's view words, the effects' attributes and tags, the learned
   knobs, a host chain's param block), called by each owner's codec where its file holds them.
-- `chain_params`: the effects params' defaults for a sound, a host chain and an audio clip.
+- `chain_params`: the effects params' defaults for a sound, a host chain and an audio clip, from the owners' tables.
+- `effect_reads`: an owner's unpatched effect params read by its table's ids, as the effects take them.
 - `mod_fx_names`: the mod FX types' and knobs' display names. `output_stage_gain`: the output stage's gain constants.
 
