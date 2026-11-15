@@ -96,10 +96,6 @@ bool stutterRateIndicatesMiddle(const deluge::effects::StutterState& owner, bool
 	return !quantized || stuttering;
 }
 
-void initStutterParams(ParamManager* paramManager, params::Kind defaults) {
-	setParamsToDefaults(*paramManager->getUnpatchedParamSet(), defaults, {params::UNPATCHED_STUTTER_RATE});
-}
-
 int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnitude, uint32_t timePerTickInverse) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);

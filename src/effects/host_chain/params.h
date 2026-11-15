@@ -174,6 +174,10 @@ static_assert(effects::built_from(kParams, kModFxIds, effects::params::kModFxPar
 static_assert(effects::built_from(kParams, kEqIds, effects::params::kEqualizerParams));
 static_assert(effects::built_from(kParams, kBitcrushIds, effects::params::kBitcrushParams));
 
+/// @brief The rows a host chain's init leaves as a fresh set holds them: the tempo is the song's, written by its tempo
+/// edits (Song::setBPM).
+inline constexpr std::array<plugin::ParamId, 1> kNotInitialised{param::kTempo};
+
 /// @brief The one run of ids the params are stored in.
 inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
