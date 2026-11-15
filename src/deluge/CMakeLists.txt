@@ -127,7 +127,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_plugin_api # the host–plugin contract's interface
     deluge_instrument # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
-    deluge_global_effectable # the provisional shared-effect param table
+    deluge_host_chain # the host chain's param table and pages
     deluge_serialization # the document tree and its XML and JSON parsers
     deluge_music_theory # note sets, scales, keys and scale mapping
     deluge_gfx_oled # pure drawing primitives

@@ -20,7 +20,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/reverb/freeverb.h"
 #include "dsp-next/float/reverb/plate.h"
-#include "effects/param_fragment.h"
+#include "effects/params.h"
 #include "effects/sidechain.h"
 #include "effects/state.h"
 #include "effects/words.h"
@@ -53,8 +53,7 @@ struct ReturnDuck {
 class Reverb {
 public:
 	/// @brief An owner's reverb send param. Neutral: 2^27, Q31 send; a clip's owner builds it around its own amount.
-	static constexpr EffectParam kSend{
-	    .name = "reverbAmount", .curve = dsp::fixed::ParamCurve::SQUARE, .neutral = 134217728};
+	static constexpr EffectParam kSend = params::kReverbSend;
 
 	/// @brief The knobs as the song holds them, each 0 to 1.
 	struct Settings {

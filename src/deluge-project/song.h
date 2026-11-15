@@ -114,7 +114,7 @@ public:
 	/// a song that says none edits the second. The engine caps it at its last mod button where it uses it.
 	uint8_t mod_knob_mode{1};
 
-	/// The song's own effect params (the global-effectable table's ids): the authority for their values and
+	/// The song's own effect params (the host chain's table's ids): the authority for their values and
 	/// automation, projected into the engine's master chain.
 	DocParamManager master_params;
 	/// Every MIDI-learned binding of the song, keyed by what it controls.

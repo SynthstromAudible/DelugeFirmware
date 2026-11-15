@@ -21,7 +21,7 @@
 /// @brief The host effect chains' remote-controls pages: what the mod buttons' knobs move on a song, a clip's chain,
 ///        a kit's affect-entire and an audio track, and what pressing each does.
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
 #include "plugin-api/remote_controls_publisher.h"
@@ -32,7 +32,7 @@
 #include <optional>
 #include <vector>
 
-namespace deluge::global_effectable {
+namespace deluge::host_chain {
 
 static_assert(std::ranges::all_of(kParams,
                                   [](const plugin::ParamInfo& p) { return p.id.value < effects::kFirstSettingId; }),
@@ -106,4 +106,4 @@ inline constexpr uint32_t kCompPages = 5;
 extern const plugin::RemoteControls
     kRemoteControls; // NOLINT(bugprone-dynamic-static-initializers): constant-initialized
 
-} // namespace deluge::global_effectable
+} // namespace deluge::host_chain

@@ -97,7 +97,7 @@ struct SongDocument {
 /// session macro naming its clip or output by position names the one at that position (a session clip, an output in
 /// the order of `instruments`), or nothing if there is none.
 /// Controls and learned knobs are named through @p plugins: a sound's and a sound kit row's by the Deluge instrument, a
-/// kit's, an audio track's and the song's by the provisional global-effectable table; with no naming for a plugin,
+/// kit's, an audio track's and the song's by the host chain's table; with no naming for a plugin,
 /// its owners have no controls and no learned knobs.
 [[nodiscard]] std::expected<SongDocument, LoadError> decode_song(const serialization::Value& root,
                                                                  const CodecPlugins& plugins);

@@ -46,7 +46,7 @@ describe param("a plugin's param words", ${
 		expect(block.contains(ParamId{89})).to_be_false();
 	});
 
-	it("names the provisional global-effectable table", _ {
+	it("names the host chain's table", _ {
 		expect(kGlobalEffectable.name).to_equal(std::string_view("deluge.global-effectable"));
 		expect(kGlobalEffectable.name).not_().to_equal(kDelugeInstrument.name);
 	});

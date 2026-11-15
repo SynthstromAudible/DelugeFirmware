@@ -16,30 +16,49 @@
  */
 
 #include "model/fx/chain_params.h"
-#include "model/fx/song_stutter.h"
+#include "effects/host_chain/params.h"
+#include "instruments/deluge/params.h"
+#include "model/fx/effect_reads.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+
+#include <algorithm>
+#include <span>
 
 namespace deluge::model {
 
 namespace params = deluge::modulation::params;
 
+namespace {
+
+/// @brief The first and last ids of the unpatched params a sound and a host chain share.
+constexpr uint32_t kFirstSharedId = params::UNPATCHED_START;
+constexpr uint32_t kLastSharedId = params::UNPATCHED_START + params::UNPATCHED_NUM_SHARED - 1;
+
+/// @brief Sets the rows of @p table with ids in [@p first, @p last], other than @p skip, to their defaults.
+/// @param set      The owner's unpatched params.
+/// @param table    The owner's table.
+/// @param first    The first id to set.
+/// @param last     The last id to set.
+/// @param skip     The ids in that range to leave as they are.
+void setRowsToDefaults(UnpatchedParamSet& set, std::span<const plugin::ParamInfo> table, uint32_t first, uint32_t last,
+                       std::span<const plugin::ParamId> skip) {
+	for (const plugin::ParamInfo& info : table) {
+		if (info.id.value < first || info.id.value > last || std::ranges::contains(skip, info.id)) {
+			continue;
+		}
+		const int32_t p = unpatchedIndex(info.id);
+		set.params[p].setBase(*set.docForParam(p), info.default_value);
+	}
+}
+
+} // namespace
+
 void initSharedParams(ParamManager* paramManager, params::Kind defaults) {
-	UnpatchedParamSet& unpatchedParams = *paramManager->getUnpatchedParamSet();
-	setParamsToDefaults(
-	    unpatchedParams, defaults,
-	    {params::UNPATCHED_BASS, params::UNPATCHED_TREBLE, params::UNPATCHED_BASS_FREQ, params::UNPATCHED_TREBLE_FREQ,
-	     params::UNPATCHED_ARP_GATE, params::UNPATCHED_NOTE_PROBABILITY, params::UNPATCHED_ARP_BASS_PROBABILITY,
-	     params::UNPATCHED_ARP_SWAP_PROBABILITY, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
-	     params::UNPATCHED_REVERSE_PROBABILITY, params::UNPATCHED_ARP_CHORD_PROBABILITY,
-	     params::UNPATCHED_ARP_RATCHET_PROBABILITY, params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	     params::UNPATCHED_ARP_SEQUENCE_LENGTH, params::UNPATCHED_ARP_CHORD_POLYPHONY, params::UNPATCHED_ARP_RHYTHM,
-	     params::UNPATCHED_SPREAD_VELOCITY, params::UNPATCHED_ARP_SPREAD_GATE, params::UNPATCHED_ARP_SPREAD_OCTAVE});
-	initStutterParams(paramManager, defaults);
-	setParamsToDefaults(unpatchedParams, defaults,
-	                    {params::UNPATCHED_MOD_FX_OFFSET, params::UNPATCHED_MOD_FX_FEEDBACK,
-	                     params::UNPATCHED_SAMPLE_RATE_REDUCTION, params::UNPATCHED_BITCRUSHING,
-	                     params::UNPATCHED_SIDECHAIN_SHAPE, params::UNPATCHED_COMPRESSOR_THRESHOLD});
+	const std::span<const plugin::ParamInfo> table = defaults == params::Kind::UNPATCHED_SOUND
+	                                                     ? std::span<const plugin::ParamInfo>{instrument::kParams}
+	                                                     : std::span<const plugin::ParamInfo>{host_chain::kParams};
+	setRowsToDefaults(*paramManager->getUnpatchedParamSet(), table, kFirstSharedId, kLastSharedId, {});
 }
 
 void initGlobalParams(ParamManager* paramManager) {
@@ -47,13 +66,9 @@ void initGlobalParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_GLOBAL;
-	setParamsToDefaults(*unpatchedParams, params::Kind::UNPATCHED_GLOBAL,
-	                    {params::UNPATCHED_ARP_RATE, params::UNPATCHED_MOD_FX_RATE, params::UNPATCHED_MOD_FX_DEPTH,
-	                     params::UNPATCHED_DELAY_RATE, params::UNPATCHED_PAN, params::UNPATCHED_DELAY_AMOUNT,
-	                     params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_VOLUME,
-	                     params::UNPATCHED_SIDECHAIN_VOLUME, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_RES,
-	                     params::UNPATCHED_LPF_FREQ, params::UNPATCHED_HPF_RES, params::UNPATCHED_HPF_FREQ,
-	                     params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH});
+	setRowsToDefaults(*unpatchedParams, host_chain::kParams, kLastSharedId + 1,
+	                  host_chain::kParamBlock.first.value + host_chain::kParamBlock.count - 1,
+	                  host_chain::kNotInitialised);
 }
 
 void initAudioClipParams(ParamManagerForTimeline* paramManager) {

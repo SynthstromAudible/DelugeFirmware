@@ -20,14 +20,14 @@ if(NOT DEFINED DELUGE_CXX_STANDARD)
 endif()
 
 # The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the plugin
-# API and its types, the effects, the global-effectable table, the Deluge instrument, the model and the controls. Each
+# API and its types, the effects, the host chain's table, the Deluge instrument, the model and the controls. Each
 # is built with only the standalone libraries' include roots, so a hidden dependency on the app fails the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/music-theory ${_deluge_libs}/music-theory EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api/types ${_deluge_libs}/plugin-api-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api ${_deluge_libs}/plugin-api EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/effects/global_effectable ${_deluge_libs}/global-effectable EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/effects/host_chain ${_deluge_libs}/host-chain EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/instruments/deluge ${_deluge_libs}/instrument EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/deluge-project ${_deluge_libs}/model EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/controls ${_deluge_libs}/controls EXCLUDE_FROM_ALL)

@@ -37,7 +37,7 @@
 
 #include "shell/input_lowering.h"
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
@@ -75,7 +75,7 @@ const deluge::plugin::ParamInfo* info_of(const ParamAddress& address, Kind kind)
 	if (address.space != ParamSpace::ENGINE || deluge::instrument::is_cable_depth(address.id)) {
 		return nullptr;
 	}
-	return kind == Kind::UNPATCHED_GLOBAL ? deluge::plugin::find_param(deluge::global_effectable::kParams, address.id)
+	return kind == Kind::UNPATCHED_GLOBAL ? deluge::plugin::find_param(deluge::host_chain::kParams, address.id)
 	                                      : deluge::plugin::find_param(deluge::instrument::kParams, address.id);
 }
 
@@ -93,7 +93,7 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 		return static_cast<int32_t>(deluge::bridge::cableWordOf(address.id));
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
-		return deluge::global_effectable::runtime_index(address.id).value_or(0);
+		return deluge::host_chain::runtime_index(address.id).value_or(0);
 	}
 	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
 	return slot ? slot->index : 0;

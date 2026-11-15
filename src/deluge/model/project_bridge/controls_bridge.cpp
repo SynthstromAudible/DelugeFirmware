@@ -17,7 +17,7 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
-#include "effects/global_effectable/naming.h"
+#include "effects/host_chain/naming.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/plugin.h"
@@ -354,7 +354,7 @@ void encodeInstrument(const deluge::plugin::StateHandle& state, deluge::serializ
 
 deluge::project::CodecPlugins codecPlugins() {
 	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
-	                                                                deluge::global_effectable::kNaming};
+	                                                                deluge::host_chain::kNaming};
 	return {.namings = namings,
 	        .chains = chainCodec(),
 	        .instruments = {.decode = &decodeInstrument, .encode = &encodeInstrument}};

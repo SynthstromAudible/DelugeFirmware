@@ -9,8 +9,8 @@
 #include "controls/resolve.h"
 #include "effects/chain.h"
 #include "effects/compressor.h"
-#include "effects/global_effectable/pages.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/pages.h"
+#include "effects/host_chain/params.h"
 #include "effects/setting_params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -274,7 +274,7 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 	const effects::ModFXType type = after.mod_fx.type;
 	const uint32_t view = mod_fx_view(song, focus);
 	uint32_t param = view;
-	for (int32_t tried = 0; tried < kNumModFXParams && !global_effectable::mod_fx_page_valid(type, param); tried++) {
+	for (int32_t tried = 0; tried < kNumModFXParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
 		param = (param + 1) % kNumModFXParams;
 	}
 	if (param != view) {
@@ -315,14 +315,14 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		return;
 	}
 	switch (page.section) {
-	case global_effectable::kFilterSection: {
+	case host_chain::kFilterSection: {
 		const auto next = static_cast<FilterType>(page.page_id);
 		out.chain_view.emplace("currentFilterType", effects::kFilterTypeWords[page.page_id]);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		out.edited = true;
 		return;
 	}
-	case global_effectable::kModFxSection: {
+	case host_chain::kModFxSection: {
 		const auto param = static_cast<ModFXParam>(page.page_id);
 		if (page.page_id != mod_fx_view(song, focus)) {
 			out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[page.page_id]);
@@ -331,7 +331,7 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		out.edited = true;
 		return;
 	}
-	case global_effectable::kCompressorSection: {
+	case host_chain::kCompressorSection: {
 		// The song's compressor: its group 1 pages are its settings, one each after the reverb page.
 		const auto found =
 		    std::ranges::find_if(pages.cycle, [&](const controls::Page& p) { return p.page_id == page.page_id; });
@@ -434,7 +434,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
-		const std::optional<uint8_t> index = global_effectable::runtime_index(id);
+		const std::optional<uint8_t> index = host_chain::runtime_index(id);
 		return index ? params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
 		                                           fx.filter.hpf_mode)
 		             : std::string{};
@@ -451,7 +451,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
 std::string names_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button, const Reads& inputs) {
 	std::string out = knob_name(song, focus, 1, inputs.effects, inputs.pages.board);
-	if (!(std::cmp_equal(button, global_effectable::kStutterSection) && !inputs.clip_context)) {
+	if (!(std::cmp_equal(button, host_chain::kStutterSection) && !inputs.clip_context)) {
 		out += "\n";
 		out += knob_name(song, focus, 0, inputs.effects, inputs.pages.board);
 	}
@@ -562,15 +562,15 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	}
 	const project::FxChain* chain = chain_of(song, focus);
 	switch (button) {
-	case global_effectable::kFilterSection:
+	case host_chain::kFilterSection:
 		return filter_popup(chain != nullptr ? static_cast<FilterType>(chain->filter_type) : FilterType::LPF, fx);
 	case 2: // the envelopes, which a chain has none of
 		return {};
 	case 3: // the delay
 		return delay_popup(song, fx, inputs.pages.alt_delay);
-	case global_effectable::kCompressorSection:
+	case host_chain::kCompressorSection:
 		return is_song ? comp_reverb_popup(song, focus.comp) : sidechain_reverb_popup(song, fx);
-	case global_effectable::kModFxSection:
+	case host_chain::kModFxSection:
 		return mod_fx_popup(fx.mod_fx.type,
 		                    chain != nullptr ? static_cast<ModFXParam>(chain->mod_fx_param) : ModFXParam::FEEDBACK);
 	default:
