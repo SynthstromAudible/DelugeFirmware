@@ -71,7 +71,7 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
 - [ ] Alpha/beta build only: the E336 late-note-start popup, and the E073/"MORE" audio-path
       error popups, still appear if their conditions are reachable.
 - [ ] Turn the mod encoders in the delay / filter / compressor / reverb sections, on both a
-      Sound and a GlobalEffectable (kit, audio clip, song): the value popups still appear, and
+      Sound and a host chain (kit, audio clip, song): the value popups still appear, and
       the held-button settings popups (a deliberately-deferred show paired with a migrated
       clear) still show on press and vanish cleanly on release — no flicker, no stuck popup.
 - [ ] Trigger the transpose-interval and root-note popups: the full text shows, untruncated

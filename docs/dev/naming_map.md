@@ -16,7 +16,7 @@ for routing edges and summing buffers.
 | `Drum`, `SoundDrum` | a kit lane, a full nested chain | P5 | |
 | `NonAudioInstrument`, `MIDIInstrument`, `CVInstrument` | MIDI-out and CV-out instrument devices | P5 | |
 | `GlobalEffectable`, `GlobalEffectableForClip`, `GlobalEffectableForSong` | deleted | P3d-1c step 4 | the render side lives in `TrackChannel` / `MasterChannel` |
-| `ModControllableAudio` | deleted | P3d-1c step 4 | the settings binding is `EffectsBinding` |
+| `ModControllableAudio` | deleted | P3d-1c step 4 | the settings binding is `EffectsBinding`; an owner's effects are `model::EffectsOwner` |
 | `ModControllable` | stays | — | the knob plumbing MIDI and CV use |
 | `SongLive::global_effectable` | deleted with `GlobalEffectableForSong` | P3d-1c step 4 | the master is `SongLive::master_channel` |
 | `effects::ClipChain`, `ClipChainInputs`, `ClipBlock`, `Home::CLIP`, `ChainHome::CLIP` | `TrackChain`, `TrackChainInputs`, `TrackBlock`, `Home::TRACK`, `ChainHome::TRACK` | done | a track's insert chain |

@@ -2819,7 +2819,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 	// Serialize from the value DOM (deluge::project). serializeSoundParams emits the patched + unpatched flat attrs,
-	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
+	// the shared effects param block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
@@ -2867,8 +2867,8 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (preview /
-	// GlobalEffectable): those sounds write snapshot_ directly and have no record to project from.
+	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (a preview
+	// sound): those sounds write snapshot_ directly and have no record to project from.
 	if (state_ == nullptr) {
 		return;
 	}
@@ -3125,7 +3125,7 @@ void Sound::assignSynthMode(SynthMode value) {
 
 void Sound::setTranspose(int16_t value) {
 	// Bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
-	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
+	// unbound (a preview sound) → write the snapshot directly (no record).
 	if (state_ != nullptr) {
 		state_->transpose = value;
 		snapshot_.transpose = state_->transpose;

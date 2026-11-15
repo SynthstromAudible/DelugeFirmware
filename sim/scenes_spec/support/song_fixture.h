@@ -171,7 +171,7 @@ inline SongFixture make_cv_song() {
 ///
 /// The audio-clip root's fixture. `Song::createNewAudioOutput` is the
 /// model's own recipe and already adds the output to the song; the clip is placed and attached the
-/// way `make_session_clip` places an `InstrumentClip`, with the `GlobalEffectableForClip` param set
+/// way `make_session_clip` places an `InstrumentClip`, with the host chain param set (`model::initGlobalParams`)
 /// the audio-clip menus read.
 struct AudioSongFixture {
 	Song* song = nullptr;

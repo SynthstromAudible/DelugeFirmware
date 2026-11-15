@@ -324,7 +324,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			deluge::edits::changeEffect(*f.song, *source, "delay/pingPong", Value::makeNumber(0));
 			deluge::edits::changeEffect(*f.song, *source, "stutter/reverse", Value::makeNumber(1));
 			deluge::edits::changeEffect(*f.song, *source, "audioCompressor/ratio", Value::makeNumber(7 << 24));
-			deluge::edits::changeView(*source, "modFXCurrentParam", "feedback");
+			deluge::edits::changeView(*source, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH)); // not the default, so a clone that skips the view shows
 			source->effectsOwner()->knobs->loaded.emplace_back();
 			const deluge::effects::CompressorState compressor = effectsOf(*clone).compressor;
 
@@ -339,7 +339,7 @@ describe effects_owner_characterisation("the effects owners, through the paths t
 			expect(got.delay == from.delay).to_be_true();
 			expect(got.stutter == from.stutter).to_be_true();
 			expect(got.compressor == compressor).to_be_true();
-			expect(clone->channel().view().modFXParam() == ModFXParam::FEEDBACK).to_be_true();
+			expect(clone->channel().view().modFXParam() == ModFXParam::DEPTH).to_be_true();
 			expect(clone->effectsOwner()->knobs->loaded.size()).to_equal(static_cast<std::size_t>(1));
 			source->effectsOwner()->knobs->loaded.clear();
 			clone->effectsOwner()->knobs->loaded.clear();

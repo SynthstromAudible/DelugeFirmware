@@ -356,7 +356,7 @@ returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes
 (`SetControls`, or both copies directly when it refuses), so the engine's knob array and the record stay equal.
 
 Learned MIDI and MIDI follow reach params by address through the same library; the engine plays no learned knobs and has
-no dispatch of its own. An owner a song does not hold carries its file's knobs (`ModControllableAudio::loaded_knobs`)
+no dispatch of its own. An owner a song does not hold carries its file's knobs (`model::KnobCarrier::loaded`)
 until a song's table takes them. A learned knob is an entry of the song's mapping table (`project::MappingTable`): the
 source it is learned to, the `OwnerParamTarget` it turns and whether it is relative. `controls::dispatch_song_cc` moves
 the song's knobs a CC is learned to; the host offers each output in play order, and `controls::dispatch_output_cc` and

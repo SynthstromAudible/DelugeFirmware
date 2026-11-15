@@ -58,7 +58,7 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// @brief Write one of a collection's params as a named attribute (`name="0x…"`), byte-identical to
 /// `ParamSet::writeParamAsAttribute`.
 ///
-/// This is the building block the owner param blocks (GlobalEffectable / ModControllableAudio / Sound / clips) are
+/// This is the building block the owner param blocks (host chain / shared effects / Sound / clips) are
 /// composed of.
 ///
 /// @param doc                    The collection holding the param.
@@ -95,8 +95,8 @@ struct DocParamAttr {
 void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params,
                         const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride = nullptr);
 
-/// @brief Serialize the ModControllableAudio shared param block's flat attrs from the unpatched collection (what
-/// `ModControllableAudio::writeParamAttributesToFile` writes).
+/// @brief Serialize the shared effects param block's flat attrs from the unpatched collection (what
+/// what a sound's and a host chain's writers write).
 ///
 /// The attrs and the `<equalizer>` group (serializeModControllableParamTags) are emitted at different points in the
 /// owner's tag, so they are separate.
@@ -107,8 +107,8 @@ void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const 
 /// @param valuesForOverride When non-null, its entries override the first six attrs' values (see writeDocAutoParam).
 void serializeModControllableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                              const int32_t* valuesForOverride = nullptr);
-/// @brief Serialize the ModControllableAudio shared param block's tags (the `<equalizer>` group; what
-/// `ModControllableAudio::writeParamTagsToFile` writes).
+/// @brief Serialize the shared effects param block's tags (the `<equalizer>` group; what
+/// what a sound's and a host chain's writers write).
 ///
 /// @param unpatched        The unpatched collection.
 /// @param out              The serializer to write to.
@@ -117,22 +117,22 @@ void serializeModControllableParamAttributes(const DocParamSet& unpatched, Seria
 void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                        const int32_t* valuesForOverride = nullptr);
 
-/// @brief Serialize the GlobalEffectable param block's flat attrs from the unpatched collection (what
-/// `GlobalEffectable::writeParamAttributesToFile` writes).
+/// @brief Serialize the host chain param block's flat attrs from the unpatched collection (what
+/// `model::writeGlobalParamAttributes` writes).
 ///
 /// The flat global attrs (reverb/volume/pan, the conditional pitchAdjust + sidechain volume, modFX…) wrap the shared
-/// ModControllableAudio attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate follow.
+/// shared effects attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate follow.
 ///
 /// @param unpatched        The unpatched collection.
 /// @param out              The serializer to write to.
 /// @param writeAutomation  Whether to write the automation nodes.
 /// @param valuesForOverride When non-null, entry [p] overrides param p's value (see writeDocAutoParam) for every
-///                         attr except the ModControllableAudio arp/probability/spread ones.
+///                         attr except the shared arp/probability/spread ones.
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                               const int32_t* valuesForOverride = nullptr);
-/// @brief Serialize the GlobalEffectable param block's tags from the unpatched collection (what
-/// `GlobalEffectable::writeParamTagsToFile` writes): the `<delay>` / `<lpf>` / `<hpf>` groups, then the shared
-/// ModControllableAudio tags.
+/// @brief Serialize the host chain param block's tags from the unpatched collection (what
+/// `model::writeGlobalParamTags` writes): the `<delay>` / `<lpf>` / `<hpf>` groups, then the shared
+/// shared effects tags.
 ///
 /// @param unpatched        The unpatched collection.
 /// @param out              The serializer to write to.
@@ -158,8 +158,8 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 /// @brief Serialize the Sound param block from a sound's collections (what `Sound::writeParamsToFile` writes).
 ///
 /// The flat patched + unpatched attrs (osc / filter / LFO / FM / envelope-less flat params, the conditional
-/// pitchAdjust family) wrap the shared ModControllableAudio attrs; then, after the parent's opening tag is closed,
-/// come the four `<envelope*>` groups, the `<patchCables>` block, and the shared ModControllableAudio tags.
+/// pitchAdjust family) wrap the shared effects attrs; then, after the parent's opening tag is closed,
+/// come the four `<envelope*>` groups, the `<patchCables>` block, and the shared effects tags.
 /// `writeOpeningTagEnd` is emitted between the attrs and the child tags.
 ///
 /// @param patched          The patched collection.
@@ -210,7 +210,7 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 // returns false so the engine's remaining (legacy-only) dispatch can handle it. Driven by the same `DocParamAttr`
 // tables the serializers use.
 
-/// @brief Read one ModControllableAudio shared-block tag (the `<equalizer>` group + the flat MCA attrs) into the
+/// @brief Read one shared effects-block tag (the `<equalizer>` group + the flat shared attrs) into the
 /// live collection.
 ///
 /// @param in                    The deserializer.
@@ -222,8 +222,8 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos);
 bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet& unpatched,
                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
-/// @brief Read one GlobalEffectable param-block tag into the live collection: the `<delay>`/`<lpf>`/`<hpf>` groups +
-/// the GE flat attrs, then the shared MCA block.
+/// @brief Read one host chain param-block tag into the live collection: the `<delay>`/`<lpf>`/`<hpf>` groups +
+/// the host chain flat attrs, then the shared MCA block.
 ///
 /// The `<lpf>`/`<hpf>` read groups also accept the legacy nested `morph` member (which the writer emits as a flat
 /// `lpfMorph`/`hpfMorph` attr).
@@ -274,7 +274,7 @@ bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& exp
 // reprojected from the store via `fromDocParamSet`. These share the same `DocParamAttr` tables as the
 // engine-target readers above.
 
-/// @brief Read one ModControllableAudio shared-block tag into @p doc (the `<equalizer>` group + the flat MCA
+/// @brief Read one shared effects-block tag into @p doc (the `<equalizer>` group + the flat MCA
 /// attrs).
 ///
 /// @param in                    The deserializer.
@@ -285,7 +285,7 @@ bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& exp
 bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                       int32_t readAutomationUpToPos);
 
-/// @brief Read one GlobalEffectable param-block tag into @p doc: the `<delay>`/`<lpf>`/`<hpf>` groups + GE flat
+/// @brief Read one host chain param-block tag into @p doc: the `<delay>`/`<lpf>`/`<hpf>` groups + host chain flat
 /// attrs (incl. the legacy nested `morph` members) + the shared MCA block.
 ///
 /// @param in                    The deserializer.

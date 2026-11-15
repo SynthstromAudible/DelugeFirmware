@@ -28,7 +28,7 @@
 namespace deluge::project {
 
 /// @brief Composite identity of one instrument-shared automation store, mirroring `ParamBackup`'s
-/// `(ModControllableAudio*, Clip*)` key in engine-pointer-free serial terms.
+/// owner-and-clip key in serial terms, free of engine pointers.
 ///
 /// The `owner` is an `INSTRUMENT` (SoundInstrument / Kit, by Output::id) or a `DRUM` (SoundDrum, by Drum::id), and
 /// `clip_id` is which clip's override this is; nullopt is the owner's shared default (the null-Clip backup entry).

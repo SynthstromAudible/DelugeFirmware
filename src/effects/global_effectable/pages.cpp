@@ -97,8 +97,9 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 		            step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
 		            step(ge::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
 	case kCompressorSection: {
-		// A clip chain's stutter outlives a press of its reverb button (`GlobalEffectableForClip::modButtonAction`);
-		// the song's reverb button has its own pages (song_reverb_page), which do not keep it.
+		// A clip chain's stutter outlives a press of its reverb button (main's
+		// `GlobalEffectableForClip::modButtonAction`); the song's reverb button has its own pages (song_reverb_page),
+		// which do not keep it.
 		RemotePage out = page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
 		                      step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
 		out.keeps_stutter = true;

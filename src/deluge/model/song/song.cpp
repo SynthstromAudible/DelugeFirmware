@@ -2033,7 +2033,7 @@ loadOutput:
 	// Bind each AudioClip's unpatched automation node storage to a DOM-owned store, like the song-global one below.
 	// Every edit and undo then operates on DOM-owned data and save reads it directly. The store lives on the
 	// heap-stable, never-relocating ParamSet, so it survives the clip through ParamBackup steal/restore. AudioClips
-	// carry a single unpatched set (GlobalEffectableForClip); instrument clips are bound further below.
+	// carry a single unpatched set (a host chain's); instrument clips are bound further below.
 	for (ClipArray* clipArray : arrays) {
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 			Clip* thisClip = (*clipArray)[c];
@@ -2050,7 +2050,7 @@ loadOutput:
 			}
 			// Relocate instrument-shared clip-level automation into the persistent tree, keyed by
 			// (instrument(output), clip), the persistent form of ParamBackup. Synth = unpatched + patched; kit
-			// clip-level FX = unpatched only (GlobalEffectableForClip). Expression (MPE) is relocated too. Because
+			// clip-level FX = unpatched only (a host chain's). Expression (MPE) is relocated too. Because
 			// stealParamCollectionsFrom moves only collection pointers, this external binding rides the ParamSet
 			// through every park / restore / clip-death re-key, so resolution survives all of it. MIDI CC stores stay
 			// inline until the per-clip binding below.

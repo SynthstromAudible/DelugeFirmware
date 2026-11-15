@@ -32,8 +32,8 @@ namespace deluge::synth {
 /// projected from it (`Sound::projectSnapshot()`) at the bind / doneReadingFromFile hooks and after each edit, and
 /// the per-render / per-voice audio path reads it.
 ///
-/// @note The model never references this type (dependency: engine to model). Unbound sounds (preview /
-///       GlobalEffectable, with no SoundState) write the snapshot directly and never save.
+/// @note The model never references this type (dependency: engine to model). Unbound sounds (a preview,
+///       with no SoundState) write the snapshot directly and never save.
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (SoundState::transpose); read per-voice-start (Voice::render)
 	int8_t cents{0};      ///< master fine tune (SoundState::cents), cents

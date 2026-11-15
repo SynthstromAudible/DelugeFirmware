@@ -181,7 +181,7 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	}
 }
 
-// The engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) read
+// The engine save wrappers (the Sound, host chain and ExpressionParamSet writers) read
 // the DOM store's scalar, not the engine cursor. A test that authors state via params[p].played() must seed
 // the store to match — exactly as a real read/edit does. (docForParam resolves the set's own store here.)
 void authorStoreFromEngine(ParamSet& s) {
@@ -1019,7 +1019,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// The ModControllableAudio shared param block (flat attrs + <equalizer>) serializes
+	// The shared effects param block (flat attrs + <equalizer>) serializes
 	// byte-identical to the engine's static writeParamAttributesToFile / writeParamTagsToFile.
 	{
 		ParamManagerForTimeline pm;
@@ -1064,7 +1064,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "shared param tags byte-identical");
 	}
 
-	// The ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
+	// The shared effects block round-trips through the DOM reader — serialize via the DOM
 	// into a wrapped <params> element, DOM-read it back into a fresh manager, and confirm values + the
 	// automation summary flag match.
 	{
@@ -1115,9 +1115,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		    "mca-rt automation flag set");
 	}
 
-	// The GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
+	// The host chain param block (global flat attrs wrapping the shared effects
 	// attrs + the <delay>/<lpf>/<hpf> groups) serializes byte-identical to the engine's static
-	// GlobalEffectable::writeParamAttributesToFile / writeParamTagsToFile, including the conditional
+	// model::writeGlobalParamAttributes / writeGlobalParamTags, including the conditional
 	// pitchAdjust / sidechainCompressorVolume attrs.
 	{
 		ParamManagerForTimeline pm;
@@ -1160,7 +1160,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0, "host chain tags byte-identical");
 	}
 
-	// The GlobalEffectable param block round-trips through the DOM reader (flat attrs +
+	// The host chain param block round-trips through the DOM reader (flat attrs +
 	// delay/lpf/hpf groups + shared MCA), and the read path still accepts the legacy nested <lpf morph>.
 	{
 		ParamManagerForTimeline pm;
@@ -1332,7 +1332,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
-	// (patched + unpatched flat attrs, the shared ModControllableAudio attrs, the four <envelope*> groups,
+	// (patched + unpatched flat attrs, the shared effects attrs, the four <envelope*> groups,
 	// the <patchCables> block, and the shared tags — including the mid-block writeOpeningTagEnd).
 	{
 		ParamManagerForTimeline pm;
@@ -1442,7 +1442,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*up->docForParam(params::UNPATCHED_VOLUME), 0, 4242, true); // automated ⇒ override applies
 		up->params[params::UNPATCHED_PAN].setPlayed(555);                     // not automated ⇒ override ignored
 		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
-		// An automated ModControllableAudio arp attr: the engine writes it WITHOUT the override (only the
+		// An automated shared arp attr: the engine writes it WITHOUT the override (only the
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
 		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
@@ -1490,7 +1490,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		      "host chain override tags byte-identical");
 	}
 
-	// The DOM-target reader lands the GlobalEffectable block in a DocParamSet (the
+	// The DOM-target reader lands the host chain block in a DocParamSet (the
 	// persistent DOM store); projecting that store into an engine must be identical to reading the same XML
 	// straight into the engine. This proves the read-into-DOM → reproject-DOM→engine loop.
 	{

@@ -784,11 +784,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentUIMode = UI_MODE_NONE;
 		(void)menu::host_controls_sink().stutter(rig.knobs.focus(), true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
-		// `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
+		// main's `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
 		rig.knobs.mod_button_action(4, true);
 		rig.knobs.mod_button_action(4, false);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
-		// `GlobalEffectable::modButtonAction`: any other button ends it.
+		// main's `GlobalEffectable::modButtonAction`: any other button ends it.
 		rig.knobs.mod_button_action(3, true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
 		rig.knobs.mod_button_action(3, false);
@@ -1859,7 +1859,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("gives the popup the model context legacy reads off View, so its filter-morph name can fire", _ {
 		// `ParamPopupScene::show()` takes legacy's five value-conversion arguments and, optionally, a
 		// model context (`overlay::PopupContext`). Without the context three of legacy's arms -- the
-		// `ModControllableAudio*`-aware LPF/HPF-morph rename (`modulation/params/param.cpp:356-381`),
+		// owner-aware LPF/HPF-morph rename (`modulation::params::getParamDisplayName`),
 		// the stutter rate-bucket text, and the MIDI-clip CC naming -- cannot fire. `ModKnobs` is the
 		// class that HAS that context, so it passes it. This drives the path with the context and the
 		// one without and compares BOTH against the real
@@ -2301,8 +2301,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		StubDisplay stub;
 		display = &stub;
 
-		// `itsTheSong` requires the knobs to point at a *song*, and a song's mod-knob mode lives on its one
-		// `GlobalEffectable`.
+		// `itsTheSong` requires the knobs to point at a *song*, and a song's mod-knob mode lives in its record
+		// (`project.mod_knob_mode`).
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = pf.song;
 		pf.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5548-5555`)

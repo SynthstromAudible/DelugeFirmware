@@ -223,7 +223,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		        deluge::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
 		                                         .owner = deluge::scenes::bind::ChainOwner::KIT}};
 		// The sidechain sync step (7 to 9), the mod-FX type (none to the first type) and the filter view (low-pass to
-		// high-pass) are recorded from `GlobalEffectableForClip::modEncoderButtonAction` and
+		// high-pass) are recorded from main's `GlobalEffectableForClip::modEncoderButtonAction` and
 		// `GlobalEffectable::modEncoderButtonAction` on the same kit. The compressor setting columns are not from the
 		// engine: no production path turns its compressor-setting arm for a kit (its compressor button's knobs are
 		// chain params), so these are what the gold knobs leave, the setting where it was.
@@ -233,8 +233,8 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		              kKit);
 	}
 	{
-		// Recorded from `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on the
-		// song master.
+		// Recorded from main's `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on
+		// the song master.
 		constexpr Expected kSong[] = {{83886080, 83886080, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},

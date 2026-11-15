@@ -287,7 +287,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 // `SoundDrum::killAllVoices()` IS entered (SliceCore::unbind_first_drum calls it) but is stubbed under
 // its mangled name rather than written out as a member definition: defining a member of `SoundDrum`
 // here makes this the translation unit that emits `SoundDrum`'s vtable, and that vtable names every
-// virtual in the Sound/ModControllableAudio hierarchy -- i.e. the whole synth. The vtable is stubbed
+// virtual in the Sound hierarchy -- i.e. the whole synth. The vtable is stubbed
 // as data below instead; nothing in these specs ever dispatches through it.
 DELUGE_STUB_FN(stub_soundDrumKillAllVoices, "_ZN9SoundDrum13killAllVoicesEv")
 

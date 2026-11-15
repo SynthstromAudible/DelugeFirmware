@@ -1,7 +1,7 @@
 #pragma once
 
 /// @brief The nine non-settings roots as data, plus the shared "global"
-///        (`GlobalEffectable`) pages they hang off.
+///        (host chain, `UNPATCHED_GLOBAL`) pages they hang off.
 ///
 /// The generated subtrees and the sound-editor root are declared elsewhere. This file declares
 /// everything `SoundEditor::setup` can open that is *not* that root and not the settings root
@@ -13,7 +13,7 @@
 /// `params::UnpatchedSound` both start at `UNPATCHED_NUM_SHARED`
 /// (`modulation/params/param.h:211-236`), so `UNPATCHED_LPF_FREQ` and `UNPATCHED_PORTAMENTO` are
 /// the *same integer* in two different numbering spaces -- only `ParamRef::kind` separates them.
-/// A page whose params are `GlobalEffectable`'s therefore needs its own nodes, carrying
+/// A page whose params are a host chain's therefore needs its own nodes, carrying
 /// `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared** param
 /// (`param.h:177-208` -- the stutter rate, the EQ four, the sidechain shape, the arp params, the
 /// bitcrush and decimation) the id is identical on both sides and this file names the sound-editor root's node

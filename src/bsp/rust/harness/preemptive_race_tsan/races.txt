@@ -121,7 +121,7 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     Song::renderAudio, SampleRecorder::feedAudio, AudioEngine::setForegroundRecording, AudioEngine::outputStage
 #   Debug log buffer (logDebug::buffer): printf _out_buffer
 #   Memory the render read, freed and reused by the interaction tier (heap arena; TSan sees a constructor writing
-#     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, the ladders' Linked, DelayBuffer,
+#     where audio last read): Song::Song, the effects owners, AutoParam, FilterSet, the ladders' Linked, DelayBuffer,
 #     DelayTape, RmsFeedbackCompressor (ctor, setBlend), readButtonsAndPads — the cross-tier
 #     lifetime class: objects freed with no handover from the render. Candidate fix: retire + epoch reclamation.
 #   Arpeggiator settings: ArpeggiatorSettings::updateParamsFromUnpatchedParamSet, cloneFrom
