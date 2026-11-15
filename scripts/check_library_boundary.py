@@ -208,6 +208,9 @@ LIBRARIES: dict[str, Library] = {
             "effects/plugin.h",
             "effects/words.h",
             "effects/setting_params.h",
+            # its effect rows are the effects' params at its ids
+            "effects/params.h",
+            "effects/param_row.h",
         ),
     ),
     "serialization": Library(

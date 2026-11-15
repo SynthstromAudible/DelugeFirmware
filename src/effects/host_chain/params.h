@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "effects/param_row.h"
+#include "effects/params.h"
 #include "plugin-api/types/param.h"
 
 #include <array>
@@ -78,21 +80,25 @@ inline constexpr ParamId kTempo{132};
 /// @brief The first id; the runtime keeps the param with id @c kFirstId + i at index i of its unpatched set.
 inline constexpr uint32_t kFirstId = 90;
 
-/// @brief Every param, in id order.
+namespace detail {
+inline constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+inline constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
+} // namespace detail
+
+/// @brief Every param, in id order: an effect's row is its effect param (effects/params.h) at this table's id and
+/// default; the arpeggiator's and the channel's rows are the table's own.
 inline constexpr std::array<plugin::ParamInfo, 43> kParams{{
-    {.id = param::kStutterRate, .file_name = "stutterRate"},
-    {.id = param::kBass, .file_name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
-    {.id = param::kTreble, .file_name = "treble", .flags = plugin::ParamFlag::MIDDLE_DETENT},
-    {.id = param::kBassFreq, .file_name = "bassFreq"},
-    {.id = param::kTrebleFreq, .file_name = "trebleFreq"},
-    {.id = param::kSampleRateReduction,
-     .file_name = "sampleRateReduction",
-     .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kBitcrushAmount, .file_name = "bitcrushAmount", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kModFXOffset, .file_name = "modFXOffset"},
-    {.id = param::kModFXFeedback, .file_name = "modFXFeedback", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kCompressorShape, .file_name = "compressorShape", .default_value = -601295438},
-    {.id = param::kCompressorThreshold, .file_name = "compressorThreshold", .mapping = plugin::MappingKind::UNIPOLAR},
+    effects::row(param::kStutterRate, effects::params::kStutterRate),
+    effects::row(param::kBass, effects::params::kBass),
+    effects::row(param::kTreble, effects::params::kTreble),
+    effects::row(param::kBassFreq, effects::params::kBassFrequency),
+    effects::row(param::kTrebleFreq, effects::params::kTrebleFrequency),
+    effects::row(param::kSampleRateReduction, effects::params::kSampleRateReduction, {.default_value = detail::kMin}),
+    effects::row(param::kBitcrushAmount, effects::params::kBitcrushAmount, {.default_value = detail::kMin}),
+    effects::row(param::kModFXOffset, effects::params::kModFxOffset),
+    effects::row(param::kModFXFeedback, effects::params::kModFxFeedback, {.default_value = detail::kMin}),
+    effects::row(param::kCompressorShape, effects::params::kSidechainShape, {.default_value = -601295438}),
+    effects::row(param::kCompressorThreshold, effects::params::kCompressorThreshold),
     {.id = param::kArpGate, .file_name = "arpGate", .default_value = std::numeric_limits<int32_t>::max()},
     {.id = param::kRhythm, .file_name = "rhythm", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kSequenceLength, .file_name = "sequenceLength", .default_value = std::numeric_limits<int32_t>::min()},
@@ -122,25 +128,22 @@ inline constexpr std::array<plugin::ParamInfo, 43> kParams{{
     {.id = param::kSpreadGate, .file_name = "spreadGate", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kSpreadOctave, .file_name = "spreadOctave", .default_value = std::numeric_limits<int32_t>::min()},
     {.id = param::kSpreadVelocity, .file_name = "spreadVelocity", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kModFXRate, .file_name = "modFXRate", .default_value = -536870912},
-    {.id = param::kModFXDepth, .file_name = "modFXDepth"},
-    {.id = param::kDelayRate, .file_name = "delayRate", .flags = plugin::ParamFlag::MIDDLE_DETENT},
-    {.id = param::kDelayFeedback,
-     .file_name = "delayFeedback",
-     .default_value = std::numeric_limits<int32_t>::min(),
-     .flags = plugin::ParamFlag::MIDDLE_DETENT},
+    effects::row(param::kModFXRate, effects::params::kModFxRate, {.default_value = -536870912}),
+    effects::row(param::kModFXDepth, effects::params::kModFxDepth),
+    effects::row(param::kDelayRate, effects::params::kDelayRate),
+    effects::row(param::kDelayFeedback, effects::params::kDelayFeedback, {.default_value = detail::kMin}),
     {.id = param::kArpRate, .file_name = "arpRate"},
     {.id = param::kPan,
      .file_name = "pan",
      .mapping = plugin::MappingKind::PAN,
      .flags = plugin::ParamFlag::CENTRED | plugin::ParamFlag::MIDDLE_DETENT},
-    {.id = param::kLpfFrequency, .file_name = "lpfFrequency", .default_value = std::numeric_limits<int32_t>::max()},
-    {.id = param::kLpfResonance, .file_name = "lpfResonance", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kLpfMorph, .file_name = "lpfMorph", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kHpfFrequency, .file_name = "hpfFrequency", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kHpfResonance, .file_name = "hpfResonance", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kHpfMorph, .file_name = "hpfMorph", .default_value = std::numeric_limits<int32_t>::min()},
-    {.id = param::kReverbAmount, .file_name = "reverbAmount", .default_value = std::numeric_limits<int32_t>::min()},
+    effects::row(param::kLpfFrequency, effects::params::kLpfFrequency, {.default_value = detail::kMax}),
+    effects::row(param::kLpfResonance, effects::params::kLpfResonance, {.default_value = detail::kMin}),
+    effects::row(param::kLpfMorph, effects::params::kLpfMorph, {.default_value = detail::kMin}),
+    effects::row(param::kHpfFrequency, effects::params::kHpfFrequency, {.default_value = detail::kMin}),
+    effects::row(param::kHpfResonance, effects::params::kHpfResonance, {.default_value = detail::kMin}),
+    effects::row(param::kHpfMorph, effects::params::kHpfMorph, {.default_value = detail::kMin}),
+    effects::row(param::kReverbAmount, effects::params::kReverbSend, {.default_value = detail::kMin}),
     {.id = param::kVolume, .file_name = "volume"},
     {.id = param::kSidechainCompressorVolume,
      .file_name = "sidechainCompressorVolume",
