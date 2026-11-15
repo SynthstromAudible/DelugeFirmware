@@ -44,7 +44,8 @@ static_assert(host_chain::kFirstId == modulation::params::UNPATCHED_START
 /// @param id The owner's id: one of its unpatched ids.
 /// @return The index into the owner's UnpatchedParamSet.
 [[nodiscard]] constexpr int32_t unpatchedIndex(plugin::ParamId id) {
-	assert(id.value >= modulation::params::UNPATCHED_START);
+	assert(id.value >= modulation::params::UNPATCHED_START
+	       && id.value < modulation::params::UNPATCHED_START + modulation::params::kMaxNumUnpatchedParams);
 	return static_cast<int32_t>(id.value - modulation::params::UNPATCHED_START);
 }
 

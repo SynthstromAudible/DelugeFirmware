@@ -322,8 +322,8 @@ void checkNames(Checker& check) {
 }
 
 /// Each effect's params against the runtime: a curved param's neutral and curve are the instrument's for the same
-/// param (the patched one a sound's chain uses). The tables' rows are built from the effects' params, checked by
-/// effects::built_from where each table names them.
+/// param (the patched one a sound's chain uses). The tables' effect rows are built from the effects' params with
+/// effects::row and pinned field for field by the params specs; effects::built_from checks the id lists a table names.
 void checkEffectFragments(Checker& check) {
 	using deluge::effects::EffectParam;
 	struct Curved {

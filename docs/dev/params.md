@@ -30,7 +30,7 @@ What names params by target:
 
 - the pad-grid shortcuts and the automation view's param orders (`modulation/params/param_targets.h`);
 - MIDI follow's maps (`controls::FollowTables`), with `MidiFollow::ccOf(owner, target)` for the CC that follows a
-  param, and the performance view's params, layout and shortcuts (global-effectable `ParamId`s);
+  param, and the performance view's params, layout and shortcuts (the host chain's `ParamId`s);
 - mod knobs (`ModKnob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
   the descriptor word the files and the model stack use), learned MIDI knobs (an `OwnerParamTarget` in the song's
   mapping table), the global effectable's default knob layout, and what a learning menu teaches a knob

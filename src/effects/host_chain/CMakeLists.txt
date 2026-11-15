@@ -1,5 +1,6 @@
 # deluge_host_chain: the param table a host chain has (the song master's, a kit's affect-entire's and an audio
-# track's) and the chains' knob pages. On the plugin types and the effects' words and setting params.
+# track's) and the chains' knob pages. On the plugin types and the effects' words, setting params, params and row
+# builder.
 add_library(deluge_host_chain STATIC pages.cpp)
 target_include_directories(deluge_host_chain PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
 target_compile_features(deluge_host_chain PUBLIC cxx_std_23)

@@ -33,7 +33,7 @@ constexpr uint32_t kModFxViews = 3;
 /// The highest page id of any section: the song's last compressor page.
 constexpr uint32_t kLastPageId = kCompPages;
 
-namespace ge = param;
+namespace hc = param;
 namespace setting = effects::setting;
 using plugin::ParamId;
 using plugin::PressAction;
@@ -78,11 +78,11 @@ bool mod_fx_page_valid(effects::ModFXType type, uint32_t mod_fx_param) {
 }
 
 RemotePage mod_fx_page(uint32_t mod_fx_param) {
-	constexpr std::array<ParamId, kModFxViews> kLower{ge::kModFXDepth, ge::kModFXFeedback, ge::kModFXOffset};
+	constexpr std::array<ParamId, kModFxViews> kLower{hc::kModFXDepth, hc::kModFXFeedback, hc::kModFXOffset};
 	constexpr uint32_t kFeedback = 1;
 	const uint32_t view = mod_fx_param < kLower.size() ? mod_fx_param : kFeedback;
 	return page(kModFxSection, view, 0, knob(kLower[view], PressAction::NEXT_PAGE),
-	            step(ge::kModFXRate, setting::kModFXType));
+	            step(hc::kModFXRate, setting::kModFXType));
 }
 
 namespace {
@@ -91,25 +91,25 @@ namespace {
 std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 	switch (section) {
 	case kLevelSection:
-		return page(kLevelSection, 0, 0, knob(ge::kPan), knob(ge::kVolume));
+		return page(kLevelSection, 0, 0, knob(hc::kPan), knob(hc::kVolume));
 	case kDelaySection:
 		return page(kDelaySection, 0, 0,
-		            step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
-		            step(ge::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
+		            step(hc::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
+		            step(hc::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
 	case kCompressorSection: {
 		// A clip chain's stutter outlives a press of its reverb button (main's
 		// `GlobalEffectableForClip::modButtonAction`); the song's reverb button has its own pages (song_reverb_page),
 		// which do not keep it.
-		RemotePage out = page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
-		                      step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
+		RemotePage out = page(kCompressorSection, 0, 0, knob(hc::kReverbAmount, PressAction::REVERB_PRESET),
+		                      step(hc::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
 		out.keeps_stutter = true;
 		return out;
 	}
 	case kStutterSection:
-		return page(kStutterSection, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
-		            knob(ge::kStutterRate, PressAction::HOLD_STUTTER));
+		return page(kStutterSection, 0, 0, in.song ? RemoteSlot{} : knob(hc::kPitchAdjust),
+		            knob(hc::kStutterRate, PressAction::HOLD_STUTTER));
 	case kLofiSection:
-		return page(kLofiSection, 0, 0, knob(ge::kBitcrushAmount), knob(ge::kSampleRateReduction));
+		return page(kLofiSection, 0, 0, knob(hc::kBitcrushAmount), knob(hc::kSampleRateReduction));
 	default:
 		return std::nullopt;
 	}
@@ -119,13 +119,13 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 std::optional<RemotePage> filter_page(uint32_t page_id) {
 	switch (page_id) {
 	case 0:
-		return page(kFilterSection, 0, 0, step(ge::kLpfResonance, setting::kLpfMode),
-		            knob(ge::kLpfFrequency, PressAction::NEXT_PAGE));
+		return page(kFilterSection, 0, 0, step(hc::kLpfResonance, setting::kLpfMode),
+		            knob(hc::kLpfFrequency, PressAction::NEXT_PAGE));
 	case 1:
-		return page(kFilterSection, 1, 0, step(ge::kHpfResonance, setting::kHpfMode),
-		            knob(ge::kHpfFrequency, PressAction::NEXT_PAGE));
+		return page(kFilterSection, 1, 0, step(hc::kHpfResonance, setting::kHpfMode),
+		            knob(hc::kHpfFrequency, PressAction::NEXT_PAGE));
 	case 2:
-		return page(kFilterSection, 2, 0, knob(ge::kBass), knob(ge::kTreble, PressAction::NEXT_PAGE));
+		return page(kFilterSection, 2, 0, knob(hc::kBass), knob(hc::kTreble, PressAction::NEXT_PAGE));
 	default:
 		return std::nullopt;
 	}
@@ -136,7 +136,7 @@ std::optional<RemotePage> filter_page(uint32_t page_id) {
 std::optional<RemotePage> song_reverb_page(uint32_t page_id) {
 	const RemoteSlot threshold = comp_knob(setting::kCompThreshold, PressAction::TOGGLE_GROUP);
 	if (page_id == 0) {
-		return page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET), threshold);
+		return page(kCompressorSection, 0, 0, knob(hc::kReverbAmount, PressAction::REVERB_PRESET), threshold);
 	}
 	constexpr std::array<ParamId, kCompPages> kComp{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease,
 	                                                setting::kCompHpf, setting::kCompBlend};

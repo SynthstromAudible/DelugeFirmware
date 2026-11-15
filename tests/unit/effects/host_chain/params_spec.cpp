@@ -3,7 +3,9 @@
 
 #include <array>
 #include <cppspec.hpp>
+#include <format>
 #include <limits>
+#include <string>
 #include <string_view>
 
 using namespace deluge::host_chain;
@@ -139,9 +141,11 @@ constexpr std::array<plugin::ParamInfo, 43> kRecordedRows{{
      .flags = plugin::ParamFlag::NO_UNDO | plugin::ParamFlag::FLOAT_INTERPOLATION},
 }};
 
-bool same_row(const plugin::ParamInfo& a, const plugin::ParamInfo& b) {
-	return a.id == b.id && a.file_name == b.file_name && a.scope == b.scope && a.units == b.units
-	       && a.default_value == b.default_value && a.range == b.range && a.mapping == b.mapping && a.flags == b.flags;
+/// Every field of @p row as text, so a failing comparison names the row and shows the field that differs.
+std::string row_text(const plugin::ParamInfo& row) {
+	return std::format("{} {} scope {} units {} default {} range [{}, {}] mapping {} flags {:#x}", row.id.value,
+	                   row.file_name, static_cast<int>(row.scope), static_cast<int>(row.units), row.default_value,
+	                   row.range.min, row.range.max, static_cast<int>(row.mapping), row.flags.bits);
 }
 } // namespace
 
@@ -193,7 +197,7 @@ describe params("the host chain's param table", ${
 
 	it("keeps every row's fields as recorded", _ {
 		for (size_t i = 0; i < kRecordedRows.size(); ++i) {
-			expect(same_row(kParams[i], kRecordedRows[i])).to_equal(true);
+			expect(row_text(kParams[i])).to_equal(row_text(kRecordedRows[i]));
 		}
 	});
 

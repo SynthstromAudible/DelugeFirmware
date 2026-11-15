@@ -9,7 +9,7 @@
 #include <cppspec.hpp>
 
 using namespace deluge;
-namespace ge = deluge::host_chain::param;
+namespace hc = deluge::host_chain::param;
 namespace st = deluge::effects::setting;
 using deluge::plugin::PressAction;
 using deluge::host_chain::section_pages;
@@ -18,8 +18,8 @@ describe chain_pages("the host chains' pages", ${
 	it("puts the volume over the pan on the first mod button", _{
 		const auto pages = section_pages(0, {});
 		expect(pages.size()).to_equal(size_t{1});
-		expect(*pages[0].slots[0].param).to_equal(ge::kPan);
-		expect(*pages[0].slots[1].param).to_equal(ge::kVolume);
+		expect(*pages[0].slots[0].param).to_equal(hc::kPan);
+		expect(*pages[0].slots[1].param).to_equal(hc::kVolume);
 	});
 	it("cycles low-pass, high-pass, EQ from the upper knob, the lower stepping the mode", _{
 		const auto pages = section_pages(1, {});
@@ -28,12 +28,12 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[0].slots[0].press_param).to_equal(st::kLpfMode);
 		expect(*pages[1].slots[0].press_param).to_equal(st::kHpfMode);
 		expect(pages[2].slots[0].press).to_equal(PressAction::NONE);
-		expect(*pages[2].slots[1].param).to_equal(ge::kTreble);
+		expect(*pages[2].slots[1].param).to_equal(hc::kTreble);
 		for (const auto& page : pages) {
 			expect(page.slots[1].press).to_equal(PressAction::NEXT_PAGE);
 			expect(page.slots[1].kind).to_equal(plugin::ParamKind::UNPATCHED_GLOBAL);
 		}
-		expect(*pages[1].slots[1].param).to_equal(ge::kHpfFrequency);
+		expect(*pages[1].slots[1].param).to_equal(hc::kHpfFrequency);
 	});
 	it("has no page on the envelopes' button", _{
 		expect(section_pages(2, {}).empty()).to_be_true();
@@ -49,9 +49,9 @@ describe chain_pages("the host chains' pages", ${
 	it("gives a clip's reverb button the reverb preset and the sidechain", _{
 		const auto pages = section_pages(4, {});
 		expect(pages.size()).to_equal(size_t{1});
-		expect(*pages[0].slots[0].param).to_equal(ge::kReverbAmount);
+		expect(*pages[0].slots[0].param).to_equal(hc::kReverbAmount);
 		expect(pages[0].slots[0].press).to_equal(PressAction::REVERB_PRESET);
-		expect(*pages[0].slots[1].param).to_equal(ge::kSidechainCompressorVolume);
+		expect(*pages[0].slots[1].param).to_equal(hc::kSidechainCompressorVolume);
 		expect(*pages[0].slots[1].press_param).to_equal(st::kSidechainSyncLevel);
 	});
 	it("gives the song a reverb group and a five-page compressor group", _{
@@ -75,8 +75,8 @@ describe chain_pages("the host chains' pages", ${
 		auto pages = section_pages(5, {.mod_fx_type = effects::ModFXType::FLANGER});
 		expect(pages.size()).to_equal(size_t{1});
 		expect(pages[0].page_id).to_equal(1u);
-		expect(*pages[0].slots[0].param).to_equal(ge::kModFXFeedback);
-		expect(*pages[0].slots[1].param).to_equal(ge::kModFXRate);
+		expect(*pages[0].slots[0].param).to_equal(hc::kModFXFeedback);
+		expect(*pages[0].slots[1].param).to_equal(hc::kModFXRate);
 		expect(*pages[0].slots[1].press_param).to_equal(st::kModFXType);
 		expect(pages[0].slots[0].press).to_equal(PressAction::NEXT_PAGE);
 		pages = section_pages(5, {.mod_fx_type = effects::ModFXType::CHORUS});
@@ -87,7 +87,7 @@ describe chain_pages("the host chains' pages", ${
 	});
 	it("holds the stutter from the upper knob, and the clip's chain has the pitch below it", _{
 		expect(section_pages(6, {})[0].slots[1].press).to_equal(PressAction::HOLD_STUTTER);
-		expect(*section_pages(6, {})[0].slots[0].param).to_equal(ge::kPitchAdjust);
+		expect(*section_pages(6, {})[0].slots[0].param).to_equal(hc::kPitchAdjust);
 		expect(section_pages(6, {.song = true})[0].slots[0].param.has_value()).to_be_false();
 	});
 	it("gives each section's page by id alone, as its cycle holds it", _{
@@ -107,8 +107,8 @@ describe chain_pages("the host chains' pages", ${
 	});
 	it("puts the sample rate reduction over the bitcrush", _{
 		const auto pages = section_pages(7, {});
-		expect(*pages[0].slots[0].param).to_equal(ge::kBitcrushAmount);
-		expect(*pages[0].slots[1].param).to_equal(ge::kSampleRateReduction);
+		expect(*pages[0].slots[0].param).to_equal(hc::kBitcrushAmount);
+		expect(*pages[0].slots[1].param).to_equal(hc::kSampleRateReduction);
 	});
 	it("sets keeps_stutter on a clip chain's button 4 page only, never the song's", _{
 		for (uint32_t section = 0; section < 8; section++) {
@@ -189,7 +189,7 @@ describe chain_pages("the host chains' pages", ${
 						}
 					}
 				}
-				expect(record.decorate(ctx, ge::kModFXOffset).kind).to_equal(plugin::ParamKind::UNPATCHED_GLOBAL);
+				expect(record.decorate(ctx, hc::kModFXOffset).kind).to_equal(plugin::ParamKind::UNPATCHED_GLOBAL);
 			}
 		}
 	});
