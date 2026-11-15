@@ -87,7 +87,7 @@ void encodeChain(const FxChain& chain, deluge::serialization::Value& element, in
 }
 
 /// The output's own effects, when it runs a host chain (a kit, an audio track).
-std::optional<deluge::model::EffectsOwner> ownerOf(::Output& output) {
+[[nodiscard]] std::optional<deluge::model::EffectsOwner> ownerOf(::Output& output) {
 	switch (output.type) {
 	case OutputType::KIT:
 		return static_cast<::Kit&>(output).effectsOwner();
@@ -142,7 +142,7 @@ std::optional<deluge::model::EffectsOwner> chainAt(ChainAddress address, ::Song&
 	return found;
 }
 
-std::optional<ChainAddress> chainAddressOf(const deluge::model::EffectsOwner& owner, ::Song& song) {
+std::optional<ChainAddress> chainAddressOf(deluge::model::EffectsOwner owner, ::Song& song) {
 	// The chain the owner plays names it: the master's, or the one an output's record of this song holds (an owner of
 	// another song plays that song's record, and gets nothing here).
 	const FxChain* bound = owner.view != nullptr ? owner.view->bound() : nullptr;
@@ -155,7 +155,7 @@ std::optional<ChainAddress> chainAddressOf(const deluge::model::EffectsOwner& ow
 	for (const auto& [id, record] : song.project.output_structure.by_id) {
 		if (record.effects && &*record.effects == bound) {
 			// An output out of the song's lists (one an undo holds for its redo) plays its record but is not one of
-			// the song's owners: a gesture on it goes to its setters.
+			// the song's owners: a gesture on it goes to its own settings (bridge::applyEffectSetting).
 			const ChainAddress address{.kind = ChainAddress::Kind::OUTPUT, .id = id};
 			const std::optional<deluge::model::EffectsOwner> found = chainAt(address, song);
 			return found && found->core == owner.core ? std::optional{address} : std::nullopt;

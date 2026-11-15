@@ -36,7 +36,7 @@ namespace deluge::edits {
 
 namespace {
 /// @brief @p owner's effects; an owner a gesture edits the effects of always has them.
-deluge::model::EffectsOwner effectsOf(ModControllable& owner) {
+[[nodiscard]] deluge::model::EffectsOwner effectsOf(ModControllable& owner) {
 	const std::optional<deluge::model::EffectsOwner> effects = owner.effectsOwner();
 	if (!effects) {
 		FREEZE_WITH_ERROR("E475");
@@ -94,6 +94,11 @@ void changeEffect(::Song& song, deluge::model::EffectsOwner effects, std::string
 
 void changeView(ModControllable& owner, std::string_view key, std::string_view word) {
 	const deluge::model::EffectsOwner effects = effectsOf(owner);
+	if (effects.view == nullptr) {
+		// Only a host chain has a view; a gesture offering one on a sound is a gesture and its owner out of step.
+		D_PRINTLN("view refused: %.*s on an owner without a chain view", static_cast<int>(key.size()), key.data());
+		return;
+	}
 	if (currentSong != nullptr) {
 		if (const std::optional<deluge::project::ChainAddress> chain =
 		        deluge::bridge::chainAddressOf(effects, *currentSong)) {

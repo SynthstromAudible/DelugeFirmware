@@ -141,32 +141,31 @@ void AudioOutput::seedDocOutputIdentity() {
 
 void AudioOutput::cloneFrom(AudioOutput* other) {
 	channel_.cloneFrom(other->channel_);
-	auto ao = other;
-	setInputChannel(ao->inputChannel);
+	setInputChannel(other->inputChannel);
 
-	auto modeInt = util::to_underlying(ao->mode);
+	auto modeInt = util::to_underlying(other->mode);
 
 	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 	outputRecordingFrom = nullptr;
 	// old style cloning overdubs
 	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
 		// if the original track hasn't been recorded into then we'll just be a player. Avoids doubling monitoring
-		if (ao->isEmpty()) {
+		if (other->isEmpty()) {
 			mode = AudioOutputMode::player;
 		}
 		else {
 			// otherwise we'll become the new sampler/looper and the og will become a player; the clone takes the
 			// monitoring over below
-			ao->mode = AudioOutputMode::player;
-			if (ao->docOutput_ != nullptr) {
-				ao->docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(AudioOutputMode::player));
+			other->mode = AudioOutputMode::player;
+			if (other->docOutput_ != nullptr) {
+				other->docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(AudioOutputMode::player));
 			}
 		}
 	}
 	setMode(mode);
 
 	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-		outputRecordingFrom = ao->outputRecordingFrom;
+		outputRecordingFrom = other->outputRecordingFrom;
 		recordRecordingFrom();
 		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
 		updateMonitoringClaim();

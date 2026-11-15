@@ -52,7 +52,7 @@ namespace deluge::bridge {
 /// @param owner The effects owner.
 /// @param song  The song to look in.
 /// @return The chain's address, or nullopt.
-[[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const deluge::model::EffectsOwner& owner,
+[[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(deluge::model::EffectsOwner owner,
                                                                           ::Song& song);
 
 /// @brief @p owner plays @p chain from now on: the chain takes @p home's slots and what the owner plays. Nothing when

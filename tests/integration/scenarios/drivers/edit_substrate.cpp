@@ -1321,7 +1321,7 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	after.filter.lpf_mode = FilterMode::SVF_NOTCH;
 	deluge::model::storeEffects(*kit.effectsOwner(), after);
 	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
-	      "chain ownership: and its setters still write them");
+	      "chain ownership: and a direct store still writes them");
 	AudioEngine::retire(&kit);
 
 	const deluge::effects::EffectStates* audioRecord = &audio->effectsOwner()->effects();

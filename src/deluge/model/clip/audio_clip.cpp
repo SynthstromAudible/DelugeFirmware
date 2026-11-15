@@ -1417,7 +1417,7 @@ someError:
 			paramManager.setupUnpatched();
 			deluge::model::initGlobalParams(&paramManager);
 			// Read the <params> block DOM-first so the store holds the authoritative current_value, not just the
-			// nodes (initAudioClipParams wrote the defaults straight into the store).
+			// nodes (initGlobalParams wrote the defaults straight into the store).
 			reader.match('{'); // descend into the params object (needed for JSON; no-op in XML), as InstrumentClip does
 			deluge::model::readGlobalParamsDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');

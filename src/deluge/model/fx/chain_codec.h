@@ -42,7 +42,7 @@ namespace deluge::model {
 /// @brief A host chain's attributes: its view words (which mod FX value and filter the knobs edit), then the effects'.
 /// @param writer Destination.
 /// @param owner  The host chain's owner (owner.view set).
-void writeChainAttributes(Serializer& writer, const EffectsOwner& owner);
+void writeChainAttributes(Serializer& writer, EffectsOwner owner);
 
 /// @brief An owner's effect tags: the `defaultParams` block (a host chain's, when @p paramManager), then the delay,
 /// the learned MIDI knobs and the other effect tags.
@@ -52,7 +52,7 @@ void writeChainAttributes(Serializer& writer, const EffectsOwner& owner);
 /// @param writeAutomation Whether the params' automation is written.
 /// @param knobsSong       The song whose table the learned knobs are written from, or nullptr.
 /// @param knobsOwner      Whose controls these are, if known.
-void writeEffectTags(Serializer& writer, const EffectsOwner& owner, ParamManager* paramManager, bool writeAutomation,
+void writeEffectTags(Serializer& writer, EffectsOwner owner, ParamManager* paramManager, bool writeAutomation,
                      ::Song* knobsSong, std::optional<project::ControlsAddress> knobsOwner);
 
 /// @brief The learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: those
@@ -62,7 +62,7 @@ void writeEffectTags(Serializer& writer, const EffectsOwner& owner, ParamManager
 /// @param owner   The knobs' owner.
 /// @param song    The song being saved, or the one a preset is saved from; nullptr when there is none.
 /// @param address Whose controls these are, if known.
-void writeMidiKnobs(Serializer& writer, const EffectsOwner& owner, ::Song* song,
+void writeMidiKnobs(Serializer& writer, EffectsOwner owner, ::Song* song,
                     std::optional<project::ControlsAddress> address);
 
 /// @brief Reads one of an owner's tags: `defaultParams` (a host chain's, when @p paramManager), `arpeggiator` (when
@@ -89,8 +89,19 @@ void readEffectsFromElement(EffectsOwner owner, const serialization::Value& elem
 
 /// @name A host chain's param block
 /// @{
+/// @brief Writes a host chain's param block attributes from its DOM store.
+/// @param writer            Destination.
+/// @param paramManager      The host chain's params.
+/// @param writeAutomation   Whether the params' automation is written.
+/// @param valuesForOverride When given, overrides each param's value but the shared arp ones.
 void writeGlobalParamAttributes(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                 int32_t* valuesForOverride = nullptr);
+/// @brief Writes a host chain's param block tags (the `<delay>`, `<lpf>` and `<hpf>` groups, then the shared
+/// effects tags) from its DOM store.
+/// @param writer            Destination.
+/// @param paramManager      The host chain's params.
+/// @param writeAutomation   Whether the params' automation is written.
+/// @param valuesForOverride When given, overrides each param's value.
 void writeGlobalParamTags(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                           int32_t* valuesForOverride = nullptr);
 /// @brief Reads the param block into the owner's DOM store, then projects each engine RT cursor from the store. The

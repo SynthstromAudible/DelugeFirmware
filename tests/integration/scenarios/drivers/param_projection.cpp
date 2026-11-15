@@ -1020,10 +1020,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The shared effects param block (flat attrs + <equalizer>) serializes
-	// byte-identical to the engine's static writeParamAttributesToFile / writeParamTagsToFile.
+	// byte-identical to the shared-block serializers over the engine set (`bridge::toDocParamSet`).
 	{
 		ParamManagerForTimeline pm;
-		check(pm.setupWithPatching() == Error::NONE, "mca setup");
+		check(pm.setupWithPatching() == Error::NONE, "shared params setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
 		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
@@ -1161,7 +1161,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The host chain param block round-trips through the DOM reader (flat attrs +
-	// delay/lpf/hpf groups + shared MCA), and the read path still accepts the legacy nested <lpf morph>.
+	// delay/lpf/hpf groups + shared effects), and the read path still accepts the legacy nested <lpf morph>.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "ge-rt setup");
@@ -1172,7 +1172,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);                // <delay> group
 		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);                   // <hpf> group
 		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);                 // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);              // shared MCA attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);              // shared effects attr
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333);                     // equalizer group
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
@@ -1377,7 +1377,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The Sound param block round-trips through the DOM reader (patched + unpatched flat attrs,
-	// the <envelope*> groups, the shared MCA block). Patch cables are excluded here — they keep the engine
+	// the <envelope*> groups, the shared effects block). Patch cables are excluded here — they keep the engine
 	// reader (pre-V3.2 back-compat) — so no cables are set.
 	{
 		ParamManagerForTimeline pm;
@@ -1390,7 +1390,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pp->params[params::LOCAL_LPF_MORPH].setPlayed(111); // community attr
 		pp->params[params::LOCAL_PITCH_ADJUST].setPlayed(678);
 		up->params[params::UNPATCHED_PORTAMENTO].setPlayed(222);
-		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
+		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared effects attr
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 
@@ -1443,9 +1443,10 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		up->params[params::UNPATCHED_PAN].setPlayed(555);                     // not automated ⇒ override ignored
 		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
 		// An automated shared arp attr: the engine writes it WITHOUT the override (only the
-		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
+		// first six shared effects attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
-		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
+		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21,
+		          true);           // override-eligible shared effects attr
 		authorStoreFromEngine(pm); // model::writeGlobalParamAttributes reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
@@ -1456,7 +1457,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
 		ovr[params::UNPATCHED_BASS] = -77;
 		ovr[params::UNPATCHED_ARP_GATE] = -555;     // must be ignored (arp attr, no override)
-		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible MCA attr)
+		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible shared effects attr)
 
 		static char engBuf[16384];
 		static char domBuf[16384];
@@ -1504,7 +1505,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);   // <delay> group
 		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);      // <hpf> group
 		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);    // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared effects attr
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333);        // equalizer group
 
 		deluge::project::DocParamSet src = deluge::bridge::toDocParamSet(*unp);

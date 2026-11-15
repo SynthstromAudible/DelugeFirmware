@@ -53,14 +53,14 @@ namespace {
 
 /// The learned knobs @p output holds outside the table: a synth's sound's, a kit's or an audio track's; null for any
 /// other output.
-deluge::model::KnobCarrier* knobsOf(::Output& output) {
+[[nodiscard]] deluge::model::KnobCarrier* knobsOf(::Output& output) {
 	::ModControllable* own = output.toModControllable();
 	const std::optional<deluge::model::EffectsOwner> effects = own != nullptr ? own->effectsOwner() : std::nullopt;
 	return effects ? effects->knobs : nullptr;
 }
 
 /// The learned knobs @p drum holds outside the table: a sound row's; null for any other row.
-deluge::model::KnobCarrier* knobsOf(::Drum& drum) {
+[[nodiscard]] deluge::model::KnobCarrier* knobsOf(::Drum& drum) {
 	return drum.type == DrumType::SOUND ? static_cast<SoundDrum&>(drum).effectsOwner()->knobs : nullptr;
 }
 
@@ -897,7 +897,7 @@ bool handsOverKnobs(::Song& song, ::Output& output) {
 	                           });
 }
 
-bool learnedKnobTurns(::Song* song, const deluge::model::EffectsOwner& owner, std::optional<ControlsAddress> address,
+bool learnedKnobTurns(::Song* song, deluge::model::EffectsOwner owner, std::optional<ControlsAddress> address,
                       const deluge::project::ParamTarget& param) {
 	const auto turns = [&](const Mapping& knob) {
 		return std::get<deluge::project::OwnerParamTarget>(knob.target).param == param;
@@ -917,7 +917,7 @@ bool learnedKnobTurns(::Song* song, const deluge::model::EffectsOwner& owner, st
 	       && std::ranges::any_of(song->project.mappings.params_of(*address), turns);
 }
 
-std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, const deluge::model::EffectsOwner& owner,
+std::optional<std::vector<Mapping>> savedKnobsOf(::Song& song, deluge::model::EffectsOwner owner,
                                                  std::optional<ControlsAddress> address) {
 	if (!address) {
 		return std::nullopt;

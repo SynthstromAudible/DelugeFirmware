@@ -564,9 +564,9 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
-        # An effects owner is an EffectsOwner value (model/fx/effects_owner.h), found by address or, from a ModelStack,
-        # through ModControllable::effectsOwner(); the classes that once held owners' effects are gone, and no code
-        # names them again. One row per tree: the checker matches one glob per row.
+        # Code names none of ModControllableAudio and the GlobalEffectable classes: an owner's effects are an
+        # EffectsOwner value (model/fx/effects_owner.h), found by address or, from a ModelStack, through
+        # ModControllable::effectsOwner(). One row per tree: the checker matches one glob per row.
         "no-legacy-effects-owners",
         "src/**",
         "symbol",

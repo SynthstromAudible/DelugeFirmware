@@ -95,8 +95,8 @@ struct DocParamAttr {
 void writeDocParamGroup(Serializer& out, const char* groupName, std::span<const DocParamAttr> params,
                         const DocParamSet& doc, bool writeAutomation, const int32_t* valuesForOverride = nullptr);
 
-/// @brief Serialize the shared effects param block's flat attrs from the unpatched collection (what
-/// what a sound's and a host chain's writers write).
+/// @brief Serialize the shared effects param block's flat attrs from the unpatched collection (what a
+/// sound's and a host chain's writers write).
 ///
 /// The attrs and the `<equalizer>` group (serializeModControllableParamTags) are emitted at different points in the
 /// owner's tag, so they are separate.
@@ -121,7 +121,7 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 /// `model::writeGlobalParamAttributes` writes).
 ///
 /// The flat global attrs (reverb/volume/pan, the conditional pitchAdjust + sidechain volume, modFX…) wrap the shared
-/// shared effects attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate follow.
+/// effects attrs, then lpfMorph/hpfMorph/tempo/arpeggiatorRate follow.
 ///
 /// @param unpatched        The unpatched collection.
 /// @param out              The serializer to write to.
@@ -132,7 +132,7 @@ void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Seri
                                               const int32_t* valuesForOverride = nullptr);
 /// @brief Serialize the host chain param block's tags from the unpatched collection (what
 /// `model::writeGlobalParamTags` writes): the `<delay>` / `<lpf>` / `<hpf>` groups, then the shared
-/// shared effects tags.
+/// effects tags.
 ///
 /// @param unpatched        The unpatched collection.
 /// @param out              The serializer to write to.
@@ -223,7 +223,7 @@ bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet
                                  ParamCollectionSummary& unpatchedSummary, int32_t readAutomationUpToPos);
 
 /// @brief Read one host chain param-block tag into the live collection: the `<delay>`/`<lpf>`/`<hpf>` groups +
-/// the host chain flat attrs, then the shared MCA block.
+/// the host chain flat attrs, then the shared effects block.
 ///
 /// The `<lpf>`/`<hpf>` read groups also accept the legacy nested `morph` member (which the writer emits as a flat
 /// `lpfMorph`/`hpfMorph` attr).
@@ -239,7 +239,7 @@ bool readGlobalEffectableParamTag(Deserializer& in, char const* tagName, ParamSe
 
 /// @brief Read one Sound param-block tag into the live collections: the two unpatched flat attrs (portamento /
 /// compressorShape), the patched flat attrs (osc / filter / LFO / FM / pitchAdjust family / community attrs), the
-/// four `<envelope*>` groups, then the shared MCA block.
+/// four `<envelope*>` groups, then the shared effects block.
 ///
 /// @note The `<patchCables>` tag is not handled here: the caller keeps the engine's reader for it (it carries
 ///       pre-V3.2 cable back-compat the DOM reader drops).
@@ -274,7 +274,7 @@ bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& exp
 // reprojected from the store via `fromDocParamSet`. These share the same `DocParamAttr` tables as the
 // engine-target readers above.
 
-/// @brief Read one shared effects-block tag into @p doc (the `<equalizer>` group + the flat MCA
+/// @brief Read one shared effects-block tag into @p doc (the `<equalizer>` group + the flat shared
 /// attrs).
 ///
 /// @param in                    The deserializer.
@@ -286,7 +286,7 @@ bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, Doc
                                       int32_t readAutomationUpToPos);
 
 /// @brief Read one host chain param-block tag into @p doc: the `<delay>`/`<lpf>`/`<hpf>` groups + host chain flat
-/// attrs (incl. the legacy nested `morph` members) + the shared MCA block.
+/// attrs (incl. the legacy nested `morph` members) + the shared effects block.
 ///
 /// @param in                    The deserializer.
 /// @param tagName               The tag just opened.
@@ -307,7 +307,8 @@ bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, Do
 bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                  int32_t readAutomationUpToPos);
 
-/// @brief Read one Sound param-block tag into the two DOM stores: unpatched flat attrs + the shared MCA block land in
+/// @brief Read one Sound param-block tag into the two DOM stores: unpatched flat attrs + the shared effects block land
+/// in
 /// @p unpatched; patched flat attrs + the `<envelope1..4>` groups land in @p patched.
 ///
 /// @note `<patchCables>` is not handled here: the caller keeps the engine reader for it (pre-V3.2 cable back-compat

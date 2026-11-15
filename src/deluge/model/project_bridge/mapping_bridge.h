@@ -71,7 +71,7 @@ void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 /// @param address The owner's own address (its id's), if it has one.
 /// @param param   The param.
 /// @return True if one does.
-[[nodiscard]] bool learnedKnobTurns(::Song* song, const deluge::model::EffectsOwner& owner,
+[[nodiscard]] bool learnedKnobTurns(::Song* song, deluge::model::EffectsOwner owner,
                                     std::optional<deluge::project::ControlsAddress> address,
                                     const deluge::project::ParamTarget& param);
 
@@ -277,7 +277,6 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 /// @param address Whose controls @p owner's are, if known.
 /// @return The knobs, or nullopt when @p song does not hold @p owner at @p address (a save then has no table to read).
 [[nodiscard]] std::optional<std::vector<deluge::project::Mapping>>
-savedKnobsOf(::Song& song, const deluge::model::EffectsOwner& owner,
-             std::optional<deluge::project::ControlsAddress> address);
+savedKnobsOf(::Song& song, deluge::model::EffectsOwner owner, std::optional<deluge::project::ControlsAddress> address);
 
 } // namespace deluge::bridge

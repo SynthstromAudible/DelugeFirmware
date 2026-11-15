@@ -650,8 +650,7 @@ ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<cha
 	return source_page_title(ctx, page, out, osc1_type, '2');
 }
 ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
-	// `modfx::getModNames()` (`modfx::getModNames` in `model/global_effectable/global_effectable.cpp`), indexed by
-	// type.
+	// main's `modfx::getModNames()`, indexed by type.
 	static constexpr std::array kNames{String::STRING_FOR_DISABLED,      String::STRING_FOR_FLANGER,
 	                                   String::STRING_FOR_CHORUS,        String::STRING_FOR_PHASER,
 	                                   String::STRING_FOR_STEREO_CHORUS, String::STRING_FOR_WARBLE,

@@ -30,11 +30,11 @@ namespace modfx {
 /// @param param     The knob to name.
 /// @param shortName Whether to give the short form, for a column label.
 /// @return The knob's name.
-const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
+[[nodiscard]] const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
 
 /// @brief @p type's name.
 /// @param type The mod FX type.
 /// @return The type's name.
-const char* modFXToString(ModFXType type);
+[[nodiscard]] const char* modFXToString(ModFXType type);
 
 } // namespace modfx

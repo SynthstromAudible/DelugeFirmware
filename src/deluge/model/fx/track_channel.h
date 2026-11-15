@@ -132,7 +132,7 @@ public:
 	/// @brief Takes @p other's filters, saturation, mod FX, sidechain, delay, stutter, view and held knobs, as a cloned
 	/// audio track does; this channel's compressor stays its own.
 	/// @param other The channel cloned from.
-	void cloneFrom(TrackChannel& other);
+	void cloneFrom(const TrackChannel& other);
 
 	/// @brief Renders one block: @p content, then the chain over it, added into @p output, then the clip's param
 	/// automation ticks. Once the content has gone silent and the chain's tails have died away, the chain is skipped

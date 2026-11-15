@@ -3633,9 +3633,9 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	    && (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT)) {
 		const std::optional<deluge::model::EffectsOwner> old = oldOutput->toModControllable()->effectsOwner();
 		if (old && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
-			const deluge::model::EffectsOwner now = *newOutput->toModControllable()->effectsOwner();
+			const deluge::model::EffectsOwner incoming = *newOutput->toModControllable()->effectsOwner();
 			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
-			now.knobs->loaded = std::move(old->knobs->loaded);
+			incoming.knobs->loaded = std::move(old->knobs->loaded);
 			old->knobs->loaded.clear();
 			handedOverFrom = old;
 		}

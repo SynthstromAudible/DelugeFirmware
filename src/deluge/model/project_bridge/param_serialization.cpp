@@ -91,7 +91,7 @@ namespace {
 // sequence + the <equalizer> group, in file order. All written unconditionally (onlyIfContainsSomething
 // is false in the engine for every one).
 // The first six shared effects attrs honour the value-override array; the engine passes
-// valuesForOverride only to these (mod_controllable_audio.cpp).
+// valuesForOverride only to these (serializeModControllableParamAttributes's callers).
 constexpr DocParamAttr kModControllableOverrideAttrs[] = {
     {"stutterRate", ip::kStutterRate},     {"sampleRateReduction", ip::kSampleRateReduction},
     {"bitCrush", ip::kBitcrushAmount},     {"modFXOffset", ip::kModFXOffset},
@@ -165,9 +165,9 @@ constexpr DocParamAttr kGlobalHpfGroup[] = {
 
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                               const int32_t* ovr) {
-	// Byte-for-byte reproduction of model::writeGlobalParamAttributes. The flat global attrs
-	// wrap the shared effects attrs; pitchAdjust and sidechainCompressorVolume are written
-	// only when they contain something (with their own neutral values), the rest unconditionally.
+	// Byte-for-byte what main's `GlobalEffectable::writeParamAttributesToFile` writes (the file format). The flat
+	// global attrs wrap the shared effects attrs; pitchAdjust and sidechainCompressorVolume are written only when they
+	// contain something (with their own neutral values), the rest unconditionally.
 	writeDocParamAsAttribute(unpatched, "reverbAmount", gp::kReverbAmount, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "volume", gp::kVolume, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "pan", gp::kPan, out, writeAutomation, false, ovr);
@@ -196,7 +196,7 @@ void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Seri
 
 void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                         const int32_t* ovr) {
-	// Byte-for-byte reproduction of model::writeGlobalParamTags: the <delay>/<lpf>/<hpf>
+	// Byte-for-byte what main's `GlobalEffectable::writeParamTagsToFile` writes: the <delay>/<lpf>/<hpf>
 	// groups, then the shared effects tags (<equalizer>).
 	writeDocParamGroup(out, "delay", kGlobalDelayGroup, unpatched, writeAutomation, ovr);
 	writeDocParamGroup(out, "lpf", kGlobalLpfGroup, unpatched, writeAutomation, ovr);

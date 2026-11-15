@@ -43,7 +43,7 @@ namespace {
 
 /// The codec context a file's effect entries are written in: the current song's tick magnitude, even when the song
 /// being saved is another (the learned knobs take the saved song; this does not).
-plugin::CodecContext effectsCodecContext() {
+[[nodiscard]] plugin::CodecContext effectsCodecContext() {
 	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
 }
 
@@ -103,14 +103,14 @@ void readGlobalParams(Deserializer& reader, ParamManagerForTimeline* paramManage
 
 } // namespace
 
-void writeChainAttributes(Serializer& writer, const EffectsOwner& owner) {
+void writeChainAttributes(Serializer& writer, EffectsOwner owner) {
 	// Its record's, while it plays one.
 	writer.writeAttribute("modFXCurrentParam", modFXParamToString(owner.view->modFXParam()));
 	writer.writeAttribute("currentFilterType", filterTypeToString(owner.view->filterType()));
 	writer.writeValue(effects::encode_pieces(owner.effects(), effectsCodecContext()).attributes);
 }
 
-void writeEffectTags(Serializer& writer, const EffectsOwner& owner, ParamManager* paramManager, bool writeAutomation,
+void writeEffectTags(Serializer& writer, EffectsOwner owner, ParamManager* paramManager, bool writeAutomation,
                      ::Song* knobsSong, std::optional<project::ControlsAddress> knobsOwner) {
 	if (paramManager != nullptr) {
 		writer.writeOpeningTagBeginning("defaultParams");
@@ -126,7 +126,7 @@ void writeEffectTags(Serializer& writer, const EffectsOwner& owner, ParamManager
 	writer.writeValue(pieces.tags);
 }
 
-void writeMidiKnobs(Serializer& writer, const EffectsOwner& owner, ::Song* song,
+void writeMidiKnobs(Serializer& writer, EffectsOwner owner, ::Song* song,
                     std::optional<project::ControlsAddress> address) {
 	std::optional<std::vector<project::Mapping>> saved =
 	    song != nullptr ? bridge::savedKnobsOf(*song, owner, address) : std::nullopt;
