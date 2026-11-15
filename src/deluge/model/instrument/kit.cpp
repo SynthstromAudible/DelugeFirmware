@@ -36,6 +36,7 @@
 #include "model/drum/non_audio_drum.h"
 #include "model/edits/bend_range_for.h"
 #include "model/fx/chain_inputs.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
@@ -120,7 +121,7 @@ Kit::~Kit() {
 		toDelete->~Drum();
 		delugeDealloc(toDealloc);
 	}
-	endStutterIfStuttering();
+	deluge::model::endStutterIfStuttering(channel_.core());
 }
 
 Drum* Kit::getNextDrum(Drum* fromDrum) {
@@ -1132,7 +1133,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 }
 
 void Kit::prepareForHibernationOrDeletion() {
-	ModControllableAudio::wontBeRenderedForAWhile();
+	deluge::model::chainWontRender(*effectsOwner());
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		thisDrum->prepareForHibernation();

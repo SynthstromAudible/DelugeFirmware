@@ -16,11 +16,12 @@
  */
 
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/fx/stutter_gesture.h"
 
 GlobalEffectableForSong::GlobalEffectableForSong(deluge::model::MasterChannel& channel) : channel_{channel} {
 	bindBinding(channel_.binding());
 }
 
 GlobalEffectableForSong::~GlobalEffectableForSong() {
-	endStutterIfStuttering();
+	deluge::model::endStutterIfStuttering(channel_.core());
 }

@@ -5,7 +5,9 @@
 #include "effects/plugin.h"
 #include "effects/state.h"
 #include "effects/words.h"
+#include "gui/ui/ui.h"
 #include "model/fx/effects_owner.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/project_bridge/chain_bridge.h"
@@ -204,6 +206,26 @@ describe effects_owner("an owner's EffectsOwner", ${
 			                               *synth.song)
 			           .has_value())
 			    .to_be_false();
+		});
+	});
+
+	context("the song's stutter and an owner leaving", _ {
+		it("ends the stutter only for the chain that plays it", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			spec::make_current(f.song);
+			auto& kit = *static_cast<Kit*>(f.instrument);
+			const uint32_t saved = currentUIMode;
+			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+			deluge::model::beginStutter(*kit.effectsOwner(), f.clip->paramManager);
+			expect(f.song->live.stutter.isStuttering(kit.channel().core())).to_be_true();
+			deluge::model::endStutterIfStuttering(f.song->live.master_channel.core());
+			expect(f.song->live.stutter.isStuttering(kit.channel().core())).to_be_true();
+			expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
+			deluge::model::endStutterIfStuttering(kit.channel().core());
+			expect(f.song->live.stutter.active()).to_be_false();
+			expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
+			currentUIMode = saved;
+			spec::make_current(nullptr);
 		});
 	});
 

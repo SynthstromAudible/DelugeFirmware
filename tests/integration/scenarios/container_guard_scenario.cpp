@@ -49,6 +49,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/fx/chain_inputs.h"
 #include "model/fx/song_stutter.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
@@ -1678,7 +1679,7 @@ void editLeg() {
 		deluge::model::SongStutter& stutter = currentSong->live.stutter;
 		auto* track = static_cast<AudioOutput*>(g_audio->output);
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
-		track->beginStutter(&g_audio->paramManager);
+		deluge::model::beginStutter(*track->effectsOwner(), g_audio->paramManager);
 		const bool first = stutter.isStuttering(track->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		const auto rate = static_cast<uint32_t>(
@@ -1687,7 +1688,7 @@ void editLeg() {
 		const bool handed = stutter.begin(g_kit->core(), g_kit->effects().stutter, rate) == Error::NONE;
 		const bool second = handed && stutter.isStuttering(g_kit->core()) && !stutter.isStuttering(track->core());
 		renderBlocks(20);
-		g_kit->endStutter(&g_clip->paramManager);
+		deluge::model::endStutter(&g_clip->paramManager);
 		renderBlocks(5);
 		const bool ended = !stutter.active() && !isUIModeActive(UI_MODE_STUTTERING);
 		const bool noted = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE) >= notedBefore + 3;
@@ -1714,7 +1715,7 @@ void editLeg() {
 		                       && g_kit->effects().stutter.use_song_stutter;
 		deluge::memory::failNextAllocationOfSize(deluge::effects::tape_shape(rate, true).frames
 		                                         * sizeof(deluge::dsp::StereoSample));
-		g_kit->beginStutter(&g_clip->paramManager);
+		deluge::model::beginStutter(*g_kit->effectsOwner(), g_clip->paramManager);
 		const bool injected = quantized && !deluge::memory::allocationFailurePending();
 		const bool stuttering = stutter.active();
 		const bool uiMode = isUIModeActive(UI_MODE_STUTTERING);
@@ -1742,7 +1743,7 @@ void editLeg() {
 		// A knob position of 20 snaps to 32nds, knob position 8: the snap's offset from the param is -12.
 		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setPlayed(
 		    unpatched->knobPosToParamValue(20, nullptr));
-		lone->beginStutter(&paramManager);
+		deluge::model::beginStutter(*lone->effectsOwner(), paramManager);
 		const bool began = stutter.isStuttering(lone->core()) && stutter.lastQuantizedKnobDiff == 8 - 20;
 		AudioEngine::retire(static_cast<Output*>(lone));
 		renderBlocks(3);
@@ -1759,7 +1760,7 @@ void editLeg() {
 		// does: the swap's interaction side ends the outgoing song's stutter and gives its tape back, which is read
 		// from the outgoing song before it is retired.
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
-		g_kit->beginStutter(&g_clip->paramManager);
+		deluge::model::beginStutter(*g_kit->effectsOwner(), g_clip->paramManager);
 		const bool began = currentSong->live.stutter.isStuttering(g_kit->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		Song* const outgoing = currentSong;
@@ -1793,7 +1794,7 @@ void editLeg() {
 		// the old song's stutter ends and gives its tape back before the song is let go. The old song is freed inside
 		// the accept, so only the hand-over it notes can be read.
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
-		g_kit->beginStutter(&g_clip->paramManager);
+		deluge::model::beginStutter(*g_kit->effectsOwner(), g_clip->paramManager);
 		const bool began = currentSong->live.stutter.isStuttering(g_kit->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();

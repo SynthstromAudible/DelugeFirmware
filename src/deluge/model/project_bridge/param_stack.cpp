@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/param_stack.h"
+#include "model/fx/stutter_gesture.h"
 
 #include "instruments/deluge/cables.h"
 #include "model/clip/audio_clip.h"
@@ -378,16 +379,16 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 	if (found.stack == nullptr || (found.holder != Holder::SOUND && found.holder != Holder::EFFECTABLE)) {
 		return false;
 	}
-	auto* audio = static_cast<ModControllableAudio*>(found.stack->modControllable);
+	const model::EffectsOwner effects = *found.stack->modControllable->effectsOwner();
 	auto* params = static_cast<ParamManagerForTimeline*>(found.stack->paramManager);
 	if (begin) {
-		audio->beginStutter(params);
+		model::beginStutter(effects, *params);
 	}
 	else {
-		audio->endStutter(params);
+		model::endStutter(params);
 	}
 	if (found.holder == Holder::SOUND) {
-		static_cast<::Sound*>(audio)->reassessRenderSkippingStatus(found.stack->addSoundFlags());
+		effects.sound->reassessRenderSkippingStatus(found.stack->addSoundFlags());
 	}
 	return true;
 }

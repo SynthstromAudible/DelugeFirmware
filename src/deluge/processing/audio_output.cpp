@@ -29,6 +29,7 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -77,7 +78,7 @@ AudioOutput::~AudioOutput() {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
 	}
-	endStutterIfStuttering();
+	deluge::model::endStutterIfStuttering(channel_.core());
 }
 
 void AudioOutput::setMode(AudioOutputMode newMode) {

@@ -81,6 +81,16 @@ void bindChain(EffectsOwner owner, project::FxChain& chain);
 /// @param owner The host chain's owner.
 void unbindChain(EffectsOwner owner);
 
+/// @brief Clears the owner's mod FX memory, as a sound cutting its tail does: the grain's grains and first pass, or a
+/// comb type's delay line or phaser memories; nothing with no mod FX playing.
+/// @param owner The owner.
+void clearModFXMemory(EffectsOwner owner);
+
+/// @brief The owner won't render for a while (hibernation, or a drum left with no row): its delay's tapes go back with
+/// the render excluded, and the song's stutter ends.
+/// @param owner The owner.
+void chainWontRender(EffectsOwner owner);
+
 /// @brief Makes the owner's settings its current ones with @p change applied to a copy of them, and projects them: a
 /// direct change, for an owner whose settings are its own to set (no Edit, no record hand-over).
 /// @param owner  The owner.

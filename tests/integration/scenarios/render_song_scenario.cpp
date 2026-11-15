@@ -37,6 +37,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/song_stutter.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
@@ -244,7 +245,7 @@ void runStutters(uint64_t block) {
 	for (StutterSpan& span : g_stutterAt) {
 		if (span.begun && !span.ended && block >= span.end) {
 			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
-				owner->endStutter(params);
+				deluge::model::endStutter(params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu end owner=%s\n", static_cast<unsigned long long>(block),
 				       span.owner.c_str());
@@ -255,7 +256,7 @@ void runStutters(uint64_t block) {
 	for (StutterSpan& span : g_stutterAt) {
 		if (!span.begun && block >= span.begin) {
 			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
-				owner->beginStutter(params);
+				deluge::model::beginStutter(*owner->effectsOwner(), *params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu begin owner=%s\n", static_cast<unsigned long long>(block),
 				       span.owner.c_str());
@@ -778,7 +779,7 @@ void dumpTakes() {
 
 /// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
-/// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
+/// model::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
 /// clearMemory, which zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular
 /// component's clear, which stops its grains and starts its ring over. An owner whose type is none is not cleared, nor
 /// is a grain with no State (one whose allocation failed).
@@ -816,7 +817,7 @@ void clearModFx(uint64_t block, const ModFxClear& cleared) {
 			return;
 		}
 		const bool ring = owner.core().mod_fx().holdsRing();
-		owner.clearModFXMemory();
+		deluge::model::clearModFXMemory(*owner.effectsOwner());
 		g_tracksModFxCleared++;
 		const std::string word(deluge::effects::to_string(type));
 		if (type == ModFXType::GRAIN) {

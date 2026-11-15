@@ -17,8 +17,11 @@
 
 #include "model/fx/effects_owner.h"
 #include "effects/plugin.h"
+#include "libdeluge/system.h" // AudioExcludedSection
+#include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/song/song.h"
+#include "util/structural_edit_probe.h"
 
 #include <cstddef>
 #include <optional>
@@ -64,6 +67,25 @@ void unbindChain(EffectsOwner owner) {
 	}
 	owner.view->unbind();
 	bindEffects(owner, nullptr); // copies the record's effects in
+}
+
+void clearModFXMemory(EffectsOwner owner) {
+	const ModFXType type = owner.binding->snapshot().effects.mod_fx.type;
+	if (type == ModFXType::GRAIN) {
+		owner.core->granular().clear();
+	}
+	else if (type != ModFXType::NONE) {
+		owner.core->mod_fx().clearMemory();
+	}
+}
+
+void chainWontRender(EffectsOwner owner) {
+	{
+		AudioExcludedSection section; // the render gives tapes back to the same arena
+		owner.core->delay().discardBuffers();
+		noteStructuralEdit(StructuralContainer::DELAY_TAPE);
+	}
+	endStutter(nullptr);
 }
 
 } // namespace deluge::model

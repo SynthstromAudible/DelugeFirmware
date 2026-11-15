@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
+#include "model/fx/channel_setup.h"
 #include "model/fx/reverb_candidate.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -117,8 +119,8 @@ public:
 			noteDestroyedWithLiveVoices();
 		}
 		AudioEngine::sounds.remove(this);
-		releaseChainMemory();
-		endStutterIfStuttering();
+		deluge::model::releaseDelayMemory(core().delay());
+		deluge::model::endStutterIfStuttering(core());
 	}
 
 	/// @brief The sound's effects after its voices.
@@ -442,7 +444,7 @@ public:
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
-	void wontBeRenderedForAWhile() override;
+	void wontBeRenderedForAWhile();
 	virtual ArpeggiatorBase* getArp() = 0;
 
 	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);

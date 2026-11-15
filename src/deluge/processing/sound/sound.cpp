@@ -1558,7 +1558,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 					// But wait, first, maybe we actually have just been instructed to cut the MODFX tail
 					if (shouldJustCutModFX) {
 doCutModFXTail:
-						clearModFXMemory();
+						deluge::model::clearModFXMemory(*effectsOwner());
 						goto yupStartSkipping;
 					}
 
@@ -3399,7 +3399,7 @@ void Sound::prepareForHibernation() {
 
 // This can get called either for hibernation, or because drum now has no active noteRow
 void Sound::wontBeRenderedForAWhile() {
-	ModControllableAudio::wontBeRenderedForAWhile();
+	deluge::model::chainWontRender(*effectsOwner());
 
 	killAllVoices(); // Can't remember if this is always necessary, but it is when this is called from
 	                 // Instrumentclip::detachFromInstrument()

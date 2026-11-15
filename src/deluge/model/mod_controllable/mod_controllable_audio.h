@@ -116,18 +116,12 @@ public:
 	/// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global
 	/// effectable.
 	static void initParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
-	virtual void wontBeRenderedForAWhile();
-	void beginStutter(ParamManagerForTimeline* paramManager);
-	void endStutter(ParamManagerForTimeline* paramManager);
 	/// @brief This owner as a sound.
 	/// @return The sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }
 	/// @brief This owner as a host chain's owner (a kit, an audio track, the song master), or null for a sound.
 	/// @return The owner, or null.
 	[[nodiscard]] virtual const ::GlobalEffectable* asGlobalEffectable() const { return nullptr; }
-	/// @brief Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories,
-	/// or the grain's grains and first pass.
-	void clearModFXMemory();
 	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
 	/// (deluge::model::resolvePendingDelayTypes).
 	bool delayTypePending = false;
@@ -167,16 +161,10 @@ private:
 	deluge::model::EffectsBinding* binding_{nullptr};
 
 protected:
-	/// @brief Ends the song's stutter if this owner's chain plays it, so no later chain at its address plays the tape.
-	/// Each owner calls it at the end of its destructor's body, while its chain still exists.
-	void endStutterIfStuttering();
 	/// @brief Makes @p binding the one this owner's settings and render copy live in. Each owner calls it first in its
 	/// constructor, before anything reads its effects.
 	/// @param binding The owner's binding, which outlives every use through this owner.
 	void bindBinding(deluge::model::EffectsBinding& binding) { binding_ = &binding; }
-	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. A sound calls
-	/// it in its destructor, while its chain still exists; a host chain's channel does the same for itself.
-	void releaseChainMemory();
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///
