@@ -53,8 +53,10 @@ describe stutter_automation("a quantized stutter's rate, with the stutter-rate p
 		currentSong = f.song;
 		f.song->setCurrentClip(f.clip);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		sound.setUseSongStutter(false);
-		sound.setStutterQuantized(true);
+		deluge::model::changeEffects(*sound.effectsOwner(), [](deluge::effects::EffectStates& e) {
+			e.stutter.use_song_stutter = false;
+			e.stutter.quantized = true;
+		});
 		UnpatchedParamSet* unpatched = f.clip->paramManager.getUnpatchedParamSet();
 		AutoParam& rate = unpatched->params[params::UNPATCHED_STUTTER_RATE];
 		const int32_t began_at = unpatched->knobPosToParamValue(20, nullptr); // snaps to 32nds: knob position 8

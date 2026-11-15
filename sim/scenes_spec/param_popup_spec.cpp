@@ -316,7 +316,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		// A sound's ladder filters rename its morphs, as the engine-pointer overloads name them.
 		spec::SongFixture synth = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(synth.instrument);
-		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
+		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 		ModControllableAudio* mca = sound;
 		const deluge::model::EffectsOwner sound_fx = *sound->effectsOwner();
 		overlay::PopupContext of_sound;

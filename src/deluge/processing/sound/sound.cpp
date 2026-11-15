@@ -189,9 +189,12 @@ Sound::Sound()
 	// audio-engine overhaul introduces, and that work is expected to delete this reserve.
 	voices_.reserve(AudioEngine::VoicePool::get().capacity());
 
-	assignModFXType(ModFXType::NONE);
+	deluge::model::changeEffects(*effectsOwner(),
+	                             [](deluge::effects::EffectStates& e) { e.mod_fx.type = ModFXType::NONE; });
 
-	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
+	deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+	}); // Good for samples, I think
 
 	// The default knobs: the instrument's published page for each mod button.
 	takeKnobsOf(*this, deluge::instrument::kDevicePages);
@@ -257,7 +260,8 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	polyphonic = PolyphonyMode::AUTO;
-	setLpfMode(FilterMode::TRANSISTOR_24DB);
+	deluge::model::changeEffects(
+	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
 	sources[0].oscType = OscType::SAMPLE;
 	sources[1].oscType = OscType::SAMPLE;
@@ -336,7 +340,9 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
+	deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+	}); // Good for samples, I think
 
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
@@ -2565,17 +2571,22 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	// Switching *to* FM: switch the filters off so they don't render unless deliberately enabled
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
-		setLpfMode(FilterMode::OFF);
-		setHpfMode(FilterMode::OFF);
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
 	}
 
 	// ... and switching *from* FM: switch the filters back on if needed
 	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
 		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
-			setLpfMode(FilterMode::TRANSISTOR_24DB);
+			deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+				e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+			});
 		}
 		if (modControllableSnapshot().effects.filter.hpf_mode == FilterMode::OFF) {
-			setHpfMode(FilterMode::HPLADDER);
+			deluge::model::changeEffects(
+			    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::HPLADDER; });
 		}
 	}
 
@@ -2770,8 +2781,10 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
 	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		setHpfMode(FilterMode::OFF);
-		setLpfMode(FilterMode::OFF);
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
 	}
 
 	// A sound with params files them with the Song
@@ -2914,11 +2927,13 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	resyncGlobalLFOs();
 
-	// The mod-FX type through its setter. A ring type whose ring cannot be allocated keeps its
-	// type and passes the audio through; the next effects edit on this sound retries.
+	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
+	// through; the next effects edit on this sound retries.
 	deluge::effects::EffectStates effects = state.effects;
-	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {
-		deluge::notify::notice(Error::INSUFFICIENT_RAM);
+	if (effects.mod_fx.type != this->effects().mod_fx.type) {
+		const ModFXType type = effects.mod_fx.type;
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [type](deluge::effects::EffectStates& e) { e.mod_fx.type = type; });
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);

@@ -1873,7 +1873,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		// A ladder LPF is what makes the rename fire; an SVF or a filter that is off keeps the
 		// default name (`param.cpp:365-372`'s own comment).
-		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
+		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
 		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
 

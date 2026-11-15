@@ -94,7 +94,7 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 /// @param owner The effect owner being edited.
 /// @param path  Settings path of the effect setting.
 /// @param value The new value.
-inline void effectSettingFor(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value) {
+inline void effectSettingFor(ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
 	deluge::edits::changeEffect(owner, path, std::move(value));
 }
 

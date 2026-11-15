@@ -126,91 +126,6 @@ void ModControllableAudio::projectModControllableSnapshot() {
 	deluge::model::projectEffects(*effectsOwner());
 }
 
-namespace {
-/// @p mode as a filter mode setting's Edit form: its file name.
-deluge::serialization::Value effectWord(FilterMode mode) {
-	return deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(mode)));
-}
-
-/// Makes @p owner's effect settings its current ones with @p change applied to them.
-template <class Change>
-void changeEffects(ModControllableAudio& owner, Change change) {
-	deluge::effects::EffectStates next = owner.effects();
-	change(next);
-	owner.setEffects(next);
-}
-} // namespace
-
-void ModControllableAudio::assignModFXType(ModFXType value) {
-	changeEffects(*this, [&](auto& e) { e.mod_fx.type = value; });
-}
-void ModControllableAudio::setClippingAmount(uint8_t value) {
-	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = deluge::effects::clipping_amount_from(value); });
-}
-void ModControllableAudio::setLpfMode(FilterMode value) {
-	changeEffects(*this, [&](auto& e) { e.filter.lpf_mode = value; });
-}
-void ModControllableAudio::setHpfMode(FilterMode value) {
-	changeEffects(*this, [&](auto& e) { e.filter.hpf_mode = value; });
-}
-void ModControllableAudio::setFilterRoute(FilterRoute value) {
-	changeEffects(*this, [&](auto& e) { e.filter.route = value; });
-}
-void ModControllableAudio::setDelayPingPong(bool value) {
-	changeEffects(*this, [&](auto& e) { e.delay.ping_pong = value; });
-}
-void ModControllableAudio::setDelayType(deluge::effects::DelayType value) {
-	changeEffects(*this, [&](auto& e) { e.delay.type = value; });
-}
-void ModControllableAudio::setDelaySyncType(SyncType value) {
-	changeEffects(*this, [&](auto& e) { e.delay.sync_type = value; });
-}
-void ModControllableAudio::setDelaySyncLevel(SyncLevel value) {
-	changeEffects(*this, [&](auto& e) { e.delay.sync_level = value; });
-}
-void ModControllableAudio::setStutterQuantized(bool value) {
-	changeEffects(*this, [&](auto& e) { e.stutter.quantized = value; });
-}
-void ModControllableAudio::setStutterReversed(bool value) {
-	changeEffects(*this, [&](auto& e) { e.stutter.reversed = value; });
-}
-void ModControllableAudio::setStutterPingPong(bool value) {
-	changeEffects(*this, [&](auto& e) { e.stutter.ping_pong = value; });
-}
-void ModControllableAudio::setUseSongStutter(bool value) {
-	changeEffects(*this, [&](auto& e) { e.stutter.use_song_stutter = value; });
-}
-void ModControllableAudio::setSidechainAttack(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.sidechain.attack = value; });
-}
-void ModControllableAudio::setSidechainRelease(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.sidechain.release = value; });
-}
-void ModControllableAudio::setSidechainSyncType(SyncType value) {
-	changeEffects(*this, [&](auto& e) { e.sidechain.sync_type = value; });
-}
-void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
-	changeEffects(*this, [&](auto& e) { e.sidechain.sync_level = value; });
-}
-void ModControllableAudio::setCompressorAttack(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.attack = value; });
-}
-void ModControllableAudio::setCompressorRelease(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.release = value; });
-}
-void ModControllableAudio::setCompressorThreshold(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.threshold = value; });
-}
-void ModControllableAudio::setCompressorRatio(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.ratio = value; });
-}
-void ModControllableAudio::setCompressorSidechainHpf(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.sidechain_hpf = value; });
-}
-void ModControllableAudio::setCompressorBlend(int32_t value) {
-	changeEffects(*this, [&](auto& e) { e.compressor.blend = value; });
-}
-
 void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::effects::EffectStates& states,
                                            Song* knobsSong, std::optional<deluge::project::ControlsAddress> knobsOwner,
                                            std::optional<int32_t> compressorThreshold) {
@@ -442,12 +357,4 @@ void ModControllableAudio::clearModFXMemory() {
 	else if (modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE) {
 		core().mod_fx().clearMemory();
 	}
-}
-
-bool ModControllableAudio::setModFXType(ModFXType newType) {
-	// The mod FX ring, and the grain's State and ring, are taken where the type reaches the render, in
-	// projectModControllableSnapshot(). When that allocation fails the type is kept and the audio passes through until
-	// the next effects edit.
-	assignModFXType(newType);
-	return true;
 }

@@ -7,9 +7,16 @@
 #include "model/fx/effects_owner.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/setting_apply.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
+
+#include <functional>
+#include <string>
+#include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/song_fixture.h"
@@ -21,6 +28,56 @@
 namespace spec = deluge::scenes::spec;
 namespace params = deluge::modulation::params;
 using deluge::model::EffectsOwner;
+using deluge::serialization::Value;
+
+namespace {
+
+/// @brief One effect setting as a menu writes it, and the change a direct write of its field makes.
+struct SettingCase {
+	std::string path;
+	Value value;
+	std::function<void(deluge::effects::EffectStates&)> field;
+};
+
+Value word(std::string_view text) {
+	return Value::makeScalar(std::string{text});
+}
+
+std::vector<SettingCase> settingCases() {
+	namespace fx = deluge::effects;
+	using E = fx::EffectStates;
+	return {
+	    {"modFXType", word(fx::to_string(ModFXType::CHORUS)), [](E& e) { e.mod_fx.type = ModFXType::CHORUS; }},
+	    {"lpfMode", word(fx::to_string(FilterMode::SVF_NOTCH)),
+	     [](E& e) { e.filter.lpf_mode = FilterMode::SVF_NOTCH; }},
+	    {"hpfMode", word(fx::to_string(FilterMode::SVF_BAND)), [](E& e) { e.filter.hpf_mode = FilterMode::SVF_BAND; }},
+	    {"filterRoute", word(fx::to_string(FilterRoute::PARALLEL)),
+	     [](E& e) { e.filter.route = FilterRoute::PARALLEL; }},
+	    {"clippingAmount", Value::makeNumber(7), [](E& e) { e.saturation.clipping_amount = 7; }},
+	    {"delay/pingPong", Value::makeNumber(0), [](E& e) { e.delay.ping_pong = false; }},
+	    {"delay/type", word(fx::to_string(fx::DelayType::ANALOG)), [](E& e) { e.delay.type = fx::DelayType::ANALOG; }},
+	    {"delay/syncType", Value::makeNumber(10), [](E& e) { e.delay.sync_type = SyncType::TRIPLET; }},
+	    {"delay/syncLevel", Value::makeNumber(5),
+	     [](E& e) { e.delay.sync_level = deluge::plugin::sync_level_from_index(5); }},
+	    {"sidechain/attack", Value::makeNumber(12345), [](E& e) { e.sidechain.attack = 12345; }},
+	    {"sidechain/release", Value::makeNumber(23456), [](E& e) { e.sidechain.release = 23456; }},
+	    {"sidechain/syncType", Value::makeNumber(19), [](E& e) { e.sidechain.sync_type = SyncType::DOTTED; }},
+	    {"sidechain/syncLevel", Value::makeNumber(3),
+	     [](E& e) { e.sidechain.sync_level = deluge::plugin::sync_level_from_index(3); }},
+	    {"audioCompressor/attack", Value::makeNumber(9 << 24), [](E& e) { e.compressor.attack = 9 << 24; }},
+	    {"audioCompressor/release", Value::makeNumber(10 << 24), [](E& e) { e.compressor.release = 10 << 24; }},
+	    {"audioCompressor/thresh", Value::makeNumber(11 << 24), [](E& e) { e.compressor.threshold = 11 << 24; }},
+	    {"audioCompressor/ratio", Value::makeNumber(12 << 24), [](E& e) { e.compressor.ratio = 12 << 24; }},
+	    {"audioCompressor/compHPF", Value::makeNumber(13 << 24), [](E& e) { e.compressor.sidechain_hpf = 13 << 24; }},
+	    {"audioCompressor/compBlend", Value::makeNumber(14 << 24), [](E& e) { e.compressor.blend = 14 << 24; }},
+	    {"stutter/quantized", Value::makeNumber(0), [](E& e) { e.stutter.quantized = false; }},
+	    {"stutter/reverse", Value::makeNumber(1), [](E& e) { e.stutter.reversed = true; }},
+	    {"stutter/pingPong", Value::makeNumber(1), [](E& e) { e.stutter.ping_pong = true; }},
+	    {"stutter/useSongStutter", Value::makeNumber(0), [](E& e) { e.stutter.use_song_stutter = false; }},
+	};
+}
+
+} // namespace
 
 // clang-format off
 describe effects_owner("an owner's EffectsOwner", ${
@@ -65,6 +122,25 @@ describe effects_owner("an owner's EffectsOwner", ${
 		it("names nothing for a MIDI instrument", _ {
 			spec::SongFixture f = spec::make_midi_song();
 			expect(static_cast<MIDIInstrument*>(f.instrument)->effectsOwner().has_value()).to_be_false();
+		});
+	});
+
+	context("an effect setting applied to an owner outside the song", _ {
+		it("writes the one field its menu sets, for each effect setting", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			ParamManagerForTimeline params;
+			auto* loose = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+			loose->setupAsDefaultSynth(&params);
+			const EffectsOwner owner = *loose->effectsOwner();
+			const deluge::effects::EffectStates base = owner.effects();
+			for (const SettingCase& c : settingCases()) {
+				deluge::model::storeEffects(owner, base);
+				deluge::effects::EffectStates expected = base;
+				c.field(expected);
+				expect(c.path + (deluge::bridge::applyEffectSetting(owner, c.path, c.value) == Error::NONE ? " ok" : " refused"))
+				    .to_equal(c.path + " ok");
+				expect(c.path + (owner.effects() == expected ? " matches" : " differs")).to_equal(c.path + " matches");
+			}
 		});
 	});
 

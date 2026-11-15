@@ -1468,7 +1468,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
 			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::FLANGER).to_be_true();
-			(void)deluge::scenes::spec::menu_engine(f.ctx).mod->setModFXType(before);
+			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(f.ctx).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;
 		}
 

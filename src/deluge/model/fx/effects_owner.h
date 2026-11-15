@@ -61,4 +61,15 @@ void storeEffects(EffectsOwner owner, const effects::EffectStates& next);
 /// @param record The record that holds the settings, or nullptr.
 void bindEffects(EffectsOwner owner, effects::EffectStates* record);
 
+/// @brief Makes the owner's settings its current ones with @p change applied to a copy of them, and projects them: a
+/// direct change, for an owner whose settings are its own to set (no Edit, no record hand-over).
+/// @param owner  The owner.
+/// @param change Applied to the copy, as `change(effects::EffectStates&)`.
+template <class Change>
+void changeEffects(EffectsOwner owner, Change&& change) {
+	effects::EffectStates next = owner.effects();
+	change(next);
+	storeEffects(owner, next);
+}
+
 } // namespace deluge::model

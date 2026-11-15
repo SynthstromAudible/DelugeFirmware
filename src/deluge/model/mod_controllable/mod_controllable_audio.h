@@ -109,10 +109,6 @@ public:
 	/// knob, which its soft off reads; nullopt for a sound.
 	/// @return The selected mod FX knob, or nullopt.
 	[[nodiscard]] virtual std::optional<ModFXParam> projectedModFXParam() const { return std::nullopt; }
-	/// @brief Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
-	/// cloneFrom().
-	/// @param value The mod FX type to store.
-	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -133,43 +129,14 @@ public:
 	/// @brief This owner as a host chain's owner (a kit, an audio track, the song master), or null for a sound.
 	/// @return The owner, or null.
 	[[nodiscard]] virtual const ::GlobalEffectable* asGlobalEffectable() const { return nullptr; }
-	bool setModFXType(ModFXType newType);
 	/// @brief Clear the mod FX's memory, as a sound cutting its tail does: a comb type's delay line or phaser memories,
 	/// or the grain's grains and first pass.
 	void clearModFXMemory();
-	/// @name "Effect setters"
-	/// One effect setting each, through setEffects.
-	/// @{
-	void setClippingAmount(uint8_t value);
-	void setLpfMode(FilterMode value);
-	void setHpfMode(FilterMode value);
-	void setFilterRoute(FilterRoute value);
-	void setDelayPingPong(bool value);
-	void setDelayType(deluge::effects::DelayType value);
 	/// @brief Set by a read whose element saves no delay type: the type is worked out once the owner's params are read
 	/// (deluge::model::resolvePendingDelayTypes).
 	bool delayTypePending = false;
 	/// @brief Set by a read whose element held an arpeggiator (a synth track's own, which its record then keeps).
 	bool arpRead = false;
-	void setDelaySyncType(SyncType value);
-	void setDelaySyncLevel(SyncLevel value);
-	void setStutterQuantized(bool value);
-	void setStutterReversed(bool value);
-	void setStutterPingPong(bool value);
-	void setUseSongStutter(bool value);
-	// The reverb's sidechain (AudioEngine::reverb.sidechain()) is the engine's own, not an owner's.
-	void setSidechainAttack(int32_t value);
-	void setSidechainRelease(int32_t value);
-	void setSidechainSyncType(SyncType value);
-	void setSidechainSyncLevel(SyncLevel value);
-	// The compressor's knob positions, each Q31 (the menu's 0-127 shifted up by 24).
-	void setCompressorAttack(int32_t value);
-	void setCompressorRelease(int32_t value);
-	void setCompressorThreshold(int32_t value);
-	void setCompressorRatio(int32_t value);
-	void setCompressorSidechainHpf(int32_t value);
-	void setCompressorBlend(int32_t value);
-	/// @}
 	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target. Only a sound has mod knobs; a learned
 	/// MIDI knob lives in the song's mapping table.
 	/// @param target      The param the knob turns.
