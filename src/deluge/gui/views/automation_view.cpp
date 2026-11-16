@@ -119,8 +119,12 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
-const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING,
-                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_QUANTIZE, 0};
+const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                          UI_MODE_AUDITIONING,
+                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                          UI_MODE_QUANTIZE,
+                                          UI_MODE_SCALE_MODE_BUTTON_PRESSED,
+                                          0};
 
 const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
