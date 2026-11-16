@@ -1059,15 +1059,13 @@ ramError:
 
 void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
-	// If they want to copy or paste automation...
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				pasteAutomation(whichModEncoder);
-			}
-			else {
-				copyAutomation(whichModEncoder);
-			}
+	// Copy / paste uses presses; releases must still reach the sound to stop stutter.
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (Buttons::isShiftButtonPressed()) {
+			pasteAutomation(whichModEncoder);
+		}
+		else {
+			copyAutomation(whichModEncoder);
 		}
 	}
 	else {
