@@ -2566,6 +2566,12 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		return;
 	}
 
+	// Stutter may have started in the overview before a shortcut selected a parameter.
+	if (!on && isUIModeActive(UI_MODE_STUTTERING)) {
+		view.modEncoderButtonAction(whichModEncoder, false);
+		return;
+	}
+
 	// if we're not trying to copy / paste (holding learn) and not trying to delete (holding shift), return
 	// if we're releasing mod encoder button action, return (we don't do anything on release)
 	bool is_learn_pressed = Buttons::isButtonPressed(hid::button::LEARN);
