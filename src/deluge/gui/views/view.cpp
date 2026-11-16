@@ -1118,6 +1118,13 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
+		// In session / arranger view the mod encoders can target a different clip from the last one opened.
+		// That last-opened clip can also have been deleted, leaving Song::currentClip null.
+		Output* output = nullptr;
+		if (isClipContext()) {
+			output = static_cast<Clip*>(activeModControllableModelStack.getTimelineCounter())->output;
+		}
+
 		if (kind == params::Kind::PATCH_CABLE) {
 			parameter_name.append(sourceToStringShort(source1));
 			parameter_name.append("->");
@@ -1128,8 +1135,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			parameter_name.append(modulation::params::getPatchedParamShortName(
 			    paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
-		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+		else if (output && output->type == OutputType::MIDI_OUT
+		         && (kind == params::Kind::MIDI || kind == params::Kind::EXPRESSION)) {
+			auto* midiInstrument = static_cast<MIDIInstrument*>(output);
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
 					parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
