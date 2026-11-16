@@ -925,9 +925,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	}
 	else {
 		// Button release
-		if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-			currentUIMode = UI_MODE_NONE;
-		}
+		exitUIMode(UI_MODE_SCALE_MODE_BUTTON_PRESSED);
 		if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
 			toggleScaleModeOnButtonRelease = false;
 			if (inScaleMode) {
