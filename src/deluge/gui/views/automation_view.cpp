@@ -1369,10 +1369,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	// go back to arranger view or clip view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
-			if (onArrangerView) {
-				// Arranger View cannot release the automation editor's held pads.
-				endAutomationEditPadPresses();
-			}
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		// automation arranger view transitioning back to arranger view
