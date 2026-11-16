@@ -120,7 +120,7 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
 const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING,
-                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_QUANTIZE, 0};
 
 const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
@@ -2133,8 +2133,8 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 					return ActionResult::DEALT_WITH;
 				}
 			}
-			// Quantize can still be active after a shortcut leaves the note editor.
-			else if (isUIModeActive(UI_MODE_QUANTIZE)) {
+			// Finish quantizing on release even with a note edit held or after changing editors.
+			if (isUIModeActive(UI_MODE_QUANTIZE)) {
 				if (velocity == 0) {
 					return instrumentClipView.commandStopQuantize(y);
 				}
