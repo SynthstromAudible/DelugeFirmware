@@ -101,6 +101,7 @@ add_executable(UnitTests
         fast_pythag_tests.cpp
         fast_divide_tests.cpp
         hold_pulse_tests.cpp
+        hybrid_layout_tests.cpp
         track_pad_gesture_tests.cpp
         track_parameter_edit_tests.cpp
         tick_interpolation_tests.cpp

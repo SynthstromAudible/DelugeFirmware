@@ -2090,8 +2090,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			setLedState(LED::CV, false);
 		}
 
-		bool isGridView =
-		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
+		bool isGridView = (getCurrentUI() == &sessionView && sessionView.isGridLayout());
 
 		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);

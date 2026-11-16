@@ -136,6 +136,16 @@ public:
 
 	// Track editing hooks used by selection state, pulse rendering, and view changes.
 	bool gridTrackRowEnabled() const;
+	bool isHybridLayout() const;
+	bool isGridLayout() const;
+	bool gridIsSectionPad(int32_t x, int32_t y) const;
+	int32_t gridSectionFromPad(int32_t x, int32_t y);
+	Output* gridTrackFromPad(int32_t x, int32_t y);
+	int32_t gridVisibleTracks() const;
+	bool hybridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea);
+	bool hybridRenderSidebar(RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void gridEndTrackSelection();
 
 	// ui
@@ -277,6 +287,7 @@ private:
 	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void gridCloneClipTo(Clip* sourceClip, Output* targetOutput, int32_t section);
 	void setupNewClip(Clip* newClip);
 
 	void gridStartSection(uint32_t section, bool instant);

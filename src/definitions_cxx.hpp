@@ -1097,6 +1097,7 @@ enum KeyboardLayoutType : uint8_t {
 enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
+	SessionLayoutTypeHybrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
 };
 

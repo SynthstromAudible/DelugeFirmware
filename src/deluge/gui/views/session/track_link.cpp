@@ -240,7 +240,8 @@ void exitMode() {
 }
 
 void selectOutput(Output* output, Clip* preferred) {
-	if ((currentSong == nullptr) || !sessionView.gridTrackRowEnabled() || !songOwnsOutput(*currentSong, output)) {
+	if ((currentSong == nullptr) || !(sessionView.gridTrackRowEnabled() || (sessionView.isHybridLayout() && enabled()))
+	    || !songOwnsOutput(*currentSong, output)) {
 		return;
 	}
 	if (selection.active && selection.song != currentSong) {

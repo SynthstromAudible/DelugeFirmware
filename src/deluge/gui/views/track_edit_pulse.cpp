@@ -44,6 +44,7 @@ uint32_t pulse_columns[kDisplayHeight]{};
 uint32_t held_columns[kDisplayHeight]{};
 UI* pulse_ui = nullptr;
 int32_t menu_pulse_column = -1;
+int32_t menu_pulse_row = -1;
 int32_t pulse_progress = 1;
 bool pulse_increasing = true;
 int32_t held_progress = 1;
@@ -130,8 +131,10 @@ RGB renderPulse(RGB colour, Output const& output, RGB* row, int32_t x, int32_t y
 	PulsePad pad{colour.adjust(255, track_colour == deluge::gui::colours::red ? 4 : 3),
 	             (held || colour == track_colour) ? track_colour.forBlur() : colour};
 	if (row == PadLEDs::image[y]) {
-		if (y == 0 && getRootUI() == &sessionView && track_link::isMenuOpen() && track_link::isSelected(&output)) {
+		if (getRootUI() == &sessionView && track_link::isMenuOpen() && track_link::isSelected(&output)
+		    && (sessionView.isHybridLayout() ? x == kDisplayWidth : y == 0)) {
 			menu_pulse_column = x;
+			menu_pulse_row = y;
 		}
 		pulse_pads[y][x] = pad;
 		pulse_columns[y] |= 1u << x;
@@ -188,8 +191,8 @@ void pulseTimer() {
 		if (menu_pulse_column < 0) {
 			return;
 		}
-		main = true;
-		sidebar = false;
+		main = menu_pulse_column < kDisplayWidth;
+		sidebar = !main;
 	}
 	// The VU meter may update the sidebar directly between normal renders.
 	if (view.displayVUMeter && view.getModKnobMode() == 0) {
@@ -206,7 +209,7 @@ void pulseTimer() {
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		uint32_t columns = pulse_columns[y];
 		if (track_menu) {
-			columns &= y == 0 ? (1u << menu_pulse_column) : 0u;
+			columns &= y == menu_pulse_row ? (1u << menu_pulse_column) : 0u;
 		}
 		if (columns == 0u) {
 			continue;
