@@ -1094,7 +1094,8 @@ void SessionView::clipPressEnded() {
 		// A mode-pad press can cancel a section move before release. Restore the normal
 		// viewport here too, but only redraw if snapping back actually changes it.
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			const int32_t scrollY = std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
+			const int32_t scrollY =
+			    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
 			if (scrollY != currentSong->songGridScrollY) {
 				currentSong->songGridScrollY = scrollY;
 				requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
@@ -4176,7 +4177,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				// Blue-mode release ends the temporary overscroll used to keep the section under the finger.
 				currentSong->songGridScrollY =
-				    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
+				    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
 					deluge::hid::display::OLED::removePopup();
@@ -4372,7 +4373,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				else {
 					// Green-mode release snaps any temporary overscroll back into the normal range.
 					currentSong->songGridScrollY =
-					    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
+					    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
 				}
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
@@ -4696,7 +4697,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 
 	// Fix the range
 	currentSong->songGridScrollY =
-	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
+	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - gridSectionRows());
 	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
 	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
 
@@ -4914,6 +4915,11 @@ Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) 
 	}
 
 	return nullptr;
+}
+
+// Keep scroll bounds based on the number of section rows available in the grid layout.
+int32_t SessionView::gridSectionRows() const {
+	return kGridHeight;
 }
 
 int32_t SessionView::gridYFromSection(uint32_t section) {
