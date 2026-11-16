@@ -1282,6 +1282,10 @@ passToOthers:
 		// when you press affect entire, the parameter selection needs to reset
 		// do this here because affect entire state may have just changed
 		if (on && b == AFFECT_ENTIRE) {
+			// Overview releases use physical pad rows, not the note rows stored by Velocity Editor.
+			if (inNoteEditor()) {
+				instrumentClipView.endAllEditPadPresses();
+			}
 			initParameterSelection();
 			blinkShortcuts();
 		}
