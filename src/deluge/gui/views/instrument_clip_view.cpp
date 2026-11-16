@@ -6851,8 +6851,8 @@ void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
 
 ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
 	ActionResult res;
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
-	if (inNoteEditor) {
+	// Automation View owns the audition release even if a shortcut changed its editor.
+	if (getRootUI() == &automationView) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		Output* output = clip->output;
 		OutputType outputType = output->type;

@@ -2127,21 +2127,18 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 		// Actual basic audition pad press:
 		else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
 			bool auditioningSilently = Buttons::isShiftButtonPressed();
-			if (inNoteEditor()) {
-				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-					// Don't change row selection while holding a note, but always release held audition pads.
-					if (velocity && instrumentClipView.lastAuditionedYDisplay != y) {
-						return ActionResult::DEALT_WITH;
-					}
+			if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				// Don't change row selection while holding a note, but always release held audition pads.
+				if (velocity && instrumentClipView.lastAuditionedYDisplay != y) {
+					return ActionResult::DEALT_WITH;
 				}
-				// We're quantizing: either adding a new note to the set being quantized, or removing.
-				// In the first case we simply defer to auditionPadAction.
-				else if (isUIModeActive(UI_MODE_QUANTIZE)) {
-					if (velocity == 0) {
-						return instrumentClipView.commandStopQuantize(y);
-					}
-					auditioningSilently = true;
+			}
+			// Quantize can still be active after a shortcut leaves the note editor.
+			else if (isUIModeActive(UI_MODE_QUANTIZE)) {
+				if (velocity == 0) {
+					return instrumentClipView.commandStopQuantize(y);
 				}
+				auditioningSilently = true;
 			}
 			return auditionPadAction(instrumentClip, output, outputType, y, velocity, auditioningSilently);
 		}
