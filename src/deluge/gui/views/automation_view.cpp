@@ -2570,8 +2570,8 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		return;
 	}
 
-	// Stutter may have started in the overview before a shortcut selected a parameter.
-	if (!on && isUIModeActive(UI_MODE_STUTTERING)) {
+	// Stutter or MIDI CC assignment may have started before a shortcut selected a parameter.
+	if (!on && (isUIModeActive(UI_MODE_STUTTERING) || isUIModeActive(UI_MODE_SELECTING_MIDI_CC))) {
 		view.modEncoderButtonAction(whichModEncoder, false);
 		return;
 	}
