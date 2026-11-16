@@ -771,13 +771,14 @@ void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc,
 		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+			// In arranger view, the instrument being learned can differ from the current clip's output.
+			if (instrumentPressedForMIDILearn->type == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
 					learnedThing->cable = &cable;
 					learnedThing->channelOrZone = channel;
-					getCurrentInstrument()->beenEdited(false);
+					instrumentPressedForMIDILearn->beenEdited(false);
 				}
 			}
 		}
