@@ -29,6 +29,7 @@ void DxBrowseMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	// if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 	// 	keyboardScreen.exitAuditionMode();
 	// }
+	dxBrowser.setConversionMode(false); // Reset to normal browsing mode
 	bool success = openUI(&dxBrowser);
 	if (!success) {
 		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();

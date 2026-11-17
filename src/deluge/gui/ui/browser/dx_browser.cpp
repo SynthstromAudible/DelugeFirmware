@@ -21,12 +21,12 @@
 #include "gui/menu_item/dx/cartridge.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
+#include "util/dx7_converter.h"
 
 using namespace deluge::gui;
 
 DxSyxBrowser::DxSyxBrowser() {
 	fileIcon = deluge::hid::display::OLED::waveIcon;
-	title = "DX7 syx files";
 	shouldWrapFolderContents = false;
 }
 
@@ -44,6 +44,14 @@ bool DxSyxBrowser::opened() {
 	qwertyVisible = false;
 
 	fileIndexSelected = 0;
+
+	// Set title based on mode
+	if (conversionMode_) {
+		title = "CONVERT DX7 SYX";
+	}
+	else {
+		title = "LOAD DX7 SYX";
+	}
 
 	Error error = StorageManager::initSD();
 	if (error != Error::NONE)
@@ -112,10 +120,22 @@ void DxSyxBrowser::enterKeyPress() {
 		getCurrentFilePath(&path);
 
 		if (!path.isEmpty()) {
-			if (menu_item::dxCartridge.tryLoad(path.get())) {
-				soundEditor.enterSubmenu(&menu_item::dxCartridge);
-				soundEditor.shouldGoUpOneLevelOnBegin = false;
-				close();
+			if (conversionMode_) {
+				// Convert the selected syx file - stay on browser page for batch conversion
+				deluge::dx7::DX7Converter converter;
+				Error error = converter.convertSysexToXML(path.get());
+				if (error != Error::NONE) {
+					display->displayError(error);
+				}
+				// Don't close browser - user can continue converting more files
+			}
+			else {
+				// Normal loading behavior - enter submenu and close browser
+				if (menu_item::dxCartridge.tryLoad(path.get())) {
+					soundEditor.enterSubmenu(&menu_item::dxCartridge);
+					soundEditor.shouldGoUpOneLevelOnBegin = false;
+					close();
+				}
 			}
 		}
 
