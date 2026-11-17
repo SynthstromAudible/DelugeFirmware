@@ -81,7 +81,7 @@ public:
 	uint64_t getCullImmunity();
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack) override;
 	void copyBasicsFrom(Clip const* otherClip) override;
-	bool willCloneOutputForOverdub() override { return overdubsShouldCloneOutput; }
+	bool willCloneOutputForOverdub() override { return !isTakeOverdub(overdubNature) && overdubsShouldCloneOutput; }
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;

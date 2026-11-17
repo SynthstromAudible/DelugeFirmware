@@ -4178,8 +4178,8 @@ void Song::restoreClipStatesBeforeArrangementPlay() {
 	// Do not set the Instruments' activeClips. We want them to stay as they were when the song ended
 }
 
-// Returns 0 if they're all full
-int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
+// Returns fallbackSection if they're all full; existing callers default to section zero.
+int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output, int32_t fallbackSection) {
 	bool* sectionRepresented = (bool*)shortStringBuffer;
 	memset(sectionRepresented, 0, kMaxNumSections);
 
@@ -4196,7 +4196,7 @@ int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 		}
 	}
 
-	return 0;
+	return fallbackSection;
 }
 
 void Song::assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime) {
@@ -5580,10 +5580,27 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 	Clip* newClip = clip; // we're returning the clip to be scheduled, default to this one
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {
+		display->displayPopup(
+		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
 		return nullptr;
 	}
-	// Use the traditional cloning looper only for clips that don't support overdubbing in place.
-	if (clip->shouldCloneForOverdubs()) {
+	int32_t takeSection = 0;
+	if (isTakeOverdub(newOverdubNature)) {
+		// Takes fill the lowest unused section on this output.
+		// We could change the behaviour to place them after the source clip instead by searching
+		// upward from clip->section + 1 for a section without a session clip on this output (optionally wrapping).
+		takeSection = getLowestSectionWithNoSessionClipForOutput(clip->output, -1);
+		if (takeSection < 0) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FREE_TAKE_SECTIONS));
+			return nullptr;
+		}
+	}
+	// Takes always need a fresh clip, even on outputs that support overdubbing in place.
+	if (isTakeOverdub(newOverdubNature) || clip->shouldCloneForOverdubs()) {
+		if (!sessionClips.ensureEnoughSpaceAllocated(1)) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+			return nullptr;
+		}
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5593,6 +5610,9 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
+			if (isTakeOverdub(newOverdubNature)) {
+				newClip->section = takeSection;
+			}
 			sessionClips.insertClipAtIndex(newClip, clipIndex);
 			if (clipIndex != songViewYScroll) {
 				songViewYScroll++;
