@@ -112,7 +112,8 @@ void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]);
 /// whatever the previous transition left there.
 void clearTransitionStoreOffScreenRows();
 void clearTickSquares(bool shouldSend = true);
-void setTickSquares(const uint8_t* squares, const uint8_t* colours);
+/// extraColumn is a second cursor, drawn the full height of the grid (255 for none)
+void setTickSquares(const uint8_t* squares, const uint8_t* colours, uint8_t extraColumn = 255);
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
 void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
 void clearSideBar();

@@ -2147,6 +2147,11 @@ pitchTooHigh:
 				if (!voiceSample->doneFirstRenderYet && !tryToStartMidNote
 				    && portaEnvelopePos == 0xFFFFFFFF) { // No porta
 
+					// The cached loop would just jump, without the crossfade
+					if (sound.sources[s].loopCrossfadeMs && loopingType != LoopType::NONE) {
+						goto dontUseCache;
+					}
+
 					// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 					// accurate
 					if (loopingType != LoopType::NONE) {
@@ -2235,7 +2240,8 @@ dontUseCache: {}
 			bool stillActive = voiceSample->render(
 			    &guides[s], renderBuffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 			    timeStretchRatio, sourceAmplitude, amplitudeIncrement, interpolationBufferSize,
-			    sound.sources[s].sampleControls.interpolationMode, getPriorityRating());
+			    sound.sources[s].sampleControls.interpolationMode, getPriorityRating(),
+			    (sound.sources[s].loopCrossfadeMs * sample->sampleRate) / 1000);
 
 			if (stereoUnison) {
 				if (numChannels == 2) {

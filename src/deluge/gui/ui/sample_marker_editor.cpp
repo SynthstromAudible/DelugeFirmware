@@ -1038,19 +1038,29 @@ void SampleMarkerEditor::graphicsRoutine() {
 		guide = &getCurrentAudioClip()->guide;
 	}
 
+	// The pad column a sample position falls in, or 255 if it's off screen
+	auto getTickSquare = [](int32_t samplePos) -> int32_t {
+		if (samplePos < waveformBasicNavigator.xScroll) {
+			return 255;
+		}
+		int32_t tickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
+		return (tickSquare >= kDisplayWidth) ? 255 : tickSquare;
+	};
+
+	// During a loop crossfade, the incoming pass gets a second, full-height cursor
+	uint8_t incomingTickSquare = 255;
 	if (voiceSample) {
-		int32_t samplePos = voiceSample->getPlaySample(waveformBasicNavigator.sample, guide);
-		if (samplePos >= waveformBasicNavigator.xScroll) {
-			newTickSquare = (samplePos - waveformBasicNavigator.xScroll) / waveformBasicNavigator.xZoom;
-			if (newTickSquare >= kDisplayWidth) {
-				newTickSquare = 255;
-			}
+		newTickSquare = getTickSquare(voiceSample->getPlaySample(waveformBasicNavigator.sample, guide));
+		int32_t incomingSamplePos =
+		    voiceSample->getLoopCrossfadeIncomingPlaySample(waveformBasicNavigator.sample, guide);
+		if (incomingSamplePos >= 0) {
+			incomingTickSquare = getTickSquare(incomingSamplePos);
 		}
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
 	memset(tickSquares, newTickSquare, kDisplayHeight);
-	PadLEDs::setTickSquares(tickSquares, zeroes);
+	PadLEDs::setTickSquares(tickSquares, zeroes, incomingTickSquare);
 }
 
 bool SampleMarkerEditor::shouldAllowExtraScrollRight() {

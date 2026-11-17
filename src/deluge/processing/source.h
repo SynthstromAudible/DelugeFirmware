@@ -46,6 +46,7 @@ public:
 
 	DxPatch* dxPatch;
 	bool dxPatchChanged = false;
+	uint16_t loopCrossfadeMs{0}; // 0 means off. Sits in the padding after the bool above
 	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;

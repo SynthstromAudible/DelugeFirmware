@@ -68,12 +68,13 @@ PLACE_SDRAM_BSS osc::source::Feedback source0FeedbackMenu{STRING_FOR_FEEDBACK, S
 PLACE_SDRAM_BSS osc::RetriggerPhase osc0PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 0, false};
 PLACE_SDRAM_BSS sample::Reverse sample0ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::Repeat sample0RepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE, 0};
+PLACE_SDRAM_BSS sample::LoopCrossfade sample0LoopCrossfadeMenu{STRING_FOR_LOOP_CROSSFADE, STRING_FOR_SAMP_LOOP_XFADE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::TimeStretch sample0TimeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::PitchSpeed sample0PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 0};
 PLACE_SDRAM_BSS sample::Interpolation sample0InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::Start sample0StartMenu{STRING_FOR_START_POINT, 0};
 PLACE_SDRAM_BSS sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 14> child6 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 15> child6 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
     &source0TransposeMenu,
@@ -83,6 +84,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 14> child6 = {
     &osc0PhaseMenu,
     &sample0ReverseMenu,
     &sample0RepeatMenu,
+    &sample0LoopCrossfadeMenu,
     &sample0TimeStretchMenu,
     &sample0PitchSpeedMenu,
     &sample0InterpolationMenu,
@@ -99,12 +101,13 @@ PLACE_SDRAM_BSS osc::source::Feedback source1FeedbackMenu{STRING_FOR_FEEDBACK, S
 PLACE_SDRAM_BSS osc::RetriggerPhase osc1PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, 1, false};
 PLACE_SDRAM_BSS sample::Reverse sample1ReverseMenu{STRING_FOR_REVERSE, STRING_FOR_SAMP_REVERSE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::Repeat sample1RepeatMenu{STRING_FOR_REPEAT_MODE, STRING_FOR_SAMP_REPEAT_MENU_TITLE, 1};
+PLACE_SDRAM_BSS sample::LoopCrossfade sample1LoopCrossfadeMenu{STRING_FOR_LOOP_CROSSFADE, STRING_FOR_SAMP_LOOP_XFADE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::TimeStretch sample1TimeStretchMenu{STRING_FOR_SPEED, STRING_FOR_SAMP_SPEED_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::PitchSpeed sample1PitchSpeedMenu{STRING_FOR_PITCH_SPEED, 1};
 PLACE_SDRAM_BSS sample::Interpolation sample1InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::Start sample1StartMenu{STRING_FOR_START_POINT, 1};
 PLACE_SDRAM_BSS sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 14> child7 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 15> child7 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
     &source1TransposeMenu,
@@ -114,6 +117,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 14> child7 = {
     &osc1PhaseMenu,
     &sample1ReverseMenu,
     &sample1RepeatMenu,
+    &sample1LoopCrossfadeMenu,
     &sample1TimeStretchMenu,
     &sample1PitchSpeedMenu,
     &sample1InterpolationMenu,

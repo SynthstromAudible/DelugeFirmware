@@ -1038,6 +1038,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ENV_FOLLOW_Z_SHORT, "Z"},
         {STRING_FOR_ENV_FOLLOW_Y, "Mod wheel (Y)"},
         {STRING_FOR_ENV_FOLLOW_Y_SHORT, "Y"},
+        {STRING_FOR_LOOP_CROSSFADE, "Loop xfade"},
+        {STRING_FOR_LOOP_CROSSFADE_SHORT, "XFADE"},
+        {STRING_FOR_SAMP_LOOP_XFADE_MENU_TITLE, "Samp* loop xfade"},
     },
 };
 } // namespace deluge::l10n::built_in
