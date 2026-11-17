@@ -79,6 +79,8 @@ public:
 	                                                        ModelStackWithTimelineCounter* modelStackClone) {
 		return Error::NONE;
 	}
+	/// Carry on any playback state that setPos() resets, when another Clip takes over playing in this one's place
+	virtual void continuePlaybackStateFrom(Clip const& otherClip) {}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                                       bool completelyRenderOutIterationDependence = false,

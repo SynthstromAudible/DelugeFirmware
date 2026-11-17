@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
+#include "model/sequencer/mute_sequencer.h"
 #include "modulation/arpeggiator.h"
 
 class Song;
@@ -101,6 +102,7 @@ public:
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings;
+	MuteSequencer muteSequencer;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
@@ -203,6 +205,7 @@ public:
 	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
 	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                ModelStackWithTimelineCounter* modelStackClone) override;
+	void continuePlaybackStateFrom(Clip const& otherClip) override;
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager,
 	                              Sound* sound) override;
 	ParamManagerForTimeline* getCurrentParamManager() override;
