@@ -1359,11 +1359,9 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (display->have7SEG()) {
-			if (on) {
-				display->displayPopup("CANT");
-			}
+			display->displayPopup("CANT");
 		}
 		return;
 	}
