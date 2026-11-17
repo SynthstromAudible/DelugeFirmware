@@ -275,7 +275,7 @@ TEST(SwingMapClassicNearLegacy, ForwardTimeWithinOneTick) {
 	}
 }
 
-// The firmware feeds the inverse timePassed * blockTicks / blockSamples
+// The firmware feeds the inverse timePassed / timePerTick in 1/256 samples
 TEST(SwingMapClassicNearLegacy, InverseFromTimesWithinOneTick) {
 	const uint32_t tptrs[] = {230, 1000, 44100};
 	for (uint32_t tptr : tptrs) {
@@ -293,7 +293,7 @@ TEST(SwingMapClassicNearLegacy, InverseFromTimesWithinOneTick) {
 					if (legacy < 0) {
 						continue; // Legacy returned 1 in the last few samples of the block
 					}
-					int32_t ours = swingInverseInBlock(levels, (uint64_t)t * blockTicks, blockSamples);
+					int32_t ours = swingInverseInBlock(levels, (uint64_t)t << 8, ((uint64_t)tptr << 32) >> 24);
 					CHECK(std::abs(ours - legacy) <= 1);
 				}
 			}
