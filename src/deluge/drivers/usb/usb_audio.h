@@ -57,10 +57,9 @@ bool usbAudioActive(void);
 void usbAudioSetInterface(uint16_t interfaceNumber, uint16_t alternateSetting);
 /// Bus reset, detach, or a new configuration - all streaming stops
 void usbAudioStopAll(void);
-/// From the USB interrupt, with the pipes whose BRDY status was set. Returns the ones it dealt with
+/// From the USB interrupt, with the pipes whose BRDY status was set. Returns the ones that are ours, whose status it's
+/// cleared - our pipes are serviced from our own interrupts (see usb_audio.cpp)
 uint16_t usbAudioHandleBrdy(uint16_t pipeBits);
-/// From the USB interrupt, once per USB frame (1ms) while streaming either way
-void usbAudioHandleSof(void);
 /// From the USB task, with usbLock held. Reconnects us if the host's given up sending after a stall (see
 /// usb_audio.cpp)
 void usbAudioServiceTask(void);

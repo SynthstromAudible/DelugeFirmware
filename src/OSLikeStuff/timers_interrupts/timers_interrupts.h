@@ -54,6 +54,10 @@ static inline __attribute__((no_instrument_function)) void ENABLE_ALL_INTERRUPTS
 /// Lowest interrupt priority - setupAndEnableInterrupt() priorities run from 0 (highest) to this
 #define INTERRUPT_PRIORITY_LOWEST 31
 
+/// What audio rendering masks interrupts with (Song::renderAudio()): only those with priority numbers below this still
+/// run during a render, which are only the ones that can't wait a millisecond or more - USB audio's
+#define RENDER_INTERRUPT_MASK 3
+
 /// Holds off interrupts with priority `level` or lower (numerically `level` or higher), by raising the GIC's priority
 /// mask. Only interrupts with a priority number below `level` can still fire, so mask_interrupts(11) still lets the SD
 /// interrupt (priority 10) through, along with anything of higher priority. mask_interrupts(0) holds off all of them.

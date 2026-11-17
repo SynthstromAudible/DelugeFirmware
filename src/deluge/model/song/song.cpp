@@ -2531,12 +2531,12 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 				destination = deluge::usb_audio::trackBus(bus, outputBuffer.size());
 			}
 		}
-		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
+			// Holds off every interrupt except USB audio's, which can't wait for a render
+			InterruptMaskGuard guard{RENDER_INTERRUPT_MASK};
 			output->renderOutput(modelStack, destination, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
-		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
 		char buf[64];
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());

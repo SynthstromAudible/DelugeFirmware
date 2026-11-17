@@ -32,6 +32,7 @@
 extern "C" {
 #include "RZA1/cache/cache.h"
 #include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/ostm/ostm.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
@@ -64,7 +65,18 @@ constexpr uint32_t kMaxPacketBytes = USB_PAUDIO_MAX_PACKET_BYTES;
 constexpr uint32_t kBytesPerFrame = USB_PAUDIO_BYTES_PER_FRAME;
 static_assert(kBytesPerFrame == sizeof(StereoSample), "USB audio frames are copied straight to and from StereoSamples");
 
-constexpr uint8_t kInterruptPriority = 9; // Same as the USB interrupt, so neither can interrupt the other
+// Both pipes are serviced from interrupts of our own - a timer every half USB frame, and the DMA-complete interrupts -
+// rather than from the USB interrupt's SOF and BRDY. They're all at this priority, so none of them interrupts another,
+// and it's above RENDER_INTERRUPT_MASK, so they still run while audio renders. A render can hold interrupts off for
+// over a millisecond, and the host gets an empty packet from us for every USB frame we leave unserviced that long -
+// which macOS, following our clock through implicit feedback, can answer by giving up on sending us audio altogether
+constexpr uint8_t kInterruptPriority = 2;
+static_assert(kInterruptPriority < RENDER_INTERRUPT_MASK);
+
+// The service timer: OSTM1, in interval mode, counting down at 33.33MHz. A packet leaves one of a pipe's two buffers
+// once each USB frame, so looking twice a frame keeps both full
+constexpr uint32_t kServiceTimer = 1;
+constexpr uint32_t kServiceTicks = DELUGE_CLOCKS_PER / 2000; // 0.5ms
 
 // DMA request sources for USB0's D0FIFO and D1FIFO - the same as r_usb_dma.c uses
 constexpr uint32_t kDmarsD0Fifo = 0x83;
@@ -120,7 +132,7 @@ std::atomic<uint32_t> fromHostWritten{0}; // Free-running frame counts
 std::atomic<uint32_t> fromHostRead{0};
 std::atomic<uint32_t> fromHostGeneration{0}; // Bumped each time the stream (re)starts
 
-// Frames to the host, written by the audio routine, read by the SOF interrupt
+// Frames to the host, written by the audio routine, read by the service and DMA-complete interrupts
 constexpr uint32_t kToHostRingFrames = 1024;
 std::array<StereoSample, kToHostRingFrames> toHostRing;
 std::atomic<uint32_t> toHostWritten{0};
@@ -135,13 +147,12 @@ volatile bool fromHostDmaBusy = false;
 volatile bool toHostDmaBusy = false;
 uint32_t fromHostDmaBytes;
 
-// The SOF interrupt (every 1ms while either direction's streaming) doubles as a watchdog, so that nothing that goes
-// wrong - a BRDY that slipped past, a DMA that never finished or whose interrupt never came, a pipe that stopped
-// accepting packets - can leave a stream dead until the host restarts it. These count the SOF interrupts each DMA's
-// been running for
-constexpr uint32_t kDmaTimeoutFrames = 4; // A packet's DMA takes microseconds, so this is never a slow one
-uint32_t fromHostDmaFrames = 0;
-uint32_t toHostDmaFrames = 0;
+// The service timer doubles as a watchdog, so that nothing that goes wrong - a DMA that never finished or whose
+// interrupt never came, a pipe that stopped accepting packets - can leave a stream dead until the host restarts it.
+// These count the service ticks each DMA's been running for
+constexpr uint32_t kDmaTimeoutTicks = 8; // A packet's DMA takes microseconds, so this is never a slow one
+uint32_t fromHostDmaTicks = 0;
+uint32_t toHostDmaTicks = 0;
 // How many times the watchdog had to step in - for looking at in a debugger
 uint32_t fromHostRecoveries = 0;
 uint32_t toHostRecoveries = 0;
@@ -149,16 +160,17 @@ uint32_t toHostRecoveries = 0;
 // A host should send a packet every USB frame while it has the out stream's alternate setting selected. But if the
 // Deluge leaves USB unserviced long enough for our packets to the host to run out (a debugger halt does it), macOS can
 // stop sending for good - leaving the alternate setting selected, so nothing but reconnecting the device brings it
-// back. So the SOF interrupt watches for that: the host going quiet straight after such a stall, with nothing new
+// back. So the service timer watches for that: the host going quiet straight after such a stall, with nothing new
 // since. Then the USB task disconnects and reconnects us, just as unplugging the cable would. Needing the stall leaves
-// alone a host that's simply stopped sending without deselecting the stream, which Linux can do while paused
-constexpr uint32_t kStallFrames = 2; // The two packets queued for the host cover this many missed SOFs
+// alone a host that's simply stopped sending without deselecting the stream, which Linux can do while paused. With
+// the service timer above the render mask, only a debugger halt or a long critical section can stall us now
+constexpr uint32_t kStallFrames = 2; // The two packets queued for the host cover this many unserviced USB frames
 constexpr uint32_t kStallTicks = DELUGE_CLOCKS_PER / 400; // 2.5ms - the same, in case FRMNUM wrapped
 constexpr uint32_t kFreshPackets = 3;      // The pipe's two buffers can hold packets from before the stall
 constexpr uint32_t kAbandonedFrames = 200; // How long the host can go quiet after a stall before we reconnect
-int32_t lastSofFrame = -1; // FRMNUM at the last SOF interrupt. -1 when the interrupt's just been enabled
-uint32_t lastSofTicks = 0;
-uint32_t fromHostQuietFrames = 0; // SOF interrupts since a packet from the host last arrived
+int32_t lastServiceFrame = -1;             // FRMNUM at the last service tick. -1 when the timer's just been started
+uint32_t lastServiceTicks = 0;
+uint32_t fromHostQuietFrames = 0; // USB frames since a packet from the host last arrived
 bool fromHostEverArrived = false; // Whether this stream has had a packet yet
 bool fromHostStalled = false;     // Stalled while the host was sending, and it hasn't sent kFreshPackets since
 uint32_t fromHostPacketsSinceStall = 0;
@@ -389,7 +401,7 @@ void startFromHostDma() {
 	}
 	fromHostDmaBytes = numBytes;
 	fromHostDmaBusy = true;
-	fromHostDmaFrames = 0;
+	fromHostDmaTicks = 0;
 	startDma(USB_AUDIO_RX_DMA_CHANNEL, reinterpret_cast<uint32_t>(&USB200.D1FIFO.UINT32), destination,
 	         (numBytes + 3) & ~3u);
 	USB200.D1FIFOSEL |= USB_DREQE;
@@ -480,15 +492,11 @@ uint32_t framesForNextPacket(int32_t backlog) {
 }
 
 // The pipe is double buffered, and we keep both buffers full: one going out this USB frame, the next waiting for the
-// one after. The SOF interrupt queues a packet when the host's taken one, then the DMA-complete interrupt another if
-// there's still room - so a late SOF interrupt doesn't cost a packet. Song::renderAudio() holds interrupts off while
-// each output renders, which with a lot of voices can be well over a millisecond: long enough to miss a SOF entirely.
-// With only one packet queued, the host got nothing that frame - our audio lost a packet, and with implicit feedback,
-// so did the host's audio to us. With two, the host takes the waiting one, and the next SOF fills both again, covering
-// interrupts being held off for up to about 2ms. It costs a frame (1ms) of latency to the host.
+// one after. The service timer queues a packet when the host's taken one, then the DMA-complete interrupt another if
+// there's still room - so the host always has a packet waiting, even if the timer's held off for most of a frame. It
+// costs a frame (1ms) of latency to the host.
 //
-// framesForNextPacket() is still called once per packet the host takes - one a USB frame, on average - so its rate
-// steering is unchanged
+// framesForNextPacket() is called once per packet the host takes - one a USB frame, on average
 void queueToHostPacket() {
 	uint32_t read = toHostRead.load(std::memory_order_relaxed);
 	uint32_t written = toHostWritten.load(std::memory_order_acquire);
@@ -541,7 +549,7 @@ void queueToHostPacket() {
 	}
 
 	toHostDmaBusy = true;
-	toHostDmaFrames = 0;
+	toHostDmaTicks = 0;
 	startDma(USB_AUDIO_TX_DMA_CHANNEL, source, reinterpret_cast<uint32_t>(&USB200.D0FIFO.UINT32),
 	         numFrames * bytesPerFrame);
 	USB200.D0FIFOSEL |= USB_DREQE;
@@ -575,6 +583,8 @@ void toHostDmaComplete(uint32_t) {
 	}
 }
 
+void serviceTick(uint32_t);
+
 void setUpInterrupts() {
 	if (interruptsSetUp) {
 		return;
@@ -585,6 +595,10 @@ void setUpInterrupts() {
 	                   reinterpret_cast<uint32_t>(fromHostStaging) + sizeof(fromHostStaging));
 	setupAndEnableInterrupt(toHostDmaComplete, INTC_ID_DMAINT0 + USB_AUDIO_TX_DMA_CHANNEL, kInterruptPriority);
 	setupAndEnableInterrupt(fromHostDmaComplete, INTC_ID_DMAINT0 + USB_AUDIO_RX_DMA_CHANNEL, kInterruptPriority);
+	disableTimer(kServiceTimer);
+	setTimerValue(kServiceTimer, kServiceTicks - 1); // It interrupts every time it's counted down through 0
+	setOperatingMode(kServiceTimer, TIMER, true);
+	setupAndEnableInterrupt(serviceTick, INTC_ID_OSTM1TINT, kInterruptPriority);
 	interruptsSetUp = true;
 }
 
@@ -608,9 +622,9 @@ void abortToHostDma() {
 	toHostDmaBusy = false;
 }
 
-// Called each SOF while a DMA's running. Returns whether it had to step in
-bool checkDma(int32_t channel, uint32_t& framesRunning, void (*complete)(uint32_t), void (*abort)()) {
-	if (++framesRunning < kDmaTimeoutFrames) {
+// Called each service tick while a DMA's running. Returns whether it had to step in
+bool checkDma(int32_t channel, uint32_t& ticksRunning, void (*complete)(uint32_t), void (*abort)()) {
+	if (++ticksRunning < kDmaTimeoutTicks) {
 		return false;
 	}
 	if (dmaFinished(channel)) {
@@ -636,61 +650,84 @@ bool ensurePipeAccepting(uint16_t pipe) {
 	return true;
 }
 
-// The watchdog, for audio from the host
-void serviceFromHost() {
+// Audio from the host: start reading out any packet that's arrived, and the watchdog. framesPassed is how many USB
+// frames have gone by since the last tick
+void serviceFromHost(uint32_t framesPassed) {
 	if (!fromHostStreaming) {
 		return;
 	}
 	bool recovered = ensurePipeAccepting(kPipeFromHost);
 	if (fromHostDmaBusy) {
-		recovered |= checkDma(USB_AUDIO_RX_DMA_CHANNEL, fromHostDmaFrames, fromHostDmaComplete, abortFromHostDma);
+		recovered |= checkDma(USB_AUDIO_RX_DMA_CHANNEL, fromHostDmaTicks, fromHostDmaComplete, abortFromHostDma);
 	}
-	// If a packet's waiting and nothing's reading it - because its BRDY came while the DMA was busy, and the buffer
-	// wasn't ready yet when the DMA finished - then nothing else would ever start reading it, since there's no new
-	// BRDY once both buffers are full
 	if (!fromHostDmaBusy) {
-		startFromHostDma();
-		recovered |= fromHostDmaBusy;
+		startFromHostDma(); // If a packet's arrived
 	}
 	if (recovered) {
 		fromHostRecoveries++;
 	}
 
-	if (fromHostQuietFrames < kAbandonedFrames) {
-		fromHostQuietFrames++;
-	}
-	else if (fromHostStalled && reconnect == Reconnect::IDLE) {
+	fromHostQuietFrames = std::min(fromHostQuietFrames + framesPassed, kAbandonedFrames);
+	if (fromHostQuietFrames == kAbandonedFrames && fromHostStalled && reconnect == Reconnect::IDLE) {
 		reconnect = Reconnect::WANTED; // The USB task takes it from here
 	}
 }
 
-// Notes whether USB just went unserviced for long enough that the host ran out of our packets, and the host was
-// sending to us right up to then
-void checkForStall() {
+// Audio to the host: keep both of the pipe's buffers full - one going out this USB frame, the next waiting for the one
+// after. The host takes a packet each frame, which leaves a buffer free; the DMA-complete interrupt fills the other one
+// too if it's free. And the watchdog
+void serviceToHost() {
+	if (!toHostStreaming) {
+		return;
+	}
+	bool recovered = ensurePipeAccepting(kPipeToHost);
+	if (toHostDmaBusy) {
+		recovered |= checkDma(USB_AUDIO_TX_DMA_CHANNEL, toHostDmaTicks, toHostDmaComplete, abortToHostDma);
+	}
+	if (recovered) {
+		toHostRecoveries++;
+	}
+	if (!toHostDmaBusy && (USB200.D0FIFOCTR & USB_FRDY)) {
+		queueToHostPacket();
+	}
+}
+
+// Notes whether USB just went unserviced for long enough that the host ran out of our packets, while the host was
+// sending to us right up to then. Returns how many USB frames have gone by since the last tick
+uint32_t checkForStall() {
 	uint32_t frame = USB200.FRMNUM & USB_FRNM;
 	uint32_t ticks = getSystemTicks();
-	if (lastSofFrame >= 0) {
-		uint32_t frames = (frame - (uint32_t)lastSofFrame) & USB_FRNM; // 1, normally
-		bool stalled = frames > kStallFrames + 1 || (int32_t)(ticks - lastSofTicks) > (int32_t)kStallTicks;
+	uint32_t frames = 0;
+	if (lastServiceFrame >= 0) {
+		frames = (frame - (uint32_t)lastServiceFrame) & USB_FRNM; // 0 or 1, normally
+		bool stalled = frames > kStallFrames + 1 || (int32_t)(ticks - lastServiceTicks) > (int32_t)kStallTicks;
 		if (stalled && fromHostStreaming && fromHostEverArrived && fromHostQuietFrames <= kStallFrames) {
 			fromHostStalled = true;
 			fromHostPacketsSinceStall = 0;
 		}
 	}
-	lastSofFrame = (int32_t)frame;
-	lastSofTicks = ticks;
+	lastServiceFrame = (int32_t)frame;
+	lastServiceTicks = ticks;
+	return frames;
 }
 
-void setSofInterrupt() {
+// The service timer's interrupt, every half USB frame while either direction's streaming
+void serviceTick(uint32_t) {
+	uint32_t frames = checkForStall();
+	serviceFromHost(frames);
+	serviceToHost();
+}
+
+// Runs the service timer while either direction's streaming. Only from inside a critical section
+void updateServiceTimer() {
 	if (fromHostStreaming || toHostStreaming) {
-		if (!(USB200.INTENB0 & USB_SOFE)) {
-			USB200.INTSTS0 = (uint16_t)~USB_SOFR;
-			USB200.INTENB0 |= USB_SOFE;
-			lastSofFrame = -1; // There's been no SOF interrupt to measure a stall from
+		if (!isTimerEnabled(kServiceTimer)) {
+			lastServiceFrame = -1; // There's been no tick to measure a stall from
+			enableTimer(kServiceTimer);
 		}
 	}
 	else {
-		USB200.INTENB0 &= ~USB_SOFE;
+		disableTimer(kServiceTimer);
 	}
 }
 
@@ -701,8 +738,7 @@ void setSofInterrupt() {
 void stopFromHost() {
 	CriticalSectionGuard guard;
 	fromHostStreaming = false;
-	setSofInterrupt();
-	USB200.BRDYENB &= ~(1 << kPipeFromHost);
+	updateServiceTimer();
 	usb_cstd_set_nak(USB_NULL, kPipeFromHost);
 	if (interruptsSetUp) {
 		stopDma(USB_AUDIO_RX_DMA_CHANNEL);
@@ -732,16 +768,14 @@ void startFromHost() {
 	fromHostStalled = false;
 	fromHostStreaming = true;
 
-	USB200.BRDYSTS = (uint16_t)~(1 << kPipeFromHost);
-	USB200.BRDYENB |= (1 << kPipeFromHost);
 	usb_cstd_set_buf(USB_NULL, kPipeFromHost); // Start accepting packets
-	setSofInterrupt();                         // For the watchdog
+	updateServiceTimer();                      // Which reads them out
 }
 
 void stopToHost() {
 	CriticalSectionGuard guard;
 	toHostStreaming = false;
-	setSofInterrupt();
+	updateServiceTimer();
 	usb_cstd_set_nak(USB_NULL, kPipeToHost);
 	if (interruptsSetUp) {
 		stopDma(USB_AUDIO_TX_DMA_CHANNEL);
@@ -773,7 +807,7 @@ void startToHost() {
 	toHostStreaming = true;
 
 	usb_cstd_set_buf(USB_NULL, kPipeToHost);
-	setSofInterrupt(); // We send a packet each USB frame
+	updateServiceTimer(); // We send a packet each USB frame
 }
 
 /*********************************************************************************************************************
@@ -957,40 +991,13 @@ extern "C" void usbAudioStopAll(void) {
 }
 
 extern "C" uint16_t usbAudioHandleBrdy(uint16_t pipeBits) {
+	// The service timer looks after our pipes, so we don't enable their BRDY interrupts - but they still get flagged,
+	// and we don't want the MIDI code thinking they're for it
 	uint16_t ours = pipeBits & kPipeBits;
 	if (ours) {
 		USB200.BRDYSTS = (uint16_t)~ours;
-		if (ours & (1 << kPipeFromHost)) {
-			startFromHostDma();
-		}
-		// The to-host pipe's BRDY just says a buffer's free. We don't enable it - SOF paces that side - but it still
-		// gets flagged, and we don't want the MIDI code thinking it's for it
 	}
 	return ours;
-}
-
-extern "C" void usbAudioHandleSof(void) {
-	checkForStall();
-	serviceFromHost();
-
-	if (!toHostStreaming) {
-		return;
-	}
-	bool recovered = ensurePipeAccepting(kPipeToHost);
-	if (toHostDmaBusy) {
-		recovered |= checkDma(USB_AUDIO_TX_DMA_CHANNEL, toHostDmaFrames, toHostDmaComplete, abortToHostDma);
-	}
-	if (recovered) {
-		toHostRecoveries++;
-	}
-	if (toHostDmaBusy) {
-		return;
-	}
-	if (!(USB200.D0FIFOCTR & USB_FRDY)) {
-		return; // Both buffers already hold packets the host hasn't collected
-	}
-
-	queueToHostPacket();
 }
 
 extern "C" void usbAudioServiceTask(void) {
@@ -1137,7 +1144,7 @@ void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition,
 	}
 	written += numFrames;
 	// The offset only changes when the stream (re)starts or the ring overflowed - every frame rendered normally goes
-	// both here and to the TX buffer. Leaving it alone otherwise means the SOF interrupt can't catch it out of step
+	// both here and to the TX buffer. Leaving it alone otherwise means the service interrupt can't catch it out of step
 	// with toHostWritten, between the two stores
 	uint32_t txFrame = (txPosition - getTxBufferStart()) / NUM_MONO_OUTPUT_CHANNELS;
 	auto txOffset = (int32_t)((txFrame - written) & (SSI_TX_BUFFER_NUM_SAMPLES - 1));
