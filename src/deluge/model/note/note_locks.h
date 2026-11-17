@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 
 /// Per-note parameter locks ("p-locks").
 ///
@@ -43,6 +44,9 @@ namespace deluge::note_locks {
 /// Max locks on one note. Bounds the per-voice copy (Voice::noteLocks).
 constexpr int32_t kMaxLocksPerNote = 8;
 
+/// What Pool::withLock / withoutLock / withLocks return when the pool is out of memory or indices. Never a valid index.
+constexpr uint16_t kInternFailed = 0xFFFF;
+
 struct Lock {
 	uint8_t param; // A local patched param: deluge::modulation::params::Local, below FIRST_GLOBAL
 	int32_t value; // In the patched param's preset-value domain (the same as its knob / automation value)
@@ -50,6 +54,11 @@ struct Lock {
 
 /// True if `param` can be locked: a local patched param, i.e. one with a per-voice final value.
 bool isLockableParam(int32_t param);
+
+/// True if `params` / `values` lock envelope 1's sustain above its minimum. Such a note sustains even on a sound whose
+/// own envelope doesn't, so it gets a note tail (and a note-off) there regardless: the clip view lets you set its
+/// length and draws its tail, and the sequencer ends it there.
+bool locksSustain(const uint8_t* params, const int32_t* values, int32_t count);
 
 /// Read-only view of an interned set. Locks are sorted by param, at most one per param. Only valid until the pool is
 /// next modified.
@@ -84,6 +93,9 @@ public:
 	/// Count 0 for index 0 or an out-of-range index, so a stale index can never read outside the pool.
 	[[nodiscard]] LockSetView get(uint16_t index) const;
 
+	// The edits below return kInternFailed, not 0, if the result can't be interned, so a caller can keep `base` rather
+	// than wipe the note's other locks.
+
 	/// The set at `base` with `param` set to `value` (added or replaced). Copy-on-write: `base` itself is unchanged.
 	uint16_t withLock(uint16_t base, int32_t param, int32_t value);
 	/// The set at `base` without `param`; 0 if that empties it.
@@ -107,6 +119,8 @@ public:
 	[[nodiscard]] size_t bytesAllocated() const;
 
 private:
+	/// intern(), but kInternFailed (not 0) if a non-empty set couldn't be interned
+	uint16_t internOrFail(const Lock* locks, int32_t count);
 	/// `params` sorted, unique and lockable, count <= kMaxLocksPerNote
 	uint16_t internNormalised(const uint8_t* params, const int32_t* values, int32_t count);
 	static uint32_t hashOf(const uint8_t* params, const int32_t* values, int32_t count);
@@ -141,6 +155,18 @@ struct VoiceLocks {
 			}
 		}
 		return 0; // Not reached if the mask was checked first
+	}
+	/// The locked value of `param`, or nullptr if it isn't locked
+	[[nodiscard]] const int32_t* find(int32_t param) const {
+		if (!((mask >> param) & 1)) [[likely]] {
+			return nullptr;
+		}
+		for (int32_t i = 0; i < count; i++) {
+			if (params[i] == param) {
+				return &values[i];
+			}
+		}
+		return nullptr;
 	}
 	void set(const LockSetView& view);
 	/// Adds or replaces one lock. False if the voice already has kMaxLocksPerNote other locks.
@@ -206,13 +232,19 @@ extern LiveEdit liveEdits[kMaxLiveEdits];
 /// Number of armed slots. The sequencer only looks for a matching slot when this is nonzero.
 extern int32_t numArmedLiveEdits;
 
+/// Arms `slot` for the notes at [pos, pos + length) of that row. `samePress`: the press it was armed for is just being
+/// pointed at where its notes are now (after a nudge, a vertical drag, or a commit) - keep the slot's tag, so voices
+/// already started from it still hear its edits, and any edits not yet committed. Otherwise it's a new press: new tag,
+/// no edits.
 void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length,
-                 uint32_t wrapLevel);
+                 uint32_t wrapLevel, bool samePress = false);
 void disarmLiveEdit(int32_t slot);
 /// Disarms every slot whose song or clip is `owner` (called as a Song / InstrumentClip is destroyed).
 void disarmLiveEditsFor(const void* owner);
 /// The armed slot covering this note, or nullptr.
 const LiveEdit* findLiveEdit(const void* clip, int32_t noteRowId, uint32_t pos);
+/// The armed slot with this tag, or nullptr (also for tag 0).
+const LiveEdit* findLiveEditByTag(uint16_t tag);
 
 /// Pool compaction (song_note_locks.cpp). Clearing the undo history (ActionLogger::deleteAllLogs) sets the request;
 /// compactionTask, a scheduler task, carries it out for the current Song at a point where nothing else holds pool
@@ -222,25 +254,39 @@ void compactionTask();
 
 /// The locks of the note currently being sent to an instrument. The sequencer sets this (through PendingScope) around
 /// a note-on, and Voice::noteOn copies it, which saves threading a parameter through every instrument / drum /
-/// arpeggiator note-on signature. Count 0 the rest of the time. Single-threaded: only touched from the audio routine.
+/// arpeggiator note-on signature. Count 0 the rest of the time. Single-threaded: set by the sequencer in the audio
+/// routine and by the clip view's audition note-on, and every scope is closed before either returns.
 extern LockSetView pending;
 /// pending's committed index in its pool, for the arpeggiators: they remember it with each held note
-/// (ArpNote::lockSet) and set it again around the note-ons they generate later. (A live edit's uncommitted values
-/// aren't in the pool, so notes an arp generates later don't hear them until the edit is committed.)
+/// (ArpNote::lockSet) and set it again around the note-ons they generate later.
 extern uint16_t pendingIndex;
-/// LiveEdit::tag of the live edit pending is built from, else 0. Voice::noteOn copies it.
+/// LiveEdit::tag of the live edit pending is built from, else 0. Voice::noteOn copies it, and the arpeggiators remember
+/// it (ArpNote::liveTag), so the notes they generate later hear the held pad's uncommitted edits too.
 extern uint16_t pendingLiveTag;
 
 class PendingScope {
 public:
-	/// A note's committed set. Inactive (no stores at all) if that's what's already pending - in particular when
-	/// neither this nor the outer scope has locks, or when an arpeggiator re-enters with the index it was given.
-	PendingScope(const Pool& pool, uint16_t index) : active_(index != pendingIndex) {
+	/// A note an arpeggiator plays: the locks of the held note it came from - its committed set `index` plus, while
+	/// that note's pad is still held, the pad's live edits (`liveTag`, ArpNote::liveTag). Inactive (no stores at all)
+	/// if that's what's already pending: in particular when nothing has locks, or when the arp plays the very note the
+	/// sequencer is sending. Any other note - even one with the same committed set - gets its own locks, so a held
+	/// pad's edits never leak onto a different note the arp picks.
+	PendingScope(const Pool& pool, uint16_t index, uint16_t liveTag)
+	    : active_(index != pendingIndex || liveTag != pendingLiveTag) {
 		if (active_) [[unlikely]] {
 			save();
-			pending = pool.get(index);
+			const LiveEdit* live = findLiveEditByTag(liveTag);
+			if (live != nullptr) {
+				// Not the slot's own scratch: an outer scope's pending may be pointing at that
+				auto* scratch = new (scratch_) VoiceLocks();
+				pending = live->mergedWith(pool.get(index), *scratch);
+				pendingLiveTag = liveTag;
+			}
+			else {
+				pending = pool.get(index);
+				pendingLiveTag = 0;
+			}
 			pendingIndex = index;
-			pendingLiveTag = 0;
 		}
 	}
 	/// A note that may have live (uncommitted) edits from a held pad: `live` is that pad's slot (findLiveEdit), or
@@ -280,6 +326,8 @@ private:
 	uint16_t outerIndex_{0};
 	uint16_t outerLiveTag_{0};
 	LockSetView outer_;
+	// A VoiceLocks, only constructed when the arp constructor merges live edits (it's trivially destructible)
+	alignas(VoiceLocks) unsigned char scratch_[sizeof(VoiceLocks)];
 };
 
 } // namespace deluge::note_locks

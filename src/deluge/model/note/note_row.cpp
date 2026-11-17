@@ -493,7 +493,7 @@ addNewNote:
 		if (noteEnd > squareStart) {
 
 			// We have a tail! But if tails aren't allowed, cut it off and make a new note here instead
-			if (!allowNoteTails) {
+			if (!noteHasTail(note, allowNoteTails, modelStack->song)) {
 				if (action) {
 					action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 					    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, false);
@@ -510,7 +510,7 @@ addNewNote:
 		else {
 
 			// If we're wanting to extend, and tails are allowed...
-			if (extendPreviousNoteIfPossible && allowNoteTails) {
+			if (extendPreviousNoteIfPossible && noteHasTail(note, allowNoteTails, modelStack->song)) {
 
 				int32_t newLength;
 
@@ -1912,7 +1912,7 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailColour, RGB rowBlurColour, RGB* image,
                         uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
                         bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
-                        int32_t xEnd, bool drawRepeats) {
+                        int32_t xEnd, bool drawRepeats, bool showLocks) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -1993,7 +1993,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
-				pixel = note->lockSet ? lockBlurColour : rowBlurColour;
+				pixel = (showLocks && note->lockSet) ? lockBlurColour : rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -2005,7 +2005,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				drewHead = true;
 				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
 				// to max brightness with velocity
-				pixel = (note->lockSet ? lockColour : rowColour)
+				pixel = ((showLocks && note->lockSet) ? lockColour : rowColour)
 				            .adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
@@ -2023,9 +2023,9 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				if (wrapping) {
 					noteEnd -= effectiveRowLength;
 				}
-				if (noteEnd > squareStartPos && allowNoteTails) {
+				if (noteEnd > squareStartPos && noteHasTail(note, allowNoteTails, currentSong)) {
 					drewNote = true;
-					pixel = note->lockSet ? lockTailColour : rowTailColour;
+					pixel = (showLocks && note->lockSet) ? lockTailColour : rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
@@ -2048,8 +2048,8 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					// (yellow and the lock colour averaged) if it has parameter locks too
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
-						pixel = note->lockSet ? RGB::average(deluge::gui::colours::yellow, lockColour)
-						                      : deluge::gui::colours::yellow;
+						pixel = (showLocks && note->lockSet) ? RGB::average(deluge::gui::colours::yellow, lockColour)
+						                                     : deluge::gui::colours::yellow;
 					}
 				}
 			}
@@ -2559,6 +2559,22 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	                                   &modelStack->getTimelineCounter()->paramManager)
 	               ->addSoundFlags());
 }
+bool NoteRow::locksTakeEffect(const InstrumentClip* clip) const {
+	OutputType type = clip->output->type;
+	return type == OutputType::SYNTH || (type == OutputType::KIT && drum != nullptr && drum->type == DrumType::SOUND);
+}
+
+bool NoteRow::noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song) {
+	if (rowAllowsNoteTails) [[likely]] {
+		return true;
+	}
+	if (note == nullptr || note->lockSet == 0) [[likely]] {
+		return false;
+	}
+	deluge::note_locks::LockSetView locks = song->noteLocks.get(note->lockSet);
+	return deluge::note_locks::locksSustain(locks.params, locks.values, locks.count);
+}
+
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
 // A held pad's uncommitted parameter-lock edits for this note, if any. Only looks while a pad is held.
 static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
@@ -2689,9 +2705,12 @@ storePendingNoteOn:
 		}
 	}
 
-	// And for all cases of a note-on, remember that that's what's happening, for later.
+	// And for all cases of a note-on, remember that that's what's happening, for later - so its note-off gets sent.
+	// A sound with no tails gets none, except for a note whose locks give it a sustain, and a note on a held pad,
+	// whose sustain may be locked while it plays.
 	if (on) {
-		if (clip->allowNoteTails(modelStack)) {
+		if (noteHasTail(thisNote, clip->allowNoteTails(modelStack), modelStack->song)
+		    || (thisNote && liveEditFor(modelStack, thisNote))) {
 			sequenced = true;
 		}
 	}

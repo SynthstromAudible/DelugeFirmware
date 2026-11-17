@@ -69,6 +69,13 @@ struct EditPadPress {
 	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
 };
 
+/// What turning a knob does while note pads are held in the clip view (InstrumentClipView::getHeldNoteLockValue)
+enum class HeldNoteLock : uint8_t {
+	NONE,    // Not a lockable param of this clip, or no pads held: edit the param as usual
+	LOCK,    // Lock it on the held notes that play this param's Sound
+	NO_NOTE, // A lockable param, but no held note plays its Sound (kit rows of other drums): leave it alone
+};
+
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (kSampleRate >> 2) // 250ms
 static constexpr const char* PATTERN_FILE_VERSION = "0.0.1";
@@ -291,19 +298,21 @@ public:
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 
 	// Per-note parameter locks (instrument_clip_view_note_locks.cpp)
-	/// If holding note pads would make edits of this param parameter locks (a lockable param of the held notes'
-	/// Sound), returns true and gives the value to show: the held note's pending or committed lock, else the param's
-	/// value at the note.
-	bool getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value);
-	/// Sets this param's lock, uncommitted, on every held note playing its Sound, and makes it heard. False if holding
-	/// pads doesn't lock this param (the caller should edit it normally).
+	/// While note pads are held, a turn of a lockable (local patched) param of this clip only ever sets parameter
+	/// locks, never step automation - from the mod knobs, MIDI follow and MIDI-learned knobs alike. For LOCK and
+	/// NO_NOTE, gives the value to show: the held note's pending or committed lock, else the param's value at the
+	/// note.
+	HeldNoteLock getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value);
+	/// Sets this param's lock, uncommitted, on every held note playing its Sound, and makes it heard. False if no
+	/// held note plays its Sound.
 	bool setHeldNoteLock(ModelStackWithAutoParam* modelStack, int32_t value);
 	/// Commits a held pad's pending lock edits to its notes as one undoable change (no-op if none) and disarms its
 	/// slot. Called whenever a press ends.
 	void commitLiveNoteLocks(int32_t i);
 	void commitAllLiveNoteLocks();
-	/// (Re)arms press i's live-edit slot for the notes it covers now
-	void armLiveNoteLocks(int32_t i);
+	/// (Re)arms press i's live-edit slot for the notes it covers now. `samePress`: press i is the press the slot was
+	/// armed for, now covering moved notes (note_locks::armLiveEdit)
+	void armLiveNoteLocks(int32_t i, bool samePress = false);
 	void rearmAllLiveNoteLocks();
 	/// The live-edit slot (and its note's committed lock set) for the audition of a held note in this row
 	const deluge::note_locks::LiveEdit* getAuditionLiveEdit(int32_t yDisplay, uint16_t* committedLockSet);
@@ -313,6 +322,8 @@ public:
 	bool setNoteEditorLock(int32_t param, int32_t value);
 	bool removeNoteEditorLock(int32_t param);
 	bool clearNoteEditorLocks();
+	/// Calls fn on every pool index the clip view holds outside the notes: lifted (dragged) notes' locks
+	void forEachHeldLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context);
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
@@ -414,6 +425,8 @@ private:
 	Sound* getSoundForEditPadPress(int32_t i, NoteRow** getNoteRow, int32_t* getNoteRowId,
 	                               ParamManagerForTimeline** getParamManager);
 	uint16_t getCommittedLockSetForPress(int32_t i);
+	/// The note held in this row locks a sustain (committed or still live), so it has a tail even on a sound without
+	bool heldNoteInRowLocksSustain(int32_t yDisplay);
 	int32_t findHeldNoteLockPresses(ModelStackWithAutoParam const* modelStack, bool* matches);
 	template <typename F>
 	bool changeNoteEditorLockSets(F change);

@@ -181,6 +181,8 @@ struct ArpNote {
 	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pendingIndex at its note-on),
 	// so the notes the arp generates from it later carry them too. Index into the Song's note_locks::Pool.
 	uint16_t lockSet{0};
+	// And its held pad's live edits, if any (note_locks::pendingLiveTag at its note-on)
+	uint16_t liveTag{0};
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};

@@ -2369,7 +2369,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		if (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
 		    && numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
 		    && (int32_t)(timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0
-		    && clip->allowNoteTails(modelStackWithNoteRow) && getEditPadPressXDisplayOnScreen(yDisplay) < xDisplay) {
+		    && (clip->allowNoteTails(modelStackWithNoteRow) || heldNoteInRowLocksSustain(yDisplay))
+		    && getEditPadPressXDisplayOnScreen(yDisplay) < xDisplay) {
 
 			// Find that original press
 			int32_t i;
@@ -2638,6 +2639,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 					// Knob turns while this is held can lock the note's params; arm its slot before the audition
 					// below, so the auditioned voice can be found and updated as they come in
+					editPadPresses[i].intendedLockSet = 0; // Only meaningful once a vertical drag lifts the note
 					armLiveNoteLocks(i);
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
@@ -3752,6 +3754,10 @@ void InstrumentClipView::exitNoteEditor() {
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+	// A lock value being edited in the menu belongs to the notes selected now: write it before the selection changes
+	if (soundEditor.getCurrentMenuItem() == &noteParamLockValueMenu) {
+		noteParamLockValueMenu.commit();
+	}
 	char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
 	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
@@ -4859,7 +4865,9 @@ cancelPress:
 
 			editPadPresses[i].deleteOnDepress = false;
 			editPadPresses[i].deleteOnScroll = success;
-			armLiveNoteLocks(i); // Further lock edits go to the note in its new row
+			// Further lock edits go to the note in its new row. Same press: the voice it's sounding keeps hearing them,
+			// and edits made while it couldn't be placed (floating) are kept for when it is.
+			armLiveNoteLocks(i, true);
 
 			if (success) {
 				if (editPadPresses[i].mpeCachedYet) {
@@ -6047,7 +6055,7 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    currentSong->xZoom[NAVIGATION_CLIP], 0, kDisplayWidth, false, thisNoteRow->locksTakeEffect(clip));
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -6147,7 +6155,7 @@ void InstrumentClipView::exitScaleMode() {
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    currentSong->xZoom[NAVIGATION_CLIP], 0, kDisplayWidth, false, thisNoteRow->locksTakeEffect(clip));
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -6555,6 +6563,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		uint8_t probability;
 		Iterance iterance;
 		uint8_t fill;
+		uint16_t lockSet;
 		StolenParamNodes stolenMPE[kNumExpressionDimensions]{0};
 	};
 
@@ -6595,6 +6604,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 					ntm.probability = note->probability;
 					ntm.iterance = note->iterance;
 					ntm.fill = note->fill;
+					ntm.lockSet = note->lockSet;
 
 					// Steal expression/MPE parameter data
 					ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
@@ -6640,7 +6650,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			if (destRow) {
 				// Use attemptNoteAdd like scrollVertical_placeNotesPressed does
 				bool success = destRow->attemptNoteAdd(ntm.pos, ntm.length, ntm.velocity, ntm.probability, ntm.iterance,
-				                                       ntm.fill, destModelStack, action);
+				                                       ntm.fill, destModelStack, action, ntm.lockSet);
 
 				if (success) {
 					// Check if there are any MPE nodes to restore
@@ -7676,7 +7686,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				noteRow->renderRow(this, rowColour[yDisplay], rowTailColour[yDisplay], rowBlurColour[yDisplay], image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false);
+				                   renderWidth, false, noteRow->locksTakeEffect(clip));
 			}
 
 			if (drawUndefinedArea) {

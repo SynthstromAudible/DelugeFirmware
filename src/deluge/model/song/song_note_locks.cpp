@@ -17,6 +17,7 @@
 
 // Compacting a Song's note_locks::Pool: drop the sets nothing refers to any more, renumbering the rest.
 
+#include "gui/views/instrument_clip_view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -36,8 +37,9 @@ namespace note_locks = deluge::note_locks;
 namespace {
 
 /// Calls fn(uint16_t& lockSet, context) on every pool index the Song holds outside the action log: every Note in every
-/// InstrumentClip (session and arrangement-only), and every ArpNote in every arpeggiator of every Output (including
-/// hibernating ones). Nothing in here allocates or yields.
+/// InstrumentClip (session and arrangement-only), every ArpNote in every arpeggiator of every Output (including
+/// hibernating ones), and - for the current Song - notes the clip view has lifted out of their rows. Nothing in here
+/// allocates or yields.
 void forEachLockSetHolder(Song& song, void (*fn)(uint16_t& lockSet, void* context), void* context) {
 	for (ClipArray* clips : {&song.sessionClips, &song.arrangementOnlyClips}) {
 		for (int32_t c = 0; c < clips->getNumElements(); c++) {
@@ -79,6 +81,9 @@ void forEachLockSetHolder(Song& song, void (*fn)(uint16_t& lockSet, void* contex
 	}
 	for (Output* output = song.firstHibernatingInstrument; output != nullptr; output = output->next) {
 		visitOutput(output);
+	}
+	if (&song == currentSong) {
+		instrumentClipView.forEachHeldLockSet(fn, context);
 	}
 }
 

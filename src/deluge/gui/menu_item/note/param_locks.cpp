@@ -87,6 +87,21 @@ void ParamLockValue::readCurrentValue() {
 	}
 }
 
+void ParamLockValue::readValueAgain() {
+	if (dirty_) {
+		return; // Keep showing the pending edit until it's written
+	}
+	note_locks::VoiceLocks locks;
+	instrumentClipView.getNoteEditorLocks(locks);
+	if (!((locks.mask >> param_) & 1)) {
+		// The notes now targeted don't have this lock (or it was deleted): back to the list, rather than show a value
+		// that isn't theirs
+		soundEditor.goUpOneLevel();
+		return;
+	}
+	Integer::readValueAgain();
+}
+
 int32_t ParamLockValue::getDisplayValue() {
 	return displayValue(param_, getValue());
 }

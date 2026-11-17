@@ -32,11 +32,20 @@ LockSetView pending;
 uint16_t pendingIndex = 0;
 uint16_t pendingLiveTag = 0;
 
+bool locksSustain(const uint8_t* params, const int32_t* values, int32_t count) {
+	for (int32_t i = 0; i < count; i++) {
+		if (params[i] == params::LOCAL_ENV_0_SUSTAIN) {
+			return values[i] != -2147483648;
+		}
+	}
+	return false;
+}
+
 LiveEdit liveEdits[kMaxLiveEdits];
 int32_t numArmedLiveEdits = 0;
 
 namespace {
-constexpr uint32_t kMaxSets = 65536; // uint16_t indices, including the 0 sentinel
+constexpr uint32_t kMaxSets = kInternFailed; // uint16_t indices, including the 0 sentinel; kInternFailed is never one
 
 uint32_t headerWords(int32_t count) {
 	return (uint32_t)(1 + count + 3) >> 2;
@@ -175,6 +184,17 @@ uint16_t Pool::intern(const Lock* locks, int32_t count) {
 	return internNormalised(params, values, count);
 }
 
+uint16_t Pool::internOrFail(const Lock* locks, int32_t count) {
+	uint8_t params[kMaxLocksPerNote];
+	int32_t values[kMaxLocksPerNote];
+	count = normalise(locks, count, params, values);
+	if (count == 0) {
+		return 0;
+	}
+	uint16_t index = internNormalised(params, values, count);
+	return index ? index : kInternFailed;
+}
+
 uint16_t Pool::internNormalised(const uint8_t* params, const int32_t* values, int32_t count) {
 	if (count == 0) {
 		return 0;
@@ -232,7 +252,7 @@ uint16_t Pool::withLock(uint16_t base, int32_t param, int32_t value) {
 		locks[i] = {v.params[i], v.values[i]};
 	}
 	locks[v.count] = {(uint8_t)param, value}; // normalise() lets this later duplicate win
-	return intern(locks, v.count + 1);
+	return internOrFail(locks, v.count + 1);
 }
 
 uint16_t Pool::withoutLock(uint16_t base, int32_t param) {
@@ -244,7 +264,7 @@ uint16_t Pool::withoutLock(uint16_t base, int32_t param) {
 			locks[n++] = {v.params[i], v.values[i]};
 		}
 	}
-	return intern(locks, n);
+	return internOrFail(locks, n);
 }
 
 uint16_t Pool::withLocks(uint16_t base, const Lock* edits, int32_t count) {
@@ -257,7 +277,7 @@ uint16_t Pool::withLocks(uint16_t base, const Lock* edits, int32_t count) {
 	for (int32_t i = 0; i < count && n < 2 * kMaxLocksPerNote; i++) {
 		locks[n++] = edits[i]; // normalise() lets these later duplicates win
 	}
-	return intern(locks, n);
+	return internOrFail(locks, n);
 }
 
 uint16_t Pool::importFrom(const Pool& other, uint16_t index) {
@@ -364,14 +384,18 @@ LockSetView LiveEdit::mergedWith(const LockSetView& committed, VoiceLocks& scrat
 }
 
 void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteRowId, uint32_t pos, uint32_t length,
-                 uint32_t wrapLevel) {
+                 uint32_t wrapLevel, bool samePress) {
 	static uint16_t nextTag = 0;
 	LiveEdit& e = liveEdits[slot];
 	if (!e.armed()) {
 		numArmedLiveEdits++;
 	}
-	if (++nextTag == 0) {
-		nextTag = 1;
+	if (!samePress || e.tag == 0) {
+		if (++nextTag == 0) {
+			nextTag = 1;
+		}
+		e.tag = nextTag;
+		e.count = 0;
 	}
 	e.song = song;
 	e.clip = clip;
@@ -379,8 +403,6 @@ void armLiveEdit(int32_t slot, const void* song, const void* clip, int32_t noteR
 	e.pos = pos;
 	e.length = length ? length : 1;
 	e.wrapLevel = wrapLevel ? wrapLevel : 1u << 31;
-	e.tag = nextTag;
-	e.count = 0;
 }
 
 void disarmLiveEdit(int32_t slot) {
@@ -391,6 +413,7 @@ void disarmLiveEdit(int32_t slot) {
 	e.song = nullptr;
 	e.clip = nullptr;
 	e.count = 0;
+	// The tag stays, so re-arming the same press (armLiveEdit's samePress) keeps reaching the voices it started
 }
 
 void disarmLiveEditsFor(const void* owner) {
@@ -399,6 +422,15 @@ void disarmLiveEditsFor(const void* owner) {
 			disarmLiveEdit(i);
 		}
 	}
+}
+
+const LiveEdit* findLiveEditByTag(uint16_t tag) {
+	for (const LiveEdit& e : liveEdits) {
+		if (e.armed() && e.tag == tag) {
+			return &e;
+		}
+	}
+	return nullptr;
 }
 
 const LiveEdit* findLiveEdit(const void* clip, int32_t noteRowId, uint32_t pos) {

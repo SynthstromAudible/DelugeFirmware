@@ -25,7 +25,9 @@
 namespace deluge::gui::menu_item::note {
 
 /// Note editor > Param locks > (a lock): the lock's value, in the units the param's own menu uses. Edits are kept
-/// here and written to the targeted notes once, when you leave the item. SHIFT + SAVE deletes the lock.
+/// here and written to the targeted notes once: when you leave the item, or before the note selection changes. A
+/// pending edit is never replaced by a re-read (the automation display re-reads the open item constantly while
+/// playing). SHIFT + SAVE deletes the lock.
 class ParamLockValue final : public Integer {
 public:
 	using Integer::Integer;
@@ -34,6 +36,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 64; }
 	[[nodiscard]] std::string_view getTitle() const override;
 	void readCurrentValue() override;
+	void readValueAgain() override;
 	void selectEncoderAction(int32_t offset) override;
 	void endSession() override;
 	/// Writes a pending edit to the notes (once). Safe to call more than once.

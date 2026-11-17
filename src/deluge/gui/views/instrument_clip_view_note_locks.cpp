@@ -73,9 +73,10 @@ void forEachNoteOfPress(NoteRow* row, const EditPadPress& press, F f) {
 /// (cross-screen) editing, to all their copies on the other screens (NoteRow::forNotesAcrossAllScreens, the
 /// note editor's other parameters' path). Part of
 /// the open NOTE_EDIT action, with the row snapshotted once before the first change. `change` runs once per distinct
-/// old set, so copies that shared a set share the result (one intern). Returns whether any note changed.
+/// old set, so copies that shared a set share the result (one intern). If it returns kInternFailed (pool full), that
+/// note keeps its locks and `*failed` is set. Returns whether any note changed.
 template <typename F>
-bool changeNoteLockSets(ModelStackWithNoteRow* rowStack, const EditPadPress& target, F change) {
+bool changeNoteLockSets(ModelStackWithNoteRow* rowStack, const EditPadPress& target, F change, bool* failed) {
 	NoteRow* row = rowStack->getNoteRowAllowNull();
 	if (row == nullptr) {
 		return false;
@@ -104,6 +105,10 @@ bool changeNoteLockSets(ModelStackWithNoteRow* rowStack, const EditPadPress& tar
 				cacheTo[cached] = newLockSet;
 				cached++;
 			}
+		}
+		if (newLockSet == note_locks::kInternFailed) {
+			*failed = true;
+			return;
 		}
 		if (newLockSet == base) {
 			return;
@@ -153,7 +158,7 @@ Sound* InstrumentClipView::getSoundForEditPadPress(int32_t i, NoteRow** getNoteR
 	return sound;
 }
 
-void InstrumentClipView::armLiveNoteLocks(int32_t i) {
+void InstrumentClipView::armLiveNoteLocks(int32_t i, bool samePress) {
 	NoteRow* row;
 	int32_t noteRowId;
 	if (!editPadPresses[i].isActive || getSoundForEditPadPress(i, &row, &noteRowId, nullptr) == nullptr) {
@@ -162,7 +167,8 @@ void InstrumentClipView::armLiveNoteLocks(int32_t i) {
 	}
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	note_locks::armLiveEdit(i, currentSong, static_cast<TimelineCounter*>(clip), noteRowId,
-	                        editPadPresses[i].intendedPos, pressLength(editPadPresses[i]), clip->getWrapEditLevel());
+	                        editPadPresses[i].intendedPos, pressLength(editPadPresses[i]), clip->getWrapEditLevel(),
+	                        samePress);
 }
 
 void InstrumentClipView::commitLiveNoteLocks(int32_t i) {
@@ -185,11 +191,15 @@ void InstrumentClipView::commitLiveNoteLocks(int32_t i) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithNoteRow* rowStack =
 			    currentSong->setupModelStackWithCurrentClip(modelStackMemory)->addNoteRow(noteRowId, row);
-			bool changed = changeNoteLockSets(rowStack, editPadPresses[i], [&](uint16_t base) {
-				return currentSong->noteLocks.withLocks(base, edits, count);
-			});
+			bool failed = false;
+			bool changed = changeNoteLockSets(
+			    rowStack, editPadPresses[i],
+			    [&](uint16_t base) { return currentSong->noteLocks.withLocks(base, edits, count); }, &failed);
 			if (changed) {
 				uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
+			}
+			if (failed) {
+				display->displayError(Error::INSUFFICIENT_RAM);
 			}
 		}
 	}
@@ -205,7 +215,15 @@ void InstrumentClipView::commitAllLiveNoteLocks() {
 void InstrumentClipView::rearmAllLiveNoteLocks() {
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive) {
-			armLiveNoteLocks(i);
+			armLiveNoteLocks(i, true);
+		}
+	}
+}
+
+void InstrumentClipView::forEachHeldLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) {
+	for (EditPadPress& press : editPadPresses) {
+		if (press.isActive) {
+			fn(press.intendedLockSet, context);
 		}
 	}
 }
@@ -226,6 +244,22 @@ uint16_t InstrumentClipView::getCommittedLockSetForPress(int32_t i) {
 	return lockSet;
 }
 
+bool InstrumentClipView::heldNoteInRowLocksSustain(int32_t yDisplay) {
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (!editPadPresses[i].isActive || editPadPresses[i].yDisplay != yDisplay) {
+			continue;
+		}
+		note_locks::LockSetView locks = currentSong->noteLocks.get(getCommittedLockSetForPress(i));
+		note_locks::VoiceLocks merged;
+		const note_locks::LiveEdit& live = note_locks::liveEdits[i];
+		if (live.armed()) {
+			locks = live.mergedWith(locks, merged);
+		}
+		return note_locks::locksSustain(locks.params, locks.values, locks.count);
+	}
+	return false;
+}
+
 const note_locks::LiveEdit* InstrumentClipView::getAuditionLiveEdit(int32_t yDisplay, uint16_t* committedLockSet) {
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay && note_locks::liveEdits[i].armed()) {
@@ -237,6 +271,8 @@ const note_locks::LiveEdit* InstrumentClipView::getAuditionLiveEdit(int32_t yDis
 	return nullptr;
 }
 
+/// The press whose note's value the knob shows (and matches[i] for every press playing the param's Sound), -1 if this
+/// isn't a lock edit (HeldNoteLock::NONE), or -2 if it is but no held note plays the Sound (HeldNoteLock::NO_NOTE)
 int32_t InstrumentClipView::findHeldNoteLockPresses(ModelStackWithAutoParam const* modelStack, bool* matches) {
 	if (numEditPadPresses == 0 || !view.modLength || getRootUI() != this || modelStack == nullptr
 	    || modelStack->autoParam == nullptr || modelStack->paramCollection == nullptr
@@ -248,7 +284,7 @@ int32_t InstrumentClipView::findHeldNoteLockPresses(ModelStackWithAutoParam cons
 	if (clip == nullptr || modelStack->getTimelineCounterAllowNull() != static_cast<TimelineCounter*>(clip)) {
 		return -1;
 	}
-	int32_t primary = -1;
+	int32_t primary = -2;
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		matches[i] = false;
 		if (!editPadPresses[i].isActive) {
@@ -268,23 +304,26 @@ int32_t InstrumentClipView::findHeldNoteLockPresses(ModelStackWithAutoParam cons
 	return primary;
 }
 
-bool InstrumentClipView::getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value) {
+HeldNoteLock InstrumentClipView::getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value) {
 	bool matches[kEditPadPressBufferSize];
 	int32_t primary = findHeldNoteLockPresses(modelStack, matches);
-	if (primary < 0) {
-		return false;
+	if (primary == -1) {
+		return HeldNoteLock::NONE;
 	}
-	const note_locks::LiveEdit& live = note_locks::liveEdits[primary];
-	if (const int32_t* v = live.armed() ? live.find(modelStack->paramId) : nullptr) {
-		*value = *v;
-		return true;
-	}
-	if (const int32_t* v = currentSong->noteLocks.get(getCommittedLockSetForPress(primary)).find(modelStack->paramId)) {
-		*value = *v;
-		return true;
+	if (primary >= 0) {
+		const note_locks::LiveEdit& live = note_locks::liveEdits[primary];
+		if (const int32_t* v = live.armed() ? live.find(modelStack->paramId) : nullptr) {
+			*value = *v;
+			return HeldNoteLock::LOCK;
+		}
+		if (const int32_t* v =
+		        currentSong->noteLocks.get(getCommittedLockSetForPress(primary)).find(modelStack->paramId)) {
+			*value = *v;
+			return HeldNoteLock::LOCK;
+		}
 	}
 	*value = modelStack->autoParam->getValuePossiblyAtPos(view.modPos, modelStack);
-	return true;
+	return primary >= 0 ? HeldNoteLock::LOCK : HeldNoteLock::NO_NOTE;
 }
 
 bool InstrumentClipView::setHeldNoteLock(ModelStackWithAutoParam* modelStack, int32_t value) {
@@ -294,6 +333,10 @@ bool InstrumentClipView::setHeldNoteLock(ModelStackWithAutoParam* modelStack, in
 	}
 	int32_t param = modelStack->paramId;
 	bool anyFull = false;
+	// Sound::updateLiveNoteLocks wants sound flags, which would overwrite the param part of modelStack
+	char soundStackMemory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(soundStackMemory, modelStack, sizeof(ModelStackWithThreeMainThings));
+	ModelStackWithSoundFlags* soundStack = ((ModelStackWithThreeMainThings*)soundStackMemory)->addSoundFlags();
 	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 		if (!matches[i]) {
 			continue;
@@ -316,7 +359,7 @@ bool InstrumentClipView::setHeldNoteLock(ModelStackWithAutoParam* modelStack, in
 		live.set(param, value);
 		// Rewrite the voices this pad is already sounding (the audition, or the sequenced note during playback)
 		Sound* sound = getSoundForEditPadPress(i, nullptr, nullptr, nullptr);
-		sound->updateLiveNoteLocks(live.tag, param, value, *modelStack->paramManager);
+		sound->updateLiveNoteLocks(live.tag, param, value, soundStack);
 		editPadPresses[i].deleteOnDepress = false;
 	}
 	if (anyFull) {
@@ -367,15 +410,19 @@ bool InstrumentClipView::changeNoteEditorLockSets(F change) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	bool changed = false;
+	bool failed = false;
 	for (const EditPadPress& target : get_note_edit_targets()) {
 		if (!target.isActive) {
 			continue;
 		}
-		changed |= changeNoteLockSets(get_note_edit_row(modelStack, target), target, change);
+		changed |= changeNoteLockSets(get_note_edit_row(modelStack, target), target, change, &failed);
 	}
 	actionLogger.closeAction(ActionType::NOTE_EDIT);
 	if (changed) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+	if (failed) {
+		display->displayError(Error::INSUFFICIENT_RAM);
 	}
 	return changed;
 }

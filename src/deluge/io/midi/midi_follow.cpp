@@ -1091,7 +1091,12 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		int32_t currentValue;
 		// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
-		bool noteLock = isStepEditing && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue);
+		HeldNoteLock held = isStepEditing ? instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
+		                                  : HeldNoteLock::NONE;
+		if (held == HeldNoteLock::NO_NOTE) {
+			return; // No held note plays this param's Sound
+		}
+		bool noteLock = (held == HeldNoteLock::LOCK);
 
 		// get current value
 		if (noteLock) {}
@@ -1350,7 +1355,9 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 				if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
 					int32_t currentValue;
 					// obtain current value of the learned parameter
-					if (isStepEditing && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)) {
+					if (isStepEditing
+					    && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
+					           != HeldNoteLock::NONE) {
 						// A held note's parameter lock
 					}
 					else if (isStepEditing) {

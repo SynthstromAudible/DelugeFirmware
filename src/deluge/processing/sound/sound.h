@@ -101,7 +101,9 @@ public:
 
 	/// Sets one parameter lock on the voices started from a held pad's live (uncommitted) lock edits (those with
 	/// Voice::liveEditTag == `tag`) and re-patches them, so the edit is heard while the note sounds. UI context only.
-	void updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ParamManager& paramManager);
+	void updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack);
+	/// note_locks::pending (the note about to start) locks a source's or the noise's volume up from -inf
+	bool noteLocksTurnOnASource();
 
 	LFO globalLFO1;
 	LFO globalLFO3;
@@ -250,8 +252,11 @@ public:
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	void set_cents(int8_t new_cents);
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);
-	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
-	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
+	/// `locks`: a voice's note locks, which take the place of the knob values of the params they lock
+	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager,
+	                                 const deluge::note_locks::VoiceLocks* locks = nullptr);
+	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager,
+	                            const deluge::note_locks::VoiceLocks* locks = nullptr);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);

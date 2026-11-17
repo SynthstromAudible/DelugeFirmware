@@ -861,7 +861,11 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// Holding note pads in the clip view and turning the knob for a local (per-voice) param locks it on those notes,
 	// instead of step-automating the param over their region
 	int32_t value;
-	bool noteLock = instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &value);
+	HeldNoteLock held = instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &value);
+	if (held == HeldNoteLock::NO_NOTE) {
+		return; // No held note plays this param's Sound, so there's nothing to lock it on
+	}
+	bool noteLock = (held == HeldNoteLock::LOCK);
 	if (!noteLock) {
 		value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 	}
@@ -913,6 +917,7 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		instrumentClipView.setHeldNoteLock(
 		    modelStackWithParam,
 		    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam));
+		sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 		setKnobIndicatorLevel(whichModEncoder);
 		potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
 		return;
@@ -1468,7 +1473,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 	if (modelStackWithParam->autoParam) {
 		int32_t value;
-		if (!instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &value)) {
+		if (instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &value) == HeldNoteLock::NONE) {
 			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		}
 		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
