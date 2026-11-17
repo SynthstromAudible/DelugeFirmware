@@ -286,6 +286,9 @@ target_link_options(deluge PUBLIC
     # $<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
 
     # Link-Time Optimization
+    # Mixed class layouts / incompatible declarations can link but corrupt memory at runtime.
+    $<$<CXX_COMPILER_ID:GNU>:-Werror=odr>
+    $<$<CXX_COMPILER_ID:GNU>:-Werror=lto-type-mismatch>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
         # this makes the optimization better at the cost of linking being REALLY slow
