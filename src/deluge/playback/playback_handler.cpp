@@ -2054,9 +2054,13 @@ static void appendOLEDSwingText(StringBuf& text) {
 
 	SwingLevels levels = currentSwingLevels();
 	if (levels.numLevels > 1) {
+		// Format into its own buffer: syncValueToStringForHorzMenuLabel() clears its buffer and copies it into a
+		// 12-char scratch buffer, so it must not be given the popup text
+		DEF_STACK_STRING_BUF(levelName, 12);
+		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, syncValueToSyncLevel(currentSong->swingInterval + 1),
+		                                  levelName, currentSong->getInputTickMagnitude());
 		text.append(" +");
-		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, syncValueToSyncLevel(currentSong->swingInterval + 1), text,
-		                                  currentSong->getInputTickMagnitude());
+		text.append(levelName.c_str());
 		text.append(" ");
 		text.appendInt(levels.level[1].amount + 50);
 	}
