@@ -1477,6 +1477,13 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
+	// Underlying views can forward pads here while the sound editor is open. Apply
+	// this restriction here too, so keyboard/performance shortcuts cannot bypass it.
+	// Settings has no clip parameter context for sound parameter shortcuts.
+	if (isUIOpen(this) && (inSettingsMenu() || inNoteEditor() || inNoteRowEditor())) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
 	// a bunch of other views call this, in which case we actually want to know if we *would* edit kit affect entire
 	// if we were to open a menu. There's a weird edge case in kits otherwise where trying to open a kit param that
 	// doesn't exist in the current selected drum row (like if a filter is off or different modfx) otherwise
@@ -1729,11 +1736,9 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	RootUI* rootUI = getRootUI();
 
-	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {
-		ActionResult result = potentialShortcutPadAction(x, y, on);
-		if (result != ActionResult::NOT_DEALT_WITH) {
-			return result;
-		}
+	ActionResult result = potentialShortcutPadAction(x, y, on);
+	if (result != ActionResult::NOT_DEALT_WITH) {
+		return result;
 	}
 
 	if (rootUI == &keyboardScreen) {

@@ -117,8 +117,7 @@ Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then 
 
 > You can automate MIDI CC's 0-119
 > You can automate Monophonic (Channel) Expression parameters (X - Pitch Bend, Y - Mod Wheel, Z - Channel Pressure / Aftertouch). Note: Mod Wheel is CC 1.
-> In Automation View for MIDI Clips, MIDI CC's have been mapped to grid shortcuts using the template file from MIDI Follow Mode (MIDIFollow.XML). So if you want to change what CC's map to what grid shortcuts in the Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
-> See Appendix below for an overview of the MIDI CC to Grid Shortcut mappings
+> MIDI clips use the sequential CC overview described below.
 
 6. Automation for CV Clips
 
@@ -168,7 +167,8 @@ The Automation Overview **will:**
 
 - Allow you to automate Master FX section parameters using the Mod Encoders (gold knobs)
 - For Arranger View, Synth, Kit, and Audio clips, illuminate the shortcut pad's on the grid that correspond to a parameter that can be automated.
-- For MIDI clips, illuminate the pads to represents the CC values that can be automated from 0-121 (with the last two being Pitch Bend and After Touch and are placed in the bottom right hand corner).
+- MIDI clips open directly into the sequential CC overview. The horizontal encoder does not switch overview layouts.
+- The sequential overview shows CC 0–119 from left to right and bottom to top, skipping the usual X, Y, Z pads. CC 0–14 occupy the first 15 pads of the bottom row, CC 15–30 fill the next row, and so on. CC pads use a green-to-red gradient. X (pitch bend), Y (mod wheel), and Z (aftertouch) retain their usual positions and use the regular overview colour. Automated parameters are highlighted white; the five unused pads stay dark.
 - provide visual feedback on which parameters that can be automated and are currently automated by illuminating the corresponding shortcut pads white
 
 > **Note:** While in the automation overview, if you hit play, record and then record in Master FX automations using the Mod Encoder (Gold Knobs), the automation overview grid will update to show you that those parameters are now automated by highlighting the corresponding pads on the grid white. Note: the update will happen after you turn record off.
@@ -512,9 +512,3 @@ These are the main button shortcuts/combos that will be used in the Automation C
 ### Additional Shortcut Combos for Entering the Automation Editor from the Sound Menu's
 
 - While in the Arranger Song / Clip Sound Menu for a specific automatable parameter, press `CLIP` to enter the Automation Editor for that parameter
-
-### Automation Overview of Grid Shortcuts mappings to MIDI CC's for MIDI Clips
-
-This image shows the default MIDI Follow CC to Grid Parameter Shortcut mappings. You can edit these mappings in MIDIFollow.XML which will update the CC to Grid Parameter Shortcut mappings used in Automation View for MIDI Clips.
-
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/6ecbb774-deb9-466c-9469-e86e5e904ce3)
