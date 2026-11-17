@@ -1172,6 +1172,10 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 // button action
 
 ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (auto result = trackLockButtonAction(b, on, inCardRoutine); result != ActionResult::NOT_DEALT_WITH) {
+		return result;
+	}
+
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -1659,7 +1663,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+			modelStackWithParam->autoParam->deleteAutomationInResponseToUserInput(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2663,7 +2667,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// if they want to delete automation
 	else if (is_delete_action) {
 		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		modelStackWithParam->autoParam->deleteAutomationInResponseToUserInput(action, modelStackWithParam);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

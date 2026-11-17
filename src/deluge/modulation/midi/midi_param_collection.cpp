@@ -24,6 +24,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "processing/engines/audio_engine.h"
@@ -281,6 +282,16 @@ void MIDIParamCollection::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t o
 	}
 }
 
+namespace {
+// The CC the edited clip sent for the edit now being propagated, so a linked copy doesn't send it again.
+struct SentCC {
+	MIDIInstrument* instrument = nullptr;
+	int32_t cc = -1;
+	int32_t value = 0;
+};
+SentCC edited_clip_sent;
+} // namespace
+
 void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                        bool automationChanged, bool automatedBefore,
                                                        bool automatedNow) {
@@ -288,17 +299,31 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
-		auto new_v = modelStack->autoParam->getCurrentValue();
-		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
-		    oldValue, new_v, getParamKind(), modelStack->paramId);
-		if (current_value_changed) {
-			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
-			int32_t midiOutputFilter = instrument->getChannel();
-			int32_t masterChannel = instrument->getOutputMasterChannel();
-			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
-			         midiOutputFilter);
-		}
+	MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
+	int32_t new_v = modelStack->autoParam->getCurrentValue();
+	bool send = modelStack->song->isOutputActiveInArrangement(instrument)
+	            && modelStack->modControllable->valueChangedEnoughToMatter(oldValue, new_v, getParamKind(),
+	                                                                       modelStack->paramId);
+
+	if (!Output::isPropagatingParameterEdit()) {
+		// The edited clip sends as usual. Remember what it sent for the linked copies below.
+		edited_clip_sent = send ? SentCC{instrument, modelStack->paramId, new_v} : SentCC{};
+	}
+	else {
+		// A linked copy in another clip on the track: only the clip playing on the output may send, so the external
+		// instrument follows what is playing (e.g. a region edit that only covers the playing clip's position). Skip
+		// it if the edited clip already sent the same value, so each change goes out once.
+		bool playing_clip = modelStack->timelineCounterIsSet() && modelStack->getTimelineCounter() != modelStack->song
+		                    && static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput();
+		bool already_sent = edited_clip_sent.instrument == instrument && edited_clip_sent.cc == modelStack->paramId
+		                    && edited_clip_sent.value == new_v;
+		send = send && playing_clip && !already_sent;
+	}
+
+	if (send) {
+		int32_t midiOutputFilter = instrument->getChannel();
+		int32_t masterChannel = instrument->getOutputMasterChannel();
+		sendMIDI(instrument, masterChannel, modelStack->paramId, new_v, midiOutputFilter);
 	}
 }
 

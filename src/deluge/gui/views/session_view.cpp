@@ -40,6 +40,9 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/hybrid_layout.h"
+#include "gui/views/session/track_link.h"
+#include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -95,6 +98,8 @@ using namespace gui;
 PLACE_SDRAM_BSS SessionView sessionView{};
 
 namespace {
+constexpr uint8_t kInactiveGridBrightness = 10;
+
 // Keyboard view's sidebar columns morph to/from the Session colours of the clip's row. The mute colour PadLEDs
 // already has; hand it the section colour, unless the clip's row is off-screen and there is nothing to morph to.
 void setUpKeyboardSidebarMorph(int32_t clipRow) {
@@ -126,6 +131,7 @@ bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			}
 			break;
 		}
+		case SessionLayoutType::SessionLayoutTypeHybrid:
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			*cols = 0x03; // Only sidebar
 			*rows = 0x0;
@@ -160,9 +166,14 @@ bool SessionView::opened() {
 }
 
 void SessionView::focusRegained() {
+	gridEndTrackSelection();
 	viewingRecordArmingActive = false;
 	horizontalEncoderPressed = false;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
+	// The number of grid clip rows depends on the track row, which may have just been turned off (or the song loaded
+	// with a scroll position for it), so keep the vertical scroll within the sections the rows can show.
+	currentSong->songGridScrollY = std::clamp<int32_t>(
+	    currentSong->songGridScrollY, 0, kMaxNumSections - (isHybridLayout() ? kDisplayWidth / 2 : gridSectionRows()));
 
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
 	redrawClipsOnScreen(doingRender); // We want this here, not just in opened(), because after coming back from
@@ -198,7 +209,7 @@ void SessionView::focusRegained() {
 
 	// initiate pulsing of selected clip if you're in grid view
 	// but only if it's not already running (which is the case when coming back from clip settings menus)
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		if (!gridSelectedClipPulsing) {
 			gridPulseSelectedClip();
 		}
@@ -214,6 +225,36 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return ActionResult::DEALT_WITH;
 	}
 
+	if (deluge::gui::track_link::modeIsOn() && on && currentUIMode == UI_MODE_NONE) {
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		if (b == BACK) {
+			// Cancel the held gesture and temporary track selection, stopping audition and restoring
+			// song controls. Saved track locks remain unchanged, and the later pad release cannot mute.
+			gridEndTrackSelection();
+			// This press dismisses track selection; do not also run Session's normal Back action.
+			return ActionResult::DEALT_WITH;
+		}
+		if (b == SELECT_ENC) {
+			deluge::gui::track_link::openMenu();
+			if (deluge::gui::track_link::isMenuOpen()) {
+				// The menu retains the track's edit target. End audition and the pad gesture now,
+				// so its later physical release has no effect on selection.
+				gridEndTrackPadGesture();
+				// Replace held-clip pulsing with the menu's track-pad indicator.
+				requestRendering(this);
+			}
+			// Consume Select even if opening failed; do not fall through to its normal Session action.
+			return ActionResult::DEALT_WITH;
+		}
+		if (b == AFFECT_ENTIRE) {
+			// Consume the press to prevent Session's normal Affect Entire action from switching
+			// to song-wide editing. Keep the selected track's target: kit tracks use kit FX here;
+			// switching between kit FX and drum parameters is only available inside the kit clip.
+			return ActionResult::DEALT_WITH;
+		}
+	}
 	OutputType newOutputType;
 
 	if (currentUIMode == UI_MODE_CREATING_CLIP) {
@@ -225,7 +266,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		bool isGridView = currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
+		bool isGridView = isGridLayout();
 		if (on
 		    && ((currentUIMode == UI_MODE_NONE) || (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && isGridView))
 		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
@@ -299,14 +340,14 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 				// Rows are not aligned in grid so we disabled this function, the code below also would need to be
 				// aligned
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				if (isGridLayout()) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_IMPOSSIBLE_FROM_GRID));
 					return ActionResult::DEALT_WITH;
 				}
 
 				actionLogger.deleteAllLogs();
 
-				Clip* clip = getClipOnScreen(selectedClipYDisplay);
+				Clip* clip = isHybridLayout() ? getClipForLayout() : getClipOnScreen(selectedClipYDisplay);
 				Output* output = clip->output;
 				int32_t instrumentIndex = currentSong->getOutputIndex(output);
 				currentSong->arrangementYScroll = instrumentIndex - selectedClipPressYDisplay;
@@ -461,7 +502,7 @@ moveAfterClipInstance:
 		horizontalEncoderPressed = on;
 		if (on) {
 			// Show current zoom level
-			if (isNoUIModeActive() && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
+			if (isNoUIModeActive() && (!isGridLayout() || isHybridLayout())) {
 				displayZoomLevel();
 			}
 
@@ -470,7 +511,7 @@ moveAfterClipInstance:
 
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+				if (!isGridLayout() || isHybridLayout()) {
 					display->cancelPopup();
 				}
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
@@ -527,7 +568,7 @@ moveAfterClipInstance:
 				performActionOnPadRelease = false;
 
 				Clip* clip = getClipForLayout();
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				if (isGridLayout()) {
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					if (clip != nullptr) {
 						context_menu::clip_settings::clipSettings.clip = clip;
@@ -629,6 +670,7 @@ doActualSimpleChange:
 							view.changeOutputType(newOutputType, modelStack, true);
 							break;
 						}
+						case SessionLayoutType::SessionLayoutTypeHybrid:
 						case SessionLayoutType::SessionLayoutTypeGrid: {
 							// Mostly taken from ArrangerView::changeOutputType
 							if (instrument->type != newOutputType) {
@@ -646,7 +688,8 @@ doActualSimpleChange:
 					}
 				}
 
-				requestRendering(this, 1 << selectedClipYDisplay, 0);
+				requestRendering(this,
+				                 selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu, 0);
 			}
 		}
 	}
@@ -687,6 +730,7 @@ notDealtWith:
 }
 
 void SessionView::goToArrangementEditor() {
+	gridEndTrackSelection();
 	currentSong->xZoomForReturnToSongView = currentSong->xZoom[NAVIGATION_CLIP];
 	currentSong->xScrollForReturnToSongView = currentSong->xScroll[NAVIGATION_CLIP];
 	changeRootUI(&arrangerView);
@@ -699,18 +743,62 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	auto refreshPulse = util::finally([this] { updateHeldPulse(); });
+
+	if (gridTrackRowEnabled() && yDisplay == 0 && xDisplay < kDisplayWidth) {
+		return gridTrackPadAction(xDisplay, on);
+	}
+	if (gridTrackRowEnabled() && yDisplay == 0 && xDisplay == kDisplayWidth
+	    && gridModeActive != SessionGridModeMacros) {
+		return ActionResult::DEALT_WITH;
+	}
+	// Selecting a track can expose a previously enabled VU meter. Always release
+	// an existing gesture before that overlay filters new sidebar presses.
+	if (isHybridLayout() && !on) {
+		if (xDisplay == kDisplayWidth && yDisplay == gridHeldTrackPad) {
+			return gridTrackPadAction(yDisplay, on);
+		}
+		if (xDisplay == kDisplayWidth + 1) {
+			return gridHandlePads(xDisplay, yDisplay, on);
+		}
+	}
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isHybridLayout()) {
+		if (xDisplay == kDisplayWidth) {
+			return yDisplay > 0 && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)
+			           ? gridTrackPadAction(yDisplay, on)
+			           : ActionResult::DEALT_WITH;
+		}
+		if (yDisplay == 0 && xDisplay >= kDisplayWidth / 2 && xDisplay < kDisplayWidth) {
+			return ActionResult::DEALT_WITH;
+		}
+		if (xDisplay < kDisplayWidth / 2 || xDisplay > kDisplayWidth) {
+			if (xDisplay < kDisplayWidth / 2 && selectedClipYDisplay < kDisplayHeight && !gridFirstPadActive()) {
+				return ActionResult::DEALT_WITH;
+			}
+			return gridHandlePads(xDisplay, yDisplay, on);
+		}
+		if (on) {
+			gridActiveModeUsed = true;
+		}
+		if (gridFirstPadActive() || !getClipOnScreen(yDisplay)
+		    || (!on && isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+		        && (yDisplay != selectedClipPressYDisplay || xDisplay != selectedClipPressXDisplay))) {
+			return ActionResult::DEALT_WITH;
+		}
+	}
+	else if (isGridLayout()) {
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
 
 	Clip* clip = getClipOnScreen(yDisplay);
-	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
+	int32_t clipIndex = isHybridLayout() && clip ? currentSong->sessionClips.getIndexForClip(clip)
+	                                             : yDisplay + currentSong->songViewYScroll;
 
 	// If we tapped on a Clip's main pads...
 	if (xDisplay < kDisplayWidth) {
@@ -735,7 +823,7 @@ holdingRecord:
 					// We may or may not be doing a tempoless record and need to finish that up.
 					if (playbackHandler.playbackState && currentPlaybackMode == &session) {
 
-						Clip* sourceClip = getClipOnScreen(yDisplay + 1);
+						Clip* sourceClip = isHybridLayout() ? clip : getClipOnScreen(yDisplay + 1);
 
 						if (!sourceClip) {
 							return ActionResult::DEALT_WITH;
@@ -756,7 +844,8 @@ holdingRecord:
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 
-						int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
+						int32_t clipIndex = isHybridLayout() ? currentSong->sessionClips.getIndexForClip(sourceClip)
+						                                     : yDisplay + currentSong->songViewYScroll + 1;
 
 						// If source clip currently recording, arm it to stop (but not if tempoless recording)
 						if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
@@ -789,10 +878,6 @@ holdingRecord:
 							if (!playbackHandler.isEitherClockActive()) {
 								playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency, false);
 							}
-						}
-						else if (currentSong->anyClipsSoloing) {
-							display->displayPopup(deluge::l10n::get(
-							    deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
 						}
 					}
 				}
@@ -881,7 +966,8 @@ startHoldingDown:
 					// This is only interresting for changing colour
 					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
 					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
-					requestRendering(this, 0, 1 << selectedClipYDisplay);
+					requestRendering(
+					    this, 0, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu));
 
 					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 						goto startHoldingDown;
@@ -964,7 +1050,7 @@ midiLearnMelodicInstrumentAction:
 					}
 
 					// Enter Clip
-					Clip* clip = getClipOnScreen(selectedClipYDisplay);
+					Clip* clip = isHybridLayout() ? getClipForLayout() : getClipOnScreen(selectedClipYDisplay);
 					transitionToViewForClip(clip);
 					createClip = false;
 				}
@@ -1084,6 +1170,8 @@ justEndClipPress:
 }
 
 void SessionView::clipPressEnded() {
+	auto refreshPulse = util::finally([this] { updateHeldPulse(); });
+
 	// End stuttering since this can also end selection
 	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
 		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
@@ -1091,6 +1179,16 @@ void SessionView::clipPressEnded() {
 	}
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+		// A mode-pad press can cancel a section move before release. Restore the normal
+		// viewport here too, but only redraw if snapping back actually changes it.
+		if (isGridLayout()) {
+			const int32_t scrollY =
+			    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
+			if (scrollY != currentSong->songGridScrollY) {
+				currentSong->songGridScrollY = scrollY;
+				requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+			}
+		}
 		exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::removePopup();
@@ -1114,7 +1212,12 @@ void SessionView::clipPressEnded() {
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
-	view.setActiveModControllableTimelineCounter(currentSong);
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		deluge::gui::track_link::selectOutput(output, output->getActiveClip());
+	}
+	else {
+		view.setActiveModControllableTimelineCounter(currentSong);
+	}
 	if (display->haveOLED()) {
 		renderUIsForOled();
 		// check UI in case this code is called from performance view
@@ -1223,9 +1326,7 @@ ActionResult SessionView::timerCallback() {
 
 	case UI_MODE_NONE:
 		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-			if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid
-			    || (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
-			        && gridModeActive == SessionGridModeLaunch)) {
+			if (!isGridLayout() || (isGridLayout() && gridModeActive == SessionGridModeLaunch)) {
 				enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 				viewingRecordArmingActive = true;
 				PadLEDs::reassessGreyout(false);
@@ -1265,7 +1366,7 @@ void SessionView::drawSectionRepeatNumber() {
 			}
 		}
 
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (isGridLayout()) {
 			display->popupText(outputText);
 		}
 		else {
@@ -1329,6 +1430,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 			view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
 			break;
 		}
+		case SessionLayoutType::SessionLayoutTypeHybrid:
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
 			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset, clip);
@@ -1402,8 +1504,21 @@ void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 }
 
 ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		return gridHandleScroll(offset, 0);
+	if (isHybridLayout() && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+		return ClipNavigationTimelineView::horizontalEncoderAction(offset);
+	}
+	if (isHybridLayout() && currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		// Hybrid sections run left to right, opposite to Grid's bottom-to-top section axis.
+		return gridMoveSection(-offset);
+	}
+	if (isGridLayout()) {
+		if (gridHeldTrackPad >= 0) {
+			return gridMoveHeldTrack(offset);
+		}
+		return isHybridLayout() ? gridHandleScroll(0, -offset) : gridHandleScroll(offset, 0);
 	}
 
 	// So long as we're not in a submode...
@@ -1421,9 +1536,21 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (isHybridLayout() && gridHeldTrackPad >= 0) {
+		return gridMoveHeldTrack(-offset);
+	}
 
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		currentSong->commandTranspose(offset);
+	}
+	else if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD
+	         && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// Holding a section changes vertical scrolling into section reordering.
+		// Defer the edit while card access is in progress, as with other structural edits.
+		if (inCardRoutine || sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		return gridMoveSection(offset);
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
@@ -1437,24 +1564,25 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 		    && (Buttons::isShiftButtonPressed() || clipWasSelectedWithShift)) {
 
-			Clip* clip = getClipOnScreen(selectedClipYDisplay);
+			Clip* clip = isHybridLayout() ? getClipForLayout() : getClipOnScreen(selectedClipYDisplay);
 			if (!clip)
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
 
-			requestRendering(this, 1 << selectedClipYDisplay, 0);
+			requestRendering(this, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu),
+			                 0);
 
 			return ActionResult::DEALT_WITH;
 		}
 
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (isGridLayout()) {
 			// For safety, is used in verticalScrollOneSquare on clip copy
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			return gridHandleScroll(0, offset);
+			return isHybridLayout() ? gridHandleScroll(-offset, 0) : gridHandleScroll(0, offset);
 		}
 
 		return verticalScrollOneSquare(offset);
@@ -1530,7 +1658,10 @@ bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 		return true;
 	}
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
+		if (isHybridLayout()) {
+			return hybridRenderSidebar(image, occupancyMask);
+		}
 		return gridRenderSidebar(whichRows, image, occupancyMask);
 	}
 
@@ -1573,7 +1704,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 
 		else {
-			thisColour = defaultClipSectionColours[clip->section];
+			// Row view must use the section's stored colour, which follows it when reordered.
+			thisColour = currentSong->sections[clip->section].getColour();
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
@@ -1673,7 +1805,7 @@ Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
 	Clip* clip = nullptr;
 	switch (outputType) {
 	case OutputType::AUDIO:
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (isGridLayout()) {
 			clip = gridCreateAudioClipWithNewTrack();
 		}
 		else {
@@ -1681,7 +1813,7 @@ Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
 		}
 		break;
 	default:
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (isGridLayout()) {
 			clip = gridCreateInstrumentClipWithNewTrack(outputType);
 		}
 		else {
@@ -1833,10 +1965,14 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	view.displayOutputName(newClip->output, true, newClip);
 
 	// If Clip was in keyboard view, need to redraw that
-	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
+	requestRendering(this, (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu),
+	                 (selectedClipYDisplay < kDisplayHeight ? (1u << selectedClipYDisplay) : 0xFFFFFFFFu));
 }
 
 void SessionView::removeClip(Clip* clip) {
+	if ((clip != nullptr) && deluge::gui::track_link::isSelected(clip->output)) {
+		gridEndTrackSelection();
+	}
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
 	    "E373", "H373"); // Trying to narrow down H067 that Leo got, below.
 
@@ -1883,7 +2019,14 @@ void SessionView::removeClip(Clip* clip) {
 }
 
 Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isHybridLayout()) {
+		if (yDisplay <= 0 || yDisplay >= kDisplayHeight) {
+			return nullptr;
+		}
+		auto* output = gridTrackFromPad(0, yDisplay);
+		return output ? output->getActiveClip() : nullptr;
+	}
+	if (isGridLayout()) {
 		if (gridFirstPadActive()) {
 			return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 		}
@@ -1963,6 +2106,10 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 }
 
 void SessionView::redrawNumericDisplay() {
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		view.displayOutputName(output);
+		return;
+	}
 	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
 		return;
 	}
@@ -2062,6 +2209,13 @@ void SessionView::displayRepeatsTilLaunch() {
 
 /// render session view display on opening
 void SessionView::renderViewDisplay() {
+	// While a track is selected, keep showing it as its track pad press did, so an unnamed MIDI or CV track keeps its
+	// type and channel label rather than a blank name.
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		view.displayOutputName(output, false);
+		return;
+	}
+
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
@@ -2160,6 +2314,14 @@ uint32_t SessionView::getMaxZoom() {
 }
 
 void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
+	if (isHybridLayout()) {
+		auto* source = getClipForLayout();
+		auto* target = gridTrackFromPad(0, yDisplayTo);
+		if (source && target) {
+			gridCloneClipTo(source, target, source->section);
+		}
+		return;
+	}
 	Clip* clipToClone = getClipOnScreen(yDisplayFrom);
 	if (!clipToClone) {
 		return;
@@ -2235,7 +2397,7 @@ void SessionView::graphicsRoutine() {
 
 	// in grid view, the only playhead we potentially render a playhead that displays
 	// when the next clip launch event is expected occur (e.g. when clips will start or end)
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout() && !isHybridLayout()) {
 		potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
 
 		return;
@@ -2328,13 +2490,16 @@ void SessionView::graphicsRoutine() {
 			}
 		}
 
+		if (isHybridLayout()) {
+			newTickSquare = deluge::gui::session_layout::hybrid::previewTick(newTickSquare);
+		}
 		tickSquares[yDisplay] = newTickSquare;
 	}
 
 	// Auto scrolling for linear recording --------
 
 	// If no linear recording onscreen now...
-	if (!anyLinearRecordingOnThisScreen && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
+	if (!isHybridLayout() && !anyLinearRecordingOnThisScreen && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 
 		// If there's some on the next screen to the right, go there
 		if (anyLinearRecordingOnNextScreen) {
@@ -2392,8 +2557,10 @@ void SessionView::potentiallyUpdateCompressorLEDs() {
 
 // checks if tempo has changed since it was last rendered on the display and updates it if required
 void SessionView::displayPotentialTempoChange(UI* ui) {
-	// don't refresh tempo display if we're holding an arrangement pad or clip in session view
-	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	// don't refresh tempo display if we're holding an arrangement pad or clip in session view, or while a selected
+	// track's name is shown (see renderViewDisplay())
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+	    || deluge::gui::track_link::selectedOutput() != nullptr) {
 		return;
 	}
 
@@ -2493,7 +2660,7 @@ void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whic
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}
 	else if (ui == &sessionView) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (isGridLayout()) {
 			// Just redrawing should be faster than evaluating every cell in every row
 			uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
@@ -2523,6 +2690,12 @@ void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 }
 
 bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom) {
+	if (isHybridLayout()) {
+		// The timeline animation spans full rows and would also move the section pads.
+		// Redraw the previews at their new scale without animating the launch matrix.
+		requestRendering(this, 0xFFFFFFFF, 0);
+		return false;
+	}
 
 	bool anyToDo = false;
 
@@ -2548,6 +2721,9 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 }
 
 int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
+	if (isHybridLayout()) {
+		return gridXFromTrack(gridTrackIndexFromTrack(clip->output, gridTrackCount()));
+	}
 	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->songViewYScroll;
 }
 
@@ -2556,7 +2732,7 @@ uint32_t SessionView::getMaxLength() {
 }
 
 bool SessionView::setupScroll(uint32_t oldScroll) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		return false;
 	}
 	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function
@@ -2628,6 +2804,7 @@ void SessionView::flashPlayRoutine() {
 		}
 		break;
 	}
+	case SessionLayoutType::SessionLayoutTypeHybrid:
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		bool renderFlashing = false;
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
@@ -2694,12 +2871,16 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
+		if (isHybridLayout()) {
+			return hybridRenderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
+		}
 		return gridRenderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
 	}
 
 	uint32_t whichRowsCouldntBeRendered = 0;
 	uint32_t whichRowsNeedRefinement = 0;
+	Output* lockedHeld = heldPulseOutput();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2708,7 +2889,16 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (whichRows & (1 << yDisplay)) {
+			deluge::gui::track_edit_pulse::clearPulseRow(image[yDisplay], yDisplay);
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
+			Clip* rowClip = getClipOnScreen(yDisplay);
+			if ((lockedHeld != nullptr) && (rowClip != nullptr) && rowClip->output == lockedHeld) {
+				// Every pad pulses, so a clip without notes still shows the pulse.
+				for (int32_t x = 0; x < kDisplayWidth; ++x) {
+					image[yDisplay][x] = deluge::gui::track_edit_pulse::renderPulse(image[yDisplay][x], *lockedHeld,
+					                                                                image[yDisplay], x, yDisplay, true);
+				}
+			}
 			if (!success) {
 				Clip* clip = getClipOnScreen(yDisplay);
 				if (clip && clip->type == ClipType::AUDIO) {
@@ -2767,8 +2957,9 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 				success = clip->renderAsSingleRow(modelStackWithTimelineCounter, this,
 				                                  getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP],
 				                                                     currentSong->xZoom[NAVIGATION_CLIP]),
-				                                  currentSong->xZoom[NAVIGATION_CLIP], thisImage, thisOccupancyMask,
-				                                  drawUndefinedArea);
+				                                  currentSong->xZoom[NAVIGATION_CLIP] * (isHybridLayout() ? 2 : 1),
+				                                  thisImage, thisOccupancyMask, drawUndefinedArea, 0, INT32_MAX, 0,
+				                                  isHybridLayout() ? kDisplayWidth / 2 : kDisplayWidth);
 			}
 
 			if (view.thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT
@@ -2793,6 +2984,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 }
 
 void SessionView::transitionToViewForClip(Clip* clip) {
+	gridEndTrackSelection();
 	// If no Clip, just go back into the previous one we were in
 	if (!clip) {
 		clip = getCurrentClip();
@@ -2810,7 +3002,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		gridTransitionToViewForClip(clip);
 		return;
 	}
@@ -2938,7 +3130,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 }
 
 void SessionView::transitionToSessionView() {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		gridTransitionToSessionView();
 		return;
 	}
@@ -3048,7 +3240,7 @@ void SessionView::finishedTransitioningHere() {
 }
 
 void SessionView::playbackEnded() {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
@@ -3072,7 +3264,7 @@ void SessionView::playbackEnded() {
 }
 
 void SessionView::clipNeedsReRendering(Clip* clip) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
@@ -3094,7 +3286,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 }
 
 void SessionView::sampleNeedsReRendering(Sample* sample) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
@@ -3115,7 +3307,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 }
 
 void SessionView::midiLearnFlash() {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
@@ -3161,7 +3353,11 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 }
 
 Clip* SessionView::getClipForLayout() {
+	if (isHybridLayout() && !gridFirstPadActive()) {
+		return selectedClipYDisplay < kDisplayHeight ? getCurrentClip() : nullptr;
+	}
 	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeHybrid:
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 		break;
@@ -3174,7 +3370,12 @@ Clip* SessionView::getClipForLayout() {
 }
 
 int32_t SessionView::getClipIndexForLayout() {
+	if (isHybridLayout()) {
+		auto* clip = getClipForLayout();
+		return clip ? currentSong->sessionClips.getIndexForClip(clip) : -1;
+	}
 	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeHybrid:
 	case SessionLayoutType::SessionLayoutTypeGrid: {
 		return gridClipIndexFromCoords(gridFirstPressedX, gridFirstPressedY);
 		break;
@@ -3187,6 +3388,9 @@ int32_t SessionView::getClipIndexForLayout() {
 }
 
 void SessionView::selectLayout(int8_t offset) {
+	if (currentSong->sessionLayout >= SessionLayoutTypeMaxElement) {
+		currentSong->sessionLayout = SessionLayoutTypeRows;
+	}
 	gridSetDefaultMode();
 	// only reset first pad if it's not still held
 	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
@@ -3200,18 +3404,11 @@ void SessionView::selectLayout(int8_t offset) {
 	}
 	// Layout change
 	if (offset != 0) {
-		switch (currentSong->sessionLayout) {
-		case SessionLayoutType::SessionLayoutTypeRows: {
-			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
-			break;
-		}
-		case SessionLayoutType::SessionLayoutTypeGrid: {
-			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
-			break;
-		}
-		// explicit fallthrough cases
-		case SessionLayoutType::SessionLayoutTypeMaxElement:;
-		}
+		gridEndTrackSelection();
+		clipPressEnded();
+		int32_t layout = static_cast<int32_t>(currentSong->sessionLayout);
+		layout = (layout + (offset > 0 ? 1 : -1) + SessionLayoutTypeMaxElement) % SessionLayoutTypeMaxElement;
+		currentSong->sessionLayout = static_cast<SessionLayoutType>(layout);
 		renderLayoutChange();
 	}
 }
@@ -3219,15 +3416,16 @@ void SessionView::selectLayout(int8_t offset) {
 void SessionView::renderLayoutChange(bool displayPopup) {
 	// After change
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		gridEndTrackSelection();
 		if (displayPopup) {
 			display->displayPopup("Rows");
 		}
 		selectedClipYDisplay = 255;
 		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
 	}
-	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	else if (isGridLayout()) {
 		if (displayPopup) {
-			display->displayPopup("Grid");
+			display->displayPopup(isHybridLayout() ? "Hybrid" : "Grid");
 		}
 		currentSong->songGridScrollX = 0;
 		currentSong->songGridScrollY = 0;
@@ -3235,7 +3433,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 
 	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		if (!gridSelectedClipPulsing) {
 			gridPulseSelectedClip();
 		}
@@ -3291,13 +3489,26 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 		if (gridModeActive == SessionGridModeMacros) {
 			view.renderMacros(sectionColumnIndex, y, selectedMacro, image, occupancyMask);
 		}
+		else if (y < gridSectionRowOffset()) {
+			image[y][sectionColumnIndex] = colours::black;
+			occupancyMask[y][sectionColumnIndex] = 0;
+		}
 		else {
 			occupancyMask[y][sectionColumnIndex] = 64;
 
 			auto section = gridSectionFromY(y);
 			RGB& ptrSectionColour = image[y][sectionColumnIndex];
+			// Moving a held section can expose rows outside the section range. Leave those
+			// section pads dark without indexing the sections array; mode pads still render.
+			if (section < 0) {
+				ptrSectionColour = colours::black;
+				occupancyMask[y][sectionColumnIndex] = 0;
+				gridRenderActionModes(y, image, occupancyMask);
+				continue;
+			}
 
-			ptrSectionColour = defaultClipSectionColours[gridSectionFromY(y)];
+			// Use the colour carried by the section rather than its current row number.
+			ptrSectionColour = currentSong->sections[section].getColour();
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
@@ -3331,6 +3542,7 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	bool enableLoopPads =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads) == RuntimeFeatureStateToggle::On;
 
+	// Mode pads keep their original positions above the bottom track row.
 	switch (y) {
 	case GridMode::GREEN: {
 		modeActive = (gridModeActive == SessionGridModeLaunch);
@@ -3356,6 +3568,20 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		}
 		break;
 	}
+	case GridMode::ORANGE: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, GridMode::ORANGE);
+			modeColour = colours::orange;
+		}
+		break;
+	}
+	case GridMode::CYAN: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, GridMode::CYAN);
+			modeColour = colours::cyan;
+		}
+		break;
+	}
 
 	default: {
 		modeExists = false;
@@ -3369,6 +3595,10 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		deluge::gui::track_edit_pulse::clearPulseRow(image[y], y);
+	}
+
 	// Clear just the main pads
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -3379,6 +3609,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
+	Output* heldOutput = heldPulseOutput();
 
 	PadLEDs::renderingLock = true;
 
@@ -3390,8 +3621,10 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 
-		auto x = gridXFromTrack(trackIndex);
-		auto y = gridYFromSection(clip->section);
+		auto trackPosition = gridXFromTrack(trackIndex);
+		auto sectionPosition = gridYFromSection(clip->section);
+		auto x = isHybridLayout() ? sectionPosition : trackPosition;
+		auto y = isHybridLayout() ? trackPosition : sectionPosition;
 
 		// Render colour for every valid clip
 		// make sure the square hasn't already been written to - otherwise multiple clips in the same section will
@@ -3400,7 +3633,15 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
 			image[y][x] = gridRenderClipColor(clip, x, y);
+			if ((heldOutput != nullptr) && clip->output == heldOutput) {
+				image[y][x] =
+				    deluge::gui::track_edit_pulse::renderPulse(image[y][x], *clip->output, image[y], x, y, true);
+			}
 		}
+	}
+
+	if (gridTrackRowEnabled()) {
+		gridRenderTrackRow(image[0], occupancyMask[0]);
 	}
 
 	PadLEDs::renderingLock = false;
@@ -3475,7 +3716,8 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	}
 
 	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
-	if (!viewingRecordArmingActive && renderPulse && (clip == selectedClipForPulsing)) {
+	if (!clip->output->isTrackLocked() && !deluge::gui::track_link::modeIsOn() && !viewingRecordArmingActive
+	    && renderPulse && (clip == selectedClipForPulsing)) {
 		return gridSelectedClipRenderedColour;
 	}
 
@@ -3507,8 +3749,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 
 	// If clip is not active or grayed out - dim it
 	else if (!clip->activeIfNoSolo) {
-		resultColour =
-		    resultColour.transform([macroActive](auto chan) { return ((float)chan / 255) * (macroActive ? 64 : 10); });
+		resultColour = resultColour.adjust(macroActive ? 64 : kInactiveGridBrightness, 1);
 	}
 
 	if (greyout) {
@@ -3679,7 +3920,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 	newClip->isUnfinishedAutoOverdub = false;
 	newClip->armState = ArmState::OFF;
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	if (isGridLayout()) {
 		newClip->loopLength = currentSong->getBarLength();
 		newClip->activeIfNoSolo = false;
 	}
@@ -3785,7 +4026,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		// only create track and clip if you're pressing in an empty track column immediately to
 		// to the right of another not-empty track column
 		auto maxTrack = gridTrackCount();
-		if ((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack))) {
+		if (isHybridLayout() ? (gridFirstPressedY > 0
+		                        && (maxTrack == 0 || gridTrackFromPad(gridFirstPressedX, gridFirstPressedY + 1)))
+		                     : ((gridFirstPressedX > 0) && gridTrackFromX(gridFirstPressedX - 1, maxTrack))) {
 			// This is the right position to add immediate type creation
 			setupTrackCreation();
 			createClip = true;
@@ -3901,20 +4144,27 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 		return;
 	}
 
-	// Don't allow copying recording clips
+	gridCloneClipTo(sourceClip, gridTrackFromPad(targetX, targetY), gridSectionFromPad(targetX, targetY));
+}
+
+void SessionView::gridCloneClipTo(Clip* sourceClip, Output* targetOutput, int32_t section) {
+	if (section < 0 || section >= kMaxNumSections) {
+		return;
+	}
 	if (sourceClip->getCurrentlyRecordingLinearly()) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_RECORDING_IN_PROGRESS));
 		return;
 	}
-
-	Clip* targetClip = gridClipFromCoords(targetX, targetY);
-	if (targetClip != nullptr) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_TARGET_FULL));
-		return;
+	for (int32_t i = 0; i < currentSong->sessionClips.getNumElements(); ++i) {
+		auto* clip = currentSong->sessionClips.getClipAtIndex(i);
+		if (clip->output == targetOutput && clip->section == section) {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_TARGET_FULL));
+			return;
+		}
 	}
-
-	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
-	display->popupTextTemporary("COPIED");
+	if (gridCreateClip(section, targetOutput, sourceClip)) {
+		display->popupTextTemporary("COPIED");
+	}
 }
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
@@ -3940,11 +4190,106 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 	}
 }
 
+// Swaps the held section (and all of its clips, settings and references) with its neighbour.
+// Turning clockwise moves the section up the grid (towards lower section numbers).
+ActionResult SessionView::gridMoveSection(int32_t offset) {
+	if (offset == 0 || sectionPressed >= kMaxNumSections) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Only move when the selected section pad is the sole pad being held.
+	const int32_t sectionPosition = gridYFromSection(sectionPressed);
+	const int32_t sectionX = isHybridLayout() ? sectionPosition : kDisplayWidth;
+	const int32_t sectionY = isHybridLayout() ? 0 : sectionPosition;
+	if (!matrixDriver.isPadPressed(sectionX, sectionY)) {
+		return ActionResult::DEALT_WITH;
+	}
+	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; ++x) {
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			if ((x != sectionX || y != sectionY) && matrixDriver.isPadPressed(x, y)) {
+				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
+
+	// Not allowed if recording arrangement
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Not allowed if moving section out of bounds (before first or after last section)
+	const int32_t oldSection = sectionPressed;
+	const int32_t newSection = oldSection - ((offset > 0) ? 1 : -1);
+	if (newSection < 0 || newSection >= kMaxNumSections) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Section moves aren't undoable
+	actionLogger.deleteAllLogs();
+
+	// Capture the two section numbers and update each supplied reference in place.
+	// References to other sections stay unchanged.
+	auto swapSectionNumber = [oldSection, newSection](auto& section) {
+		if (section == oldSection) {
+			section = newSection;
+		}
+		// Use else if so a reference changed above is not immediately changed back.
+		else if (section == newSection) {
+			section = oldSection;
+		}
+	};
+
+	// Exchange the section assignments of all clips belonging to either section.
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		swapSectionNumber(currentSong->sessionClips.getClipAtIndex(idxClip)->section);
+	}
+
+	// Move the repeat count, MIDI launch command and colour along with each section's clips.
+	std::swap(currentSong->sections[oldSection], currentSong->sections[newSection]);
+
+	// Keep section-launch macros pointing to the same musical section after the swap.
+	for (SessionMacro& macro : currentSong->sessionMacros) {
+		if (macro.kind == SessionMacroKind::SECTION) {
+			swapSectionNumber(macro.section);
+		}
+	}
+
+	// Keep the last armed section reference in sync, leaving the special values for
+	// "none" (255) and "switch off all sections" (254) untouched.
+	if (session.lastSectionArmed < kMaxNumSections) {
+		swapSectionNumber(session.lastSectionArmed);
+	}
+
+	// Continue editing the held section at its new position on subsequent encoder turns.
+	sectionPressed = newSection;
+
+	// Keep the section beneath the held pad, allowing blank rows until release.
+	currentSong->songGridScrollY += newSection - oldSection;
+
+	// Moving counts as a hold, so the section won't be armed on release (green mode)
+	// The repeat count moves with the section, so its display does not need refreshing.
+	if (performActionOnSectionPadRelease) {
+		performActionOnSectionPadRelease = false;
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+	}
+
+	// Scrolling shifts the clip rows as well as the section pads; refresh the pads only.
+	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+	return ActionResult::DEALT_WITH;
+}
+
 void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 	session.toggleClipStatus(clip, nullptr, instant, kInternalButtonPressLatency);
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
+	// External callers (e.g. Performance view) also use this entry point.
+	if (isHybridLayout() && x >= kDisplayWidth / 2 && x <= kDisplayWidth) {
+		return x == kDisplayWidth && y > 0 && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)
+		           ? gridTrackPadAction(y, on)
+		           : ActionResult::DEALT_WITH;
+	}
 	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
 	// be refactored
 	if (sdRoutineLock) {
@@ -3958,6 +4303,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
+		if (!isHybridLayout() && y < gridSectionRowOffset()) {
+			return ActionResult::DEALT_WITH;
+		}
 
 		if (on) {
 			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
@@ -3987,6 +4335,18 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 				break;
 			}
+			case GridMode::ORANGE: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_TAKE);
+				}
+				break;
+			}
+			case GridMode::CYAN: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE);
+				}
+				break;
+			}
 			}
 		}
 		else {
@@ -4003,6 +4363,11 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 	else {
+		// Ignore presses on temporary blank rows so they cannot create clips or launch sections.
+		// Still handle releases, and leave macro pads independent of the section viewport.
+		if (on && gridModeActive != SessionGridModeMacros && gridSectionFromPad(x, y) < 0) {
+			return ActionResult::DEALT_WITH;
+		}
 		gridActiveModeUsed = true;
 
 		Clip* clip = gridClipFromCoords(x, y);
@@ -4039,9 +4404,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	// Left sidebar column (sections)
-	if (x == kDisplayWidth) {
+	if (gridIsSectionPad(x, y)) {
 		// Get pressed section
-		auto section = gridSectionFromY(y);
+		auto section = gridSectionFromPad(x, y);
 		if (section < 0) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -4054,6 +4419,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		}
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+				// Blue-mode release ends the temporary overscroll used to keep the section under the finger.
+				currentSong->songGridScrollY =
+				    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
 					deluge::hid::display::OLED::removePopup();
@@ -4083,12 +4451,12 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			// Create new track on empty slots
 			if (clip == nullptr) {
 				uint32_t trackCount = gridTrackCount();
-				auto trackIndex = gridTrackIndexFromX(x, trackCount);
+				auto trackIndex = gridTrackIndexFromX(isHybridLayout() ? y : x, trackCount);
 
 				// Create clip if it does not exist
-				if ((x + currentSong->songGridScrollX) <= trackCount) {
-					Output* track = gridTrackFromX(x, trackCount);
-					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+				if ((isHybridLayout() ? (kDisplayHeight - 1 - y) : x) + currentSong->songGridScrollX <= trackCount) {
+					Output* track = gridTrackFromPad(x, y);
+					clip = gridCreateClip(gridSectionFromPad(x, y), track, nullptr);
 					// Immediately start playing it for new tracks
 					if (clip != nullptr && track == nullptr) {
 						gridToggleClipPlay(clip, true);
@@ -4209,9 +4577,9 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	// Left sidebar column (sections)
-	if (x == kDisplayWidth) {
+	if (gridIsSectionPad(x, y)) {
 		// Get pressed section
-		auto section = gridSectionFromY(y);
+		auto section = gridSectionFromPad(x, y);
 		if (section < 0) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -4245,6 +4613,12 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				if (performActionOnSectionPadRelease) {
 					session.armSection(sectionPressed, kInternalButtonPressLatency);
 				}
+				// A hold edits repeats or moves the section instead of launching it.
+				else {
+					// Green-mode release snaps any temporary overscroll back into the normal range.
+					currentSong->songGridScrollY =
+					    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - gridSectionRows());
+				}
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
 					deluge::hid::display::OLED::removePopup();
@@ -4263,7 +4637,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		// press on an empty pad
 		if (on) {
 			auto maxTrack = gridTrackCount();
-			Output* track = gridTrackFromX(x, maxTrack);
+			Output* track = gridTrackFromPad(x, y);
 
 			// holding one clip, then pressing a second empty clip
 			if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
@@ -4278,7 +4652,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			else if (currentUIMode == UI_MODE_NONE && track && FlashStorage::gridEmptyPadsUnarm
 			         && (playbackHandler.recording == RecordingMode::OFF || !FlashStorage::gridEmptyPadsCreateRec)) {
 				auto maxTrack = gridTrackCount();
-				Output* track = gridTrackFromX(x, maxTrack);
+				Output* track = gridTrackFromPad(x, y);
 				if (track != nullptr) {
 					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 						Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -4300,7 +4674,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				gridFirstPressedX = x;
 				gridFirstPressedY = y;
 				// will create the track if it doesn't exist
-				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+				clip = gridCreateClip(gridSectionFromPad(x, y), track, nullptr);
 				// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
 				// (depending on setting)
 				if (clip != nullptr && playbackHandler.playbackState
@@ -4453,7 +4827,7 @@ void SessionView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip
 	if (clip != nullptr) {
 		if (clip->type != ClipType::AUDIO) {
 			// Learn + Holding pad = Learn MIDI channel
-			Output* output = gridTrackFromX(x, gridTrackCount());
+			Output* output = clip->output;
 			if (output && (output->type != OutputType::AUDIO && output->type != OutputType::NONE)) {
 				view.instrumentMidiLearnPadPressed(on, (Instrument*)output);
 			}
@@ -4536,9 +4910,49 @@ char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 	return macroKind;
 }
 
+ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	auto* output = deluge::gui::track_link::selectedOutput();
+	const int32_t count = gridTrackCount();
+	const int32_t old_index = gridTrackIndexFromTrack(output, count);
+	if (output == nullptr || old_index < 0 || count == 0) {
+		return ActionResult::DEALT_WITH;
+	}
+	const int32_t new_index = std::clamp<int32_t>(old_index + offset, 0, count - 1);
+	if (new_index == old_index) {
+		return ActionResult::DEALT_WITH;
+	}
+	auto* neighbour = gridTrackFromIndex(new_index, count);
+	actionLogger.deleteAllLogs(); // As in arranger, output reordering is not undoable.
+
+	// Grid columns run opposite to the output list. Move past the target visible
+	// track, skipping outputs without an active clip, which have no grid column.
+	Output** link = &currentSong->firstOutput;
+	while (*link != output) {
+		link = &(*link)->next;
+	}
+	*link = output->next;
+	link = &currentSong->firstOutput;
+	while (*link != neighbour) {
+		link = &(*link)->next;
+	}
+	if (new_index < old_index) {
+		link = &neighbour->next;
+	}
+	output->next = *link;
+	*link = output;
+
+	// Keep the selected column beneath the physical pad until it is released.
+	currentSong->songGridScrollX += new_index - old_index;
+	requestRendering(this);
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
-		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+		auto track = gridTrackFromPad(gridFirstPressedX, gridFirstPressedY);
 		if (track != nullptr) {
 			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
 				track->colour += offsetY;
@@ -4567,9 +4981,11 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 
 	// Fix the range
 	currentSong->songGridScrollY =
-	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
-	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
-	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
+	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0,
+	                        kMaxNumSections - (isHybridLayout() ? kDisplayWidth / 2 : gridSectionRows()));
+	currentSong->songGridScrollX =
+	    std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
+	                        std::max<int32_t>(0, (static_cast<int32_t>(gridTrackCount()) - gridVisibleTracks()) + 1));
 
 	// This is the right place to add new features like moving clips or tracks :)
 
@@ -4602,9 +5018,9 @@ void SessionView::gridTransitionToSessionView() {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
-	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
-	                                 kDisplayWidth);
-	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
+	auto pad = gridXYFromClip(*getCurrentClip());
+	auto clipX = std::clamp<int32_t>(pad.x, 0, kDisplayWidth - 1);
+	auto clipY = std::clamp<int32_t>(pad.y, 0, kDisplayHeight - 1);
 
 	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
@@ -4636,9 +5052,9 @@ void SessionView::gridTransitionToSessionView() {
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
-	                                 kDisplayWidth);
-	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
+	auto pad = gridXYFromClip(*getCurrentClip());
+	auto clipX = std::clamp<int32_t>(pad.x, 0, kDisplayWidth - 1);
+	auto clipY = std::clamp<int32_t>(pad.y, 0, kDisplayHeight - 1);
 
 	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
 
@@ -4787,9 +5203,21 @@ Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) 
 	return nullptr;
 }
 
+// Keep scroll bounds based on the number of section rows available in the grid layout.
+int32_t SessionView::gridSectionRows() const {
+	return kGridHeight - gridSectionRowOffset();
+}
+
 int32_t SessionView::gridYFromSection(uint32_t section) {
-	int32_t result = (kGridHeight - 1) - section + currentSong->songGridScrollY;
-	if (result >= kGridHeight) {
+	if (isHybridLayout()) {
+		return deluge::gui::session_layout::hybrid::sectionColumn(section, currentSong->songGridScrollY,
+		                                                          kMaxNumSections);
+	}
+	if (section >= kMaxNumSections) {
+		return -1;
+	}
+	int32_t result = (kGridHeight - 1) - static_cast<int32_t>(section) + currentSong->songGridScrollY;
+	if (result >= kGridHeight || result < gridSectionRowOffset()) {
 		return -1;
 	}
 
@@ -4797,8 +5225,19 @@ int32_t SessionView::gridYFromSection(uint32_t section) {
 }
 
 int32_t SessionView::gridSectionFromY(uint32_t y) {
-	int32_t result = ((kGridHeight - 1) - y) + currentSong->songGridScrollY;
-	if (result >= kMaxNumSections) {
+	if (isHybridLayout()) {
+		return deluge::gui::session_layout::hybrid::sectionIndex(y, currentSong->songGridScrollY, kMaxNumSections);
+	}
+	if (y >= kGridHeight) {
+		return -1;
+	}
+	if (static_cast<int32_t>(y) < gridSectionRowOffset()) {
+		return -1;
+	}
+	// A held section can scroll past either end. Return the same invalid-section sentinel
+	// for blank rows above and below the grid so renderers and pad handlers can ignore them.
+	int32_t result = (kGridHeight - 1) - static_cast<int32_t>(y) + currentSong->songGridScrollY;
+	if (result < 0 || result >= kMaxNumSections) {
 		return -1;
 	}
 
@@ -4806,6 +5245,9 @@ int32_t SessionView::gridSectionFromY(uint32_t y) {
 }
 
 int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
+	if (isHybridLayout()) {
+		return deluge::gui::session_layout::hybrid::trackRow(trackIndex, currentSong->songGridScrollX);
+	}
 	int32_t result = trackIndex - currentSong->songGridScrollX;
 	if (result >= kDisplayWidth) {
 		return -1;
@@ -4818,7 +5260,8 @@ int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
 	if (maxTrack <= 0) {
 		return 0;
 	}
-	int32_t result = x + currentSong->songGridScrollX;
+	int32_t result = isHybridLayout() ? deluge::gui::session_layout::hybrid::trackIndex(x, currentSong->songGridScrollX)
+	                                  : x + currentSong->songGridScrollX;
 	if (result >= maxTrack) {
 		return -1;
 	}
@@ -4837,14 +5280,17 @@ Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
 }
 
 Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
+	if (isHybridLayout() && (x >= kDisplayWidth / 2 || y == 0 || y >= kDisplayHeight)) {
+		return nullptr;
+	}
 	auto maxTrack = gridTrackCount();
-	Output* track = gridTrackFromX(x, maxTrack);
+	Output* track = gridTrackFromPad(x, y);
 
 	if (track == nullptr) {
 		return nullptr;
 	}
 
-	auto section = gridSectionFromY(y);
+	auto section = gridSectionFromPad(x, y);
 	if (section == -1) {
 		return nullptr;
 	}
@@ -4860,14 +5306,18 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 }
 
 int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
+	if (isHybridLayout()) {
+		auto* clip = gridClipFromCoords(x, y);
+		return clip ? currentSong->sessionClips.getIndexForClip(clip) : -1;
+	}
 	auto maxTrack = gridTrackCount();
-	Output* track = gridTrackFromX(x, maxTrack);
+	Output* track = gridTrackFromPad(x, y);
 
 	if (track == nullptr) {
 		return -1;
 	}
 
-	auto section = gridSectionFromY(y);
+	auto section = gridSectionFromPad(x, y);
 	if (section == -1) {
 		return -1;
 	}
@@ -4883,8 +5333,8 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 }
 
 Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		return gridTrackFromX(x, gridTrackCount());
+	if (isGridLayout()) {
+		return gridTrackFromPad(x, y);
 	}
 
 	// row layout
@@ -4897,6 +5347,9 @@ Cartesian SessionView::gridXYFromClip(Clip& clip) {
 	Output& track = *clip.output;
 	size_t maxTrack = gridTrackCount();
 	int32_t trackIndex = gridTrackIndexFromTrack(&track, maxTrack);
+	if (isHybridLayout()) {
+		return {gridYFromSection(clip.section), gridXFromTrack(trackIndex)};
+	}
 	return {gridXFromTrack(trackIndex), gridYFromSection(clip.section)};
 }
 
@@ -4933,7 +5386,34 @@ bool SessionView::gridCheckForPulseStop() {
 
 static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_CREATING_CLIP, 0};
 
+bool SessionView::gridUpdateTrackPadGesture() {
+	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
+		// A menu or overlay may consume the release event. The physical pad state
+		// still changes, so never leave selection or audition latched after release.
+		int32_t x = isHybridLayout() ? kDisplayWidth : gridHeldTrackPad;
+		int32_t y = isHybridLayout() ? gridHeldTrackPad : 0;
+		if (!matrixDriver.isPadPressed(x, y)) {
+			gridEndTrackSelection();
+			requestRendering(this);
+			return false;
+		}
+		// Like arranger, a held track's audition stops once playback starts.
+		auto* output = deluge::gui::track_link::selectedOutput();
+		if ((output != nullptr) && (playbackHandler.playbackState != 0u)) {
+			arrangerView.endAudition(output, true);
+		}
+		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
+		return true;
+	}
+
+	return false;
+}
+
 void SessionView::gridPulseSelectedClip() {
+	if (gridUpdateTrackPadGesture()) {
+		return;
+	}
+
 	auto setupTimer = util::finally([] {
 		// set pulse timer so that uiTimerManager comes back here to continue the pulsing
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
@@ -4965,6 +5445,10 @@ void SessionView::gridPulseSelectedClip() {
 	}
 
 	Output& output = *clip->output;
+	// Locked tracks advertise their state on the track pad, not on a released clip.
+	if (output.isTrackLocked()) {
+		return;
+	}
 
 	// if you're holding record or the clip is armed and flashing
 	// or if the track color has not been set yet, then exit
@@ -5024,4 +5508,214 @@ void SessionView::gridPulseSelectedClip() {
 
 	// action the colour change / render the pulse on the grid
 	PadLEDs::sendOutMainPadColours();
+}
+
+bool SessionView::gridTrackRowEnabled() const {
+	return !isHybridLayout() && isGridLayout() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)
+	       && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditGridRow);
+}
+
+void SessionView::gridEndTrackPadGesture() {
+	if (gridHeldTrackPad >= 0) {
+		const int32_t maxScroll =
+		    std::max<int32_t>(0, static_cast<int32_t>(gridTrackCount()) - gridVisibleTracks() + 1);
+		currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX, 0, maxScroll);
+	}
+	deluge::gui::track_edit_pulse::resetHeldPulse();
+	if (auto* output = deluge::gui::track_link::selectedOutput()) {
+		arrangerView.endAudition(output, true); // Only ends an audition this hold actually started.
+	}
+	gridHeldTrackPad = -1;
+}
+
+void SessionView::gridEndTrackSelection() {
+	gridEndTrackPadGesture();
+	const bool was_selected = deluge::gui::track_link::modeIsOn();
+	deluge::gui::track_link::exitMode();
+	if (was_selected && getRootUI() == this) {
+		// displayOutputName starts the instrument LED blinking when a track is selected.
+		setCentralLEDStates();
+	}
+}
+
+ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	if (on == 0) {
+		if (x != gridHeldTrackPad) {
+			return ActionResult::DEALT_WITH;
+		}
+		gridEndTrackSelection();
+		requestRendering(this);
+		return ActionResult::DEALT_WITH;
+	}
+	if (currentUIMode != UI_MODE_NONE || getCurrentUI() != this) {
+		return ActionResult::DEALT_WITH;
+	}
+	Output* output = gridTrackFromX(x, gridTrackCount());
+	if (output == nullptr) {
+		return ActionResult::DEALT_WITH;
+	}
+	bool silent = Buttons::isShiftButtonPressed();
+	gridEndTrackSelection();
+	deluge::gui::track_link::selectOutput(output, output->getActiveClip());
+	gridHeldTrackPad = x;
+	if (silent) {
+		deluge::gui::track_link::toggleLock(output);
+	}
+	gridTrackGesture.press(silent);
+	// Audition immediately, as arranger's audition pads do (only while playback is stopped).
+	if (!silent && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEditAudition)) {
+		arrangerView.beginAudition(output);
+	}
+	view.displayOutputName(output);
+	uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
+	requestRendering(this);
+	return ActionResult::DEALT_WITH;
+}
+
+void SessionView::gridRenderTrackRow(RGB* image, uint8_t* occupancy) {
+	auto count = gridTrackCount();
+	for (int32_t x = 0; x < kDisplayWidth; ++x) {
+		auto* output = gridTrackFromX(x, count);
+		RGB colour = colours::black;
+		if (output != nullptr) {
+			colour = RGB::fromHue(output->colour);
+			bool editing_menu = deluge::gui::track_link::isMenuOpen() && deluge::gui::track_link::isSelected(output);
+			if (editing_menu || (output->isTrackLocked() && !gridIsTrackPadHeld(output))) {
+				colour = deluge::gui::track_edit_pulse::renderPulse(colour, *output, image, x, 0);
+			}
+		}
+		image[x] = colour;
+		if (occupancy != nullptr) {
+			occupancy[x] = (output != nullptr) ? 64 : 0;
+		}
+	}
+}
+
+bool SessionView::gridIsTrackPadHeld(Output const* output) const {
+	return gridHeldTrackPad >= 0 && deluge::gui::track_link::isSelected(output);
+}
+
+Output* SessionView::heldPulseCandidate() {
+	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn()) {
+		return deluge::gui::track_edit_pulse::pulsesHeldTrack() ? deluge::gui::track_link::selectedOutput() : nullptr;
+	}
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) || !deluge::gui::track_edit_pulse::pulsesHeldClip()) {
+		return nullptr;
+	}
+	Clip* clip = getClipForLayout();
+	return ((clip != nullptr) && clip->output->isTrackLocked()) ? clip->output : nullptr;
+}
+
+bool SessionView::updateHeldPulse() {
+	uint32_t now = AudioEngine::audioSampleTimer;
+	if (heldPulse.update(heldPulseCandidate(), now, kShortPressTime)) {
+		deluge::gui::track_edit_pulse::resetHeldPulse();
+		// Releasing a pad may start a transition into the clip (explode, expand, etc.); don't repaint over it.
+		if (getCurrentUI() == this
+		    && (currentUIMode == UI_MODE_NONE || isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW))) {
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		}
+	}
+	if (heldPulse.waiting()) {
+		deluge::gui::track_edit_pulse::scheduleHoldCheck(heldPulse.remaining(now, kShortPressTime));
+	}
+	return heldPulse.tracking();
+}
+
+bool SessionView::isHybridLayout() const {
+	return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeHybrid;
+}
+
+bool SessionView::isGridLayout() const {
+	return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid || isHybridLayout();
+}
+
+int32_t SessionView::gridVisibleTracks() const {
+	return isHybridLayout() ? kDisplayHeight - 1 : kDisplayWidth;
+}
+
+bool SessionView::gridIsSectionPad(int32_t x, int32_t y) const {
+	return isHybridLayout() ? y == 0 && x >= 0 && x < kDisplayWidth / 2 : x == kDisplayWidth;
+}
+
+int32_t SessionView::gridSectionFromPad(int32_t x, int32_t y) {
+	return gridSectionFromY(isHybridLayout() ? x : y);
+}
+
+Output* SessionView::gridTrackFromPad(int32_t x, int32_t y) {
+	return gridTrackFromX(isHybridLayout() ? y : x, gridTrackCount());
+}
+
+bool SessionView::hybridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+	// Grid cells share launch/edit state and colours with Grid layout.
+	gridRenderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
+	for (int32_t x = 0; x < kDisplayWidth / 2; ++x) {
+		int32_t section = gridSectionFromPad(x, 0);
+		if (section >= 0) {
+			RGB colour = currentSong->sections[section].getColour();
+			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
+				if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
+					colour = colours::midi_command;
+				}
+				if (view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
+					colour = colour.dim();
+				}
+			}
+			image[0][x] = colour;
+			occupancyMask[0][x] = 64;
+		}
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	auto* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	Output* heldOutput = heldPulseOutput();
+	uint32_t retryRows = 0;
+	PadLEDs::renderingLock = true;
+	for (int32_t y = 1; y < kDisplayHeight; ++y) {
+		RGB preview[kDisplayWidth + kSideBarWidth] = {};
+		uint8_t previewOccupancy[kDisplayWidth + kSideBarWidth] = {};
+		if (!renderRow(modelStack, y, preview, previewOccupancy, drawUndefinedArea)) {
+			retryRows |= 1u << y;
+		}
+		auto* clip = getClipOnScreen(y);
+		for (int32_t x = 0; x < kDisplayWidth / 2; ++x) {
+			int32_t destination = x + kDisplayWidth / 2;
+			RGB colour = preview[x];
+			if (clip && clip->output == heldOutput) {
+				colour =
+				    deluge::gui::track_edit_pulse::renderPulse(colour, *heldOutput, image[y], destination, y, true);
+			}
+			image[y][destination] = colour;
+			occupancyMask[y][destination] = previewOccupancy[x];
+		}
+	}
+	PadLEDs::renderingLock = false;
+	if (retryRows && image == PadLEDs::image) {
+		retryMainPadRendering(retryRows);
+	}
+	return true;
+}
+
+bool SessionView::hybridRenderSidebar(RGB image[][kDisplayWidth + kSideBarWidth],
+                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		deluge::gui::track_edit_pulse::clearPulseRow(image[y], y, true);
+		auto* output = gridTrackFromPad(0, y);
+		RGB colour = colours::black;
+		if (output) {
+			colour = RGB::fromHue(output->colour);
+			bool editingMenu = deluge::gui::track_link::isMenuOpen() && deluge::gui::track_link::isSelected(output);
+			if (editingMenu || (output->isTrackLocked() && !gridIsTrackPadHeld(output))) {
+				colour = deluge::gui::track_edit_pulse::renderPulse(colour, *output, image[y], kDisplayWidth, y);
+			}
+		}
+		image[y][kDisplayWidth] = colour;
+		occupancyMask[y][kDisplayWidth] = output ? 64 : 0;
+		gridRenderActionModes(y, image, occupancyMask);
+	}
+	return true;
 }

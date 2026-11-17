@@ -24,4 +24,8 @@ class ClipMinder {
 public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	void transitionToArrangerOrSession();
+	ActionResult trackLockButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+
+private:
+	bool trackLockButtonHeld = false;
 };

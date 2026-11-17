@@ -30,7 +30,7 @@ public:
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_GRID)};
+		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_GRID), "Hybrid"};
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

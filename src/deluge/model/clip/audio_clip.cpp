@@ -296,8 +296,8 @@ ramError:
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
-	// don't clone for loop commands in red mode
-	if (!overdubsShouldCloneOutput) {
+	// Takes stay on this output regardless of the clip's regular overdub setting.
+	if (!willCloneOutputForOverdub()) {
 		return false;
 	}
 

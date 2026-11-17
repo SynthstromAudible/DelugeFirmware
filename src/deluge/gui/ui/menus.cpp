@@ -1183,6 +1183,9 @@ PLACE_SDRAM_BSS midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand
 PLACE_SDRAM_BSS midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 PLACE_SDRAM_BSS midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP,
                                                                 GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
+PLACE_SDRAM_BSS midi::Command loopTakeMidiCommand{STRING_FOR_LOOP_TAKE, GlobalMIDICommand::LOOP_TAKE};
+PLACE_SDRAM_BSS midi::Command loopContinuousLayeringTakeMidiCommand{STRING_FOR_LAYERING_LOOP_TAKE,
+                                                                    GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE};
 PLACE_SDRAM_BSS midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
 PLACE_SDRAM_BSS midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
 PLACE_SDRAM_BSS midi::Command nextSongMidiCommand{STRING_FOR_SONG_LOAD_NEXT, GlobalMIDICommand::NEXT_SONG};
@@ -1192,8 +1195,9 @@ PLACE_SDRAM_BSS Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
     {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
-     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand,
-     &nextSongMidiCommand, &shiftMidiCommand},
+     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &loopTakeMidiCommand,
+     &loopContinuousLayeringTakeMidiCommand, &fillMidiCommand, &transposeMidiCommand, &nextSongMidiCommand,
+     &shiftMidiCommand},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for

@@ -44,6 +44,9 @@ enum RuntimeFeatureStateEmulatedDisplay : uint32_t { Hardware = 0, Toggle = 1, O
 // Keep the former On value as MenuOnly to preserve existing settings.
 enum class RuntimeFeatureStateShortcutOverlay : uint32_t { Off = 0, MenuOnly = 1, MenuAndClip = 2 };
 
+// Which held pads pulse their track's clips while Track Edit is on.
+enum class RuntimeFeatureStateTrackEditPulse : uint32_t { Off = 0, HoldTrack = 1, HoldTrackOrClip = 2 };
+
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
@@ -71,6 +74,11 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShowBatteryLevel,
 	RoundedCorners,
 	ShortcutOverlay,
+	TrackEdit,
+	TrackEditGridRow,
+	TrackEditPulseClip,
+	TrackEditAudition,
+	TrackEditLinkAutomation,
 	MaxElement // Keep as boundary
 };
 

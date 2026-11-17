@@ -172,7 +172,8 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		}
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
-	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
+	         || currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeHybrid) {
 		if (oldSection < kMaxNumSections) {
 			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = oldSection + 1; c <= kMaxNumSections; ++c) {
@@ -195,11 +196,18 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 }
 
 // Returns whether it began
-bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency) {
+bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency,
+                                                        bool armedForInPlaceOverdub) {
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return false; // Not allowed if recording to arranger
 	}
+
+	// Only recordings armed as automatic overdubs (loop commands, or RECORD + clip/section pad in row view) may
+	// continue layering. A clip keeps its last overdubNature, so a manual launch must ignore it and record normally.
+	// Check before beginning, which clears isPendingOverdub.
+	bool armedAsAutoOverdub =
+	    clip->isPendingOverdub || armedForInPlaceOverdub || clip->armState == ArmState::ON_TO_RECORD;
 
 	// Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
 	bool currentClipHasSameOutput = (getCurrentClip() && getCurrentOutput() == clip->output);
@@ -227,13 +235,13 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			uiNeedsRendering(getCurrentUI());
 		}
 
-		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
+		if (armedAsAutoOverdub && isContinuousOverdub(clip->overdubNature) && playbackHandler.isEitherClockActive()) {
 			armClipToStopAction(clip);
 
-			if (clip->getCurrentlyRecordingLinearly() && clip->overdubNature == OverDubType::ContinuousLayering) {
+			if (clip->getCurrentlyRecordingLinearly()) {
 				// Create new clip if we're continuous-layering
 				// Make it spawn more too
-				currentSong->createPendingNextOverdubBelowClip(clip, clipIndex, OverDubType::ContinuousLayering);
+				currentSong->createPendingNextOverdubBelowClip(clip, clipIndex, clip->overdubNature);
 			}
 		}
 	}
@@ -428,7 +436,7 @@ void Session::doLaunch(bool isFillLaunch) {
 				clip->armState = ArmState::OFF;
 				clip->setPos(modelStackWithTimelineCounter, 0, false);
 
-				giveClipOpportunityToBeginLinearRecording(clip, c, 0);
+				giveClipOpportunityToBeginLinearRecording(clip, c, 0, true);
 
 				// If that caused it to be armed *again*...
 				if (clip->armState == ArmState::ON_NORMAL) {
