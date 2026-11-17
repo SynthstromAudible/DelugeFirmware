@@ -81,6 +81,10 @@ public:
 	uint8_t rpnLSB;
 	uint8_t rpnMSB;
 	uint8_t bendRange;
+
+	// Sustain (damper) pedal state for this input channel (MIDI CC 64). While true, incoming
+	// note-offs on this cable+channel are held by PlaybackHandler until the pedal is released.
+	bool sustainPedalDown = false;
 };
 
 /*
