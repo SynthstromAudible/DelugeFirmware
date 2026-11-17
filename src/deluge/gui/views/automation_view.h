@@ -255,6 +255,7 @@ private:
 	void initMIDICCShortcutsForAutomation();
 	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 	bool midiCCShortcutsLoaded;
+	uint32_t getMIDICCForAutomation(int32_t x, int32_t y) const;
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;
