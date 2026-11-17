@@ -168,7 +168,8 @@ public:
 	void potentiallyRefreshNoteRowMenu();
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
 	                         NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode = true);
-	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
+	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip,
+	                          bool changeRowSelection = true);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
