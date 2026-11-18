@@ -26,26 +26,13 @@
 /// legacy `ContextMenu` subclasses the port does not have, so even `pending_scene` could not
 /// spell them.
 ///
-/// ## The settings writes, which are a different shape
+/// ## Settings writes are not actions
 ///
-/// `screensaver_mode` and `screensaver_timeout` are writes, not presses, and they share
-/// **one** enumerator. Each is filed from a `Binding::set` hook, which is handed no `MenuState`
-/// (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing -- and
-/// none ascends the menu, because the user stays on the item while turning the encoder (the `switch`
-/// in `MenuScene::after_render` decides that question). Legacy's `ScreensaverModeMenu::writeCurrentValue` and
-/// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:38-41`, `:60-63`)
-/// are each two statements: a `FlashStorage` assignment, and
-/// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
-/// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
-/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**. What the hooks cannot do is the
-/// second statement: `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
-/// screensavers would keep their old timings until the next boot or the next edit made from the
-/// legacy menu.
-///
-/// **One enumerator, because legacy's notify takes no argument.** `settingsChanged()` is a
-/// zero-parameter static that re-reads both globals itself (`hid/display/screensaver.cpp:200-241`),
-/// so there is nothing for a payload to carry and nothing for a second enumerator to distinguish:
-/// the mode setter and the timeout setter ask for the identical thing. `arg` is unused.
+/// A settings item's write that has a side effect this layer may not perform -- the screensaver's
+/// `Screensaver::settingsChanged()`, the pad brightness, the menu highlighting, rounded corners,
+/// sticky shift, leaving the slow cursor flash, a pad colour -- calls the host synchronously from
+/// its `Binding::set` hook (`scenes/menu/bind_host.h`), as main's `writeCurrentValue` makes both
+/// its statements at once. So does the file selector's end of a keyboard audition.
 ///
 /// ## The shape
 ///
@@ -55,9 +42,8 @@
 ///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the action
 ///      whose meaning is not fixed by its identity (`OpenPerformanceView` carries which editing
 ///      mode).
-///   3. `MenuWalkState::pending_action` -- the field an item writes, exactly as it writes
-///      `pending_scene` (`menu_scene.h`); or, for a hook that is handed no state,
-///      `MenuScene::request_action`, which writes that same field.
+///   3. `MenuWalkState::pending_action` -- the field an item writes from `on_focus` or `render`,
+///      exactly as it writes `pending_scene` (`menu_scene.h`).
 ///   4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
 ///      `MenuScene::take_action()` for the application-side wiring to collect and perform.
 ///
@@ -126,58 +112,6 @@ enum class MenuAction : uint8_t {
 	/// @brief Open the song-macros context menu (`context_menu::configureSongMacros`). `arg` is
 	///        unused.
 	OpenSongMacros,
-
-	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
-	///        screensaver setters' writes. `arg` is unused.
-	///
-	/// The dispatcher performs the second statement of `ScreensaverModeMenu::writeCurrentValue` and
-	/// of `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`, `:62`).
-	/// The first statement of each -- the `FlashStorage` assignment -- is already made by the ported
-	/// hook itself; all that is needed is the immediate apply.
-	///
-	/// **One call updates both screensavers, which is why one enumerator is enough.**
-	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`) does three things:
-	/// it pushes the recomputed idle period into the guest's own service
-	/// (`shellHostUI.shell().set_screensaver_idle_ms(...)`, `:225-228`), it wakes the legacy
-	/// screensaver if it is showing (`:230-233`), and it then either cancels the legacy timer for
-	/// `ScreensaverMode::OFF` (`:235-238`) or re-arms it from now (`:240`, `arm()` at `:81-83`). So
-	/// the legacy `hid::display::Screensaver` and the ported `shell::Screensaver` both move on the
-	/// one call, and there is nothing for a second enumerator or a payload to say -- legacy's own
-	/// notify is a zero-parameter static that re-reads both globals for itself.
-	///
-	/// **This does not loop.** `settingsChanged()` writes no menu state and files no request: its
-	/// only reach back into this layer is `Shell::set_screensaver_idle_ms`, which sets one number on
-	/// a `shell::Screensaver` service (`Shell::set_screensaver_idle_ms`). Nothing on that path touches
-	/// `MenuState`, so the round trip is hook -> request -> notify, and it stops.
-	ScreensaverSettingsChanged,
-
-	/// @name Settings writes legacy applies at once, each `hid/` or the guest's shell
-	/// The setters in `nodes/settings.cpp` store the value and file these; no payload, as each arm re-reads what the
-	/// setter stored.
-	/// @{
-	/// `PadBrightness::writeCurrentValue`'s `PadLEDs::setBrightnessLevel` (`defaults/pad_brightness.h:32-36`).
-	PadBrightnessChanged,
-	/// The accessibility highlighting item: legacy's renderers read `FlashStorage::accessibilityMenuHighlighting` live
-	/// (`horizontal_menu.cpp:268`), so the guest's panels are restyled (`pushShellHighlighting`).
-	HighlightingChanged,
-	/// `RoundedCornersSettingToggle::writeCurrentValue`'s `Canvas::roundedCornersEnabled`, which main's rounded
-	/// primitives read, and the guest's panels with it (`pushShellRoundedCorners`).
-	RoundedCornersChanged,
-	/// `ShiftIsSticky::writeCurrentValue`'s live half, on every write: the guest's own shift machine takes the setting,
-	/// and turned off, legacy's latch is released too (`Buttons::clearShiftSticky()`).
-	ShiftStickyChanged,
-	/// `flash::Status::writeCurrentValue`'s `PadLEDs::clearTickSquares()` when the old value was the slow flash
-	/// (`flash/status.h:27-31`).
-	FlashStatusLeftSlow,
-	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()`
-	/// (`origin/main:src/deluge/gui/menu_item/colour.h`).
-	PadColoursChanged,
-
-	/// @brief The file selector opened: `FileSelector::beginSession` leaves the keyboard's audition mode
-	///        (`file_selector.cpp:40-42`), with the keyboard at the root and a note auditioning. `arg` is unused.
-	FileSelectorOpened,
-
-	/// @}
 };
 
 /// @brief One request: which action, and the one payload word `OpenPerformanceView` needs.

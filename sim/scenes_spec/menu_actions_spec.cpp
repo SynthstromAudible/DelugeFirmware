@@ -24,10 +24,9 @@
 ///   * **Covered in `menu_action_three_verbs`:** that the remaining three verbs are
 ///     *performed* -- the clip's length really moves to the sample's, MIDI learn really arms, and
 ///     each context menu really lands on `uiNavigationHierarchy`.
-///   * **Covered in `menu_action_screensaver`:** that `ScreensaverSettingsChanged`
-///     is *performed* -- one enumerator filed by either of the two ported setters, and both the
-///     legacy screensaver's idle timer and the ported `shell::Screensaver`'s idle period moving on
-///     it, with no reboot.
+///   * **Covered in `menu_action_screensaver`:** that both screensaver setters move the legacy screensaver's
+///     idle timer and the guest's `shell::Screensaver` idle period at the write, through
+///     `menu::host_screensaver_settings_changed`, with no reboot.
 ///   * **NOT covered:** the acting half of `StartStemExport` -- `startStemExportProcess` would run a
 ///     real export inline on this BSP (see that group's own note) -- and
 ///     `audio_clip_view.cpp:766-768`'s `STRING_FOR_NO_SAMPLE` arm, which no `AudioClip` can reach
@@ -80,7 +79,7 @@
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
-#include "hid/display/screensaver.h" // the legacy screensaver, half of what `ScreensaverSettingsChanged` moves
+#include "hid/display/screensaver.h" // the legacy screensaver, half of what the screensaver setters move
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -125,6 +124,19 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+
+namespace PadLEDs {
+/// The pad dimmer's live level, which `pad_leds.h` does not declare (`hid/led/pad_leds.cpp`).
+extern int32_t dimmerInterval;
+/// The slow flash's tick squares as last set, 255 where none (`hid/led/pad_leds.cpp`).
+extern uint8_t slowFlashSquares[];
+/// Set when a column send waits for room in the PIC's queue (`hid/led/pad_leds.cpp`, `sendOutMainPadColoursSoon`).
+extern bool needToSendOutMainPadColours;
+} // namespace PadLEDs
+/// The harness's record of every pad colour the app sent, column-major, eight rows of RGB
+/// (`src/bsp/rust/src/peripherals/ui_harness.rs`).
+extern "C" const uint8_t* host_script_pad_shadow();
+extern uint32_t whichMainRowsNeedRendering; // `gui/ui/ui.cpp`: the main rows a render is pending for
 
 namespace {
 
@@ -1268,31 +1280,52 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("files the file selector's opening, which leaves the keyboard's audition mode", _ {
-		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`): with the keyboard at the root and a note
-		// auditioning, opening the file selector stops it; anywhere else it does nothing.
+	it("the file selector's opening leaves the keyboard's audition mode at once, and files nothing", _ {
+		// `FileSelector::beginSession`: with the keyboard at the root and a note auditioning, opening the file selector
+		// stops it before the browser opens; anywhere else it does nothing.
 		select_language();
-		menu::MenuState state{};
-		const menu::MenuContext ctx{};
-		nodes::file0_selector.custom->on_focus(ctx, state);
-		expect(state.walk.pending_action.action).to_equal(MenuAction::FileSelectorOpened);
-
 		UiStackGuard ui_guard;
+		const menu::MenuContext ctx{};
+
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
-		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
-
-		(void)scene().after_render(); // the tick's after-render posts the filed action to the outbox
-		deluge::gui::ui::dispatchShellActions();
+		menu::MenuState state{};
+		nodes::file0_selector.custom->on_focus(ctx, state);
 		expect(currentUIMode).not_().to_equal(UI_MODE_AUDITIONING);
+		expect(state.walk.pending_action.engaged()).to_be_false();
 
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;
-		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
+		menu::MenuState other{};
+		nodes::file0_selector.custom->on_focus(ctx, other);
 		expect(currentUIMode).to_equal(UI_MODE_AUDITIONING);
 		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("drops a request the closing guest's last input filed, so no later tick performs it", _ {
+		// `ShellHostUI::closeGuest` feeds the input that arrived since the last tick before it closes. A select press
+		// in it files its action on the way out, and the menu that would have acted is going.
+		select_language();
+		UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
+		                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,
+		                                          /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(nodes::stem_export, ctx);
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::stem_export)});
+		setRootUILowLevel(&instrumentClipView);
+		expect(openUI(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback(); // settle the first frame
+		(void)scene().take_action();
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		shellHostUI.closeNow();
+
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(scene().take_action().engaged()).to_be_false();
 	});
 
 	it("takes nothing when nothing was filed, and does not eat the next request", _ {
@@ -1347,135 +1380,67 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	});
 });
 
-describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSettingsChanged", $ {
-	// An arm filed by a **value write** rather than by a select
-	// press: two hooks
-	// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) file **one** enumerator,
-	// because legacy's own notify takes no argument.
+describe menu_action_screensaver("the screensaver setters -- host_screensaver_settings_changed", $ {
+	// Both setters (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) store their `FlashStorage`
+	// global and then call `menu::host_screensaver_settings_changed()`, which is main's `Screensaver::settingsChanged()`:
+	// the second statement of both items' `writeCurrentValue`. That one call moves both screensavers, so every example
+	// reads both: `shellHostUI.shell().screensaver_idle_ms()` is the guest's `shell::Screensaver` period and
+	// `legacy_armed_ms()` is `TimerName::SCREENSAVER`, which the call re-arms, or unsets for `ScreensaverMode::OFF`.
 	//
-	// **The defect, in user terms.** The ported
-	// setters write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves, so
-	// nothing is ever lost at power-off. What they cannot do is the *other* statement of
-	// `ScreensaverModeMenu::writeCurrentValue` / `ScreensaverTimeout::writeCurrentValue`
-	// (`gui/menu_item/defaults/screensaver.h:40`, `:62`) --
-	// `hid::display::Screensaver::settingsChanged()`, which is `hid/` and so unreachable from
-	// `src/scenes`. So a user who set the timeout to nine minutes from the ported menu would get a
-	// screensaver that still came on at five, on **both** screensavers, until the next reboot or the
-	// next edit made from the legacy menu. **Every control leg below is that bug**, reproduced
-	// deliberately: same rig, same gesture, minus `dispatchShellActions()` -- and each asserts the
-	// `FlashStorage` field DID move while neither screensaver did, which is the shape of the defect
-	// rather than merely "nothing happened".
+	// **The global `shellHostUI`, even where the rig has a guest of its own.** `settingsChanged()` names that object,
+	// the firmware's one guest, so the global is what the call moves and what these examples read. `ScreensaverGuard`
+	// puts it back.
 	//
-	// **Both screensavers are read, on every leg, because one call is supposed to move both.**
-	// `shellHostUI.shell().screensaver_idle_ms()` is the ported `shell::Screensaver`'s copy, pushed
-	// by `settingsChanged()` at `hid/display/screensaver.cpp:225-228`; `legacy_armed_ms()` is
-	// `TimerName::SCREENSAVER`, which the same function re-arms at `:240` or cancels at `:235-238`.
-	// An arm that updated only one of the two would leave the other at the seeded value and redden.
+	// **Not covered: `settingsChanged()`'s wake-if-showing branch.** While the guest is the current UI,
+	// `Screensaver::timerEvent()` stands the legacy screensaver down instead of activating it, so it cannot be showing
+	// while a menu row is turned. `menu_entry_spec.cpp`'s `menu_entry_screensaver` group pins that stand-down.
 	//
-	// **The global `shellHostUI`, deliberately, even where the rig has a guest of its own.**
-	// `settingsChanged()` names that object by name (`:225`) -- there is exactly one guest in the
-	// firmware -- so the global is what the production call moves and the global is what these
-	// examples read. `ScreensaverGuard` puts it back.
-	//
-	// **What is NOT covered: `settingsChanged()`'s wake-if-showing branch (`:230-233`) from this
-	// arm.** It is unreachable through this route rather than merely untested, and the reason is
-	// this: while the guest is the current UI, `Screensaver::timerEvent()` stands the legacy
-	// screensaver down instead of activating it (`hid/display/screensaver.cpp:132-139`), so it cannot
-	// be showing at the moment a ported menu row is being turned. That early return is pinned by a
-	// different file -- `menu_entry_spec.cpp`'s `menu_entry_screensaver` group, which drives the real
-	// `entry::openShellMenu` and asserts the stand-down wakes it and re-arms at the FULL idle period.
-	//
-	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn
-	// (`ui/oled/values.cpp`'s `select_delta`), as legacy reaches BOTH items' `writeCurrentValue` from
-	// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:64-69`). `Rig` can drive either,
-	// because it feeds board encoder indices straight into a `Shell`. `ShellHostUI` routes a gold
-	// turn to the knobs' service rather than to the menu (`@par The gold knobs` in
-	// `gui/ui/shell_host_ui.h`), so the guest-tick composition example below turns the mode item.
+	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn (`ui/oled/values.cpp`'s
+	// `select_delta`), as main reaches both items' `writeCurrentValue` from `Value<T>::selectEncoderAction`. `Rig`
+	// feeds board encoder indices straight into a `Shell`; `ShellHostUI` routes a gold turn to the knobs' service rather
+	// than to the menu, so the guest example turns the mode item.
 
-	it("changing the timeout re-arms both screensavers, with no reboot", _ {
+	it("changing the timeout re-arms both screensavers at the write, with no reboot", _ {
 		select_language();
 		ScreensaverGuard guard;
-
-		{
-			// The control, and it differs in EXACTLY ONE CALL: no `dispatchShellActions()`.
-			seed_screensaver(ScreensaverMode::DELUGE, 5);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
-			expect(legacy_armed_ms()).to_equal(int32_t(300000));
-
-			Rig control;
-			expect(choose_screensaver(control, nodes::screensaver_timeout, false, 9)).to_equal(int32_t(9));
-
-			// The setting IS stored -- the half that always worked. Asserting it is what makes the
-			// two below a *notify* failure rather than a write failure.
-			expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(9);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
-			expect(legacy_armed_ms()).to_equal(int32_t(300000));
-			// ...and the write really did file, so the subject's effect is about the arm and not
-			// about a turn that never reached the hook.
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
-			expect(static_cast<int>(filed.arg)).to_equal(0);
-		}
-
-		// Seeded at the value the answer is NOT, on both screensavers, so neither assertion below
-		// can pass on a number that was already there.
+		// Seeded at the value the answer is not, on both screensavers.
 		seed_screensaver(ScreensaverMode::DELUGE, 5);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
+		expect(legacy_armed_ms()).to_equal(int32_t(300000));
+
 		Rig r;
 		expect(choose_screensaver(r, nodes::screensaver_timeout, false, 9)).to_equal(int32_t(9));
-		deluge::gui::ui::dispatchShellActions();
 
-		// Nine minutes, on both -- `arm()`'s `screensaverTimeoutMinutes * kMillisecondsPerMinute`
-		// (`hid/display/screensaver.cpp:81-83`) and the identical formula the port is handed
-		// (`:225-228`).
+		// Nine minutes, on both: `arm()`'s `screensaverTimeoutMinutes * kMillisecondsPerMinute` and the identical formula
+		// the guest is handed. Nothing waits for a dispatcher.
+		expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(9);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(540000));
 		expect(legacy_armed_ms()).to_equal(int32_t(540000));
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("the mode setter files the SAME request, and OFF cancels the legacy timer where a mode arms it", _ {
-		// The second half of "one enumerator covers both setters", and the branch of
-		// `settingsChanged()` the timeout example cannot reach. The timeout is held at 5 on every
-		// leg, so the only thing varying is the mode.
+	it("the mode setter re-arms both the same way, and OFF cancels the legacy timer where a mode arms it", _ {
+		// The timeout is held at 5 on every leg, so only the mode varies.
 		select_language();
 		ScreensaverGuard guard;
 
-		{
-			seed_screensaver(ScreensaverMode::OFF, 5);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-
-			Rig control;
-			expect(choose_screensaver(control, nodes::screensaver_mode, true, kModeDelugeIndex))
-			    .to_equal(kModeDelugeIndex);
-
-			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-			// The same enumerator the timeout setter files, and the same empty payload. This is what
-			// "one enumerator, two setters" is asserted by rather than merely claimed.
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
-			expect(static_cast<int>(filed.arg)).to_equal(0);
-		}
-
-		// OFF -> DELUGE: both screensavers come on, at the timeout that was already stored.
+		// OFF -> DELUGE: both screensavers come on, at the timeout already stored.
 		seed_screensaver(ScreensaverMode::OFF, 5);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
+		expect(legacy_armed_ms()).to_equal(int32_t(-1));
 		{
 			Rig r;
 			expect(choose_screensaver(r, nodes::screensaver_mode, true, kModeDelugeIndex)).to_equal(kModeDelugeIndex);
-			deluge::gui::ui::dispatchShellActions();
 		}
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
 		expect(legacy_armed_ms()).to_equal(int32_t(300000));
 
-		// ...and back to OFF, which is `settingsChanged()`'s other branch: the legacy timer is UNSET
-		// rather than re-armed (`hid/display/screensaver.cpp:235-238`) and the port spells the same
-		// thing as `idle_ms == 0` (`:225-227`). Without this leg an arm that only ever armed would
-		// pass the example above.
+		// ...and back to OFF, `settingsChanged()`'s other branch: the legacy timer is unset rather than re-armed, and the
+		// guest spells the same thing as `idle_ms == 0`. Without this leg a call that only ever armed would pass.
 		{
 			Rig r;
 			expect(choose_screensaver(r, nodes::screensaver_mode, true, kModeOffIndex)).to_equal(kModeOffIndex);
-			deluge::gui::ui::dispatchShellActions();
 		}
 		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::OFF);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
@@ -1483,29 +1448,22 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("does NOT ascend: the user is left standing on the item, as legacy leaves them", _ {
-		// `MenuScene::after_render`'s `switch`, for `ScreensaverSettingsChanged`. Legacy enters both of
-		// these items -- neither overrides `shouldEnterSubmenu()` -- and `writeCurrentValue` runs on
-		// every detent while the user stands there, so an ascend would close the page under them on
-		// the first turn.
+	it("does not ascend: the user is left standing on the item, as main leaves them", _ {
+		// Main enters both items -- neither overrides `shouldEnterSubmenu()` -- and `writeCurrentValue` runs on every
+		// detent while the user stands there, so leaving the page on the first turn would close it under them.
 		select_language();
 		ScreensaverGuard guard;
 		seed_screensaver(ScreensaverMode::DELUGE, 5);
 
 		Rig r;
 		expect(choose_screensaver(r, nodes::screensaver_timeout, false, 7)).to_equal(int32_t(7));
-		deluge::gui::ui::dispatchShellActions();
-		// The first detent really applied, so the second one below is a second apply and not the
-		// first one arriving late.
 		expect(legacy_armed_ms()).to_equal(int32_t(420000));
 		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
-		// And a second detent still lands, which an ascend would have made impossible. `int_value`
-		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
+		// A second detent still lands, which leaving the page would have made impossible.
 		r.turn(1, 200);
 		r.shell.tick(210);
-		deluge::gui::ui::dispatchShellActions();
 		expect(scene().state().edit_int).to_equal(int32_t(8));
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(480000));
 		expect(legacy_armed_ms()).to_equal(int32_t(480000));
@@ -1541,48 +1499,22 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(legacy_armed_ms()).to_equal(armed);
 	});
 
-	it("reaches both screensavers through the guest's own tick, with nothing calling the dispatcher by name", _ {
-		// The composition, end to end: a real `ShellHostUI` over the real `scene_registry()`, a real
-		// select-encoder turn through the guest's own hook, and the guest's own `timerCallback()` --
-		// which is the only thing here that could apply anything. `dispatchShellActions` is never
-		// named.
+	it("reaches both screensavers through the guest's own input hook and tick", _ {
+		// The composition end to end: a real `ShellHostUI` over the real `scene_registry()`, a real select-encoder turn
+		// through the guest's own hook, and the guest's own `timerCallback()`. The rig's guest is a local `ShellHostUI`
+		// (see `GuestRig`) and the object `settingsChanged()` pushes into is the global `shellHostUI`: in the firmware
+		// they are one object, so here the local one routes the input and the global one records the result.
 		//
-		// The two legs vary ONE THING -- shell tick vs guest tick -- the arrangement
-		// `menu_action_open_perform`'s guest example uses and for the same reason.
-		//
-		// The rig's guest is a LOCAL `ShellHostUI` (see `GuestRig`), and the object
-		// `settingsChanged()` pushes into is the GLOBAL `shellHostUI` (`:225`). That is not a
-		// divergence being papered over: the firmware has exactly one guest, so in the shipped build
-		// these are the same object. Here the local one routes the input and the global one records
-		// the result, which is why both legs read the global.
-		//
-		// **The MODE item, not the timeout one, and that is forced rather than chosen** -- see the
-		// group's note on the gold knobs. `OFF -> BLANK` is the change that is observable on both
-		// screensavers without touching the timeout, which stays at 5 throughout.
+		// The mode item, `OFF -> BLANK`: the change both screensavers show without touching the timeout, which stays at
+		// 5 throughout.
 		select_language();
 		ScreensaverGuard guard;
 
-		{
-			GuestRig control;
-			seed_screensaver(ScreensaverMode::OFF, 5);
-			expect(control.open(nodes::screensaver_mode)).to_be_true();
-			control.ui.shell().tick(5);
-			control.turn_select(1);
-			control.ui.shell().tick(20);
-
-			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::BLANK);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-			expect(scene().take_action().action).to_equal(MenuAction::ScreensaverSettingsChanged);
-		}
-
 		GuestRig r;
 		seed_screensaver(ScreensaverMode::OFF, 5);
-		// Opened AT the item rather than walked into, because `GuestRig` has no row-press helper for
-		// a submenu row -- the same substitution the shortcut-version guest example makes.
 		expect(r.open(nodes::screensaver_mode)).to_be_true();
-		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
-		expect(scene().take_action().engaged()).to_be_false();
+		(void)r.ui.timerCallback(); // settle the first frame
+		expect(legacy_armed_ms()).to_equal(int32_t(-1));
 		r.turn_select(1);
 		(void)r.ui.timerCallback();
 
@@ -1592,6 +1524,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
+
 describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerformanceView", $ {
 	// The first arm with a body, and the only group in this file that asserts a legacy
 	// EFFECT rather than a filed request. It is the real dispatcher over the real `performanceView`
@@ -2478,37 +2411,72 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 });
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
-	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
-	// storing (`PadBrightness`'s and `Colour`'s write, `ShiftIsSticky::writeCurrentValue`, `flash::Status`'s write;
-	// highlighting is read live by every renderer, `HorizontalMenu`'s rendering). Each is `hid/` or the guest's shell,
-	// so the setter files it for `dispatchShellActions`.
-	it("each setter files its action, and only on legacy's own condition", _ {
+	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour`, the highlighting item and the rounded-corners toggle
+	// each do one thing besides storing, `hid/` or the guest's shell, so each setter calls the host for it
+	// (`scenes/menu/bind_host.h`) at the write, as main's `writeCurrentValue` does.
+	it("each setter applies its side effect at the write, and only on main's own condition", _ {
 		const menu::MenuContext ctx{};
-		const auto filed = [] {
-			const MenuAction a = scene().state().walk.pending_action.action;
-			scene().request_action(MenuActionRequest{});
-			return a;
-		};
-		scene().request_action(MenuActionRequest{});
-		nodes::set_default_pad_brightness(ctx, 100);
-		expect(filed()).to_equal(MenuAction::PadBrightnessChanged);
+		const uint8_t saved_brightness = FlashStorage::defaultPadBrightness;
+		const MenuHighlighting saved_highlighting = FlashStorage::accessibilityMenuHighlighting;
+		const uint8_t saved_flash = PadLEDs::flashCursor;
+		const uint8_t saved_colour = FlashStorage::padColours[0];
+
+		// `PadBrightness::writeCurrentValue`: the pads' dimmer takes the stored level at once.
+		PadLEDs::dimmerInterval = 0;
+		nodes::set_default_pad_brightness(ctx, 40);
+		expect(PadLEDs::dimmerInterval).to_equal(int32_t{kMaxLedBrightness - (40 >> 2)});
+
+		// The highlighting item: main's canvas flag and the guest's panels follow the stored value.
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::pushShellHighlighting();
 		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
-		expect(filed()).to_equal(MenuAction::HighlightingChanged);
-		nodes::set_rounded_corners(ctx, 0);
-		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
-		nodes::set_rounded_corners(ctx, 1);
-		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
-		nodes::set_shift_is_sticky(ctx, 0);
-		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
-		nodes::set_shift_is_sticky(ctx, 1);
-		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
+		expect(deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts).to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
+		    .to_equal(deluge::ui::Highlighting::FullInversion);
+
+		// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares and, the slow flash
+		// still current, sends the column pair that held one; leaving another does nothing. The send shows in the
+		// harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's queue. A clear made after
+		// the store sends nothing.
+		const auto sent = [] {
+			const uint8_t* p = host_script_pad_shadow() + (2 * 8 + 2) * 3;
+			return (int32_t{p[0]} << 16) | (int32_t{p[1]} << 8) | int32_t{p[2]};
+		};
+		const RGB saved_pad = PadLEDs::image[2][2];
+		currentUIMode = UI_MODE_NONE;
+		PadLEDs::needToSendOutMainPadColours = false;
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		PadLEDs::slowFlashSquares[2] = 3; // row 2's square on column 3: columns 2 and 3 go out as one pair
+		const int32_t before = sent();
+		// A colour the shadow does not hold, so a send of column 2 changes it.
+		PadLEDs::image[2][2] = RGB{.r = static_cast<uint8_t>((before >> 16) ^ 0x55),
+		                            .g = static_cast<uint8_t>((before >> 8) ^ 0x55),
+		                            .b = static_cast<uint8_t>(before ^ 0x55)};
 		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
-		expect(filed()).to_equal(MenuAction::FlashStatusLeftSlow);
+		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(255);
+		const bool went_out = sent() != before || PadLEDs::needToSendOutMainPadColours;
+		expect(went_out).to_be_true();
+		PadLEDs::image[2][2] = saved_pad;
+		PadLEDs::needToSendOutMainPadColours = false;
+		PadLEDs::slowFlashSquares[2] = 3;
 		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
-		expect(filed()).not_().to_equal(MenuAction::FlashStatusLeftSlow);
+		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(3);
+
+		// `Colour::writeCurrentValue`: every pad re-renders, whatever the UI.
+		whichMainRowsNeedRendering = 0;
 		nodes::pad_colour_set(0, 3);
-		expect(filed()).to_equal(MenuAction::PadColoursChanged);
+		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
+
+		// Nothing waits in the menu for a dispatcher.
+		expect(scene().state().walk.pending_action.engaged()).to_be_false();
+
+		FlashStorage::padColours[0] = saved_colour;
+		PadLEDs::slowFlashSquares[2] = 255;
+		PadLEDs::flashCursor = saved_flash;
+		FlashStorage::accessibilityMenuHighlighting = saved_highlighting;
+		deluge::gui::ui::pushShellHighlighting();
+		FlashStorage::defaultPadBrightness = saved_brightness;
+		PadLEDs::setBrightnessLevel(saved_brightness);
 	});
 
 	it("closing the guest on the settings menu saves the settings, as SoundEditor::exitCompletely does", _ {
@@ -2548,7 +2516,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 
 	it("a rounded-corners write reaches main's canvas and the guest's panels at once", _ {
 		// `RoundedCornersSettingToggle::writeCurrentValue` sets `Canvas::roundedCornersEnabled`, which main's rounded
-		// primitives read; the guest's panels draw from their own style.
+		// primitives read; the guest's panels draw from their own style. Both move at the write.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
 		Rig r;
@@ -2556,13 +2524,9 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		r.shell.tick(5);
 		const menu::MenuContext ctx{};
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 1);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_true();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
@@ -2598,7 +2562,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 
 	it("a sticky-shift write reaches the guest's own shift machine, and turning it off releases both latches", _ {
 		// `ShiftIsSticky::writeCurrentValue`: `shellHostUI.shell().lowering().set_shift_is_sticky(on)`, and off,
-		// `Buttons::clearShiftSticky()`.
+		// `Buttons::clearShiftSticky()`, both at the write.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
 		const uint32_t saved_light = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
@@ -2609,14 +2573,10 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		shellHostUI.shell().lowering().set_shift_is_sticky(false);
 
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_true();
 
 		Buttons::commandToggleShift(true); // SHIFT held: legacy's own state, which the off arm releases
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 0);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();
 		expect(Buttons::isShiftButtonPressed()).to_be_false();
 

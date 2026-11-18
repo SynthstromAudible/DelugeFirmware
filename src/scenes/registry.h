@@ -74,10 +74,8 @@ uint16_t assigned_node_ids();
 ///     `deluge_boot`, the two legacy settings items (`gui/menu_item/defaults/screensaver.h`), and
 ///     the *ported* tree's own two setters (`menu/nodes/settings.cpp`).
 ///     Those write the two globals directly and still cannot call it, because this layer may not
-///     include `hid/`; they file `menu::MenuAction::ScreensaverSettingsChanged` instead
-///     (`menu/action.h`) and `gui::ui::dispatchShellActions` makes the call; without it a change
-///     made from the ported screensaver menu would be stored but notify neither screensaver until
-///     the next boot.
+///     include `hid/`; they call `menu::host_screensaver_settings_changed()` (`menu/bind_host.h`) instead,
+///     which makes the call at the write.
 ///
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an

@@ -25,12 +25,9 @@
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
 /// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
 ///
-/// **The verbs are not all one shape.** Five are root-UI behaviour filed by writing
-/// `MenuWalkState::pending_action` directly, and they are tabulated in `scenes/menu/action.h`.
-/// The others are settings writes filed through `MenuScene::request_action` by a `Binding::set`
-/// hook that is handed no `MenuState` at all -- `ScreensaverSettingsChanged` and its siblings,
-/// argued in `scenes/menu/action.h`. The difference matters to this file only in what each arm
-/// calls; the drain and the poll are identical for all of them.
+/// The five verbs are root-UI behaviour, filed by writing `MenuWalkState::pending_action` and
+/// tabulated in `scenes/menu/action.h`. A settings write's side effect is not one of them: its
+/// setter calls the host at the write (`scenes/menu/bind_host.h`).
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -79,11 +76,8 @@ namespace deluge::gui::ui {
 /// @par What it does
 ///
 /// It drains, and it performs **every** verb: `OpenPerformanceView`, `StartStemExport`,
-/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`, and the settings writes
-/// from `ScreensaverSettingsChanged` on. The settings writes are a different shape from the five --
-/// a **write** rather than a select press, filed from a `Binding::set` hook through
-/// `MenuScene::request_action` -- which `scenes/menu/action.h` argues at each enumerator. The
-/// `switch` has an arm for every `MenuAction` and no `default:` -- see below.
+/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and `OpenSongMacros`. The `switch` has an arm
+/// for every `MenuAction` and no `default:` -- see below.
 ///
 /// @par The two context menus open even when `setupAndCheckAvailability()` says no
 ///
@@ -133,11 +127,9 @@ namespace deluge::gui::ui {
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
 
-/// @brief `dispatchShellActions` for a close: a setting a value write filed (the shortcuts version, the screensaver,
-///        pad brightness, highlighting, rounded corners, sticky shift, the flash status, the pad colours) is applied,
-///        as legacy's `writeCurrentValue` applies both its halves at once; a request that opens a UI or moves the
-///        menu is dropped, because the menu is going.
-void dispatchShellActionsAtClose();
+/// @brief Drop whatever the menu asked for on the guest's last tick, for its close: a request filed by the input
+///        the close feeds through opens a UI or moves a menu that is going, so nothing performs it.
+void discardShellActionsBeforeClose();
 
 /// @brief `soundEditor.exitCompletely()`, ported: take the ported menu off the guest's scene stack
 ///        and let `ShellHostUI::timerCallback` close the guest itself.

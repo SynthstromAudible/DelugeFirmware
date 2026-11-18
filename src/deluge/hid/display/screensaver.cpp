@@ -205,24 +205,18 @@ void Screensaver::settingsChanged() {
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
 	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a
-	// change to either setting funnels through, from all of its writers --
-	// `deluge_boot` (`deluge.cpp`, after `FlashStorage::readSettings()`),
-	// `ScreensaverModeMenu::writeCurrentValue` and `ScreensaverTimeout::writeCurrentValue`
-	// (`gui/menu_item/defaults/screensaver.h:38-40`, `:60-62`). A boot call would have covered only
-	// the first and the port would go stale the moment the user changed either.
+	// change to either setting funnels through, from all of its writers -- `deluge_boot` (`deluge.cpp`, after
+	// `FlashStorage::readSettings()`), the menu's two setters (below) and a settings reset
+	// (`gui::ui::reapplyLiveSettingsAfterReset`). A boot call would have covered only the first, and the guest's copy
+	// would go stale the moment the user changed either setting.
 	//
 	// The formula is legacy's own two reads, spelled as one number: `arm()`'s
 	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` (`:79-81`) and the `ScreensaverMode::OFF`
 	// early-outs the port spells as `idle_ms == 0` (`:92-94`, `:102-104`, `:171-174`).
 	//
-	// **A fourth writer as of F2 task 7: the ported menu's own two setters.**
-	// `nodes::set_screensaver_mode` and `nodes::set_screensaver_timeout`
-	// (`scenes/menu/nodes/settings.cpp`) write the same two `FlashStorage` globals directly and
-	// cannot call this -- `src/scenes` may not include `hid/`. Until F2 task 7 that left both this
-	// class and the service armed at the old value until the next boot or the next change made from
-	// the legacy menu. They now file `MenuAction::ScreensaverSettingsChanged`
-	// (`scenes/menu/action.h`) and `gui::ui::dispatchShellActions` calls this function, so the two
-	// ported items funnel through here exactly as the two legacy ones do.
+	// **The menu's two setters.** `nodes::set_screensaver_mode` and `nodes::set_screensaver_timeout`
+	// (`scenes/menu/nodes/settings.cpp`) write the same two `FlashStorage` globals and call
+	// `menu::host_screensaver_settings_changed()`, which calls this function, as main's two settings items call it.
 	shellHostUI.shell().set_screensaver_idle_ms(FlashStorage::screensaverMode == ScreensaverMode::OFF
 	                                                ? 0u
 	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)

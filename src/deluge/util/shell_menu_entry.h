@@ -62,8 +62,8 @@
 ///
 ///  1. **Every `MenuAction` the ported items file has a body.** `gui::ui::dispatchShellActions`
 ///     drains the outbox once per guest tick, so `perform_editor`, `start_stem_export`,
-///     `set_clip_length`, `song_midi_learn`, `configure_song_macros` and the two settings verbs of
-///     item 4 do what their legacy items do. What each arm still owes is recorded
+///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` do what their legacy items
+///     do. What each arm still owes is recorded
 ///     per arm at `gui/ui/shell_action_dispatch.h`.
 ///  2. **A file chosen in the ported browser is claimed.** `deluge::gui::ui::dispatchShellChoices`
 ///     (`gui/ui/shell_choice_dispatch.cpp`) drains `take_choice()` from `ShellHostUI::timerCallback`
@@ -82,13 +82,8 @@
 ///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
 ///     their `FlashStorage` assignment in the ported hook, matching the first statement of each
-///     legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), and file
-///     `MenuAction::ScreensaverSettingsChanged` for the second, `Screensaver::settingsChanged()`;
-///     one enumerator serves both because legacy's notify takes no argument.
-///
-///     **Not covered:** the play-cursor flash is unwired in both directions and reaches no menu
-///     item, so it is not a thing a user can do wrong. It is noted in
-///     `src/scenes/README.md`'s boot-wiring section.
+///     legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), and call
+///     `menu::host_screensaver_settings_changed()` for the second, `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult
 #include "gfx/grid/rgb.h"

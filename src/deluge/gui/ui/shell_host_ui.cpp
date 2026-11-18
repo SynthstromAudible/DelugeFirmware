@@ -628,8 +628,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `timerCallback`'s close check for the short-Back exit, and `closePortedMenu` rules out
 	// `closeGuest()` as an implementation for it (`gui/ui/shell_action_dispatch.cpp`). The path none
 	// of the three covers: **three of the `MenuAction` arms end in `openUI(...)`** --
-	// `openPerformanceView` and the two context menus (`OpenSongMidiLearn`, `OpenSongMacros`) --
-	// while the settings writes (`ScreensaverSettingsChanged` and its siblings) open nothing. And legacy's own
+	// `openPerformanceView` and the two context menus (`OpenSongMidiLearn`, `OpenSongMacros`). And legacy's own
 	// `NO_NAVIGATION` semantics mean the ported menu correctly stays on the shell stack when they do. So
 	// `timerCallback`'s no-input-scene close does not fire, control reaches the `rearmTimer` below, and the UI that has
 	// just been opened over the guest gets the timer.
@@ -1333,10 +1332,10 @@ ActionResult ShellHostUI::exitUI() {
 
 void ShellHostUI::closeGuest() {
 	// Input fed since the last tick reaches the closing scenes first; whatever is left after is dropped below. A
-	// setting the flush's turn wrote is applied whole before the settings are saved, as legacy's `writeCurrentValue`
-	// applies both its halves at once; an open or a move the flush asked for goes with the menu.
+	// setting the flush's turn wrote has applied whole by the time the settings are saved, its setter having called the
+	// host; an open or a move the flush asked for goes with the menu.
 	flushPendingInput();
-	dispatchShellActionsAtClose();
+	discardShellActionsBeforeClose();
 	// **Hand the two knob indicator rings back to legacy, coherently.** `GuestSurfaceSet::set_indicator` writes the
 	// hardware through `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow -- there
 	// is no scalar at that seam to hand `actuallySetKnobIndicatorLevel`, because a `KnobIndicator` is already the four

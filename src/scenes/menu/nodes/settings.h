@@ -78,12 +78,12 @@
 ///       third chain, `midi_devices` -> the per-device page, is declared just below; the page
 ///       itself is `nodes/midi_device.h`.)
 ///
-/// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
-///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
-///       (`ScreensaverSettingsChanged`), pad brightness (`PadBrightnessChanged`), the menu highlighting
-///       (`HighlightingChanged`), rounded corners (`RoundedCornersChanged`), sticky shift
-///       (`ShiftStickyChanged`), leaving the slow cursor flash
-///       (`FlashStatusLeftSlow`) and a pad colour (`PadColoursChanged`). The value itself is stored by the setter.
+/// @note **What a write does besides storing, main's `hid/` calls, is a host call at the write**
+///       (`scenes/menu/bind_host.h`): the screensaver's `settingsChanged()` (`host_screensaver_settings_changed`),
+///       pad brightness (`host_pad_brightness_changed`), the menu highlighting (`host_highlighting_changed`), rounded
+///       corners (`host_rounded_corners_changed`), sticky shift (`host_shift_sticky_changed`), leaving the slow cursor
+///       flash (`host_clear_tick_squares`) and a pad colour (`host_pad_colours_changed`). The value itself is stored by
+///       the setter.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -314,11 +314,11 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 }
 /// @}
 
-/// @brief `ShiftIsSticky::writeCurrentValue`: the setting, the shift LED, and
-///        `MenuAction::ShiftStickyChanged` for the shift machines (`hid/` and the guest's, see the file note).
+/// @brief `ShiftIsSticky::writeCurrentValue`: the setting, the shift LED, and `host_shift_sticky_changed` for the
+///        shift machines (`hid/` and the guest's, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
-/// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `MenuAction::RoundedCornersChanged` for
-///        the canvas flag and the guest's panels.
+/// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `host_rounded_corners_changed` for the
+///        canvas flag and the guest's panels.
 void set_rounded_corners(const MenuContext& ctx, int32_t value);
 /// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
 ///        `HorizontalMenu::renderingStyle()` reads it live.

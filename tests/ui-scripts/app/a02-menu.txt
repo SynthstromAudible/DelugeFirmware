@@ -72,10 +72,9 @@
 # (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises, the popup `main`'s
 # `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` raises for the same verb.
 #
-# **Why this verb.** Of `MenuAction`'s seven enumerators,
-# five sit in roots only the null-clip sites open (sites 1-4: Settings, Song, Performance), which
-# `main` crashes on as noted above: `SetShortcutsVersion`, `ScreensaverSettingsChanged`,
-# `OpenSongMidiLearn`, `OpenSongMacros` and `OpenPerformanceView`. `StartStemExport` is
+# **Why this verb.** Of `MenuAction`'s five verbs, three sit in roots only the null-clip sites open
+# (sites 1-4: Settings, Song, Performance), which `main` crashes on as noted above: `OpenSongMidiLearn`,
+# `OpenSongMacros` and `OpenPerformanceView`. `StartStemExport` is
 # reachable only from the song root (the same crash) or the kit-global-FX root, which needs a kit
 # this empty card cannot create ("NO MORE PRESETS FOUND"), and would write stems to the fixture.
 # That leaves this one.
@@ -161,7 +160,7 @@
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)`, here
 # `openShellMenu(..., ShellMenuNode::Osc0FileSelector)`. It is reachable from
 # the boot view with no SHIFT, so it does NOT hit the null-`Clip*` `SoundEditor::setup` crash that
-# confines the MenuAction verb above to one arm of seven.
+# confines the MenuAction verb above to one arm of five.
 #
 # **The gesture is legacy's own**: hold an audition pad on a synth clip and press LOAD.
 # `InstrumentClipView::buttonAction`'s arm is `currentUIMode == UI_MODE_AUDITIONING && (b == LOAD ||

@@ -30,7 +30,7 @@
 ///
 ///   * **`settingsChanged()`** (`screensaver.cpp:200-241`): wake, then re-arm or cancel for the new
 ///     settings -- `shell::Screensaver::set_idle_ms`, reached through `Shell::set_screensaver_idle_ms`
-///     from the boot wiring and `menu::MenuAction::ScreensaverSettingsChanged` (`scenes/registry.h`'s
+///     from the boot wiring and `menu::host_screensaver_settings_changed` (`scenes/registry.h`'s
 ///     boot-wiring record).
 ///   * **The inhibitors** (`screensaver.cpp:141-157`): the working animation, a permanent-looking popup
 ///     or a running stem export takes the screensaver down and re-arms the full timeout. The working
@@ -114,7 +114,7 @@ public:
 
 	/// @brief Draw the current frame.
 	///
-	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
+	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:238-253`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
 	/// pass.

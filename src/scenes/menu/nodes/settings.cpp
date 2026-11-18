@@ -27,12 +27,12 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "scenes/l10n_bridge.h"
-#include "scenes/menu/action.h" // MenuAction -- the settings setters file one
+#include "scenes/menu/bind_host.h" // the settings setters' host calls
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
 #include "scenes/profile.h"         // deluge_profile() -- ditto
-#include "scenes/registry.h"        // menu_scene() -- the singleton `request_action` is filed on
+#include "scenes/registry.h"        // menu_scene()
 
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device.h"
@@ -391,9 +391,9 @@ int32_t get_default_menu_highlighting(const MenuContext&) {
 	return static_cast<int32_t>(FlashStorage::accessibilityMenuHighlighting); // `accessibility_menu_highlighting.h:11`
 }
 void set_default_menu_highlighting(const MenuContext&, int32_t value) {
-	// `:12-16`; the canvas flag and the guest's panels follow through `MenuAction::HighlightingChanged`.
+	// `AccessibilityMenuHighlighting::writeCurrentValue`: the setting, then main's canvas flag and the guest's panels.
 	FlashStorage::accessibilityMenuHighlighting = static_cast<MenuHighlighting>(value);
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::HighlightingChanged});
+	host_highlighting_changed();
 }
 
 int32_t get_default_session_layout(const MenuContext&) {
@@ -617,9 +617,9 @@ int32_t get_default_pad_brightness(const MenuContext&) {
 	return FlashStorage::defaultPadBrightness << 2; // `defaults/pad_brightness.h:24`, `to_ui`
 }
 void set_default_pad_brightness(const MenuContext&, int32_t value) {
-	// `:32-36`; the `PadLEDs::setBrightnessLevel` apply is `MenuAction::PadBrightnessChanged`.
+	// `PadBrightness::writeCurrentValue`: the setting, then the pads' dimmer.
 	FlashStorage::defaultPadBrightness = static_cast<uint8_t>(value >> 2);
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadBrightnessChanged});
+	host_pad_brightness_changed();
 }
 
 int32_t get_default_slice_mode(const MenuContext&) {
@@ -644,50 +644,22 @@ void set_default_hold_time(const MenuContext&, int32_t value) {
 	FlashStorage::holdTime = (FlashStorage::defaultHoldTime * kSampleRate) / 20;
 }
 
-namespace {
-
-/// @brief The notify half both screensaver setters below owe, filed once for either of them.
-///
-/// `ScreensaverModeMenu::writeCurrentValue` and `ScreensaverTimeout::writeCurrentValue`
-/// (`defaults/screensaver.h:38-41`, `:60-63`) are each two statements. The `FlashStorage`
-/// assignment is transcribed in place below -- so, unlike the shortcut layout, **these two
-/// settings have always persisted**. The other statement is
-/// `hid::display::Screensaver::settingsChanged()` (`:40`, `:62`), which this layer may not name
-/// (`scenes-includes-outside`, `scripts/check_layer_rules.py`), so it is asked for and
-/// `gui::ui::dispatchShellActions` performs it.
-///
-/// **One request for both setters, and no payload**, because legacy's notify is a zero-parameter
-/// static that re-reads both globals itself (`hid/display/screensaver.cpp:200-241`). That one call
-/// moves both screensavers: it pushes the recomputed idle period into the guest's own
-/// `shell::Screensaver` (`:225-228`) and re-arms or cancels the legacy timer (`:235-240`). Without
-/// it, an edit made from the *ported* screensaver menu was stored correctly and applied by neither
-/// screensaver until the next boot. The argument in full is on
-/// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
-///
-/// Filed through `menu_scene().request_action` because a
-/// `Binding::set` hook is handed no `MenuState` (`SetFn` in `node.h`), and the commit and the
-/// drain are the same `after_render` -- `commit_value` (`ValueSession::commit`), then the move into the
-/// outbox (`MenuScene::after_render`'s `pending_action` drain).
-void request_screensaver_notify() {
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ScreensaverSettingsChanged});
-}
-
-} // namespace
-
 int32_t get_screensaver_mode(const MenuContext&) {
 	return static_cast<int32_t>(FlashStorage::screensaverMode); // `defaults/screensaver.h:37 readCurrentValue`
 }
 void set_screensaver_mode(const MenuContext&, int32_t value) {
-	FlashStorage::screensaverMode = static_cast<ScreensaverMode>(value); // `:38-41 writeCurrentValue`
-	request_screensaver_notify();
+	// `ScreensaverModeMenu::writeCurrentValue`: the setting, then both screensavers re-read it.
+	FlashStorage::screensaverMode = static_cast<ScreensaverMode>(value);
+	host_screensaver_settings_changed();
 }
 
 int32_t get_screensaver_timeout(const MenuContext&) {
 	return FlashStorage::screensaverTimeoutMinutes; // `defaults/screensaver.h:59 readCurrentValue`
 }
 void set_screensaver_timeout(const MenuContext&, int32_t value) {
-	FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(value); // `:60-63 writeCurrentValue`
-	request_screensaver_notify();
+	// `ScreensaverTimeout::writeCurrentValue`: the setting, then both screensavers re-read it.
+	FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(value);
+	host_screensaver_settings_changed();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -777,9 +749,9 @@ void runtime_feature_set(int32_t type, int32_t value) {
 }
 
 void set_rounded_corners(const MenuContext&, int32_t value) {
-	// `RoundedCornersSettingToggle::writeCurrentValue`: the setting, then the canvas flag, which is `hid/`.
+	// `RoundedCornersSettingToggle::writeCurrentValue`: the setting, then main's canvas flag and the guest's panels.
 	runtime_feature_set(RuntimeFeatureSettingType::RoundedCorners, value);
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::RoundedCornersChanged});
+	host_rounded_corners_changed();
 }
 
 void set_horizontal_menus(const MenuContext&, int32_t value) {
@@ -789,13 +761,13 @@ void set_horizontal_menus(const MenuContext&, int32_t value) {
 }
 
 void set_shift_is_sticky(const MenuContext&, int32_t value) {
-	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; the guest's shift machine and legacy's
-	// latch are `MenuAction::ShiftStickyChanged`.
+	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; then the guest's shift machine and
+	// legacy's latch.
 	runtime_feature_set(RuntimeFeatureSettingType::ShiftIsSticky, value);
 	if (value != 0) {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
 	}
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ShiftStickyChanged});
+	host_shift_sticky_changed();
 }
 
 size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {
@@ -864,10 +836,10 @@ int32_t get_flash_status(const MenuContext&) {
 	return PadLEDs::flashCursor; // `flash/status.h:26`
 }
 void set_flash_status(const MenuContext&, int32_t value) {
-	// `flash::Status::writeCurrentValue` (`flash/status.h:27-32`): leaving the slow flash clears its tick squares
-	// (`MenuAction::FlashStatusLeftSlow`), judged on the value being replaced.
+	// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares, judged on the value being
+	// replaced and while it is still the current one, then the new value is stored.
 	if (PadLEDs::flashCursor == kFlashCursorSlow) {
-		menu_scene().request_action(MenuActionRequest{.action = MenuAction::FlashStatusLeftSlow});
+		host_clear_tick_squares();
 	}
 	PadLEDs::flashCursor = static_cast<uint8_t>(value);
 }
@@ -905,10 +877,9 @@ int32_t pad_colour_get(int32_t slot) {
 	return FlashStorage::padColours[slot];
 }
 void pad_colour_set(int32_t slot, int32_t value) {
-	// `Colour::writeCurrentValue`; its `renderingNeededRegardlessOfUI()` is
-	// `MenuAction::PadColoursChanged`.
+	// `Colour::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/colour.h`): the setting, then every pad.
 	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
-	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadColoursChanged});
+	host_pad_colours_changed();
 }
 
 // ---------------------------------------------------------------------------------------------

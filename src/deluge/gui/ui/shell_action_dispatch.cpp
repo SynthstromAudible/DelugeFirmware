@@ -20,7 +20,6 @@
 ///        its caller may not gate it.
 
 #include "gui/ui/shell_action_dispatch.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
 
 #include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
 #include "gui/context_menu/configure_song_macros.h"
@@ -34,12 +33,10 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
-#include "hid/buttons.h" // Buttons::clearShiftSticky
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"
-#include "hid/display/screensaver.h" // Screensaver::settingsChanged -- the ScreensaverSettingsChanged arm
-#include "hid/led/pad_leds.h"
+#include "hid/display/screensaver.h" // Screensaver::settingsChanged, for reapplyLiveSettingsAfterReset
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "model/model_stack.h"
@@ -293,36 +290,10 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 namespace {
 void performMenuAction(const MenuActionRequest& req);
-
-/// @brief Whether @p action opens a UI or moves the menu, rather than applying a setting a value write left half done.
-bool opensOrMoves(MenuAction action) {
-	switch (action) {
-	case MenuAction::None:
-	case MenuAction::OpenPerformanceView:
-	case MenuAction::StartStemExport:
-	case MenuAction::SetClipLengthToSampleLength:
-	case MenuAction::OpenSongMidiLearn:
-	case MenuAction::OpenSongMacros:
-	case MenuAction::FileSelectorOpened:
-		return true;
-	case MenuAction::ScreensaverSettingsChanged:
-	case MenuAction::PadBrightnessChanged:
-	case MenuAction::HighlightingChanged:
-	case MenuAction::RoundedCornersChanged:
-	case MenuAction::ShiftStickyChanged:
-	case MenuAction::FlashStatusLeftSlow:
-	case MenuAction::PadColoursChanged:
-		return false;
-	}
-	return true;
-}
 } // namespace
 
-void dispatchShellActionsAtClose() {
-	const MenuActionRequest req = menu_scene().take_action();
-	if (req.engaged() && !opensOrMoves(req.action)) {
-		performMenuAction(req);
-	}
+void discardShellActionsBeforeClose() {
+	(void)menu_scene().take_action();
 }
 
 void dispatchShellActions() {
@@ -415,72 +386,6 @@ void performMenuAction(const MenuActionRequest& req) {
 		// discard costs nothing at this site -- see the header for the site where it does.
 		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
 		openUI(&gui::context_menu::configureSongMacros);
-		break;
-
-	case MenuAction::ScreensaverSettingsChanged:
-		// The second statement of `ScreensaverModeMenu::writeCurrentValue` and of
-		// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`,
-		// `:62`), which is the same statement in both. No helper and no payload: legacy's notify is
-		// a zero-parameter static that re-reads `FlashStorage::screensaverMode` and
-		// `screensaverTimeoutMinutes` for itself, and the ported hooks have already written both
-		// (`scenes/menu/nodes/settings.cpp`'s two setters).
-		//
-		// **This arm is why the two screensavers agree.** `Screensaver::settingsChanged()`
-		// (`hid/display/screensaver.cpp:200-241`) is a *pair* of reconfigurations: it recomputes the
-		// idle period and pushes it into the guest's `shell::Screensaver` through
-		// `shellHostUI.shell().set_screensaver_idle_ms(...)` (`:225-228`), then wakes the legacy
-		// screensaver if it is showing (`:230-233`) and either cancels its timer for
-		// `ScreensaverMode::OFF` (`:235-238`) or re-arms it from now (`:240`). One call, both
-		// halves -- which is why this is one enumerator rather than two arms and a
-		// duplicated formula.
-		//
-		// **The `shellHostUI` it names is the global guest**, not "whichever shell asked". That is
-		// correct here for the same reason it is correct at every other caller: there is exactly one
-		// guest in the firmware, and this dispatcher runs from that guest's own
-		// `ShellHostUI::timerCallback`. It is only worth stating because it makes the write
-		// unconditional on the guest being open -- see the header's note on why nothing here is
-		// gated.
-		deluge::hid::display::Screensaver::settingsChanged();
-		break;
-
-	case MenuAction::PadBrightnessChanged:
-		// `PadBrightness::writeCurrentValue`'s second statement (`defaults/pad_brightness.h:35`).
-		PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-		break;
-
-	case MenuAction::HighlightingChanged:
-		pushShellHighlighting();
-		break;
-	case MenuAction::RoundedCornersChanged:
-		pushShellRoundedCorners();
-		break;
-
-	case MenuAction::ShiftStickyChanged: {
-		// `ShiftIsSticky::writeCurrentValue`'s live half: the guest's shift machine takes the setting (`opened()` seeds
-		// it only on the way in), and off, legacy's latch goes with the guest's.
-		const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
-		shellHostUI.shell().lowering().set_shift_is_sticky(on);
-		if (!on) {
-			Buttons::clearShiftSticky();
-		}
-		break;
-	}
-
-	case MenuAction::FlashStatusLeftSlow:
-		// `flash::Status::writeCurrentValue`'s first statement (`flash/status.h:28-30`).
-		PadLEDs::clearTickSquares();
-		break;
-
-	case MenuAction::PadColoursChanged:
-		// `Colour::writeCurrentValue`'s second statement.
-		renderingNeededRegardlessOfUI();
-		break;
-
-	case MenuAction::FileSelectorOpened:
-		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`).
-		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
-			keyboardScreen.exitAuditionMode();
-		}
 		break;
 	}
 }

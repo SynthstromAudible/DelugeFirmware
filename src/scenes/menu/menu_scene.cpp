@@ -1058,19 +1058,9 @@ Result MenuScene::after_render_navigation() {
 		taken_action_ = st_.walk.pending_action;
 		// `on_focus` fires from `enter_leaf`, i.e. before this tick's render; a request filed from
 		// `render` (`PerformEditorItem`) arrives with the item already drawn. The four that ascend
-		// are the four that file from `on_focus`, which is the same set as "legacy never enters
-		// this item" -- so the test is on the action's own identity rather than on a flag, and a
-		// sixth action added without deciding this question fails the `switch`'s coverage warning.
-		//
-		// **`ScreensaverSettingsChanged` does NOT ascend**, and the rule above is what decides it rather than a
-		// preference. It is filed from a `Binding::set` hook, which runs from `commit_value` a few lines above -- not
-		// from `on_focus`, and not from any press -- by two hooks
-		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
-		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
-		// `Integer` (`gui/menu_item/defaults/screensaver.h:34`, `:54`), neither overrides
-		// `shouldEnterSubmenu()`, and both reach `writeCurrentValue` from
-		// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:69`) -- once per detent, with the
-		// user still standing on the page. Same discriminator, same conclusion: no ascend.
+		// are the four that file from `on_focus`, which is the same set as "main never enters
+		// this item" -- so the test is on the action's own identity rather than on a flag, and an
+		// action added without deciding this question fails the `switch`'s coverage warning.
 		switch (st_.walk.pending_action.action) {
 		case MenuAction::StartStemExport:
 		case MenuAction::SetClipLengthToSampleLength:
@@ -1079,16 +1069,6 @@ Result MenuScene::after_render_navigation() {
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:
-		case MenuAction::ScreensaverSettingsChanged:
-		// The settings writes below are the screensaver's shape: filed by a `Binding::set` hook on every detent of an
-		// item legacy enters.
-		case MenuAction::PadBrightnessChanged:
-		case MenuAction::HighlightingChanged:
-		case MenuAction::RoundedCornersChanged:
-		case MenuAction::ShiftStickyChanged:
-		case MenuAction::FlashStatusLeftSlow:
-		case MenuAction::PadColoursChanged:
-		case MenuAction::FileSelectorOpened:
 		case MenuAction::None:
 			break;
 		}

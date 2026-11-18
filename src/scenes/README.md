@@ -289,14 +289,14 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 `pending_scene` works because every scene a menu opens lives in `src/scenes`. Some ported items run
 legacy root-UI behaviour instead — `openUI(&performanceView)`,
 `audioClipView.setClipLengthEqualToSampleLength()`, the stem export, the song MIDI-learn and macros
-modes — or a settings write's side effect this layer cannot reach (`Screensaver::settingsChanged()`,
-the pad brightness and colours, sticky shift, …). Those name the action for the host:
+modes. Those name the action for the host. A settings write's side effect this layer cannot reach
+(`Screensaver::settingsChanged()`, the pad brightness and colours, sticky shift, …) is no action: the setter calls
+the host at the write, through `menu/bind_host.h`.
 
 1. `MenuAction` is a **closed** enum, so a dispatcher can `switch` over it with no `default:` and
    `-Werror=switch` breaks on a new enumerator.
 2. `MenuActionRequest` is the enumerator plus one `uint16_t` payload.
-3. An item writes `MenuWalkState::pending_action`; a `Binding::set` hook, which gets no
-   `MenuState`, files it through `MenuScene::request_action`.
+3. An item writes `MenuWalkState::pending_action` from `on_focus` or `render`.
 4. `after_render` drains it in the `pending_action` band and parks it in `MenuScene::take_action()`.
 
 **`take_action()` is a one-slot mailbox with a silent overwrite.** A menu cannot file two actions in
@@ -691,8 +691,8 @@ registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry s
 * **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
   and `menu::set_shortcuts_version` writes. The ported settings item writes it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
-  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`; the ported setters file
-  `MenuAction::ScreensaverSettingsChanged`.
+  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`; the ported setters call
+  `menu::host_screensaver_settings_changed()`, which calls it.
 * **The services** are installed by `gui/ui/shell_guest_services.cpp`, from `deluge_boot` and from
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the

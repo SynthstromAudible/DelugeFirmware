@@ -23,8 +23,10 @@
 #include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
@@ -1734,6 +1736,36 @@ void host_end_audition(AuditionEnd how) {
 		}
 		break;
 	}
+}
+
+void host_screensaver_settings_changed() {
+	deluge::hid::display::Screensaver::settingsChanged();
+}
+
+void host_pad_brightness_changed() {
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+}
+
+void host_highlighting_changed() {
+	gui::ui::pushShellHighlighting();
+}
+
+void host_rounded_corners_changed() {
+	gui::ui::pushShellRoundedCorners();
+}
+
+void host_shift_sticky_changed() {
+	// The guest's shift machine takes the setting (`opened()` seeds it only on the way in), and off, legacy's latch
+	// goes with the guest's.
+	const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
+	shellHostUI.shell().lowering().set_shift_is_sticky(on);
+	if (!on) {
+		Buttons::clearShiftSticky();
+	}
+}
+
+void host_pad_colours_changed() {
+	renderingNeededRegardlessOfUI();
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

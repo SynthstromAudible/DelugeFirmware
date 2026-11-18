@@ -400,40 +400,20 @@ public:
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
 	/// @note **Every one of these actions is performed.** The consumer polls once per guest tick and
-	///       has a body for each: `OpenPerformanceView`, `StartStemExport`, the three one-line verbs
-	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`) and the settings
-	///       writes from `ScreensaverSettingsChanged` on. What each
-	///       arm still owes is a named residue per arm, recorded at the arms themselves
-	///       (`gui/ui/shell_action_dispatch.h`) rather than here.
+	///       has a body for each: `OpenPerformanceView`, `StartStemExport` and the three one-line verbs
+	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`). A settings write's
+	///       side effect is no action: its setter calls the host (`scenes/menu/bind_host.h`).
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for
 	///          is delivered whenever someone finally does -- arbitrarily later, against whatever
 	///          state exists then. `after_render` returns no `Action` announcing that one is
 	///          waiting, so nothing enforces the polling: **poll after every tick, or requests are
-	///          dropped or stale.**
-	///
-	///          That is deliberate. Making it exactly-once would mean either a queue (this layer
-	///          allocates nothing, so a fixed ring with its own overflow policy -- the same problem
-	///          one level down) or a new `Action` kind for the router to carry, which would put a
-	///          concept the shell has no business knowing about (a legacy root-UI call) into
-	///          `shell/scene.h`. An honest mailbox plus this warning is better than a
-	///          guarantee that only half holds. **No shipped item can lose a request today, but the
-	///          reason is narrow and the arithmetic does not carry it.** "One tick delivers at most
-	///          one select press" would be a complete argument only if a select press were the sole
-	///          route in. There are two routes: a `CustomItem` writing `pending_action` from `on_focus`/`render`, and
-	///          `request_action` below, reached from a `Binding::set` hook by way of `commit_value`.
-	///          Each fires at most once per `after_render`, so the ceiling is **two**, not one --
-	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
-	///          rule it out.
-	///
-	///          What rules it out is which items exist. The callers of `request_action` are the
-	///          settings setters in `menu/nodes/settings.cpp`, and each one's node is an
-	///          ordinary leaf with no `select_chain` and no `CustomItem` under it --
-	///          so the `after_render` that commits its value has nothing to descend into, and
-	///          cannot also reach an `on_focus` that files. **That is a fact about today's tables,
-	///          not an invariant**: an item that filed from both routes in one tick would silently
-	///          lose the first, and nothing here would say so.
+	///          dropped or stale.** One route fills it, a `CustomItem` writing `pending_action` from
+	///          `on_focus` or `render`; each runs at most once per `after_render`, and no shipped item
+	///          files from both, so no shipped item can lose a request. A queue would need an overflow
+	///          policy of its own, or an `Action` kind that carries a root-UI call into `shell/scene.h`;
+	///          the mailbox and this warning are the smaller answer.
 	///
 	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading
 	///         clears the slot.
@@ -464,31 +444,6 @@ public:
 	/// @param now_ms The guest's clock.
 	/// @return The row, or nothing when no row is white.
 	std::optional<int32_t> dx_column_flash(uint32_t now_ms) const;
-
-	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
-	///
-	/// **The one route into `pending_action` that is not an item writing the field itself**, and it
-	/// exists because `Binding::set` is `void (*)(const MenuContext&, int32_t)` (`SetFn`, `node.h`):
-	/// a value-write hook gets the context and the value and nothing else. Every other filer is a
-	/// `CustomItem`, whose `on_focus`/`render` are handed `MenuState&` and write the field directly
-	/// (`nodes/actions.cpp`).
-	///
-	/// Its callers are the settings setters in `nodes/settings.cpp` (`nodes::set_screensaver_mode` and its
-	/// siblings) -- see `scenes/menu/action.h`'s "settings writes" for why an item's write, rather than its press,
-	/// is what crosses the wall.
-	///
-	/// @par The timing, which is what makes this safe rather than merely convenient
-	///
-	/// A hook reaches this through the `menu_scene()` singleton (`scenes/registry.h`) -- the same
-	/// route `nodes/context_menu_items.cpp` already takes to `context_menu_scene()`. The only path
-	/// that calls a `Binding::set` hook is `commit_value` (`bindings::write`), and `commit_value`'s
-	/// one call site is inside `after_render`, **above** the `pending_action` drain. So a request
-	/// filed here is drained on the same tick it was filed, by the same `after_render` call, and
-	/// never sits in the field across a tick boundary where `retarget` could drop it.
-	///
-	/// @warning This overwrites whatever is in the field, exactly as an item's own assignment does.
-	///          The one-slot mailbox's warning above applies unchanged.
-	void request_action(MenuActionRequest request) { st_.walk.pending_action = request; }
 
 	/// @brief Re-root the menu onto the horizontal page or group that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
@@ -522,11 +477,9 @@ public:
 	/// does (`horizontal_page_listing`). Carrying a resolved page in would have meant paying that
 	/// search on every scene push, including the four that have no return affordance at all.
 	///
-	/// @par Why an immediate mutator, and not `request_action`'s mailbox
+	/// @par Why an immediate mutator
 	///
-	/// `request_action` above is a mailbox because its caller is a `Binding::set` hook running
-	/// *inside* `after_render`, where the drain it files into is two statements below. This one's
-	/// caller is the application, between ticks (`gui::ui::shellSampleClaimDone`), and the shape
+	/// Its caller is the application, between ticks (`gui::ui::shellSampleClaimDone`), and the shape
 	/// for that is `open()` -- which already installs a `MenuContext` and re-roots `path`/`depth`
 	/// from `gui/ui/shell_menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
 	/// rather than merely heavier: a pending re-root would sit in the field until the next

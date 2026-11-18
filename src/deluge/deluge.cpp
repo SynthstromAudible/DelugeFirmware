@@ -682,7 +682,8 @@ static void deluge_boot(const DelugeBoard* board) {
 	//   * **The shortcut layout** (flash byte 60) needs no push: the scenes read `FlashStorage::shortcutsVersion`
 	//     where they select a layout.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
-	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
+	//     settings item, a factory reset, the menu's highlighting setter (`menu::host_highlighting_changed`) and the
+	//     call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
 	//     `RuntimeFacts::flash_cursor` where they draw it.
 

@@ -535,7 +535,7 @@ void dispatchShellActions() {
 	}
 }
 
-void dispatchShellActionsAtClose() {
+void discardShellActionsBeforeClose() {
 }
 
 // `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
