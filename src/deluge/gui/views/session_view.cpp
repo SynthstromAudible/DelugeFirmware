@@ -1125,6 +1125,16 @@ void SessionView::clipPressEnded() {
 	}
 	gridResetPresses();
 
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// Reordering keeps the held column under the finger, temporarily allowing overscroll.
+		const int32_t scroll = std::clamp<int32_t>(currentSong->songGridScrollX, 0,
+		                                           std::max<int32_t>(0, int32_t(gridTrackCount()) - kDisplayWidth + 1));
+		if (scroll != currentSong->songGridScrollX) {
+			currentSong->songGridScrollX = scroll;
+			requestRendering(getRootUI());
+		}
+	}
+
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
@@ -4071,6 +4081,11 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Temporary blank columns to the left of the first track are not clip slots.
+	if (on && x < kDisplayWidth && gridModeActive != SessionGridModeMacros && x + currentSong->songGridScrollX < 0) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
 
@@ -4673,7 +4688,61 @@ char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 	return macroKind;
 }
 
+ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	// Do not reorder during a two-pad copy gesture.
+	if (!gridFirstPadActive() || !gridSecondPadInactive()) {
+		return ActionResult::DEALT_WITH;
+	}
+	Clip* clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+	if (clip == nullptr) {
+		return ActionResult::DEALT_WITH;
+	}
+	// Even a turn at the end of the track list consumes the short-press action.
+	performActionOnPadRelease = false;
+	Output* output = clip->output;
+	const int32_t count = gridTrackCount();
+	const int32_t oldIndex = gridTrackIndexFromTrack(output, count);
+	if (oldIndex < 0 || count == 0) {
+		return ActionResult::DEALT_WITH;
+	}
+	const int32_t newIndex = std::clamp<int32_t>(oldIndex + offset, 0, count - 1);
+	if (newIndex == oldIndex) {
+		return ActionResult::DEALT_WITH;
+	}
+	Output* neighbour = gridTrackFromIndex(newIndex, count);
+	actionLogger.deleteAllLogs(); // As in arranger, output reordering is not undoable.
+
+	// Grid columns run opposite to the output list. Move past the target visible
+	// track, skipping outputs without an active clip, which have no grid column.
+	Output** link = &currentSong->firstOutput;
+	while (*link != output) {
+		link = &(*link)->next;
+	}
+	*link = output->next;
+	link = &currentSong->firstOutput;
+	while (*link != neighbour) {
+		link = &(*link)->next;
+	}
+	if (newIndex < oldIndex) {
+		link = &neighbour->next;
+	}
+	output->next = *link;
+	*link = output;
+
+	// Keep the clip at the physical press coordinates for further turns and release.
+	currentSong->songGridScrollX += newIndex - oldIndex;
+	requestRendering(getRootUI());
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetX != 0) {
+		return gridMoveHeldTrack(offsetX);
+	}
+
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
 		if (track != nullptr) {
