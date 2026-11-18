@@ -61,6 +61,83 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 2> child5 = {
 PLACE_SDRAM_BSS HorizontalMenu recorderMenu{STRING_FOR_SAMPLE_RECORDER, child5};
 PLACE_SDRAM_BSS osc::Type osc0TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS FileSelector deluge::gui::menu_item::file0SelectorMenu{STRING_FOR_FILE_BROWSER, 0};
+PLACE_SDRAM_BSS sample::RoundRobinMode sample0RoundRobinModeMenu{STRING_FOR_MODE, 0};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile1{STRING_FOR_FILE, 0, 0};
+PLACE_SDRAM_BSS sample::VariantStart sample0RRStart1{STRING_FOR_START_POINT, 0, 0};
+PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd1{STRING_FOR_END_POINT, 0, 0};
+PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose1{STRING_FOR_TRANSPOSE, 0, 0};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMin1{STRING_FOR_VELOCITY_MIN, 0, 0, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMax1{STRING_FOR_VELOCITY_MAX, 0, 0, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume1{STRING_FOR_VARIANT_VOLUME, 0, 0};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child6 = {
+    &sample0RRFile1,
+    &sample0RRStart1,
+    &sample0RREnd1,
+    &sample0RRTranspose1,
+    &sample0RRVelocityMin1,
+    &sample0RRVelocityMax1,
+    &sample0RRVolume1,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot1Menu{STRING_FOR_VARIANT_SLOT_1, child6, 0, 0};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile2{STRING_FOR_FILE, 0, 1};
+PLACE_SDRAM_BSS sample::VariantStart sample0RRStart2{STRING_FOR_START_POINT, 0, 1};
+PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd2{STRING_FOR_END_POINT, 0, 1};
+PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose2{STRING_FOR_TRANSPOSE, 0, 1};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMin2{STRING_FOR_VELOCITY_MIN, 0, 1, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMax2{STRING_FOR_VELOCITY_MAX, 0, 1, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume2{STRING_FOR_VARIANT_VOLUME, 0, 1};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child7 = {
+    &sample0RRFile2,
+    &sample0RRStart2,
+    &sample0RREnd2,
+    &sample0RRTranspose2,
+    &sample0RRVelocityMin2,
+    &sample0RRVelocityMax2,
+    &sample0RRVolume2,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot2Menu{STRING_FOR_VARIANT_SLOT_2, child7, 0, 1};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile3{STRING_FOR_FILE, 0, 2};
+PLACE_SDRAM_BSS sample::VariantStart sample0RRStart3{STRING_FOR_START_POINT, 0, 2};
+PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd3{STRING_FOR_END_POINT, 0, 2};
+PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose3{STRING_FOR_TRANSPOSE, 0, 2};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMin3{STRING_FOR_VELOCITY_MIN, 0, 2, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMax3{STRING_FOR_VELOCITY_MAX, 0, 2, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume3{STRING_FOR_VARIANT_VOLUME, 0, 2};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child8 = {
+    &sample0RRFile3,
+    &sample0RRStart3,
+    &sample0RREnd3,
+    &sample0RRTranspose3,
+    &sample0RRVelocityMin3,
+    &sample0RRVelocityMax3,
+    &sample0RRVolume3,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot3Menu{STRING_FOR_VARIANT_SLOT_3, child8, 0, 2};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile4{STRING_FOR_FILE, 0, 3};
+PLACE_SDRAM_BSS sample::VariantStart sample0RRStart4{STRING_FOR_START_POINT, 0, 3};
+PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd4{STRING_FOR_END_POINT, 0, 3};
+PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose4{STRING_FOR_TRANSPOSE, 0, 3};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMin4{STRING_FOR_VELOCITY_MIN, 0, 3, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample0RRVelocityMax4{STRING_FOR_VELOCITY_MAX, 0, 3, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume4{STRING_FOR_VARIANT_VOLUME, 0, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child9 = {
+    &sample0RRFile4,
+    &sample0RRStart4,
+    &sample0RREnd4,
+    &sample0RRTranspose4,
+    &sample0RRVelocityMin4,
+    &sample0RRVelocityMax4,
+    &sample0RRVolume4,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot4Menu{STRING_FOR_VARIANT_SLOT_4, child9, 0, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, 5> child10 = {
+    &sample0RoundRobinModeMenu,
+    &sample0RoundRobinSlot1Menu,
+    &sample0RoundRobinSlot2Menu,
+    &sample0RoundRobinSlot3Menu,
+    &sample0RoundRobinSlot4Menu,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSubmenu sample0RoundRobinMenu{STRING_FOR_VARIANTS, child10, 0};
 PLACE_SDRAM_BSS sample::Transpose source0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 0};
 PLACE_SDRAM_BSS osc::source::WaveIndex source0WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 0};
 PLACE_SDRAM_BSS osc::PulseWidth osc0PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 0};
@@ -73,9 +150,10 @@ PLACE_SDRAM_BSS sample::PitchSpeed sample0PitchSpeedMenu{STRING_FOR_PITCH_SPEED,
 PLACE_SDRAM_BSS sample::Interpolation sample0InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 0};
 PLACE_SDRAM_BSS sample::Start sample0StartMenu{STRING_FOR_START_POINT, 0};
 PLACE_SDRAM_BSS sample::End sample0EndMenu{STRING_FOR_END_POINT, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 14> child6 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 15> child11 = {
     &osc0TypeMenu,
     &deluge::gui::menu_item::file0SelectorMenu,
+    &sample0RoundRobinMenu,
     &source0TransposeMenu,
     &source0WaveIndexMenu,
     &osc0PulseWidthMenu,
@@ -89,9 +167,86 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 14> child6 = {
     &sample0StartMenu,
     &sample0EndMenu,
 };
-PLACE_SDRAM_BSS submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child6, 0};
+PLACE_SDRAM_BSS submenu::ActualSource source0Menu{STRING_FOR_OSCILLATOR_1, child11, 0};
 PLACE_SDRAM_BSS osc::Type osc1TypeMenu{STRING_FOR_TYPE, STRING_FOR_OSC_TYPE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS FileSelector deluge::gui::menu_item::file1SelectorMenu{STRING_FOR_FILE_BROWSER, 1};
+PLACE_SDRAM_BSS sample::RoundRobinMode sample1RoundRobinModeMenu{STRING_FOR_MODE, 1};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile1{STRING_FOR_FILE, 1, 0};
+PLACE_SDRAM_BSS sample::VariantStart sample1RRStart1{STRING_FOR_START_POINT, 1, 0};
+PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd1{STRING_FOR_END_POINT, 1, 0};
+PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose1{STRING_FOR_TRANSPOSE, 1, 0};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMin1{STRING_FOR_VELOCITY_MIN, 1, 0, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMax1{STRING_FOR_VELOCITY_MAX, 1, 0, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume1{STRING_FOR_VARIANT_VOLUME, 1, 0};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child12 = {
+    &sample1RRFile1,
+    &sample1RRStart1,
+    &sample1RREnd1,
+    &sample1RRTranspose1,
+    &sample1RRVelocityMin1,
+    &sample1RRVelocityMax1,
+    &sample1RRVolume1,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot1Menu{STRING_FOR_VARIANT_SLOT_1, child12, 1, 0};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile2{STRING_FOR_FILE, 1, 1};
+PLACE_SDRAM_BSS sample::VariantStart sample1RRStart2{STRING_FOR_START_POINT, 1, 1};
+PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd2{STRING_FOR_END_POINT, 1, 1};
+PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose2{STRING_FOR_TRANSPOSE, 1, 1};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMin2{STRING_FOR_VELOCITY_MIN, 1, 1, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMax2{STRING_FOR_VELOCITY_MAX, 1, 1, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume2{STRING_FOR_VARIANT_VOLUME, 1, 1};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child13 = {
+    &sample1RRFile2,
+    &sample1RRStart2,
+    &sample1RREnd2,
+    &sample1RRTranspose2,
+    &sample1RRVelocityMin2,
+    &sample1RRVelocityMax2,
+    &sample1RRVolume2,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot2Menu{STRING_FOR_VARIANT_SLOT_2, child13, 1, 1};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile3{STRING_FOR_FILE, 1, 2};
+PLACE_SDRAM_BSS sample::VariantStart sample1RRStart3{STRING_FOR_START_POINT, 1, 2};
+PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd3{STRING_FOR_END_POINT, 1, 2};
+PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose3{STRING_FOR_TRANSPOSE, 1, 2};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMin3{STRING_FOR_VELOCITY_MIN, 1, 2, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMax3{STRING_FOR_VELOCITY_MAX, 1, 2, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume3{STRING_FOR_VARIANT_VOLUME, 1, 2};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child14 = {
+    &sample1RRFile3,
+    &sample1RRStart3,
+    &sample1RREnd3,
+    &sample1RRTranspose3,
+    &sample1RRVelocityMin3,
+    &sample1RRVelocityMax3,
+    &sample1RRVolume3,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot3Menu{STRING_FOR_VARIANT_SLOT_3, child14, 1, 2};
+PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile4{STRING_FOR_FILE, 1, 3};
+PLACE_SDRAM_BSS sample::VariantStart sample1RRStart4{STRING_FOR_START_POINT, 1, 3};
+PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd4{STRING_FOR_END_POINT, 1, 3};
+PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose4{STRING_FOR_TRANSPOSE, 1, 3};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMin4{STRING_FOR_VELOCITY_MIN, 1, 3, sample::VariantVelocityEdge::Edge::Min};
+PLACE_SDRAM_BSS sample::VariantVelocityEdge sample1RRVelocityMax4{STRING_FOR_VELOCITY_MAX, 1, 3, sample::VariantVelocityEdge::Edge::Max};
+PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume4{STRING_FOR_VARIANT_VOLUME, 1, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child15 = {
+    &sample1RRFile4,
+    &sample1RRStart4,
+    &sample1RREnd4,
+    &sample1RRTranspose4,
+    &sample1RRVelocityMin4,
+    &sample1RRVelocityMax4,
+    &sample1RRVolume4,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot4Menu{STRING_FOR_VARIANT_SLOT_4, child15, 1, 3};
+PLACE_SDRAM_DATA std::array<MenuItem*, 5> child16 = {
+    &sample1RoundRobinModeMenu,
+    &sample1RoundRobinSlot1Menu,
+    &sample1RoundRobinSlot2Menu,
+    &sample1RoundRobinSlot3Menu,
+    &sample1RoundRobinSlot4Menu,
+};
+PLACE_SDRAM_BSS sample::RoundRobinSubmenu sample1RoundRobinMenu{STRING_FOR_VARIANTS, child16, 1};
 PLACE_SDRAM_BSS sample::Transpose source1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, params::LOCAL_OSC_A_PITCH_ADJUST, 1};
 PLACE_SDRAM_BSS osc::source::WaveIndex source1WaveIndexMenu{STRING_FOR_WAVE_INDEX, STRING_FOR_OSC_WAVE_IND_MENU_TITLE, params::LOCAL_OSC_A_WAVE_INDEX, 1};
 PLACE_SDRAM_BSS osc::PulseWidth osc1PulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_MENU_TITLE, params::LOCAL_OSC_A_PHASE_WIDTH, 1};
@@ -104,9 +259,10 @@ PLACE_SDRAM_BSS sample::PitchSpeed sample1PitchSpeedMenu{STRING_FOR_PITCH_SPEED,
 PLACE_SDRAM_BSS sample::Interpolation sample1InterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_SAMP_INTERP_MENU_TITLE, 1};
 PLACE_SDRAM_BSS sample::Start sample1StartMenu{STRING_FOR_START_POINT, 1};
 PLACE_SDRAM_BSS sample::End sample1EndMenu{STRING_FOR_END_POINT, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 14> child7 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 15> child17 = {
     &osc1TypeMenu,
     &deluge::gui::menu_item::file1SelectorMenu,
+    &sample1RoundRobinMenu,
     &source1TransposeMenu,
     &source1WaveIndexMenu,
     &osc1PulseWidthMenu,
@@ -120,34 +276,34 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 14> child7 = {
     &sample1StartMenu,
     &sample1EndMenu,
 };
-PLACE_SDRAM_BSS submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child7, 1};
+PLACE_SDRAM_BSS submenu::ActualSource source1Menu{STRING_FOR_OSCILLATOR_2, child17, 1};
 PLACE_SDRAM_BSS modulator::Transpose modulator0TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_FM_MOD_TRAN_MENU_TITLE, params::LOCAL_MODULATOR_0_PITCH_ADJUST, 0};
 PLACE_SDRAM_BSS source::patched_param::ModulatorFeedback modulator0FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_FM_MOD_FBACK_MENU_TITLE, params::LOCAL_MODULATOR_0_FEEDBACK, 0};
 PLACE_SDRAM_BSS osc::RetriggerPhase modulator0PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, 0, true};
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> child8 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> child18 = {
     &modulator0TransposeMenu,
     &modulator0FeedbackMenu,
     &modulator0PhaseMenu,
 };
-PLACE_SDRAM_BSS submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, child8};
+PLACE_SDRAM_BSS submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, child18};
 PLACE_SDRAM_BSS modulator::Transpose modulator1TransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_FM_MOD_TRAN_MENU_TITLE, params::LOCAL_MODULATOR_0_PITCH_ADJUST, 1};
 PLACE_SDRAM_BSS source::patched_param::ModulatorFeedback modulator1FeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_FM_MOD_FBACK_MENU_TITLE, params::LOCAL_MODULATOR_0_FEEDBACK, 1};
 PLACE_SDRAM_BSS osc::RetriggerPhase modulator1PhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, 1, true};
 PLACE_SDRAM_BSS modulator::Destination modulatorDestMenu{STRING_FOR_DESTINATION, STRING_FOR_FM_MOD2_DEST_MENU_TITLE};
-PLACE_SDRAM_DATA std::array<MenuItem*, 4> child9 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 4> child19 = {
     &modulator1TransposeMenu,
     &modulator1FeedbackMenu,
     &modulator1PhaseMenu,
     &modulatorDestMenu,
 };
-PLACE_SDRAM_BSS submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, child9};
+PLACE_SDRAM_BSS submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, child19};
 PLACE_SDRAM_BSS osc::source::Volume source0VolumeMenu{STRING_FOR_OSC_LEVEL_MENU_TITLE, params::LOCAL_OSC_A_VOLUME, 0};
 PLACE_SDRAM_BSS osc::source::Volume source1VolumeMenu{STRING_FOR_OSC_LEVEL_MENU_TITLE, params::LOCAL_OSC_A_VOLUME, 1};
 PLACE_SDRAM_BSS source::patched_param::ModulatorLevel modulator0Volume{STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, params::LOCAL_MODULATOR_0_VOLUME, 0};
 PLACE_SDRAM_BSS source::patched_param::ModulatorLevel modulator1Volume{STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, params::LOCAL_MODULATOR_0_VOLUME, 1};
 PLACE_SDRAM_BSS patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOISE_VOLUME};
 PLACE_SDRAM_BSS osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
-PLACE_SDRAM_DATA std::array<MenuItem*, 6> child10 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child20 = {
     &source0VolumeMenu,
     &source1VolumeMenu,
     &modulator0Volume,
@@ -155,7 +311,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 6> child10 = {
     &noiseMenu,
     &oscSyncMenu,
 };
-PLACE_SDRAM_BSS HorizontalMenu oscMixerMenu{STRING_FOR_OSCILLATOR_MIXER, child10};
+PLACE_SDRAM_BSS HorizontalMenu oscMixerMenu{STRING_FOR_OSCILLATOR_MIXER, child20};
 PLACE_SDRAM_BSS envelope::Segment env1AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 0};
 PLACE_SDRAM_BSS envelope::Segment env1DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 0};
 PLACE_SDRAM_BSS envelope::Segment env1SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 0};
@@ -163,7 +319,7 @@ PLACE_SDRAM_BSS envelope::Segment env1ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR
 PLACE_SDRAM_BSS envelope::Mode env1ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS envelope::Curve env1CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 0};
 PLACE_SDRAM_BSS envelope::Follow env1FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 7> child11 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child21 = {
     &env1AttackMenu,
     &env1DecayMenu,
     &env1SustainMenu,
@@ -172,7 +328,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 7> child11 = {
     &env1CurveMenu,
     &env1FollowMenu,
 };
-PLACE_SDRAM_BSS envelope::EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child11, 0};
+PLACE_SDRAM_BSS envelope::EnvelopeMenu env1Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child21, 0};
 PLACE_SDRAM_BSS envelope::Segment env2AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 1};
 PLACE_SDRAM_BSS envelope::Segment env2DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 1};
 PLACE_SDRAM_BSS envelope::Segment env2SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 1};
@@ -180,7 +336,7 @@ PLACE_SDRAM_BSS envelope::Segment env2ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR
 PLACE_SDRAM_BSS envelope::Mode env2ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS envelope::Curve env2CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 1};
 PLACE_SDRAM_BSS envelope::Follow env2FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 7> child12 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child22 = {
     &env2AttackMenu,
     &env2DecayMenu,
     &env2SustainMenu,
@@ -189,7 +345,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 7> child12 = {
     &env2CurveMenu,
     &env2FollowMenu,
 };
-PLACE_SDRAM_BSS envelope::EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child12, 1};
+PLACE_SDRAM_BSS envelope::EnvelopeMenu env2Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child22, 1};
 PLACE_SDRAM_BSS envelope::Segment env3AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 2};
 PLACE_SDRAM_BSS envelope::Segment env3DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 2};
 PLACE_SDRAM_BSS envelope::Segment env3SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 2};
@@ -197,7 +353,7 @@ PLACE_SDRAM_BSS envelope::Segment env3ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR
 PLACE_SDRAM_BSS envelope::Mode env3ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 2};
 PLACE_SDRAM_BSS envelope::Curve env3CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 2};
 PLACE_SDRAM_BSS envelope::Follow env3FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 7> child13 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child23 = {
     &env3AttackMenu,
     &env3DecayMenu,
     &env3SustainMenu,
@@ -206,7 +362,7 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 7> child13 = {
     &env3CurveMenu,
     &env3FollowMenu,
 };
-PLACE_SDRAM_BSS envelope::EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child13, 2};
+PLACE_SDRAM_BSS envelope::EnvelopeMenu env3Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child23, 2};
 PLACE_SDRAM_BSS envelope::Segment env4AttackMenu{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, params::LOCAL_ENV_0_ATTACK, 3};
 PLACE_SDRAM_BSS envelope::Segment env4DecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE, params::LOCAL_ENV_0_DECAY, 3};
 PLACE_SDRAM_BSS envelope::Segment env4SustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, params::LOCAL_ENV_0_SUSTAIN, 3};
@@ -214,7 +370,7 @@ PLACE_SDRAM_BSS envelope::Segment env4ReleaseMenu{STRING_FOR_RELEASE, STRING_FOR
 PLACE_SDRAM_BSS envelope::Mode env4ModeMenu{STRING_FOR_MODE, STRING_FOR_ENV_MODE_MENU_TITLE, 3};
 PLACE_SDRAM_BSS envelope::Curve env4CurveMenu{STRING_FOR_CURVE, STRING_FOR_ENV_CURVE_MENU_TITLE, 3};
 PLACE_SDRAM_BSS envelope::Follow env4FollowMenu{STRING_FOR_FOLLOW, STRING_FOR_ENV_FOLLOW_MENU_TITLE, 3};
-PLACE_SDRAM_DATA std::array<MenuItem*, 7> child14 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 7> child24 = {
     &env4AttackMenu,
     &env4DecayMenu,
     &env4SustainMenu,
@@ -223,41 +379,41 @@ PLACE_SDRAM_DATA std::array<MenuItem*, 7> child14 = {
     &env4CurveMenu,
     &env4FollowMenu,
 };
-PLACE_SDRAM_BSS envelope::EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child14, 3};
+PLACE_SDRAM_BSS envelope::EnvelopeMenu env4Menu{STRING_FOR_ENVELOPE_MENU_TITLE, child24, 3};
 PLACE_SDRAM_BSS lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO1_ID};
 PLACE_SDRAM_BSS lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO1_ID};
 PLACE_SDRAM_BSS patched_param::Integer lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ_1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> child15 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> child25 = {
     &lfo1TypeMenu,
     &lfo1SyncMenu,
     &lfo1RateMenu,
 };
-PLACE_SDRAM_BSS HorizontalMenu lfo1Menu{STRING_FOR_LFO1, child15};
+PLACE_SDRAM_BSS HorizontalMenu lfo1Menu{STRING_FOR_LFO1, child25};
 PLACE_SDRAM_BSS lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO2_ID};
 PLACE_SDRAM_BSS lfo::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO2_ID};
 PLACE_SDRAM_BSS patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ_1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> child16 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> child26 = {
     &lfo2TypeMenu,
     &lfo2SyncMenu,
     &lfo2RateMenu,
 };
-PLACE_SDRAM_BSS HorizontalMenu lfo2Menu{STRING_FOR_LFO2, child16};
+PLACE_SDRAM_BSS HorizontalMenu lfo2Menu{STRING_FOR_LFO2, child26};
 PLACE_SDRAM_BSS lfo::Type lfo3TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO3_ID};
 PLACE_SDRAM_BSS lfo::Sync lfo3SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO3_ID};
 PLACE_SDRAM_BSS patched_param::Integer lfo3RateMenu{STRING_FOR_RATE, STRING_FOR_LFO3_RATE, params::GLOBAL_LFO_FREQ_2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> child17 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> child27 = {
     &lfo3TypeMenu,
     &lfo3SyncMenu,
     &lfo3RateMenu,
 };
-PLACE_SDRAM_BSS HorizontalMenu lfo3Menu{STRING_FOR_LFO3, child17};
+PLACE_SDRAM_BSS HorizontalMenu lfo3Menu{STRING_FOR_LFO3, child27};
 PLACE_SDRAM_BSS lfo::Type lfo4TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO_TYPE, LFO4_ID};
 PLACE_SDRAM_BSS lfo::Sync lfo4SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO_SYNC, LFO4_ID};
 PLACE_SDRAM_BSS patched_param::Integer lfo4RateMenu{STRING_FOR_RATE, STRING_FOR_LFO4_RATE, params::LOCAL_LFO_LOCAL_FREQ_2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 3> child18 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> child28 = {
     &lfo4TypeMenu,
     &lfo4SyncMenu,
     &lfo4RateMenu,
 };
-PLACE_SDRAM_BSS HorizontalMenu lfo4Menu{STRING_FOR_LFO4, child18};
+PLACE_SDRAM_BSS HorizontalMenu lfo4Menu{STRING_FOR_LFO4, child28};
 // clang-format on

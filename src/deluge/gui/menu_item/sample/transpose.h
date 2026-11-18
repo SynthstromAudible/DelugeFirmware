@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/menu_item/source/transpose.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -63,34 +64,9 @@ public:
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		// If affect-entire button held, do whole kit
+		// If affect-entire button held, do whole kit - every slot of every drum, see applyTransposeToWholeKit()
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
-
-			Kit* kit = getCurrentKit();
-
-			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DrumType::SOUND) {
-					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source& source = soundDrum->sources[source_id_];
-
-					if (source.ranges.getNumElements() && soundDrum->getSynthMode() != SynthMode::FM
-					    && source.oscType == OscType::SAMPLE) {
-						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-						multi_sample_range->sampleHolder.transpose = transpose;
-						multi_sample_range->sampleHolder.setCents(cents);
-					}
-					else {
-						source.transpose = transpose;
-						source.setCents(cents);
-					}
-
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
-					ModelStackWithSoundFlags* modelStackForSoundDrum =
-					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
-
-					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
-				}
-			}
+			applyTransposeToWholeKit(source_id_, transpose, cents);
 		}
 		// Or, the normal case of just one sound
 		else {
@@ -136,10 +112,21 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
-		if (Source& source = sound->sources[source_id_];
-		    source.oscType == OscType::SAMPLE || source.oscType == OscType::WAVETABLE) {
+		Source& source = sound->sources[source_id_];
+		if (source.oscType == OscType::SAMPLE) {
+			if (!source.hasAtLeastOneAudioFileLoaded()) {
+				return false;
+			}
+			// Once any zone on this oscillator has alternates loaded, this OSC-level entry would edit the
+			// exact same transpose/cents fields as the per-variant Transpose item, so it steps aside for
+			// every zone alike - see sample::sourceUsesVariants().
+			return !sourceUsesVariants(source);
+		}
+		if (source.oscType == OscType::WAVETABLE) {
 			return source.hasAtLeastOneAudioFileLoaded();
 		}
 		return true;
