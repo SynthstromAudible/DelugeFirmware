@@ -60,6 +60,7 @@
 #include "scenes/services/mod_knobs.h"
 #include "scenes/services/view_state.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/sample_preview_open.h"
 #include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
@@ -176,12 +177,12 @@ void refreshShellRootFacts() {
 	                                            getRootUI() == &automationView);
 }
 
-bool shellMenuFrontmost() {
+bool menuCurrent() {
 	return getCurrentUI() == &shellHostUI && &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
 }
 
-bool shellSoundMenuOpen() {
-	return shellMenuFrontmost()
+bool soundMenuOpen() {
+	return menuCurrent()
 	       && deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings;
 }
 
@@ -191,8 +192,8 @@ namespace {
 std::atomic<bool> guestPreviewSounds{false};
 } // namespace
 
-bool shellRangePickerOpen() {
-	return shellSoundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
+bool rangePickerOpen() {
+	return soundMenuOpen() && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::multi_range;
 }
 
 bool drumSelectionFrozenBy(uint8_t raw_kind, uint16_t which) {
@@ -206,7 +207,7 @@ bool drumSelectionFrozenBy(uint8_t raw_kind, uint16_t which) {
 	return kind == deluge::scenes::marker::kMarkerSceneKind;
 }
 
-bool shellFreezesDrumSelection() {
+bool drumSelectionFrozen() {
 	if (getCurrentUI() != &shellHostUI) {
 		return false;
 	}
@@ -221,7 +222,7 @@ bool shellFreezesDrumSelection() {
 	return drumSelectionFrozenBy(static_cast<uint8_t>(top.kind()), which);
 }
 
-bool shellRangeDependentOpen() {
+bool rangeDependentMenuOpen() {
 	if (getCurrentUI() != &shellHostUI) {
 		return false;
 	}
@@ -231,15 +232,19 @@ bool shellRangeDependentOpen() {
 	    || top == &deluge::scenes::recorder::recorder_scene()) {
 		return true;
 	}
-	if (!shellSoundMenuOpen()) {
+	if (!soundMenuOpen()) {
 		return false;
 	}
 	const deluge::scenes::menu::Node* node = deluge::scenes::menu_scene().focused();
 	return node != nullptr && (node->range_dependent || node == &deluge::scenes::menu::nodes::multi_range);
 }
 
-bool shellNoteWithinCurrentRange(int32_t untransposed) {
-	// `SoundEditor::isUntransposedNoteWithinRange` (`sound_editor.cpp`), on the guest's source and range.
+bool noteWithinCurrentRange(int32_t untransposed) {
+	if (!rangeDependentMenuOpen()) {
+		return true;
+	}
+	// `SoundEditor::isUntransposedNoteWithinRange` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), on the guest's
+	// source and range.
 	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
 	if (currentSong == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources
 	    || ctx.range_index < 0) {
@@ -256,8 +261,10 @@ bool shellNoteWithinCurrentRange(int32_t untransposed) {
 	return source.getRange(untransposed + sound->getTranspose()) == source.ranges.getElement(ctx.range_index);
 }
 
-void shellChangeRangeForNote(int32_t note) {
-	(void)deluge::scenes::menu_scene().select_range_for_note(note);
+void changeRangeForNote(int32_t note) {
+	if (rangePickerOpen()) {
+		(void)deluge::scenes::menu_scene().select_range_for_note(note);
+	}
 }
 
 namespace {
@@ -292,10 +299,10 @@ bool shellMenuLearnMode() {
 
 void refreshShellRangeDisplay() {
 	const deluge::scenes::menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
-	const bool open = shellSoundMenuOpen();
+	const bool open = soundMenuOpen();
 	const int32_t range = open ? ctx.range_index : -1;
 	const int32_t source = open ? ctx.source_index : -1;
-	const bool highlighting = shellRangeDependentOpen();
+	const bool highlighting = rangeDependentMenuOpen();
 	const int32_t count = open ? deluge::scenes::menu::range_count(ctx) : -1;
 	const int32_t bottom = range > 0 ? deluge::scenes::menu::range_top_note(ctx, range - 1) : -1;
 	const int32_t top = range >= 0 ? deluge::scenes::menu::range_top_note(ctx, range) : -1;
@@ -330,7 +337,10 @@ void refreshShellRangeDisplay() {
 	}
 }
 
-std::optional<int32_t> shellDxColumnFlashRow() {
+std::optional<int32_t> dxColumnFlashRow() {
+	if (!soundMenuOpen()) {
+		return std::nullopt;
+	}
 	return deluge::scenes::menu_scene().dx_column_flash(shellHostUI.nowMs());
 }
 
@@ -368,16 +378,15 @@ void endShellRecorderTakeForTeardown() {
 	deluge::scenes::recorder::recorder_scene().taken_down();
 }
 
-bool shellSamplePreviewSounds() {
+bool samplePreviewUIOpen() {
 	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
 }
 
 std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on) {
-	if (b != deluge::hid::button::SAVE || !shellSoundMenuOpen()) {
+	if (b != deluge::hid::button::SAVE || !soundMenuOpen()) {
 		return std::nullopt;
 	}
-	// `SoundEditor::buttonAction` (`sound_editor.cpp:611-616`, `:719-730`); `shellSoundMenuOpen` is its
-	// `!inSettingsMenu()`.
+	// `SoundEditor::buttonAction`'s SAVE arm; `soundMenuOpen` is its `!inSettingsMenu()`.
 	const Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
 	const bool instrument_clip_view = clip != nullptr && clip->type == ClipType::INSTRUMENT;
 	if (on && currentUIMode == UI_MODE_NONE && instrument_clip_view) {
@@ -392,7 +401,7 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on
 }
 
 std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool on) {
-	if (b != deluge::hid::button::AFFECT_ENTIRE || !shellMenuFrontmost()) {
+	if (b != deluge::hid::button::AFFECT_ENTIRE || !menuCurrent()) {
 		return std::nullopt;
 	}
 	const Clip* clip = rootUIIsClipMinderScreen() ? getCurrentClip() : nullptr;
@@ -420,12 +429,14 @@ std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool 
 	return result;
 }
 
-void shellMenuReadValueAgain() {
-	deluge::scenes::menu_scene().read_value_again();
+void readSoundMenuValueAgain() {
+	if (menuCurrent()) {
+		deluge::scenes::menu_scene().read_value_again();
+	}
 }
 
-void shellMpeZonesPotentiallyUpdated() {
-	if (shellMenuFrontmost()
+void mpeZonesPotentiallyUpdated() {
+	if (menuCurrent()
 	    && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::mpe_zone_num_member_channels) {
 		deluge::scenes::menu_scene().read_value_again();
 	}

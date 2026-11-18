@@ -176,9 +176,9 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// @par The `shellHostUI` global, deliberately
 ///
 /// The guest is a singleton -- one object, one open site (`openShellMenu`) -- and
-/// this seam's sibling reaches for it the same way for the same kind of question: `menuIsFrontmost`
-/// (`gui/ui/shell_guest_services.cpp`) reads `shellHostUI.shell().stack()` and calls itself
-/// "the port of `getCurrentUI() == &soundEditor`". `SceneStack::remove` is a documented no-op when
+/// this seam's sibling reaches for it the same way for the same kind of question: `menuCurrent`
+/// (`gui/ui/shell_guest_services.cpp`) reads `shellHostUI.shell().stack()` and answers
+/// the guest's `getCurrentUI() == &soundEditor`. `SceneStack::remove` is a documented no-op when
 /// no scene of that kind is on the stack -- it returns false having touched nothing and flagged
 /// nothing (`SceneStack::remove`) -- so if this is ever reached with no ported menu up,
 /// it does nothing rather than corrupting a stack it does not own.

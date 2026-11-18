@@ -202,12 +202,12 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 /// @brief The one kit-global-FX latch, main's `SoundEditor::setupKitGlobalFXMenu`: whether an open, and a
 ///        shortcut press re-rooting the open guest, edit a kit's own effects rather than its selected row.
 ///
-/// Sticky. `shellShortcutPadAction` writes it with the guest closed, on every press it is
+/// Sticky. `menuShortcutPadAction` writes it with the guest closed, on every press it is
 /// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
 /// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). It is read live, never copied: by the
-/// shortcut presses with the guest closed (`shellShortcutPadAction`), by every open (`openShellMenu`), by the open
+/// shortcut presses with the guest closed (`menuShortcutPadAction`), by every open (`openShellMenu`), by the open
 /// menu's own Shift + pad, SHIFT overlay and horizontal-menu chain on a kit's row (`wireShellKitGlobalShortcuts`), and
-/// by the automation view (`soundMenuKitGlobalFx`), as legacy's `get_basic_shortcut_action`, `setup()`,
+/// by the automation view (`AutomationView::getAffectEntire`), as legacy's `get_basic_shortcut_action`, `setup()`,
 /// `renderMainShortcutsOnly` and `getCurrentHorizontalMenusChain` read `setupKitGlobalFXMenu`.
 bool shellKitGlobalFx();
 
@@ -238,21 +238,6 @@ bool editKitAffectEntire();
 ///        kit-global latch (`shellKitGlobalFx`), clear right after a menu close and set once a pad press latches.
 void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-
-/// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
-///        screen and the performance view ask of a main-grid press.
-///
-/// The gate first (`shortcutPadGate`: SHIFT, or an audition held over the instrument clip view, inside the two
-/// shortcut modes; the automation view's interpolation pads stay the view's). Then the item: a kit with nothing to edit
-/// has none; a coming-soon cell says "Feature not (yet?) implemented"; the sequence-direction pad with one row
-/// auditioning opens the note-row editor; any other pad goes to `openShellMenuAtShortcut`, which opens, re-roots or
-/// says its refusal. Off a clip minder the context names no clip, so the song view's table and the song are read, as
-/// legacy's `setup()` reads them. Nothing here opens the legacy editor.
-/// @param x,y The pad.
-/// @param on  Whether it is a press.
-/// @return `NOT_DEALT_WITH` for a release, a sidebar pad or a press the gate passes on to the view; `DEALT_WITH`
-///         otherwise, whether or not anything opened.
-ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on);
 
 /// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the ported menu.
 ///

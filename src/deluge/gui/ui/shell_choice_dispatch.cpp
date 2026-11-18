@@ -52,6 +52,7 @@
 #include "storage/byte_channel.h"
 #include "util/notify.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 
 #include <atomic>
 #include <cstring>
@@ -469,11 +470,11 @@ void publishShellMenuTarget() {
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
 
-ModControllable* shellMenuModControllable() {
+ModControllable* soundMenuModControllable() {
 	return publishedMod.load(std::memory_order_relaxed);
 }
 
-ParamManagerForTimeline* shellMenuParamManager() {
+ParamManagerForTimeline* soundMenuParamManager() {
 	return publishedParams.load(std::memory_order_relaxed);
 }
 

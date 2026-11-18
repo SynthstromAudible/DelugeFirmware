@@ -3054,7 +3054,7 @@ bool AutomationView::getAffectEntire() {
 	// are you in the sound menu for a kit?
 	else if (getCurrentOutputType() == OutputType::KIT && deluge::gui::ui::soundMenuOpen()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
-		if (deluge::gui::ui::soundMenuKitGlobalFx()) {
+		if (deluge::gui::ui::shellKitGlobalFx()) {
 			return true;
 		}
 		// otherwise you're in the kit row context which is the same as if affect entire is disabled

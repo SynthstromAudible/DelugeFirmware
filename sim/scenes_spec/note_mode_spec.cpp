@@ -219,7 +219,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 	it("leaves the mode on under a scene that takes input above the menu, and under one that does not", _ {
 		// Legacy's `SoundEditor::inNoteEditor()` reads `menuItemNavigationRecord[0]`,
 		// not `getCurrentUI()`, so a UI opened over the sound editor does not switch the mode off --
-		// which is why this is "on the stack" and not `menuIsFrontmost`'s `input_top()`.
+		// which is why this is "on the stack" and not `menuCurrent`'s `input_top()`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();

@@ -184,15 +184,10 @@ using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setFolderImportDispatch(FolderImportDispatch dispatch);
 
-/// @brief Publish the owner and params of what the ported menu edits now, for `shellMenuModControllable` and
-///        `shellMenuParamManager`. The menu's context-adopted hook, and every open and re-root of the guest, call it.
+/// @brief Publish the owner and params of what the ported menu edits now, for `soundMenuModControllable` and
+///        `soundMenuParamManager` (`util/sound_menu_open.h`). The menu's context-adopted hook, and every open and
+///        re-root of the guest, call it.
 void publishShellMenuTarget();
-
-/// @brief The owner the ported menu edits, as last published.
-ModControllable* shellMenuModControllable();
-
-/// @brief The params the ported menu edits, as last published. Safe on the audio tier.
-ParamManagerForTimeline* shellMenuParamManager();
 
 /// @brief The engine objects the ported menu's context names now, resolved in the current song: what a claim, an import
 ///        or a slice started from the menu acts on.

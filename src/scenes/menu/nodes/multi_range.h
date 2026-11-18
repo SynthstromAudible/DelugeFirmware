@@ -30,7 +30,7 @@
 /// answer `MustSelectRange` and `enter_child` descend into the picker from the picker, forever, so
 /// `nodes::kRangeSpecificArray` holds ten nodes, not eleven. Legacy's `MultiRange::isRangeDependent()` does return
 /// true (`origin/main:src/deluge/gui/menu_item/multi_range.h`); the two places that read it name the picker
-/// themselves (`menu::begin_submenu_range`, `shellRangeDependentOpen`).
+/// themselves (`menu::begin_submenu_range`, `gui::ui::rangeDependentMenuOpen`).
 ///
 /// ## Editing a range edge
 ///

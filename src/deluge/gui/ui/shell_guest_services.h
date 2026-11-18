@@ -81,39 +81,11 @@ void refreshShellRootFacts();
 ///        reads them: `currentSong` and `currentUIMode` move between events, with no menu open to re-read them.
 void refreshKnobsForRoot();
 
-/// @brief Whether the ported menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
-///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
-bool shellSoundMenuOpen();
-
-/// @brief Whether the ported menu is the guest's frontmost scene and the guest is the current UI, whatever the menu's
-///        root: the guest's half of `getCurrentUI() == &soundEditor`.
-bool shellMenuFrontmost();
-
-/// @brief Whether the ported menu is frontmost on the note-range picker: the guest's half of `rangePickerOpen`.
-bool shellRangePickerOpen();
-
-/// @brief Whether the guest's frontmost scene is the sample browser or the audio recorder, or the ported menu on a
-///        range-dependent item or the picker: the guest's half of `rangeDependentMenuOpen`.
-bool shellRangeDependentOpen();
-
-/// @brief Whether @p untransposed falls in the range the ported menu has selected, on a source of several: the guest's
-///        half of `noteWithinCurrentRange`. Asks `Source::getRange`, which remembers the range as legacy's test does.
-/// @param untransposed The note as the clip has it, before the sound's transpose.
-bool shellNoteWithinCurrentRange(int32_t untransposed);
-
-/// @brief A note played under the ported picker: `MenuScene::select_range_for_note`.
-/// @param note The note, transposed as the sound plays it.
-void shellChangeRangeForNote(int32_t note);
-
 /// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the ported menu's selected
 ///        range or the source's number of ranges changed (`SoundEditor::possibleChangeToCurrentRangeDisplay`, which
 ///        legacy's picker calls after every pick, insert and delete), or when the range highlight turned on or off, as
 ///        a move through legacy's menu re-renders the root.
 void refreshShellRangeDisplay();
-
-/// @brief The keyboard DX column's white row under the ported menu now (`MenuScene::dx_column_flash` on the guest's
-///        clock), or nothing.
-std::optional<int32_t> shellDxColumnFlashRow();
 
 /// @brief After a guest tick, re-render the keyboard's sidebar when the DX column's white row changed: legacy's
 ///        `blinkSideColumn` re-renders it on every flip of the parameter page's flash, and a move off the page clears
@@ -121,8 +93,8 @@ std::optional<int32_t> shellDxColumnFlashRow();
 void refreshShellDxColumn();
 
 /// @brief Re-read whether the guest's frontmost scene is the sample browser, one of the sample browser's long-press
-///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
-///        the guest closes.
+///        menus or the slicer, for `samplePreviewUIOpen` (`util/sample_preview_open.h`). Called on every guest tick,
+///        after the shell's, and as the guest closes.
 void refreshShellSamplePreviewSounds();
 
 /// @brief Forget the song and the rest of what the ported menu was open on, for a teardown of every UI under the
@@ -132,11 +104,6 @@ void forgetShellMenuContext();
 /// @brief End the recorder's running take for a teardown of every UI under the guest (`ShellHostUI::uisTakenDown`),
 ///        posting no `ClearWorking` (`RecorderScene::taken_down`). A no-op with no take running.
 void endShellRecorderTakeForTeardown();
-
-/// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the sample browser, one of
-///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
-///        (`util/sample_preview_open.h`), read on the audio tier.
-bool shellSamplePreviewSounds();
 
 /// @brief SAVE while the ported sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
 ///        (`gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's view at the root, Shift
@@ -155,22 +122,12 @@ std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on
 ///         off an instrument clip's view.
 std::optional<ActionResult> forwardMenuAffectEntire(deluge::hid::Button b, bool on);
 
-/// @brief The ported menu re-reads its focused value from the model (`MenuScene::read_value_again`).
-void shellMenuReadValueAgain();
-
-/// @brief The guest's half of `mpeZonesPotentiallyUpdated`: the ported menu frontmost on the member-channel page
-///        re-reads it, as `SoundEditor::mpeZonesPotentiallyUpdated` re-reads `zoneNumMemberChannelsMenu`.
-void shellMpeZonesPotentiallyUpdated();
-
 /// @brief Whether a scene of kind @p kind frontmost on the guest stands for one of the three UIs under which
 ///        `InstrumentClipView::setSelectedDrum` keeps the kit's selection: the sample browser, the sample marker
 ///        editor and the drum rename.
 /// @param kind  The scene's `SceneKind`, as its underlying integer (this header names no port type).
 /// @param which The browser's `BrowserId` or the rename's `TargetId`; ignored for every other kind.
 bool drumSelectionFrozenBy(uint8_t kind, uint16_t which);
-
-/// @brief Whether the guest is current with one of `drumSelectionFrozenBy`'s scenes as its input top.
-bool shellFreezesDrumSelection();
 
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();

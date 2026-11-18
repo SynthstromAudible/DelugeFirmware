@@ -22,12 +22,12 @@
 #include "gui/ui/shell_note_mode.h"
 
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
-#include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
 #include "gui/ui/ui.h"                    // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/note_editor_open.h"
+#include "util/sound_menu_open.h" // menuCurrent
 
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
@@ -118,13 +118,13 @@ NoteModeKind modeForRoot(MenuContext::Root root) {
 } // namespace
 
 NoteModeKind activeNoteMode() {
-	// **On the guest's stack, not frontmost.** `menuIsFrontmost` (`gui/ui/shell_guest_services.cpp`)
+	// **On the guest's stack, not frontmost.** `menuCurrent` (`gui/ui/shell_guest_services.cpp`)
 	// asks `input_top()`, which is the port of `getCurrentUI() == &soundEditor`. The note mode is not
 	// that question: `inNoteEditor()` reads the navigation record, not the current UI, so it stays true
 	// while a popup or another UI sits over the sound editor. So this walks every stacked scene, and a
 	// scene over the menu -- input-taking or not -- leaves the answer alone.
 	//
-	// Identity against `menu_scene()`, for `menuIsFrontmost`'s own reason: the registry maps several
+	// Identity against `menu_scene()`, for `menuCurrent`'s own reason: the registry maps several
 	// application kinds, and only one object is the menu.
 	const deluge::ui::shell::Scene* const menu = &deluge::scenes::menu_scene();
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
@@ -136,6 +136,14 @@ NoteModeKind activeNoteMode() {
 		}
 	}
 	return NoteModeKind::None;
+}
+
+bool noteEditorOpen() {
+	return activeNoteMode() == NoteModeKind::NoteEditor;
+}
+
+bool noteRowEditorOpen() {
+	return activeNoteMode() == NoteModeKind::NoteRowEditor;
 }
 
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
@@ -302,7 +310,7 @@ void noteModeReadValueAgain() {
 
 bool noteModeVelocityShown() {
 	// Main's rule: the note's velocity item, or the note editor's root drawn horizontally.
-	if (!shellMenuFrontmost()) {
+	if (!menuCurrent()) {
 		return false;
 	}
 	const deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
