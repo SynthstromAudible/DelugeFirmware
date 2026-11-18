@@ -96,8 +96,8 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// oscillator's horizontal page with the file selector focused, so accepting a file lands on the
 	// source page rather than back on the item. `MenuState::path`/`depth` already are that record
 	// and `go_up_on_resume` already steps out of the item, so what was actually missing was the
-	// *re-rooting* -- and it belonged to whoever performs `claimCurrentFile` against
-	// `BrowserScene::take_choice()`, which is the same seam and the same owner
+	// *re-rooting* -- and it belonged to whoever performs `claimCurrentFile` for the browser
+	// (`BrowserHost::perform`), which is the same seam and the same owner
 	// (`browser_scene.h`'s `Descriptor::accept`). This item's half of the pair
 	// is `MenuWalkState::scene_opener`, recorded by `MenuScene::after_render` where legacy's
 	// `maybeGetParentMenu` records its own; the page half is resolved from the tables and the

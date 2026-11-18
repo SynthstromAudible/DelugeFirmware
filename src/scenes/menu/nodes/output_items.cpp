@@ -316,8 +316,8 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	// **Not ported:** `LoadMidiDeviceDefinitionUI` refuses to open unless the root UI is a clip
 	// minder as well (`load_midi_device_definition_ui.cpp:45-47`); that conjunct is a root-UI read
 	// this layer may not make, and `BrowserScene`'s `can` keeps the half that discriminates. The
-	// browser's own `accept` performs the load, so unlike the sample side there is no
-	// `take_choice()` for a dispatcher to drain.
+	// browser's host performs the load (`BrowserHost::perform`), as it performs the sample side's
+	// claim.
 	browser::browser_scene().open(ctx);
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, browser_arg_};
 }

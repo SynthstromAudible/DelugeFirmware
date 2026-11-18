@@ -91,7 +91,7 @@ public:
 				open_load_.cancel();
 				sample_ = sample;
 				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
-				deluge::scenes::browser::browser_scene().slice_ready(true);
+				shellSliceReady(true);
 				return;
 			}
 		}
@@ -100,7 +100,7 @@ public:
 		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
 		if (range == nullptr) {
 			display->displayError(Error::INSUFFICIENT_RAM);
-			deluge::scenes::browser::browser_scene().slice_ready(false);
+			shellSliceReady(false);
 			return;
 		}
 		range->sampleHolder.filePath.assign(path_);
@@ -186,7 +186,7 @@ private:
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
 			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
-			deluge::scenes::browser::browser_scene().slice_ready(true);
+			shellSliceReady(true);
 			return;
 		}
 		if (outcome->result == Result::Failed) {
@@ -197,7 +197,7 @@ private:
 		else if (outcome->error != Error::NONE) {
 			display->displayError(outcome->error);
 		}
-		deluge::scenes::browser::browser_scene().slice_ready(false);
+		shellSliceReady(false);
 	}
 
 	SliceCore core_{};

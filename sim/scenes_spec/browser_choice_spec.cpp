@@ -7,16 +7,13 @@
 /// wall, and what is covered here matters more than usual because one legacy statement is split in
 /// two:
 ///
-///   * **Covered:** that a real file press through the ported browser parks exactly one
-///     `BrowserChoice`; that `gui::ui::dispatchShellChoices` is what takes it out of the outbox;
-///     that the poll is reached **by the guest's own `timerCallback`**, with the browser still up,
-///     waiting for the claim; that polling an empty outbox neither reports nor eats anything;
-///     and that `sampleClaimTargetFor` splits a chosen path exactly the way
+///   * **Covered:** that a real file press through the ported browser hands exactly one `BrowserChoice` to the
+///     browser's host, which claims it on the press, through a bare `Shell` and through the guest's own input path;
+///     that an answer the request produced before it returned waits for the guest's poll; that ticks that chose
+///     nothing claim nothing; and that `sampleClaimTargetFor` splits a chosen path exactly the way
 ///     `SampleBrowser::getCurrentFilePath()` builds one.
-///   * **The claim:** that the drain *points the legacy browser* at the chosen directory and
-///     filename and then requests the claim of that file, which together are
-///     `SampleBrowser::enterKeyPress`'s file arm with the one argument the guest has to change. The
-///     effect is asserted on `Browser`'s own state and on the request itself.
+///   * **The claim:** what the host requests -- the chosen file, its entered text, the guest's claim arguments and its
+///     completion -- which together are `SampleBrowser::enterKeyPress`'s file arm.
 ///   * **NOT run, ever, in this file:** the claim itself. A real claim would mean a card read, an
 ///     `AudioFileManager` allocation and an `openUI(&soundEditor)` inside an assertion. `ClaimSpy`
 ///     installs a recording dispatcher through
@@ -34,7 +31,7 @@
 /// `gui/ui/shell_action_dispatch.cpp` describes. A rig that has to avoid a production path is a rig that is testing
 /// something else.
 ///
-/// @note The spec may include `gui/` (for the dispatcher and the guest); the library may not. Same
+/// @note The spec may include `gui/` (for the browser host and the guest); the library may not. Same
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
@@ -168,10 +165,9 @@ struct QuietDisplay final : deluge::hid::Display {
 
 /// @brief Refuse to start, or to finish, with the browser singleton still holding something.
 ///
-/// **Assert-then-clear, not defensive-clear** -- `sample_items_spec.cpp`'s `CleanScenes`, plus the
-/// outbox. The choice slot is the whole subject of this file: an example that left one parked would
-/// let the *next* example's drain pass on a choice it never filed, which is precisely how a drain
-/// test goes green while doing nothing. `before_each`/`after_each` take no `self`, so a named reason
+/// **Assert-then-clear, not defensive-clear** -- `sample_items_spec.cpp`'s `CleanScenes`. A listing an example
+/// left in flight would decide the next example's result, and an answer the browser host still holds is delivered
+/// here, so it cannot reach the next example's browser. `before_each`/`after_each` take no `self`, so a named reason
 /// on stderr plus `std::abort()` is what "loudly" means.
 struct CleanBrowser {
 	spec::QuietAudio quiet;
@@ -192,7 +188,7 @@ private:
 		// An answer an example's last request left held is delivered here, where no shell ticks, so it cannot reach
 		// the next example's browser.
 		deluge::gui::ui::deliverShellBrowserAnswers();
-		if (browser::browser_scene().listing_in_flight() || browser::browser_scene().take_choice().has_value()) {
+		if (browser::browser_scene().listing_in_flight()) {
 			spec_bail(what);
 		}
 	}
@@ -206,14 +202,14 @@ private:
 /// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
 /// settable dispatcher is the dispatcher's own.
 ///
-/// What it records is the `ClaimRequest` the drain hands `SampleClaim::request`: the path, the
+/// What it records is the `ClaimRequest` the browser host hands `SampleClaim::request`: the path, the
 /// entered text, the claim arguments and the completion.
 ///
 /// @warning **Recording the request is as far as this can go, and that is a real limit on what the
 ///          examples below prove.** Honouring it means running the claim -- a card read and an
 ///          `AudioFileManager` allocation -- which is the thing the seam exists to keep out. So WHAT
 ///          is requested is pinned; what the claim then does is `SampleClaim`'s own.
-/// @brief Records each file the drain asks the card to delete, in place of the card.
+/// @brief Records each file the browser host asks the card to delete, in place of the card.
 struct DeleteSpy {
 	static inline std::vector<std::string> paths{};
 	static void record(std::string_view path) { paths.emplace_back(path); }
@@ -226,7 +222,7 @@ struct DeleteSpy {
 	DeleteSpy& operator=(const DeleteSpy&) = delete;
 };
 
-/// @brief Records each auto-load cancel the drain asks for, in place of `SampleClaim::cancelAutoLoad`.
+/// @brief Records each auto-load cancel the browser host asks for, in place of `SampleClaim::cancelAutoLoad`.
 struct CancelSpy {
 	static inline int32_t cancels = 0;
 	static void record() { cancels++; }
@@ -267,6 +263,29 @@ struct ClaimSpy {
 	~ClaimSpy() { deluge::gui::ui::setSampleClaimDispatch(nullptr); }
 	ClaimSpy(const ClaimSpy&) = delete;
 	ClaimSpy& operator=(const ClaimSpy&) = delete;
+};
+
+/// @brief A claim dispatcher that refuses inside the request, calling the completion before `request` returns.
+///
+/// `SampleClaim::request` runs a first pass inline, so a claim can end inside the press that asked for it. This spy is
+/// that case at its plainest.
+struct RefusingClaimSpy {
+	static inline int32_t dispatches = 0;
+
+	static void refuse(const deluge::gui::ClaimRequest& request) {
+		dispatches++;
+		if (request.completion != nullptr) {
+			request.completion(false);
+		}
+	}
+
+	RefusingClaimSpy() {
+		dispatches = 0;
+		deluge::gui::ui::setSampleClaimDispatch(&refuse);
+	}
+	~RefusingClaimSpy() { deluge::gui::ui::setSampleClaimDispatch(nullptr); }
+	RefusingClaimSpy(const RefusingClaimSpy&) = delete;
+	RefusingClaimSpy& operator=(const RefusingClaimSpy&) = delete;
 };
 
 void select_language() {
@@ -373,7 +392,7 @@ struct SongRig {
 };
 
 /// @brief A bare `Shell` over `FakeSurfaceSet`, with the application's own registry -- the rig for
-///        the examples that call the dispatcher by name.
+///        the examples that drive the browser host without the guest.
 struct ShellRig {
 	SongRig model;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
@@ -381,7 +400,8 @@ struct ShellRig {
 	Shell shell{fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}};
 	uint32_t clock = 0;
 
-	ShellRig() = default;
+	/// The application's browser host, as the guest installs it.
+	ShellRig() { deluge::gui::ui::wireShellBrowserHost(); }
 	ShellRig(const ShellRig&) = delete;
 	ShellRig& operator=(const ShellRig&) = delete;
 
@@ -446,8 +466,8 @@ struct ShellRig {
 	bool browser_on_stack() { return scene_on_stack(shell, browser::kBrowserSceneKind); }
 };
 
-/// @brief A real `ShellHostUI` over the real registry -- the rig for the one example that must not
-///        name the dispatcher at all.
+/// @brief A real `ShellHostUI` over the real registry -- the rig for the example that reaches the browser host
+///        through the guest's own input path and tick.
 ///
 /// `menu_actions_spec.cpp`'s `GuestRig`, with the browser opened over the menu. **A local guest, not
 /// the `shellHostUI` global**: `boot_wiring_spec.cpp` reads that global at 11+ sites and the driver
@@ -482,13 +502,7 @@ struct GuestRig {
 		return ui.opened();
 	}
 
-	/// One tick of the SHELL, which routes and renders but is not the guest's tick and so polls
-	/// nothing. The control leg's only clock.
-	void shell_step() {
-		clock += 10;
-		ui.shell().tick(clock);
-	}
-	/// One tick of the GUEST, which does the same and then drains. The measured leg's only clock.
+	/// One tick of the GUEST: the shell's tick, then the guest's polls.
 	void guest_step() { (void)ui.timerCallback(); }
 
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
@@ -507,13 +521,13 @@ struct GuestRig {
 
 /// @brief A `Shell` over a MIDI song, on the MIDI device definition browser.
 ///
-/// `BrowserId::MidiDeviceDefinition` defers and waits for its load, and the drain hands its choice
+/// `BrowserId::MidiDeviceDefinition` defers and waits for its load, and the browser host hands its choice
 /// to the instrument load rather than the sample claim. This rig exists to pin that the claim
 /// wiring leaves it there.
 ///
 /// It pushes the browser's `SceneId` directly, the way `browser_scene_spec.cpp`'s own rig does,
 /// rather than re-deriving `nodes::MidiDeviceLinkedItem` (`scenes/menu/nodes/output_items.h`): what
-/// is under test here is what the dispatcher does with a descriptor's answer, not how that item's
+/// is under test here is what the browser host does with a descriptor's answer, not how that item's
 /// toggle opens the scene. And it is a bare `Shell`, not the guest, so the empty stack that `Close`
 /// leaves behind reaches no `closeGuest()` arm (`ShellHostUI::timerCallback`'s).
 struct MidiRig {
@@ -525,7 +539,7 @@ struct MidiRig {
 
 	MidiRig(const MidiRig&) = delete;
 	MidiRig& operator=(const MidiRig&) = delete;
-	MidiRig() = default;
+	MidiRig() { deluge::gui::ui::wireShellBrowserHost(); }
 	~MidiRig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -793,7 +807,10 @@ struct KitRig {
 
 	KitRig(const KitRig&) = delete;
 	KitRig& operator=(const KitRig&) = delete;
-	KitRig() { (void)spec::add_drum<SoundDrum>(song); }
+	KitRig() {
+		(void)spec::add_drum<SoundDrum>(song);
+		deluge::gui::ui::wireShellBrowserHost();
+	}
 	~KitRig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -868,138 +885,92 @@ describe browser_choice_target(
 	        });
     });
 
-describe browser_choice_dispatch(
-    "gui::ui::dispatchShellChoices over the real outbox", $ {
-	    // The drain, in the binary that has every half: `deluge_scenes_spec` links the real
-	    // `browser_scene()`, the real `dispatchShellChoices` AND the real `ShellHostUI::timerCallback`.
-	    // The host suite (`tests/unit/deluge/gui/`) links only the last of those -- it stubs this dispatcher,
-	    // because the real one belongs to the `deluge_scenes` closure that suite never builds -- so what
-	    // it could pin is the CALL SITE in isolation.
-	    //
-	    // Two isolated halves are not the composition, and the third example is the one that says so: a
-	    // stub at the call site plus a separate proof that the real function reads the outbox does not
-	    // prove the real call site calls the real function. That example drives a real guest's own
-	    // `timerCallback()` and asserts the real outbox is empty afterwards, without naming
-	    // `dispatchShellChoices` at all.
-	    //
-	    // Nothing in THIS group asserts that anything is performed -- that is `browser_choice_claim`'s
-	    // subject below. Every example here still installs a `ClaimSpy`, because a real file press
-	    // followed by a drain now reaches the claim, and the shipped dispatcher would run it.
+// clang-format off
+describe browser_choice_host("gui::ui's browser host, performing on the press", $ {
+	// The press hands the chosen file to the host, which claims it then: there is no outbox for a later poll to read.
+	// Every example installs a `ClaimSpy` or `RefusingClaimSpy`, because a real file press reaches the claim, and the
+	// shipped dispatcher would run it.
 
-	    before_each([] {
-		    static QuietDisplay d;
-		    if (display == nullptr) {
-			    display = &d;
-		    }
-	    });
+	before_each([] {
+		static QuietDisplay d;
+		if (display == nullptr) {
+			display = &d;
+		}
+	});
 
-	    it(
-	        "takes the choice a real file press filed, and leaves the outbox empty", _ {
-		        CleanBrowser clean;
-		        ClaimSpy spy;
-		        ScratchCard card;
-		        {
-			        // The control, and it is not decoration: without it the example below is satisfied by a
-			        // press that filed nothing at all, which is exactly how a drain test passes vacuously.
-			        ShellRig control;
-			        control.open_browser();
-			        expect(control.browser_on_stack()).to_be_true();
-			        control.enter();
-			        // The press parks and the browser waits for the claim (`BrowserScene::enter_key_press`'s
-			        // `DeferAndWait` arm), so both halves are asserted here, on the leg that is allowed to look.
-			        expect(control.browser_on_stack()).to_be_true();
-			        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
+	it("claims the file a real press chose while the press is routed, with the browser up and waiting", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		expect(spy.dispatches).to_equal(0);
+		r.enter();
+		expect(spy.dispatches).to_equal(1);
+		expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
+	});
 
-			        const std::optional<browser::BrowserChoice> choice = browser::browser_scene().take_choice();
-			        expect(choice.has_value()).to_be_true();
-			        expect(static_cast<int>(choice.has_value() ? choice->id : browser::BrowserId::Count))
-			            .to_equal(static_cast<int>(browser::BrowserId::Sample));
-			        expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{kChosenPath});
-		        }
+	it("claims nothing on ticks that chose nothing, and still claims the next press", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		for (int32_t i = 0; i < 20; i++) {
+			r.step();
+			deluge::gui::ui::dispatchShellChoices();
+		}
+		expect(r.browser_on_stack()).to_be_true();
+		expect(spy.dispatches).to_equal(0);
+		r.enter();
+		expect(spy.dispatches).to_equal(1);
+	});
 
-		        ShellRig r;
-		        r.open_browser();
-		        r.enter();
-		        // Deliberately NOT drained by hand here -- the dispatcher is the only thing that reads it.
-		        deluge::gui::ui::dispatchShellChoices();
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
-	        });
+	it("claims once, on the press, through the guest's own input path and tick", _ {
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		GuestRig r;
+		expect(r.open()).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			r.guest_step();
+		}
+		expect(r.browser_on_stack()).to_be_true();
+		expect(spy.dispatches).to_equal(0);
+		r.press_enter(&GuestRig::guest_step);
+		expect(r.browser_on_stack()).to_be_true();
+		expect(spy.dispatches).to_equal(1);
+		expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
+	});
 
-	    it(
-	        "takes nothing when nothing was chosen, and does not eat the next choice", _ {
-		        CleanBrowser clean;
-		        ClaimSpy spy;
-		        ScratchCard card;
-		        ShellRig r;
-		        r.open_browser();
-		        // Twenty polls against an empty outbox -- which is what every quiet tick of the guest is,
-		        // including every tick the browser is up and the user is still scrolling.
-		        for (int32_t i = 0; i < 20; i++) {
-			        r.step();
-			        deluge::gui::ui::dispatchShellChoices();
-		        }
-		        expect(r.browser_on_stack()).to_be_true();
-		        // And the press after all of them still delivers, so the polling above left the seam intact
-		        // rather than jamming it.
-		        r.enter();
-		        const std::optional<browser::BrowserChoice> choice = browser::browser_scene().take_choice();
-		        expect(choice.has_value()).to_be_true();
-		        expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{kChosenPath});
-	        });
-
-	    it(
-	        "is reached BY the guest's own tick, with the browser still up for the claim", _ {
-		        // The composition, end to end and with nothing stubbed: a real `ShellHostUI` over the real
-		        // `scene_registry()`, a real enter press through the guest's own `padAction`, and the guest's
-		        // own `timerCallback()` -- which is the only thing this example calls that could drain
-		        // anything. `dispatchShellChoices` is never named here.
-		        //
-		        // **The two legs differ in ONE call** and share everything else: the same guest type over the
-		        // same registry, the same scene singletons, the same node, the same press through the same
-		        // input queue. Leg 1 ticks the SHELL (`ui.shell().tick`), which routes the press, applies the
-		        // `Remove` and runs `after_render` -- but is not the guest's tick and so does not poll. Leg 2
-		        // ticks the GUEST (`timerCallback`), which does all of that and then polls. So the difference
-		        // between "outbox full" and "outbox empty" isolates `timerCallback`'s own extra work rather
-		        // than comparing two different rigs.
-		        CleanBrowser clean;
-		        ClaimSpy spy;
-		        ScratchCard card;
-		        {
-			        GuestRig control;
-			        expect(control.open()).to_be_true();
-			        for (int32_t i = 0; i < 4; i++) {
-				        control.shell_step();
-			        }
-			        expect(control.browser_on_stack()).to_be_true();
-			        control.press_enter(&GuestRig::shell_step);
-			        // The state the drain actually runs in, asserted on the leg that may look: the browser is still up,
-			        // waiting for the claim, over the menu it was opened from.
-			        expect(control.browser_on_stack()).to_be_true();
-
-			        expect(control.ui.shell().stack().depth()).to_be_greater_than(0);
-			        // The press really files, on this exact path, through this exact guest. Without this the
-			        // example below passes on a press that never filed anything.
-			        expect(browser::browser_scene().take_choice().has_value()).to_be_true();
-		        }
-
-		        GuestRig r;
-		        expect(r.open()).to_be_true();
-		        for (int32_t i = 0; i < 4; i++) {
-			        r.guest_step();
-		        }
-		        expect(r.browser_on_stack()).to_be_true();
-		        // ...and ticking the guest over an open browser files nothing on its own.
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
-
-		        r.press_enter(&GuestRig::guest_step);
-		        expect(r.browser_on_stack()).to_be_true();
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
-	        });
-    });
+	it("answers a claim that ended inside its request after the tick that asked, not inside the press", _ {
+		// Answered inside the request, the completion would reach the browser from inside its own `handle`. The host
+		// holds it, and the guest's after-tick poll delivers it before the next tick reads input.
+		CleanBrowser clean;
+		RefusingClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		r.enter();
+		expect(RefusingClaimSpy::dispatches).to_equal(1);
+		expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_false();
+		expect(browser::browser_scene().awaiting_deferred_load()).to_be_false();
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(menu_scene().state().path[0]).to_equal(&nodes::file0_selector);
+	});
+});
+// clang-format on
 
 describe browser_choice_claim(
-    "gui::ui::dispatchShellChoices performing the claim", $ {
-	    // What the drain *does*: `SampleBrowser::enterKeyPress`'s file arm, once the browser it reads
+    "the browser host performing the claim", $ {
+	    // What the host *does*: `SampleBrowser::enterKeyPress`'s file arm, once the browser it reads
 	    // is gone, is a claim request naming the chosen file -- which `ClaimSpy` records whole.
 
 	    before_each([] {
@@ -1010,36 +981,19 @@ describe browser_choice_claim(
 	    });
 
 	    it(
-	        "requests the guest's claim of the chosen file, leaving the legacy browser's state alone", _ {
+	        "requests the guest's claim of the chosen file on the press, carrying its own path", _ {
+		        // The claim carries its file: the browser is up, waiting, with its listing still in the scenes'
+		        // catalogue, which the claim reads none of.
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-
-		        // The browser is up, waiting, with its listing still in the scenes' catalogue (the claim carries its
-		        // own path and reads none of it), and nothing has been requested yet.
-		        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_false();
-		        expect(spy.dispatches).to_equal(0);
-
-		        // The legacy browser's own state is pointed somewhere else entirely -- as under the
-		        // guest it genuinely is, since the legacy `sampleBrowser` was never opened. The claim
-		        // carries its file, so none of this is read or written.
-		        Browser::currentDir = "SOMEWHERE/ELSE";
-		        QwertyUI::enteredText = "STALE";
-
-		        deluge::gui::ui::dispatchShellChoices();
-
-		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SOMEWHERE/ELSE"});
-		        expect(std::string{QwertyUI::enteredText}).to_equal(std::string{"STALE"});
-
-		        // Exactly one request, and it is the guest's own.
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
-		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
-		        // fails by comparison here rather than by `CleanBrowser`'s abort.
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
+		        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_false();
+		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
 	        });
 
 	    it(
@@ -1062,56 +1016,9 @@ describe browser_choice_claim(
 	        });
 
 	    it(
-	        "claims from the guest's own tick, with nothing in the example naming the dispatcher", _ {
-		        // The composition, as the drain examples above do it: the difference between the two
-		        // legs is one call, `ui.shell().tick` versus `ui.timerCallback()`. So a claim on the
-		        // second leg and none on the first isolates `timerCallback`'s own extra work.
-		        CleanBrowser clean;
-		        ClaimSpy spy;
-		        ScratchCard card;
-		        {
-			        GuestRig control;
-			        expect(control.open()).to_be_true();
-			        for (int32_t i = 0; i < 4; i++) {
-				        control.shell_step();
-			        }
-			        expect(control.browser_on_stack()).to_be_true();
-			        control.press_enter(&GuestRig::shell_step);
-			        // The press filed and the browser waits -- and nothing claimed, because the shell's tick is not
-			        // the guest's.
-			        expect(control.browser_on_stack()).to_be_true();
-			        expect(spy.dispatches).to_equal(0);
-			        // The waiting browser keeps its listing; the claim reads none of it.
-			        expect(deluge::storage::FileCatalogue::fileItems.empty()).to_be_false();
-			        expect(browser::browser_scene().take_choice().has_value()).to_be_true();
-		        }
-
-		        GuestRig r;
-		        expect(r.open()).to_be_true();
-		        for (int32_t i = 0; i < 4; i++) {
-			        r.guest_step();
-		        }
-		        expect(r.browser_on_stack()).to_be_true();
-		        // Ticking the guest over an open browser claims nothing on its own.
-		        expect(spy.dispatches).to_equal(0);
-
-		        r.press_enter(&GuestRig::guest_step);
-		        expect(r.browser_on_stack()).to_be_true();
-		        // Three guest ticks, one choice, one claim: the drain is not re-entered on the ticks
-		        // after the outbox is empty.
-		        expect(spy.dispatches).to_equal(1);
-		        expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
-		        // The outbox is empty because the guest's own tick emptied it. Asserted here as well as
-		        // in the group above so a mutant that deletes the call site fails this example by
-		        // comparison, rather than by `CleanBrowser`'s abort -- which stops the file on its first
-		        // casualty and prints one reason for all of them.
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
-	        });
-
-	    it(
-	        "drains a MIDI device definition into its own load, and claims nothing", _ {
+	        "hands a MIDI device definition to its own load, and claims nothing", _ {
 		        // `BrowserId::MidiDeviceDefinition` defers and waits, as `LoadMidiDeviceDefinitionUI` stays open until
-		        // `definitionLoaded` closes it, and the drain hands its path to the instrument load
+		        // `definitionLoaded` closes it, and the host hands its path to the instrument load
 		        // (`requestMidiDefinitionLoad`), not to the sample claim -- so the `Sample` arm's body must not be
 		        // reachable from it.
 		        CleanBrowser clean;
@@ -1121,16 +1028,16 @@ describe browser_choice_claim(
 		        r.open_browser();
 		        expect(r.browser_on_stack()).to_be_true();
 
+		        // The host requests the load on the press. Before boot finishes the file opens directly, inside the
+		        // request, so its answer is held and the browser still waits.
 		        r.enter();
 		        expect(r.browser_on_stack()).to_be_true();
 		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
-		        expect(r.instrument()->deviceDefinitionFileName).to_equal(std::string{});
 
 		        // Polled the same way a quiet guest tick polls, which is unconditionally; then the
-		        // load's own job, run until it finishes. Before boot finishes the file opens directly.
+		        // load's own job, run until it finishes.
 		        deluge::gui::ui::dispatchShellChoices();
 		        expect(spy.dispatches).to_equal(0);
-		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
 		        for (int32_t pass = 0; pass < 64 && deluge::gui::instrumentLoad.currentTicket().generation != 0;
 		             pass++) {
 			        deluge::gui::instrumentLoad.routine();
@@ -1253,10 +1160,10 @@ describe browser_choice_reroot(
 	    //
 	    // Because the claim cannot be run: it is a card read and an `AudioFileManager` allocation,
 	    // which is the whole reason `ClaimSpy` exists. So the split is the one the group above
-	    // already lives with: **what** the drain requests is pinned there, and what the claim's
+	    // already lives with: **what** the browser host requests is pinned there, and what the claim's
 	    // completion does on success (`shellSampleClaimDone`) is driven by name here. The state
 	    // these examples re-root is not a fixture, though: it is the real state a real file press
-	    // leaves behind, all four ticks and the drain included.
+	    // leaves behind, all four ticks and the press's claim included.
 	    //
 	    // @note The menu here is at **depth 0** on the file selector, and that is not the rig taking a
 	    //       shortcut -- it is the only shape a user can produce today. The port has no port of
@@ -1288,7 +1195,7 @@ describe browser_choice_reroot(
 
 		        r.enter();
 		        deluge::gui::ui::dispatchShellChoices();
-		        // The claim was requested and the outbox emptied -- the group above's subject, re-checked
+		        // The claim was requested on the press -- the group above's subject, re-checked
 		        // here only so a failure below cannot be blamed on the press not having landed.
 		        expect(spy.dispatches).to_equal(1);
 
@@ -1395,7 +1302,7 @@ describe browser_choice_reroot(
     });
 
 // clang-format off
-describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported browser's preview", $ {
+describe browser_choice_preview("the browser host and the ported browser's preview", $ {
 	before_each([] {
 		static QuietDisplay d;
 		if (display == nullptr) {
@@ -1721,7 +1628,7 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 // clang-format on
 
 describe browser_choice_long_press(
-    "gui::ui::dispatchShellChoices performing the sample browser's folder menus", $ {
+    "the browser host performing the sample browser's folder menus", $ {
 	    before_each([] {
 		    static QuietDisplay d;
 		    if (display == nullptr) {
@@ -2197,5 +2104,5 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 });
 // clang-format on
 
-DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
+DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_host, browser_choice_claim,
             browser_choice_reroot, browser_choice_long_press, browser_choice_preview, browser_choice_submenu_range)

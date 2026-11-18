@@ -231,8 +231,8 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 	(void)error;
 	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which names
 	// `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView` and loads with the browser up under
-	// the working animation. The scene parks the path and waits; the application's dispatcher runs the claim against
-	// the legacy object, and the claim's completion answers `deferred_load_done`.
+	// the working animation. The scene hands the path to its host and waits; the host runs the claim against the
+	// legacy object, and the claim's completion answers `deferred_load_done`.
 	return AcceptOutcome::DeferAndWait;
 }
 
@@ -288,8 +288,8 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 	// `LoadMidiDeviceDefinitionUI::enterKeyPress`'s file arm requests the definition's load from the
 	// instrument load (`gui/ui/load/instrument_load.h`), which this layer may not name, and the browser
 	// stays open, refusing input, until `definitionLoaded` closes it: the menu it returns to then draws
-	// the definition linked. The scene parks the path, `gui::ui::dispatchShellChoices` requests the
-	// load, and the load's completion answers `deferred_load_done`.
+	// the definition linked. The scene hands the path to its host, which requests the load, and the
+	// load's completion answers `deferred_load_done`.
 	if (!midi_device_file(ctx)) {
 		error = Error::FILE_NOT_FOUND;
 		return AcceptOutcome::Stay;
@@ -452,7 +452,6 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	resp_ = {};
 	reveal_press_.reset();
 	pending_.reset();
-	choice_.reset();
 	searching_ = false;
 	select_after_listing_.clear();
 	// `SampleBrowser::opened`: no keyboard and no preview yet, so the root view shows and the BROWSE pad blinks. The
@@ -546,12 +545,6 @@ std::string_view BrowserScene::current_dir() const {
 	return FileCatalogue::currentDir;
 }
 
-std::optional<BrowserChoice> BrowserScene::take_choice() {
-	std::optional<BrowserChoice> out = std::move(choice_);
-	choice_.reset();
-	return out;
-}
-
 std::optional<ScrollRequest> BrowserScene::take_scroll() {
 	std::optional<ScrollRequest> out = pad_scroll_;
 	pad_scroll_.reset();
@@ -571,11 +564,6 @@ void BrowserScene::preview_settled(bool has_sample) {
 	}
 	const int8_t direction = preview_direction_;
 	const bool spare_blink = std::exchange(spare_blink_from_preview_, false);
-	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the
-	// browser open. A choice already waiting (a press this tick) is not overwritten.
-	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty() && !choice_.has_value()) {
-		choice_ = BrowserChoice{.id = id_, .path = preview_path_, .op = BrowserChoice::Op::Enter, .keep_open = true};
-	}
 	const BrowserPads before = pads_;
 	if (has_sample) {
 		// `showPreview`'s `unsetTimer(SHORTCUT_BLINK)`, except for the open's own first preview.
@@ -621,6 +609,12 @@ void BrowserScene::preview_settled(bool has_sample) {
 	}
 	if (pads_ != before) {
 		pads_changed_ = true;
+	}
+	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the browser
+	// open. A claim the user asked for is already in flight then, and the claim drops an auto-load behind it.
+	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty()) {
+		host().perform(
+		    BrowserChoice{.id = id_, .path = preview_path_, .op = BrowserChoice::Op::Enter, .keep_open = true});
 	}
 }
 
@@ -1255,7 +1249,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 			    .popup_string = static_cast<uint16_t>(String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT)});
 			return r;
 		}
-		park_operation(BrowserChoice::Op::Slice);
+		request_operation(BrowserChoice::Op::Slice);
 		slice_from_shift_ = true;
 		return r;
 	}
@@ -1282,12 +1276,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		// One load at a time: each legacy browser's load refuses a second Enter until it ends.
 		if (!awaiting_deferred_) {
 			awaiting_deferred_ = true;
-			if (id_ == BrowserId::DxSyx) {
-				host().perform(BrowserChoice{id_, std::move(path)});
-			}
-			else {
-				choice_ = BrowserChoice{id_, std::move(path)};
-			}
+			host().perform(BrowserChoice{id_, std::move(path)});
 		}
 		Result r;
 		r.handled = true;
@@ -2127,7 +2116,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 	}
 }
 
-void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
+void BrowserScene::request_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
 		return;
@@ -2139,10 +2128,10 @@ void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs
 	                     .filename = item->filename,
 	                     .is_folder = item->isFolder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
-	choice_ = std::move(choice);
 	awaiting_load_ = op != BrowserChoice::Op::Enter && op != BrowserChoice::Op::DeleteFile;
 	slice_out_ = op == BrowserChoice::Op::Slice;
 	slice_from_shift_ = false;
+	host().perform(choice);
 }
 
 void BrowserScene::slice_ready(bool opened) {

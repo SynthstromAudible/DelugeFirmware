@@ -439,8 +439,9 @@ describe dx_cartridge("the DX7 cartridge", ${
 		const int32_t trashed = browser_scene().file_index();
 		shift_save(r);
 		expect(delete_menu_up(r)).to_be_true();
-		r.select(); // OK
-		for (int32_t i = 0; i < 400 && card_has(TrashFile::kPath); i++) {
+		r.select(); // OK: the host deletes the file; an answer the request produced waits for the poll
+		for (int32_t i = 0; i < 400 && (card_has(TrashFile::kPath) || deluge::gui::ui::shellBrowserAnswersHeld());
+		     i++) {
 			deluge::gui::ui::dispatchShellChoices();
 			r.tick();
 		}

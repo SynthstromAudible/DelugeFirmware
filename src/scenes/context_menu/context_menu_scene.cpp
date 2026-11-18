@@ -302,11 +302,11 @@ constexpr uint16_t kSampleBrowserSynthOptions[] = {
 };
 
 /// `Kit::acceptCurrentOption`: LOAD ALL imports the folder; SLICE opens the slicer on the file, over this menu. Like
-/// `Synth`'s, it never closes the menu itself: the load it parks for the host closes it once it ends
+/// `Synth`'s, it never closes the menu itself: the load it asks the host for closes it once it ends
 /// (`BrowserScene::long_press_done`).
 bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t option) {
-	browser::browser_scene().park_operation(option == 0 ? browser::BrowserChoice::Op::ImportKit
-	                                                    : browser::BrowserChoice::Op::Slice);
+	browser::browser_scene().request_operation(option == 0 ? browser::BrowserChoice::Op::ImportKit
+	                                                       : browser::BrowserChoice::Op::Slice);
 	return true;
 }
 
@@ -327,16 +327,16 @@ bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t option) {
 	using Args = browser::BrowserChoice::ClaimArgs;
 	switch (option) {
 	case 0:
-		browser::browser_scene().park_operation(Op::ImportMultisamples);
+		browser::browser_scene().request_operation(Op::ImportMultisamples);
 		break;
 	case 1:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 0, .single_cycle = 0, .wavetable = 0});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 0, .single_cycle = 0, .wavetable = 0});
 		break;
 	case 2:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 2, .single_cycle = 2, .wavetable = 1});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 2, .single_cycle = 2, .wavetable = 1});
 		break;
 	default:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 1, .single_cycle = 1, .wavetable = 2});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 1, .single_cycle = 1, .wavetable = 2});
 		break;
 	}
 	return true;
@@ -366,7 +366,7 @@ bool sample_load_busy(const menu::MenuContext& ctx) {
 /// `DeleteFile::acceptCurrentOption`: the browser's file is deleted by the host, which removes it from the browser's
 /// list once the card has. The menu closes at once.
 bool accept_delete_file(const menu::MenuContext&, uint8_t) {
-	browser::browser_scene().park_operation(browser::BrowserChoice::Op::DeleteFile);
+	browser::browser_scene().request_operation(browser::BrowserChoice::Op::DeleteFile);
 	return false;
 }
 

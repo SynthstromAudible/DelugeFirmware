@@ -634,7 +634,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// just been opened over the guest gets the timer.
 	//
 	// **The guard is on `getCurrentUI()`, not on that list**, so it does not go stale when the list
-	// does -- which matters, because the `take_choice` dispatcher shares the same drain.
+	// does -- which matters, because the browser host's poll shares the same drain.
 	//
 	// **What that costs, bounded honestly.** The two context menus inherit `UI::timerCallback`'s
 	// `return DEALT_WITH` (`gui/ui/ui.h`) and no `gui/context_menu/` class overrides it, so for

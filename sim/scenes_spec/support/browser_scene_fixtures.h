@@ -28,6 +28,7 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project headers this
 // drags in.
+#include "support/browser_host_fake.h"
 #include "support/card_access.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -133,11 +134,14 @@ struct CleanBrowser {
 		display = saved_display;
 	}
 	static void reset() {
+		// The scene's requests go to the recording host; an example reads them there and answers by hand.
+		browser_scene().set_host(&fake_browser_host());
 		while (Deferred::pending()) {
 			Deferred::run();
 		}
 		// Collects an uncollected result (releasing the catalogue claim) and empties the catalogue.
 		browser_scene().on_exit();
+		fake_browser_host().clear();
 		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(false);

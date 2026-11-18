@@ -114,6 +114,7 @@ using deluge::scenes::browser::PreviewRequest;
 using deluge::scenes::browser::ScrollRequest;
 using deluge::scenes::context_menu::context_menu_scene;
 using deluge::scenes::menu::MenuContext;
+using deluge::scenes::spec::fake_browser_host;
 using deluge::scenes::spec::QuietAudio;
 using deluge::scenes::spec::SdRoot;
 using deluge::storage::FileCatalogue;
@@ -1879,13 +1880,13 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 });
 
 describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
-	it("parks the chosen sample for the application's dispatcher and waits for its load", _ {
+	it("hands the chosen sample to its host and waits for its load", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_choice(); // drain
+		(void)fake_browser_host().take_choice(); // drain
 
 		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which loads with the browser up under the
 		// working animation and closes it once the file is in. The claim names `soundEditor`, `AudioEngine`, `slicer`,
@@ -1900,7 +1901,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(r.browser_on_stack()).to_be_true();
 		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		// Read through defaults rather than through `choice->`: a mutant that leaves the outbox empty must fail this
 		// example, not abort the process inside `std::optional::operator->`.
@@ -1908,9 +1909,9 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		    .to_equal(static_cast<int>(BrowserId::Sample));
 		expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{"SAMPLES/CLAP.WAV"});
 
-		// One load at a time: a second Enter while it is out parks nothing.
+		// One load at a time: a second Enter while it is out asks for nothing.
 		r.enter();
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(fake_browser_host().take_choice().has_value()).to_be_false();
 
 		browser_scene().deferred_load_done(true); // the claim's completion
 		r.step();
@@ -1924,10 +1925,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_choice(); // drain
+		(void)fake_browser_host().take_choice(); // drain
 
 		r.enter();
-		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(fake_browser_host().take_choice().has_value()).to_be_true();
 		// `claimCurrentFile`'s error arm: the animation goes, the error shows, the browser stays.
 		browser_scene().deferred_load_done(false);
 		r.step();
@@ -1937,10 +1938,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 
 		// And it takes the next file.
 		r.enter();
-		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(fake_browser_host().take_choice().has_value()).to_be_true();
 	});
 
-	it("parks the chosen MIDI device definition for the drain, and waits for its load", _ {
+	it("hands the chosen MIDI device definition to its host, and waits for its load", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_midi_song();
@@ -1962,7 +1963,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.enter();
 		expect(r.browser_on_stack()).to_be_true();
 		expect(browser_scene().awaiting_deferred_load()).to_be_true();
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->id).to_equal(BrowserId::MidiDeviceDefinition);
@@ -2222,13 +2223,13 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 390);
 		release_select(r, down + 399);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
-		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(fake_browser_host().take_choice().has_value()).to_be_true();
 	});
 
 	it("keeps the BROWSE pad blinking under a folder menu opened in the root state", _ {
@@ -2260,7 +2261,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 400);
@@ -2271,7 +2272,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		release_select(r, down + 450);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(fake_browser_host().take_choice().has_value()).to_be_false();
 	});
 
 	it("exits the browser and its folder menu on a mute-column press, as Kit::padAction hands it to the browser", _ {
@@ -2316,7 +2317,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.step();
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
-		expect(browser_scene().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
+		expect(fake_browser_host().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
 		facts.set({.auditioning = false});
 	});
 
@@ -2365,7 +2366,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		ctx.facts = &loading;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 600);
@@ -2373,7 +2374,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().holding()).to_be_false(); // the press was refused too
 		release_select(r, down + 610);
 		// `SampleBrowser::buttonAction`'s gate refuses every button while the load runs, the release included.
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(fake_browser_host().take_choice().has_value()).to_be_false();
 		expect(r.browser_on_stack()).to_be_true();
 	});
 
@@ -2429,7 +2430,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 390);
@@ -2437,7 +2438,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		// as main's release unsets its timer when the button task runs before the timer's.
 		release_select(r, down + 400);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
-		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(fake_browser_host().take_choice().has_value()).to_be_true();
 	});
 
 	it("closes a folder menu with the browser once Enter on the keyboard beneath has loaded the file", _ {
@@ -2446,14 +2447,14 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
 		release_select(r, down + 420);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		r.enter();
-		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(fake_browser_host().take_choice().has_value()).to_be_true();
 		// Both stay while the claim runs, as `claimCurrentFile` runs with them up ...
 		expect(r.browser_on_stack()).to_be_true();
 		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
@@ -2688,11 +2689,11 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		const context_menu::Descriptor& kit = context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit);
 		expect(kit.accept(sound_context(f), 1)).to_be_true();
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->op).to_equal(browser::BrowserChoice::Op::Slice);
@@ -2708,13 +2709,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		r.button(kShiftX, kShiftY, true, r.clock + 5);
 		const uint32_t down = press_select(r);
 		release_select(r, down + 20);
 		r.settle();
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->op).to_equal(browser::BrowserChoice::Op::Slice);
@@ -2731,13 +2732,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		r.button(kShiftX, kShiftY, true, r.clock + 5);
 		const uint32_t down = press_select(r);
 		release_select(r, down + 20);
 		r.settle();
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(fake_browser_host().take_choice().has_value()).to_be_false();
 		expect(popup_text(r)).to_equal(
 		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT)});
 	});
@@ -2748,13 +2749,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		select_folder(r, false);
 		r.button(kShiftX, kShiftY, true, r.clock + 5);
 		const uint32_t down = press_select(r);
 		release_select(r, down + 20);
 		r.settle();
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->op).to_equal(browser::BrowserChoice::Op::Enter);
@@ -2769,13 +2770,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		{
 			Rig r;
 			r.open_and_land(sound_context(f), BrowserId::Sample);
-			(void)browser_scene().take_choice();
+			(void)fake_browser_host().take_choice();
 			select_folder(r, false);
 			r.button(kShiftX, kShiftY, true, r.clock + 5);
 			const uint32_t down = press_select(r);
 			release_select(r, down + 20);
 			r.settle();
-			(void)browser_scene().take_choice();
+			(void)fake_browser_host().take_choice();
 			browser_scene().slice_ready(true);
 			r.step(); // arms the browser's timer
 			r.step(); // renders, and pushes
@@ -2786,10 +2787,10 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		{
 			Rig r;
 			r.open_and_land(sound_context(f), BrowserId::Sample);
-			(void)browser_scene().take_choice();
+			(void)fake_browser_host().take_choice();
 			select_folder(r, false);
 			(void)context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit).accept(sound_context(f), 1);
-			(void)browser_scene().take_choice();
+			(void)fake_browser_host().take_choice();
 			browser_scene().slice_ready(true);
 			r.step(); // arms the browser's timer
 			r.step(); // renders, and pushes
@@ -2805,13 +2806,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)spec::add_drum<SoundDrum>(f);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		browser_scene().slice_ready(true); // nothing out
 		r.step();
 		expect(on_stack(r, slicing::kSlicerSceneKind)).to_be_null();
 		select_folder(r, false);
 		(void)context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit).accept(sound_context(f), 1);
-		(void)browser_scene().take_choice();
+		(void)fake_browser_host().take_choice();
 		browser_scene().slice_ready(false);
 		r.step();
 		expect(on_stack(r, slicing::kSlicerSceneKind)).to_be_null();
@@ -2948,7 +2949,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.click(kLoadX, kLoadY);
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(true);
-		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->keep_open).to_be_true();
@@ -2958,7 +2959,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		expect(r.browser_on_stack()).to_be_true();
 		select_folder(r, true);
 		browser_scene().preview_settled(false);
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(fake_browser_host().take_choice().has_value()).to_be_false();
 	});
 
 	it("zooms with X_ENC held, scrolls once zoomed in, and otherwise reveals the keyboard", _ {

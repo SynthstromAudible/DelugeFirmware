@@ -130,8 +130,9 @@ enum class AcceptOutcome : uint8_t {
 	/// The descriptor refused or failed; stay open. The scene raises `error` as a notice first
 	/// (legacy's `display->displayError(error)` followed by `return`).
 	Stay,
-	/// The descriptor cannot act from this layer and its load has to end before the browser may close: park the choice
-	/// in `take_choice()` and stay up, taking no other file, until the host calls `BrowserScene::deferred_load_done`.
+	/// The descriptor cannot act from this layer and its load has to end before the browser may close: hand the choice
+	/// to the host (`BrowserHost::perform`) and stay up, taking no other file, until the host calls
+	/// `BrowserScene::deferred_load_done`.
 	/// Each legacy browser loads with itself still up and closes once the load has ended (`claimCurrentFile`,
 	/// `LoadMidiDeviceDefinitionUI::definitionLoaded`, `DxSyxBrowser`'s read), and stays up when it fails.
 	DeferAndWait,
@@ -209,8 +210,8 @@ struct Descriptor {
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
 	///       (`gui/ui/load/instrument_load.h`). Both are `gui/` symbols this layer may not name
 	///       (`scripts/check_layer_rules.py`, `scenes-includes-outside`). That is the same wall
-	///       `scenes/menu/action.h` was built for, and the same answer: the scene parks the chosen
-	///       path in `take_choice()` and `gui::ui::dispatchShellChoices` performs the load.
+	///       `scenes/menu/action.h` was built for, and the same answer: the scene hands the chosen
+	///       path to its `BrowserHost`, and the application's host performs the load.
 	///
 	/// @note **The sample dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
 	/// *return* affordance:
@@ -226,15 +227,15 @@ struct Descriptor {
 	///       members live on a `gui/` object this layer may not name, and the port's equivalent of
 	///       `menuItemNavigationRecord` is `MenuState::path`/`depth`, which only `MenuScene` may
 	///       write -- an item writing the menu's own navigation state is what `MenuState`'s mailbox
-	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. Whoever performs
-	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
-	///       too. That is `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/shell_choice_dispatch.h`),
-	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so
-	///       the browser needs no extra BACK press.
+	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. The host that performs the
+	///       claim is therefore the owner of the re-rooting too. That is
+	///       `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/shell_choice_dispatch.h`), and the entry
+	///       point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the browser needs no
+	///       extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
 	///       (`gui/ui/sound_editor.cpp:2095-2100`, consumed by `osc/audio_recorder.h:40-48`): the
-	///       recorder scene has no `take_choice()` equivalent to drain, so nothing calls the entry
-	///       point for it. Recorded on `nodes::AudioRecorderItem::on_focus`.
+	///       recorder scene hands no claim to a host, so nothing calls the entry point for it. Recorded on
+	///       `nodes::AudioRecorderItem::on_focus`.
 	///
 	/// @param ctx   What the browser was opened over.
 	/// @param path  The chosen file's full path (`currentDir` + "/" + the filename).
@@ -283,10 +284,8 @@ struct ScrollRequest {
 	bool operator==(const ScrollRequest&) const = default;
 };
 
-/// @brief A file the scene could not load itself, waiting for the application-side dispatcher.
-///
-/// The noun half of the same seam `menu::MenuActionRequest` is the verb half of. See
-/// `Descriptor::accept`.
+/// @brief What the browser asks its host to do with an item (`BrowserHost::perform`): a file it could not load
+///        itself, or a folder menu's or the delete menu's operation. See `Descriptor::accept`.
 struct BrowserChoice {
 	/// @brief What the host is to do with the item.
 	enum class Op : uint8_t {
@@ -542,40 +541,24 @@ public:
 	[[nodiscard]] BrowserHost* installed_host() const { return host_; }
 	/// @}
 
-	/// @brief Collect the file the scene could not load itself, exactly once.
-	///
-	/// The outbox `Descriptor::accept`'s `DeferAndWait` answer fills in; `MenuScene::take_action()` is the
-	/// same shape for the verb half of the same wall. `Descriptor::accept` says why the choice
-	/// cannot be performed from here.
-	///
-	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`),
-	/// which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
-	/// performs the sample claim (`SampleClaim`) against the parked path. Like `take_action()`'s,
-	/// the slot is **one deep and overwrites silently**. A second choice inside one guest tick would
-	/// need two presses in that tick: an Enter parks and refuses the next until the host answers
-	/// `deferred_load_done`, and a folder menu's accept parks while the load it starts refuses further presses
-	/// (`Descriptor::busy`).
-	/// @return The choice, or `std::nullopt` when none is waiting.
-	std::optional<BrowserChoice> take_choice();
-
-	/// @brief Park @p op on the selected item for the host, leaving this scene and anything over it up: a folder
+	/// @brief Ask the host to perform @p op on the selected item, leaving this scene and anything over it up: a folder
 	///        menu's accept, whose load closes the menu once it ends (`long_press_done`).
 	/// @param op    What the host is to do.
 	/// @param claim The detection choices, for `Op::Claim`.
-	void park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim = {});
+	void request_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim = {});
 
 	/// @brief How a load a folder menu started ended: a failure closes the menu, a success the menu and this browser,
 	///        as `closeOnFailure` and the load's own exit do in `main`. Filed on this scene's next render.
 	/// @param success Whether the load or import succeeded.
 	void long_press_done(bool success);
-	/// @brief How the load a `DeferAndWait` accept parked ended: a success closes this browser, a failure leaves it up
-	///        for another file, as `DxSyxBrowser` does once its read ends. Filed on this scene's next render; ignored
-	///        unless such a load is out.
+	/// @brief How the load a `DeferAndWait` accept asked for ended: a success closes this browser, a failure leaves it
+	///        up for another file, as `DxSyxBrowser` does once its read ends. Filed on this scene's next render;
+	///        ignored unless such a load is out.
 	/// @param success Whether the load succeeded.
 	void deferred_load_done(bool success);
 	/// @brief Whether a `DeferAndWait` accept's load is out: the host has not yet answered `deferred_load_done`.
 	[[nodiscard]] bool awaiting_deferred_load() const { return awaiting_deferred_; }
-	/// @brief The host's answer to a parked `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
+	/// @brief The host's answer to an `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
 	///        could not): the next `after_render` pushes `SlicerScene`, with main's `"SLICER"` popup on the
 	///        Shift+Select door. A slice that did not open pushes nothing (the host showed why). Ignored unless a slice
 	///        is out.
@@ -807,7 +790,6 @@ private:
 	int32_t scroll_ = 0;
 	/// @}
 
-	std::optional<BrowserChoice> choice_{};
 	std::optional<PreviewRequest> preview_{};
 	std::optional<ScrollRequest> pad_scroll_{};
 	/// A waveform to scroll in once drawn: the move's direction, or 0. `after_render` files it after a grid pass
@@ -893,14 +875,15 @@ private:
 	bool awaiting_deferred_ = false;
 	/// How that load ended, for the next `after_render`: true closes this browser.
 	std::optional<bool> deferred_done_{};
-	/// A parked slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
+	/// A slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
 	/// whether it came through the Shift+Select door.
 	bool slice_out_ = false;
 	std::optional<bool> slice_ready_{};
 	bool slice_from_shift_ = false;
 	/// The shift level the last event carried, for the keyboard's Enter key, which `after_render` answers.
 	bool shift_ = false;
-	/// This browser parked a load for a folder menu and has not heard how it ended: only that load's end is acted on.
+	/// This browser asked the host for a folder menu's load and has not heard how it ended: only that load's end is
+	/// acted on.
 	bool awaiting_load_ = false;
 
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.

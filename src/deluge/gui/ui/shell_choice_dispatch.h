@@ -117,8 +117,9 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 /// On success it asks for the render and re-roots the menu over the claimed source,
 /// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`.
 ///
-/// It answers the waiting browser first (`BrowserScene::deferred_load_done`): a success closes it, a failure leaves it
-/// up for another file, as `claimCurrentFile`'s error arm leaves `main`'s up.
+/// It answers the waiting browser first (`BrowserScene::deferred_load_done`), held when the claim ends inside its own
+/// request (`deliverShellBrowserAnswers`): a success closes it, a failure leaves it up for another file, as
+/// `claimCurrentFile`'s error arm leaves `main`'s up.
 ///
 /// @param success Whether the claim ended claimed. A cancelled claim calls nothing.
 void shellSampleClaimDone(bool success);
@@ -144,7 +145,8 @@ enum class FileDeleteOutcome : uint8_t {
 };
 
 /// @brief Finish the ported browser's file deletion: `main`'s popup, and the file leaves the browser's list once the
-///        card has removed it. The shipped deleter calls this when the card answers.
+///        card has removed it. The shipped deleter calls this when the card answers; an answer inside the
+///        deletion's own request is held (`deliverShellBrowserAnswers`).
 /// @param path    The file asked for.
 /// @param outcome How it ended.
 void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome);
@@ -175,6 +177,11 @@ void shellLongPressClaimDone(bool success);
 ///        closes the menu, a success the menu and the browser.
 /// @param success Whether the import succeeded.
 void shellLongPressImportDone(bool success);
+
+/// @brief The slicer's open ended: the browser pushes `SlicerScene` on its next render when @p opened
+///        (`BrowserScene::slice_ready`). `gui/ui/shell_slice_ops.cpp`'s open calls it.
+/// @param opened Whether `slicing::slicer_scene()` holds the file now.
+void shellSliceReady(bool opened);
 
 /// @brief What a folder menu's import is handed to: `FolderImport::request`'s shape.
 using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
