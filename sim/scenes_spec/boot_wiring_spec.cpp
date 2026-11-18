@@ -14,6 +14,7 @@
 ///       spec in this binary -- `shortcuts_spec.cpp`'s own `LegacyVersion1` guard exists for the
 ///       same reason -- so each example saves and puts back the setting it drives.
 
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h"
@@ -404,6 +405,16 @@ describe boot_services("the three services, installed into the guest's own Shell
 		deluge::gui::ui::wireShellGuestServices();
 	});
 });
+
+describe boot_browser_host("the browser's host, installed with the services", $ {
+	it("gives the browser the application's host, not the one that performs nothing", _ {
+		deluge::scenes::browser::browser_scene().set_host(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		const deluge::scenes::browser::BrowserHost* host = deluge::scenes::browser::browser_scene().installed_host();
+		expect(host).not_().to_be_null();
+		expect(host).not_().to_equal(&deluge::scenes::browser::null_browser_host());
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services)
+DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services, boot_browser_host)

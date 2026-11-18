@@ -59,6 +59,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace deluge::gui::ui {
 
@@ -68,6 +70,54 @@ using deluge::scenes::browser::BrowserId;
 using deluge::scenes::browser::PreviewRequest;
 
 namespace {
+
+/// @brief How one of the browser host's requests ended: what the ported browser, and the menu beneath it, are told.
+struct BrowserAnswer {
+	/// @brief Which completion this is.
+	enum class Kind : uint8_t {
+		DxReadSettled, ///< The `.syx` read ended or could not start: `deliverDxCartridgeRead`.
+	};
+	Kind kind = Kind::DxReadSettled;
+	/// Claimed, imported, loaded or opened; for a preview, a sample to draw.
+	bool success = false;
+	/// The file a deletion named.
+	std::string path{};
+	/// How a deletion ended.
+	FileDeleteOutcome deleted = FileDeleteOutcome::Failed;
+	/// Where the `.syx` read stands.
+	DxCartridgeRead::Status dx = DxCartridgeRead::Status::Idle;
+};
+
+/// @brief The answers produced while a request was being performed, in the order they came.
+std::vector<BrowserAnswer>& heldAnswers() {
+	static std::vector<BrowserAnswer> answers;
+	return answers;
+}
+
+/// @brief How many of the browser's requests the host is inside now.
+int32_t performingDepth = 0;
+
+/// @brief Marks the host as inside one of the browser's requests for its lifetime: an answer produced meanwhile is
+/// held.
+class Performing {
+public:
+	Performing() { performingDepth++; }
+	~Performing() { performingDepth--; }
+	Performing(const Performing&) = delete;
+	Performing& operator=(const Performing&) = delete;
+};
+
+void deliverAnswer(const BrowserAnswer& answer);
+
+/// @brief Tell the browser how a request ended: held when the request that produced the answer is still being
+///        performed (the scene that asked is inside its hook), delivered at once otherwise.
+void answerBrowser(BrowserAnswer answer) {
+	if (performingDepth > 0) {
+		heldAnswers().push_back(std::move(answer));
+		return;
+	}
+	deliverAnswer(answer);
+}
 
 /// @brief The shipped claim dispatcher: what a browser choice's claim asks unless a spec installs another.
 void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
@@ -484,9 +534,10 @@ deluge::gui::SoundTarget shellMenuTarget() {
 
 namespace {
 
-/// @brief Act on where the `.syx` read stands: a bank read lands the menu on the cartridge page and closes the browser
-///        (`DxSyxBrowser`'s `enterLoadedCartridge`); a failure leaves the browser up for another file.
-void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
+/// @brief What the `.syx` read's standing means for the browser: a bank read lands the menu on the cartridge page and
+///        closes the browser (`DxSyxBrowser`'s `enterLoadedCartridge`); a failure leaves the browser up for another
+///        file.
+void deliverDxCartridgeRead(DxCartridgeRead::Status status) {
 	switch (status) {
 	case DxCartridgeRead::Status::Loaded:
 		deluge::scenes::menu_scene().land_dx_cartridge();
@@ -498,6 +549,13 @@ void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
 		break;
 	case DxCartridgeRead::Status::Pending:
 		break;
+	}
+}
+
+/// @brief Answer the browser with where the `.syx` read stands, once it has ended or could not start.
+void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
+	if (status != DxCartridgeRead::Status::Pending) {
+		answerBrowser({.kind = BrowserAnswer::Kind::DxReadSettled, .dx = status});
 	}
 }
 
@@ -580,6 +638,31 @@ void dispatchChoice(const BrowserChoice& choice) {
 	}
 }
 
+/// @brief Tell the browser, and the menu beneath it, how a request ended.
+void deliverAnswer(const BrowserAnswer& answer) {
+	switch (answer.kind) {
+	case BrowserAnswer::Kind::DxReadSettled:
+		deliverDxCartridgeRead(answer.dx);
+		break;
+	}
+}
+
+/// @brief The ported browser's host: each request is performed when the browser makes it, and an answer it produces
+///        before returning is held (`Performing`).
+class ShellBrowserHost final : public deluge::scenes::browser::BrowserHost {
+public:
+	void perform(const BrowserChoice& choice) override {
+		const Performing performing;
+		dispatchChoice(choice);
+	}
+};
+
+/// @brief The one host, made on first use.
+ShellBrowserHost& shellBrowserHost() {
+	static ShellBrowserHost host;
+	return host;
+}
+
 } // namespace
 
 void dispatchShellChoices() {
@@ -590,9 +673,26 @@ void dispatchShellChoices() {
 	if (const std::optional<BrowserChoice> choice = browser_scene().take_choice()) {
 		dispatchChoice(*choice);
 	}
+	deliverShellBrowserAnswers();
 	pollDxCartridgeRead();
 	dispatchPreview();
 	dispatchScroll();
+}
+
+void deliverShellBrowserAnswers() {
+	// The batch held so far. An answer a delivery's own request produces is held for the next delivery.
+	const std::vector<BrowserAnswer> batch = std::exchange(heldAnswers(), {});
+	for (const BrowserAnswer& answer : batch) {
+		deliverAnswer(answer);
+	}
+}
+
+bool shellBrowserAnswersHeld() {
+	return !heldAnswers().empty();
+}
+
+void wireShellBrowserHost() {
+	browser_scene().set_host(&shellBrowserHost());
 }
 
 bool shellVisitFellBackToEditor() {

@@ -1210,6 +1210,8 @@ void ShellHostUI::uisTakenDown() {
 	// would take the taker-down's own animation down with it. The shell's animation goes here instead.
 	endShellRecorderTakeForTeardown();
 	shell_.stack().reset();
+	// As at the close: what the exits asked of the browser host is answered now.
+	deliverShellBrowserAnswers();
 	shell_.notices().disarm_working();
 	shell_.discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;
@@ -1404,6 +1406,9 @@ void ShellHostUI::closeGuest() {
 	// last recorded, not the stack's: on the short-Back path the tick has already emptied it.
 	const deluge::ui::shell::PadRegions answered = padsAnswered_;
 	shell_.stack().reset();
+	// The exits just run may have asked the browser host for something (the sample browser stops its preview), and the
+	// answer it held would otherwise wait for a tick this guest no longer has.
+	deliverShellBrowserAnswers();
 	// Anything still pending after the flush was for the scenes just emptied.
 	shell_.discard_pending_input();
 	padsOwned_ = deluge::ui::shell::PadRegions::None;

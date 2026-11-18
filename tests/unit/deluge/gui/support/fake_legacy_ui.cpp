@@ -44,6 +44,8 @@ PadCall last_clip_audition{};
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
+int browser_answer_deliveries = 0;
+std::function<void()> on_browser_answer_delivery{};
 int pad_forwards = 0;
 PadCall last_pad_forward{};
 int marker_sidebar_requests = 0;
@@ -119,6 +121,8 @@ void reset() {
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
+	browser_answer_deliveries = 0;
+	on_browser_answer_delivery = nullptr;
 	pad_forwards = 0;
 	last_pad_forward = PadCall{};
 	marker_sidebar_requests = 0;
@@ -545,6 +549,15 @@ void discardShellActionsBeforeClose() {
 // `on_action_dispatch` when something does.
 void dispatchShellChoices() {
 	fakelegacyui::choice_dispatches++;
+}
+
+// The held-answer half of the same file, on the same terms; the callback lets an example record what the guest had
+// done when it delivered.
+void deliverShellBrowserAnswers() {
+	fakelegacyui::browser_answer_deliveries++;
+	if (fakelegacyui::on_browser_answer_delivery) {
+		fakelegacyui::on_browser_answer_delivery();
+	}
 }
 
 // `gui/ui/shell_slice_ops.cpp`'s share: the real one drives `SliceCore` over the current kit. This suite has no

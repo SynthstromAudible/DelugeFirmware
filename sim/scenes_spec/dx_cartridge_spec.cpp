@@ -26,6 +26,7 @@
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 
+#include "support/browser_host_fake.h"
 #include "support/card_access.h"
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
@@ -535,8 +536,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		settle(r);
 		select_file(r, "BANK1");
-		r.select();
-		deluge::gui::ui::dispatchShellChoices(); // the read starts
+		r.select(); // the read starts with the press
 		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_true();
 		r.back();
 		settle(r);
@@ -550,6 +550,8 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxCard card;
 		select_language();
 		MenuRig r;
+		const deluge::scenes::spec::UseBrowserHost use{deluge::scenes::spec::fake_browser_host()};
+		deluge::scenes::spec::fake_browser_host().clear();
 		r.open(nodes::dx_menu);
 		r.select();
 		settle(r);
@@ -557,16 +559,17 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		select_file(r, "BROKEN");
 		r.select();
-		const std::optional<deluge::scenes::browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value()).to_be_true();
-		expect(choice->path).to_equal(std::string{"DX7/BANK1.SYX"});
+		const std::vector<deluge::scenes::browser::BrowserChoice>& asked =
+		    deluge::scenes::spec::fake_browser_host().performed();
+		expect(asked.size()).to_equal(size_t(1));
+		expect(asked.empty() ? std::string{} : asked[0].path).to_equal(std::string{"DX7/BANK1.SYX"});
 		browser_scene().deferred_load_done(false);
 		r.tick();
 		r.back();
 		settle(r);
 	});
 
-	it("leaves the browser up for another file when the read cannot start", _ {
+	it("leaves the browser up for another file when the read cannot start, answering after the tick that asked", _ {
 		DxCard card;
 		select_language();
 		PendingSharedRead pending;
@@ -579,7 +582,12 @@ describe dx_cartridge("the DX7 cartridge", ${
 		select_file(r, "BANK1");
 		r.select();
 		expect(read.start("DX7/BANK1.SYX")).to_equal(DxCartridgeRead::Status::Idle);
-		deluge::gui::ui::dispatchShellChoices(); // `start` answers Idle: the browser must not wait for it
+		// The host's `start` answered Idle inside the press. That answer is held, so the browser still waits until the
+		// guest's poll delivers it: answered inside the press, it would re-enter the browser from its own `handle`.
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
+		deluge::gui::ui::dispatchShellChoices();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_false();
 		r.tick();
 		expect(browser_up(r)).to_be_true();
 		expect(browser_scene().awaiting_deferred_load()).to_be_false();

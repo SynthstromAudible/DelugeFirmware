@@ -179,6 +179,17 @@ extern std::function<void()> on_action_dispatch;
 /// the second poll happens on the same paths the first does.
 extern int choice_dispatches;
 
+/// @brief How many times `deluge::gui::ui::deliverShellBrowserAnswers()` was called since `reset()`.
+///
+/// The real one is `gui/ui/shell_choice_dispatch.cpp`'s, which names `browser_scene()`. What this suite can see is
+/// where the guest calls it outside its after-tick poll: as it closes and as every UI is taken down, after its stack's
+/// exits have run.
+extern int browser_answer_deliveries;
+
+/// @brief Called by the fake `deliverShellBrowserAnswers()` after it bumps `browser_answer_deliveries`, so an example
+///        can record what had happened when the delivery ran. Empty by default; cleared by `reset()`.
+extern std::function<void()> on_browser_answer_delivery;
+
 /// @brief How many times `deluge::gui::ui::forwardGridPad()` was called.
 ///
 /// The sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real

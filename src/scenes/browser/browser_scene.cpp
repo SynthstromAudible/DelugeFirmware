@@ -396,6 +396,19 @@ const Descriptor& descriptor(BrowserId id) {
 
 // ---------------------------------------------------------------------------------------------
 
+namespace {
+/// @brief `null_browser_host()`'s type: every request is dropped, and nothing ever answers.
+class NullBrowserHost final : public BrowserHost {
+public:
+	void perform(const BrowserChoice& /*choice*/) override {}
+};
+} // namespace
+
+BrowserHost& null_browser_host() {
+	static NullBrowserHost host;
+	return host;
+}
+
 void BrowserScene::open(const menu::MenuContext& ctx) {
 	ctx_ = ctx;
 }
@@ -1268,8 +1281,13 @@ Result BrowserScene::enter_key_press(bool shift) {
 	case AcceptOutcome::DeferAndWait: {
 		// One load at a time: each legacy browser's load refuses a second Enter until it ends.
 		if (!awaiting_deferred_) {
-			choice_ = BrowserChoice{id_, std::move(path)};
 			awaiting_deferred_ = true;
+			if (id_ == BrowserId::DxSyx) {
+				host().perform(BrowserChoice{id_, std::move(path)});
+			}
+			else {
+				choice_ = BrowserChoice{id_, std::move(path)};
+			}
 		}
 		Result r;
 		r.handled = true;

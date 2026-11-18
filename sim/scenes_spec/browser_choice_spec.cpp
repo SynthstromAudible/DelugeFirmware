@@ -189,6 +189,9 @@ struct CleanBrowser {
 
 private:
 	static void check(const char* what) {
+		// An answer an example's last request left held is delivered here, where no shell ticks, so it cannot reach
+		// the next example's browser.
+		deluge::gui::ui::deliverShellBrowserAnswers();
 		if (browser::browser_scene().listing_in_flight() || browser::browser_scene().take_choice().has_value()) {
 			spec_bail(what);
 		}

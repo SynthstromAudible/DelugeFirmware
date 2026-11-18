@@ -320,6 +320,26 @@ struct BrowserChoice {
 	bool keep_open = false;
 };
 
+/// @brief The application's half of the file browser: the loads, claims, imports, slices and deletions that reach
+///        objects this layer may not name (`Descriptor::accept`).
+///
+/// A request is performed when the browser makes it. How it ends comes back through `BrowserScene`'s answer methods
+/// (`deferred_load_done`, `long_press_done`, `slice_ready`, `file_deleted`), never from inside the call: an answer the
+/// request produces before it returns is held by the host and delivered after the shell's tick, so no answer reaches
+/// a scene from inside the hook that asked.
+class BrowserHost {
+public:
+	virtual ~BrowserHost() = default;
+	/// @brief Perform @p choice: the claim, import, slice or deletion it names (the sample browser), the MIDI device
+	///        definition's load, or the `.syx` bank's read or deletion.
+	/// @param choice What the browser asks for, and on which item.
+	virtual void perform(const BrowserChoice& choice) = 0;
+};
+
+/// @brief The host that performs nothing: the browser's until an application installs one (`BrowserScene::set_host`).
+/// @return The one shared instance.
+BrowserHost& null_browser_host();
+
 /// @brief The longest name or path this scene will build.
 ///
 /// The edited text is a fixed buffer, so the string this scene draws every frame is never a heap
@@ -515,6 +535,11 @@ public:
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
 	void set_favourites(services::Favourites* favourites) { favourites_override_ = favourites; }
+	/// @brief Hand every request to @p host, or to `null_browser_host()` for null. The application installs its own
+	///        (`gui::ui::wireShellBrowserHost`); a spec installs a recording one.
+	void set_host(BrowserHost* host) { host_ = host; }
+	/// @brief The host `set_host` installed, or null.
+	[[nodiscard]] BrowserHost* installed_host() const { return host_; }
 	/// @}
 
 	/// @brief Collect the file the scene could not load itself, exactly once.
@@ -593,6 +618,8 @@ public:
 	void set_dispatch(Listing::Dispatch dispatch) { listing_.set_dispatch(dispatch); }
 
 private:
+	/// @brief The installed host, or the one that performs nothing.
+	BrowserHost& host() const { return host_ != nullptr ? *host_ : null_browser_host(); }
 	/// @brief What the in-memory search over the cached window could say.
 	enum class SearchOutcome : uint8_t {
 		/// It named an entry, which is now selected.
@@ -812,6 +839,8 @@ private:
 	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
 	services::Favourites* favourites_override_ = nullptr;
+	/// The application's half of the browser (`set_host`); null until one is installed.
+	BrowserHost* host_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.
 	deluge::ui::Response favourite_resp_{};
 	deluge::ui::Response bank_resp_{};

@@ -25,6 +25,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/ui.h"
@@ -466,6 +467,9 @@ void wireShellGuestServices() {
 	                                                            : deluge::scenes::services::MenuView{});
 
 	setViewStates(services);
+
+	// The browser's host: what the ported browser asks to load, claim, import, slice, delete or preview.
+	wireShellBrowserHost();
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:
 	// it re-seats `services_`, the `Router`'s copy and the deduplicated tick list together, so a

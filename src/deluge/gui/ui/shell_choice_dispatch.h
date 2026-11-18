@@ -198,6 +198,24 @@ deluge::gui::SoundTarget shellMenuTarget();
 /// @param fromCreator True for the drum creator's open; false to forget it.
 void setShellBrowserFromDrumCreator(bool fromCreator);
 
+/// @brief Install the ported browser's host (`BrowserScene::set_host`): the requests it makes are performed here, with
+///        the legacy objects this file names.
+///
+/// `wireShellGuestServices()` calls it at boot and on every open of the guest. A spec that drives the browser through a
+/// bare `Shell` calls it itself.
+void wireShellBrowserHost();
+
+/// @brief Deliver the browser answers held since the last delivery, in the order they came.
+///
+/// An answer a request produces before it returns would reach the scene that asked from inside its own hook, so the
+/// host holds it. The guest's after-tick poll delivers held answers first, before the next `Shell::tick`.
+/// `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. Every other answer
+/// is delivered when it arrives.
+void deliverShellBrowserAnswers();
+
+/// @return Whether a browser answer is held for `deliverShellBrowserAnswers`.
+bool shellBrowserAnswersHeld();
+
 /// @brief Take whatever the ported browser chose, if anything, and perform it.
 ///
 /// @par Call this after every `Shell::tick`, and do not gate it
