@@ -3,7 +3,8 @@
 
 Each rule is (name, from_glob, kind, regex, spec). `kind` is "include" (match the include
 path) or "symbol" (match any source line). The baseline holds counts per (file, rule) and
-may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fails.
+may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fails. For the rules in
+`SHRINK_ONLY_RULES`, `--update` refuses to raise a count too.
 
   scripts/check_layer_rules.py            # check (exit 1 on regression)
   scripts/check_layer_rules.py --list     # print current counts
@@ -19,6 +20,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "scripts" / "layer_rules_baseline.txt"
+# Rules whose baseline `--update` may lower but never raise: a scene read outside `scenes/bind` is never an agreed
+# move, so the count only falls as the reads move behind `bind`.
+SHRINK_ONLY_RULES = ("scenes-reads-outside-bind",)
 SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
 
@@ -67,7 +71,7 @@ ROOT_UI_GLOBALS = (
 )
 # The `StemExport` PROCESS entry points -- the `scenes-no-stem-export-process` row's alternatives,
 # named here for the same reason `CATALOGUE_DISPATCH_CALLS` is: `--audit-symbols` checks each is a
-# method this tree really declares (`processing/stem_export/stem_export.h:36`, `:39`, `:40`, `:41`).
+# method this tree really declares (`StemExport`, `processing/stem_export/stem_export.h`).
 #
 # Why this needs a row of its own, and why it is the only arm of `dispatchShellActions` that does.
 # Every other verb's legacy target is already unreachable from `src/scenes`: `performanceView`,
@@ -86,13 +90,14 @@ ROOT_UI_GLOBALS = (
 # and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's. A row on
 # the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
 #
-# The five remaining public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
-# `stopOutputRecording`, `renderWait`, `checkForLoopEnd`) are deliberately NOT here: `stopPlayback`
+# The other public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
+# `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT here: `stopPlayback`
 # in particular is a name `PlaybackHandler` also has, and this row is a whole-word symbol match with
-# no receiver in it. Four names that end in `StemExportProcess` cannot collide with anything.
+# no receiver in it. Three names end in `StemExportProcess` and `exportRoutine` (the step the export's job runs) is
+# declared by `StemExport` alone, so none of the four collides with anything.
 STEM_EXPORT_PROCESS_CALLS = (
     "startStemExportProcess",
-    "runStemExportProcess",
+    "exportRoutine",
     "stopStemExportProcess",
     "abortStemExportProcess",
 )
@@ -553,6 +558,16 @@ RULES = [
         "include",
         r"^model/edits/",
         "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
+        # A scene reads the model and the runtime through `scenes/bind`'s readers. Every include from these six
+        # families outside `scenes/bind` counts, vocabulary headers included, so the count is the reads still to move
+        # behind `bind`. It may only fall (`SHRINK_ONLY_RULES`).
+        "scenes-reads-outside-bind",
+        ("src/scenes/**", "src/scenes/bind/**"),
+        "include",
+        r"^(model|modulation|io|processing|storage|playback)/",
+        "docs/dev/roadmap.md (UI read interface)",
     ),
     (
         # The gold knobs' focus is addresses (View::knobFocus()); a gesture resolves the owner's stack when it acts
@@ -1114,6 +1129,22 @@ def main() -> int:
             print(f"{f}\t{r}\t{n}")
         return 0
     if a.update:
+        base = load_baseline()
+        grown = sorted(
+            (key, n)
+            for key, n in cur.items()
+            if key[1] in SHRINK_ONLY_RULES and n > base.get(key, 0)
+        )
+        for (f, r), n in grown:
+            print(
+                f"{f}: rule '{r}' count {n} > baseline {base.get((f, r), 0)}, which --update may not raise"
+            )
+        if grown:
+            print(
+                f"{len(grown)} shrink-only count(s) grew; baseline not written. Remove the new dependency.",
+                file=sys.stderr,
+            )
+            return 1
         BASELINE.write_text(
             "# Layer-rule baseline: file<TAB>rule<TAB>count. May only shrink.\n"
             + "".join(f"{f}\t{r}\t{n}\n" for (f, r), n in sorted(cur.items()))
@@ -1138,7 +1169,8 @@ def main() -> int:
             bad += 1
     if bad:
         print(
-            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move) run --update.",
+            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move, and never "
+            "for a SHRINK_ONLY_RULES row) run --update.",
             file=sys.stderr,
         )
         return 1
