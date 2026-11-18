@@ -127,6 +127,7 @@ public:
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+	ActionResult gridMoveHeldTrack(int32_t offset);
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
