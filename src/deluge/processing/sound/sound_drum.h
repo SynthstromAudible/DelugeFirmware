@@ -30,6 +30,20 @@ public:
 	String path;
 	bool nameIsDiscardable = false;
 
+	// Which of the 8 numbered choke groups this drum belongs to when polyphonic == CHOKE.
+	// Meaningless otherwise. Defaults to 1 so that pre-existing songs, whose saved XML never had
+	// this attribute, land every CHOKE drum in the same group on load - reproducing the old
+	// behaviour where there was only ever one implicit, kit-wide choke group.
+	uint8_t chokeGroup = 1;
+
+	// With the ChokeGroups community feature off, every CHOKE drum behaves as choke group 1
+	// regardless of what's actually stored in chokeGroup, reproducing the pre-feature "one shared,
+	// kit-wide choke group" behaviour exactly. The stored value itself is untouched either way, so
+	// toggling the feature back on later recovers whatever groups the user had already set up.
+	// Public and static (not tied to a particular instance) so it's also usable by code that needs
+	// to reason about a drum's effective group without triggering it, e.g. choke-group stem export.
+	static uint8_t effectiveChokeGroup(uint8_t storedChokeGroup);
+
 	SoundDrum() : Drum(DrumType::SOUND) {}
 
 	using Sound::allowNoteTails;
@@ -51,7 +65,7 @@ public:
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	std::string getDrumName() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
-	void choke(ModelStackWithSoundFlags* modelStack) override;
+	void choke(ModelStackWithSoundFlags* modelStack, uint8_t triggeringChokeGroup) override;
 	void setSkippingRendering(bool newSkipping) override;
 	uint8_t* getModKnobMode() override;
 	void drumWontBeRenderedForAWhile() override;

@@ -79,7 +79,9 @@ public:
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 	virtual std::string getDrumName() = 0;
-	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
+	// modelStack can be NULL if you really insist. triggeringChokeGroup is the choke group of the
+	// drum whose note-on caused this broadcast; only relevant to overrides that actually choke.
+	virtual void choke(ModelStackWithSoundFlags* modelStack, uint8_t triggeringChokeGroup) {}
 
 	void writeMIDICommandsToFile(Serializer& writer);
 	void writeDrumTagsToFile(Serializer& writer);
