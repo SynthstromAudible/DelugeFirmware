@@ -118,7 +118,8 @@ params::Kind kindOf(const std::optional<deluge::plugin::ParamId>& param) {
 
 /// The runtime index of a performance param in a global effectable's unpatched set, or kNoParamID.
 int32_t indexOf(const std::optional<deluge::plugin::ParamId>& param) {
-	return param ? static_cast<int32_t>(*deluge::host_chain::runtime_index(*param)) : static_cast<int32_t>(kNoParamID);
+	return param ? static_cast<int32_t>(*deluge::host_chain::find_runtime_index(*param))
+	             : static_cast<int32_t>(kNoParamID);
 }
 
 /// The performance param a runtime (kind, index) names, if it is a global effectable's.

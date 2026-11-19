@@ -3,8 +3,8 @@
 /// @brief The declarative menu data model: `Node`, `Binding`,
 ///        `ParamRef`, and the `constexpr` builders that assemble a menu tree as plain data.
 ///
-/// @note **This header is model-free and host-testable.** Its only model include is
-///       `plugin-api/types/param_kind.h`, for `plugin::ParamKind`. Nothing here reaches into `gui/`: l10n string ids
+/// @note **This header is model-free and host-testable.** None of its includes is a model header: they are the neutral
+///       libraries' param ids and kinds and the UI toolkit's. Nothing here reaches into `gui/`: l10n string ids
 ///       are carried as plain `uint16_t` rather than `l10n::String`, so a caller resolves them
 ///       through whatever string table it likes. `MenuContext` and `MenuState` are forward
 ///       declared only -- their definitions belong to later tasks (`context.h`, the interpreter's
@@ -20,12 +20,12 @@
 #include "instruments/deluge/params.h"
 #include "plugin-api/types/param_kind.h"
 #include "scenes/bind/target.h"
-#include "synth/modulation/cable.h" // CustomItem::learn_descriptor -- returned by value
-#include "synth/modulation/patch_source.h"
-#include "ui/core/frame_context.h"   // CustomItem::owned_input
-#include "ui/grid/frame.h"           // CustomItem::source_blink
-#include "ui/oled/column_drawings.h" // DrawColumn
-#include "ui/oled/columns.h"         // ArtColumn
+#include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
+#include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`
+#include "ui/core/frame_context.h"         // CustomItem::owned_input
+#include "ui/grid/frame.h"                 // CustomItem::source_blink
+#include "ui/oled/column_drawings.h"       // DrawColumn
+#include "ui/oled/columns.h"               // ArtColumn
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -57,6 +57,8 @@ struct Result;
 
 namespace deluge::scenes::menu {
 
+/// The patch source type, as `source_press` and `source_blink` take it; this namespace holds the menu's nodes, which
+/// name sources unqualified.
 using deluge::synth::PatchSource;
 
 /// @brief What a `Node` is: which builder made it, and (with `Hint`) which widget renders it.

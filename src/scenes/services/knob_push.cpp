@@ -451,7 +451,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
-		const std::optional<uint8_t> index = host_chain::runtime_index(id);
+		const std::optional<uint8_t> index = host_chain::find_runtime_index(id);
 		return index ? params::getParamDisplayName(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
 		                                           fx.filter.hpf_mode)
 		             : std::string{};

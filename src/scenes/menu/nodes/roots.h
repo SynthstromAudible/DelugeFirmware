@@ -13,9 +13,10 @@
 /// unpatched params both start after the shared ones, so the global filter frequency and the sound's portamento are the
 /// *same integer* in two different numbering spaces -- only `ParamRef::kind` separates them. A page whose params are a
 /// host chain's therefore needs its own nodes, carrying `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared**
-/// param (the `UnpatchedShared` enum of `modulation/params/param.h` -- the stutter rate, the EQ four, the sidechain
-/// shape, the arp params, the bitcrush and decimation) the id is identical on both sides and this file names the
-/// sound-editor root's node rather than declaring a second one, exactly as `sound_actions.h` names `sample0_recorder`.
+/// param (the ids both `instrument::param` and `host_chain::param` name alike -- the stutter rate, the EQ four, the
+/// compressor shape, the arp params, the bitcrush and decimation) the id is identical on both sides and this file names
+/// the sound-editor root's node rather than declaring a second one, exactly as `sound_actions.h` names
+/// `sample0_recorder`.
 ///
 /// Each legacy global below is a variable of `origin/main:src/deluge/gui/ui/menus.cpp`.
 ///
@@ -158,14 +159,14 @@ using deluge::l10n::String;
 
 inline constexpr Node global_level = param(sid(String::STRING_FOR_VOLUME_LEVEL),
                                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kVolume)},
+                                            deluge::host_chain::runtime_index(deluge::host_chain::param::kVolume)},
                                            Hint::Bar);
 inline constexpr Node global_pitch =
     param(sid(String::STRING_FOR_PITCH), {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                                          *deluge::host_chain::runtime_index(deluge::host_chain::param::kPitchAdjust)});
+                                          deluge::host_chain::runtime_index(deluge::host_chain::param::kPitchAdjust)});
 inline constexpr Node global_pan = param(
     sid(String::STRING_FOR_PAN),
-    {deluge::plugin::ParamKind::UNPATCHED_GLOBAL, *deluge::host_chain::runtime_index(deluge::host_chain::param::kPan)},
+    {deluge::plugin::ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::runtime_index(deluge::host_chain::param::kPan)},
     Hint::Pan, nullptr, 0, Scaling::Pan);
 
 /// `songMasterMenu` and `audioClipMasterMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): two legacy objects, the same
@@ -187,18 +188,18 @@ inline constexpr Node kit_clip_master =
 inline constexpr Node global_lpf_freq =
     with_column_draw(param(sid(String::STRING_FOR_FREQUENCY),
                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfFrequency)},
+                            deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfFrequency)},
                            Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_FREQUENCY)),
                      global_lpf_graph_draw);
 inline constexpr Node global_lpf_res =
     param(sid(String::STRING_FOR_RESONANCE),
           {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           *deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfResonance)},
+           deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfResonance)},
           Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_RESONANCE));
 inline constexpr Node global_lpf_morph = with_name_text(
     with_value_text(with_column_draw(param(sid(String::STRING_FOR_MORPH),
                                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfMorph)},
+                                            deluge::host_chain::runtime_index(deluge::host_chain::param::kLpfMorph)},
                                            Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH)),
                                      lpf_morph_draw),
                     lpf_morph_text),
@@ -209,20 +210,20 @@ inline constexpr Node global_lpf = submenu(sid(String::STRING_FOR_LPF), kGlobalL
 inline constexpr Node global_hpf_freq =
     with_column_draw(param(sid(String::STRING_FOR_FREQUENCY),
                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfFrequency)},
+                            deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfFrequency)},
                            Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_FREQUENCY)),
                      global_hpf_graph_draw);
 inline constexpr Node global_hpf_res =
     param(sid(String::STRING_FOR_RESONANCE),
           {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           *deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfResonance)},
+           deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfResonance)},
           Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_RESONANCE));
 inline constexpr Node global_hpf_morph = with_name_text(
     with_reverse_in_horizontal(
         with_value_text(
             with_column_draw(param(sid(String::STRING_FOR_MORPH),
                                    {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                                    *deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfMorph)},
+                                    deluge::host_chain::runtime_index(deluge::host_chain::param::kHpfMorph)},
                                    Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH)),
                              hpf_morph_draw),
             hpf_morph_text),
@@ -240,14 +241,14 @@ inline constexpr Node global_filters = submenu(sid(String::STRING_FOR_FILTERS), 
 inline constexpr Node global_delay_amount = with_column_draw(
     with_column_name(param(sid(String::STRING_FOR_AMOUNT),
                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kDelayFeedback)},
+                            deluge::host_chain::runtime_index(deluge::host_chain::param::kDelayFeedback)},
                            Hint::Bar, nullptr, sid(String::STRING_FOR_DELAY_AMOUNT)),
                      sid(String::STRING_FOR_AMOUNT_SHORT)),
     delay_amount_draw);
 inline constexpr Node global_delay_rate =
     param(sid(String::STRING_FOR_RATE),
           {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           *deluge::host_chain::runtime_index(deluge::host_chain::param::kDelayRate)},
+           deluge::host_chain::runtime_index(deluge::host_chain::param::kDelayRate)},
           Hint::Knob, nullptr, sid(String::STRING_FOR_DELAY_RATE));
 inline constexpr const Node* kGlobalDelayChildren[] = {&global_delay_amount, &delay_ping_pong, &delay_sync,
                                                        &global_delay_rate, &delay_type};
@@ -258,7 +259,7 @@ inline constexpr Node global_delay = submenu(sid(String::STRING_FOR_DELAY), kGlo
 inline constexpr Node global_reverb_amount =
     with_column_name(param(sid(String::STRING_FOR_AMOUNT),
                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kReverbAmount)},
+                            deluge::host_chain::runtime_index(deluge::host_chain::param::kReverbAmount)},
                            Hint::Bar, nullptr, sid(String::STRING_FOR_REVERB_AMOUNT)),
                      sid(String::STRING_FOR_AMOUNT_SHORT));
 inline constexpr const Node* kGlobalReverbChildren[] = {&global_reverb_amount, &reverb_room_size, &reverb_damping,
@@ -270,14 +271,14 @@ inline constexpr Node global_reverb =
 inline constexpr Node global_mod_fx_depth =
     with_name_text(with_value_text(param(sid(String::STRING_FOR_DEPTH),
                                          {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                                          *deluge::host_chain::runtime_index(deluge::host_chain::param::kModFXDepth)},
+                                          deluge::host_chain::runtime_index(deluge::host_chain::param::kModFXDepth)},
                                          Hint::Bar, param_shows::kModFxDepth, sid(String::STRING_FOR_MOD_FX_DEPTH)),
                                    mod_fx_depth_text),
                    mod_fx_depth_text);
 inline constexpr Node global_mod_fx_rate =
     param(sid(String::STRING_FOR_RATE),
           {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           *deluge::host_chain::runtime_index(deluge::host_chain::param::kModFXRate)},
+           deluge::host_chain::runtime_index(deluge::host_chain::param::kModFXRate)},
           Hint::Knob, param_shows::kModFxIsOn, sid(String::STRING_FOR_MOD_FX_RATE));
 inline constexpr const Node* kGlobalModFxChildren[] = {&mod_fx_type, &global_mod_fx_depth, &global_mod_fx_rate,
                                                        &mod_fx_feedback, &mod_fx_offset};
@@ -304,7 +305,7 @@ inline constexpr Node global_fx = submenu(sid(String::STRING_FOR_FX), kGlobalFxC
 inline constexpr Node global_sidechain_volume =
     with_column_name(param(sid(String::STRING_FOR_VOLUME_DUCKING),
                            {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                            *deluge::host_chain::runtime_index(deluge::host_chain::param::kSidechainCompressorVolume)},
+                            deluge::host_chain::runtime_index(deluge::host_chain::param::kSidechainCompressorVolume)},
                            Hint::Ducking),
                      sid(String::STRING_FOR_VOLUME_DUCKING_SHORT));
 inline constexpr const Node* kGlobalSidechainChildren[] = {&global_sidechain_volume, &sidechain_sync, &sidechain_shape,
@@ -510,7 +511,7 @@ inline constexpr Node audio_clip_transpose =
                                                        .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
                                          2),
                      {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-                      *deluge::host_chain::runtime_index(deluge::host_chain::param::kPitchAdjust)});
+                      deluge::host_chain::runtime_index(deluge::host_chain::param::kPitchAdjust)});
 /// The grid draws the clip's waveform, which a reverse turns round.
 inline constexpr Node audio_clip_reverse = with_reverse_in_horizontal(
     with_column_name(with_value_text(with_column_art(with_grid_repaint(setting_item(
@@ -650,7 +651,7 @@ inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), 
 inline constexpr Node arp_kit_rate =
     param(sid(String::STRING_FOR_RATE),
           {deluge::plugin::ParamKind::UNPATCHED_GLOBAL,
-           *deluge::host_chain::runtime_index(deluge::host_chain::param::kArpRate)},
+           deluge::host_chain::runtime_index(deluge::host_chain::param::kArpRate)},
           Hint::Knob, param_shows::kKitEffects, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));
 inline constexpr const Node* kArpBasicKitChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_kit_rate};
 inline constexpr Node arp_basic_kit = submenu(sid(String::STRING_FOR_BASIC), kArpBasicKitChildren, Layout::Horizontal,

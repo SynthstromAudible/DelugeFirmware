@@ -10,12 +10,43 @@ using deluge::plugin::ParamKind;
 // clang-format off
 describe param_predicates("which collection and id a param is, and what the knob does with it", ${
 	it("numbers a collection's index as the runtime does", _ {
-		expect(runtime_param_id(ParamKind::PATCHED, 2).value).to_equal(2U);
-		expect(runtime_param_id(ParamKind::UNPATCHED_SOUND, 12).value).to_equal(102U);
-		expect(runtime_param_id(ParamKind::UNPATCHED_GLOBAL, 0).value).to_equal(90U);
-		expect(runtime_param_id(ParamKind::NONE, 3).value).to_equal(93U);
-		expect(runtime_param_id(ParamKind::EXPRESSION, 1).value).to_equal(1U);
-		expect(param_row(ParamKind::PATCHED, runtime_param_id(ParamKind::PATCHED, -1))).to_be_null();
+		expect(runtime_param_id(ParamKind::PATCHED, 2)->value).to_equal(2U);
+		expect(runtime_param_id(ParamKind::UNPATCHED_SOUND, 12)->value).to_equal(102U);
+		expect(runtime_param_id(ParamKind::UNPATCHED_GLOBAL, 0)->value).to_equal(90U);
+		expect(runtime_param_id(ParamKind::NONE, 3)->value).to_equal(93U);
+		expect(runtime_param_id(ParamKind::EXPRESSION, 1)->value).to_equal(1U);
+	});
+
+	it("gives a patch cable's packed word and an out-of-range index no id", _ {
+		expect(runtime_param_id(ParamKind::PATCH_CABLE, 0x0102U)).not_().to_have_value();
+		expect(runtime_param_id(ParamKind::UNPATCHED_SOUND, 0xFFFFFFFFU)).not_().to_have_value();
+		expect(param_row_at(ParamKind::PATCHED, 0xFFFFFFFFU)).to_be_null();
+	});
+
+	it("names a constant id's runtime index", _ {
+		expect(static_cast<uint32_t>(runtime_index(param::kPan))).to_equal(23U);
+		expect(static_cast<uint32_t>(runtime_index(param::kRhythm))).to_equal(12U);
+		expect(static_cast<uint32_t>(runtime_index(kFirstGlobalParam))).to_equal(45U);
+	});
+
+	it("finds a row by index as it does by id", _ {
+		expect(param_row_at(ParamKind::PATCHED, 2)).to_equal(param_row(ParamKind::PATCHED, param::kVolume));
+		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 12)).to_equal(param_row(ParamKind::UNPATCHED_SOUND, param::kRhythm));
+		expect(param_row_at(ParamKind::UNPATCHED_GLOBAL, 42)).to_equal(
+		    param_row(ParamKind::UNPATCHED_GLOBAL, deluge::host_chain::param::kTempo));
+		expect(param_row_at(ParamKind::UNPATCHED_SOUND, 27)).to_be_null();
+		expect(param_row_at(ParamKind::EXPRESSION, 0)).to_be_null();
+	});
+
+	it("answers the predicates by index too", _ {
+		expect(is_arp_rhythm_at(ParamKind::UNPATCHED_SOUND, 12)).to_be_true();
+		expect(is_arp_rhythm_at(ParamKind::UNPATCHED_GLOBAL, 12)).to_be_false();
+		expect(is_stutter_rate_at(ParamKind::UNPATCHED_GLOBAL, 0)).to_be_true();
+		expect(is_stutter_rate_at(ParamKind::PATCHED, 0)).to_be_false();
+		expect(is_bipolar_at(ParamKind::PATCH_CABLE, 0x0102U)).to_be_true();
+		expect(is_bipolar_at(ParamKind::PATCHED, 23)).to_be_true();
+		expect(is_bipolar_at(ParamKind::PATCHED, 2)).to_be_false();
+		expect(is_bipolar_at(ParamKind::EXPRESSION, 0)).to_be_true();
 	});
 
 	it("finds the row of a sound's patched or unpatched param", _ {

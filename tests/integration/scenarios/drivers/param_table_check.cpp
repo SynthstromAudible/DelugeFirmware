@@ -388,7 +388,7 @@ void checkDefaults(Checker& check) {
 	deluge::model::initGlobalParams(&global);
 	for (const ParamInfo& info : deluge::host_chain::kParams) {
 		int32_t value =
-		    global.getUnpatchedParamSet()->docForParam(*deluge::host_chain::runtime_index(info.id))->current_value;
+		    global.getUnpatchedParamSet()->docForParam(*deluge::host_chain::find_runtime_index(info.id))->current_value;
 		int32_t recorded = recordedDefault(param_defaults_reference::Table::HOST_CHAIN, info.id);
 		if (value != recorded || info.default_value != recorded) {
 			std::fprintf(check.io.err, "default host-chain %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
@@ -453,7 +453,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 		          patched && slot.index < params::FIRST_GLOBAL);
 	}
 	for (const ParamInfo& info : deluge::host_chain::kParams) {
-		check.row("host-chain", info, params::Kind::UNPATCHED_GLOBAL, *deluge::host_chain::runtime_index(info.id),
+		check.row("host-chain", info, params::Kind::UNPATCHED_GLOBAL, *deluge::host_chain::find_runtime_index(info.id),
 		          false);
 	}
 	// Every runtime param has a row.

@@ -247,7 +247,6 @@ static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED 
 [[nodiscard]] bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag);
 
 bool isParamBipolar(Kind kind, int32_t paramID);
-bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner);

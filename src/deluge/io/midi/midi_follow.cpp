@@ -206,7 +206,7 @@ void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
 }
 
 void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
-	globalParamToCC[*deluge::host_chain::runtime_index(target.id)] = cc;
+	globalParamToCC[*deluge::host_chain::find_runtime_index(target.id)] = cc;
 	ccToGlobalTarget[cc] = target;
 }
 
@@ -477,7 +477,7 @@ std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) c
 			cc = soundParamToCC[target.id.value];
 		}
 	}
-	else if (std::optional<uint8_t> index = deluge::host_chain::runtime_index(target.id)) {
+	else if (std::optional<uint8_t> index = deluge::host_chain::find_runtime_index(target.id)) {
 		cc = globalParamToCC[*index];
 	}
 	if (cc == MIDI_CC_NONE) {

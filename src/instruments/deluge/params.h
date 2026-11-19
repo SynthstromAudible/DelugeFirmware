@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <span>
 #include <utility>
 
 namespace deluge::instrument {
@@ -377,44 +378,46 @@ static_assert(kParams.size() == kParamBlocks[0].count + kParamBlocks[1].count);
 /// @brief The id of the MPE X axis (pitch bend) in the host's expression space, which numbers the axes X, Y, Z.
 inline constexpr plugin::ParamId kExpressionPitchBend{0};
 
-/// @brief The id of the param at @p index of a @p kind collection, as the runtime numbers its collections: the
-/// patched set from 0, an unpatched set (an unnamed one included) from @c kUnpatchedFirstId, and a host space (MPE
-/// expression, MIDI CC) by its own index. A patch cable's index is a packed word, which is no id; it comes back
-/// unchanged.
-/// @param kind  The runtime collection kind.
-/// @param index The param's index in its collection; a negative one names no param.
-/// @return The id; for a negative @p index, one no table has.
-[[nodiscard]] constexpr plugin::ParamId runtime_param_id(plugin::ParamKind kind, int32_t index) {
-	if (index < 0) {
-		return plugin::ParamId{std::numeric_limits<uint32_t>::max()};
-	}
-	const auto at = static_cast<uint32_t>(index);
-	switch (kind) {
-	case plugin::ParamKind::NONE:
-	case plugin::ParamKind::UNPATCHED_SOUND:
-	case plugin::ParamKind::UNPATCHED_GLOBAL:
-		return plugin::ParamId{kUnpatchedFirstId + at};
-	case plugin::ParamKind::PATCHED:
-	case plugin::ParamKind::STATIC:
-	case plugin::ParamKind::MIDI:
-	case plugin::ParamKind::PATCH_CABLE:
-	case plugin::ParamKind::EXPRESSION:
-		break;
-	}
-	return plugin::ParamId{at};
-}
+/// @brief The first of the sound's global patched params: the per-voice ones have lower ids.
+inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 
-/// @brief The index the runtime keeps the param @p id at within its set: the id for a patched param, the id less
-/// @c kUnpatchedFirstId for an unpatched one. An id of no block is a contract violation, and does not compile in a
-/// constant expression.
+/// @brief The index the runtime keeps the constant param @p id at within its set: the id for a patched param, the id
+/// less @c kUnpatchedFirstId for an unpatched one. An id of no block does not compile.
 /// @param id A param id of the instrument.
 /// @return The index in its runtime set.
-[[nodiscard]] constexpr uint8_t runtime_index(plugin::ParamId id) {
+[[nodiscard]] consteval uint8_t runtime_index(plugin::ParamId id) {
 	const std::optional<RuntimeSlot> slot = runtime_slot(id);
 	if (!slot) {
 		std::unreachable();
 	}
 	return slot->index;
+}
+
+/// @brief The id of the param at @p index of a @p kind collection, as the runtime numbers its collections: the
+/// patched set from 0, an unpatched set (an unnamed one included) from @c kUnpatchedFirstId, and a host space (MPE
+/// expression, MIDI CC) by its own index.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection.
+/// @return The id, or nullopt for a patch cable, whose index is a packed word and no id, and for an index at or above
+/// @c plugin::kCableDepthFlag, which no param has (a negative index cast to unsigned is one).
+[[nodiscard]] constexpr std::optional<plugin::ParamId> runtime_param_id(plugin::ParamKind kind, uint32_t index) {
+	if (index >= plugin::kCableDepthFlag) {
+		return std::nullopt;
+	}
+	switch (kind) {
+	case plugin::ParamKind::NONE:
+	case plugin::ParamKind::UNPATCHED_SOUND:
+	case plugin::ParamKind::UNPATCHED_GLOBAL:
+		return plugin::ParamId{kUnpatchedFirstId + index};
+	case plugin::ParamKind::PATCH_CABLE:
+		return std::nullopt;
+	case plugin::ParamKind::PATCHED:
+	case plugin::ParamKind::STATIC:
+	case plugin::ParamKind::MIDI:
+	case plugin::ParamKind::EXPRESSION:
+		break;
+	}
+	return plugin::ParamId{index};
 }
 
 /// @brief The table row of the param @p id in a @p kind collection: the instrument's rows for a sound's patched set
@@ -438,6 +441,40 @@ inline constexpr plugin::ParamId kExpressionPitchBend{0};
 		break;
 	}
 	return nullptr;
+}
+
+/// @brief The table row of the param at @p index of a @p kind collection. The tables keep each block's rows dense and
+/// in id order, so the row is found at its own position without a scan; an index off that layout is looked up.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection.
+/// @return The row, or nullptr when the collection has no such param.
+[[nodiscard]] constexpr const plugin::ParamInfo* param_row_at(plugin::ParamKind kind, uint32_t index) {
+	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
+	if (!id) {
+		return nullptr;
+	}
+	std::span<const plugin::ParamInfo> table{kParams};
+	std::size_t at = index;
+	switch (kind) {
+	case plugin::ParamKind::PATCHED:
+		break;
+	case plugin::ParamKind::NONE:
+	case plugin::ParamKind::UNPATCHED_SOUND:
+		at += kParamBlocks[0].count;
+		break;
+	case plugin::ParamKind::UNPATCHED_GLOBAL:
+		table = host_chain::kParams;
+		break;
+	case plugin::ParamKind::STATIC:
+	case plugin::ParamKind::MIDI:
+	case plugin::ParamKind::PATCH_CABLE:
+	case plugin::ParamKind::EXPRESSION:
+		return nullptr;
+	}
+	if (at < table.size() && table[at].id == *id) {
+		return &table[at];
+	}
+	return param_row(kind, *id);
 }
 
 /// @brief Is the param the arpeggiator's rhythm? It is a sound's unpatched param.
@@ -471,6 +508,33 @@ inline constexpr plugin::ParamId kExpressionPitchBend{0};
 	}
 	const plugin::ParamInfo* row = param_row(kind, id);
 	return row != nullptr && row->flags.has(plugin::ParamFlag::CENTRED);
+}
+
+/// @brief @c is_arp_rhythm for the param at @p index of a @p kind collection.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection.
+/// @return True for the sound's rhythm param.
+[[nodiscard]] constexpr bool is_arp_rhythm_at(plugin::ParamKind kind, uint32_t index) {
+	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
+	return id && is_arp_rhythm(kind, *id);
+}
+
+/// @brief @c is_stutter_rate for the param at @p index of a @p kind collection.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection.
+/// @return True for the stutter rate of an unpatched set.
+[[nodiscard]] constexpr bool is_stutter_rate_at(plugin::ParamKind kind, uint32_t index) {
+	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
+	return id && is_stutter_rate(kind, *id);
+}
+
+/// @brief @c is_bipolar for the param at @p index of a @p kind collection; a patch cable's packed word needs no id.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection.
+/// @return True for a bipolar param.
+[[nodiscard]] constexpr bool is_bipolar_at(plugin::ParamKind kind, uint32_t index) {
+	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
+	return id ? is_bipolar(kind, *id) : kind == plugin::ParamKind::PATCH_CABLE;
 }
 
 } // namespace deluge::instrument

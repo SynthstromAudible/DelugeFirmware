@@ -30,37 +30,7 @@
 namespace deluge::modulation::params {
 
 const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
-	if (paramId < 0) {
-		return nullptr;
-	}
-	// The tables keep each block's rows dense and in id order, so a param's value changes (which ask for its
-	// smoothing flags) find its row at its own index without a scan; any other id is looked up.
-	const plugin::ParamId id = instrument::runtime_param_id(kind, paramId);
-	const auto index = static_cast<std::size_t>(paramId);
-	std::span<const plugin::ParamInfo> table;
-	std::size_t at = index;
-	switch (kind) {
-	case Kind::PATCHED:
-		table = instrument::kParams;
-		break;
-	case Kind::NONE:
-	case Kind::UNPATCHED_SOUND:
-		table = instrument::kParams;
-		at += instrument::kParamBlocks[0].count;
-		break;
-	case Kind::UNPATCHED_GLOBAL:
-		table = host_chain::kParams;
-		break;
-	case Kind::STATIC:
-	case Kind::MIDI:
-	case Kind::PATCH_CABLE:
-	case Kind::EXPRESSION:
-		return nullptr;
-	}
-	if (at < table.size() && table[at].id == id) {
-		return &table[at];
-	}
-	return instrument::param_row(kind, id);
+	return paramId < 0 ? nullptr : instrument::param_row_at(kind, static_cast<uint32_t>(paramId));
 }
 
 bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
@@ -69,19 +39,15 @@ bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
 }
 
 bool isParamBipolar(Kind kind, int32_t paramID) {
-	return instrument::is_bipolar(kind, instrument::runtime_param_id(kind, paramID));
+	return instrument::is_bipolar_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamArpRhythm(Kind kind, int32_t paramID) {
-	return instrument::is_arp_rhythm(kind, instrument::runtime_param_id(kind, paramID));
-}
-
-bool isParamPitchBend(Kind kind, int32_t paramID) {
-	return (kind == Kind::EXPRESSION && paramID == Expression::X_PITCH_BEND);
+	return instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamStutter(Kind kind, int32_t paramID) {
-	return instrument::is_stutter_rate(kind, instrument::runtime_param_id(kind, paramID));
+	return instrument::is_stutter_rate_at(kind, static_cast<uint32_t>(paramID));
 }
 
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner) {

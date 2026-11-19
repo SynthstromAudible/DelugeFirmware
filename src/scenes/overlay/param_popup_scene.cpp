@@ -79,8 +79,7 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	if (kind == Kind::MIDI) {
 		return knob_pos;
 	}
-	const deluge::plugin::ParamInfo* info =
-	    deluge::instrument::param_row(kind, deluge::instrument::runtime_param_id(kind, param_id));
+	const deluge::plugin::ParamInfo* info = deluge::instrument::param_row_at(kind, static_cast<uint32_t>(param_id));
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
@@ -156,8 +155,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
 int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
-	if (deluge::instrument::is_stutter_rate(kind, deluge::instrument::runtime_param_id(kind, param_id))
-	    && context.stutter_quantized && !context.stuttering) {
+	if (deluge::instrument::is_stutter_rate_at(kind, static_cast<uint32_t>(param_id)) && context.stutter_quantized
+	    && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
 		if (knob_pos < -39) {
@@ -183,7 +182,7 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		out.append(text);
 		return display_value;
 	}
-	if (deluge::instrument::is_arp_rhythm(kind, deluge::instrument::runtime_param_id(kind, param_id))) {
+	if (deluge::instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
 		const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
 		char name[12];
 		const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(display_value)].name;

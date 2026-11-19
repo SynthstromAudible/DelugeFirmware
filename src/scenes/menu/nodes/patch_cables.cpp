@@ -59,16 +59,17 @@ namespace deluge::scenes::menu::nodes {
 namespace params = deluge::modulation::params;
 using deluge::l10n::String;
 
-/// @brief The three volume params a patch cable can reach, which the user sees as one destination, and the first of
-/// the sound's global (rather than per-voice) patched params, as bytes the way the menu's walk stores a param.
-inline constexpr uint8_t kLocalVolume = static_cast<uint8_t>(deluge::instrument::param::kVolume.value);
-inline constexpr uint8_t kPostFxVolume = static_cast<uint8_t>(deluge::instrument::param::kVolumePostFX.value);
-inline constexpr uint8_t kPostReverbSendVolume =
-    static_cast<uint8_t>(deluge::instrument::param::kVolumePostReverbSend.value);
-/// The post-FX volume is the first global param: the per-voice ones come before it.
-inline constexpr uint8_t kFirstGlobal = kPostFxVolume;
-
 namespace {
+/// @brief The per-voice volume, one of the three volume params a patch cable reaches as one destination.
+constexpr uint8_t kLocalVolume = deluge::instrument::runtime_index(deluge::instrument::param::kVolume);
+/// @brief The post-FX volume, the destination that stands for the three volumes.
+constexpr uint8_t kPostFxVolume = deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostFX);
+/// @brief The post-FX volume's reverb send, the third of the three volume params.
+constexpr uint8_t kPostReverbSendVolume =
+    deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend);
+/// @brief The first of the sound's global patched params; the per-voice ones come before it.
+constexpr uint8_t kFirstGlobal = deluge::instrument::runtime_index(deluge::instrument::kFirstGlobalParam);
+
 /// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
 /// @return The device's default cable polarity.
 instrument::Polarity default_patch_cable_polarity() {

@@ -91,7 +91,7 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 		return static_cast<int32_t>(deluge::bridge::cableWordOf(address.id));
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
-		return deluge::host_chain::runtime_index(address.id).value_or(0);
+		return deluge::host_chain::find_runtime_index(address.id).value_or(0);
 	}
 	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
 	return slot ? slot->index : 0;
@@ -392,9 +392,8 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
 		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
 		// port.
-		out.blink_indicator(
-		    which_encoder,
-		    deluge::instrument::is_bipolar(turn.kind, deluge::instrument::runtime_param_id(turn.kind, turn.param_id)));
+		out.blink_indicator(which_encoder,
+		                    deluge::instrument::is_bipolar_at(turn.kind, static_cast<uint32_t>(turn.param_id)));
 	}
 	else {
 		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`
