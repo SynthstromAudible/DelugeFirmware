@@ -2,7 +2,7 @@
 /// @brief The boot wiring `src/scenes/registry.h`'s note asked for, driven against the real
 ///        application globals.
 ///
-/// Three settings the ported tree and the guest's `Shell` cannot read for themselves, plus the
+/// Three settings the scene library and the guest's `Shell` cannot read for themselves, plus the
 /// three services the wiring installs. This is the spec level they
 /// can be checked at: the host suite (`tests/unit/deluge/gui/shell_host_ui_lifecycle_spec.cpp`) deliberately never
 /// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
@@ -140,7 +140,7 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		const uint8_t saved = FlashStorage::shortcutsVersion;
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
-		// from the ported reset menu) and the ported settings item
+		// from the reset menu) and the settings item
 		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
 		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
 		// binary.

@@ -1,5 +1,5 @@
 /// @file
-/// @brief The automation view under the ported menu: the facts about the root UI the menu and the knobs hold, read
+/// @brief The automation view under the menu: the facts about the root UI the menu and the knobs hold, read
 ///        again as the root, or the view's editor, changes while the menu is open; and the param the view follows as
 ///        the menu moves (`dispatchMenuTransitions`).
 ///
@@ -181,7 +181,7 @@ describe automation_root_facts("the menu's root facts under the automation view"
 
 	it("follow the view into its editor, for the menu's greyout and the knobs", _ {
 		// `SoundEditor::getGreyoutColsAndRows` re-reads `automationView.inAutomationEditor()` every time
-		// (`sound_editor.cpp:497-500`): the editor greys nothing.
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the editor greys nothing.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();

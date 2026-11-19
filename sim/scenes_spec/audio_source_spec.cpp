@@ -96,7 +96,7 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 constexpr const Node* kRoots[] = {&nodes::root_audio_clip};
 
-/// `AudioInputSelector::Value`'s order (`gui/context_menu/audio_input_selector.cpp:30-40`),
+/// `AudioInputSelector::Value`'s order (`gui/context_menu/audio_input_selector.cpp`),
 /// transcribed here so the spec names rows by meaning rather than by number.
 enum : uint8_t { kOff = 0, kLeft, kRight, kStereo, kBalanced, kUsb, kMaster, kOutput, kTrack, kOptionCount };
 
@@ -439,8 +439,8 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 		expect(static_cast<int>(cm::context_menu_scene().selection().option)).to_equal(kOutput);
 		r.turn(1, 10);
 		r.shell.tick(15);
-		// `audio_input_selector.cpp:142-145`: `scrollPos = currentOption` on TRACK, so TRACK is the
-		// top of the two-row window rather than the bottom the base rule would leave it on.
+		// `AudioInputSelector::selectEncoderAction` (`audio_input_selector.cpp`): `scrollPos = currentOption` on TRACK,
+		// so TRACK is the top of the two-row window rather than the bottom the base rule would leave it on.
 		expect(static_cast<int>(cm::context_menu_scene().selection().option)).to_equal(kTrack);
 		expect(static_cast<int>(cm::context_menu_scene().selection().scroll)).to_equal(kTrack);
 	});
@@ -548,7 +548,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 
 		seed(f.output, AudioInputChannel::SPECIFIC_OUTPUT, nullptr);
 		// The fixture's only output is the `AudioOutput` itself, which `canRecordFrom` refuses
-		// (`processing/audio_output.h:109-111`), so there is nothing to record from.
+		// (`processing/audio_output.h`), so there is nothing to record from.
 		expect(std::string(d.footer(ctx, std::span{scratch}))).to_equal(std::string("No track"));
 	});
 

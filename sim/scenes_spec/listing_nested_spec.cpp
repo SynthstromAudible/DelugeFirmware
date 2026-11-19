@@ -3,7 +3,7 @@
 ///
 /// The fixture card is two levels deep only at `SETTINGS/FAVOURITES/`, and `UpLevel` needs a
 /// directory whose parent is not the root -- legacy refuses to ascend when `currentDir` has no `/`
-/// in it at all (`browser.cpp:1382`). So this example runs on its own card,
+/// in it at all (`Browser::goUpOneDirectoryLevelImpl` in `browser.cpp`). So this example runs on its own card,
 /// `tests/fixtures/scenes_spec/listing_nested` (`OUTER/A.XML`, `OUTER/INNER/B.XML`), and the rest of
 /// the seam's examples stay in `listing_spec.cpp` on the fixture card.
 
@@ -55,7 +55,8 @@ describe listing_nested("the async listing seam over a nested directory", $ {
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("OUTER"));
 		// Legacy assigns the dropped segment to `enteredText` and lists starting at it
-		// (`browser.cpp:1388`), so the folder just left is what the browser lands on.
+		// (`Browser::goUpOneDirectoryLevelImpl` in `browser.cpp`), so the folder just left is what the browser lands
+		// on.
 		expect(result->entered_text).to_equal(std::string("INNER"));
 		expect(catalogue_order()).to_equal(std::string("A.XML,INNER"));
 	});

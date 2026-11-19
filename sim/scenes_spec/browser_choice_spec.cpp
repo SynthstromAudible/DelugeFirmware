@@ -1,7 +1,7 @@
 /// @file
-/// @brief The **choice seam** (`scenes/browser/browser_scene.h`'s `Descriptor::accept` / `DeferAndWait`)
-///        and its consumer, driven through a real `Shell` and a real `ShellHostUI` over the real
-///        scene registry.
+/// @brief How a file press in the browser reaches the browser's host (`scenes/browser/browser_scene.h`'s
+///        `Descriptor::accept` / `DeferAndWait`) and the claim it requests, driven through a real `Shell` and a
+///        real `ShellHostUI` over the real scene registry.
 ///
 /// This is `menu_actions_spec.cpp`'s `menu_action_dispatch` group for the noun half of the same
 /// wall, and what is covered here matters more than usual because one legacy statement is split in
@@ -24,7 +24,7 @@
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
 /// (in `scenes/menu/nodes/sample.cpp`) opens the scene and files `MenuWalkState::pending_scene`
-/// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
+/// (`FileBrowserItem::on_focus`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment the claim's completion closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm -- `closeUI` on a guest that is not
 /// on the legacy UI stack, i.e. the index `-1` read `openPerformanceView`'s doc in
@@ -141,7 +141,7 @@ struct ScratchCard {
 constexpr std::string_view kChosenPath = "SAMPLES/OSC_A/A1.WAV";
 
 /// @brief The minimum `Display` the scenes need; `display` is null in a spec process
-///        (`hid/display/display.cpp:4`). `sample_items_spec.cpp`'s, unchanged.
+///        (`hid/display/display.cpp`). `sample_items_spec.cpp`'s, unchanged.
 struct QuietDisplay final : deluge::hid::Display {
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
@@ -852,7 +852,8 @@ describe browser_choice_target(
 
 	    it(
 	        "treats a path with no separator as a file at the card root", _ {
-		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty (`:541-543`),
+		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty
+		        // (`SampleBrowser::getCurrentFilePath` in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`),
 		        // so the inverse of an empty `currentDir` is a path with no separator in it at all.
 		        expect(split_of("A1.WAV")).to_equal(std::string{"|A1.WAV"});
 	        });
@@ -1152,11 +1153,12 @@ describe browser_choice_claim(
 
 describe browser_choice_reroot(
     "MenuScene::reroot_to_scene_opener_page", $ {
-	    // Legacy's return affordance, in the port's own terms:
-	    // `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
-	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:974-976`).
-	    // The page is `sourceMenuGroup` focused on `source0Menu`'s file selector (`gui/ui/menus.cpp:1748-1749`):
-	    // `nodes::source_group`, whose columns run across its five member pages.
+	    // Legacy's return affordance, in the port's own terms: `parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+	    // menuItemNavigationRecord[0] = parentMenuHeadingTo; navigationDepth =
+	    // 0` (the `!loadWithoutExiting` arm of `SampleBrowser::claimCurrentFile` in
+	    // `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The page is `sourceMenuGroup` focused on
+	    // `source0Menu`'s file selector (`origin/main:src/deluge/gui/ui/menus.cpp`): `nodes::source_group`, whose
+	    // columns run across its five member pages.
 	    //
 	    // @par Why the entry point is called by name here, and the claim is not run
 	    //
@@ -1170,7 +1172,7 @@ describe browser_choice_reroot(
 	    // @note The menu here is at **depth 0** on the file selector, and that is not the rig taking a
 	    //       shortcut -- it is the only shape a user can produce today. The port has no port of
 	    //       `MenuItem::allowToBeginSessionFromHorizontalMenu` (
-	    //       overridden true by `FileSelector`, `gui/menu_item/file_selector.h:35`), so a select
+	    //       overridden true by `FileSelector`, `origin/main:src/deluge/gui/menu_item/file_selector.h`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
 	    //       notification instead of opening the browser (`MenuScene::render_horizontal`'s
 	    //       `column_press`, and `ui/oled/columns.cpp` behind it). The shortcut pad is what is
@@ -1207,13 +1209,13 @@ describe browser_choice_reroot(
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
 
-		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`), the chain's `sourceMenuGroup` ...
+		        // Main's `SampleBrowser::claimCurrentFile` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
+		        // sets the sound editor up on `parentMenuHeadingTo`, the chain's `sourceMenuGroup` ...
 		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
-		        // ... and `navigationDepth = 0` (`:1118`). This is the assertion the "one extra BACK
-		        // press" was: a re-root that left the page one level in would still satisfy the line
-		        // above.
+		        // ... at depth 0 (`soundEditor.setup(getCurrentClip(), parentMenu)`). This is the assertion the "one
+		        // extra BACK press" was: a re-root that left the page one level in would still satisfy the line above.
 		        expect(menu_scene().state().depth).to_equal(0);
-		        // ... and `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`), which is a
+		        // ... and `parentMenu->focusChild(menuItem)` in the same function, which is a
 		        // separate failure mode: the right page with the wrong column focused is exactly what
 		        // legacy's `focusChild` exists to prevent.
 		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source_group, nodes::file0_selector);
@@ -1231,11 +1233,12 @@ describe browser_choice_reroot(
 
 	    it(
 	        "spends the recorded opener, so a second claim does not re-root a menu that has moved on", _ {
-		        // The control leg, varying exactly one thing against the example above: the entry point
-		        // is called a second time, with everything else identical. Legacy clears its pair at the
-		        // same point (`gui/ui/browser/sample_browser.cpp:979-980`), and the reason is the same
-		        // -- the pair belongs to one trip through the browser, and a stale one re-roots a menu
-		        // the user has since navigated somewhere else entirely.
+		        // The control leg, varying exactly one thing against the example above: the entry point is called a
+		        // second time, with everything else identical. Legacy clears its pair at the same point
+		        // (`SampleBrowser::exitAndNeverDeleteDrum` in
+		        // `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), and the reason is the same -- the pair
+		        // belongs to one trip through the browser, and a stale one re-roots a menu the user has since navigated
+		        // somewhere else entirely.
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;

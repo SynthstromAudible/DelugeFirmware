@@ -15,7 +15,8 @@
 #include "support/spec_main.h"
 
 // getErrorMessage has external linkage (hid/display/display.cpp) but no header declares it -- oled.cpp
-// (hid/display/oled.cpp:1171) forward-declares it the same way, in the same namespace, to call it.
+// (hid/display/oled.cpp, ahead of `OLED::displayError`) forward-declares it the same way, in the same namespace, to
+// call it.
 namespace deluge::hid::display {
 extern std::string_view getErrorMessage(Error error);
 }
@@ -24,9 +25,9 @@ using namespace deluge;
 
 // clang-format off
 describe scenes_l10n_bridge("scenes::l10n_bridge", $ {
-	// The real app selects a language during boot (OLED()'s constructor, hid/display/oled.h:39,
+	// The real app selects a language during boot (OLED()'s constructor, hid/display/oled.h,
 	// runs once the app constructs its Display) -- this spec calls l10n::getView directly without
-	// booting the app, so `l10n::chosenLanguage` is otherwise left null (l10n.cpp:6) and dereferencing
+	// booting the app, so `l10n::chosenLanguage` is otherwise left null (l10n.cpp) and dereferencing
 	// it segfaults. Pick the built-in English table the same way OLED() does.
 	before_all([] { l10n::chosenLanguage = &l10n::built_in::english; });
 

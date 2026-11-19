@@ -37,11 +37,13 @@ namespace bindings = deluge::scenes::menu::bindings;
 
 namespace {
 
-/// @brief An ordinary patched param -- legacy `patched_param::Integer` (`patched_param/integer.cpp`).
+/// @brief An ordinary patched param -- legacy `patched_param::Integer`
+/// (`origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`).
 constexpr Node lpf_freq_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
                                            {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
 
-/// @brief An unpatched (sound) param -- legacy `menu_item::UnpatchedParam` (`unpatched_param.cpp`).
+/// @brief An unpatched (sound) param -- legacy `menu_item::UnpatchedParam`
+/// (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`).
 constexpr Node bass_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
                                        {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS});
 
@@ -106,7 +108,7 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 		expect(d.has(deluge::notify::Dirty::ModTarget)).to_be_true();
 		// The pad half of `AutomationView::possiblyRefreshAutomationEditorGrid`'s
 		// `uiNeedsRendering(&automationView)`: `ParamAutomation`/`ModTarget` reach only `r.oled`
-		// (`notify_drain_mapping.cpp:20`), so without GridMain the automation grid would stop
+		// (`legacy_redraw_for` in `notify_drain_mapping.cpp`), so without GridMain the automation grid would stop
 		// repainting.
 		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_true();
 	});
@@ -229,10 +231,10 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
 
-		const deluge::modulation::KnobTarget patched = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ); // patched_param.cpp:51-55
+		const deluge::modulation::KnobTarget patched = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ); // `PatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`)
 		expect(deluge::scenes::spec::learns_as(bindings::learn_target(lpf_freq_node, ctx), patched, ctx)).to_be_true();
 
-		const deluge::modulation::KnobTarget unpatched = deluge::modulation::knobParam(params::UNPATCHED_BASS + params::UNPATCHED_START); // unpatched_param.cpp:88-92
+		const deluge::modulation::KnobTarget unpatched = deluge::modulation::knobParam(params::UNPATCHED_BASS + params::UNPATCHED_START); // `UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)
 		expect(deluge::scenes::spec::learns_as(bindings::learn_target(bass_node, ctx), unpatched, ctx)).to_be_true();
 
 		expect(bindings::learn_target(toggle_node, ctx).has_value()).to_be_false();
