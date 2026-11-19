@@ -6,6 +6,7 @@
 ///        process's globals with.
 
 #include "gui/ui/menu_view_of.h"
+#include "model/edits/setting_edit.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -114,6 +115,7 @@ struct Rig {
 		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
 		source->state_->osc_type = OscType::SQUARE;
 		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		deluge::edits::recordRanges(*sound, 0); // the range made here is the record's, as a gesture records it
 	}
 
 	MenuContext ctx() {

@@ -268,17 +268,9 @@ doChangeType:
 	}
 
 	oscType = newType;
-	if (state_ != nullptr) {
-		state_->osc_type = newType;
-	}
 	if (oscType == OscType::DX7) {
 		ensureDxPatch();
 	}
-	seedDocDxPatch(); // reflect the (possibly newly-created) patch into the record
-	// changeType() (above, when the element size actually changed) rebuilds every range as the new variant type,
-	// preserving only topNote: reflect the whole list into the record. Also covers the getOrCreateFirstRange()
-	// insert-from-empty path (redundant with its own reseed, but harmless).
-	seedDocRanges();
 	reconcileLiveInputs();
 }
 
