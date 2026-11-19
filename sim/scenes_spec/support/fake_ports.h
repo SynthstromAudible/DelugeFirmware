@@ -1,8 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief `HeldPorts`: the host's ports with the UI and card facts a spec holds in its own hand, for an example that
-///        needs a state the host cannot be put into on demand (a sample load running, a popup up, a note auditioned).
+/// @brief `HeldPorts` and `CablesOverSound`: the host's ports with the UI and card facts, or a sound's patch cables, a
+///        spec holds in its own hand, for an example that needs a state the host cannot be put into on demand (a
+///        sample load running, a popup up, a note auditioned, a sound with chosen cables).
 
 #include "scenes/bind/ports/ports.h"
 #include "scenes/menu/bind_host.h"

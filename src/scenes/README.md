@@ -388,7 +388,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (`RuntimeFacts::dx7_engine_enabled`):
+* **The parameter page has its own pads** while the DX7 engine feature is on (`UiFacts::dx7_engine_enabled`):
   `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
   first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
   the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
@@ -458,7 +458,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   `SampleBrowser::timerCallback` does: a popup, SAMPLES for a kit's lone drum, or LOAD FILES for a
   synth, answered once at the `next_timer` deadline. A folder menu's accept asks the browser host for the import and
   stays up; the host's completion ends it (`BrowserScene::long_press_done`).
-  While a sample load runs (`RuntimeFacts::sample_load_in_flight`) the browser refuses every button
+  While a sample load runs (`CardFacts::sample_load_in_flight`) the browser refuses every button
   and key, as legacy's gate does.
 * **The preview.** Wherever `main`'s `SampleBrowser` calls `previewIfPossible` (a folder's listing
   landing, a move, a typed search that lands on another file) and on leaving, the sample browser asks
@@ -533,7 +533,7 @@ the voices (`Waveforms::play_position`). A vertical turn reaches the clip view b
 (`MenuScene::shortcut_jump`), leaving the editor for that item's page, any item even over the automation view. With
 the automation view as the root, SHIFT + (0,6) and (0,7) are the editor's own presses. The audition column is the
 host's (`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
-(`RuntimeFacts::auditioning`).
+(`UiFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
 

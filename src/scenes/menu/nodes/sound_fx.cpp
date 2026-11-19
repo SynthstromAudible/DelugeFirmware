@@ -74,15 +74,12 @@ bool show_use_song(const MenuContext& ctx) {
 
 /// @brief The stutter the context edits, as its record holds it: its sound's, else its chain's.
 std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) {
-	if (ctx.facts == nullptr) {
-		return std::nullopt;
-	}
 	if (ctx.addresses.slot) {
 		const deluge::instrument::SoundState* state =
 		    ctx.ports.sound != nullptr ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
 	}
-	if (ctx.addresses.chain) {
+	if (ctx.addresses.chain && ctx.facts != nullptr) {
 		const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
 		return effects != nullptr ? std::optional{effects->stutter} : std::nullopt;
 	}

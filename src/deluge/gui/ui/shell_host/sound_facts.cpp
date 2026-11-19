@@ -47,6 +47,8 @@ bool clipPlaysSlot(const ::Clip& clip, project::SlotAddress slot) {
 	return currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 }
 
+static_assert(kMaxNumPatchCables <= scenes::bind::kMaxCables);
+
 /// The sound facts, answered from the running app: each sound is found by its slot in the current song.
 class HostSoundFacts final : public scenes::bind::SoundFacts {
 public:

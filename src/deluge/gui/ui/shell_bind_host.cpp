@@ -82,8 +82,6 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
-#include "modulation/patch/patch_cable.h"
-#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
@@ -345,8 +343,6 @@ private:
 	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
 }
-
-static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
 /// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
 /// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which main's

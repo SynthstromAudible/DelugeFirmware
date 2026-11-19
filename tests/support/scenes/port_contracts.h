@@ -36,7 +36,8 @@ namespace deluge::scenes::bind::contract {
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.
 [[nodiscard]] inline bool unknown_slot_is_empty(const SoundFacts& sound, project::SlotAddress nowhere) {
-	return sound.sound_state(nowhere) == nullptr && sound.loaded_sources(nowhere) == 0
+	const project::ParamAddress param{.owner = project::OwnerId::instrument(nowhere.id)};
+	return sound.sound_state(nowhere) == nullptr && sound.cables(param).empty() && sound.loaded_sources(nowhere) == 0
 	       && !sound.default_range(nowhere, 0).has_value() && !sound.range_identity(nowhere, 0, 0).has_value()
 	       && !sound.kit_takes_whole_folder(nowhere);
 }
