@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -209,7 +210,7 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 /// @return The packed cable word.
 [[nodiscard]] constexpr uint32_t cable_word_of(plugin::ParamId depth) {
 	std::array<uint32_t, 3> sources{0xFFu, 0xFFu, 0xFFu};
-	size_t n = 0;
+	std::size_t n = 0;
 	plugin::ParamId at = depth;
 	while (const std::optional<CableRoute> route = cable_route(at)) {
 		sources[n++] = static_cast<uint32_t>(route->source);
@@ -220,8 +221,17 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 	return (at.value & 0xFFu) | sources[0] << 8 | sources[1] << 16 | sources[2] << 24;
 }
 
+/// @brief The depth id of the cable from @p from to @p destination.
+/// @param from        The cable's source.
+/// @param destination The cable's destination descriptor.
+/// @return The cable's depth id.
+[[nodiscard]] constexpr plugin::ParamId cable_depth_of(PatchSource from, synth::CableTarget destination) {
+	return cable_depth_of_word(destination.add_source(from).word);
+}
+
 /// @brief The id of what a mod knob's descriptor word points at: a param by its flat index (a patched param's own id,
-/// an unpatched one 90 on from its runtime index: the instrument's id either way), a cable by its depth id.
+/// an unpatched one's `kUnpatchedFirstId` (params.h) on from its runtime index: the instrument's id either way), a
+/// cable by its depth id.
 /// @param word The knob's descriptor word, not the null one.
 /// @return The param's or the cable's depth id.
 [[nodiscard]] constexpr plugin::ParamId knob_param_of(synth::CableTarget word) {

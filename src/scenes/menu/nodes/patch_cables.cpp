@@ -137,17 +137,12 @@ void append_cable_value(char* out, size_t& len, size_t cap, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Model access.
 
-/// @brief The depth id of the cable from @p from to @p destination.
-deluge::plugin::ParamId cable_depth(PatchSource from, deluge::synth::CableTarget destination) {
-	return deluge::instrument::cable_depth_of_word(destination.add_source(from).word);
-}
-
 /// @brief The address of the cable from @p from to @p destination on the sound @p ctx edits, or nullopt where it edits
 ///        none.
 std::optional<deluge::project::ParamAddress> cable_address(const MenuContext& ctx, PatchSource from,
                                                            deluge::synth::CableTarget destination) {
 	const deluge::scenes::bind::Target cable{.kind = deluge::scenes::bind::Target::Kind::CABLE,
-	                                         .param = cable_depth(from, destination)};
+	                                         .param = deluge::instrument::cable_depth_of(from, destination)};
 	return deluge::scenes::bind::param_address(cable, ctx.addresses);
 }
 
@@ -196,7 +191,7 @@ CableEnds ends_of(deluge::plugin::ParamId depth) {
 /// @brief The engine's cable from @p from to @p destination on the sound @p ctx edits, or nullopt.
 std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx, PatchSource from,
                                                           deluge::synth::CableTarget destination) {
-	const deluge::plugin::ParamId depth = cable_depth(from, destination);
+	const deluge::plugin::ParamId depth = deluge::instrument::cable_depth_of(from, destination);
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
 		if (cable.depth == depth) {
 			return cable;

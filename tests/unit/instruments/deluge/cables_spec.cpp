@@ -62,8 +62,9 @@ describe cables("the Deluge instrument's patch-cable words and depth ids", ${
 	});
 
 	it("reads the depth id of a packed cable word, one source byte per level and 0xFF for none", _ {
-		// the word of LFO1 -> pitch (25): 25 | 0 << 8, no further sources
+		// pitch (25) itself, no sources
 		expect(cable_depth_of_word(0xFFFF'FF19u).value).to_equal(25u);
+		// LFO1 (0) onto pitch: 25 | 0 << 8
 		expect(cable_depth_of_word(0xFFFF'0019u).value).to_equal(0x4000'0119u);
 		// envelope2 (4) onto that depth: 25 | 0 << 8 | 4 << 16
 		expect(cable_depth_of_word(0xFF04'0019u).value).to_equal(0x4001'4119u);
@@ -78,9 +79,17 @@ describe cables("the Deluge instrument's patch-cable words and depth ids", ${
 		expect(cable_word_of(ParamId{0x40D1'4119u})).to_equal(0x0C04'0019u);
 	});
 
+	it("names the depth id of the cable from a source onto a destination", _ {
+		using deluge::synth::CableTarget;
+		expect(cable_depth_of(PatchSource::LFO_GLOBAL_1, CableTarget::param(25)).value).to_equal(0x4000'0119u);
+		expect(cable_depth_of(PatchSource::ENVELOPE_1, CableTarget::depth_of(25, PatchSource::LFO_GLOBAL_1)).value)
+		    .to_equal(0x4001'4119u);
+	});
+
 	it("names the param a mod knob's descriptor word points at, by the instrument's id", _ {
 		using deluge::synth::CableTarget;
-		// a patched param is its own index, an unpatched one is 90 on from its runtime index: the id is the index
+		// a patched param is its own index, an unpatched one kUnpatchedFirstId (90) on from its runtime index: the id is
+		// the index
 		expect(knob_param_of(CableTarget::param(25)).value).to_equal(25u);
 		expect(knob_param_of(CableTarget::param(91)).value).to_equal(91u);
 		// a cable is its depth id
