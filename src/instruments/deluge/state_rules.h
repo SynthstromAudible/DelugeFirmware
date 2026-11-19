@@ -59,4 +59,28 @@ namespace deluge::instrument {
 /// @brief @p state set up as a blank new synth, a DX7 one when @p dx (its first oscillator the init voice).
 [[nodiscard]] FlatSoundState as_blank_synth(FlatSoundState state, bool dx);
 
+/// @brief @p state with its engine set to @p mode, as with_mode() sets it: what leaves is kept for a switch back, what
+/// arrives comes from what was kept (an FM switch carries each slot's pitch to its carrier and back).
+[[nodiscard]] SoundState switch_engine(SoundState state, SynthMode mode);
+
+/// @brief @p state with slot @p id's oscillator set to @p type, as with_osc_type() sets it; what the new kind does not
+/// hold is kept for a switch back.
+[[nodiscard]] SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
+                                       bool held_are_wavetable);
+
+/// @brief with_loop_mode() on a sound's record.
+[[nodiscard]] SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode);
+
+/// @brief with_song_defaults() on a sound's record.
+[[nodiscard]] SoundState with_song_defaults(SoundState state, const effects::SongDefaults& defaults);
+
+/// @brief as_sample_sound() on a sound's record.
+[[nodiscard]] SoundState as_sample_sound(SoundState state);
+
+/// @brief as_default_synth() on a sound's record.
+[[nodiscard]] SoundState as_default_synth(SoundState state);
+
+/// @brief as_blank_synth() on a sound's record.
+[[nodiscard]] SoundState as_blank_synth(SoundState state, bool dx);
+
 } // namespace deluge::instrument

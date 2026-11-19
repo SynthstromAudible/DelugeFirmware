@@ -57,6 +57,18 @@ struct Recall {
 	bool operator==(const Recall&) const = default;
 };
 
+/// @brief The retrigger a file's 32-bit phase word means: none for 0xFFFFFFFF (free-running).
+[[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);
+
+/// @brief The kind state slot source @p full plays, its phase word @p phase; what the kind does not hold goes to
+/// @p kept and @p kept_retrigger (the fields the kind holds are left at their defaults there).
+[[nodiscard]] synth::SlotState pack_slot(const SourceState& full, uint32_t phase, SourceState& kept,
+                                         synth::Retrigger& kept_retrigger);
+
+/// @brief The slot source a kind state and what it keeps are, its phase word into @p phase.
+[[nodiscard]] SourceState unpack_slot(const synth::SlotState& slot, const SourceState& kept,
+                                      const synth::Retrigger& kept_retrigger, uint32_t& phase);
+
 /// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, 0xFFFFFFFF for free-running.
 [[nodiscard]] uint32_t phase_word(const synth::Retrigger& retrigger) noexcept;
 

@@ -19,6 +19,7 @@
 
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
+#include "instruments/deluge/state_rules.h"
 
 #include <array>
 #include <cstddef>
@@ -136,6 +137,51 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 	                                .output_midi_channel = flat.output_midi_channel,
 	                                .output_midi_note_for_drum = flat.output_midi_note_for_drum})) {
 		return "host_fields";
+	}
+	return {};
+}
+
+/// @brief The first rule on which the record's native form and the flat oracle disagree for @p flat; empty where none
+/// does: every engine switch, every oscillator kind on each slot (with the held ranges of either kind), every loop
+/// mode, and the setup transforms.
+[[nodiscard]] inline std::string rule_difference(const instrument::FlatSoundState& flat) {
+	namespace in = instrument;
+	const in::SoundState record = flat;
+	for (const in::SynthMode mode : {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM}) {
+		if (!(in::switch_engine(record, mode) == in::SoundState(in::with_mode(flat, mode)))) {
+			return "switch_engine";
+		}
+	}
+	const in::OscType kinds[] = {in::OscType::SINE,      in::OscType::SAW,     in::OscType::SUPERSAW,
+	                             in::OscType::WAVETABLE, in::OscType::SAMPLE,  in::OscType::DX7,
+	                             in::OscType::INPUT_L,   in::OscType::INPUT_R, in::OscType::INPUT_STEREO};
+	for (size_t s = 0; s < 2; s++) {
+		const auto id = static_cast<in::SourceId>(s);
+		for (const in::OscType type : kinds) {
+			for (const bool wavetable : {false, true}) {
+				if (!(in::switch_source(record, id, type, flat.sources[s].ranges, wavetable)
+				      == in::SoundState(in::with_osc_type(flat, id, type, flat.sources[s].ranges, wavetable)))) {
+					return "switch_source";
+				}
+			}
+		}
+		for (const in::SampleRepeatMode mode : {in::SampleRepeatMode::CUT, in::SampleRepeatMode::ONCE,
+		                                        in::SampleRepeatMode::LOOP, in::SampleRepeatMode::STRETCH}) {
+			if (!(in::with_loop_mode(record, id, mode) == in::SoundState(in::with_loop_mode(flat, id, mode)))) {
+				return "with_loop_mode";
+			}
+		}
+	}
+	if (!(in::as_sample_sound(record) == in::SoundState(in::as_sample_sound(flat)))) {
+		return "as_sample_sound";
+	}
+	if (!(in::as_default_synth(record) == in::SoundState(in::as_default_synth(flat)))) {
+		return "as_default_synth";
+	}
+	for (const bool dx : {false, true}) {
+		if (!(in::as_blank_synth(record, dx) == in::SoundState(in::as_blank_synth(flat, dx)))) {
+			return "as_blank_synth";
+		}
 	}
 	return {};
 }

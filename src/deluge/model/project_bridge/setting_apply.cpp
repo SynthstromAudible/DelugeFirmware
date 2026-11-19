@@ -348,7 +348,7 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 		return std::nullopt;
 	}
 	if (path == "mode") {
-		return instrument::with_mode(*sound.boundState(), instrument::parse_synth_mode(value.str()));
+		return instrument::switch_engine(*sound.boundState(), instrument::parse_synth_mode(value.str()));
 	}
 	std::string_view rest;
 	const int32_t s = oscillatorOf(path, rest);
@@ -363,7 +363,7 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
 	const std::vector<instrument::RangeState> held = sound.sources[s].heldRanges();
 	const bool heldAreWavetable = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
-	return instrument::with_osc_type(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held,
+	return instrument::switch_source(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held,
 	                                 heldAreWavetable);
 }
 
