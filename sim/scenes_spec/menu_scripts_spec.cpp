@@ -135,6 +135,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/views/performance_view.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -1171,10 +1172,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const MenuContext ctx =
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		// `on_focus` seeds the cursor from this mirror (`nodes/actions.cpp` `performance_editing_mode`),
-		// and the VALUE press writes it -- so it is saved and put back like any other global.
-		const PerformanceEditingMode saved_mode = menu::performance_editing_mode();
-		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		// `on_focus` seeds the cursor from the performance view's mode (`RuntimeFacts::performance_editing_mode`), so
+		// the view's two bools are put at DISABLED, and put back afterwards like any other global.
+		const bool saved_default = performanceView.defaultEditingMode;
+		const bool saved_param = performanceView.editingParam;
+		performanceView.defaultEditingMode = false;
+		performanceView.editingParam = false;
 		// From the root, for `menu_scales`' reason: the DISABLED arm's whole claim is that it ascends,
 		// and at depth 0 an ascend draws the same frame as staying put.
 		menu_scene().open(nodes::root_performance, ctx);
@@ -1194,7 +1197,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The DISABLED arm ascended, which is the half a golden alone could not distinguish from a
 		// page that merely redrew.
 		expect(menu_scene().focused()).to_equal(&nodes::root_performance);
-		menu::set_performance_editing_mode(saved_mode);
+		performanceView.defaultEditingMode = saved_default;
+		performanceView.editingParam = saved_param;
 	});
 
 	// -----------------------------------------------------------------------------------------

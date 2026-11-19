@@ -74,10 +74,9 @@
 ///     BACK press further in. **One qualification**: the recorder's identical pair is unpaid
 ///     (`nodes::AudioRecorderItem::on_focus`). Shift+select on a file does not diverge --
 ///     `BrowserScene` decides it with the press, as legacy's `editingKit() && shift` branch does.
-///  3. **`perform_editor`'s sync into `menu::performance_editing_mode()` is complete.** The four
-///     sites where `PerformanceView` moves the two mirrored bools call
-///     `syncEditingModeMirror(*this)`, and the ported item sets the mirror itself.
-///     With the writer set closed, the ported editing item and the view cannot disagree.
+///  3. **`perform_editor` shows the performance view's own mode.** It reads
+///     `RuntimeFacts::performance_editing_mode()`, which the host answers from `PerformanceView`'s two bools, so the
+///     item and the view cannot disagree.
 ///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
 ///     their `FlashStorage` assignment in the ported hook, matching the first statement of each

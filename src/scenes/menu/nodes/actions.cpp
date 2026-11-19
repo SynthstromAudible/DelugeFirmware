@@ -16,8 +16,7 @@
  */
 
 /// @file
-/// @brief The five action items and the performance-editing-mode mirror. See `actions.h` and
-///        `scenes/menu/action.h`.
+/// @brief The five action items. See `actions.h` and `scenes/menu/action.h`.
 
 #include "scenes/menu/nodes/actions.h"
 
@@ -35,27 +34,6 @@
 #include <cstdint>
 #include <string_view>
 
-namespace deluge::scenes::menu {
-
-namespace {
-/// @brief The mirror `action.h` documents. Seeded to legacy's own start-of-day state:
-///        `PerformanceView::defaultEditingMode` starts `false` in its constructor
-///        (`PerformanceView::PerformanceView`) and `focusRegained` never touches it, which
-///        `EditingMode::readCurrentValue` maps to
-///        `DISABLED` (`performance_session_view/editing_mode.h:36-38`).
-PerformanceEditingMode g_perform_mode = PerformanceEditingMode::DISABLED;
-} // namespace
-
-PerformanceEditingMode performance_editing_mode() {
-	return g_perform_mode;
-}
-
-void set_performance_editing_mode(PerformanceEditingMode mode) {
-	g_perform_mode = mode;
-}
-
-} // namespace deluge::scenes::menu
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {
@@ -64,6 +42,18 @@ using deluge::l10n::String;
 
 size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
+}
+
+/// @brief The cursor `PerformEditorItem` starts on: the performance view's mode as the host answers it, in the
+///        `PerformanceEditingMode` numbering the page's options follow. Disabled where the context binds no host.
+int16_t view_mode_cursor(const MenuContext& ctx) {
+	using bind::PerformanceEditing;
+	static_assert(static_cast<int>(PerformanceEditing::Disabled) == static_cast<int>(PerformanceEditingMode::DISABLED));
+	static_assert(static_cast<int>(PerformanceEditing::Value) == static_cast<int>(PerformanceEditingMode::VALUE));
+	static_assert(static_cast<int>(PerformanceEditing::Param) == static_cast<int>(PerformanceEditingMode::PARAM));
+	const PerformanceEditing mode =
+	    ctx.facts != nullptr ? ctx.facts->performance_editing_mode() : PerformanceEditing::Disabled;
+	return static_cast<int16_t>(mode);
 }
 
 /// @brief The node on screen, so an item -- which is handed no `Node` of its own -- can draw its own
@@ -112,20 +102,19 @@ void ActionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 // ---------------------------------------------------------------------------------------------
 // `PerformEditorItem` -- `performance_session_view::EditingMode`
 
-void PerformEditorItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	// `EditingMode::readCurrentValue` (`editing_mode.h:35-46`): the cursor starts on whatever mode
-	// the performance view is in. `Selection::beginSession` is what calls it, and `on_focus` is
-	// `beginSession` -- so the read happens here rather than every frame, which is also what stops a
-	// turn from being undone by the next render.
+void PerformEditorItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `EditingMode::readCurrentValue`: the cursor starts on the mode the performance view is in. `on_focus` is
+	// `Selection::beginSession`, which is what reads it, so the read happens here rather than every frame, and a turn
+	// is not undone by the next render.
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
-	state.list[d].cursor = static_cast<int16_t>(performance_editing_mode());
+	state.list[d].cursor = view_mode_cursor(ctx);
 	state.scroll[d] = deluge::ui::ScrollText{};
 }
 
-void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const {
+void PerformEditorItem::on_reread(const MenuContext& ctx, MenuState& state) const {
 	// `EditingMode::readCurrentValue`: the cursor is the mode the performance view is in now.
-	state.list[depth_of(state)].cursor = static_cast<int16_t>(performance_editing_mode());
+	state.list[depth_of(state)].cursor = view_mode_cursor(ctx);
 }
 
 std::array<std::string_view, 3> PerformEditorItem::option_names() {
@@ -166,8 +155,8 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 		return;
 	}
 
-	// `:55-60` -- the two bools the mirror stands in for, written on the press and nowhere else.
-	set_performance_editing_mode(mode);
+	// The request carries the mode; the dispatcher writes the performance view's two bools from it
+	// (`openPerformanceView`, `gui/ui/shell_action_dispatch.cpp`).
 	state.walk.pending_action =
 	    MenuActionRequest{.action = MenuAction::OpenPerformanceView, .arg = static_cast<uint16_t>(mode)};
 

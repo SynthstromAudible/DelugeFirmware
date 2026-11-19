@@ -80,6 +80,14 @@ enum class FlashCursor : uint8_t {
 	Slow = 2,
 };
 
+/// @brief The performance view's editing mode, numbered as `PerformanceEditingMode` (`definitions_cxx.hpp`), which this
+/// library may not include.
+enum class PerformanceEditing : uint8_t {
+	Disabled = 0, ///< not editing: the view's pads play its FX columns
+	Value = 1,    ///< editing the columns' values
+	Param = 2,    ///< editing which param each column holds
+};
+
 /// @brief The DX7 bank a `.syx` read loaded: its programs' names, as `DX7Cartridge::getProgramNames` gives them.
 struct DxCartridgeNames {
 	std::array<std::array<char, 11>, 32> names{}; ///< each program's name, NUL-terminated
@@ -172,6 +180,10 @@ public:
 	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
 	/// Slow for a host that keeps none.
 	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }
+	/// @brief The performance view's editing mode, as `EditingMode::readCurrentValue` reads it: its
+	/// `defaultEditingMode`, then its `editingParam`. The performance-editing page's cursor starts on it. Disabled for
+	/// a host with no performance view.
+	[[nodiscard]] virtual PerformanceEditing performance_editing_mode() const { return PerformanceEditing::Disabled; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

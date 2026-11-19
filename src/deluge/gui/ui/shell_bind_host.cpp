@@ -291,6 +291,14 @@ public:
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
 		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
 	}
+	[[nodiscard]] deluge::scenes::bind::PerformanceEditing performance_editing_mode() const override {
+		// `EditingMode::readCurrentValue`: `defaultEditingMode` first, then `editingParam`.
+		using deluge::scenes::bind::PerformanceEditing;
+		if (!performanceView.defaultEditingMode) {
+			return PerformanceEditing::Disabled;
+		}
+		return performanceView.editingParam ? PerformanceEditing::Param : PerformanceEditing::Value;
+	}
 	[[nodiscard]] bool popup_showing() const override {
 		// `display->hasPopup()` for the guest: its popups and notifications are scenes on its stack.
 		for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {

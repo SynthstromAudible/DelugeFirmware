@@ -208,13 +208,6 @@ UI_STACK_CALLS = (
 # * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
 #   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
 #   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type.
-# * `gui/views/performance_view.cpp` -- `syncEditingModeMirror`, the four calls into
-#   `menu::set_performance_editing_mode`. A piece of legacy state the ported menu has to display
-#   but may not read, mirrored by its writers: `performanceView.defaultEditingMode`/`editingParam`
-#   are members of a class `scenes-includes-gui` forbids, and there is no bare-`extern` escape from
-#   a class member, which is what makes the mirror the only shape available rather than the
-#   convenient one. Four call sites in one file, each writing nothing but the mirror;
-#   `scenes/menu/action.h` is the contract they answer to.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
@@ -266,7 +259,6 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/menu_view_of.h",
     "src/deluge/gui/ui/menu_view_of.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
-    "src/deluge/gui/views/performance_view.cpp",
     # The note bridge's installer. `src/scenes` may include `model/**`
     # (`src/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the

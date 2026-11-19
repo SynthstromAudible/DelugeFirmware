@@ -41,6 +41,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -374,12 +375,11 @@ MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
 	return scene().take_action();
 }
 
-/// @brief The port's transcription of `EditingMode::readCurrentValue` (`editing_mode.h:35-46`),
-///        the mapping each `set_performance_editing_mode` call site must apply.
+/// @brief The spec's transcription of main's `EditingMode::readCurrentValue`, the mapping the host's
+///        `RuntimeFacts::performance_editing_mode()` must answer.
 ///
-/// Written here rather than in the library on purpose: the library holds a *mirror*, and this is the
-/// rule that must keep it in step. The example below runs it against the real legacy item on the
-/// real `performanceView`, which is the only place the two can be compared at all.
+/// Written here rather than read from the host, so the host's answer is compared with a second copy of the rule. The
+/// "maps the performance view's two bools" example checks this copy against main's answers in the reference table.
 PerformanceEditingMode mode_from_view() {
 	if (!performanceView.defaultEditingMode) {
 		return PerformanceEditingMode::DISABLED;
@@ -390,18 +390,23 @@ PerformanceEditingMode mode_from_view() {
 	return PerformanceEditingMode::PARAM;
 }
 
+/// @brief Put `performanceView`'s two bools at the pair main's `EditingMode::selectButtonPress` leaves for @p mode
+///        (DISABLED: both false), which is what `PerformEditorItem` then reads.
+void set_view_mode(PerformanceEditingMode mode) {
+	performanceView.defaultEditingMode = mode != PerformanceEditingMode::DISABLED;
+	performanceView.editingParam = mode == PerformanceEditingMode::PARAM;
+}
+
 /// @brief Save and restore the two `performanceView` bools around an example that moves them.
 struct PerformViewGuard {
 	bool saved_default = performanceView.defaultEditingMode;
 	bool saved_param = performanceView.editingParam;
-	PerformanceEditingMode saved_mirror = menu::performance_editing_mode();
 	PerformViewGuard(const PerformViewGuard&) = delete;
 	PerformViewGuard& operator=(const PerformViewGuard&) = delete;
 	PerformViewGuard() = default;
 	~PerformViewGuard() {
 		performanceView.defaultEditingMode = saved_default;
 		performanceView.editingParam = saved_param;
-		menu::set_performance_editing_mode(saved_mirror);
 	}
 };
 
@@ -458,10 +463,8 @@ void seed_view_away_from(PerformanceEditingMode mode) {
 /// Leaves the filed request in the outbox **undrained**, deliberately: in this group the dispatcher
 /// is the only thing allowed to read it.
 void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
-	// Seed the cursor at DISABLED so the walk below is `mode` detents from 0 -- the same setup the
-	// "files OpenPerformanceView carrying the chosen mode" example uses, and for the same reason:
-	// `PerformEditorItem::on_focus` seeds the cursor from the mirror.
-	menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+	// The cursor starts at DISABLED, so the walk below is `mode` detents from 0: `PerformEditorItem::on_focus` seeds it
+	// from the view, and the caller's `seed_view_away_from` leaves `defaultEditingMode` false, which is DISABLED.
 	(void)r.open(nodes::perform_editor);
 	r.shell.tick(5);
 	for (int32_t i = 0; i < static_cast<int32_t>(mode); i++) {
@@ -758,7 +761,7 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 	return f;
 }
 
-// --- the four `PerformanceView` sites that move the mirrored bools --------------------
+// --- the `PerformanceView` gestures that move its editing mode --------------------------
 
 /// @brief A `RootUI` that claims nothing, seated UNDER `performanceView` so the two `buttonAction`
 ///        arms that `close()` have somewhere to close *to*.
@@ -784,8 +787,8 @@ PerformExitStubUI& perform_exit_stub() {
 
 /// @brief Save and restore everything OUTSIDE the two bools that this group's gestures move.
 ///
-/// `PerformViewGuard` above owns the two bools and the mirror; this owns the rest of the state the
-/// four legacy sites are reached through. Each field is named with the site that needs it:
+/// `PerformViewGuard` above owns the two bools; this owns the rest of the state the view's gestures
+/// are reached through. Each field is named with the site that needs it:
 ///
 ///   * `currentUIMode` -- the CLIP_VIEW arm tests it (`performance_view.cpp:743`), and `close()`
 ///     and `changeRootUI` both unset `TimerName::UI_SPECIFIC` on the way past.
@@ -826,36 +829,31 @@ struct PerformGestureGuard {
 	}
 };
 
-/// @brief Seat the stub root, open the real `performanceView` on top of it, put the two bools at
-///        @p default_mode / @p editing_param, and park the mirror at @p stale.
+/// @brief Seat the stub root, open the real `performanceView` on top of it, and put the two bools at
+///        @p default_mode / @p editing_param.
 ///
-/// The mirror is seeded to a value the gesture must move it OFF, and every example asserts it is
-/// sitting there before the gesture -- which is what stops a green from being a residue of the
-/// example before. There is no control leg in this group and no honest way to build one: the call
-/// under test is a statement *inside* `PerformanceView`, not a separate call the example could
-/// choose to omit the way `menu_action_open_perform`'s control omits `dispatchShellActions()`. The
-/// counterpart here is the deletion mutation.
-void enter_perform_view(bool default_mode, bool editing_param, PerformanceEditingMode stale) {
+/// Every example asserts the fact answers that seed before its gesture, so no green after the gesture is a residue of
+/// the example before.
+void enter_perform_view(bool default_mode, bool editing_param) {
 	currentUIMode = UI_MODE_NONE;
 	setRootUILowLevel(&perform_exit_stub());
 	(void)openUI(&performanceView);
 	performanceView.defaultEditingMode = default_mode;
 	performanceView.editingParam = editing_param;
-	menu::set_performance_editing_mode(stale);
 }
 
-/// @brief The mirror and `readCurrentValue`'s answer for the view as it stands, as one value.
+/// @brief The host's `RuntimeFacts::performance_editing_mode()` and `readCurrentValue`'s answer for the view as it
+///        stands, as one value.
 ///
-/// Both, deliberately, and each example compares the pair against a LITERAL mode.
-/// `performance_editing_mode() == mode_from_view()` on its own says the two agree but not on what,
-/// and stays green with `VALUE` and `PARAM` swapped on both sides -- the literal is what pins the
-/// mapping (they are easy to swap). A free function rather than two `expect` calls in a helper,
-/// because `expect` is `ItBase::expect` and only exists inside an example.
-std::array<int, 2> mirror_and_view() {
-	return {static_cast<int>(menu::performance_editing_mode()), static_cast<int>(mode_from_view())};
+/// Both, deliberately, and each example compares the pair against a LITERAL mode: the two agreeing says nothing about
+/// what they agree on, and stays green with `VALUE` and `PARAM` swapped on both sides. A free function rather than two
+/// `expect` calls in a helper, because `expect` is `ItBase::expect` and only exists inside an example.
+std::array<int, 2> fact_and_view() {
+	return {static_cast<int>(menu::host_runtime_facts().performance_editing_mode()),
+	        static_cast<int>(mode_from_view())};
 }
 
-/// @brief `mirror_and_view()`'s answer when both halves are @p mode -- the expected value.
+/// @brief `fact_and_view()`'s answer when both halves are @p mode -- the expected value.
 /// (`both` on its own is ambiguous against a name the spec headers already pull in.)
 std::array<int, 2> both_at(PerformanceEditingMode mode) {
 	return {static_cast<int>(mode), static_cast<int>(mode)};
@@ -904,7 +902,7 @@ struct ScreensaverGuard {
 /// `menu_entry_spec.cpp`'s helper, verbatim and for the same reason: `setTimer` stores
 /// `AudioEngine::audioSampleTimer + ms * 44` (`gui/ui_timer_manager.cpp:252-259`), so the arm is read
 /// back by undoing that. Nothing in this group advances the sample clock, so the read is exact rather
-/// than approximate -- `menu_action_perform_mirror` is the only group in this file that moves
+/// than approximate -- `menu_action_perform_fact` is the only group in this file that moves
 /// `audioSampleTimer`, and it runs after all of these.
 int32_t legacy_armed_ms() {
 	const Timer& t = uiTimerManager.getTimer(TimerName::SCREENSAVER);
@@ -1146,13 +1144,13 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		}
 	});
 
-	it("seeds its cursor from the mirrored mode, the way beginSession seeds from the view", _ {
+	it("seeds its cursor from the performance view's mode, as beginSession does", _ {
 		select_language();
 		PerformViewGuard guard;
 		for (const auto mode :
 		     {PerformanceEditingMode::DISABLED, PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {
 			Rig r;
-			menu::set_performance_editing_mode(mode);
+			set_view_mode(mode);
 			(void)r.open(nodes::perform_editor);
 			r.shell.tick(10);
 			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
@@ -1164,11 +1162,11 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		set_view_mode(PerformanceEditingMode::DISABLED);
 		(void)r.open(nodes::perform_editor);
 		r.shell.tick(10);
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(0);
-		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM); // changed outside the menu
+		set_view_mode(PerformanceEditingMode::PARAM); // changed outside the menu
 		scene().read_value_again();
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1179,7 +1177,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		for (const auto mode : {PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {
 			PerformViewGuard guard;
 			Rig r;
-			menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+			set_view_mode(PerformanceEditingMode::DISABLED);
 			(void)r.open(nodes::perform_editor);
 			r.shell.tick(5);
 			for (int32_t i = 0; i < static_cast<int32_t>(mode); i++) {
@@ -1192,8 +1190,9 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 			const MenuActionRequest got = scene().take_action();
 			expect(got.action).to_equal(MenuAction::OpenPerformanceView);
 			expect(static_cast<int>(got.arg)).to_equal(static_cast<int>(mode));
-			// `:55-60` -- the press is what writes the two bools legacy keeps on the view.
-			expect(static_cast<int>(menu::performance_editing_mode())).to_equal(static_cast<int>(mode));
+			// The cursor stays on the chosen mode; the dispatcher, not the press, writes the view's two bools.
+			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
+			expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::DISABLED));
 			// `:73` -- `NO_NAVIGATION`: legacy does not leave this page.
 			expect(scene().focused()).to_equal(&nodes::perform_editor);
 		}
@@ -1203,7 +1202,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		const MenuContext ctx = r.open(nodes::root_performance);
 		const int32_t index = visible_index_of(nodes::root_performance, nodes::perform_editor, ctx);
 		expect(index).to_equal(0);
@@ -1223,16 +1222,15 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 
 		expect(scene().take_action().engaged()).to_be_false();
 		expect(scene().focused()).to_equal(&nodes::root_performance);
-		// And the mirror is untouched -- legacy's DISABLED arm writes nothing either.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
+		// And the view is untouched: main's DISABLED arm writes nothing either.
+		expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
 	});
 
 	it("files nothing across twenty quiet ticks while sitting on a non-DISABLED option", _ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM);
+		set_view_mode(PerformanceEditingMode::PARAM);
 		(void)r.open(nodes::perform_editor);
 		for (uint32_t t = 0; t < 20; t++) {
 			r.shell.tick(10 + t * 10);
@@ -1649,13 +1647,13 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		// and this is the whole list: both tick points differ, and the subject alone drains after its
 		// settle tick to say that tick files nothing. That drain cannot affect what follows -- the
 		// press it would have to eat is two lines later.
-		// `GuestRig` has no encoder helper, so the cursor is placed by the mirror instead of walked:
-		// `PerformEditorItem::on_focus` seeds it from `performance_editing_mode()`,
+		// `GuestRig` has no encoder helper, so the cursor is placed by the view's mode instead of walked:
+		// `PerformEditorItem::on_focus` seeds it from `RuntimeFacts::performance_editing_mode()`,
 		// which is `EditingMode::beginSession` -> `readCurrentValue`.
 		// VALUE rather than DISABLED, because DISABLED is the arm that files nothing.
 		{
 			GuestRig control;
-			menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+			set_view_mode(PerformanceEditingMode::VALUE);
 			expect(control.open(nodes::perform_editor)).to_be_true();
 			control.ui.shell().tick(5);
 			seed_view_away_from(PerformanceEditingMode::VALUE);
@@ -1668,7 +1666,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		}
 
 		GuestRig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		expect(r.open(nodes::perform_editor)).to_be_true();
 		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
 		expect(scene().take_action().engaged()).to_be_false();
@@ -2158,9 +2156,9 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture song = spec::make_synth_song();
 		setRootUILowLevel(&sessionView);
-		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the mirror
+		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the view's mode
 		// (`scenes/menu/nodes/actions.cpp`), and DISABLED is the arm that files nothing.
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		expect(open_global_guest_on_ui_stack(nodes::perform_editor, song)).to_be_true();
 
 		(void)shellHostUI.timerCallback();                 // settle the first frame...
@@ -2186,226 +2184,202 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	});
 });
 
-describe menu_action_perform_mirror("PerformanceView -> menu::performance_editing_mode()", $ {
-	// The OTHER half of `OpenPerformanceView`. Every group above drives the port and
-	// watches legacy move; this one drives LEGACY, with no menu and no `Shell` anywhere in it, and
-	// watches the port's mirror keep up.
+describe menu_action_perform_fact("RuntimeFacts::performance_editing_mode over the real performanceView", $ {
+	// What `PerformEditorItem` reads (`menu/nodes/actions.cpp`), answered by the host from `performanceView`'s two
+	// bools (`ShellRuntimeFacts::performance_editing_mode`, `gui/ui/shell_bind_host.cpp`). The first example pins the
+	// mapping on every pair of the bools. The rest drive the view's own gestures, with no menu and no `Shell`, and
+	// check the fact follows each: `PerformanceView::buttonAction`'s BACK arm, its shift+KEYBOARD exit and cycle, and
+	// the four callers of the private `PerformanceView::releaseViewOnExit` (`buttonAction`'s CLIP_VIEW arm, its
+	// KEYBOARD press and release exits, and `padAction`'s grid-mode pad).
 	//
-	// **What is being pinned.** `scenes/menu/action.h`'s mirror is what `PerformEditorItem::on_focus`
-	// seeds its cursor from (`menu/nodes/actions.cpp`), so it is authoritative for what the menu
-	// SHOWS. It is not authoritative for the view, and `PerformanceView` moves the two bools it
-	// mirrors from four places of its own. One of
-	// them is a private helper reached from four different callers, so there are EIGHT examples
-	// below and four sync calls under them:
+	// Every gesture example asserts the two bools by name and compares `fact_and_view()` against a literal mode, so an
+	// answer with VALUE and PARAM swapped reddens.
 	//
-	//   | site | example(s) here |
-	//   |---|---|
-	//   | `PerformanceView::buttonAction`'s BACK arm | 1 |
-	//   | `buttonAction`'s shift+KEYBOARD exit (`:924-932`, the writes at `:925-926` and the call at `:928`) | 1 |
-	//   | `buttonAction`'s shift+KEYBOARD cycle (`:933-956`, the writes at `:936` and `:938` and the call at `:942`) | 2 -- it is the only site *in the view* that can produce VALUE *or* PARAM |
-	//   | `releaseViewOnExit` (`:1402-1412`, the writes at `:1405-1406` and the call at `:1411`) | 4 -- one per caller (`:748`, `:959`, `:977`, `:1092`) |
-	//
-	// **The mapping, not just the movement.** `DISABLED`/`VALUE`/`PARAM` come from the PAIR
-	// (`defaultEditingMode`, `editingParam`) under `EditingMode::readCurrentValue`
-	// (`gui/menu_item/performance_session_view/editing_mode.h:35-46`), so an example that asserted
-	// only "not DISABLED" would stay green with the two non-disabled modes swapped. Every example
-	// asserts the two bools by name AND compares `mirror_and_view()` against a literal mode.
-	//
-	// **No control leg, and why there cannot be one.** In `menu_action_open_perform` the control is
-	// the same rig minus `dispatchShellActions()`. Here the call under test is a statement inside
-	// `PerformanceView::buttonAction`/`releaseViewOnExit`; an example cannot decline to run it while
-	// still running the gesture. What plays the control's role is per-example and stated twice over:
-	// each example parks the mirror at a mode the answer is NOT and asserts it is sitting there
-	// immediately before the gesture (so no green is a residue), and each site was mutated by
-	// deletion, which is reported with the task.
-	//
-	// **`getCurrentUI()` residue.** Same as `menu_action_open_perform`'s: this group opens real UIs
-	// and `UiStackGuard`'s `nullifyUIs()` cannot put `lastUIBeforeNullifying` back. It is registered
-	// after that group for the same reason, and reads `isUIOpen`/`getRootUI` rather than
-	// `getCurrentUI` wherever it asserts about the stack.
+	// **`getCurrentUI()` residue.** Same as `menu_action_open_perform`'s: this group opens real UIs and
+	// `UiStackGuard`'s `nullifyUIs()` cannot put `lastUIBeforeNullifying` back. It is registered after that group for
+	// the same reason, and reads `isUIOpen`/`getRootUI` rather than `getCurrentUI` wherever it asserts about the stack.
 
-	it("BACK out of editing mode syncs the mirror to DISABLED", _ {
-		// `:838` -- `b == BACK && defaultEditingMode`, the arm reached only when
-		// `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` is not latched (`:830` is tested first).
+	it("answers each pair of the view's bools as main's readCurrentValue does", _ {
+		select_language();
+		PerformViewGuard guard;
+		// `{false, true}` is unreachable in main; `readCurrentValue` tests `defaultEditingMode` first, so it is
+		// DISABLED, and it is asked rather than skipped.
+		struct Case {
+			bool default_mode;
+			bool editing_param;
+			PerformanceEditingMode mode;
+		};
+		const std::array<Case, 4> cases{{{false, false, PerformanceEditingMode::DISABLED},
+		                                 {true, false, PerformanceEditingMode::VALUE},
+		                                 {true, true, PerformanceEditingMode::PARAM},
+		                                 {false, true, PerformanceEditingMode::DISABLED}}};
+		for (const Case& c : cases) {
+			performanceView.defaultEditingMode = c.default_mode;
+			performanceView.editingParam = c.editing_param;
+			expect(fact_and_view()).to_equal(both_at(c.mode));
+		}
+	});
+
+	it("BACK out of editing mode moves the fact to DISABLED", _ {
+		// `buttonAction`'s `b == BACK && defaultEditingMode` arm, reached only when
+		// `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` is not latched (that arm is tested first).
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		// The mirror is where the menu would have left it, and the view agrees -- so the assertion
-		// after the press is about the press.
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::BACK, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("shift+KEYBOARD out of param editing syncs the mirror to DISABLED", _ {
-		// `:924-932` -- the exit half of the KEYBOARD arm, guarded by
-		// `defaultEditingMode && editingParam` (`:924`).
+	it("shift+KEYBOARD out of param editing moves the fact to DISABLED", _ {
+		// The exit half of `buttonAction`'s KEYBOARD arm, guarded by `defaultEditingMode && editingParam`.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("shift+KEYBOARD into editing mode syncs the mirror to VALUE", _ {
-		// `:933-938` with `defaultEditingMode` false: `inEditingMode` is false, `editingParam` is
-		// left alone at `:935-937`, and `:938` sets `defaultEditingMode` -- which is
-		// `readCurrentValue`'s VALUE (`editing_mode.h:39-41`). The half of the cycle that ENTERS.
+	it("shift+KEYBOARD into editing mode moves the fact to VALUE", _ {
+		// The cycle half with `defaultEditingMode` false: `editingParam` is left alone and `defaultEditingMode` is set,
+		// which `readCurrentValue` answers VALUE. The half of the cycle that ENTERS.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false, PerformanceEditingMode::PARAM);
-		// A mirror that is stale in the direction that matters: PARAM is what a VALUE answer must
-		// move off, and it is also the wrong one of the two non-DISABLED modes.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 	});
 
-	it("shift+KEYBOARD again, already in value editing, syncs the mirror to PARAM", _ {
-		// The same site, the other way: `inEditingMode` is true at `:934`, so `:936` sets
-		// `editingParam` before `:938` sets `defaultEditingMode`, and the pair maps to PARAM
-		// (`editing_mode.h:42-44`). VALUE and PARAM from ONE site is what makes the swap this group's
-		// header warns about visible -- a sync that reported the wrong one of the two would redden
-		// exactly one of these two examples.
+	it("shift+KEYBOARD again, already in value editing, moves the fact to PARAM", _ {
+		// The same arm the other way: already in editing mode, `editingParam` is set before `defaultEditingMode`, and
+		// the pair is PARAM. VALUE and PARAM from one arm is what makes a swapped answer visible: it reddens exactly one
+		// of these two examples.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false, PerformanceEditingMode::VALUE);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_true();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 	});
 
-	// The four callers of `releaseViewOnExit`. The helper is private (`performance_view.h:154`), so
-	// every one of these reaches it through the gesture that calls it -- which is the point:
-	// `action.h` claimed three callers and there are four, and a sync call written into the helper
-	// has to be seen from each.
+	// The four callers of `releaseViewOnExit`. The helper is private, so each example reaches it through the gesture
+	// that calls it.
 
-	it("CLIP_VIEW out of editing mode syncs the mirror, through releaseViewOnExit", _ {
-		// `:748`, the first caller. `lastClipInstanceEnteredStartPos` is set non-negative so `:750`
-		// skips `sessionView.transitionToViewForClip()` (`:751`) -- the arm's own guard, not a stub: legacy
-		// takes that branch whenever performance view was entered from the arranger.
+	it("CLIP_VIEW out of editing mode moves the fact, through releaseViewOnExit", _ {
+		// `lastClipInstanceEnteredStartPos` is set non-negative so the CLIP_VIEW arm skips
+		// `sessionView.transitionToViewForClip()` -- the arm's own guard, not a stub: main takes that branch whenever
+		// performance view was entered from the arranger.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = 0;
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::CLIP_VIEW, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("KEYBOARD without shift syncs the mirror, through releaseViewOnExit", _ {
-		// `:959`, the second caller -- the `else` of `Buttons::isShiftButtonPressed()` at `:923`.
-		// `lastClipInstanceEnteredStartPos == -1` picks `changeRootUI(&sessionView)` (`:969`) of the
-		// three exits, which is the one the arm takes from a session-view entry.
+	it("KEYBOARD without shift moves the fact, through releaseViewOnExit", _ {
+		// The `else` of the KEYBOARD arm's `Buttons::isShiftButtonPressed()`. `lastClipInstanceEnteredStartPos == -1`
+		// picks `changeRootUI(&sessionView)` of its three exits, the one it takes from a session-view entry.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
-		// ...and it really was the exit branch, not the cycle branch above it.
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		// ...and it really was the exit branch, not the cycle branch.
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 
-	it("releasing KEYBOARD after the hold time syncs the mirror, through releaseViewOnExit", _ {
-		// `:977`, the third caller -- the "performance view was only peeked" release, gated on
-		// `timeKeyboardShortcutPress != 0` (`:973`) and on the elapsed time clearing
-		// `FlashStorage::holdTime` (`:976`). Both are set here rather than waited for.
+	it("releasing KEYBOARD after the hold time moves the fact, through releaseViewOnExit", _ {
+		// The "performance view was only peeked" release, gated on `timeKeyboardShortcutPress != 0` and on the elapsed
+		// time clearing `FlashStorage::holdTime`. Both are set here rather than waited for.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false, PerformanceEditingMode::VALUE);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
 		performanceView.timeKeyboardShortcutPress = 1;
 		AudioEngine::audioSampleTimer = 1 + static_cast<uint32_t>(FlashStorage::holdTime);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, false);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 
-	it("a grid mode pad syncs the mirror, through releaseViewOnExit", _ {
-		// `:1092`, the fourth caller -- and the one `action.h` did not list at all. Its arm is
-		// guarded by `!defaultEditingMode` (`:1057`), so unlike the other three the VIEW is already at
-		// DISABLED when the helper runs. That makes the call a no-op for a mirror that is already in
-		// step, and the only thing it can move is a mirror that is NOT -- which is exactly the state
-		// the sync call exists to prevent. So the seed here is a mirror deliberately out of step
-		// with the view, and what the example says is "this path puts it back". Stated rather than
-		// hidden: the seed is not a state legacy can reach on its own.
+	it("a grid mode pad leaves the fact at DISABLED, through releaseViewOnExit", _ {
+		// `padAction`'s grid-mode arm is guarded by `!defaultEditingMode`, so the view is already DISABLED when the
+		// helper runs; the exit must leave it there.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false, PerformanceEditingMode::PARAM);
-		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1; // `:1064` -- the session-view half
-		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // `:1081` -- the grid half
-		// Out of step by construction, and asserted as such.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
-		expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::DISABLED));
+		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false);
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1; // the session-view half
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // the grid half
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 
-		// `kDisplayWidth + 1` is the second sidebar column (`:1087`'s `else`), `GridMode::GREEN` one
-		// of the two mode pads `:1091` names.
+		// `kDisplayWidth + 1` is the second sidebar column, `GridMode::GREEN` one of its two mode pads.
 		(void)performanceView.padAction(kDisplayWidth + 1, GridMode::GREEN, 1);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 });
@@ -2599,4 +2573,4 @@ describe menu_action_reference_rows("scenes::menu actions: the reference rows", 
 
 DELUGE_SPEC(menu_actions_spec, menu_action_settings, menu_action_seam, menu_action_items, menu_action_perform,
             menu_action_dispatch, menu_action_screensaver, menu_action_open_perform, menu_action_stem_export,
-            menu_action_three_verbs, menu_action_perform_mirror, menu_action_reference_rows)
+            menu_action_three_verbs, menu_action_perform_fact, menu_action_reference_rows)

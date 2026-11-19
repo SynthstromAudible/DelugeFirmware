@@ -315,9 +315,9 @@ sound editor does for that change. The buttons and encoders the view takes from 
 the gold knobs in its editor, the horizontal and vertical turns) are forwarded by the host ahead of the shell from the
 same file, as are the sound editor's KEYBOARD, SESSION and Fill arms (`forwardMenuViewButton`); `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
 
-`nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
-calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
-mirror holds. `menu/action.h` has the writer list.
+`nodes::PerformEditorItem` shows the performance view's editing mode, which the host answers from `PerformanceView`'s
+two bools (`RuntimeFacts::performance_editing_mode`); its press files `MenuAction::OpenPerformanceView`, whose
+dispatcher writes them.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)
 

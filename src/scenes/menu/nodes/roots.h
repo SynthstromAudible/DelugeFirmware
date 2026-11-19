@@ -82,9 +82,8 @@
 ///           from (`audio_clip/specific_output_source_selector.h`).
 ///         * `audio_clip_waveform` is the marker editor (`audio_clip/sample_marker_editor.h:26`).
 ///         * `perform_editor` is a `nodes::PerformEditorItem` that renders the three-option list and files
-///           `MenuAction::OpenPerformanceView`; the mode it shows is mirrored on this side of the wall by
-///           `menu::performance_editing_mode()`, which five writers keep in step, four of them in
-///           `PerformanceView` (`action.h`).
+///           `MenuAction::OpenPerformanceView`; the mode it shows is the host's
+///           `bind::RuntimeFacts::performance_editing_mode()`.
 ///         * `active_scales` is a `nodes::ActiveScalesItem` (`nodes/scales.h`): one row per preset scale with a
 ///           checkbox, over `ui::oled::list`, which already ports the renderer legacy's own
 ///           `drawSubmenuItemsForOled` was adapted from.
