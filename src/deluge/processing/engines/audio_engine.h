@@ -49,7 +49,9 @@ class TimeStretcher;
 #include <string>
 class VoiceVector;
 class Metronome;
+namespace deluge::instrument {
 enum class Polarity : uint8_t;
+}
 struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
 class SoundDrum;
@@ -195,10 +197,10 @@ void init();
 /// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - the song and
 /// kit output stages have been folded in by the caller.
 struct PreviewVolume {
-	int32_t volumePostFX;           ///< params::GLOBAL_VOLUME_POST_FX
-	int32_t localVolume;            ///< params::LOCAL_VOLUME
-	int32_t velocityCableDepth;     ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
-	Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
+	int32_t volumePostFX;                               ///< params::GLOBAL_VOLUME_POST_FX
+	int32_t localVolume;                                ///< params::LOCAL_VOLUME
+	int32_t velocityCableDepth;                         ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
+	deluge::instrument::Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
 
 	/// The defaults the preview drum is built with: the instrument table's (Sound::initParams()) and
 	/// Sound::setupAsSample()'s.

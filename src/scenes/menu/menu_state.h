@@ -12,14 +12,11 @@
 #include "ui/core/response.h"
 #include "ui/core/state.h"
 
+#include "instruments/deluge/cables.h"
+
 #include <cstdint>
 #include <optional>
 #include <span>
-
-/// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
-///        `modulation/patch/patch_cable.h`; a scoped enum with an explicit underlying type is
-///        complete enough to store by value from its declaration alone.
-enum class Polarity : uint8_t;
 
 namespace deluge::scenes::menu {
 
@@ -165,18 +162,11 @@ struct MenuWalkState {
 	///
 	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's worth of state; here
 	/// the item is `const`, so it lives beside the rest of the page's navigation state. `on_focus` seeds it (from the
-	/// cable, or `PatchCable::getDefaultPolarity`), the render writes it, and `commit` applies it to a cable it has
-	/// just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on
-	/// the `!patch_cable_exists_` path (`PatchCableStrength::getModelStack` in
+	/// cable, or `instrument::fixed_polarity`, then the device default), the render writes it, and `commit` applies it
+	/// to a cable it has just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing
+	/// `setPatchCablePolarity` on the `!patch_cable_exists_` path (`PatchCableStrength::getModelStack` in
 	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
-	///
-	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
-	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which
-	///       the `scenes-model-stack` ratchet confines to `bindings.cpp` and `context.cpp`, and
-	///       which every translation unit that includes this header would otherwise inherit. A
-	///       scoped enum with an explicit underlying type is completely specified by its
-	///       declaration, so storing one by value needs nothing more.
-	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
+	instrument::Polarity patch_polarity = instrument::Polarity::BIPOLAR;
 	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
 	///
 	/// `mpe::DirectionSelector::whichDirection` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) and

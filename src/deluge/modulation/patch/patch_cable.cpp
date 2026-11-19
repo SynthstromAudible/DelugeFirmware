@@ -21,53 +21,21 @@
 #include <storage/flash_storage.h>
 
 Polarity stringToPolarity(const std::string_view string) {
-	if (string == "unipolar") {
-		return Polarity::UNIPOLAR;
-	}
-	if (string == "bipolar") {
-		return Polarity::BIPOLAR;
-	}
-	return Polarity::BIPOLAR; // Default to bipolar
+	return deluge::instrument::parse_polarity(string);
 }
 std::string_view polarityToString(const Polarity polarity) {
-	switch (polarity) {
-	case Polarity::UNIPOLAR:
-		return "unipolar";
-	case Polarity::BIPOLAR:
-		return "bipolar";
-	default:
-		return "bipolar";
-	}
+	return deluge::instrument::to_string(polarity);
 }
 std::string_view polarityToStringShort(const Polarity polarity) {
-	switch (polarity) {
-	case Polarity::UNIPOLAR:
-		return "UPLR";
-	case Polarity::BIPOLAR:
-		return "BPLR";
-	default:
-		return "BPLR";
-	}
+	return deluge::instrument::to_short_string(polarity);
 }
 
 bool PatchCable::hasPolarity(PatchSource source) {
-	if (source == PatchSource::Y || source == PatchSource::X) {
-		// these can't be converted so they ignore the actual setting
-		return false;
-	}
-	return true;
+	return deluge::instrument::has_polarity(source);
 }
 
 Polarity PatchCable::getDefaultPolarity(PatchSource source) {
-	if (source == PatchSource::AFTERTOUCH) {
-		// Aftertouch is stored unipolar, using bipolar here causes near zero volume with the default patch to level
-		return Polarity::UNIPOLAR;
-	}
-	if (source == PatchSource::Y || source == PatchSource::X || source == PatchSource::SIDECHAIN) {
-		// mod wheel is stored unipolar but MPE Y is bipolar, so stuck using bipolar
-		return Polarity::BIPOLAR;
-	}
-	return FlashStorage::defaultPatchCablePolarity; // Use the default polarity from flash storage
+	return deluge::instrument::fixed_polarity(source).value_or(FlashStorage::defaultPatchCablePolarity);
 }
 
 void PatchCable::setDefaultPolarity() {

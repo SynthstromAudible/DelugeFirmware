@@ -82,7 +82,7 @@
 
 #include "definitions_cxx.hpp" // PatchSource -- one of the root-level headers this layer may name
 
-#include "modulation/patch/patch_cable.h" // Polarity
+#include "instruments/deluge/cables.h"
 #include "scenes/bind/write_sink.h"
 
 #include <cstdint>
@@ -250,7 +250,7 @@ public:
 	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (MIDI, CV, or a turn
 	///        under a held Select); a cable the page makes later takes it. Restarts the cursor's blink dark, as
 	///        `updatePolarityUI`'s re-render does.
-	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
+	void set_polarity(const MenuContext& ctx, MenuState& state, instrument::Polarity polarity) const;
 
 	/// `PatchCableStrength : Automation` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): shift +
 	/// select deletes the cable's automation.
@@ -385,8 +385,9 @@ inline constexpr std::span<const Node* const> kPatchCablesChain{kPatchCablesChai
 /// @brief The request that sets the cable @p learn names (its bottom-level source to its destination) on the sound
 ///        @p ctx edits to @p menu_value, the strength page's own value; a cable it makes takes @p polarity.
 /// @return The request, or nullopt where @p ctx edits no sound.
-std::optional<deluge::scenes::bind::WriteRequest>
-cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity);
+std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx,
+                                                                deluge::synth::CableTarget learn, int32_t menu_value,
+                                                                instrument::Polarity polarity);
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///

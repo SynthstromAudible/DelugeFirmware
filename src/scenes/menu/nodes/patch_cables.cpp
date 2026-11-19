@@ -40,10 +40,11 @@
 
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/cable_acceptance.h"
+#include "instruments/deluge/cables.h"
 #include "instruments/deluge/state_access.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
-#include "modulation/patch/patch_cable.h"
+#include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 
 #include <algorithm>
@@ -53,6 +54,18 @@
 #include <string_view>
 
 namespace deluge::scenes::menu::nodes {
+
+namespace {
+/// The polarity a cable made without one takes where its source fixes none: the device's setting.
+instrument::Polarity default_patch_cable_polarity() {
+	return FlashStorage::defaultPatchCablePolarity;
+}
+
+/// The polarity a new cable from @p source takes.
+instrument::Polarity default_polarity(PatchSource source) {
+	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity());
+}
+} // namespace
 
 namespace params = deluge::modulation::params;
 using deluge::l10n::String;
@@ -603,8 +616,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	const PatchSource source = strength_source(state, which_);
 	const std::optional<deluge::scenes::bind::CableFact> existing =
 	    find_cable(ctx, source, strength_destination(state, which_));
-	state.walk.patch_polarity =
-	    existing.has_value() ? static_cast<Polarity>(existing->polarity) : PatchCable::getDefaultPolarity(source);
+	state.walk.patch_polarity = existing.has_value() ? existing->polarity : default_polarity(source);
 
 	// `Decimal::beginSession` plus `getDefaultEditPos()`
 	// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): the cursor starts on the hundredths' place.
@@ -687,14 +699,14 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see the layout
 	// block above). Below the number, which is where legacy puts it.
 	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53, deluge::gfx::oled::kTextSpacingY};
-	if (PatchCable::hasPolarity(source)) {
+	if (instrument::has_polarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}};
 		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
-		                                   state.walk.patch_polarity == Polarity::UNIPOLAR ? 1 : 0);
+		                                   state.walk.patch_polarity == instrument::Polarity::UNIPOLAR ? 1 : 0);
 	}
 	else {
 		// A param with no polarity shows only the default one, full width, uninverted.
-		const std::string_view only = polarityToString(PatchCable::getDefaultPolarity(source));
+		const std::string_view only = instrument::to_string(default_polarity(source));
 		deluge::ui::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
 		                                   kNoPolarityWidth, -1);
 	}
@@ -707,9 +719,9 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// and uses the press up so its release opens nothing. This page is never a horizontal column here (a column draws
 	// through `present_column`), which is legacy's `!isInHorizontalMenu()`.
 	const int8_t turn = f.turn();
-	const bool polarity_turn = turn != 0 && f.select_held() && PatchCable::hasPolarity(source);
+	const bool polarity_turn = turn != 0 && f.select_held() && instrument::has_polarity(source);
 	if (polarity_turn) {
-		set_polarity(ctx, state, turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
+		set_polarity(ctx, state, turn > 0 ? instrument::Polarity::UNIPOLAR : instrument::Polarity::BIPOLAR);
 		state.tick.use_up_select = true;
 	}
 
@@ -728,7 +740,8 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	}
 }
 
-void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const {
+void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& state,
+                                          instrument::Polarity polarity) const {
 	// `polarity_in_the_ui_` first, then `setPatchCablePolarity` (main's `PatchCableStrength::buttonAction`), which is a
 	// no-op while no cable exists -- `commit` makes a new cable with it.
 	state.walk.patch_polarity = polarity;
@@ -741,7 +754,7 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 		if (address) {
 			(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
 			                       .where = ctx.addresses,
-			                       .polarity = static_cast<deluge::instrument::Polarity>(polarity),
+			                       .polarity = polarity,
 			                       .polarity_only = true});
 		}
 	}
@@ -762,8 +775,8 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	// outside a horizontal menu (`PatchCableStrength::getModelStack`).
 	const Node* focused = focused_of(state);
 	const bool in_horizontal = focused != nullptr && renders_horizontal(*focused, ctx);
-	const Polarity polarity =
-	    in_horizontal ? PatchCable::getDefaultPolarity(strength_source(state, which_)) : state.walk.patch_polarity;
+	const instrument::Polarity polarity =
+	    in_horizontal ? default_polarity(strength_source(state, which_)) : state.walk.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, polarity);
 	if (request && ctx.sink != nullptr) {
@@ -779,10 +792,11 @@ deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell
 	using deluge::ui::shell::ButtonId;
 	if (event.kind != deluge::ui::shell::UiEvent::Kind::Button || !event.on
 	    || (event.button != ButtonId::Midi && event.button != ButtonId::Cv)
-	    || !PatchCable::hasPolarity(strength_source(state, which_))) {
+	    || !instrument::has_polarity(strength_source(state, which_))) {
 		return {};
 	}
-	set_polarity(ctx, state, event.button == ButtonId::Midi ? Polarity::BIPOLAR : Polarity::UNIPOLAR);
+	set_polarity(ctx, state,
+	             event.button == ButtonId::Midi ? instrument::Polarity::BIPOLAR : instrument::Polarity::UNIPOLAR);
 	return deluge::ui::shell::Result{.handled = true};
 }
 
@@ -791,11 +805,11 @@ void PatchCableStrengthItem::leds(deluge::ui::LedFrame& f, const MenuContext& /*
 	// CV for a unipolar one, neither for a source with no polarity.
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	const bool polarised = PatchCable::hasPolarity(strength_source(state, which_));
+	const bool polarised = instrument::has_polarity(strength_source(state, which_));
 	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Midi),
-	            polarised && state.walk.patch_polarity == Polarity::BIPOLAR ? kOn : kOff);
+	            polarised && state.walk.patch_polarity == instrument::Polarity::BIPOLAR ? kOn : kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Cv),
-	            polarised && state.walk.patch_polarity == Polarity::UNIPOLAR ? kOn : kOff);
+	            polarised && state.walk.patch_polarity == instrument::Polarity::UNIPOLAR ? kOn : kOff);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -832,8 +846,9 @@ const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {
 	                                                            : &patch_cable_strength_range;
 }
 
-std::optional<deluge::scenes::bind::WriteRequest>
-cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity) {
+std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx,
+                                                                deluge::synth::CableTarget learn, int32_t menu_value,
+                                                                instrument::Polarity polarity) {
 	const std::optional<deluge::project::ParamAddress> address =
 	    cable_address(ctx, learn.bottom_source(), learn.modulated());
 	if (!address) {
@@ -848,7 +863,7 @@ cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t 
 	    .where = ctx.addresses,
 	    .menu_value = menu_value,
 	    .param_value = static_cast<int32_t>((magic_constant * menu_value) >> 32),
-	    .polarity = static_cast<deluge::instrument::Polarity>(polarity)};
+	    .polarity = polarity};
 }
 
 // ---------------------------------------------------------------------------------------------

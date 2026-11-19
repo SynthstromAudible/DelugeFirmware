@@ -72,6 +72,36 @@ enum class Polarity : uint8_t { UNIPOLAR, BIPOLAR };
 	return name == "unipolar" ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 }
 
+/// @brief Whether a cable from @p source has a polarity: X and Y cannot be converted, so they ignore the setting.
+/// @param source The cable's source.
+/// @return False for X and Y, true for every other source.
+[[nodiscard]] constexpr bool has_polarity(PatchSource source) {
+	return source != PatchSource::X && source != PatchSource::Y;
+}
+
+/// @brief The polarity a new cable from @p source must take, or none where it takes the device's default.
+///
+/// Aftertouch is stored unipolar (bipolar would leave the default patch near silent); MPE X and Y and the sidechain
+/// are bipolar.
+/// @param source The cable's source.
+/// @return The source's fixed polarity, or nullopt for the device's default.
+[[nodiscard]] constexpr std::optional<Polarity> fixed_polarity(PatchSource source) {
+	if (source == PatchSource::AFTERTOUCH) {
+		return Polarity::UNIPOLAR;
+	}
+	if (source == PatchSource::X || source == PatchSource::Y || source == PatchSource::SIDECHAIN) {
+		return Polarity::BIPOLAR;
+	}
+	return std::nullopt;
+}
+
+/// @brief @p polarity as the patch-cable menu's short column shows it.
+/// @param polarity The polarity.
+/// @return "UPLR" or "BPLR".
+[[nodiscard]] constexpr std::string_view to_short_string(Polarity polarity) {
+	return polarity == Polarity::BIPOLAR ? "BPLR" : "UPLR";
+}
+
 /// @brief The bit every cable depth id has and no param id has: plugin::kCableDepthFlag, which the controls library
 /// reads too.
 ///

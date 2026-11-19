@@ -35,6 +35,7 @@
 #include "scenes/registry.h"        // menu_scene()
 
 #include "definitions_cxx.hpp"
+#include "instruments/deluge/cables.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -42,7 +43,6 @@
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/patch/patch_cable.h" // polarityToString
 #include "music-theory/preset_scales.h"
 #include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
@@ -651,7 +651,7 @@ int32_t get_default_patch_cable_polarity(const MenuContext&) {
 }
 void set_default_patch_cable_polarity(const MenuContext&, int32_t value) {
 	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
-	FlashStorage::defaultPatchCablePolarity = static_cast<Polarity>(value);
+	FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(value);
 }
 
 int32_t get_default_startup_song(const MenuContext&) {
@@ -858,10 +858,10 @@ size_t polarity_names(const MenuContext&, std::span<std::string_view> out) {
 	// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
 	size_t n = 0;
 	if (n < out.size()) {
-		out[n++] = polarityToString(Polarity::UNIPOLAR);
+		out[n++] = instrument::to_string(instrument::Polarity::UNIPOLAR);
 	}
 	if (n < out.size()) {
-		out[n++] = polarityToString(Polarity::BIPOLAR);
+		out[n++] = instrument::to_string(instrument::Polarity::BIPOLAR);
 	}
 	return n;
 }
