@@ -114,7 +114,7 @@ merges adjacent identical `CANTUNWIND` entries. With no unwinder left, `.ARM.exi
 is up to a further ~87 KB (*estimate*). Nothing else reads the tables: the fault reporter scans the stack for code
 addresses.
 
-### The scenes in the device image (P3d-1c step 3a, `feat/ui-integration`)
+### The scenes in the device image
 
 Linking `deluge_ui_shell`, `deluge_scenes`, `deluge_scenes_bind` and the `gui/ui/shell_*` guest beside the legacy
 menu, measured on `RelWithDebInfo`:
