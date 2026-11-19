@@ -51,7 +51,7 @@ std::string frozen_verdict(std::string_view fixture, std::string_view path, std:
 } // namespace
 
 // clang-format off
-describe descriptor_legacy_voice("The voice rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_voice("The voice rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as polyphony, voice priority, voice count, sidechain send, synth mode and master transpose do", _ {
 		run(self, voice_cases());
 	});
@@ -62,7 +62,7 @@ describe descriptor_legacy_voice("The voice rows' descriptors against the items'
 	});
 });
 
-describe descriptor_legacy_oscillators("The oscillator rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_oscillators("The oscillator rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as the oscillator and sample items do", _ {
 		run(self, oscillator_cases());
 	});
@@ -88,25 +88,25 @@ describe descriptor_legacy_oscillators("The oscillator rows' descriptors against
 	});
 });
 
-describe descriptor_legacy_lfos_and_modulators("The LFO and FM modulator rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_lfos_and_modulators("The LFO and FM modulator rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as the LFO and modulator items do", _ {
 		run(self, lfo_and_modulator_cases());
 	});
 });
 
-describe descriptor_legacy_unison_and_midi("The unison and MIDI output rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_unison_and_midi("The unison and MIDI output rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as the unison and MIDI output items do", _ {
 		run(self, unison_and_midi_cases());
 	});
 });
 
-describe descriptor_legacy_effects("The effect rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_effects("The effect rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as the filter, delay, sidechain, compressor and stutter items do", _ {
 		run(self, effect_cases());
 	});
 });
 
-describe descriptor_legacy_arp("The arp rows' descriptors against the items' rows", $ {
+describe descriptor_oracle_arp("The arp rows' descriptors against the items' rows", $ {
 	it("ranges, reads and writes as the arp and randomizer items do", _ {
 		run(self, arp_cases());
 	});
@@ -120,7 +120,7 @@ describe descriptor_legacy_arp("The arp rows' descriptors against the items' row
 	});
 });
 
-describe descriptor_legacy_model("The model groups' rows against the items' rows", $ {
+describe descriptor_oracle_model("The model groups' rows against the items' rows", $ {
 	it("ranges, reads and writes as the reverb, swing, audio clip and clip value items do", _ {
 		run(self, model_cases());
 	});
@@ -133,7 +133,7 @@ describe descriptor_legacy_model("The model groups' rows against the items' rows
 	});
 });
 
-describe descriptor_legacy_applicability("Where each row's menu shows, against the reference relevance", $ {
+describe descriptor_oracle_applicability("Where each row's menu shows, against the reference relevance", $ {
 	it("shows each row exactly where the reference shows one of its items, in every fixture", _ {
 		AudioEngine::micPluggedIn = false;
 		AudioEngine::lineInPluggedIn = false;
@@ -211,7 +211,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against t
 	});
 });
 
-describe descriptor_legacy_validity("Every table's conditions", $ {
+describe descriptor_oracle_validity("Every table's conditions", $ {
 	it("name rows of their own table, with values those rows store, and their display mappings are well formed, in "
 	   "every setting group and the arp's",
 	   _ {
@@ -235,7 +235,7 @@ describe descriptor_legacy_validity("Every table's conditions", $ {
 	});
 });
 
-describe descriptor_legacy_coverage("Every engine and model row with a menu", $ {
+describe descriptor_oracle_coverage("Every engine and model row with a menu", $ {
 	it("is compared with its item's rows, or named as a skip with its reason", _ {
 		std::set<std::string_view> covered;
 		for (const Case* c : all_cases()) {
@@ -271,7 +271,7 @@ describe descriptor_legacy_coverage("Every engine and model row with a menu", $ 
 	});
 });
 
-describe descriptor_legacy_reference_rows("descriptor_legacy_spec: the reference rows", $ {
+describe descriptor_oracle_reference_rows("descriptor_oracle_spec: the reference rows", $ {
 	it("parses descriptors.tsv clean and asks every row of its range, read, write, applicability and probe columns", _ {
 		spec::OracleTable& t = spec::OracleTable::named("descriptors");
 		expect(t.problems().size()).to_equal(size_t{0});
@@ -281,7 +281,7 @@ describe descriptor_legacy_reference_rows("descriptor_legacy_spec: the reference
 });
 // clang-format on
 
-DELUGE_SPEC(descriptor_legacy_spec, descriptor_legacy_voice, descriptor_legacy_oscillators,
-            descriptor_legacy_lfos_and_modulators, descriptor_legacy_unison_and_midi, descriptor_legacy_effects,
-            descriptor_legacy_arp, descriptor_legacy_model, descriptor_legacy_applicability, descriptor_legacy_validity,
-            descriptor_legacy_coverage, descriptor_legacy_reference_rows)
+DELUGE_SPEC(descriptor_oracle_spec, descriptor_oracle_voice, descriptor_oracle_oscillators,
+            descriptor_oracle_lfos_and_modulators, descriptor_oracle_unison_and_midi, descriptor_oracle_effects,
+            descriptor_oracle_arp, descriptor_oracle_model, descriptor_oracle_applicability, descriptor_oracle_validity,
+            descriptor_oracle_coverage, descriptor_oracle_reference_rows)

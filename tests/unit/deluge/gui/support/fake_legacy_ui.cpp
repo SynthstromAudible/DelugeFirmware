@@ -660,7 +660,7 @@ void exitNoteModeBeforeClose() {
 	fakelegacyui::note_exit_saw_knob_clear = fakelegacyui::knob_indicator_clears > 0;
 }
 
-bool legacyInhibitsScreensaver() {
+bool hostInhibitsScreensaver() {
 	return false;
 }
 

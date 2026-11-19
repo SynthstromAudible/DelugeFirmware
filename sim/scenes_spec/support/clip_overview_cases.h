@@ -87,7 +87,7 @@ struct RootGuard {
 	RootGuard(const RootGuard&) = delete;
 	RootGuard& operator=(const RootGuard&) = delete;
 	~RootGuard() {
-		deluge::gui::ui::shellKitGlobalFxLatch() = savedLatch;
+		deluge::gui::ui::setShellKitGlobalFx(savedLatch);
 		if (saved != nullptr) {
 			setRootUILowLevel(saved);
 		}
@@ -102,8 +102,8 @@ struct RootGuard {
 /// row with affect-entire off under a latch a press set while it was on, which nothing has cleared since.
 /// @return The clip view the overview is drawn under.
 inline ClipView& set_up(Case c) {
-	deluge::gui::ui::shellKitGlobalFxLatch() = c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
-	                                           || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched;
+	deluge::gui::ui::setShellKitGlobalFx(c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
+	                                     || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched);
 	switch (c) {
 	case Case::Synth:
 		(void)make_synth_song();

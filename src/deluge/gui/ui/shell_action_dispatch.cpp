@@ -391,7 +391,7 @@ void performMenuAction(const MenuActionRequest& req) {
 }
 } // namespace
 
-bool legacyInhibitsScreensaver() {
+bool hostInhibitsScreensaver() {
 	return deluge::hid::display::OLED::isPermanentPopupPresent() || stemExport.processStarted;
 }
 

@@ -1168,7 +1168,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 // ---------------------------------------------------------------------------------------------
 
 void ShellHostUI::tickShell(uint32_t now) {
-	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
+	shell_.set_screensaver_inhibit(hostInhibitsScreensaver());
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
 	shell_.set_owns_notices(getCurrentUI() == this);
 	const bool outer = std::exchange(ticking_, true);

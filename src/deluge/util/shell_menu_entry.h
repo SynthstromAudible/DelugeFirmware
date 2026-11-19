@@ -207,8 +207,9 @@ bool shellKitGlobalFx();
 /// @brief Clear the latch, as the editor's `exitCompletely` and `enterDrumCreator` do.
 void clearShellKitGlobalFx();
 
-/// @brief The kit-global-FX latch itself, for a spec that sets it as a shortcut press would.
-bool& shellKitGlobalFxLatch();
+/// @brief Set the latch, for a spec that sets it as a shortcut press would, or puts it back after one.
+/// @param latched The latch's new value.
+void setShellKitGlobalFx(bool latched);
 
 /// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's
 ///        claim, the marker editor's shortcut jump): a kit clip with affect-entire on, with SHIFT held and no audition,

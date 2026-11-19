@@ -154,9 +154,10 @@ void closePortedMenu();
 ///        defaults, behind main's "Saving settings" animation. The guest's close path calls it.
 void saveSettingsBeforeClose();
 
-/// @brief The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`): a permanent-looking popup is
-///        up, or a stem export is running. The guest hands it to the shell before every tick.
-bool legacyInhibitsScreensaver();
+/// @brief What the host inhibits the screensaver for, beyond the shell's own working animation: a permanent-looking
+///        popup is up, or a stem export is running (`Screensaver::timerEvent`'s inhibitors). The guest hands it to the
+///        shell before every tick.
+bool hostInhibitsScreensaver();
 
 /// @brief Restyle the guest's panels from `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read
 ///        live (`horizontal_menu.cpp:268`): at boot once the settings are read, and after every write of it.

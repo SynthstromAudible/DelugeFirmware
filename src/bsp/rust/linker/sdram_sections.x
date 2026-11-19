@@ -109,9 +109,9 @@ SECTIONS {
         __scenes_menu_tables_end = .;
         /* The scenes' vtables outside `deluge::scenes::menu`, which the pattern above already takes.
          * Virtual calls on a scene come from the UI tier only. */
-        __menu_vtables_start = .;
+        __scenes_vtables_start = .;
         *(.rodata._ZTV*6deluge6scenes*)
-        __menu_vtables_end = .;
+        __scenes_vtables_end = .;
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
@@ -160,7 +160,7 @@ SECTIONS {
 
     /* The scenes' vtables are about 1.4 KB and their statics about 13 KB; far less means a
      * rename stopped the patterns matching them. */
-    ASSERT(__menu_vtables_end - __menu_vtables_start > 1024,
+    ASSERT(__scenes_vtables_end - __scenes_vtables_start > 1024,
            "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::scenes vtables in .sdram_init)")
     ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
            "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")

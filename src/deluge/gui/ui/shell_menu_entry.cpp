@@ -239,8 +239,8 @@ void clearShellKitGlobalFx() {
 	kitGlobalFxLatch = false;
 }
 
-bool& shellKitGlobalFxLatch() {
-	return kitGlobalFxLatch;
+void setShellKitGlobalFx(bool latched) {
+	kitGlobalFxLatch = latched;
 }
 
 void latchShellKitGlobalFxOnReentry() {
