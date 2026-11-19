@@ -9,6 +9,7 @@
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/dx_algorithms.h"
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/sound_osc.h" // modulator0_volume, the one shortcut with a DX7 fallback
 #include "scenes/profile.h"
@@ -21,7 +22,6 @@
 #include "definitions_cxx.hpp"
 #include "foundation/string_format.h"
 #include "instruments/deluge/state_access.h"
-#include "processing/dx7/algorithm_diagrams.h"
 
 #include <algorithm>
 #include <array>
@@ -194,7 +194,7 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 /// title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::gfx::oled;
-	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
+	const int32_t algorithm = std::min<int32_t>(params[134], static_cast<int32_t>(kDxAlgorithms) - 1);
 	char badge[12] = "#";
 	intToString(algorithm + 1, badge + 1, 2);
 	constexpr int32_t kBadgePadding = 2;
@@ -204,8 +204,8 @@ void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchByte
 	const int32_t x = panel_width - width - 2 * kBadgePadding;
 	p.glyphs(badge, x + kBadgePadding, top + 1, kTextTitleSpacingX, kTextTitleSizeY);
 	p.invert(Rect{x, top, panel_width - x, separator_y - 2 - top + 1});
-	const deluge::dx7::AlgorithmDiagram d = deluge::dx7::algorithm_diagram(algorithm);
-	p.graphic(d.data, d.x, d.y, d.width, d.height, d.num_bytes_tall);
+	const DxAlgorithmDiagram& d = dx_algorithm_diagram(static_cast<size_t>(algorithm));
+	p.graphic(d.data.data(), d.x, d.y, d.width, d.height, d.num_bytes_tall);
 }
 
 /// @brief `DxParam::drawPixelsForOled` for @p param of @p patch, on the panel frame @p p.

@@ -135,7 +135,6 @@ src/scenes/menu/context.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/learn.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/node.h	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/column_hooks.cpp	scenes-reads-outside-bind	1
-src/scenes/menu/nodes/dx.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/dynamic.cpp	scenes-reads-outside-bind	5
 src/scenes/menu/nodes/midi_command.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/nodes/midi_device.cpp	scenes-reads-outside-bind	3
