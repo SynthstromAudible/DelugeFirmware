@@ -104,6 +104,7 @@
 #include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -114,7 +115,6 @@
 #include <utility>
 #include <vector>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;

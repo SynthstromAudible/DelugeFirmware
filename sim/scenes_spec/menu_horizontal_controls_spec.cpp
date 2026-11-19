@@ -58,6 +58,7 @@
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/address_of.h"
 
 #include <algorithm>
@@ -68,7 +69,6 @@
 #include <string>
 #include <vector>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;

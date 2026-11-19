@@ -18,9 +18,9 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 #include <string>

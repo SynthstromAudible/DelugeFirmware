@@ -174,6 +174,7 @@
 #include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -181,7 +182,6 @@
 #include <fstream>
 #include <string>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge;

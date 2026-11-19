@@ -89,6 +89,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
 #include <cstdint>
@@ -99,7 +100,6 @@
 #include <string_view>
 #include <vector>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;

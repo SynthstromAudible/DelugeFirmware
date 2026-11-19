@@ -99,6 +99,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -109,7 +110,6 @@
 #include <string>
 #include <string_view>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.

@@ -17,10 +17,17 @@
 
 #pragma once
 
+// CppSpec spells `context` as a macro; a spec or scenario that includes this after cppspec.hpp must still see the
+// instrument's headers as written.
+#pragma push_macro("context")
+#undef context
+
+#include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/state_rules.h"
+#include "serialization/tree.h"
 #include "serialization/value.h"
 
 #include <array>
@@ -250,4 +257,49 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 	return {};
 }
 
+/// @brief Where the record's encoding and the flat oracle's first differ for @p flat: the whole element, each entry
+/// (with and without a compressor threshold in place of the state's), and an element's entries replaced, at three tick
+/// magnitudes. Empty where none does.
+[[nodiscard]] inline std::string encode_difference(const instrument::FlatSoundState& flat) {
+	namespace in = instrument;
+	const in::SoundState record = flat;
+	constexpr std::array<std::string_view, 27> kKeys{
+	    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
+	    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",
+	    "clippingAmount", "maxVoices",     "osc1",          "osc2",       "lfo1",
+	    "lfo2",           "lfo3",          "lfo4",          "modulator1", "modulator2",
+	    "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
+	    "stutter",        "notAKey"};
+	for (const int32_t magnitude : {0, 1, 2}) {
+		const plugin::CodecContext codec_context{.input_tick_magnitude = magnitude};
+		if (std::string d =
+		        serialization::first_difference(in::encode(record, codec_context), in::encode(flat, codec_context));
+		    !d.empty()) {
+			return "encode at " + d;
+		}
+		for (const std::string_view key : kKeys) {
+			for (const std::optional<int32_t> threshold : {std::optional<int32_t>{}, std::optional<int32_t>{12345}}) {
+				const auto a = in::encode_entry(record, key, codec_context, threshold);
+				const auto b = in::encode_entry(flat, key, codec_context, threshold);
+				if (a.has_value() != b.has_value() || (a && !serialization::first_difference(*a, *b).empty())) {
+					return "encode_entry " + std::string(key);
+				}
+			}
+		}
+		serialization::Value element = serialization::Value::makeMap();
+		element.set("name", serialization::Value::makeScalar("x"));
+		element.set("compressor", serialization::Value::makeMap());
+		element.set("osc2", serialization::Value::makeMap());
+		element.set("defaultParams", serialization::Value::makeMap());
+		if (std::string d = serialization::first_difference(in::with_state(element, record, codec_context),
+		                                                    in::with_state(element, flat, codec_context));
+		    !d.empty()) {
+			return "with_state at " + d;
+		}
+	}
+	return {};
+}
+
 } // namespace deluge::test
+
+#pragma pop_macro("context")

@@ -100,6 +100,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
 #include <array>
@@ -109,7 +110,6 @@
 #include <string_view>
 #include <vector>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.

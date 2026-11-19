@@ -68,6 +68,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -78,7 +79,6 @@
 #include <string>
 #include <vector>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;

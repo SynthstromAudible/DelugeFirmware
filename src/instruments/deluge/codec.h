@@ -59,11 +59,18 @@ struct SoundPieces {
 [[nodiscard]] SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
                                         std::optional<int32_t> compressor_threshold = std::nullopt);
 
+/// @brief encode_pieces() of a sound's record, each component writing its own keys.
+[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
+                                        std::optional<int32_t> compressor_threshold = std::nullopt);
+
 /// @brief The pieces of encode_pieces as one Map, in file order: what the instrument owns of a sound element.
 /// @param state   The sound's settings.
 /// @param context The file context.
 /// @return The Map of the instrument's entries.
 [[nodiscard]] serialization::Value encode(const FlatSoundState& state, const plugin::CodecContext& context);
+
+/// @brief encode() of a sound's record.
+[[nodiscard]] serialization::Value encode(const SoundState& state, const plugin::CodecContext& context);
 
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 /// @param key An entry name.
@@ -82,6 +89,10 @@ struct SoundPieces {
 [[nodiscard]] serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
                                               const plugin::CodecContext& context);
 
+/// @brief with_state() with a sound's record's encoding.
+[[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+                                              const plugin::CodecContext& context);
+
 /// @brief The instrument's encoding of top-level entry @p key, as encode writes it.
 /// @param state                The sound's settings.
 /// @param key                  A sound element's top-level key.
@@ -91,6 +102,11 @@ struct SoundPieces {
 ///         not the instrument's.
 [[nodiscard]] std::optional<serialization::Value>
 encode_entry(const FlatSoundState& state, std::string_view key, const plugin::CodecContext& context,
+             std::optional<int32_t> compressor_threshold = std::nullopt);
+
+/// @brief encode_entry() of a sound's record: the component that owns @p key writes it.
+[[nodiscard]] std::optional<serialization::Value>
+encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
              std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,

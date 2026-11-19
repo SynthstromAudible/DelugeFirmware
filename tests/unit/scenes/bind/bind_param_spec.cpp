@@ -6,11 +6,11 @@
 #include "scenes/bind/target.h"
 #include "support/model_fixture.h"
 
+#include "support/flat_state.h"
 #include <array>
 #include <cppspec.hpp>
 #include <limits>
 
-#include "support/flat_state.h"
 #include "support/printers/owner_id_printer.h"
 #include "support/printers/param_id_printer.h"
 

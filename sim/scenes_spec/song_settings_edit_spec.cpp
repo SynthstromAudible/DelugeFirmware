@@ -42,10 +42,10 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <string>
 
-#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 namespace spec = deluge::scenes::spec;

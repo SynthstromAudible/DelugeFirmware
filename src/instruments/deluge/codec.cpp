@@ -199,6 +199,183 @@ void append(Value& to, const Value& from) {
 	}
 }
 
+// The components' entries: each writes its own keys, as the flat writers above write them.
+
+/// A sample range's file, tuning and zone, into @p map.
+void sample_range_entry(Value& map, const synth::SampleRange& range) {
+	map.set("fileName", text(range.file_path));
+	if (range.tuning.transpose != 0) {
+		map.set("transpose", number(range.tuning.transpose));
+	}
+	if (range.tuning.cents != 0) {
+		map.set("cents", number(range.tuning.cents));
+	}
+	auto zone_map = Value::makeMap();
+	zone_map.set("startSamplePos", number(static_cast<int64_t>(range.zone.start)));
+	zone_map.set("endSamplePos", number(static_cast<int64_t>(range.zone.end)));
+	if (range.zone.loop_start != 0) {
+		zone_map.set("startLoopPos", number(range.zone.loop_start));
+	}
+	if (range.zone.loop_end != 0) {
+		zone_map.set("endLoopPos", number(range.zone.loop_end));
+	}
+	map.set("zone", std::move(zone_map));
+}
+
+/// A sample oscillator's entries after its type: how it plays and its ranges.
+void sample_entries(Value& map, const synth::SampleState& sample) {
+	const synth::SamplePlayback& p = sample.playback;
+	map.set("loopMode", number(std::to_underlying(p.repeat_mode)));
+	map.set("reversed", number(p.reversed ? 1 : 0));
+	map.set("timeStretchEnable", number(p.pitch_and_speed_independent ? 1 : 0));
+	map.set("timeStretchAmount", number(p.time_stretch_amount));
+	if (p.interpolation == plugin::InterpolationMode::LINEAR) {
+		map.set("linearInterpolation", number(1));
+	}
+	if (sample.ranges.size() == 1) {
+		sample_range_entry(map, sample.ranges.front());
+	}
+	else if (sample.ranges.size() > 1) {
+		auto list = Value::makeArray();
+		for (size_t e = 0; e < sample.ranges.size(); e++) {
+			auto range = Value::makeMap();
+			if (e != sample.ranges.size() - 1) {
+				range.set("rangeTopNote", number(sample.ranges[e].top_note));
+			}
+			sample_range_entry(range, sample.ranges[e]);
+			list.append(boxed("sampleRange", std::move(range)));
+		}
+		map.set("sampleRanges", std::move(list));
+	}
+}
+
+/// An oscillator's pitch entries: its tuning, the sync when it is the second and syncs, its retrigger phase.
+void pitch_entries(Value& map, const synth::Pitch& pitch, size_t s, bool sync) {
+	map.set("transpose", number(pitch.tuning.transpose));
+	map.set("cents", number(pitch.tuning.cents));
+	if (s == 1 && sync) {
+		map.set("oscillatorSync", number(1));
+	}
+	map.set("retrigPhase", number(phase_word(pitch.retrigger)));
+}
+
+/// A wavetable oscillator's ranges: one file, or each range's top note (but the last's) and file.
+void wavetable_entries(Value& map, const synth::WavetableState& wavetable) {
+	if (wavetable.ranges.size() == 1) {
+		map.set("fileName", text(wavetable.ranges.front().file_path));
+	}
+	else if (wavetable.ranges.size() > 1) {
+		auto list = Value::makeArray();
+		for (size_t e = 0; e < wavetable.ranges.size(); e++) {
+			auto range = Value::makeMap();
+			if (e != wavetable.ranges.size() - 1) {
+				range.set("rangeTopNote", number(wavetable.ranges[e].top_note));
+			}
+			range.set("fileName", text(wavetable.ranges[e].file_path));
+			list.append(boxed("wavetableRange", std::move(range)));
+		}
+		map.set("wavetableRanges", std::move(list));
+	}
+}
+
+/// A DX7 oscillator's patch: its bytes, and its engine mode and random detune where they are set.
+void dx7_entries(Value& map, const synth::DxPatch& patch) {
+	map.set("dx7patch", text(hex(patch.params)));
+	if (patch.engine_mode != 0) {
+		map.set("dx7enginemode", number(patch.engine_mode));
+	}
+	if (patch.random_detune != 0) {
+		map.set("dx7randomdetune", number(patch.random_detune));
+	}
+}
+
+/// Oscillator @p s of a subtractive or ring-mod sound, by its kind.
+Value slot_entry(const synth::SlotState& slot, OscType type, size_t s, bool sync) {
+	auto map = Value::makeMap();
+	map.set("type", text(to_string(type)));
+	if (const auto* sample = std::get_if<synth::SampleState>(&slot)) {
+		sample_entries(map, *sample);
+		return map;
+	}
+	if (const auto* va = std::get_if<synth::VaState>(&slot)) {
+		pitch_entries(map, va->pitch, s, sync);
+	}
+	else if (const auto* wavetable = std::get_if<synth::WavetableState>(&slot)) {
+		pitch_entries(map, wavetable->pitch, s, sync);
+		wavetable_entries(map, *wavetable);
+	}
+	else if (const auto* dx = std::get_if<synth::Dx7State>(&slot)) {
+		pitch_entries(map, dx->pitch, s, sync);
+		if (dx->patch) {
+			dx7_entries(map, *dx->patch);
+		}
+	}
+	else if (const auto* input = std::get_if<synth::InputState>(&slot)) {
+		pitch_entries(map, input->pitch, s, sync);
+	}
+	return map;
+}
+
+/// Oscillator @p s's entry in @p state: an FM carrier's pitch, or the slot's kind.
+Value oscillator_entry(const SoundState& state, size_t s) {
+	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		auto map = Value::makeMap();
+		pitch_entries(map, fm->carriers[s], s, state.recall.sync);
+		return map;
+	}
+	const auto* sub = std::get_if<synth::SubtractiveState>(&state.plays.engine);
+	const synth::DualSourceState& dual =
+	    sub != nullptr ? sub->oscillators : std::get_if<synth::RingModState>(&state.plays.engine)->oscillators;
+	return slot_entry(dual.slots[s], source_type(state, static_cast<SourceId>(s)), s, oscillator_sync(state));
+}
+
+Value lfo_entry(const synth::LfoState& lfo_state, const plugin::CodecContext& context) {
+	auto map = Value::makeMap();
+	map.set("type", text(to_string(lfo_state.shape)));
+	map.set("syncLevel",
+	        number(plugin::sync_level_to_file(plugin::index_of(lfo_state.sync_level), context.input_tick_magnitude)));
+	map.set("syncType", number(std::to_underlying(lfo_state.sync_type)));
+	return map;
+}
+
+Value modulator_entry(const synth::Pitch& pitch, size_t m, bool routing) {
+	auto map = Value::makeMap();
+	map.set("transpose", number(pitch.tuning.transpose));
+	map.set("cents", number(pitch.tuning.cents));
+	map.set("retrigPhase", number(phase_word(pitch.retrigger)));
+	if (m == 1) {
+		map.set("toModulator1", number(routing ? 1 : 0));
+	}
+	return map;
+}
+
+std::optional<Value> scalar_entry(const SoundState& state, std::string_view key) {
+	const synth::VoicingState& v = state.plays.voicing;
+	if (key == "polyphonic") {
+		return text(to_string(v.polyphony));
+	}
+	if (key == "voicePriority") {
+		return number(std::to_underlying(v.priority));
+	}
+	if (key == "sideChainSend") {
+		const int32_t send = state.plays.side_chain_send_level;
+		return send != 0 ? std::optional{number(send)} : std::nullopt;
+	}
+	if (key == "mode") {
+		return text(to_string(synth_mode(state)));
+	}
+	if (key == "transpose") {
+		return v.master.transpose != 0 ? std::optional{number(v.master.transpose)} : std::nullopt;
+	}
+	if (key == "cents") {
+		return v.master.cents != 0 ? std::optional{number(v.master.cents)} : std::nullopt;
+	}
+	if (key == "maxVoices") {
+		return number(v.max_voices);
+	}
+	return std::nullopt;
+}
+
 /// Whether @p a and @p b differ in the fields of one top-level entry.
 using EntryDiffers = bool (*)(const FlatSoundState& a, const FlatSoundState& b);
 
@@ -397,8 +574,51 @@ std::optional<Value> encode_entry(const FlatSoundState& state, std::string_view 
 	return std::nullopt;
 }
 
-SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
-                          std::optional<int32_t> compressor_threshold) {
+std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
+                                  std::optional<int32_t> compressor_threshold) {
+	if (deluge::effects::is_effect_key(key)) {
+		return deluge::effects::encode_entry(state.plays.fx, key, context, compressor_threshold);
+	}
+	if (std::optional<Value> scalar = scalar_entry(state, key)) {
+		return scalar;
+	}
+	if (key == "osc1" || key == "osc2") {
+		return oscillator_entry(state, key == "osc1" ? 0 : 1);
+	}
+	if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
+		return lfo_entry(lfo(state, static_cast<size_t>(key[3] - '1')), context);
+	}
+	if (key == "modulator1" || key == "modulator2") {
+		const auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
+		if (fm == nullptr) {
+			return std::nullopt; // only FM writes its modulators
+		}
+		const size_t m = key == "modulator1" ? 0 : 1;
+		return modulator_entry(fm->modulators[m], m, fm->modulator1_to_modulator0);
+	}
+	if (key == "unison") {
+		const synth::UnisonState& u = state.plays.voicing.unison;
+		auto map = Value::makeMap();
+		map.set("num", number(u.count));
+		map.set("detune", number(u.detune));
+		map.set("spread", number(u.spread));
+		return map;
+	}
+	if (key == "midiOutput") {
+		auto midi = Value::makeMap();
+		midi.set("channel", number(state.plays.output_midi_channel));
+		midi.set("noteForDrum", number(state.plays.output_midi_note_for_drum));
+		return midi;
+	}
+	return std::nullopt;
+}
+
+namespace {
+
+/// The pieces of @p state's encoding, a flat state's or a record's.
+template <class State>
+SoundPieces pieces_of(const State& state, const plugin::CodecContext& context,
+                      std::optional<int32_t> compressor_threshold) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
 	                   .max_voices = Value::makeMap(),
@@ -426,8 +646,9 @@ SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContex
 	return pieces;
 }
 
-Value encode(const FlatSoundState& state, const plugin::CodecContext& context) {
-	SoundPieces pieces = encode_pieces(state, context);
+template <class State>
+Value encoded(const State& state, const plugin::CodecContext& context) {
+	SoundPieces pieces = pieces_of(state, context, std::nullopt);
 	auto map = Value::makeMap();
 	append(map, pieces.head);
 	append(map, pieces.effect_attributes);
@@ -439,12 +660,35 @@ Value encode(const FlatSoundState& state, const plugin::CodecContext& context) {
 	return map;
 }
 
+} // namespace
+
+SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
+                          std::optional<int32_t> compressor_threshold) {
+	return pieces_of(state, context, compressor_threshold);
+}
+
+SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
+                          std::optional<int32_t> compressor_threshold) {
+	return pieces_of(state, context, compressor_threshold);
+}
+
+Value encode(const FlatSoundState& state, const plugin::CodecContext& context) {
+	return encoded(state, context);
+}
+
+Value encode(const SoundState& state, const plugin::CodecContext& context) {
+	return encoded(state, context);
+}
+
 bool is_state_key(std::string_view key) {
 	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
 }
 
-serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
-                                const plugin::CodecContext& context) {
+namespace {
+
+template <class State>
+serialization::Value with_state_of(const serialization::Value& element, const State& state,
+                                   const plugin::CodecContext& context) {
 	const serialization::Value encoded = encode(state, context);
 	serialization::Value out = serialization::Value::makeMap();
 	std::vector<std::string_view> placed;
@@ -469,6 +713,18 @@ serialization::Value with_state(const serialization::Value& element, const FlatS
 		}
 	}
 	return out;
+}
+
+} // namespace
+
+serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
+                                const plugin::CodecContext& context) {
+	return with_state_of(element, state, context);
+}
+
+serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+                                const plugin::CodecContext& context) {
+	return with_state_of(element, state, context);
 }
 
 namespace {

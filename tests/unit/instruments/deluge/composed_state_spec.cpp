@@ -107,6 +107,19 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		expect(deluge::test::setting_difference(FlatSoundState{})).to_equal(std::string{});
 	});
 
+	it("encodes the record as the flat codec encodes the flat layout", _ {
+		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
+		                         OscType::INPUT_L, OscType::INPUT_STEREO};
+		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
+			for (const OscType a : kinds) {
+				for (const OscType b : kinds) {
+					expect(deluge::test::encode_difference(sound_of(mode, a, b))).to_equal(std::string{});
+				}
+			}
+		}
+		expect(deluge::test::encode_difference(FlatSoundState{})).to_equal(std::string{});
+	});
+
 	it("plays an FM sound's tuning on its carriers, and keeps its oscillators' kinds to recall", _ {
 		const auto [state, recall] = compose(sound_of(SynthMode::FM, OscType::SAMPLE, OscType::DX7));
 		const auto& fm = std::get<deluge::synth::FmState>(state.engine);
