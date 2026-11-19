@@ -331,10 +331,8 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expres
 	monophonicExpressionValues[expressionDimension] = newValue;
 }
 
-// Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for
-// Sound by avoiding going through the Arp and just talk directly to the Voices. (Despite my having made it now actually
-// need to talk to the Arp too, as below...) Note, this virtual function actually overrides/implements from two base
-// classes - MelodicInstrument and ModControllable.
+// Unlike NonAudioInstrument's, this goes straight to the voices playing the note, then updates the Arp's MPE values
+// (an arpeggiated or monophonic note-on may need them) and sends the change on the sound's MIDI out.
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
@@ -372,10 +370,7 @@ lookAtArpNote:
 		}
 	}
 
-	// Let the Sound know about this polyphonic expression event
-	// The Sound class will use it to send MIDI out (if enabled in the sound config)
-	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
-	                                                whichCharacteristic);
+	sendPolyphonicExpressionToMidiOut(newValue, expressionDimension, channelOrNoteNumber, whichCharacteristic);
 }
 
 void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,

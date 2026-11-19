@@ -326,13 +326,6 @@ int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 	}
 	return (newValue + roundingAmountToAdd) >> rShift;
 }
-void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
-                                   int32_t midiOutputFilter) {
-	int32_t newValueSmall = autoparamValueToCC(newValue);
-
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
-	                  midiOutputFilter); // TODO: get master channel
-}
 
 // For MIDI CCs, which prior to V2.0 did interpolation
 // Returns error code
@@ -391,17 +384,9 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	ParamCollection::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                              automatedNow);
 
-	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
-		auto new_v = modelStack->autoParam->getCurrentValue();
-		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
-		    oldValue, new_v, getParamKind(), modelStack->paramId);
-		if (current_value_changed) {
-			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
-			int32_t midiOutputFilter = instrument->getChannel();
-			int32_t masterChannel = instrument->getOutputMasterChannel();
-			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
-			         midiOutputFilter);
-		}
+	auto* instrument = static_cast<MIDIInstrument*>(modelStack->modControllable); // the collection's owner
+	if (modelStack->song->isOutputActiveInArrangement(instrument)) {
+		instrument->ccValueChanged(modelStack->paramId, oldValue, modelStack->autoParam->getCurrentValue());
 	}
 }
 

@@ -391,9 +391,10 @@ public:
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
 	                           int32_t fromMIDIChannel = 16);
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNoteNumber,
-	                                              MIDICharacteristic whichCharacteristic) override;
+	/// @brief Send a per-note or channel expression change on the sound's MIDI out channel, if it has one: pressure
+	///        only, as poly or channel aftertouch.
+	void sendPolyphonicExpressionToMidiOut(int32_t newValue, int32_t expressionDimension, int32_t channelOrNoteNumber,
+	                                       MIDICharacteristic whichCharacteristic);
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();

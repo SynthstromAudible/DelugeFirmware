@@ -150,6 +150,11 @@ public:
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t expressionDimension, int32_t level);
 	virtual void expressionEvent(int32_t newValue, int32_t expressionDimension) {}
+	/// @brief A per-note expression lane of this drum's row moved to @p newValue. A drum disregards the note: a row's
+	///        notes are all its own.
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
+	                                                      int32_t channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return nullptr; }

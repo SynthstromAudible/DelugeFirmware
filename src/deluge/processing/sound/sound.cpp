@@ -1076,9 +1076,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 }
 
-void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-                                                     int32_t channelOrNoteNumber,
-                                                     MIDICharacteristic whichCharacteristic) {
+void Sound::sendPolyphonicExpressionToMidiOut(int32_t newValue, int32_t expressionDimension,
+                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	// Send midi if midi output enabled
 	if (outputMidiChannel == MIDI_CHANNEL_NONE) {
 		return;

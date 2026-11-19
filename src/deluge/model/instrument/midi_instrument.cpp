@@ -221,6 +221,14 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 	}
 }
 
+void MIDIInstrument::ccValueChanged(int32_t cc, int32_t oldValue, int32_t newValue) {
+	if (oldValue >> 25 == newValue >> 25) {
+		return;
+	}
+	int32_t newValueSmall = MIDIParamCollection::autoparamValueToCC(newValue);
+	midiEngine.sendCC(this, getOutputMasterChannel(), cc, newValueSmall + 64, getChannel());
+}
+
 void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
 	lastMonoExpression[expressionDimension] = newValue;
 	sendMonophonicExpressionEvent(expressionDimension);

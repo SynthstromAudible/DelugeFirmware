@@ -164,7 +164,6 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 	}
 }
 
-// Inherit / overrides from both MelodicInstrument and ModControllable
 void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {

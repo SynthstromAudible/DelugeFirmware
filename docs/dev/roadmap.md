@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-15 (P3d-1d / params C4 merged into `next`, 77a23d631; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-18 (Track A step 1b-i, instrument events, on `feat/instrument-events`; P3d-1d / params C4 merged into `next`, 77a23d631; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -13,8 +13,11 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
   `feat/mca-ge-deletion`): an owner's effects are a `model::EffectsOwner`.
 - Each effect param is declared once (`effects/params.h`); the host chain's table (`effects/host_chain`) and the
   instrument's effect rows are built from them (P3d-1d / params C4, merged 77a23d631).
-- Next actions: instrument events (Track A step 1b); the arpeggiator's params vs settings (D7) spec; the C2 spec and
-  the R1 ratchet; the float instrument's voice pool (Track B).
+- Instrument events (Track A step 1b-i, `feat/instrument-events`): note tails are `Voiced`'s, an expression lane's
+  change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;
+  `ModControllable` is the `effectsOwner()` bridge only.
+- Next actions: the ModelStack stage 1 spec (it ends Track A step 1b-ii); the arpeggiator's params vs settings (D7)
+  spec; the C2 spec and the R1 ratchet; the float instrument's voice pool (Track B).
 
 ## Target architecture
 
@@ -119,7 +122,8 @@ budget.
 | Step | Delivers | Needs first |
 | --- | --- | --- |
 | 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin-api`; board profiles), then the classes go. Branches: `controls-library`, `controls-root-views` (the root views' knobs, presses and mod buttons go through the library; the legacy knob path is gone), `controls-shape` (owners publish their pages, the library assembles them for any board, CV tracks and MIDI and gate drums have an empty layout, and the instrument's layouts are data) and `controls-learn` (learned MIDI knobs and MIDI follow reach params by address through the library, with takeover state kept by table entry; learned knobs load through the model's codec and the engine plays none) and `mca-ge-deletion` (the classes deleted; an owner's effects are a `model::EffectsOwner`, reached from a ModelStack through the `ModControllable::effectsOwner()` bridge until ModelStack stage 1) are done. P3d-1d / C4 (per-effect tables) is done: each effect param is declared once and both tables' effect rows are built from it; the host chain keeps its flat ids until effect slots (P3d-2) | 3d (done) |
-| 1b | Instrument events: expression routing, note tails and a MIDI instrument's CC output move into the instruments; the ModelStack owner slot goes; `ModControllable` is deleted | 1; ModelStack stage 1 |
+| 1b-i | Instrument events: note tails are `Voiced`'s; an expression lane's change reaches the clip's instrument or the row's drum by address (`model::expressionReceiverOf`); a MIDI instrument sends its own CCs; `ModControllable` is the `effectsOwner()` bridge only, held there by the `mod-controllable-bridge-only` layer rule (done on `feat/instrument-events`) | 1 |
+| 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address: R1 inventory and ratchet, spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
 | 3 | `Patch` extracted from `Sound`: `VoiceConfig` and `SoundSnapshot` reconciled; the delay, sidechain, stutter and compressor settings ("5b") out of their DSP objects. `Patch` is the state L3 serializes | 1, 2 |
 | 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |

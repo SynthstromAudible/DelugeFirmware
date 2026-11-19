@@ -3,7 +3,8 @@
 //!
 //! The host has no peripherals, so most are inert, with return values chosen so the app idles
 //! rather than wedges. The exceptions: DIN input reads the note script a scenario arms
-//! (`audio::host`), under `sim` DIN MIDI in and out go through the simulator's queues, and the
+//! (`audio::host`), under `sim` DIN MIDI in and out go through the simulator's queues, DIN out
+//! with no simulator panel is kept for host specs to take (`deluge_host_midi_out_take`), and the
 //! trigger clock keeps its handler for the harness to fire. `deluge_midi_port_count` returns 0,
 //! so the app's per-port loops touch no MIDI I/O.
 #![allow(unused_variables, non_snake_case)]
@@ -14,8 +15,11 @@ use crate::sys::{
 };
 
 /// `midi_io.h`'s `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
-#[cfg(feature = "sim")]
 const DIN_PORT: DelugeMidiPort = 0;
+
+/// DIN bytes written while no simulator panel takes them (host specs), oldest first; drained by
+/// `deluge_host_midi_out_take`.
+static HOST_MIDI_OUT: std::sync::Mutex<Vec<u8>> = std::sync::Mutex::new(Vec::new());
 
 macro_rules! stub_log {
     ($n:literal) => {{
@@ -141,8 +145,27 @@ pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u
         return len;
     }
     stub_log!("deluge_midi_write");
-    // Accept and drop, so a caller retrying on partial acceptance cannot spin forever.
+    if port == DIN_PORT {
+        // SAFETY: the app passes `len` valid bytes.
+        let bytes = unsafe { core::slice::from_raw_parts(src, len as usize) };
+        HOST_MIDI_OUT
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .extend_from_slice(bytes);
+    }
+    // Accept all, so a caller retrying on partial acceptance cannot spin forever.
     len
+}
+
+/// Moves up to `cap` of the kept DIN bytes into `dst`, oldest first; returns how many it moved.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_midi_out_take(dst: *mut u8, cap: u32) -> u32 {
+    let mut kept = HOST_MIDI_OUT.lock().unwrap_or_else(|e| e.into_inner());
+    let n = kept.len().min(cap as usize);
+    // SAFETY: the caller passes `cap` writable bytes.
+    unsafe { core::ptr::copy_nonoverlapping(kept.as_ptr(), dst, n) };
+    kept.drain(..n);
+    n as u32
 }
 
 #[unsafe(no_mangle)]

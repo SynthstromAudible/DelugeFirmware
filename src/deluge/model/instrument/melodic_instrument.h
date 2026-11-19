@@ -81,6 +81,14 @@ public:
 	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) = 0;
+	/// @brief The clip's channel expression lane @p expressionDimension moved to @p newValue.
+	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) = 0;
+	/// @brief Whether moving an expression lane from @p oldValue to @p newValue changes what this instrument plays or
+	///        sends.
+	[[nodiscard]] virtual bool expressionChangeMatters(int32_t oldValue, int32_t newValue,
+	                                                   int32_t expressionDimension) const {
+		return oldValue != newValue;
+	}
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
 	                          int32_t bendSemitones) override;
