@@ -56,7 +56,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "runtime/app_loop.h"          // nowUs, the stall bounds' clock
-#include "scenarios/guest_drive.h"     // the ported guest: its tick, its browser
+#include "scenarios/guest_drive.h"     // the shell guest: its tick, its browser
 #include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
 #include "scenes/browser/browser_scene.h"
 #include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs

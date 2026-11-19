@@ -91,10 +91,11 @@ ROOT_UI_GLOBALS = (
 # the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
 #
 # The other public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
-# `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT here: `stopPlayback`
-# in particular is a name `PlaybackHandler` also has, and this row is a whole-word symbol match with
-# no receiver in it. Three names end in `StemExportProcess` and `exportRoutine` (the step the export's job runs) is
-# declared by `StemExport` alone, so none of the four collides with anything.
+# `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT
+# here: `stopPlayback` in particular is a name `PlaybackHandler` also has, and this row is a
+# whole-word symbol match with no receiver in it. Three names end in `StemExportProcess` and
+# `exportRoutine` (the step the export's job runs) is declared by `StemExport` alone, so none of the
+# four collides with anything.
 STEM_EXPORT_PROCESS_CALLS = (
     "startStemExportProcess",
     "exportRoutine",
@@ -218,8 +219,8 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_action_dispatch.cpp",
     # The noun half of the same seam. It names
     # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
-    # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
-    # `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
+    # scene hands a chosen file it may not load to its host, and this is the side of the wall that gets
+    # to name `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
     # (`browser_host.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
     "src/deluge/gui/ui/browser_host.cpp",

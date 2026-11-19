@@ -72,7 +72,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
    - 3b, close the release blockers: done. Every difference from `main` the emulator shows is fixed or accepted
      (`tests/ui-scripts/parity/DIFFERENCES.md`).
    - 3c, ShellMenu on by default: done.
-   - 3d, delete the legacy menu: done. The legacy oracles were frozen to data first; the ported menu is the only
+   - 3d, delete the legacy menu: done. The legacy oracles were frozen to data first; the scenes menu is the only
      menu.
 4. Delete `ModControllableAudio` and `GlobalEffectable`: done. Then the P3d-1d per-effect param tables.
 

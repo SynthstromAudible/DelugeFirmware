@@ -14,8 +14,8 @@
 /// | `unison` | `unisonMenu` | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
-/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`unisonMenu` in
-/// `origin/main:src/deluge/gui/ui/menus.cpp`): `with_fixed_columns`.
+/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`origin/main:src/deluge/gui/ui/menus.cpp`):
+/// `with_fixed_columns`.
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a big centred
 ///       integer with no label (`origin/main:src/deluge/gui/menu_item/unison/count.h`, `unison_count`'s
@@ -67,9 +67,8 @@ inline constexpr Node unison_spread = with_affect_entire(
 /// @brief `CountToStereoSpread::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/unison/count.h`): a select
 ///        press on the count opens the stereo spread, unconditionally.
 ///
-/// The one ported chain whose target is already a static child of the same page, so nothing new is declared for it --
-/// `unison_spread` is `unisonMenu`'s third column either way (`origin/main:src/deluge/gui/ui/menus.cpp`'s
-/// `unisonMenu`).
+/// The one chain whose target is already a static child of the same page, so nothing new is declared for it --
+/// `unison_spread` is `unisonMenu`'s third column either way (`origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr const Node* kUnisonCountChain[] = {&unison_spread};
 inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
 	return &unison_spread;

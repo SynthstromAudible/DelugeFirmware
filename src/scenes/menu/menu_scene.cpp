@@ -517,7 +517,8 @@ bool MenuScene::reroot_to_page_listing(const Node& item) {
 void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	// A song swap invalidates every pointer in `ctx_`. The application re-resolves the context and
 	// calls `open()` again; until it does, refuse to render anything by dropping the path, which
-	// is strictly safer than drawing a menu over a freed `Sound`.
+	// is strictly safer than drawing a menu over a freed `Sound`. The emptied context goes out through the context hook
+	// too (`install_context`), so the host republishes the target, now empty.
 	if (dirty.has(deluge::notify::Dirty::SongSwapped)) {
 		const DxState dx = st_.dx;
 		st_ = MenuState{};

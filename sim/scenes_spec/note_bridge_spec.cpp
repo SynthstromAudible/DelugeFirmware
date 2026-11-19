@@ -161,9 +161,8 @@ struct RestoreLastAuditionedY {
 ///
 /// `actionLogger` is a process singleton, and `ActionAddition::ALLOWED` lets a later example's edit
 /// join a still-open action whose clip belongs to this example's song. `closeAction` is legacy's own
-/// way to end one. **Not `deleteAllLogs()`**: it frees every action in both logs, and main's
-/// `Action::deleteAllConsequences` (`origin/main:src/deluge/model/action/action.cpp`) services the audio routine
-/// between deletions, which a spec process cannot run; `closeAction` frees nothing.
+/// way to end one. **Not `deleteAllLogs()`**: it frees every action in both logs, every earlier example's included,
+/// where `closeAction` frees nothing.
 struct ActionLogGuard {
 	ActionLogGuard(const ActionLogGuard&) = delete;
 	ActionLogGuard& operator=(const ActionLogGuard&) = delete;

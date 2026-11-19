@@ -103,8 +103,7 @@ public:
 	/// `root_knobs::push` instead), overridden by five UIs (`gui/views/instrument_clip_view.h`,
 	/// `SoundEditor::modEncoderButtonAction` in `origin/main:src/deluge/gui/ui/sound_editor.h`,
 	/// `gui/views/session_view.h`, `gui/views/performance_view.h`, `gui/views/automation_view.h`). Every `Result` along
-	/// the way is `apply()`d immediately, whether or not it reports `handled`, and routing stops at the first `handled`
-	/// step.
+	/// the way is `apply()`d at once, `handled` or not, and routing stops at the first `handled` one.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.
 	/// @return True if some step of the chain reported `handled`; false if the event fell off the

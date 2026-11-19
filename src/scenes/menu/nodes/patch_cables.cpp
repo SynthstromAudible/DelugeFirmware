@@ -381,7 +381,7 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[depth_of(state)],
 	                           /*allow_motion=*/true, /*accelerate=*/true);
 	if (n == 0 && f.select_pressed()) {
-		// `PatchCables::selectButtonPress`'s "there were no items" arm: with nothing to select, the
+		// `PatchCables::selectButtonPress`'s "There were no items" arm: with nothing to select, the
 		// press goes up a level -- `MenuItem::selectButtonPress`'s own `return nullptr`. `list` never
 		// reports `entered` on an empty span, so this is the only way that press is seen.
 		state.tick.render_resp.entered = true;

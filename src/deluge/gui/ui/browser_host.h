@@ -228,9 +228,9 @@ bool shellBrowserAnswersHeld();
 ///
 /// Held answers were produced inside the tick, so this is the first moment no scene is in a hook, and it is before the
 /// next `Shell::tick` reads input. The `.syx` read and the preview's load advance only here. A scroll a delivered
-/// answer asks for starts here, before the next tick renders the pads it hands over. Nothing announces any of the four,
-/// so the one call site, `ShellHostUI::timerCallback`, makes the poll unconditional, after `dispatchShellActions` and
-/// above the close check.
+/// answer asks for starts here, before the next tick renders the pads it hands over. The one call site,
+/// `ShellHostUI::timerCallback`, polls above its close check, so a closing tick's answers are delivered too, and
+/// unconditionally, because nothing announces any of the four.
 void pollShellBrowserHost();
 
 /// @brief Whether the visit open now pushed a scene that refused: the drum creator's browser or take, after which

@@ -168,14 +168,12 @@ struct InputMask {
 ///    it wrong, not a defence against it; if a shell ever needs "consumed at most once" it is a
 ///    check written on top of `claims`, not a property of them.
 ///
-///    **What `double_claim` cannot see: a read with no claim at all.** Before this rule, an
-///    accessor only returned a value -- claiming was a second, separate call a widget had to
-///    remember to make -- so a widget (or a hand-written scene) that read `f.back_pressed()` to
-///    decide something, without ever calling `claim_back()`, left the input looking unclaimed. The
-///    shell audits each tick's claims against what the scene said its widgets own
-///    (`shell::ownership_audit`), so a read that claimed nothing would hide exactly the drift that
-///    audit exists to catch. A frame cannot read an input without also claiming it: the claim is part of the read
-///    itself.
+///    **What `double_claim` cannot see: a read with no claim at all.** Before this rule, an accessor only returned a
+///    value -- claiming was a second, separate call a widget had to remember to make -- so a widget (or a hand-written
+///    scene) that read `f.back_pressed()` to decide something, without ever calling `claim_back()`, left the input
+///    looking unclaimed. The shell audits each tick's claims against what the scene said its widgets own
+///    (`shell::ownership_audit`), so a read that claimed nothing would hide exactly the drift that audit exists to
+///    catch. A frame cannot read an input without also claiming it: the claim is part of the read itself.
 ///
 /// 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask`, not a
 ///    flag: `region(rect, m)` gives the child `mask & m`, so it only ever narrows and a child can

@@ -29,9 +29,9 @@
 // clang-format on
 ///
 /// @note **The morph items' name.** `lpfMorphMenu` in `origin/main:src/deluge/gui/ui/menus.cpp` passes
-///       `STRING_FOR_LPF_MORPH` as both the item's name and its title (not `STRING_FOR_MORPH` for the name), and
-///       `origin/main:src/deluge/gui/ui/menus.cpp` is what the firmware ships, so that is what is transcribed. Legacy
-///       then overrides `getName()`/`getTitle()` to return the *filter mode's* morph name instead
+///       `STRING_FOR_LPF_MORPH` as both the item's name and its title (not `STRING_FOR_MORPH` for the name), and that
+///       file is what the firmware ships, so that is what is transcribed. Legacy then overrides
+///       `getName()`/`getTitle()` to return the *filter mode's* morph name instead
 ///       (`origin/main:src/deluge/gui/menu_item/filter/param.h` -> `FilterInfo::getMorphNameOr`,
 ///       `origin/main:src/deluge/gui/menu_item/filter/info.h`), and its column label to the short morph name
 ///       (`FilterParam::getColumnLabel` in `origin/main:src/deluge/gui/menu_item/filter/param.h`). Neither is carried

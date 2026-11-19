@@ -56,11 +56,10 @@
 ///
 /// This is what a user gets by default, and none of it is discoverable from a green test suite:
 ///
-///  1. **Every `MenuAction` the menu's items file has a body.** `gui::ui::dispatchShellActions`
-///     drains the outbox once per guest tick, so `perform_editor`, `start_stem_export`,
-///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` do what their legacy items
-///     do. What each arm still owes is recorded
-///     per arm at `gui/ui/shell_action_dispatch.h`.
+///  1. **Every `MenuAction` the menu's items file has a body.** `gui::ui::dispatchShellActions` drains the outbox once
+///     per guest tick, so `perform_editor`, `start_stem_export`, `set_clip_length`, `song_midi_learn` and
+///     `configure_song_macros` do what their legacy items do. What each arm still owes is recorded per arm at
+///     `gui/ui/shell_action_dispatch.h`.
 ///  2. **A file chosen in the browser scene is claimed.** The browser's host
 ///     (`gui/ui/browser_host.cpp`, installed by `wireShellGuestServices`) performs the sample
 ///     claim (`SampleClaim`) on the press, so the sample really loads; and `shellSampleClaimDone`'s success arm

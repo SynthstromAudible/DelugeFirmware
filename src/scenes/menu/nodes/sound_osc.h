@@ -92,10 +92,10 @@
 /// @note **Columns.** Legacy's horizontal-menu overrides here are data: the fixed labels (`RetriggerPhase`'s PHSE, the
 ///       reverse's PLAY, SPD, INTR, SYNC) are `with_column_name`; the shapes, direction, repeat-mode and keyboard icons
 ///       are `column_hooks.h`'s art; the labels that read the value or the formatted name (repeat mode, pitch/speed,
-///       the level columns) and the OFF/ON notifications are its `value_text` hooks; and
-///       `osc::Type`/`osc::AudioRecorder`, whose `showColumnLabel()`/`showNotification()` are false
-///       (`origin/main:src/deluge/gui/menu_item/osc/type.h`,
-///       `origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), are
+///       the level columns) and the OFF/ON notifications are its `value_text` hooks. `osc::Type` overrides only
+///       `showColumnLabel()` to false (`origin/main:src/deluge/gui/menu_item/osc/type.h`), and is
+///       `without_column_label`; `osc::AudioRecorder` overrides both `showColumnLabel()` and `showNotification()` to
+///       false (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), and is
 ///       `without_column_label`/`without_notification`.
 
 #include "scenes/menu/node.h"
