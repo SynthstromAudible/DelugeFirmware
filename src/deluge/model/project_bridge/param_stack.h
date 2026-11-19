@@ -162,7 +162,7 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 /// @param memory   MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
 /// @return The stack, or null where the sound does not resolve or its cable set is full.
 [[nodiscard]] ::ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress& address,
-                                                      deluge::instrument::Polarity polarity, void* memory);
+                                                      instrument::Polarity polarity, void* memory);
 
 /// @brief The engine stack of the owner the gold knobs of @p focus move: the song's, a synth's or a kit row's (with its
 /// note row), a kit's or an audio track's, a MIDI track's; in the clip the focus names, following the take the

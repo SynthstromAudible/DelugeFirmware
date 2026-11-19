@@ -4,6 +4,7 @@
 /// @brief The menu's state: the path, the widgets' own state, the mailboxes `after_render` drains, and what
 ///        `save_state` keeps.
 
+#include "instruments/deluge/cables.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
@@ -11,8 +12,6 @@
 #include "shell/scene.h"
 #include "ui/core/response.h"
 #include "ui/core/state.h"
-
-#include "instruments/deluge/cables.h"
 
 #include <cstdint>
 #include <optional>

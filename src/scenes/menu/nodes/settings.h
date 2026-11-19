@@ -964,9 +964,8 @@ inline constexpr Node default_metronome_volume =
                sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
 
 /// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`) is
-/// `polarityToString(...)` (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`), here `instrument::to_string`,
-/// for the two polarities --
-/// literals again, so a dynamic list.
+/// `polarityToString` (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`) for the two polarities, here
+/// `instrument::to_string`: literals, so a dynamic list.
 inline constexpr Node default_patch_cable_polarity =
     dynamic_enumeration(sid(String::STRING_FOR_DEFAULT_POLARITY), polarity_names, get_default_patch_cable_polarity,
                         set_default_patch_cable_polarity);

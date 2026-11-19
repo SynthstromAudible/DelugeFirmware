@@ -55,22 +55,22 @@
 
 namespace deluge::scenes::menu::nodes {
 
-namespace {
-/// The polarity a cable made without one takes where its source fixes none: the device's setting.
-instrument::Polarity default_patch_cable_polarity() {
-	return FlashStorage::defaultPatchCablePolarity;
-}
-
-/// The polarity a new cable from @p source takes.
-instrument::Polarity default_polarity(PatchSource source) {
-	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity());
-}
-} // namespace
-
 namespace params = deluge::modulation::params;
 using deluge::l10n::String;
 
 namespace {
+/// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
+/// @return The device's default cable polarity.
+instrument::Polarity default_patch_cable_polarity() {
+	return FlashStorage::defaultPatchCablePolarity;
+}
+
+/// @brief The polarity a new cable from @p source takes.
+/// @param source The cable's source.
+/// @return The source's fixed polarity, or the device's default where it fixes none.
+instrument::Polarity default_polarity(PatchSource source) {
+	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity());
+}
 
 // ---------------------------------------------------------------------------------------------
 // Text helpers. The two `util/functions.cpp` source-name tables are `services/source_names.h`'s.
