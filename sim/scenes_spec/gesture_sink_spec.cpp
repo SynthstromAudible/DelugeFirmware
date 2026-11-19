@@ -235,9 +235,9 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		expect(clip_writes.recolour_clip(nowhere, 1)).to_be_false();
 		expect(clip_writes.move_audio_clip_marker(nowhere, "endSamplePos", 1)).to_be_false();
 		bind::SoundWrites& sound_writes = *menu::host_ports().sound_writes;
-		expect(sound_writes.write_ranges({deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id() + 1000}, 0,
-		                                 {}, {}))
-		    .to_be_false();
+		const deluge::project::SlotAddress lost_slot{deluge::project::SlotAddress::Kind::OUTPUT,
+		                                             *synth.instrument->id() + 1000};
+		expect(sound_writes.write_ranges(lost_slot, 0, {}, {})).to_be_false();
 		currentSong = saved;
 	});
 });

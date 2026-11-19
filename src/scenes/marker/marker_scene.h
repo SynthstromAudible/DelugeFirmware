@@ -30,10 +30,10 @@
 ///
 /// The scene holds addresses, not engine objects: a sound's markers are its range's zone in the
 /// source's record (`SoundFacts::sound_state`), an audio clip's are rows of the clip's record.
-/// A move goes to the menu's sink: a sound's as its source's ranges with the marker named, an
-/// audio clip's as a marker request. The view (scroll, zoom) and the loop lock are the scene's
-/// own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio clip's
-/// id (`services::ViewKey`), so they stay with that range or clip as main keeps them on its sample holder.
+/// A move goes to a port: a sound's to the sound port as its source's ranges with the marker
+/// named, an audio clip's to the clip port as a marker request. The view (scroll, zoom) and the loop lock are the
+/// scene's own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio
+/// clip's id (`services::ViewKey`), so they stay with that range or clip as main keeps them on its sample holder.
 ///
 /// @par The waveform is on the pads only
 ///

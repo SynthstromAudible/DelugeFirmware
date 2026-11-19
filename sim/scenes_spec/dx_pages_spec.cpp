@@ -364,7 +364,9 @@ describe dx_pages("the DX7 menu pages", ${
 		};
 		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
 		for_each_layout(
-		    patch, [&] { expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true(); }, shot);
+		    patch,
+		    [&] { expect(menu::host_ports().sound_writes->write_dx_patch(r.slot(), 0, patch)).to_be_true(); },
+		    shot);
 	});
 
 	it("draws DX7 source, both lists and the engine version as main's items do", _ {

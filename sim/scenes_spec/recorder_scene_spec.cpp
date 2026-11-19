@@ -567,7 +567,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		{
 			Rig r;
 			bind::test::RecordingSoundWrites recording;
-			r.open(nullptr, &recording);
+			r.open(&recording);
 			r.tick(0);
 			SampleRecorder* rec = recorder_scene().recorder();
 			const Take take{*rec, "SAMPLES/RECORD/REC002.WAV"};
@@ -608,7 +608,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		Rig r;
 		deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
-		expect(menu::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
+		expect(menu::host_ports().sound_writes->attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV"))
+		    .to_be_false();
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
 		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
@@ -623,7 +624,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Rig r;
 		bind::test::RecordingSoundWrites refusing;
 		refusing.accept = false;
-		r.open(nullptr, &refusing);
+		r.open(&refusing);
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 		rec->numSamplesCaptured = 44100;

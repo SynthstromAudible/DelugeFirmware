@@ -198,7 +198,7 @@ struct RecordingSoundWrites final : SoundWrites {
 		Addresses where{};                                ///< TRANSPOSE's owner
 	};
 	std::vector<Call> calls; ///< every request taken, in order
-	bool accept{true};       ///< what each request that answers, answers
+	bool accept{true};       ///< what each request answers (set_default_range answers nothing)
 	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
 	                  RangesCause cause) override;
 	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;

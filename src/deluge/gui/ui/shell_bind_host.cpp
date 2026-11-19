@@ -78,7 +78,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"

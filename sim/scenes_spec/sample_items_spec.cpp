@@ -55,6 +55,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "fakes.h"
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/sample_items_fixtures.h"
@@ -732,13 +733,15 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	it("sample1_recorder whose first range cannot be made refuses to open, as main's refused permission", _ {
 		// `checkPermissionToBeginSessionForRangeSpecificParam`'s `displayError(INSUFFICIENT_RAM)` and `NO`: `setup`
 		// refuses, so the menu does not open on the item and the recorder does not open at all. The menu's refusal is
-		// `on_enter` answering false, which the shell rolls back. A context with no sound writes is one whose range request is
-		// refused.
+		// `on_enter` answering false, which the shell rolls back. A sound port that refuses is one
+		// whose range request is refused.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/false};
 		MenuContext c = r.ctx();
-		c.ports.sound_writes = nullptr;
+		bind::test::RecordingSoundWrites refusing;
+		refusing.accept = false;
+		c.ports.sound_writes = &refusing;
 		select_language();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::sample1_recorder, c);

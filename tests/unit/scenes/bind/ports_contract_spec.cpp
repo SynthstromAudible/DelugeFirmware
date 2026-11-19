@@ -87,6 +87,13 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			expect(call.value).to_equal(int64_t{60});
 			expect(call.neighbour_top).to_equal(std::optional<int16_t>{48});
 		}
+		expect(p.sound_writes->load_dx_program(slot, 1, 5)).to_be_true();
+		expect(host.sound_writes.calls.size()).to_equal(size_t{2});
+		if (host.sound_writes.calls.size() == 2) {
+			expect(host.sound_writes.calls[0].kind).to_equal(test::RecordingSoundWrites::Call::Kind::INSERT_RANGE);
+			expect(host.sound_writes.calls[1].kind).to_equal(test::RecordingSoundWrites::Call::Kind::DX_PROGRAM);
+			expect(host.sound_writes.calls[1].value).to_equal(int64_t{5});
+		}
 		host.sound_writes.accept = false;
 		expect(contract::unknown_sound_is_refused(*p.sound_writes, deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 54321}))
 		    .to_be_true();

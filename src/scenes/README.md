@@ -382,7 +382,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where the menu may include them and they keep
   their SDRAM placement.
 * **Every write is the whole patch**, `SoundWrites::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
-  auto engine mode is not chosen again for a new algorithm, as `main` does not.
+  the engine follows the bytes: an auto patch whose new algorithm needs MkI runs the MkI engine.
 * **The pad blink is the item's own** (`CustomItem::own_blink`): none as the page opens, because legacy's screen entry
   unsets the blink the page sets up; the param's pad after a horizontal step. Shift + a horizontal turn where legacy
   searches the operators forever stays put (DIFFERENCES D87).

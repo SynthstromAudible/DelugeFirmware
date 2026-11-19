@@ -2103,7 +2103,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
-		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sink.
+		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sound port.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

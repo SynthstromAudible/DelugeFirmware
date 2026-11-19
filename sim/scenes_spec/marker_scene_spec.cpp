@@ -439,7 +439,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	it("hands an audio clip's moved marker to the clip port by the clip's address", _ {
 		AudioRig r;
 		bind::test::RecordingClipWrites clip_writes;
-		r.open(MarkerType::END, nullptr, &clip_writes);
+		r.open(MarkerType::END, &clip_writes);
 		r.tick(0);
 		r.turn_select(-1, 10);
 		r.tick(10);

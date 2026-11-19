@@ -49,6 +49,7 @@
 #include "processing/source.h"
 #include "util/functions.h"
 
+#include "fakes.h"
 #include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
 #include "support/song_fixture.h"
@@ -324,6 +325,7 @@ struct Rig {
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake;
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	bind::test::RecordingSoundWrites refusing_writes; ///< the sound port `open_refusing_ranges` installs
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
@@ -382,9 +384,8 @@ struct Rig {
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
-	/// @brief `open` on a context with no sound writes, which refuses a range request as `main`'s
-	/// `getOrCreateFirstRange`
-	///        fails with INSUFFICIENT_RAM.
+	/// @brief `open` on a context whose sound port refuses every write, as `main`'s `getOrCreateFirstRange` fails
+	///        with INSUFFICIENT_RAM.
 	/// @param list Open with horizontal menus off.
 	void open_refusing_ranges(const Node& root, bool list = false) {
 		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
@@ -392,7 +393,8 @@ struct Rig {
 		if (list) {
 			ctx.horizontal_menus = false;
 		}
-		ctx.ports.sound_writes = nullptr;
+		refusing_writes.accept = false;
+		ctx.ports.sound_writes = &refusing_writes;
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -2462,8 +2464,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
 		// `Submenu::selectButtonPress` asks `checkPermissionToBeginSession`, whose `getOrCreateFirstRange` failure is
-		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sound writes is one
-		// whose range request is refused.
+		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A sound port that
+		// refuses is one whose range request is refused.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
