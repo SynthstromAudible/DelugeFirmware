@@ -447,7 +447,8 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as main's rhythm screen does", _ {
 		Rig r;
 		for (int32_t i = 0; i <= deluge::plugin::kMaxMenuSteps; i++) {
-			const std::string want = (std::to_string(i) + ": " + std::string(deluge::plugin::kArpRhythms[i].name)).substr(0, 11); // its buffer
+			const std::string name{deluge::plugin::kArpRhythms[i].name};
+			const std::string want = (std::to_string(i) + ": " + name).substr(0, 11); // its buffer
 			expect(screen_text(nodes::arp_rhythm, r.ctx, i)).to_equal(want);
 		}
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
@@ -512,7 +513,8 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 	it("names a MIDI or CV arpeggiator's rhythm by its pattern", _ {
 		Rig r;
 		for (int32_t i = 0; i <= deluge::plugin::kMaxMenuSteps; i++) {
-			expect(screen_text(nodes::arp_rhythm_midi, r.ctx, i)).to_equal(std::string{deluge::plugin::kArpRhythms[i].name});
+			const std::string name{deluge::plugin::kArpRhythms[i].name};
+			expect(screen_text(nodes::arp_rhythm_midi, r.ctx, i)).to_equal(name);
 		}
 	});
 

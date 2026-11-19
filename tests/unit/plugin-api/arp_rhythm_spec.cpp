@@ -2,6 +2,8 @@
 
 #include <cppspec.hpp>
 
+#include <string>
+
 using namespace deluge::plugin;
 
 // clang-format off
@@ -24,13 +26,9 @@ describe arp_rhythm("arp rhythms", ${
 	});
 
 	it("keeps every length between one and six", _ {
-		int outside = 0;
 		for (const auto& r : kArpRhythms) {
-			if (r.length < 1 || r.length > 6) {
-				++outside;
-			}
+			expect(static_cast<int>(r.length)).to_be_between(1, 6);
 		}
-		expect(outside).to_equal(0);
 	});
 
 	it("wraps the step at the pattern's length", _ {
