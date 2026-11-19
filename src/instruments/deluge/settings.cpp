@@ -260,7 +260,7 @@ constexpr std::array kOscCentsExtras{plugin::SettingDescriptorExtras{.applies_an
 constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents", kFmConditions),
                                                transpose_extras("modulator2/cents", kFmConditions)};
 
-/// A new sound's settings (a default SoundState's), as the rows store them.
+/// A new sound's settings (a default FlatSoundState's), as the rows store them.
 constexpr int32_t kDefaultMaxVoices = 8;
 constexpr int32_t kDefaultMidiChannel = 16; // "255": none
 constexpr int32_t kDefaultUnisonDetune = 8;
@@ -435,7 +435,7 @@ std::optional<size_t> indexAfter(std::string_view path, size_t at, char last) {
 	return static_cast<size_t>(path[at] - '1');
 }
 
-Answer topLevelValue(const SoundState& state, std::string_view path) {
+Answer top_level_value(const FlatSoundState& state, std::string_view path) {
 	if (path == "polyphonic") {
 		return word(to_string(state.polyphonic));
 	}
@@ -461,7 +461,8 @@ Answer topLevelValue(const SoundState& state, std::string_view path) {
 }
 
 /// @p held: answer what the state holds whether or not the path applies to it.
-Answer oscillatorValue(const SoundState& state, std::string_view path, bool held) {
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+Answer oscillator_value(const FlatSoundState& state, std::string_view path, bool held) {
 	const std::optional<size_t> s = indexAfter(path, 3, '2');
 	if (!s) {
 		return std::nullopt;
@@ -503,7 +504,7 @@ Answer oscillatorValue(const SoundState& state, std::string_view path, bool held
 	return std::nullopt;
 }
 
-Answer lfoValue(const SoundState& state, std::string_view path) {
+Answer lfo_value(const FlatSoundState& state, std::string_view path) {
 	const std::optional<size_t> l = indexAfter(path, 3, '4');
 	if (!l) {
 		return std::nullopt;
@@ -521,7 +522,7 @@ Answer lfoValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer modulatorValue(const SoundState& state, std::string_view path, bool held) {
+Answer modulator_value(const FlatSoundState& state, std::string_view path, bool held) {
 	const std::optional<size_t> m = indexAfter(path, 9, '2');
 	if (!m || (!held && state.synth_mode != SynthMode::FM)) {
 		return std::nullopt; // only FM writes its modulators
@@ -542,7 +543,7 @@ Answer modulatorValue(const SoundState& state, std::string_view path, bool held)
 	return std::nullopt;
 }
 
-Answer unisonValue(const SoundState& state, std::string_view path) {
+Answer unison_value(const FlatSoundState& state, std::string_view path) {
 	const std::string_view rest = path.substr(7);
 	if (rest == "num") {
 		return number(state.num_unison);
@@ -556,7 +557,7 @@ Answer unisonValue(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer midiOutputValue(const SoundState& state, std::string_view path) {
+Answer midi_output_value(const FlatSoundState& state, std::string_view path) {
 	const std::string_view rest = path.substr(11);
 	if (rest == "channel") {
 		return number(state.output_midi_channel);
@@ -568,23 +569,23 @@ Answer midiOutputValue(const SoundState& state, std::string_view path) {
 }
 
 /// A family reader that answers the same whether or not the path applies to the state, as one that takes @c held.
-template <Answer (*reader)(const SoundState&, std::string_view)>
-Answer unconditional(const SoundState& state, std::string_view path, bool /*held*/) {
+template <Answer (*reader)(const FlatSoundState&, std::string_view)>
+Answer unconditional(const FlatSoundState& state, std::string_view path, bool /*held*/) {
 	return reader(state, path);
 }
 
 /// Each family of setting paths, by its prefix, and how a state answers one; the empty prefix takes the rest.
 struct Family {
 	std::string_view prefix;
-	Answer (*value)(const SoundState&, std::string_view, bool held);
+	Answer (*value)(const FlatSoundState&, std::string_view, bool held);
 };
 constexpr std::array kFamilies{
-    Family{"osc", oscillatorValue},
-    Family{"lfo", unconditional<lfoValue>},
-    Family{"modulator", modulatorValue},
-    Family{"unison/", unconditional<unisonValue>},
-    Family{"midiOutput/", unconditional<midiOutputValue>},
-    Family{"", unconditional<topLevelValue>},
+    Family{.prefix = "osc", .value = oscillator_value},
+    Family{.prefix = "lfo", .value = unconditional<lfo_value>},
+    Family{.prefix = "modulator", .value = modulator_value},
+    Family{.prefix = "unison/", .value = unconditional<unison_value>},
+    Family{.prefix = "midiOutput/", .value = unconditional<midi_output_value>},
+    Family{.prefix = "", .value = unconditional<top_level_value>},
 };
 
 /// The instrument's rows, then its effects'.
@@ -607,7 +608,7 @@ namespace {
 
 /// @p path's value in @p state, an unset one included, or nothing where the path does not apply (with @p held, where
 /// the state holds none).
-Answer anyValue(const SoundState& state, std::string_view path, bool held = false) {
+Answer any_value(const FlatSoundState& state, std::string_view path, bool held = false) {
 	const SettingInfo* row = plugin::find_setting(kSettings, path);
 	if (row == nullptr || row->kind == STRUCTURED) {
 		return std::nullopt;
@@ -635,17 +636,17 @@ std::optional<serialization::Value> canonical_setting(std::string_view path, con
 	return value;
 }
 
-std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path) {
-	Answer value = anyValue(state, path);
+std::optional<serialization::Value> setting_value(const FlatSoundState& state, std::string_view path) {
+	Answer value = any_value(state, path);
 	if (value && path == "midiOutput/noteForDrum" && value->str() == "255") {
 		return std::nullopt; // unset: the menu shows its default there and writes only a note
 	}
 	return value;
 }
 
-std::optional<int32_t> held_setting(const SoundState& state, std::string_view path) {
+std::optional<int32_t> held_setting(const FlatSoundState& state, std::string_view path) {
 	const SettingInfo* row = plugin::find_setting(kSettings, path);
-	const Answer value = anyValue(state, path, true);
+	const Answer value = any_value(state, path, true);
 	if (!value) {
 		return std::nullopt;
 	}
@@ -657,7 +658,7 @@ std::optional<int32_t> held_setting(const SoundState& state, std::string_view pa
 	return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
 }
 
-bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value) {
+bool allows_setting(const FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const auto ringable = [](OscType type) { return type <= OscType::WAVETABLE; };
 	if (path == "mode" && parse_synth_mode(value.str()) == SynthMode::RINGMOD) {
 		return std::ranges::all_of(state.sources, ringable, &SourceState::osc_type);
@@ -668,20 +669,20 @@ bool allows_setting(const SoundState& state, std::string_view path, const serial
 	return true;
 }
 
-bool takes_setting(const SoundState& state, std::string_view path) {
-	return anyValue(state, path).has_value();
+bool takes_setting(const FlatSoundState& state, std::string_view path) {
+	return any_value(state, path).has_value();
 }
 
 namespace {
 
 /// The inverse of the family readers above: each writes the field its reader reads, from an Edit's canonical value.
-using Write = bool (*)(SoundState&, std::string_view path, const serialization::Value& value);
+using Write = bool (*)(FlatSoundState&, std::string_view path, const serialization::Value& value);
 
 int32_t intOf(const serialization::Value& value) {
 	return serialization::int_of(&value).value_or(0);
 }
 
-bool writeTopLevel(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_top_level(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const int32_t n = intOf(value);
 	if (path == "polyphonic") {
 		state.polyphonic = parse_polyphony_mode(value.str());
@@ -710,7 +711,7 @@ bool writeTopLevel(SoundState& state, std::string_view path, const serialization
 	return true;
 }
 
-bool writeOscillator(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_oscillator(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::optional<size_t> s = indexAfter(path, 3, '2');
 	if (!s) {
 		return false;
@@ -754,7 +755,7 @@ bool writeOscillator(SoundState& state, std::string_view path, const serializati
 	return true;
 }
 
-bool writeLfo(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_lfo(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::optional<size_t> l = indexAfter(path, 3, '4');
 	if (!l) {
 		return false;
@@ -775,7 +776,7 @@ bool writeLfo(SoundState& state, std::string_view path, const serialization::Val
 	return true;
 }
 
-bool writeModulator(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_modulator(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::optional<size_t> m = indexAfter(path, 9, '2');
 	if (!m) {
 		return false;
@@ -800,7 +801,7 @@ bool writeModulator(SoundState& state, std::string_view path, const serializatio
 	return true;
 }
 
-bool writeUnison(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_unison(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::string_view rest = path.substr(7);
 	const int32_t n = intOf(value);
 	if (rest == "num") {
@@ -818,7 +819,7 @@ bool writeUnison(SoundState& state, std::string_view path, const serialization::
 	return true;
 }
 
-bool writeMidiOutput(SoundState& state, std::string_view path, const serialization::Value& value) {
+bool write_midi_output(FlatSoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::string_view rest = path.substr(11);
 	const int32_t n = intOf(value);
 	if (rest == "channel") {
@@ -839,20 +840,23 @@ struct FamilyWriter {
 	Write write;
 };
 constexpr std::array kFamilyWriters{
-    FamilyWriter{"osc", writeOscillator},         FamilyWriter{"lfo", writeLfo},
-    FamilyWriter{"modulator", writeModulator},    FamilyWriter{"unison/", writeUnison},
-    FamilyWriter{"midiOutput/", writeMidiOutput}, FamilyWriter{"", writeTopLevel},
+    FamilyWriter{.prefix = "osc", .write = write_oscillator},
+    FamilyWriter{.prefix = "lfo", .write = write_lfo},
+    FamilyWriter{.prefix = "modulator", .write = write_modulator},
+    FamilyWriter{.prefix = "unison/", .write = write_unison},
+    FamilyWriter{.prefix = "midiOutput/", .write = write_midi_output},
+    FamilyWriter{.prefix = "", .write = write_top_level},
 };
 
 } // namespace
 
-std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
+std::vector<std::string_view> write_setting(FlatSoundState& state, std::string_view path,
                                             const serialization::Value& value) {
 	const SettingInfo* row = plugin::find_setting(kSettings, path);
 	if (row == nullptr || row->kind == STRUCTURED) {
 		return {};
 	}
-	const SoundState before = state;
+	const FlatSoundState before = state;
 	if (plugin::find_setting(effects::kEffectSettings, path) != nullptr) {
 		(void)effects::write_effect_setting(state.effects, path, value);
 	}
@@ -869,6 +873,14 @@ std::vector<std::string_view> write_setting(SoundState& state, std::string_view 
 
 bool check_setting(std::string_view path, const serialization::Value& value) {
 	return plugin::check_setting(kSettings, path, value);
+}
+
+std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
+                                            const serialization::Value& value) {
+	FlatSoundState flat = state;
+	std::vector<std::string_view> written = write_setting(flat, path, value);
+	state = flat;
+	return written;
 }
 
 } // namespace deluge::instrument

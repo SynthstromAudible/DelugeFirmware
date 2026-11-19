@@ -99,6 +99,7 @@
 #include <string_view>
 #include <vector>
 
+#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -310,7 +311,8 @@ MenuContext sound_context(spec::SongFixture& f) {
 
 /// @brief Make @p sound a ring-mod synth before the browser opens on it: its state, and the config derived from it.
 void ring_mod(Sound& sound) {
-	sound.boundRecord()->synth_mode = ::SynthMode::RINGMOD;
+	deluge::test::change_flat(*sound.boundRecord(),
+	                          [&](deluge::instrument::FlatSoundState& f) { f.synth_mode = ::SynthMode::RINGMOD; });
 	sound.projectSnapshot();
 }
 

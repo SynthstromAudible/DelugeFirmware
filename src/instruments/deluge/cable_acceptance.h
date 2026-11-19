@@ -20,7 +20,7 @@ inline constexpr plugin::ParamId kAnyDestination{255};
 /// @param state       The sound's typed state, its own effects' settings with it.
 /// @param is_drum     Whether the sound is a kit's drum.
 /// @return Whether the cable is allowed.
-[[nodiscard]] bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state,
+[[nodiscard]] bool cable_allowed(PatchSource source, plugin::ParamId destination, const FlatSoundState& state,
                                  bool is_drum);
 
 } // namespace deluge::instrument

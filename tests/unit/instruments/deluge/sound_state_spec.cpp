@@ -10,8 +10,8 @@ using namespace deluge::instrument;
 // clang-format off
 describe sound_state("the Deluge instrument's state for a sound", ${
 	it("compares equal field by field, ranges and DX7 patch included", _ {
-		SoundState a;
-		SoundState b;
+		FlatSoundState a;
+		FlatSoundState b;
 		expect(a).to_equal(b);
 		b.sources[1].ranges.push_back({.top_note = 60, .file_path = "SAMPLES/A.WAV"});
 		expect(a).not_().to_equal(b);
@@ -23,7 +23,7 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 	});
 
 	it("is a new synth by default", _ {
-		const SoundState s{};
+		const FlatSoundState s{};
 		expect(s.voice_priority).to_equal(deluge::plugin::VoicePriority::MEDIUM);
 		expect(s.max_voice_count).to_equal(uint8_t{8});
 		expect(s.side_chain_send_level).to_equal(int32_t{0});
@@ -60,7 +60,7 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 	});
 
 	it("records what a new synth starts as", _ {
-		const SoundState s = SoundState{};
+		const FlatSoundState s = FlatSoundState{};
 		expect(s.max_voice_count).to_equal(uint8_t{8});
 		expect(s.output_midi_channel).to_equal(uint8_t{255});
 		expect(s.output_midi_note_for_drum).to_equal(uint8_t{255});

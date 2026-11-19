@@ -102,6 +102,7 @@
 #include "scenes/menu/nodes/sound_root.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "support/flat_state.h"
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
 
@@ -760,8 +761,8 @@ Sample* previewedSample() {
 /// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
-	const deluge::instrument::SoundState* state = preview.boundState();
-	const bool derived = state != nullptr && preview.config() == deluge::instrument::DelugeSynth::derive(*state);
+	const deluge::test::FlatView state = deluge::test::flat_of(preview.boundState());
+	const bool derived = state.has_value() && preview.config() == deluge::instrument::DelugeSynth::derive(*state);
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
 	if (!derived || state->sources[0].osc_type != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {
@@ -2011,7 +2012,7 @@ void checkLeg() {
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
-		       static_cast<int>(g_synth->state_->sources[0].repeat_mode),
+		       static_cast<int>(deluge::test::flat_of(g_synth->state_)->sources[0].repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2231,7 +2232,7 @@ void checkLeg() {
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "",
-		       drum != nullptr ? static_cast<int>(drum->state_->sources[0].repeat_mode) : -1,
+		       drum != nullptr ? static_cast<int>(deluge::test::flat_of(drum->state_)->sources[0].repeat_mode) : -1,
 		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
 		       g_wait.ticks());
 		if (!bound) {
@@ -2402,7 +2403,8 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(soundDrum->state_->sources[0].repeat_mode), soundDrum->sideChainSendLevel);
+				       static_cast<int>(deluge::test::flat_of(soundDrum->state_)->sources[0].repeat_mode),
+				       soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]
 				    && holder->filePath == std::string{kImportKitFolder} + "/IMK_" + kImportKitNames[drums] + ".WAV") {

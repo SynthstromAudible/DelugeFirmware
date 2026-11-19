@@ -18,7 +18,7 @@
 #pragma once
 
 #include "effects/state.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/flat_sound_state.h"
 #include "synth/engines/engine_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"
@@ -56,10 +56,10 @@ struct Recall {
 };
 
 /// @brief The flat record @p flat as the state it plays and what it keeps for a switch back.
-[[nodiscard]] std::pair<ComposedState, Recall> compose(const SoundState& flat);
+[[nodiscard]] std::pair<ComposedState, Recall> compose(const FlatSoundState& flat);
 
 /// @brief The flat record a composed state and its recall are: `flatten(compose(f)) == f` for every record a file
 /// decodes to or a rule makes.
-[[nodiscard]] SoundState flatten(const ComposedState& state, const Recall& recall);
+[[nodiscard]] FlatSoundState flatten(const ComposedState& state, const Recall& recall);
 
 } // namespace deluge::instrument

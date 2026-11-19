@@ -93,7 +93,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 
 	it("reads a sound's own effects through its slot", _ {
 		ModelFixture fixture;
-		auto state = fixture.facts.states.at(kSynth.id);
+		deluge::instrument::FlatSoundState state = fixture.facts.states.at(kSynth.id);
 		state.effects.filter.lpf_mode = FilterMode::SVF_NOTCH;
 		fixture.set_state(kSynth, state);
 		const auto shown = view(effect("lpfMode"), fixture.song, {.slot = kSynth}, fixture.facts);

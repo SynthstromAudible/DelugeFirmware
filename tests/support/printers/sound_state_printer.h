@@ -87,7 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, const SourceState& s) {
 /// @param os The stream to print to.
 /// @param s The state.
 /// @return @p os.
-inline std::ostream& operator<<(std::ostream& os, const SoundState& s) {
+inline std::ostream& operator<<(std::ostream& os, const FlatSoundState& s) {
 	using deluge::test::printers::print_enums;
 	using deluge::test::printers::print_list;
 	os << std::format("{{voice_priority {}, max_voice_count {}, side_chain_send_level {}, output_midi_channel {}, "

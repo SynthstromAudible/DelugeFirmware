@@ -145,11 +145,13 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (!d.empty()) {
 			return "runtime at " + d;
 		}
-		if (const deluge::effects::EffectStates& played = held.effects; !(played == record.effects)) {
+		if (const deluge::effects::EffectStates& played = deluge::instrument::sound_effects(held);
+		    !(played == deluge::instrument::sound_effects(record))) {
 			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
-			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),
-			                                                 deluge::effects::encode(record.effects, context));
+			       + deluge::serialization::first_difference(
+			           deluge::effects::encode(played, context),
+			           deluge::effects::encode(deluge::instrument::sound_effects(record), context));
 		}
 	}
 	if (checks.bound && slot->state.as<deluge::instrument::DelugeSynth>() != &record) {
@@ -173,7 +175,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (!decoded) {
 			return "decode refused";
 		}
-		if (!(*decoded == record)) {
+		if (!(deluge::instrument::SoundState(*decoded) == record)) {
 			return "decode at "
 			       + deluge::serialization::first_difference(deluge::instrument::dump_state(*decoded),
 			                                                 deluge::instrument::dump_state(record));

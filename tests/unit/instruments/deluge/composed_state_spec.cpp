@@ -1,5 +1,6 @@
 #include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/dx7_init_voice.h"
+#include "support/flat_state.h"
 
 #include <cppspec.hpp>
 #include <variant>
@@ -11,14 +12,14 @@ using namespace deluge::instrument;
 namespace {
 
 /// Whether @p flat survives being composed and flattened again.
-bool round_trips(const SoundState& flat) {
+bool round_trips(const FlatSoundState& flat) {
 	const auto [state, recall] = compose(flat);
 	return flatten(state, recall) == flat;
 }
 
 /// A sound whose slots hold the given kinds, each with some settings of its own and some of the other kinds'.
-SoundState sound_of(SynthMode mode, OscType a, OscType b) {
-	SoundState s;
+FlatSoundState sound_of(SynthMode mode, OscType a, OscType b) {
+	FlatSoundState s;
 	s.synth_mode = mode;
 	s.sources[0].osc_type = a;
 	s.sources[1].osc_type = b;
@@ -51,7 +52,7 @@ SoundState sound_of(SynthMode mode, OscType a, OscType b) {
 // clang-format off
 describe composed_state("a sound's flat record as the state it plays and what it keeps for a switch back", ${
 	it("composes a new synth into the components' defaults, with nothing to recall", _ {
-		const auto [state, recall] = compose(SoundState{});
+		const auto [state, recall] = compose(FlatSoundState{});
 		expect(state == ComposedState{}).to_equal(true);
 		expect(recall == Recall{}).to_equal(true);
 	});
@@ -63,6 +64,18 @@ describe composed_state("a sound's flat record as the state it plays and what it
 			for (const OscType a : kinds) {
 				for (const OscType b : kinds) {
 					expect(round_trips(sound_of(mode, a, b))).to_equal(true);
+				}
+			}
+		}
+	});
+
+	it("reads every engine with every pair of oscillator kinds as its flat layout holds them", _ {
+		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
+		                         OscType::INPUT_L, OscType::INPUT_STEREO};
+		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
+			for (const OscType a : kinds) {
+				for (const OscType b : kinds) {
+					expect(deluge::test::reader_difference(SoundState(sound_of(mode, a, b)))).to_equal(std::string{});
 				}
 			}
 		}

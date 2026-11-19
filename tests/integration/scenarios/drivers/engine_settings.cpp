@@ -57,6 +57,7 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
+#include "support/flat_state.h"
 
 #include <array>
 #include <charconv>
@@ -455,7 +456,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	if (!address || sound.boundState() == nullptr) {
 		return 0;
 	}
-	const deluge::instrument::SoundState before = *sound.boundState();
+	const deluge::instrument::FlatSoundState before = *sound.boundState();
 	const auto tuningOf = [](const deluge::instrument::SourceState& source) {
 		return std::pair{source.transpose, source.cents};
 	};
@@ -479,7 +480,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 			continue;
 		}
 		for (size_t s = 0; s < before.sources.size(); s++) {
-			const auto now = tuningOf(sound.boundState()->sources[s]);
+			const auto now = tuningOf(deluge::test::flat_of(sound.boundState())->sources[s]);
 			const auto was = tuningOf(before.sources[s]);
 			if (now != was) {
 				std::fprintf(io.err, "%s mode pair: osc%zu's tuning while FM is %d/%d, it was %d/%d\n", name, s + 1,
@@ -490,7 +491,8 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		// While FM, each oscillator's own tuning moves and comes back: its entry changes, and what no FM file holds of
 		// it must outlast that.
 		for (std::string path : {"osc1/transpose", "osc2/transpose"}) {
-			const int32_t was = static_cast<int32_t>(sound.boundState()->sources[path[3] - '1'].transpose);
+			const int32_t was =
+			    static_cast<int32_t>(deluge::test::flat_of(sound.boundState())->sources[path[3] - '1'].transpose);
 			for (int32_t to : {was < 96 ? was + 1 : was - 1, was}) {
 				deluge::edits::SetEngineSetting tune{*address, path, Value::makeNumber(to)};
 				if (deluge::edits::apply(ctx, tune) != Error::NONE) {
@@ -501,7 +503,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		}
 	}
 	for (size_t s = 0; s < before.sources.size(); s++) {
-		if (!sameHiddenSource(sound.boundState()->sources[s], before.sources[s])) {
+		if (!sameHiddenSource(deluge::test::flat_of(sound.boundState())->sources[s], before.sources[s])) {
 			std::fprintf(io.err, "%s mode pair: osc%zu is not the oscillator it was\n", name, s + 1);
 			return 3;
 		}
@@ -519,7 +521,8 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 	    || sound.oscType(0) != OscType::SAMPLE) {
 		return 0;
 	}
-	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
+	const std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::test::flat_of(sound.boundState())->sources[0].ranges;
 	const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 	deluge::edits::Context ctx{song, song.project};
 	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
@@ -528,7 +531,7 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 		failed = "taken";
 	}
 	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.oscType(0) != OscType::SAMPLE
-	         || sound.boundState()->sources[0].ranges != ranges
+	         || deluge::test::flat_of(sound.boundState())->sources[0].ranges != ranges
 	         || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)), slotBefore)
 	                 .empty()) {
 		failed = "the refusal changed the sound";
@@ -889,8 +892,8 @@ int magnitudeLeg(Song& song) {
 		if (!address || sound->boundState() == nullptr) {
 			continue;
 		}
-		const auto levels = sound->boundState()->lfo_sync_level;
-		const deluge::effects::EffectStates effects = sound->boundState()->effects;
+		const auto levels = deluge::test::flat_of(sound->boundState())->lfo_sync_level;
+		const deluge::effects::EffectStates effects = deluge::test::flat_of(sound->boundState())->effects;
 		const Value priority = *leafAt((*deluge::harness::encodedSlot(song, *address)), "voicePriority");
 		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
@@ -900,12 +903,13 @@ int magnitudeLeg(Song& song) {
 		if (failed.empty() && deluge::edits::apply(ctx, delay) != Error::NONE) {
 			failed = "delay/syncLevel refused";
 		}
-		if (failed.empty() && sound->boundState()->lfo_sync_level != levels) {
+		if (failed.empty() && deluge::test::flat_of(sound->boundState())->lfo_sync_level != levels) {
 			failed = "the LFO sync levels moved";
 		}
 		if (failed.empty()
-		    && (sound->boundState()->effects.delay.sync_level != effects.delay.sync_level
-		        || sound->boundState()->effects.sidechain.sync_level != effects.sidechain.sync_level)) {
+		    && (deluge::test::flat_of(sound->boundState())->effects.delay.sync_level != effects.delay.sync_level
+		        || deluge::test::flat_of(sound->boundState())->effects.sidechain.sync_level
+		               != effects.sidechain.sync_level)) {
 			failed = "the delay's or sidechain's sync level moved";
 		}
 		if (failed.empty()) {
@@ -1105,10 +1109,10 @@ int loadRulesLeg(Song& song) {
 		std::fprintf(io.err, "LOADFAIL load-rules presets\n");
 		return 1;
 	}
-	const deluge::instrument::SoundState* a = static_cast<SoundInstrument*>(tuned)->boundState();
-	const deluge::instrument::SoundState* b = static_cast<SoundInstrument*>(ringmod)->boundState();
+	const deluge::test::FlatView a = deluge::test::flat_of(static_cast<SoundInstrument*>(tuned)->boundState());
+	const deluge::test::FlatView b = deluge::test::flat_of(static_cast<SoundInstrument*>(ringmod)->boundState());
 	std::string_view failed;
-	if (a == nullptr || b == nullptr) {
+	if (!a || !b) {
 		failed = "a loaded sound plays no state";
 	}
 	else if (a->sources[0].transpose != 0 || a->sources[0].cents != 0 || a->sources[0].ranges.size() != 1

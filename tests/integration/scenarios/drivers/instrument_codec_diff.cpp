@@ -24,7 +24,7 @@
 //                            sound's state, to the state the app's reader left; INSTRUMENT_DUMP_STATE=<path> writes
 //                            the first sound's state as the reader left it (dump_state, JSON) to <path>; and each
 //                            sound's state, composed into what it plays and what it keeps and flattened again, is
-//                            the same state
+//                            the same state, and every state_access reader reads the record as its flat layout holds
 //   instrument_state_roundtrip  every sound's element as the app writes it, decoded into a new sound's state and
 //                            encoded again, is the same tree (cut to the instrument's keys)
 //
@@ -32,6 +32,7 @@
 
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/composed_state.h"
+#include "instruments/deluge/state_access.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/fx/chain_params.h"
@@ -51,6 +52,7 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
+#include "support/flat_state.h"
 #include "util/firmware_version.h"
 
 #include <cstdio>
@@ -224,16 +226,17 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::SoundState newSynth =
+	const deluge::instrument::FlatSoundState newSynth =
 	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState();
-	const deluge::instrument::SoundState newDrum =
+	const deluge::instrument::FlatSoundState newDrum =
 	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState();
 	if (std::string d = deluge::serialization::first_difference(
-	        deluge::instrument::dump_state(newSynth), deluge::instrument::dump_state(deluge::instrument::SoundState{}));
+	        deluge::instrument::dump_state(newSynth),
+	        deluge::instrument::dump_state(deluge::instrument::FlatSoundState{}));
 	    !d.empty()) {
 		const Value fresh = deluge::instrument::dump_state(newSynth);
-		const Value constant = deluge::instrument::dump_state(deluge::instrument::SoundState{});
-		std::fprintf(io.err, "CODEC DIFF: a new synth and SoundState{} differ at %s (synth %s, constant %s)\n",
+		const Value constant = deluge::instrument::dump_state(deluge::instrument::FlatSoundState{});
+		std::fprintf(io.err, "CODEC DIFF: a new synth and FlatSoundState{} differ at %s (synth %s, constant %s)\n",
 		             d.c_str(), valueAt(fresh, d).c_str(), valueAt(constant, d).c_str());
 		return 3;
 	}
@@ -252,7 +255,7 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the file has no element for it\n", entry.name.c_str());
 			return 3;
 		}
-		deluge::instrument::SoundState decoded = entry.drum ? newDrum : newSynth;
+		deluge::instrument::FlatSoundState decoded = entry.drum ? newDrum : newSynth;
 		if (auto result = deluge::instrument::decode(*entry.read, decoded, {.input_tick_magnitude = magnitude});
 		    !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: decode failed (%d)\n", entry.name.c_str(),
@@ -266,16 +269,22 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			             entry.name.c_str(), d.c_str(), valueAt(loaded, d).c_str(), valueAt(decodedDump, d).c_str());
 			return 3;
 		}
-		// The sound's record as the state it plays and what it keeps for a switch back, and back again, loses nothing
-		const auto [composed, recall] = deluge::instrument::compose(*entry.sound->boundState());
-		if (const deluge::instrument::SoundState flat = deluge::instrument::flatten(composed, recall);
-		    !(flat == *entry.sound->boundState())) {
+		// The decoded state as the state it plays and what it keeps for a switch back, and back again, loses nothing;
+		// and the sound's record, flattened and composed again, is itself
+		const deluge::instrument::FlatSoundState flat = deluge::instrument::SoundState(decoded);
+		const deluge::instrument::FlatSoundState recordFlat = *entry.sound->boundState();
+		if (!(flat == decoded) || !(deluge::instrument::SoundState(recordFlat) == *entry.sound->boundState())) {
 			const Value flatDump = deluge::instrument::dump_state(flat);
 			const std::string d = deluge::serialization::first_difference(loaded, flatDump);
 			std::fprintf(io.err,
 			             "CODEC DIFF: %s: composed and flattened again, the state differs at %s (read %s, now %s)\n",
 			             entry.name.c_str(), d.empty() ? "effects" : d.c_str(), valueAt(loaded, d).c_str(),
 			             valueAt(flatDump, d).c_str());
+			return 3;
+		}
+		if (const std::string reader = deluge::test::reader_difference(*entry.sound->boundState()); !reader.empty()) {
+			std::fprintf(io.err, "CODEC DIFF: %s: the record and its flat layout read differently through %s\n",
+			             entry.name.c_str(), reader.c_str());
 			return 3;
 		}
 	}
@@ -291,13 +300,13 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::SoundState newSynth =
+	const deluge::instrument::FlatSoundState newSynth =
 	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState();
-	const deluge::instrument::SoundState newDrum =
+	const deluge::instrument::FlatSoundState newDrum =
 	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState();
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
-		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;
+		deluge::instrument::FlatSoundState state = entry.drum ? newDrum : newSynth;
 		if (auto result = deluge::instrument::decode(entry.element, state, context); !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the written element does not decode\n", entry.name.c_str());
 			return 3;

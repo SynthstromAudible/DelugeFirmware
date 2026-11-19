@@ -24,7 +24,7 @@ std::string text(const Value& map, const char* key) {
 // clang-format off
 describe codec_encode("the Deluge instrument writes its state", ${
 	it("writes a sound's head without the values that are zero", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.polyphonic = PolyphonyMode::POLY;
 		SoundPieces p = encode_pieces(s, {.input_tick_magnitude = 1});
 		expect(keys(p.head)).to_equal(std::vector<std::string>{"polyphonic", "voicePriority", "mode"});
@@ -40,7 +40,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes the body in file order, with modulators only for FM", _ {
-		SoundState s;
+		FlatSoundState s;
 		expect(keys(encode_pieces(s, {}).body))
 		    .to_equal(std::vector<std::string>{"osc1", "osc2", "lfo1", "lfo2", "lfo3", "lfo4", "unison"});
 		s.synth_mode = SynthMode::FM;
@@ -50,7 +50,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("leaves an FM source's type out", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.synth_mode = SynthMode::FM;
 		const SoundPieces osc1Pieces = encode_pieces(s, {});
 		const Value& osc1 = *osc1Pieces.body.find("osc1");
@@ -58,7 +58,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes one sample range on the source itself, with its zone", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.sources[0].osc_type = OscType::SAMPLE;
 		s.sources[0].interpolation_mode = deluge::plugin::InterpolationMode::SMOOTH;
 		s.sources[0].ranges.push_back({.file_path = "SAMPLES/A.WAV", .start_pos = 0, .end_pos = 1000});
@@ -70,7 +70,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes no sample file for a sample source with none, and every range of several in a list", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.sources[0].osc_type = OscType::SAMPLE;
 		const SoundPieces nonePieces = encode_pieces(s, {});
 		const Value& none = *nonePieces.body.find("osc1");
@@ -90,7 +90,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes wavetable ranges by file alone", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.sources[1].osc_type = OscType::WAVETABLE;
 		s.sources[1].ranges.push_back({.file_path = "SAMPLES/W.WAV"});
 		const SoundPieces onePieces = encode_pieces(s, {});
@@ -105,7 +105,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes a DX7 patch as upper-case hex, and oscillator sync on the second source only", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.oscillator_sync = true;
 		s.sources[0].osc_type = OscType::DX7;
 		s.sources[0].dx_patch.emplace();
@@ -121,7 +121,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes a free-running phase as -1 and sync levels relative to the tick magnitude", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.osc_retrigger_phase[0] = 0xFFFFFFFF;
 		s.lfo_sync_level[1] = deluge::plugin::SyncLevel::QUARTER;
 		SoundPieces p = encode_pieces(s, {.input_tick_magnitude = 3});
@@ -131,7 +131,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("writes max voices and the MIDI output as their own pieces", _ {
-		SoundState s;
+		FlatSoundState s;
 		s.max_voice_count = 8;
 		s.output_midi_channel = 3;
 		SoundPieces p = encode_pieces(s, {});
@@ -140,7 +140,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	});
 
 	it("puts the pieces together in file order, and knows its own keys", _ {
-		SoundState s;
+		FlatSoundState s;
 		Value whole = encode(s, {});
 		expect(keys(whole)).to_equal(std::vector<std::string>{
 		    "polyphonic", "voicePriority", "mode",  "modFXType", "lpfMode",    "hpfMode",

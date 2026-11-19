@@ -142,8 +142,9 @@ void resetSlicerEnv() {
 	// The drum's record, which the slicer's zone edits copy, change and hand to applyRanges: one range, as the mock's
 	// first range is.
 	static deluge::instrument::SoundState record;
-	record = deluge::instrument::SoundState{};
-	record.sources[0].ranges = {deluge::instrument::RangeState{}};
+	deluge::instrument::FlatSoundState flat;
+	flat.sources[0].ranges = {deluge::instrument::RangeState{}};
+	record = flat;
 	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the

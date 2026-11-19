@@ -37,7 +37,8 @@ constexpr Part slot_part(Part a, size_t s) noexcept {
 
 } // namespace
 
-synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
+synth::SoundConfig DelugeSynth::derive(const State& record) noexcept {
+	const FlatSoundState state = record;
 	using dsp::fixed::FineTune;
 	synth::SoundConfig config;
 	synth::Voicing& voicing = config.voicing;
@@ -81,7 +82,9 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 	return config;
 }
 
-Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
+Parts DelugeSynth::changes(const State& before_record, const State& after_record) noexcept {
+	const FlatSoundState before = before_record;
+	const FlatSoundState after = after_record;
 	Parts parts;
 	mark(parts, Part::VOICING,
 	     before.voice_priority != after.voice_priority || before.polyphonic != after.polyphonic

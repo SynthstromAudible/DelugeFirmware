@@ -102,7 +102,9 @@ Value boxed(std::string_view name, Value value) {
 	return box;
 }
 
-Value source(const SoundState& state, size_t s) {
+// An oscillator element, one branch per kind of source and per key the file writes for it:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+Value source(const FlatSoundState& state, size_t s) {
 	const SourceState& src = state.sources[s];
 	const bool fm = state.synth_mode == SynthMode::FM;
 	auto map = Value::makeMap();
@@ -170,7 +172,7 @@ Value source(const SoundState& state, size_t s) {
 	return map;
 }
 
-Value lfo(const SoundState& state, size_t l, const plugin::CodecContext& context) {
+Value lfo(const FlatSoundState& state, size_t l, const plugin::CodecContext& context) {
 	auto map = Value::makeMap();
 	map.set("type", text(to_string(state.lfo_wave_type[l])));
 	map.set("syncLevel", number(plugin::sync_level_to_file(plugin::index_of(state.lfo_sync_level[l]),
@@ -179,7 +181,7 @@ Value lfo(const SoundState& state, size_t l, const plugin::CodecContext& context
 	return map;
 }
 
-Value modulator(const SoundState& state, size_t m) {
+Value modulator(const FlatSoundState& state, size_t m) {
 	auto map = Value::makeMap();
 	map.set("transpose", number(state.modulator_transpose[m]));
 	map.set("cents", number(state.modulator_cents[m]));
@@ -197,28 +199,28 @@ void append(Value& to, const Value& from) {
 }
 
 /// Whether @p a and @p b differ in the fields of one top-level entry.
-using EntryDiffers = bool (*)(const SoundState& a, const SoundState& b);
+using EntryDiffers = bool (*)(const FlatSoundState& a, const FlatSoundState& b);
 
 /// Whether @p a and @p b differ in a field @p field picks, as one entry's comparison.
 template <auto field>
-bool differs(const SoundState& a, const SoundState& b) {
+bool differs(const FlatSoundState& a, const FlatSoundState& b) {
 	return !(field(a) == field(b));
 }
 
 template <size_t s>
-bool sourceDiffers(const SoundState& a, const SoundState& b) {
+bool source_differs(const FlatSoundState& a, const FlatSoundState& b) {
 	return !(a.sources[s] == b.sources[s]) || a.osc_retrigger_phase[s] != b.osc_retrigger_phase[s]
 	       || (s == 1 && a.oscillator_sync != b.oscillator_sync);
 }
 
 template <size_t l>
-bool lfoDiffers(const SoundState& a, const SoundState& b) {
+bool lfo_differs(const FlatSoundState& a, const FlatSoundState& b) {
 	return a.lfo_wave_type[l] != b.lfo_wave_type[l] || a.lfo_sync_level[l] != b.lfo_sync_level[l]
 	       || a.lfo_sync_type[l] != b.lfo_sync_type[l];
 }
 
 template <size_t m>
-bool modulatorDiffers(const SoundState& a, const SoundState& b) {
+bool modulator_differs(const FlatSoundState& a, const FlatSoundState& b) {
 	return a.modulator_transpose[m] != b.modulator_transpose[m] || a.modulator_cents[m] != b.modulator_cents[m]
 	       || a.modulator_retrigger_phase[m] != b.modulator_retrigger_phase[m]
 	       || (m == 1 && a.modulator1_to_modulator0 != b.modulator1_to_modulator0);
@@ -226,37 +228,37 @@ bool modulatorDiffers(const SoundState& a, const SoundState& b) {
 
 /// The fields of each of kStateKeys' entries, in its order.
 constexpr std::array<EntryDiffers, kStateKeys.size()> kEntryDiffers{
-    differs<[](const SoundState& s) { return s.polyphonic; }>,
-    differs<[](const SoundState& s) { return s.voice_priority; }>,
-    differs<[](const SoundState& s) { return s.side_chain_send_level; }>,
-    differs<[](const SoundState& s) { return s.synth_mode; }>,
-    differs<[](const SoundState& s) { return s.transpose; }>,
-    differs<[](const SoundState& s) { return s.cents; }>,
-    differs<[](const SoundState& s) { return s.effects.mod_fx; }>,
-    differs<[](const SoundState& s) { return s.effects.filter.lpf_mode; }>,
-    differs<[](const SoundState& s) { return s.effects.filter.hpf_mode; }>,
-    differs<[](const SoundState& s) { return s.effects.filter.route; }>,
-    differs<[](const SoundState& s) { return s.effects.saturation; }>,
-    differs<[](const SoundState& s) { return s.max_voice_count; }>,
-    sourceDiffers<0>,
-    sourceDiffers<1>,
-    lfoDiffers<0>,
-    lfoDiffers<1>,
-    lfoDiffers<2>,
-    lfoDiffers<3>,
-    modulatorDiffers<0>,
-    modulatorDiffers<1>,
-    differs<[](const SoundState& s) { return std::tuple{s.num_unison, s.unison_detune, s.unison_stereo_spread}; }>,
-    differs<[](const SoundState& s) { return std::pair{s.output_midi_channel, s.output_midi_note_for_drum}; }>,
-    differs<[](const SoundState& s) { return s.effects.delay; }>,
-    differs<[](const SoundState& s) { return s.effects.sidechain; }>,
-    differs<[](const SoundState& s) { return s.effects.compressor; }>,
-    differs<[](const SoundState& s) { return s.effects.stutter; }>,
+    differs<[](const FlatSoundState& s) { return s.polyphonic; }>,
+    differs<[](const FlatSoundState& s) { return s.voice_priority; }>,
+    differs<[](const FlatSoundState& s) { return s.side_chain_send_level; }>,
+    differs<[](const FlatSoundState& s) { return s.synth_mode; }>,
+    differs<[](const FlatSoundState& s) { return s.transpose; }>,
+    differs<[](const FlatSoundState& s) { return s.cents; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.mod_fx; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.filter.lpf_mode; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.filter.hpf_mode; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.filter.route; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.saturation; }>,
+    differs<[](const FlatSoundState& s) { return s.max_voice_count; }>,
+    source_differs<0>,
+    source_differs<1>,
+    lfo_differs<0>,
+    lfo_differs<1>,
+    lfo_differs<2>,
+    lfo_differs<3>,
+    modulator_differs<0>,
+    modulator_differs<1>,
+    differs<[](const FlatSoundState& s) { return std::tuple{s.num_unison, s.unison_detune, s.unison_stereo_spread}; }>,
+    differs<[](const FlatSoundState& s) { return std::pair{s.output_midi_channel, s.output_midi_note_for_drum}; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.delay; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.sidechain; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.compressor; }>,
+    differs<[](const FlatSoundState& s) { return s.effects.stutter; }>,
 };
 
 } // namespace
 
-std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b) {
+std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b) {
 	std::vector<std::string_view> changed;
 	for (size_t k = 0; k < kStateKeys.size(); k++) {
 		if (kEntryDiffers[k](a, b)) {
@@ -270,7 +272,7 @@ namespace {
 
 /// The entry @p key names when it is one of the sound's scalar settings; nullopt for any other key, or for a setting
 /// whose value is its default and so is not written.
-std::optional<Value> scalar_entry(const SoundState& state, std::string_view key) {
+std::optional<Value> scalar_entry(const FlatSoundState& state, std::string_view key) {
 	if (key == "polyphonic") {
 		return text(to_string(state.polyphonic));
 	}
@@ -297,8 +299,8 @@ std::optional<Value> scalar_entry(const SoundState& state, std::string_view key)
 
 } // namespace
 
-std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
-                                  std::optional<int32_t> compressor_threshold) {
+std::optional<Value> encode_entry(const FlatSoundState& state, std::string_view key,
+                                  const plugin::CodecContext& context, std::optional<int32_t> compressor_threshold) {
 	if (deluge::effects::is_effect_key(key)) {
 		return deluge::effects::encode_entry(state.effects, key, context, compressor_threshold);
 	}
@@ -331,7 +333,7 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 	return std::nullopt;
 }
 
-SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
+SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
                           std::optional<int32_t> compressor_threshold) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
@@ -360,7 +362,7 @@ SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& c
 	return pieces;
 }
 
-Value encode(const SoundState& state, const plugin::CodecContext& context) {
+Value encode(const FlatSoundState& state, const plugin::CodecContext& context) {
 	SoundPieces pieces = encode_pieces(state, context);
 	auto map = Value::makeMap();
 	append(map, pieces.head);
@@ -377,7 +379,7 @@ bool is_state_key(std::string_view key) {
 	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
 }
 
-serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
                                 const plugin::CodecContext& context) {
 	const serialization::Value encoded = encode(state, context);
 	serialization::Value out = serialization::Value::makeMap();
@@ -537,8 +539,10 @@ std::expected<void, plugin::StateError> readRanges(const Value& list, SourceStat
 	return {};
 }
 
-std::expected<void, plugin::StateError> readSource(const Value& osc, SoundState& state, size_t s,
-                                                   SourceReading& reading) {
+// An oscillator element read back, one branch per key and per legacy form:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+std::expected<void, plugin::StateError> read_source(const Value& osc, FlatSoundState& state, size_t s,
+                                                    SourceReading& reading) {
 	SourceState& src = state.sources[s];
 	if (!osc.isMap()) {
 		return {};
@@ -608,7 +612,7 @@ std::expected<void, plugin::StateError> readSource(const Value& osc, SoundState&
 	return {};
 }
 
-void readModulator(const Value& modulator, SoundState& state, size_t m) {
+void read_modulator(const Value& modulator, FlatSoundState& state, size_t m) {
 	if (!modulator.isMap()) {
 		return;
 	}
@@ -628,7 +632,7 @@ void readModulator(const Value& modulator, SoundState& state, size_t m) {
 	}
 }
 
-void readLfo(const Value& lfo, SoundState& state, size_t l, const plugin::CodecContext& context) {
+void read_lfo(const Value& lfo, FlatSoundState& state, size_t l, const plugin::CodecContext& context) {
 	state.lfo_sync_type[l] = plugin::SyncType::EVEN;
 	state.lfo_sync_level[l] = plugin::SyncLevel::NONE;
 	if (!lfo.isMap()) {
@@ -665,9 +669,10 @@ Value dumpRange(const RangeState& range) {
 
 namespace {
 
-/// Read @p element into @p state; @p fileRead says it is a file's read, whose own normalisations it applies.
-std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundState& state,
-                                                   const plugin::CodecContext& context, bool fileRead) {
+/// Read @p element into @p state; @p file_read says it is a file's read, whose own normalisations it applies.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSoundState& state,
+                                                    const plugin::CodecContext& context, bool file_read) {
 	if (!element.isMap()) {
 		return std::unexpected(plugin::StateError::NOT_A_MAP);
 	}
@@ -675,12 +680,12 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 	state.modulator_transpose[1] = 0;
 	state.osc_retrigger_phase = {};
 	state.modulator_retrigger_phase = {};
-	std::array<SourceReading, 2> reading{SourceReading{.refuseDuplicates = fileRead},
-	                                     SourceReading{.refuseDuplicates = fileRead}};
+	std::array<SourceReading, 2> reading{SourceReading{.refuseDuplicates = file_read},
+	                                     SourceReading{.refuseDuplicates = file_read}};
 
 	for (const auto& [key, value] : element.entries()) {
 		if (key == "osc1" || key == "osc2") {
-			if (auto read = readSource(value, state, key == "osc1" ? 0 : 1, reading[key == "osc1" ? 0 : 1]); !read) {
+			if (auto read = read_source(value, state, key == "osc1" ? 0 : 1, reading[key == "osc1" ? 0 : 1]); !read) {
 				return read;
 			}
 		}
@@ -688,7 +693,7 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 			state.synth_mode = parse_synth_mode(textOf(value));
 		}
 		else if (key == "modulator1" || key == "modulator2") {
-			readModulator(value, state, key == "modulator1" ? 0 : 1);
+			read_modulator(value, state, key == "modulator1" ? 0 : 1);
 		}
 		else if (key == "transpose") {
 			state.transpose = static_cast<int16_t>(intOf(value));
@@ -698,22 +703,22 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 		}
 		else if (key == "unison") {
 			if (value.isMap()) {
-				for (const auto& [unisonKey, unisonValue] : value.entries()) {
-					if (unisonKey == "num") {
-						state.num_unison = static_cast<uint8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonVoices));
+				for (const auto& [unison_key, unison_value] : value.entries()) {
+					if (unison_key == "num") {
+						state.num_unison = static_cast<uint8_t>(std::clamp(intOf(unison_value), 0, kMaxUnisonVoices));
 					}
-					else if (unisonKey == "detune") {
-						state.unison_detune = static_cast<int8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonDetune));
+					else if (unison_key == "detune") {
+						state.unison_detune = static_cast<int8_t>(std::clamp(intOf(unison_value), 0, kMaxUnisonDetune));
 					}
-					else if (unisonKey == "spread") {
+					else if (unison_key == "spread") {
 						state.unison_stereo_spread =
-						    static_cast<uint8_t>(std::clamp(intOf(unisonValue), 0, kMaxUnisonSpread));
+						    static_cast<uint8_t>(std::clamp(intOf(unison_value), 0, kMaxUnisonSpread));
 					}
 				}
 			}
 		}
 		else if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
-			readLfo(value, state, static_cast<size_t>(key[3] - '1'), context);
+			read_lfo(value, state, static_cast<size_t>(key[3] - '1'), context);
 		}
 		else if (key == "sideChainSend") {
 			state.side_chain_send_level = intOf(value);
@@ -746,7 +751,7 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 		if (state.synth_mode == SynthMode::FM) {
 			src.osc_type = OscType::SINE;
 		}
-		else if (state.synth_mode == SynthMode::RINGMOD && fileRead) {
+		else if (state.synth_mode == SynthMode::RINGMOD && file_read) {
 			src.osc_type = std::min(src.osc_type, OscType::WAVETABLE);
 		}
 		if (state.synth_mode != SynthMode::FM && src.osc_type == OscType::SAMPLE) {
@@ -787,7 +792,7 @@ bool sameRanges(const Value* a, const Value* b) {
 }
 
 /// The part of @p state the entry @p key of a sound element writes, copied from @p from.
-void keepEntry(std::string_view key, SoundState& state, const SoundState& from) {
+void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundState& from) {
 	if (key == "polyphonic") {
 		state.polyphonic = from.polyphonic;
 	}
@@ -850,10 +855,18 @@ void keepEntry(std::string_view key, SoundState& state, const SoundState& from) 
 
 std::expected<void, plugin::StateError> decode(const Value& element, SoundState& state,
                                                const plugin::CodecContext& context) {
-	return decodeImpl(element, state, context, /*fileRead=*/true);
+	FlatSoundState flat = state;
+	auto result = decode(element, flat, context);
+	state = flat;
+	return result;
 }
 
-void keep_unwritten(SoundState& state, const SoundState& from) {
+std::expected<void, plugin::StateError> decode(const Value& element, FlatSoundState& state,
+                                               const plugin::CodecContext& context) {
+	return decode_impl(element, state, context, /*file_read=*/true);
+}
+
+void keep_unwritten(FlatSoundState& state, const FlatSoundState& from) {
 	const bool fm = state.synth_mode == SynthMode::FM;
 	if (!fm) {
 		state.modulator_transpose = from.modulator_transpose;
@@ -900,11 +913,11 @@ void keep_unwritten(SoundState& state, const SoundState& from) {
 }
 
 std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
-                                                            const SoundState& current,
+                                                            const FlatSoundState& current,
                                                             const plugin::CodecContext& context) {
 	SlotChange change; // from a new synth's state
-	SoundState& decoded = change.state;
-	if (auto read = decodeImpl(element, decoded, context, /*fileRead=*/false); !read) {
+	FlatSoundState& decoded = change.state;
+	if (auto read = decode_impl(element, decoded, context, /*file_read=*/false); !read) {
 		return std::unexpected(read.error());
 	}
 	keep_unwritten(decoded, current);
@@ -921,7 +934,7 @@ std::expected<SlotChange, plugin::StateError> decode_change(const Value& element
 			change.changed.push_back(key);
 		}
 		if (unchanged) {
-			keepEntry(key, decoded, current);
+			keep_entry(key, decoded, current);
 			if (key == "osc1" || key == "osc2") {
 				sourceKept[key == "osc1" ? 0 : 1] = true;
 			}
@@ -957,7 +970,7 @@ std::expected<SlotChange, plugin::StateError> decode_change(const Value& element
 		if (sourceKept[s] || decoded.synth_mode == SynthMode::FM || !ranged || otherKind) {
 			continue;
 		}
-		SoundState carried = current;
+		FlatSoundState carried = current;
 		carried.synth_mode = decoded.synth_mode;
 		carried.sources[s].osc_type = type;
 		if (sameRanges(element.find(key), encode(carried, context).find(key))) {
@@ -985,7 +998,7 @@ void set_leaf(Value& tree, std::string_view path, Value leaf) {
 
 } // namespace
 
-std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+std::vector<std::string_view> differing_entries(const FlatSoundState& a, const FlatSoundState& b,
                                                 const plugin::CodecContext& context) {
 	std::vector<std::string_view> keys;
 	for (const std::string_view key : kStateKeys) {
@@ -998,7 +1011,7 @@ std::vector<std::string_view> differing_entries(const SoundState& a, const Sound
 	return keys;
 }
 
-std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state, const SoundState& next,
+std::expected<SlotChange, plugin::StateError> change_to(const FlatSoundState& state, const FlatSoundState& next,
                                                         std::span<const std::string_view> keys,
                                                         const plugin::CodecContext& context) {
 	Value previous = Value::makeMap();
@@ -1021,7 +1034,7 @@ std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state,
 	return decode_change(element, previous, state, context);
 }
 
-std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& state, std::string_view path,
+std::expected<SlotChange, plugin::StateError> with_setting(const FlatSoundState& state, std::string_view path,
                                                            const serialization::Value& value,
                                                            const plugin::CodecContext& context) {
 	const std::string_view key = path.substr(0, path.find('/'));
@@ -1044,14 +1057,14 @@ std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& sta
 	return decode_change(element, previous, state, context);
 }
 
-std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, const SoundState& current,
-                                                          const plugin::CodecContext& context) {
+std::expected<FlatSoundState, plugin::StateError> decode_onto(const Value& element, const FlatSoundState& current,
+                                                              const plugin::CodecContext& context) {
 	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
 		return std::move(change.state);
 	});
 }
 
-Value dump_state(const SoundState& state) {
+Value dump_state(const FlatSoundState& state) {
 	// The effects are compared on their own (their defaults are the song's, not the instrument's).
 	Value map = Value::makeMap();
 	for (const auto& [key, value] : encode(state, {.input_tick_magnitude = 1}).entries()) {

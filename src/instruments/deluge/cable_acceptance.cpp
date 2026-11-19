@@ -23,7 +23,7 @@ constexpr bool is_envelope(PatchSource source) {
 
 } // namespace
 
-bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state, bool is_drum) {
+bool cable_allowed(PatchSource source, plugin::ParamId destination, const FlatSoundState& state, bool is_drum) {
 	if (source == PatchSource::NOTE && is_drum) {
 		return false;
 	}

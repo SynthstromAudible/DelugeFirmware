@@ -20,6 +20,7 @@
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
+#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 #include <string>
@@ -85,12 +86,12 @@ describe set_kit_setting("one setting across a kit's sound drums, as one Edit", 
 		for (Drum* drum = mono->next; drum != nullptr; drum = drum->next) {
 			deluge::edits::settingFor(*static_cast<SoundDrum*>(drum), "polyphonic", Value::makeScalar("poly"));
 		}
-		const int before = mono->boundState()->max_voice_count;
+		const int before = deluge::test::flat_of(mono->boundState())->max_voice_count;
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::SetKitSetting voices{kit_id(f), "maxVoices", Value::makeNumber(3), menu::fan_out::kPolyphonic};
 		expect(deluge::edits::apply(ctx, voices)).to_equal(Error::NONE);
 		expect(voices.drums_written()).to_equal(uint32_t(kKitDrums - 1));
-		expect(static_cast<int>(mono->boundState()->max_voice_count)).to_equal(before);
+		expect(static_cast<int>(deluge::test::flat_of(mono->boundState())->max_voice_count)).to_equal(before);
 		// A saw drum does not take a sample's reverse: the rest of the kit does, and the Edit succeeds.
 		deluge::edits::settingFor(*mono, "osc1/type", Value::makeScalar("saw"));
 		for (Drum* drum = mono->next; drum != nullptr; drum = drum->next) {

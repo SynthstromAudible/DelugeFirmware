@@ -139,7 +139,7 @@ std::vector<std::string> write_setting_disagreements() {
 						found.push_back(at + " (with_setting refused)");
 						continue;
 					}
-					SoundState got = state;
+					FlatSoundState got = state;
 					const std::vector<std::string_view> changed = write_setting(got, row.path, *value);
 					if (got == want->state) {
 						const bool named = std::ranges::all_of(
@@ -149,7 +149,7 @@ std::vector<std::string> write_setting_disagreements() {
 						}
 						continue;
 					}
-					SoundState again = want->state;
+					FlatSoundState again = want->state;
 					(void)write_setting(again, row.path, *value);
 					const std::string_view key = row.path.substr(0, row.path.find('/'));
 					const bool one_field =
@@ -165,8 +165,8 @@ std::vector<std::string> write_setting_disagreements() {
 }
 
 /// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
-SoundState sampled() {
-	SoundState state = SoundState{};
+FlatSoundState sampled() {
+	FlatSoundState state = FlatSoundState{};
 	SourceState& sample = state.sources[0];
 	sample.osc_type = OscType::SAMPLE;
 	sample.repeat_mode = SampleRepeatMode::LOOP;
@@ -185,14 +185,14 @@ SoundState sampled() {
 // clang-format off
 describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("reads back a subtractive sound's state as it is", _ {
-		const SoundState state = sampled();
+		const FlatSoundState state = sampled();
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded.has_value()).to_be_true();
 		expect(*decoded).to_equal(state);
 	});
 
 	it("keeps an FM sound's oscillator types, samples and DX patch, which no file holds", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.synth_mode = SynthMode::FM;
 		state.sources[1].osc_type = OscType::DX7;
 		state.sources[1].dx_patch = DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3};
@@ -202,7 +202,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps a non-FM sound's modulators", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.modulator_transpose = {5, -7};
 		state.modulator1_to_modulator0 = true;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
@@ -212,25 +212,25 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps a ring-mod sound's sample oscillator, which only reading a file clamps", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.synth_mode = SynthMode::RINGMOD;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded->sources[0].osc_type).to_equal(OscType::SAMPLE);
-		SoundState fresh = SoundState{};
+		FlatSoundState fresh = FlatSoundState{};
 		expect(decode(encode(state, kContext), fresh, kContext).has_value()).to_be_true();
 		expect(fresh.sources[0].osc_type).to_equal(OscType::WAVETABLE);
 	});
 
 	it("takes every value the element holds", _ {
-		SoundState state = sampled();
-		SoundState written = state;
+		FlatSoundState state = sampled();
+		FlatSoundState written = state;
 		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(decoded->voice_priority).to_equal(deluge::plugin::VoicePriority::HIGH);
 	});
 
 	it("keeps a sample source's own transpose and cents, which a file holds only as its ranges'", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.sources[0].transpose = 7;
 		state.sources[0].cents = -12;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
@@ -238,7 +238,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps what an unchanged entry says, even where the file could not say it (a sync level)", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(state, kSlow), state, kSlow);
@@ -246,8 +246,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("reads a changed entry as a file holds it", _ {
-		SoundState state = sampled();
-		SoundState written = state;
+		FlatSoundState state = sampled();
+		FlatSoundState written = state;
 		written.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
@@ -255,17 +255,17 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps the ranges a changed oscillator type carries over", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.sources[1].ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500}};
-		SoundState written = state;
+		FlatSoundState written = state;
 		written.sources[1].osc_type = OscType::SAMPLE;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
 		expect(decoded->sources[1].ranges).to_equal(state.sources[1].ranges);
 	});
 
 	it("reads the ranges a changed oscillator type reshapes", _ {
-		SoundState state = sampled();
-		SoundState written = state;
+		FlatSoundState state = sampled();
+		FlatSoundState written = state;
 		written.sources[0].osc_type = OscType::WAVETABLE;
 		written.sources[0].ranges = {RangeState{.top_note = 60}, RangeState{.top_note = 32767}};
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
@@ -273,9 +273,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("carries no sample range's zone into a wavetable, even one with no file", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.sources[0].ranges = {RangeState{.top_note = 32767, .end_pos = 9999999}};
-		SoundState written = state;
+		FlatSoundState written = state;
 		written.sources[0].osc_type = OscType::WAVETABLE;
 		written.sources[0].ranges = {RangeState{.top_note = 32767}};
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
@@ -283,9 +283,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps an LFO's sync level the file could not say when only its other settings change", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
-		SoundState written = state;
+		FlatSoundState written = state;
 		written.lfo_wave_type[0] = LFOType::SAW;
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
@@ -294,9 +294,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("reads a changed effect entry and keeps the others", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.effects.delay.type = deluge::effects::DelayType::ANALOG;
-		SoundState written = state;
+		FlatSoundState written = state;
 		written.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto change = decode_change(encode(written, kContext), encode(state, kContext), state, kContext);
 		expect(change->state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
@@ -305,9 +305,9 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("reads whether a stutter uses the song's from the slot", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.effects.stutter.use_song_stutter = false;
-		SoundState written = state;
+		FlatSoundState written = state;
 		written.effects.stutter.use_song_stutter = true;
 		written.effects.stutter.reversed = true;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
@@ -317,7 +317,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("keeps an unchanged effect entry", _ {
-		SoundState state = sampled();
+		FlatSoundState state = sampled();
 		state.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded->effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
@@ -338,8 +338,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("names each entry whose typed fields differ, in file order", _ {
-		SoundState state = sampled();
-		SoundState written = state;
+		FlatSoundState state = sampled();
+		FlatSoundState written = state;
 		written.lfo_wave_type[1] = LFOType::SAW;
 		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
 		written.effects.delay.ping_pong = !state.effects.delay.ping_pong;
@@ -349,8 +349,8 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {
-		SoundState state = sampled();
-		SoundState written = state;
+		FlatSoundState state = sampled();
+		FlatSoundState written = state;
 		written.lfo_wave_type[1] = LFOType::SAW;
 		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
 		const Value element = encode(written, kContext);

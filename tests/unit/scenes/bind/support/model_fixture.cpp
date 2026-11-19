@@ -37,8 +37,8 @@ const effects::EffectStates* FakeFacts::chain_effects(project::ChainAddress chai
 ModelFixture::ModelFixture() {
 	song.output_structure.getOrCreate(kSynth.id);
 	song.drum_structure.getOrCreate(kDrum.id);
-	set_state(kSynth, instrument::SoundState{});
-	set_state(kDrum, instrument::SoundState{});
+	set_state(kSynth, instrument::FlatSoundState{});
+	set_state(kDrum, instrument::FlatSoundState{});
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain}) {
 		song.output_structure.getOrCreate(chain.id).effects = project::FxChain{};
 	}
@@ -66,7 +66,7 @@ ModelFixture::ModelFixture() {
 	row.drum_id = kDrum.id;
 }
 
-void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
+void ModelFixture::set_state(project::SlotAddress slot, const instrument::FlatSoundState& state) {
 	facts.states[slot.id] = state;
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
 	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),

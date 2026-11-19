@@ -68,6 +68,7 @@
 #include <string>
 #include <vector>
 
+#include "support/flat_state.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -377,7 +378,9 @@ struct Rig {
 	SoundInstrument* without_ranges() {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sound->state_->sources[s].osc_type = OscType::SQUARE;
+			deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
+				f.sources[s].osc_type = OscType::SQUARE;
+			});
 			sound->sources[s].ranges.clear();
 		}
 		sound->projectSnapshot();

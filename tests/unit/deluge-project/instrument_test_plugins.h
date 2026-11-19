@@ -10,7 +10,7 @@ namespace deluge::project::test {
 namespace detail {
 
 inline plugin::StateHandle decode_instrument(const serialization::Value& element, int32_t tick_magnitude) {
-	instrument::SoundState state = instrument::SoundState{};
+	instrument::FlatSoundState state = instrument::FlatSoundState{};
 	(void)instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
 	return plugin::StateHandle::of<instrument::DelugeSynth>(std::move(state));
 }

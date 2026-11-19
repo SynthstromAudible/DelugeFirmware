@@ -18,32 +18,125 @@
 #include "instruments/deluge/state_access.h"
 
 #include <utility>
+#include <variant>
 
 namespace deluge::instrument {
 namespace {
 
-/// The index of slot @p id in SoundState::sources.
+/// The index of slot @p id in a state's slot arrays.
 [[nodiscard]] constexpr size_t index_of(SourceId id) noexcept {
 	return std::to_underlying(id);
+}
+
+/// The oscillator slots the engine plays, or null for FM (whose carriers have only a pitch).
+[[nodiscard]] const synth::DualSourceState* slots_of(const ComposedState& plays) noexcept {
+	if (const auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
+		return &sub->oscillators;
+	}
+	if (const auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
+		return &ring->oscillators;
+	}
+	return nullptr;
+}
+
+/// What slot @p id plays, or null when the engine is FM.
+[[nodiscard]] const synth::SlotState* slot_of(const SoundState& state, SourceId id) noexcept {
+	const synth::DualSourceState* slots = slots_of(state.plays);
+	return slots != nullptr ? &slots->slots[index_of(id)] : nullptr;
+}
+
+/// What slot @p id keeps of what its kind does not hold.
+[[nodiscard]] const SourceState& kept(const SoundState& state, SourceId id) noexcept {
+	return state.recall.slots[index_of(id)];
+}
+
+/// @p state with @p change made to its flat form: what a write means is what it meant to the flat state.
+template <class Change>
+[[nodiscard]] SoundState changed_flat(const SoundState& state, const Change& change) {
+	FlatSoundState flat = state;
+	change(flat);
+	return flat;
 }
 
 } // namespace
 
 SynthMode synth_mode(const SoundState& state) noexcept {
-	return state.synth_mode;
+	switch (state.plays.engine.index()) {
+	case 1:
+		return SynthMode::RINGMOD;
+	case 2:
+		return SynthMode::FM;
+	default:
+		return SynthMode::SUBTRACTIVE;
+	}
 }
 
 OscType source_type(const SoundState& state, SourceId id) noexcept {
-	return state.sources[index_of(id)].osc_type;
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot == nullptr) {
+		return kept(state, id).osc_type;
+	}
+	if (const auto* va = std::get_if<synth::VaState>(slot)) {
+		return static_cast<OscType>(std::to_underlying(va->shape));
+	}
+	if (std::holds_alternative<synth::WavetableState>(*slot)) {
+		return OscType::WAVETABLE;
+	}
+	if (std::holds_alternative<synth::SampleState>(*slot)) {
+		return OscType::SAMPLE;
+	}
+	if (std::holds_alternative<synth::Dx7State>(*slot)) {
+		return OscType::DX7;
+	}
+	switch (std::get_if<synth::InputState>(slot)->channel) {
+	case synth::InputChannel::RIGHT:
+		return OscType::INPUT_R;
+	case synth::InputChannel::STEREO:
+		return OscType::INPUT_STEREO;
+	case synth::InputChannel::LEFT:
+		break;
+	}
+	return OscType::INPUT_L;
 }
 
 Tuning source_tuning(const SoundState& state, SourceId id) noexcept {
-	const SourceState& source = state.sources[index_of(id)];
-	return {.transpose = source.transpose, .cents = source.cents};
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot == nullptr) {
+		const synth::Tuning& carrier = std::get_if<synth::FmState>(&state.plays.engine)->carriers[index_of(id)].tuning;
+		return {.transpose = carrier.transpose, .cents = carrier.cents};
+	}
+	if (std::holds_alternative<synth::SampleState>(*slot)) {
+		return {.transpose = kept(state, id).transpose, .cents = kept(state, id).cents}; // its ranges carry theirs
+	}
+	synth::Tuning tuning;
+	if (const auto* va = std::get_if<synth::VaState>(slot)) {
+		tuning = va->pitch.tuning;
+	}
+	else if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
+		tuning = wavetable->pitch.tuning;
+	}
+	else if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
+		tuning = dx->pitch.tuning;
+	}
+	else if (const auto* input = std::get_if<synth::InputState>(slot)) {
+		tuning = input->pitch.tuning;
+	}
+	return {.transpose = tuning.transpose, .cents = tuning.cents};
 }
 
 SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
-	const SourceState& source = state.sources[index_of(id)];
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot != nullptr) {
+		if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
+			const synth::SamplePlayback& p = sample->playback;
+			return {.repeat_mode = p.repeat_mode,
+			        .time_stretch_amount = p.time_stretch_amount,
+			        .interpolation = p.interpolation,
+			        .pitch_and_speed_independent = p.pitch_and_speed_independent,
+			        .reversed = p.reversed};
+		}
+	}
+	const SourceState& source = kept(state, id);
 	return {.repeat_mode = source.repeat_mode,
 	        .time_stretch_amount = source.time_stretch_amount,
 	        .interpolation = source.interpolation_mode,
@@ -52,47 +145,77 @@ SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
 }
 
 std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
-	return state.sources[index_of(id)].ranges;
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot != nullptr) {
+		if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
+			std::vector<RangeState> ranges;
+			ranges.reserve(sample->ranges.size());
+			for (const synth::SampleRange& r : sample->ranges) {
+				ranges.push_back({.top_note = r.top_note,
+				                  .file_path = r.file_path,
+				                  .start_pos = r.zone.start,
+				                  .end_pos = r.zone.end,
+				                  .loop_start_pos = r.zone.loop_start,
+				                  .loop_end_pos = r.zone.loop_end,
+				                  .transpose = r.tuning.transpose,
+				                  .cents = r.tuning.cents});
+			}
+			return ranges;
+		}
+		if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
+			std::vector<RangeState> ranges;
+			ranges.reserve(wavetable->ranges.size());
+			for (const synth::WavetableRange& r : wavetable->ranges) {
+				ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
+			}
+			return ranges;
+		}
+	}
+	return kept(state, id).ranges;
 }
 
 const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
-	const std::optional<DxPatchState>& patch = state.sources[index_of(id)].dx_patch;
-	return patch ? &*patch : nullptr;
+	const synth::SlotState* slot = slot_of(state, id);
+	const std::optional<DxPatchState>* patch = &kept(state, id).dx_patch;
+	if (slot != nullptr) {
+		if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
+			patch = &dx->patch;
+		}
+	}
+	return *patch ? &**patch : nullptr;
 }
 
 const effects::EffectStates& sound_effects(const SoundState& state) noexcept {
-	return state.effects;
+	return state.plays.fx;
 }
 
 effects::EffectStates& sound_effects(SoundState& state) noexcept {
-	return state.effects;
+	return state.plays.fx;
 }
 
 synth::UnisonState unison(const SoundState& state) noexcept {
-	return {.count = state.num_unison, .detune = state.unison_detune, .spread = state.unison_stereo_spread};
+	return state.plays.voicing.unison;
 }
 
 HostFields host_fields(const SoundState& state) noexcept {
-	return {.side_chain_send_level = state.side_chain_send_level,
-	        .output_midi_channel = state.output_midi_channel,
-	        .output_midi_note_for_drum = state.output_midi_note_for_drum};
+	return {.side_chain_send_level = state.plays.side_chain_send_level,
+	        .output_midi_channel = state.plays.output_midi_channel,
+	        .output_midi_note_for_drum = state.plays.output_midi_note_for_drum};
 }
 
 SoundState with_host_fields(SoundState state, const HostFields& fields) {
-	state.side_chain_send_level = fields.side_chain_send_level;
-	state.output_midi_channel = fields.output_midi_channel;
-	state.output_midi_note_for_drum = fields.output_midi_note_for_drum;
+	state.plays.side_chain_send_level = fields.side_chain_send_level;
+	state.plays.output_midi_channel = fields.output_midi_channel;
+	state.plays.output_midi_note_for_drum = fields.output_midi_note_for_drum;
 	return state;
 }
 
 SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
-	state.sources[index_of(id)].ranges = std::move(ranges);
-	return state;
+	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[index_of(id)].ranges = std::move(ranges); });
 }
 
 SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch) {
-	state.sources[index_of(id)].dx_patch = patch;
-	return state;
+	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[index_of(id)].dx_patch = patch; });
 }
 
 } // namespace deluge::instrument

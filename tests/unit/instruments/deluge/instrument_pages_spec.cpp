@@ -222,7 +222,7 @@ describe instrument_pages("the Deluge instrument's pages", ${
 	});
 	it("decorates a param as slot_for does, reading FM from the owner's state and alt delay from the context", _{
 		const auto& record = instrument::kRemoteControls;
-		instrument::SoundState fm_state;
+		instrument::FlatSoundState fm_state;
 		fm_state.synth_mode = instrument::SynthMode::FM;
 		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(fm_state);
 		const auto subtractive = plugin::StateHandle::of<instrument::DelugeSynth>({});

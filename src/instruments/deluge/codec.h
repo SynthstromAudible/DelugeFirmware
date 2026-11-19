@@ -56,14 +56,14 @@ struct SoundPieces {
 /// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as
 /// the render last applied it.
 /// @return The pieces, in file order.
-[[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
+[[nodiscard]] SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
                                         std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief The pieces of encode_pieces as one Map, in file order: what the instrument owns of a sound element.
 /// @param state   The sound's settings.
 /// @param context The file context.
 /// @return The Map of the instrument's entries.
-[[nodiscard]] serialization::Value encode(const SoundState& state, const plugin::CodecContext& context);
+[[nodiscard]] serialization::Value encode(const FlatSoundState& state, const plugin::CodecContext& context);
 
 /// @brief Whether @p key, at the top of a sound element, is one the instrument writes.
 /// @param key An entry name.
@@ -79,7 +79,7 @@ struct SoundPieces {
 /// @param state   The state whose encoding replaces the instrument's entries.
 /// @param context The file context.
 /// @return The updated element.
-[[nodiscard]] serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+[[nodiscard]] serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
                                               const plugin::CodecContext& context);
 
 /// @brief The instrument's encoding of top-level entry @p key, as encode writes it.
@@ -90,7 +90,7 @@ struct SoundPieces {
 /// @return The entry, or nullopt where @p state writes none there (a transpose of 0, a modulator off FM) or @p key is
 ///         not the instrument's.
 [[nodiscard]] std::optional<serialization::Value>
-encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
+encode_entry(const FlatSoundState& state, std::string_view key, const plugin::CodecContext& context,
              std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
@@ -101,7 +101,7 @@ encode_entry(const SoundState& state, std::string_view key, const plugin::CodecC
 /// @param state   The state read into; entries the element lacks keep their value.
 /// @param context The file context.
 /// @return Nothing, or why the element cannot be read (two ranges of a source with the same top note).
-[[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, SoundState& state,
+[[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, FlatSoundState& state,
                                                              const plugin::CodecContext& context);
 
 /// @brief The fields of @p from that @p state's encoding does not write, copied into @p state: an FM sound's sources'
@@ -110,12 +110,16 @@ encode_entry(const SoundState& state, std::string_view key, const plugin::CodecC
 /// ranges unless it is a wavetable, and its DX patch unless it is a DX7; and whether its stutter uses the song's.
 /// @param state The state to copy into.
 /// @param from  The state the fields are copied from.
-void keep_unwritten(SoundState& state, const SoundState& from);
+void keep_unwritten(FlatSoundState& state, const FlatSoundState& from);
+
+/// @brief decode() onto a sound's record: decoded in the flat layout, then composed.
+[[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, SoundState& state,
+                                                             const plugin::CodecContext& context);
 
 /// @brief What a sound's slot says once it is changed: the state it decodes to, and its instrument entries the change
 /// touched, in file order.
 struct SlotChange {
-	SoundState state;
+	FlatSoundState state;
 	std::vector<std::string_view> changed;
 };
 
@@ -130,7 +134,7 @@ struct SlotChange {
 /// @return The new state and the instrument entries the change touched, or why the element cannot be read.
 [[nodiscard]] std::expected<SlotChange, plugin::StateError> decode_change(const serialization::Value& element,
                                                                           const serialization::Value& previous,
-                                                                          const SoundState& current,
+                                                                          const FlatSoundState& current,
                                                                           const plugin::CodecContext& context);
 
 /// @brief The state @p state becomes when its setting at @p path takes @p value, as decode_change of its slot with that
@@ -143,7 +147,8 @@ struct SlotChange {
 /// @param value   The value in its Edit form (canonical; a sync level as the level itself).
 /// @param context The file context: the slot's tick magnitude.
 /// @return The new state and the entries touched, or why the entry cannot be read.
-[[nodiscard]] std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& state, std::string_view path,
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> with_setting(const FlatSoundState& state,
+                                                                         std::string_view path,
                                                                          const serialization::Value& value,
                                                                          const plugin::CodecContext& context);
 
@@ -153,7 +158,7 @@ struct SlotChange {
 /// @param b       The other.
 /// @param context The file context.
 /// @return The keys.
-[[nodiscard]] std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+[[nodiscard]] std::vector<std::string_view> differing_entries(const FlatSoundState& a, const FlatSoundState& b,
                                                               const plugin::CodecContext& context);
 
 /// @brief The instrument's top-level keys whose typed fields differ between @p a and @p b, in file order: what
@@ -161,7 +166,7 @@ struct SlotChange {
 /// @param a One state.
 /// @param b The other.
 /// @return The keys.
-[[nodiscard]] std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b);
+[[nodiscard]] std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b);
 
 /// @brief decode_change of @p next's encoding of @p keys onto @p state, whose encoding of them is the slot before: what
 /// a slot changed to say @p next there reads as, the entries read as a file holds them (and refused as a file's would
@@ -171,7 +176,8 @@ struct SlotChange {
 /// @param keys    The instrument's top-level keys the change reaches.
 /// @param context The file context.
 /// @return The new state and the entries touched, or why an entry cannot be read.
-[[nodiscard]] std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state, const SoundState& next,
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> change_to(const FlatSoundState& state,
+                                                                      const FlatSoundState& next,
                                                                       std::span<const std::string_view> keys,
                                                                       const plugin::CodecContext& context);
 
@@ -180,13 +186,13 @@ struct SlotChange {
 /// @param current The state to decode onto.
 /// @param context The file context.
 /// @return The new state, or why the element cannot be read.
-[[nodiscard]] std::expected<SoundState, plugin::StateError>
-decode_onto(const serialization::Value& element, const SoundState& current, const plugin::CodecContext& context);
+[[nodiscard]] std::expected<FlatSoundState, plugin::StateError>
+decode_onto(const serialization::Value& element, const FlatSoundState& current, const plugin::CodecContext& context);
 
 /// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
 /// and the effects are left out. For comparing two states and for recording what a reader produced.
 /// @param state The state to dump.
 /// @return A Map of the fields by name.
-[[nodiscard]] serialization::Value dump_state(const SoundState& state);
+[[nodiscard]] serialization::Value dump_state(const FlatSoundState& state);
 
 } // namespace deluge::instrument

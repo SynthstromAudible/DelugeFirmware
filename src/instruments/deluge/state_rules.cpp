@@ -37,7 +37,7 @@ namespace {
 
 } // namespace
 
-SoundState with_mode(SoundState state, SynthMode mode) {
+FlatSoundState with_mode(FlatSoundState state, SynthMode mode) {
 	effects::FilterState& filter = state.effects.filter;
 	if (mode == SynthMode::FM && state.synth_mode != SynthMode::FM) {
 		filter.lpf_mode = effects::FilterMode::OFF;
@@ -55,8 +55,8 @@ SoundState with_mode(SoundState state, SynthMode mode) {
 	return state;
 }
 
-SoundState with_osc_type(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
-                         bool held_are_wavetable) {
+FlatSoundState with_osc_type(FlatSoundState state, SourceId id, OscType type, std::span<const RangeState> held,
+                             bool held_are_wavetable) {
 	SourceState& source = state.sources[index_of(id)];
 	source.osc_type = type;
 	const bool plays_ranges = type == OscType::SAMPLE || type == OscType::WAVETABLE;
@@ -77,7 +77,7 @@ SoundState with_osc_type(SoundState state, SourceId id, OscType type, std::span<
 	return state;
 }
 
-SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) {
+FlatSoundState with_loop_mode(FlatSoundState state, SourceId id, SampleRepeatMode mode) {
 	SourceState& source = state.sources[index_of(id)];
 	if (mode == SampleRepeatMode::STRETCH) {
 		source.pitch_and_speed_independent = true;
@@ -89,12 +89,12 @@ SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) 
 	return state;
 }
 
-SoundState with_song_defaults(SoundState state, const effects::SongDefaults& defaults) {
+FlatSoundState with_song_defaults(FlatSoundState state, const effects::SongDefaults& defaults) {
 	state.effects = effects::with_song_defaults(state.effects, defaults);
 	return state;
 }
 
-SoundState as_sample_sound(SoundState state) {
+FlatSoundState as_sample_sound(FlatSoundState state) {
 	state.polyphonic = PolyphonyMode::AUTO;
 	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
 	state.sources[0].osc_type = OscType::SAMPLE;
@@ -102,7 +102,7 @@ SoundState as_sample_sound(SoundState state) {
 	return state;
 }
 
-SoundState as_default_synth(SoundState state) {
+FlatSoundState as_default_synth(FlatSoundState state) {
 	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
 	state.sources[0].osc_type = OscType::SAW;
 	state.sources[1].transpose = -12;
@@ -112,7 +112,7 @@ SoundState as_default_synth(SoundState state) {
 	return state;
 }
 
-SoundState as_blank_synth(SoundState state, bool dx) {
+FlatSoundState as_blank_synth(FlatSoundState state, bool dx) {
 	if (dx) {
 		state.sources[0].osc_type = OscType::DX7;
 		if (!state.sources[0].dx_patch) {

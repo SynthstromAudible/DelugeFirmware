@@ -2,6 +2,7 @@
 #include "deluge-project/structure_codec.h"
 #include "instrument_test_plugins.h"
 #include "serialization/parse_xml.h"
+#include "support/flat_state.h"
 #include "support/printers/doc_clip_printer.h"
 #include "support/printers/doc_output_printer.h"
 #include "support/printers/project_result_printer.h"
@@ -122,7 +123,7 @@ describe structure_codec("the structure records", ${
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
 		const deluge::plugin::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 2);
-		expect(state.as<deluge::instrument::DelugeSynth>()->synth_mode)
+		expect(deluge::test::flat_of(state.as<deluge::instrument::DelugeSynth>())->synth_mode)
 		    .to_equal(deluge::instrument::SynthMode::FM);
 		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
 		test::test_instrument_codec().encode(state, written, 2);

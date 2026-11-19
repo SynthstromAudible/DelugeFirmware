@@ -200,11 +200,11 @@ SourceState source_of(const synth::SlotState& slot, const SourceState& kept, uin
 	return src;
 }
 
-synth::LfoState lfo_of(const SoundState& f, size_t i) {
+synth::LfoState lfo_of(const FlatSoundState& f, size_t i) {
 	return {.shape = f.lfo_wave_type[i], .sync_type = f.lfo_sync_type[i], .sync_level = f.lfo_sync_level[i]};
 }
 
-void put_lfo(SoundState& f, size_t i, const synth::LfoState& lfo) {
+void put_lfo(FlatSoundState& f, size_t i, const synth::LfoState& lfo) {
 	f.lfo_wave_type[i] = lfo.shape;
 	f.lfo_sync_type[i] = lfo.sync_type;
 	f.lfo_sync_level[i] = lfo.sync_level;
@@ -212,7 +212,7 @@ void put_lfo(SoundState& f, size_t i, const synth::LfoState& lfo) {
 
 } // namespace
 
-std::pair<ComposedState, Recall> compose(const SoundState& f) {
+std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	ComposedState state{
 	    .voicing = {.polyphony = f.polyphonic,
 	                .max_voices = f.max_voice_count,
@@ -261,8 +261,8 @@ std::pair<ComposedState, Recall> compose(const SoundState& f) {
 	return {std::move(state), std::move(recall)};
 }
 
-SoundState flatten(const ComposedState& state, const Recall& recall) {
-	SoundState f;
+FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
+	FlatSoundState f;
 	f.polyphonic = state.voicing.polyphony;
 	f.max_voice_count = state.voicing.max_voices;
 	f.voice_priority = state.voicing.priority;
