@@ -270,3 +270,9 @@ Error AutoParam::copyNodesForTrim(int32_t num_nodes, LazyParamNodeVector& trimme
 	trimmed.get()->copyPlaybackStateFrom(*nodes.get());
 	return Error::NONE;
 }
+
+// Tempo controls start from the audible BPM, unlike scalar parameter menus.
+// Apply their delta to the scalar, retaining the relative curve and saturation.
+int32_t AutoParam::getScalarForEffectiveValue(int32_t value) const {
+	return ClipParamValue::resolve(int64_t{getClipValue()} + value - getCurrentValue());
+}

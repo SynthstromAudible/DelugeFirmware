@@ -62,6 +62,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/tempo.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -602,6 +603,7 @@ void PlaybackHandler::endPlayback() {
 	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
+	currentSong->setParamsInAutomationMode(false);
 
 	// Nothing's going to play on into the Clusters we'd prefetched. Before any song swap, so it can delete Samples.
 	audioFileManager.releaseAllPrefetches();
@@ -2470,7 +2472,9 @@ float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
 	auto* tempo_param = currentSong->getModelStackWithParam(model_stack, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 
 	if (tempo_param && tempo_param->autoParam) {
-		return tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param) / 100.0f;
+		return static_cast<float>(
+		           deluge::tempo::clockValue(tempo_param->autoParam->getValuePossiblyAtPos(pos, tempo_param)))
+		       / 100.0f;
 	}
 
 	return calculateBPM(currentSong->getTimePerTimerTickFloat());
@@ -2479,8 +2483,11 @@ float PlaybackHandler::getTempoBPMAtArrangementPos(int32_t pos) {
 void PlaybackHandler::getTempoParamsAtArrangementPos(int32_t pos, int32_t* magnitude, int8_t* whichValue) {
 	float bpm = getTempoBPMAtArrangementPos(pos);
 	double scaledBPM = ldexp(static_cast<double>(bpm), currentSong->getInputTickMagnitude());
-	uint64_t timePer = static_cast<uint64_t>((110250.0 / scaledBPM) * 4294967296.0 + 0.5);
-	getTempoParamsFromTimePer(timePer, magnitude, whichValue);
+	double samples = std::clamp(110250.0 / scaledBPM, static_cast<double>(kMinTimePerTimerTick), 4294967295.0);
+	// Samples are positive; signed lround cannot represent the full uint64 timer range.
+	// NOLINTNEXTLINE(bugprone-incorrect-roundings)
+	auto time_per = static_cast<uint64_t>((samples * 4294967296.0) + 0.5);
+	getTempoParamsFromTimePer(time_per, magnitude, whichValue);
 }
 
 void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValue) {

@@ -46,8 +46,9 @@ The existing x86 PR workflow builds and runs both binaries through CTest.
 `parameter_control_tests.cpp` tests the production layer-selection, automation
 transition policies used by the firmware callers. It covers
 expression/live input, recording/region exceptions,
-inactive MIDI automation removal. Value tests exercise full-width detachment/rebinding
-and MIDI backup destruction with the real storage classes. 
+inactive MIDI automation removal and tempo-clock refresh selection. Value tests exercise full-width detachment/rebinding
+and MIDI backup destruction with the real storage classes. AutoParam tests cover
+effective-tempo edits with positive and negative automation offsets.
 
 These cases do not simulate physical encoder input, whole UI transactions or menu reset
 commands. Changing a ClipParamValue directly tests that value object's behavior,
@@ -60,7 +61,9 @@ state exchange. They do not instantiate the UI action logger or a clip-length UI
 The save/reload regression cases exercise the production supplemental relative
 serializer and reader with positive and negative overshoot, retained timeline
 limits, and saturated cloning. Preset rebasing tests preserve another clip's
-hidden overshoot and leave unrelated owners untouched. Whole-song UI save routing is
+hidden overshoot and leave unrelated owners untouched. Tempo tests exercise the
+clock-value boundary and the production undo transaction, including coalesced
+edits and redo with a relative curve. Whole-song UI save routing is
 validated separately in delugemu; these unit tests do not emulate those UIs.
 
 Preset-save tests also verify that the scoped snapshot retains the actual

@@ -142,3 +142,22 @@ measurements must include those costs as well as heap allocations. Hardware
 rendering performance needs separate verification before release.
 
 
+
+## Song baselines
+
+The song's `GlobalEffectableForSong` owns its baseline. New songs capture their
+initialized values; loaded songs capture their saved, resolved song scalars after
+loading and migration. Each load therefore establishes a fresh baseline. Song
+value offsets become zero except for hidden scalar overshoot retained by the
+relative metadata. Song automation stays relative to the independent song scalar.
+Song files retain evaluated parameter values and absolute automation values for
+released firmware, plus full-width relative metadata; historical song baselines
+are not saved. Stopping
+arrangement automation clears the current automation offset and reveals the
+song scalar, including edits or resets made during playback. Tempo encoder/tap
+edits apply the effective BPM delta to the scalar, retaining relative automation.
+Tempo undo/redo restores the scalar together with the timer period. Clock-facing
+reads clamp nonpositive automation results to 0.01 BPM without altering stored
+curves. Leaving arrangement playback forces a clock refresh.
+Removing tempo automation also refreshes the clock when playback is stopped.
+
