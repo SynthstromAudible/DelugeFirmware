@@ -64,12 +64,33 @@ const effects::EffectStates& sound_effects(const SoundState& state) noexcept {
 	return state.effects;
 }
 
+effects::EffectStates& sound_effects(SoundState& state) noexcept {
+	return state.effects;
+}
+
+synth::UnisonState unison(const SoundState& state) noexcept {
+	return {.count = state.num_unison, .detune = state.unison_detune, .spread = state.unison_stereo_spread};
+}
+
+HostFields host_fields(const SoundState& state) noexcept {
+	return {.side_chain_send_level = state.side_chain_send_level,
+	        .output_midi_channel = state.output_midi_channel,
+	        .output_midi_note_for_drum = state.output_midi_note_for_drum};
+}
+
+SoundState with_host_fields(SoundState state, const HostFields& fields) {
+	state.side_chain_send_level = fields.side_chain_send_level;
+	state.output_midi_channel = fields.output_midi_channel;
+	state.output_midi_note_for_drum = fields.output_midi_note_for_drum;
+	return state;
+}
+
 SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
 	state.sources[index_of(id)].ranges = std::move(ranges);
 	return state;
 }
 
-SoundState with_dx_patch(SoundState state, SourceId id, const DxPatchState& patch) {
+SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch) {
 	state.sources[index_of(id)].dx_patch = patch;
 	return state;
 }

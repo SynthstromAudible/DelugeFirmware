@@ -200,9 +200,10 @@ public:
 	/// @brief Oscillator @p s's first range, made when it has none and then recorded as the record's.
 	/// @return The range, or null when there is no memory for one.
 	MultiRange* getOrCreateFirstRange(int32_t s);
-	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped).
+	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped), when the
+	/// record holds others.
 	void recordHeldRanges(int32_t s);
-	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it.
+	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it, when the record holds another.
 	void recordHeldDxPatch(int32_t s);
 	/// @brief What oscillator @p s plays.
 	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }

@@ -809,7 +809,9 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::selectEncoderAction`'s insert: a range with no file at @p at, the one below it narrowed
-	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	std::vector<deluge::instrument::RangeState> ranges(
+	    std::from_range,
+	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source)));
 	if (at > ranges.size()) {
 		return false;
 	}
@@ -833,7 +835,9 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::deletePress`: the range goes, the one below it widened
-	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	std::vector<deluge::instrument::RangeState> ranges(
+	    std::from_range,
+	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source)));
 	if (index >= ranges.size()) {
 		return false;
 	}

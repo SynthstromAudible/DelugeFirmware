@@ -4,7 +4,7 @@
 # backend. mock_storage.cpp supplies the freezeWithError (it aborts, so a freeze fails the spec) and
 # deluge::memory::dealloc that slice_core.cpp reaches; it constructs the global XML/JSON deserializers, hence
 # file_reader, the deserializers, io/file, their channel, file-io and firmware-version stand-ins, and
-# deluge_serialization.
+# deluge_serialization. The range Edit the audition makes reads the record through the instrument's state access.
 deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
   SOURCES
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/slice_core.cpp
@@ -28,6 +28,7 @@ deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
     deluge_gfx_oled
     deluge_gfx_grid
     deluge_serialization
+    deluge_instrument
   INCLUDES
     ${DELUGE_REPO_ROOT}/src
     ${DELUGE_REPO_ROOT}/src/deluge

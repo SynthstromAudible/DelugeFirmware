@@ -21,8 +21,10 @@
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
+#include "synth/voice/voicing_state.h"
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -91,6 +93,31 @@ struct SamplePlayback {
 /// @param state The sound's state.
 [[nodiscard]] const effects::EffectStates& sound_effects(const SoundState& state) noexcept;
 
+/// @brief The settings of the sound's own effects, to change in place: what the effects binding plays.
+/// @param state The sound's state.
+[[nodiscard]] effects::EffectStates& sound_effects(SoundState& state) noexcept;
+
+/// @brief How many unison parts each voice plays, how far apart and how wide.
+/// @param state The sound's state.
+[[nodiscard]] synth::UnisonState unison(const SoundState& state) noexcept;
+
+/// @brief What the sound's host keeps in its state for now: its sidechain send and, as a kit row, its MIDI output.
+struct HostFields {
+	int32_t side_chain_send_level{0};
+	uint8_t output_midi_channel{255};       ///< 255 = none
+	uint8_t output_midi_note_for_drum{255}; ///< 255 = none
+	bool operator==(const HostFields&) const = default;
+};
+
+/// @brief The host's fields of @p state.
+/// @param state The sound's state.
+[[nodiscard]] HostFields host_fields(const SoundState& state) noexcept;
+
+/// @brief @p state with the host's fields replaced.
+/// @param state The sound's state.
+/// @param fields The host's new fields.
+[[nodiscard]] SoundState with_host_fields(SoundState state, const HostFields& fields);
+
 /// @brief @p state with one oscillator slot's ranges replaced.
 /// @param state The sound's state.
 /// @param id The slot.
@@ -100,7 +127,7 @@ struct SamplePlayback {
 /// @brief @p state with one oscillator slot's DX7 patch replaced.
 /// @param state The sound's state.
 /// @param id The slot.
-/// @param patch Its new patch.
-[[nodiscard]] SoundState with_dx_patch(SoundState state, SourceId id, const DxPatchState& patch);
+/// @param patch Its new patch; none drops the one it has.
+[[nodiscard]] SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch);
 
 } // namespace deluge::instrument

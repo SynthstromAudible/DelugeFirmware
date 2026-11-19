@@ -36,6 +36,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/state_rules.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/clock.h"
@@ -2624,8 +2625,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
 		deluge::model::changeEffects(*effectsOwner(),
 		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
-		decoded.effects.filter.hpf_mode = FilterMode::OFF;
-		decoded.effects.filter.lpf_mode = FilterMode::OFF;
+		deluge::instrument::sound_effects(decoded).filter.hpf_mode = FilterMode::OFF;
+		deluge::instrument::sound_effects(decoded).filter.lpf_mode = FilterMode::OFF;
 	}
 
 	// A sound with params files them with the Song
@@ -2639,7 +2640,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// The sound plays what the file holds, as the decode makes it; the reader above set its runtime to the same, but
 	// for a mod FX type the runtime could not allocate, which it plays without
-	decoded.effects.mod_fx.type = effects().mod_fx.type;
+	deluge::instrument::sound_effects(decoded).mod_fx.type = effects().mod_fx.type;
 	adoptState(std::move(decoded));
 
 	return Error::NONE;
@@ -2682,14 +2683,15 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	// The config the rest of the read plays with, until the read's state is adopted
 	config_ = deluge::instrument::DelugeSynth::derive(state);
-	sideChainSendLevel = state.side_chain_send_level;
-	outputMidiChannel = state.output_midi_channel;
-	outputMidiNoteForDrum = state.output_midi_note_for_drum;
+	const deluge::instrument::HostFields host = deluge::instrument::host_fields(state);
+	sideChainSendLevel = host.side_chain_send_level;
+	outputMidiChannel = host.output_midi_channel;
+	outputMidiNoteForDrum = host.output_midi_note_for_drum;
 	resyncGlobalLFOs();
 
 	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
 	// through; the next effects edit on this sound retries.
-	deluge::effects::EffectStates effects = state.effects;
+	deluge::effects::EffectStates effects = deluge::instrument::sound_effects(state);
 	if (effects.mod_fx.type != this->effects().mod_fx.type) {
 		const ModFXType type = effects.mod_fx.type;
 		deluge::model::changeEffects(*effectsOwner(),
@@ -2701,25 +2703,26 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	core().compressor().dsp().set_threshold(deluge::effects::compressor_knobs(effects.compressor).threshold);
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const deluge::instrument::SourceState& from = state.sources[s];
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		const OscType type = deluge::instrument::source_type(state, id);
 		SourceResources& source = sources[s];
-		source.setOscType(from.osc_type);
-		if (from.dx_patch) {
+		source.setOscType(type);
+		if (const deluge::instrument::DxPatchState* from = deluge::instrument::dx_patch(state, id)) {
 			DxPatch* patch = source.ensureDxPatch();
 			if (patch == nullptr) {
 				return Error::INSUFFICIENT_RAM;
 			}
-			std::ranges::copy(from.dx_patch->params, patch->params.begin());
+			std::ranges::copy(from->params, patch->params.begin());
 			// The engine follows the bytes: an auto patch on algorithm 4 or 6 with feedback renders in MkI
-			patch->setEngineMode(from.dx_patch->engine_mode);
-			patch->random_detune = from.dx_patch->random_detune;
+			patch->setEngineMode(from->engine_mode);
+			patch->random_detune = from->random_detune;
 		}
 
 		// The ranges, of the kind the oscillator type plays.
-		const bool wavetable = from.osc_type == OscType::WAVETABLE;
+		const bool wavetable = type == OscType::WAVETABLE;
 		source.ranges.clear();
 		(void)source.ranges.changeType(wavetable ? sizeof(MultiWaveTableRange) : sizeof(MultisampleRange));
-		for (const deluge::instrument::RangeState& range : from.ranges) {
+		for (const deluge::instrument::RangeState& range : deluge::instrument::source_ranges(state, id)) {
 			MultiRangeArray::RangeVariant variant =
 			    wavetable ? MultiRangeArray::RangeVariant(std::in_place_type<MultiWaveTableRange>)
 			              : MultiRangeArray::RangeVariant(std::in_place_type<MultisampleRange>);
@@ -2754,11 +2757,20 @@ MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
 }
 
 void Sound::recordHeldRanges(int32_t s) {
-	sources[s].seedRangesInto(state_->sources[s]);
+	const auto id = static_cast<deluge::instrument::SourceId>(s);
+	if (std::vector held = sources[s].heldRanges();
+	    !std::ranges::equal(held, deluge::instrument::source_ranges(*state_, id))) {
+		*state_ = deluge::instrument::with_ranges(std::move(*state_), id, std::move(held));
+	}
 }
 
 void Sound::recordHeldDxPatch(int32_t s) {
-	sources[s].seedDxPatchInto(state_->sources[s]);
+	const auto id = static_cast<deluge::instrument::SourceId>(s);
+	const deluge::instrument::DxPatchState* recorded = deluge::instrument::dx_patch(*state_, id);
+	if (std::optional held = sources[s].heldDxPatch();
+	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
+		*state_ = deluge::instrument::with_dx_patch(std::move(*state_), id, held);
+	}
 }
 
 void Sound::adoptState(deluge::instrument::SoundState loaded) {
@@ -2766,7 +2778,7 @@ void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	deluge::instrument::SoundState& home = (state_ == nullptr || state_ == &ownedState_) ? ownedState_ : *state_;
 	home = std::move(loaded);
 	state_ = &home;
-	bindEffects(&home.effects);
+	bindEffects(&deluge::instrument::sound_effects(home));
 	projectSnapshot();
 }
 
@@ -2782,7 +2794,8 @@ void Sound::bindState(deluge::instrument::SoundState& record) {
 		record = *state_; // another record's, which stays that record's
 	}
 	state_ = &record;
-	bindEffects(&record.effects); // copies the effects it played, which the move left in place
+	bindEffects(
+	    &deluge::instrument::sound_effects(record)); // copies the effects it played, which the move left in place
 	if (own) {
 		ownedState_ = {}; // no second copy stays behind
 	}
@@ -2795,7 +2808,7 @@ void Sound::unbindState() {
 	}
 	ownedState_ = std::move(*state_); // the record goes now
 	state_ = &ownedState_;
-	bindEffects(&ownedState_.effects);
+	bindEffects(&deluge::instrument::sound_effects(ownedState_));
 	projectSnapshot();
 }
 
