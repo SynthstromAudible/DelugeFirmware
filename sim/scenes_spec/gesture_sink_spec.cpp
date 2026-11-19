@@ -66,7 +66,7 @@ deluge::project::ParamAddress audio_lpf(const spec::AudioSongFixture& audio) {
 } // namespace
 
 // clang-format off
-describe gesture_sink("a scene's gestures through the app's sink", ${
+describe gesture_sink("a scene's gestures through the app's sink and clip port", ${
 	it("writes a track's, a clip's and a lane's name into the record", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
@@ -99,7 +99,8 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
 		expect(menu::host_ports().clip_writes->clear_clip(deluge::project::ClipAddress{audio.clip->id()},
-		                                          /*clear_automation=*/true, /*clear_sequence_and_mpe=*/false))
+		                                                              /*clear_automation=*/true,
+		                                                              /*clear_sequence_and_mpe=*/false))
 		    .to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
@@ -135,7 +136,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		Song* const saved = currentSong;
 		currentSong = audio.song;
 		expect(menu::host_ports().clip_writes->move_audio_clip_marker(deluge::project::ClipAddress{audio.clip->id()},
-		                                                      "endSamplePos", 4321))
+		                                                              "endSamplePos", 4321))
 		    .to_be_true();
 		const std::optional<deluge::serialization::Value> end = deluge::project::read_setting(
 		    audio.song->project,

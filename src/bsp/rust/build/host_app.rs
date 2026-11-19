@@ -217,6 +217,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("scenes/bind", "libdeluge_scenes_bind.a"),
         ("level3", "libdeluge_ui_level3.a"),
         ("scenes_spec", "libdeluge_scenes_spec.a"),
+        // sim/scenes_spec adds the fakes (guarded) first, so their binary dir is under scenes_spec.
         ("scenes_spec/scenes_fakes", "libdeluge_scenes_fakes.a"),
     ];
     println!("cargo:rustc-link-arg=-Wl,--start-group");

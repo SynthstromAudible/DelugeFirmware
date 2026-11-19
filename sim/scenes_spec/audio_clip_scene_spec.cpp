@@ -466,6 +466,7 @@ struct Rig {
 	/// end-marker drag example leaves `end_marker_visible_` true and the start-marker example then
 	/// takes the wrong branch of `padAction`.
 	/// @param sink Where the scene's writes go; the app's sink when null.
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
 	void open_scene_only(bind::WriteSink* sink = nullptr, bind::ClipWrites* clip_writes = nullptr) {
 		audio_clip_scene().open(address(), f.song, sink, clip_writes);
 		(void)audio_clip_scene().on_enter(SceneId{kAudioClipSceneKind, 0});
@@ -1798,11 +1799,11 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::ClipWrites& sink = *deluge::scenes::menu::host_ports().clip_writes;
-		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
+		        bind::ClipWrites& clip_writes = *deluge::scenes::menu::host_ports().clip_writes;
+		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
-		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
-		                                      static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
+		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
+		                                             static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
 		            .to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
 	        });
@@ -1849,9 +1850,12 @@ describe audio_clip_scene_spec_body(
 		        using Kind = bind::test::RecordingClipWrites::Call::Kind;
 		        using Resize = bind::ResizeKind;
 		        // The last call of a kind: a length change also records the view a redo returns to, after its resize.
-		        const auto last = [&clip_writes](Kind kind) {
-			        return *std::ranges::find_if(clip_writes.calls.rbegin(), clip_writes.calls.rend(),
-			                                     [kind](const auto& call) { return call.kind == kind; });
+		        const auto last = [&clip_writes, &self](Kind kind) {
+			        const auto found = std::ranges::find_if(clip_writes.calls.rbegin(), clip_writes.calls.rend(),
+			                                                [kind](const auto& call) { return call.kind == kind; });
+			        const bool present = found != clip_writes.calls.rend();
+			        expect(present).to_be_true();
+			        return present ? *found : bind::test::RecordingClipWrites::Call{};
 		        };
 
 		        (void)in.pad(end_square_of(r), 0, true);
