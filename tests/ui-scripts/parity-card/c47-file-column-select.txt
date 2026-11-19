@@ -1,6 +1,6 @@
 # SELECT on the OSC1 page's focused file column with c20's multisample and no range selected: main's select arm runs
 # the range check, so the note-range picker opens, heading to the file selector.
-# card: content/sweep-shellmenu.img
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

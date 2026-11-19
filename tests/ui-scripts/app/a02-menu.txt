@@ -1,18 +1,13 @@
 # Level 3: **the acceptance test for the menu.** The ui-scripts gate (`tests/integration/checks/ui_scripts.py`) runs
-# it on each card below: on the fixture card every snapshot must match the golden; on the two cards that still say a
-# menu setting this firmware does not read (`shellMenu=0`, `legacyMenu=1`, both unknown settings) it must run exactly
-# as on the fixture card.
+# it on the fixture card, where every snapshot must match the golden. A card that still stores a menu setting this
+# firmware does not have boots the same menu: `sim/scenes_spec/stale_menu_setting_spec.cpp` pins that, and the
+# settings channel's SC-UNKNOWN check pins that the stored entry survives a write.
 #
-# The stale legs are a genuine boot-from-settings on the mechanism the device uses
-# (`RuntimeFeatureSettings::readSettingsFromFile`), not a test-only door.
-#
-# **No leg mutates its own input**, which matters because a test that edits its input is not
-# reproducible. With the file present `bootstrap_action` returns `Bootstrap::Load`
-# (`storage/existence_policy.cpp`) and the `WriteDefaults` arm that would `mkdir`/`rename`
-# (`RuntimeFeatureSettings::readSettingsInline`) is never entered; the default leg does enter it, but its
-# `mkdir` finds `SETTINGS/` already there and its `rename` of a root-level "CommunityFeatures.XML"
-# that does not exist fails, so it returns having created nothing. Checked rather than
-# reasoned: `git status --short tests/fixtures/` is empty after every leg has run.
+# **The run does not mutate its input**, which matters because a test that edits its input is not reproducible. The
+# fixture card holds no `SETTINGS/CommunityFeatures.XML`, so `RuntimeFeatureSettings::readSettingsInline` takes its
+# `WriteDefaults` arm: its `mkdir` finds `SETTINGS/` already there and its `rename` of a root-level
+# "CommunityFeatures.XML" that does not exist fails, so it returns having created nothing. Checked rather than
+# reasoned: `git status --short tests/fixtures/` is empty after the run.
 #
 # **What this script presses, and why it presses exactly this.**
 #
@@ -36,8 +31,6 @@
 # 50 ms rather than 0: the app blits its first frame from inside the main loop, after its first
 # input poll, so nothing has been drawn at 0 ms (`a01-boot.txt`'s own note).
 # card: tests/fixtures/card
-# card: tests/fixtures/card-old-shell-menu.card
-# card: tests/fixtures/card-old-legacy-menu.card
 50     snapshot boot
 
 # Site 6: SELECT with no shift from the instrument clip view -> the SOUND root.

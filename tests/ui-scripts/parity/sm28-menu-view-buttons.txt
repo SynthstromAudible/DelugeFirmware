@@ -5,7 +5,7 @@
 # keyboard screen and KEYBOARD again returns to the automation view. SESSION leaves the menu for the session view. Every
 # snapshot has a 1 s window.
 # card: content/bare.img
-# card: content/shellmenu-fill
+# card: content/fill
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

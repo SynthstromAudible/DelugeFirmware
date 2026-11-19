@@ -3,7 +3,7 @@
 A script names each card it runs on, one line each, before its first step:
 
     # card: tests/fixtures/card                      a directory in this repository
-    # card: tests/fixtures/card-old-shell-menu.card  a card manifest (src/bsp/rust/src/storage/card_manifest.rs)
+    # card: tests/fixtures/card-dx-no-folder.card    a card manifest (src/bsp/rust/src/storage/card_manifest.rs)
     # card: content/sweep-bare.img                   a content card: a directory or FAT image in the content-card
                                                      directory (DELUGE_CONTENT_CARDS, default .superpowers/emu-card)
 

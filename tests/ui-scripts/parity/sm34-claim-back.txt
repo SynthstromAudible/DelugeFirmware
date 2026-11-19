@@ -2,7 +2,7 @@
 # clip pad and press SELECT to turn the empty clip into an audio clip, open it, SELECT into its root list and turn to
 # SAMPLE (eight turns: the first detent after boot is dropped), SELECT opens the SAMPLE page on the file selector,
 # SELECT opens the browser, Select +1 and SELECT enter CLIPS, SELECT on its first file claims it, then BACK twice.
-# card: content/content-shellmenu
+# card: content/content
 100 snapshot boot
 500 button Session down
 520 button Session up

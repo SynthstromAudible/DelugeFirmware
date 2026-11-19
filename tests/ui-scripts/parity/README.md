@@ -55,7 +55,7 @@ moves are several turns; the sound menu reopens on the row it last showed; BACK 
 the menu.
 
 `sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
-keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/shellmenu-fill` (`syncScalingAction` 1,
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/fill` (`syncScalingAction` 1,
 Fill) SYNC-SCALING holds fill and lights its LED.
 
 `sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
