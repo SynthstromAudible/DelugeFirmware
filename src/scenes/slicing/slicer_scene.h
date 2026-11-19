@@ -3,8 +3,8 @@
 /// @brief `SlicerScene` -- the slicer: a waveform on the pads, a slice count on the OLED, and (in
 ///        MANUAL mode) a 64-slot slice grid under the waveform.
 ///
-/// The port of `Slicer` (`gui/ui/slicer.{h,cpp}`), which the sample browser opens on a file in a brand-new kit: from
-/// the kit's SAMPLES menu (SLICE) or with Shift+Select.
+/// The port of `Slicer` (`origin/main:src/deluge/gui/ui/slicer.h`), which the sample browser opens on a file in a
+/// brand-new kit: from the kit's SAMPLES menu (SLICE) or with Shift+Select.
 ///
 /// @par Everything this scene does to the audio, the model and the card goes through `SliceOps`
 ///

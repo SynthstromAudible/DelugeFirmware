@@ -3,9 +3,9 @@
 /// @brief `MarkerScene` -- the sample marker editor: a waveform on the pads, four markers over it,
 ///        and the position of the selected one on the OLED.
 ///
-/// The port of `SampleMarkerEditor` (`gui/ui/sample_marker_editor.{h,cpp}`), which the sample menu's start/end items
-/// and the audio clip's waveform item open. `SceneId::arg` is the `MarkerType` to start on -- `MarkerType::START` or
-/// `MarkerType::END`, which are the only two legacy ever opens with
+/// The port of `SampleMarkerEditor` (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`), which the sample menu's
+/// start/end items and the audio clip's waveform item open. `SceneId::arg` is the `MarkerType` to start on --
+/// `MarkerType::START` or `MarkerType::END`, which are the only two legacy ever opens with
 /// (`origin/main:src/deluge/gui/menu_item/sample/start.h`, `origin/main:src/deluge/gui/menu_item/sample/end.h`,
 /// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`); the loop markers are reached from
 /// *inside*, by holding a marker and tapping another column.
@@ -74,12 +74,11 @@
 /// forced a whole-screen redraw. Recorded rather than reproduced: reproducing it would mean making
 /// the port's render depend on *why* it was called, which the shell does not tell it.
 ///
-/// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
-///          on `Action` in `shell/scene.h`: it is one bare global bool, it *drops* events rather
-///          than deferring them, and `on_exit()` cannot give it back. Legacy's own gate here is
-///          `isSDRoutineActive()` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which
-///          defers and retries; its port is `InputLowering::set_sd_busy`, which is not an `Action`
-///          and is not this scene's to file.
+/// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning on `Action` in
+///          `shell/scene.h`: it is one bare global bool, it *drops* events rather than deferring them, and `on_exit()`
+///          cannot give it back. Legacy's own gate here is `sdRoutineLock` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`
+///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
+///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
 #include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"

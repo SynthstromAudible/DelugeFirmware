@@ -13,7 +13,7 @@
 ///
 /// @par This IS a root scene -- the first one in the tree -- and that has consequences
 ///
-/// `class AudioClipView final : public ClipView` (`audio_clip_view.h`) -> `ClipView : public
+/// `class AudioClipView final : public ClipView, public ClipMinder` (`audio_clip_view.h`) -> `ClipView : public
 /// ClipNavigationTimelineView` (`gui/views/clip_view.h`) -> `ClipNavigationTimelineView : public
 /// TimelineView` (`gui/views/clip_navigation_timeline_view.h`) -> `class TimelineView : public
 /// RootUI` (`gui/views/timeline_view.h`). `grep "public RootUI"` finds exactly two classes in
@@ -36,7 +36,7 @@
 /// `ClipNavigationTimelineView::buttonAction` -- which that class
 /// **does not declare** (`grep buttonAction gui/views/clip_navigation_timeline_view.{h,cpp}` finds
 /// nothing), so the name resolves to the inherited `TimelineView::buttonAction`, whose own `else`
-/// (`timeline_view.cpp`) is `return view.buttonAction(b, on, inCardRoutine)`. None of the
+/// (`timeline_view.cpp`) is `return view.buttonAction(b, on)`. None of the
 /// five buttons above is claimed earlier on that path.
 ///
 /// @par One arm of that group collided with a button this scene claims, and the collision is CLOSED
@@ -153,7 +153,7 @@
 /// `TimelineState::stop_following()` is public because legacy clears
 /// `xScrollBeforeFollowingAutoExtendingLinearRecording` at the top of
 /// `ClipNavigationTimelineView::horizontalEncoderAction` (`clip_navigation_timeline_view.cpp`),
-/// **above** `TimelineView::horizontalEncoderAction`'s SD-routine, rendering-lock and UI-mode gates
+/// **above** `TimelineView::horizontalEncoderAction`'s re-entry guards and UI-mode gates
 /// (`timeline_view.cpp`, its zoom gate, its scroll gate), while the port's `zoom()`/`scroll()` clear it
 /// from inside. The residual is therefore: *legacy forgets the restore point even on a turn it then
 /// refuses; the port does not.*
@@ -182,8 +182,8 @@
 ///      `ClipView::horizontalEncoderAction`, which returns before the clear.
 ///
 /// So `stop_following()` is called here as the first statement of `nav_horizontal_encoder_action`,
-/// the port of that one function -- above `TimelineView::horizontalEncoderAction`'s SD-routine,
-/// rendering-lock and UI-mode gates, which is the whole point, and below the four decisions above,
+/// the port of that one function -- above `TimelineView::horizontalEncoderAction`'s re-entry guards
+/// and UI-mode gates, which is the whole point, and below the four decisions above,
 /// which is what keeps it from clearing on turns legacy leaves alone. Driving the higher placement
 /// would have cleared the restore point on a shift length edit, a `Y_ENC` shift and a tempoless
 /// clip; that is a behaviour change, not a placement detail.
@@ -226,8 +226,8 @@ struct DocClip;
 namespace deluge::scenes::audio_clip {
 
 /// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime`
-///        (`definitions_cxx.hpp`), the interval `AudioClipView::timerCallback` re-arms
-///        `TimerName::UI_SPECIFIC` at (`AudioClipView::timerCallback`).
+///        (`definitions_cxx.hpp`), the interval at which `AudioClipView::timerCallback` re-arms
+///        `TimerName::UI_SPECIFIC`.
 ///
 /// Spelled through the constant rather than as a literal, exactly as
 /// `marker::kBlinkPhaseMs` is.

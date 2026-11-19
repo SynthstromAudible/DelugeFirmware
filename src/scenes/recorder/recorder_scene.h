@@ -3,7 +3,7 @@
 /// @brief `RecorderScene` -- the audio recorder: arm an input, capture it to a file, and hand the
 ///        finished `Sample` to the oscillator that opened it.
 ///
-/// The port of `AudioRecorder` (`gui/ui/audio_recorder.{h,cpp}`), which the sample-recorder page's
+/// The port of `AudioRecorder` (`origin/main:src/deluge/gui/ui/audio_recorder.h`), which the sample-recorder page's
 /// two items open (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`; the ported nodes are
 /// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h`).
 ///

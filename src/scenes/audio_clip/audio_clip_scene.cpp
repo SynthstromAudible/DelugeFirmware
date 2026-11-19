@@ -198,9 +198,10 @@ void AudioClipScene::focus_regained() {
 	// `AudioClipView::focusRegained` (`audio_clip_view.cpp`); see the private declaration for
 	// the four statements that have no counterpart in this layer.
 	//
-	// `ClipView::focusRegained` forwards to
+	// `ClipView::focusRegained` calls
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp`),
-	// whose whole body is the restore-point clear -- `TimelineState::focus_regained()`.
+	// whose whole body is the restore-point clear -- `TimelineState::focus_regained()` -- and then resets the
+	// shortcut-overview latch and asks for a redraw, which the shell owns.
 	timeline_.focus_regained();
 	end_marker_visible_ = false;
 	start_marker_visible_ = false;
@@ -370,7 +371,7 @@ bool AudioClipScene::deactivate_marker_if_necessary() {
 }
 
 uint16_t AudioClipScene::clear_clip() {
-	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus its
+	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus `main`'s
 	// card-routine defer, which the shell answers with `InputLowering::set_sd_busy` rather than
 	// by asking the scene (`shell/scene.h`'s `Action` warning).
 	if (!clip_ || sink_ == nullptr) {
@@ -444,11 +445,11 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 
 	// ---- PLAY / RECORD / SHIFT ----
 	if (b == ButtonId::Play || b == ButtonId::Record || b == ButtonId::Shift) {
-		// `goto dontDeactivateMarker` -> `return ClipView::buttonAction(...)`, which for these three
-		// resolves through `TimelineView::buttonAction`'s `else` (`timeline_view.cpp`) to
-		// `view.buttonAction` -- `services::GlobalControls`. Unhandled is exactly that hand-off,
-		// **and the marker is deliberately not deactivated**: that is what the `dontDeactivateMarker`
-		// label buys, since these three return before the tail of `AudioClipView::padAction`'s marker arm.
+		// `goto dontDeactivateMarker` -> `return ClipView::buttonAction(...)`, which for these three resolves through
+		// `TimelineView::buttonAction`'s `else` (`timeline_view.cpp`) to `view.buttonAction` --
+		// `services::GlobalControls`. Unhandled is exactly that hand-off, **and the marker is deliberately not
+		// deactivated**: that is what the `dontDeactivateMarker` label buys, since these three return before
+		// `AudioClipView::buttonAction`'s `deactivateMarkerIfNecessary` tail.
 		return Result::unhandled();
 	}
 
@@ -535,9 +536,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		r.handled = true;
 	}
 	// The tail of `AudioClipView::buttonAction` (`audio_clip_view.cpp`) sits after the `if (result == NOT_DEALT_WITH)`
-	// call to `ClipView::buttonAction`, so it runs whether or not the arm above claimed the button. It is guarded only
-	// on the result not being `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which this scene never returns: the guard is always
-	// true.
+	// call to `ClipView::buttonAction`, so it runs whether or not the arm above claimed the button.
 	if (deactivate_marker_if_necessary()) {
 		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 	}
@@ -547,8 +546,8 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 // -- Pads ---------------------------------------------------------------------------------------
 
 Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
-	// `AudioClipView::padAction`. Every path of it that is not a
-	// card-routine defer returns DEALT_WITH (the sidebar arm's included), so this claims every pad it is given.
+	// `AudioClipView::padAction`. Every path of it that is not one of `main`'s card-routine defers returns DEALT_WITH
+	// (the sidebar arm's included), so this claims every pad it is given.
 	Result r;
 	r.handled = true;
 	const int32_t x = event.x;
@@ -576,9 +575,9 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 		return r;
 	}
 
-	// The `isSDRoutineActive()` defer at the top of `AudioClipView::padAction` has no counterpart: the shell's SD gate
-	// is `InputLowering::set_sd_busy`, which defers and retries rather than asking a scene (`shell/scene.h`'s `Action`
-	// warning names that split).
+	// `main`'s `sdRoutineLock` defer in `AudioClipView::padAction`'s main-pad arm, after the TEMPO_ENC grab, has no
+	// counterpart: the shell's SD gate is `InputLowering::set_sd_busy`, which defers and retries rather than asking a
+	// scene (`shell/scene.h`'s `Action` warning names that split).
 	//
 	// The shortcut call (`menuShortcutPadAction`) is **not ported**, for
 	// `MarkerScene`'s reason (`scenes/marker/marker_scene.h`): `MenuScene` owns the shortcut
@@ -692,11 +691,12 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& ctx) {
 	// `AudioClipView::verticalEncoderAction`.
 	Result r;
-	// DEALT_WITH on every path of `AudioClipView::verticalEncoderAction` that is not a card-routine defer, claimed or
-	// not.
+	// DEALT_WITH on every path of `AudioClipView::verticalEncoderAction` that is not one of `main`'s card-routine
+	// defers, claimed or not.
 	r.handled = true;
 	if (no_ui_mode_active() && ctx.shift && !ctx.held.has(ButtonId::YEnc)) {
-		// The card-routine defer of `AudioClipView::verticalEncoderAction` has no counterpart here (see `pad_action`).
+		// `main`'s card-routine defer in `AudioClipView::verticalEncoderAction` has no counterpart here (see
+		// `pad_action`).
 		if (clip_ && sink_ != nullptr) {
 			(void)sink_->recolour_clip(*clip_, offset);
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
@@ -733,7 +733,7 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 			return r;
 		}
-		// The SD defer of `ClipView::horizontalEncoderAction`: none, as above.
+		// `main`'s SD defer in `ClipView::horizontalEncoderAction`: none, as above.
 		const uint32_t new_length = change_clip_length(offset, old_length, ResizeKind::STRETCH);
 		show_bars_and_beats(new_length, /*count_from_one=*/false);
 		note_undo_scroll();
@@ -783,10 +783,10 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 	// is not a defer.
 	r.handled = true;
 
-	// `TimelineView::horizontalEncoderAction`'s three defers -- `isSDRoutineActive()`, `pendingUIRenderingLock` and
-	// `horizontalEncoderActionLock` -- have no counterpart: the first is `InputLowering::set_sd_busy`'s, and the other
-	// two guard a re-entrancy legacy's own comment at the top of `TimelineView::horizontalEncoderAction` doubts, which
-	// an immediate-mode scene called once per event cannot have.
+	// `TimelineView::horizontalEncoderAction`'s re-entry guards (`pendingUIRenderingLock`,
+	// `horizontalEncoderActionLock`, which drop a turn that finds one held) and `main`'s `sdRoutineLock` defer above
+	// them have no counterpart: the SD gate is `InputLowering::set_sd_busy`'s, and an immediate-mode scene called once
+	// per event cannot re-enter.
 	//
 	// `TimelineView::horizontalEncoderAction`'s `inNoteRowEditor` is `deluge::gui::ui::noteRowEditorOpen()` -- a
 	// `gui/ui` read this layer may not make, and false for this view in legacy too unless a note-row editor is open
@@ -886,7 +886,7 @@ Result AudioClipScene::edit_clip_length_without_timestretching(int32_t offset) {
 		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 		return r;
 	}
-	// The SD defer of `AudioClipView::editClipLengthWithoutTimestretching`: none, as everywhere else in this file.
+	// `main`'s SD defer in `AudioClipView::editClipLengthWithoutTimestretching`: none, as everywhere else in this file.
 
 	// The length and the sample's end, which keeps the audio's speed, as one request.
 	const uint32_t new_length =
@@ -1032,11 +1032,10 @@ void AudioClipScene::tick(uint32_t dt_ms) {
 }
 
 std::optional<uint32_t> AudioClipScene::next_timer() const {
-	// The playhead first: `graphicsRoutine` runs on every main-loop iteration
-	// (`gui/ui/ui.cpp`), so its port is "repaint next tick" whenever the cursor could move.
-	// The condition is `graphicsRoutine`'s own first gate, read positively
-	// (`audio_clip_view.cpp`): with no playback, no active clip, or a count-in running, the
-	// column is a constant 255 and nothing animates.
+	// The playhead first: `graphicsRoutine` runs every 15 ms (`UITimerManager::routine`'s `GRAPHICS_ROUTINE` arm in
+	// `gui/ui_timer_manager.cpp`, through `UI::graphicsRoutine`), so its port is "repaint next tick" whenever the
+	// cursor could move. The condition is `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`):
+	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
 	const bool cursor_live =
 	    flash_cursor() != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
 	if (cursor_live) {

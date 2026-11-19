@@ -17,7 +17,7 @@
 ///
 /// | legacy symbol | destination | why |
 /// |---|---|---|
-/// | `xScroll[navSys]`, `xZoom[navSys]` (`model/song/song.h`) | here (`x_scroll`, `x_zoom`) | the state itself |
+/// | `xScroll[navSys]`, `xZoom[navSys]` (`PersistentViewState` in `model/song/song_view_state.h`, reached as `Song::persistentView`) | here (`x_scroll`, `x_zoom`) | the state itself |
 /// | `TimelineView::getPosFromSquare` (`timeline_view.cpp`) | here | pure arithmetic over scroll/zoom/triplets |
 /// | `TimelineView::getSquareFromPos` | here | ditto |
 /// | `TimelineView::getSquareEndFromPos` | here | ditto |
@@ -39,7 +39,7 @@
 /// | `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement (`clip_navigation_timeline_view.cpp`) | here (`stop_following`, called by both gestures) | it clears that same field on every horizontal turn, so a manual scroll or zoom during an auto-extending linear recording forgets the restore point. See the ordering note on `stop_following` |
 /// | `ClipNavigationTimelineView::horizontalScrollForLinearRecording` | **splits** | the length guard and the scroll write are here; the animate-or-not choice, `uiNeedsRendering` and the popup are the scene's |
 /// | `ClipView::getTickSquare` (`clip_view.cpp`) | **splits** | the square and the follow arithmetic are here; `getCurrentlyRecordingLinearly()`, `currentUIMode`, `getCurrentUI() == this` and `armState` are the scene's, and arrive as `TickSquareGates` |
-/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView`) | the scene | not part of the shared tick-square arithmetic: the two fields are `AudioClipView`-**private** (`audio_clip_view.h`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
+/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView::graphicsRoutine`) | the scene | not part of the shared tick-square arithmetic: the two fields are `AudioClipView`-**private** (`audio_clip_view.h`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
 /// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h`) | the scene | model questions whose answer differs per view (`ClipView`'s two in `clip_view.cpp`, `AudioClipView`'s in `audio_clip_view.cpp`); they arrive here as arguments |
 /// | `TimelineView::setupScroll`, `calculateZoomPinSquares`, `tellMatrixDriverWhichRowsContainSomethingZoomable`, `scrollFinished` | **dropped** | they are the `PadLEDs` zoom/scroll transition, which the port does not carry (see below) |
 /// | `TimelineView::displayZoomLevel`, `displayScrollPos`, `setTripletsLEDState`, `midiLearnFlash` | the scene | they draw, blink an LED, or ask for a redraw |
@@ -120,8 +120,8 @@ struct BarsBeats {
 	uint32_t sub_beat;
 };
 
-/// @brief The three outcomes of one zoom detent, which legacy spells as two `goto getOut`s and a
-///        fall-through (`TimelineView::horizontalEncoderAction`).
+/// @brief The three outcomes of one zoom detent, which `TimelineView::horizontalEncoderAction` spells as two early
+///        returns and a fall-through.
 enum class ZoomOutcome : uint8_t {
 	/// The zoom limit refused it.
 	Refused,
@@ -137,10 +137,12 @@ enum class ZoomOutcome : uint8_t {
 /// public because legacy's equivalents are either public `Song` members or protected view members
 /// that the port's scene owns outright.
 struct TimelineState {
-	/// @brief Legacy's `Song::xScroll[NAVIGATION_CLIP]` (`model/song/song.h`). Signed, as it is
-	///        there, and for the same reason: `getSquareFromPos` subtracts it.
+	/// @brief Legacy's `Song::xScroll[NAVIGATION_CLIP]` (`origin/main:src/deluge/model/song/song.h`; here
+	///        `PersistentViewState::xScroll`, `model/song/song_view_state.h`). Signed, as it is there, and for the same
+	///        reason: `getSquareFromPos` subtracts it.
 	int32_t x_scroll = 0;
-	/// @brief Legacy's `Song::xZoom[NAVIGATION_CLIP]` (`model/song/song.h`) -- ticks per pad column.
+	/// @brief Legacy's `Song::xZoom[NAVIGATION_CLIP]` (`origin/main:src/deluge/model/song/song.h`; here
+	/// `PersistentViewState::xZoom`, `model/song/song_view_state.h`) -- ticks per pad column.
 	uint32_t x_zoom = 0;
 
 	/// @brief `RootUI::supportsTriplets()` (`gui/ui/root_ui.h`), as a field.
@@ -268,7 +270,7 @@ struct TimelineState {
 	/// `zoom()` and `scroll()` both call it, so a scene that only calls the gestures gets it for
 	/// free. It is public because of **where** legacy does it: at the top of
 	/// `ClipNavigationTimelineView::horizontalEncoderAction`, which is *above*
-	/// `TimelineView::horizontalEncoderAction`'s SD-routine, rendering-lock and UI-mode gates
+	/// `TimelineView::horizontalEncoderAction`'s re-entry guards and UI-mode gates
 	/// (`timeline_view.cpp`). So legacy clears the field even when those
 	/// gates then refuse the turn, and this port -- whose scene applies those gates before calling
 	/// a gesture -- does not. A scene that wants that last case exactly can call this at its own

@@ -16,7 +16,7 @@
 /// @par Two things legacy does here that are dead, and are transcribed anyway
 ///
 ///   * `horizontalEncoderAction`'s `&& delayHorizontalZoomUntil == 0` (`timeline_view.cpp`) can never be false:
-///     the block above it either returns through `goto getOut` or leaves the field
+///     the block above it either returns early or leaves the field
 ///     zero, and if that block was skipped the field was already zero. Kept as-is so the two sides
 ///     read the same.
 ///   * `displayNumberOfBarsAndBeats` (`timeline_view.cpp`) declares `quantization` and `tooLongText` and
@@ -248,8 +248,8 @@ void TimelineState::stop_following() {
 
 void TimelineState::focus_regained() {
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp`), whose
-	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp`) is a straight
-	// delegation to it.
+	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp`) calls it first, then
+	// clears its shortcut-overview latch and asks for a redraw, which this state does not hold.
 	scroll_before_following = kNotFollowing;
 }
 
