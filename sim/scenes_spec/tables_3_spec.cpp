@@ -382,7 +382,7 @@ bool raises_reverb(const Node& node) {
 } // namespace
 
 // clang-format off
-describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
+describe tables_3_shape("scenes::menu settings and other roots tables: shape", $ {
 	it("lists, under every submenu of every root, the children main's menu lists, and nothing it does not", _ {
 		size_t submenus = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -592,7 +592,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 });
 
-describe tables_3_values("scenes::menu batch-3 tables: values", $ {
+describe tables_3_values("scenes::menu settings and other roots tables: values", $ {
 	it("reads what main's menu reads, for every node that holds a value", _ {
 		size_t compared = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -819,7 +819,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	});
 });
 
-describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
+describe tables_3_validation("scenes::menu settings and other roots tables: validation", $ {
 	it("validates every root but settings clean", _ {
 		std::vector<MenuContext> contexts;
 		std::vector<const Node*> without_settings;
@@ -895,7 +895,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 });
-describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
+describe tables_3_writes("scenes::menu settings and other roots tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
 		// Every `set` hook is driven for the values the row names (the range's ends and its middle). Each starts from a
 		// sentinel that is not the value, so a hook that stores nothing shows: the port's read after its own write is
@@ -1218,7 +1218,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 	});
 });
 
-describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chaining", $ {
+describe tables_3_chaining("scenes::menu settings and other roots tables: selectButtonPress chaining", $ {
 	it("answers what cv::Selection and gate::Selection answer, output by output", _ {
 		// Both selectors read the output the cursor names -- the port's `MenuContext::source_index` -- so the sweep is
 		// over every value main distinguishes, the `NUM_GATE_CHANNELS` sentinel included.
@@ -1495,7 +1495,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 	});
 });
 
-describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
+describe tables_3_reset_items("scenes::menu settings and other roots tables: the five reset_* items", $ {
 	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven directly by `DescriptorId`
 	// and checked against main's frozen resets (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does
 	// NOT drive is the settings tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
@@ -1600,7 +1600,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 	   });
 });
 
-describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_command_* items", $ {
+describe tables_3_midi_commands("scenes::menu settings and other roots tables: the twelve midi_command_* items", $ {
 	// `midi::Command` is a MIDI *learn* item: focus it, send a message, and the message is bound to one
 	// `GlobalMIDICommand`. The port is one `nodes::MidiCommandItem` parameterised by that command, and
 	// `MenuScene::learn_note_on` / `learn_cc` / `learn_program_change` / `unlearn` are the entry points the MIDI routing
@@ -1867,7 +1867,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	});
 });
 
-describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow learns its channel and kit root note", $ {
+describe tables_3_midi_follow_learn("scenes::menu settings and other roots tables: MIDI follow learns its channel and kit root note", $ {
 	it("each follow channel learns a note-on and a CC as legacy's FollowChannel does, and Shift+LEARN clears it", _ {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -2009,7 +2009,7 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 	});
 });
 
-describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors and the MIDI device list", $ {
+describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/gate selectors and the MIDI device list", $ {
 	// The last three settings items main implements as bespoke `MenuItem` subclasses rather than as data:
 	// `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
 	// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
@@ -2543,7 +2543,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 });
 
-describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
+describe tables_3_pixels("scenes::menu settings and other roots tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in.
 	// `tables_3_writes` above drives every set hook across the whole tree, including params an
@@ -2688,7 +2688,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 // clang-format on
 
 // clang-format off
-describe tables_4_items("scenes::menu batch-4 items: the last placeholders that were only placeholders", $ {
+describe tables_4_items("scenes::menu settings items: the pad colours, the cursor flash and the shortcuts version", $ {
 	/// The group's eight items. Named once, here, and every example below inserts into `covered`
 	/// so the closing example can assert the set by identity -- a node dropped from a root, or an
 	/// example that quietly stopped driving one, fails rather than shrinking a count with slack in it.

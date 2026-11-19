@@ -167,7 +167,7 @@ struct Rig {
 } // namespace
 
 // clang-format off
-describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
+describe tables_1_shape("scenes::menu sound-subtree tables: shape", $ {
 	it("declares seventeen roots, one per legacy top-level menu", _ {
 		expect(nodes::kBatch1Roots.size()).to_equal(size_t(17));
 	});
@@ -330,7 +330,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	});
 });
 
-describe tables_1_values("scenes::menu batch-1 tables: values", $ {
+describe tables_1_values("scenes::menu sound-subtree tables: values", $ {
 	it("reads what main's menu reads, for every node that holds a value", _ {
 		const Fixture& f = fixture();
 		size_t compared = 0;
@@ -435,7 +435,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 	});
 });
 
-describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
+describe tables_1_validation("scenes::menu sound-subtree tables: validation", $ {
 	it("validates clean, its FormattedTitle siblings told apart by their title_arg", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
@@ -496,7 +496,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 	});
 });
 
-describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
+describe tables_1_pixels("scenes::menu sound-subtree tables: pixels", $ {
 	it("renders the LPF page", _ {
 		Fixture& f = fixture();
 		deluge::notify::dirty().drain();
@@ -508,7 +508,7 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 	});
 });
 
-describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
+describe tables_1_writes("scenes::menu sound-subtree tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
 		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this drives the `set` hooks.
 		// Every hook of these tables is driven here for the three values spanning the node's range: each write starts
@@ -559,7 +559,7 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 	});
 });
 
-describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range picker", $ {
+describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-range picker", $ {
 	it("labels every row exactly as MultiRange::getText labels it, on the same fixture", _ {
 		// The port reads the ranges out of its own `MenuContext`; the rows are what main's `getText` wrote for the
 		// same three ranges. A port label built from nothing (an empty string, say) fails against a label that is not
