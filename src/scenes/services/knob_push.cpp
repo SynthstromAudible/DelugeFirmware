@@ -194,9 +194,6 @@ std::string comp_reverb_popup(const project::Song& song, const bind::CompView& c
 	return out + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
 }
 
-/// How many params the mod-FX unit has.
-constexpr auto kNumModFxParams = static_cast<int32_t>(effects::kModFxParamWords.size());
-
 std::string mod_fx_popup(effects::ModFXType type, effects::ModFxParam param) {
 	return std::string{"Type: "} + std::string{l10n::mod_fx_name(type)}
 	       + "\nParam: " + std::string{l10n::mod_fx_param_name(type, param, false)};
@@ -280,8 +277,8 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 	const effects::ModFXType type = after.mod_fx.type;
 	const uint32_t view = mod_fx_view(song, focus);
 	uint32_t param = view;
-	for (int32_t tried = 0; tried < kNumModFxParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
-		param = (param + 1) % kNumModFxParams;
+	for (int32_t tried = 0; tried < effects::kNumModFxParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
+		param = (param + 1) % effects::kNumModFxParams;
 	}
 	if (param != view) {
 		out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[param]);

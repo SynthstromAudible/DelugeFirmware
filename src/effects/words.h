@@ -61,6 +61,9 @@ enum class ModFxParam : uint8_t {
 	OFFSET,
 };
 
+/// @brief How many mod-FX params there are.
+inline constexpr int32_t kNumModFxParams = std::to_underlying(ModFxParam::OFFSET) + 1;
+
 /// @brief How many modes the low-pass filter cycles through: the modes up to and including SVF_NOTCH.
 inline constexpr int32_t kNumLPFModes = std::to_underlying(FilterMode::SVF_NOTCH) + 1;
 /// @brief The first high-pass mode, as an index.

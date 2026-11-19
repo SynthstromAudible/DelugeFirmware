@@ -19,6 +19,9 @@
 
 #include "gui/l10n/l10n.h"
 
+#include <array>
+#include <utility>
+
 namespace deluge::l10n {
 
 std::string_view mod_fx_name(effects::ModFXType type) {
@@ -44,30 +47,39 @@ std::string_view mod_fx_name(effects::ModFXType type) {
 	return getView(STRING_FOR_DISABLED);
 }
 
+namespace {
+
+/// A param's long and short display strings.
+struct ParamStrings {
+	String long_name;  ///< The full name.
+	String short_name; ///< The short form for popups and column labels.
+};
+
+using ParamTable = std::array<ParamStrings, effects::kNumModFxParams>;
+
+/// The delay-line types' names, indexed by ModFxParam.
+constexpr ParamTable kLineNames{{
+    {String::STRING_FOR_DEPTH, String::STRING_FOR_DEPTH_SHORT},
+    {String::STRING_FOR_FEEDBACK, String::STRING_FOR_FEEDBACK_SHORT},
+    {String::STRING_FOR_OFFSET, String::STRING_FOR_OFFSET_SHORT},
+}};
+
+/// The grain's names for the same knobs, indexed by ModFxParam.
+constexpr ParamTable kGrainNames{{
+    {String::STRING_FOR_GRAIN_AMOUNT, String::STRING_FOR_GRAIN_AMOUNT_SHORT},
+    {String::STRING_FOR_GRAIN_RANDOMNESS, String::STRING_FOR_GRAIN_RANDOMNESS_SHORT},
+    {String::STRING_FOR_GRAIN_DENSITY, String::STRING_FOR_GRAIN_DENSITY_SHORT},
+}};
+
+} // namespace
+
 std::string_view mod_fx_param_name(effects::ModFXType type, effects::ModFxParam param, bool short_name) {
-	using enum String;
-	using effects::ModFxParam;
-	if (type == effects::ModFXType::GRAIN) {
-		switch (param) {
-		case ModFxParam::DEPTH:
-			return getView(short_name ? STRING_FOR_GRAIN_AMOUNT_SHORT : STRING_FOR_GRAIN_AMOUNT);
-		case ModFxParam::FEEDBACK:
-			return getView(short_name ? STRING_FOR_GRAIN_RANDOMNESS_SHORT : STRING_FOR_GRAIN_RANDOMNESS);
-		case ModFxParam::OFFSET:
-			return getView(short_name ? STRING_FOR_GRAIN_DENSITY_SHORT : STRING_FOR_GRAIN_DENSITY);
-		}
+	const auto index = static_cast<size_t>(std::to_underlying(param));
+	if (index >= effects::kNumModFxParams) {
+		return getView(String::STRING_FOR_NONE);
 	}
-	else {
-		switch (param) {
-		case ModFxParam::DEPTH:
-			return getView(short_name ? STRING_FOR_DEPTH_SHORT : STRING_FOR_DEPTH);
-		case ModFxParam::FEEDBACK:
-			return getView(short_name ? STRING_FOR_FEEDBACK_SHORT : STRING_FOR_FEEDBACK);
-		case ModFxParam::OFFSET:
-			return getView(short_name ? STRING_FOR_OFFSET_SHORT : STRING_FOR_OFFSET);
-		}
-	}
-	return getView(STRING_FOR_NONE);
+	const ParamStrings& names = (type == effects::ModFXType::GRAIN ? kGrainNames : kLineNames)[index];
+	return getView(short_name ? names.short_name : names.long_name);
 }
 
 } // namespace deluge::l10n

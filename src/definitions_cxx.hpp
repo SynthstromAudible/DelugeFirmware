@@ -503,7 +503,7 @@ enum class ArpMpeModSource {
 };
 
 using ModFXParam = deluge::effects::ModFxParam;
-constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
+constexpr auto kNumModFXParams = deluge::effects::kNumModFxParams;
 
 enum class CompParam {
 	RATIO,
