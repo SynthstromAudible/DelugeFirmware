@@ -353,7 +353,6 @@ DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*,
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
 
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
-DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
