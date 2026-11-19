@@ -395,6 +395,7 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`): OFF in the row face under the name, else the note
 		// length as the label over the sync type's icon.
 		const auto [level, type_choice] = deluge::plugin::combined_sync_stored(value);
+		const auto sync_type = deluge::plugin::kSyncTypeChoices[static_cast<size_t>(type_choice)];
 		if (level == 0) {
 			draw_art({.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF)});
 			break;
@@ -405,10 +406,10 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		std::memcpy(slot.label, label.view().data(), copied);
 		col.label = std::string_view{slot.label, copied};
 		const deluge::gfx::oled::Icon* icon = &deluge::gfx::oled::icons::syncTypeEven;
-		if (type_choice == deluge::plugin::sync_type_choice(deluge::plugin::SyncType::DOTTED)) {
+		if (sync_type == deluge::plugin::SyncType::DOTTED) {
 			icon = &deluge::gfx::oled::icons::syncTypeDotted;
 		}
-		else if (type_choice == deluge::plugin::sync_type_choice(deluge::plugin::SyncType::TRIPLET)) {
+		else if (sync_type == deluge::plugin::SyncType::TRIPLET) {
 			icon = &deluge::gfx::oled::icons::syncTypeTriplets;
 		}
 		draw_art({.icon = icon, .dy = -3});

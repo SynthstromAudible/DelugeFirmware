@@ -24,7 +24,8 @@
 ///       `custom` node over `kSidechainVolumeItem`. Same treatment as `sound_master.h`'s `vibrato`.
 ///
 /// @note **`sidechain::Sync` overrides `size()` to 10** (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), not
-///       `kNumCombinedSyncValues`, which is why `sync_level_item` takes its range as an argument.
+///       `NUM_SYNC_VALUES` (`origin/main:src/deluge/model/sync.h`), here `plugin::kNumCombinedSyncValues`, which is why
+///       `sync_level_item` takes its range as an argument.
 ///
 /// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and shows the closest index
 ///       into `attackRateTable` / `releaseRateTable` (`Attack::readCurrentValue` in

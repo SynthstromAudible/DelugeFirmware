@@ -83,12 +83,10 @@ inline constexpr std::array<SyncType, 3> kSyncTypeChoices{SyncType::EVEN, SyncTy
 
 /// @brief The choice index of sync type @p type among kSyncTypeChoices.
 /// @param type A sync type.
-/// @return 0 (even), 1 (triplet) or 2 (dotted).
+/// @return The index of @p type in kSyncTypeChoices; 0 for a type it does not hold.
 [[nodiscard]] constexpr int32_t sync_type_choice(SyncType type) {
-	if (type == SyncType::TRIPLET) {
-		return 1;
-	}
-	return type == SyncType::DOTTED ? 2 : 0;
+	const auto* const found = std::ranges::find(kSyncTypeChoices, type);
+	return found == kSyncTypeChoices.end() ? 0 : static_cast<int32_t>(found - kSyncTypeChoices.begin());
 }
 
 /// @brief The combined sync menu value for @p level of the type at choice index @p type_choice.

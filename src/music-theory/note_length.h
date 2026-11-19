@@ -3,7 +3,9 @@
 /// @file
 /// @brief Note lengths named as the menus and popups show them: "16th-notes", "2-bar", "4 bars (per column)".
 
+#include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
@@ -12,15 +14,35 @@ namespace deluge::music {
 
 /// @brief A note length's name, held by value.
 ///
-/// The buffer is wider than any name the menus produce (the longest, at magnitude 31 with a 6-character suffix
-/// twice, is 10 digits + "th" + 12 = 24 characters); a longer suffix is cut at the buffer's end.
-struct NoteLengthName {
+/// The buffer is wider than any name the menus produce (the longest, "2147483648 bars (per column)", is 28
+/// characters; a division's name with its suffix is at most 12 plus the suffix); text past the capacity is cut.
+class NoteLengthName {
+public:
 	static constexpr size_t kCapacity = 48; ///< characters the name may hold
-	std::array<char, kCapacity> text{};     ///< the name's characters, not terminated
-	size_t size{0};                         ///< how many of text are the name
+
+	/// @brief Appends @p text, cut at the buffer's end.
+	/// @param text The characters to add.
+	void append(std::string_view text) {
+		const size_t count = std::min(kCapacity - size_, text.size());
+		std::copy_n(text.data(), count, text_.data() + size_);
+		size_ += count;
+	}
+
+	/// @brief Appends @p value in decimal, cut at the buffer's end.
+	/// @param value The number to add.
+	void append_number(uint32_t value) {
+		std::array<char, 10> digits{};
+		const auto result = std::to_chars(digits.data(), digits.data() + digits.size(), value);
+		append({digits.data(), static_cast<size_t>(result.ptr - digits.data())});
+	}
+
 	/// @brief The name.
 	/// @return A view into this object; it lasts as long as the object does.
-	[[nodiscard]] std::string_view view() const { return {text.data(), size}; }
+	[[nodiscard]] std::string_view view() const { return {text_.data(), size_}; }
+
+private:
+	std::array<char, kCapacity> text_{}; ///< the name's characters, not terminated
+	size_t size_{0};                     ///< how many of text_ are the name, at most kCapacity
 };
 
 /// @brief The magnitude of a note @p note_length ticks long, against @p tick_magnitude: 0 is one bar, positive is

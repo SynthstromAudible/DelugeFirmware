@@ -1128,7 +1128,8 @@ inline constexpr Node record_count_in = with_value_style(
     with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
                sid(String::STRING_FOR_REC_COUNT_IN)),
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
-/// `record::Quantize::size()` is `SyncType::TRIPLET` -- "can't do triplets/dots for quantize"
+/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), here
+/// `plugin::SyncType::TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
 inline constexpr Node record_quantize = with_sync_name_magnitude(
     sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,

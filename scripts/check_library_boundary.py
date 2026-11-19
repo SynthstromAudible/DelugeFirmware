@@ -224,7 +224,11 @@ LIBRARIES: dict[str, Library] = {
         REPO / "src" / "music-theory",
         "music-theory/",
         # the sync words a note length is named from (header-only vocabulary)
-        ("plugin-api/types/", "foundation/panic.h"),
+        (
+            "plugin-api/types/sync.h",
+            "plugin-api/types/display_mapping.h",
+            "foundation/panic.h",
+        ),
     ),
     "model": Library(
         REPO / "src" / "deluge-project",

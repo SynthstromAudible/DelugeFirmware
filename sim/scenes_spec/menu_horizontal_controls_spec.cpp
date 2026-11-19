@@ -1156,9 +1156,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH); // an even sync's option is its level
 		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
-		etl::string<30> expected;
-		syncValueToStringForHorzMenuLabel(SYNC_TYPE_EVEN, SYNC_LEVEL_16TH, expected, menu::input_tick_magnitude(ctx));
-		expect(std::string(col.label)).to_equal(std::string(expected.c_str()));
+		// The rig's tick magnitude makes a sixteenth level read as an eighth.
+		expect(std::string(col.label)).to_equal(std::string("8th"));
 		expect(slot.art.icon == &deluge::gfx::oled::icons::syncTypeEven).to_equal(true);
 	});
 
@@ -1271,9 +1270,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const std::string off = deluge::l10n::get(String::STRING_FOR_OFF);
 		expect(banner(nodes::arp_sync, 0)).to_equal(off);
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH);
-		etl::string<30> length;
-		syncValueToString(static_cast<uint32_t>(sixteenth), length, menu::input_tick_magnitude(ctx));
-		expect(banner(nodes::arp_sync, sixteenth)).to_equal(std::string(length.c_str()));
+		expect(banner(nodes::arp_sync, sixteenth)).to_equal(std::string("8th-notes"));
 		expect(banner(nodes::osc_sync, 1)).to_equal(std::string());
 		expect(banner(nodes::note_probability, 10)).to_equal(std::string("20"));
 		expect(banner(nodes::voice_count, 0)).to_equal(off);

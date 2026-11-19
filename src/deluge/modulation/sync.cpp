@@ -44,7 +44,7 @@ void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitu
 
 void syncValueToStringForHorzMenuLabel(SyncType /*type*/, SyncLevel level, etl::istring& buffer,
                                        int32_t tickMagnitude) {
-	// The label names the level alone; as an even value, the combined value is the level's index.
+	// The label ignores the type: the level's index is its even combined value.
 	const auto name = deluge::music::sync_value_name(deluge::plugin::index_of(level), tickMagnitude,
 	                                                 deluge::music::SyncNameForm::HorizontalLabel);
 	buffer.clear();
