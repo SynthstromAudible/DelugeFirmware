@@ -62,7 +62,7 @@ struct MenuContext {
 	/// @note `setup()` picks `NoteEditor`/`NoteRowEditor` from a `currentUIMode` this layer may not
 	///       read (`noteEditorRootMenu` and `noteRowEditorRootMenu` in `SoundEditor::setup`) -- so, unlike every
 	///       other enumerator here, `context_for` never assigns either one; a caller that wants one
-	///       (`gui/ui/shell_menu_entry.cpp`'s `openShellMenu`, `NoteMode`) sets `ctx.root` itself
+	///       (`gui/ui/menu_entry.cpp`'s `openMenu`, `NoteMode`) sets `ctx.root` itself
 	///       after resolving the rest of the context.
 	enum class Root : uint8_t {
 		Sound,

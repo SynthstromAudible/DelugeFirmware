@@ -112,7 +112,7 @@ std::span<const Node* const> MenuScene::roots() {
 	// `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the MIDI-titled spelling of that root -- the
 	// title `origin/main:src/deluge/gui/ui/menus.cpp`'s constructor gives it; a caller on a CV output takes
 	// `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note). `NoteEditor`/`NoteRowEditor` are the last two: a
-	// menu opened with `ctx.root` set to either (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s
+	// menu opened with `ctx.root` set to either (`openMenu`'s `NoteMode`) re-roots here through `on_enter`'s
 	// `arg == 0` path (`MenuScene::open`'s warning), exactly as every other root does.
 	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
 	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
@@ -164,7 +164,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		//
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So the `file0SelectorMenu` entry of
-		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
+		// `gui/ui/menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s auditioning LOAD/KIT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no

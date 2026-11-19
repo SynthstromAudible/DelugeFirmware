@@ -100,7 +100,7 @@ jobs:
           (cd scripts && python3 -m unittest test_check_doc_hygiene test_check_citations)
           python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec \
             tests/unit/shell tests/unit/ui tests/unit/deluge/gui tests/unit/scenes tests/unit/harness tests/ui-scripts tests/harness \
-            src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+            src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/gui/ui/menu_entry src/deluge/gui/ui/browser_host src/deluge/util/menu_entry
 
       - name: No spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy()
         run: |

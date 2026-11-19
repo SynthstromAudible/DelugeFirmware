@@ -3,7 +3,7 @@
 ///        effects with the kit-global latch set and clear: every main-grid pad's colour and occupancy, as
 ///        `tests/golden/ui/menu_oracle/clip_shortcut_overview.tsv` holds them.
 
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "support/clip_overview_cases.h"
 #include "support/oracle_table.h"

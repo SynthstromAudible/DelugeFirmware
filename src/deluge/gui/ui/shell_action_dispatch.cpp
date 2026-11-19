@@ -134,7 +134,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// `SoundEditor::exitCompletely` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ends the menu item's session
 /// (`endScreen()`) and closes the menu UI (`close()`, which is `closeUI(this)`, `gui/ui/ui.cpp`). Under the guest
-/// **the thing that is open is `ShellHostUI`, not `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s
+/// **the thing that is open is `ShellHostUI`, not `soundEditor`** -- `openMenu` opens this UI in `SoundEditor`'s
 /// place and nothing on that path opens `soundEditor` at all.
 ///
 /// So calling `soundEditor.exitCompletely()` here would not close the menu. `closeUI`'s search loop stops at `u >= 1`
@@ -171,7 +171,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// @par The `shellHostUI` global, deliberately
 ///
-/// The guest is a singleton -- one object, one open site (`openShellMenu`) -- and this seam's sibling reaches for it
+/// The guest is a singleton -- one object, one open site (`openMenu`) -- and this seam's sibling reaches for it
 /// the same way for the same kind of question: `menuCurrent` (`gui/ui/shell_guest_services.cpp`) reads
 /// `shellHostUI.shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`. `SceneStack::remove` is a
 /// documented no-op when no scene of that kind is on the stack -- it returns false having touched nothing and
@@ -206,7 +206,7 @@ namespace {
 /// (`gui/ui/ui.cpp`). **Neither menu is at index 0 -- given a root view is open**, which is
 /// the precondition this whole argument stands on and is worth saying out loud: `openUI` writes
 /// `uiNavigationHierarchy[numUIsOpen]` and increments, so with `numUIsOpen == 0` the
-/// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openShellMenu`
+/// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openMenu`
 /// cannot get there -- it refuses on `currentSong == nullptr`
 /// and every path that opens it runs from a root view -- but an argument whose precondition
 /// is unstated is one nobody can re-check. With a root view open, both main's `soundEditor` and
@@ -353,8 +353,8 @@ void performMenuAction(const MenuActionRequest& req) {
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
 		// `scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
 		// (`scenes/menu/context.cpp`, reached because `ClipType` has
-		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openShellMenu` is the
-		// one opener (`openShellMenu`). The gap both
+		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openMenu` is the
+		// one opener (`openMenu`). The gap both
 		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
 		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
 		// clip from the song. Closing that here -- with a null test, or by reading the argument --

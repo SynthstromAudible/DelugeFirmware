@@ -205,8 +205,8 @@ UI_STACK_CALLS = (
 #   HEADER is deliberately NOT excluded, on `shell_guest_services.h`'s terms: it declares one
 #   no-arguments free function and names no port type, and leaving it in scope is what keeps that
 #   true.
-# * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
-#   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
+# * `gui/ui/menu_entry.cpp` -- `openMenu`, the one door the fourteen entry points use.
+#   Its DECLARATION (`util/menu_entry.h`) is likewise not excluded, and must stay includable
 #   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
@@ -220,16 +220,16 @@ LEGACY_PORT_SEAMS = (
     # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
     # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
     # `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
-    # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
+    # (`browser_host.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
-    "src/deluge/gui/ui/shell_choice_dispatch.cpp",
+    "src/deluge/gui/ui/browser_host.cpp",
     # The pad half of the same seam. It names `keyboardScreen`,
     # `instrumentClipView` and `performanceView` -- the legacy views the pad grid forwards to --
     # for the same reason the row above names
     # `AudioEngine`/`PadLEDs`/`instrumentClipView`: this is the side of the
     # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
     # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
-    # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
+    # translation unit wide -- exactly the line `browser_host.h` draws above.
     #
     # The sixth arm, `automationView`, is the one arm that cannot be a bare
     # forward: whether the menu is editing an automation-view param is state no legacy object
@@ -258,7 +258,7 @@ LEGACY_PORT_SEAMS = (
     # the clip a legacy view has open, until the views keep it.
     "src/deluge/gui/ui/menu_view_of.h",
     "src/deluge/gui/ui/menu_view_of.cpp",
-    "src/deluge/gui/ui/shell_menu_entry.cpp",
+    "src/deluge/gui/ui/menu_entry.cpp",
     # The note bridge's installer. `src/scenes` may include `model/**`
     # (`src/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the
@@ -271,7 +271,7 @@ LEGACY_PORT_SEAMS = (
     # (`scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
     # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `scenes/` type,
     # only the no-arguments `wireShellNoteBridge()` that installs the bridge, so this seam too is
-    # one translation unit wide -- exactly the line `shell_choice_dispatch.h` and
+    # one translation unit wide -- exactly the line `browser_host.h` and
     # `shell_pad_forward.h` draw above.
     "src/deluge/gui/ui/shell_note_bridge.cpp",
     # The note modes' routing through the guest. It names

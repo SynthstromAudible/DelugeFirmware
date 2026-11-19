@@ -24,7 +24,9 @@ class ScanScopeTest(unittest.TestCase):
             "tests/ui-scripts",
             "tests/harness",
             "src/deluge/gui/ui/shell_",
-            "src/deluge/util/shell_menu_entry",
+            "src/deluge/gui/ui/menu_entry",
+            "src/deluge/gui/ui/browser_host",
+            "src/deluge/util/menu_entry",
         ):
             with self.subTest(path=path):
                 self.assertEqual(unscanned_paths((path,)), [])

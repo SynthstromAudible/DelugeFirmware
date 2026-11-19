@@ -22,7 +22,7 @@
 ///        and note-row state, reached from `src/scenes` without an include.
 ///
 /// This header names no `scenes/` type, only the one no-arguments function that installs the
-/// bridge -- the same one-symbol-wide seam `shell_choice_dispatch.h` and `shell_pad_forward.h` draw
+/// bridge -- the same one-symbol-wide seam `browser_host.h` and `shell_pad_forward.h` draw
 /// around their own consumers (`scripts/check_layer_rules.py`'s `LEGACY_PORT_SEAMS` comment on
 /// each), not `shell_guest_services.h`, which declares three functions and is not one symbol wide.
 /// `shell_note_bridge.cpp` is where every bridge entry lives, and where the `scenes/menu/` include

@@ -14,8 +14,8 @@
 # Boot lands in `InstrumentClipView`, not the session view -- `boot.state` shows `led Clip on`
 # and `led Synth on`, and a `SoundEditor::setup` breakpoint on the SELECT press below stops with
 # `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp`: its select-encoder arm
-# gates on `currentUIMode == UI_MODE_NONE` and calls `openShellMenu`). That is **site 6** of the
-# fourteen in `gui/ui/shell_menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
+# gates on `currentUIMode == UI_MODE_NONE` and calls `openMenu`). That is **site 6** of the
+# fourteen in `gui/ui/menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
 # `MenuContext::Root::Sound`.
 #
 # **Why a clip-carrying site.** `main`'s `SoundEditor::setup` assigns `newSound` only inside its
@@ -115,7 +115,7 @@
 4020   button Clip up
 4800   snapshot audio-clip-view
 
-# Site 5 of the fourteen (`gui/ui/shell_menu_entry.cpp`): SELECT from the audio clip view ->
+# Site 5 of the fourteen (`gui/ui/menu_entry.cpp`): SELECT from the audio clip view ->
 # `soundEditorRootMenuAudioClip` / `MenuContext::Root::AudioClip`. No snapshot above covers this
 # root -- every one is `Root::Sound`.
 5000   button SelectEnc down
@@ -148,7 +148,7 @@
 # Everything above drives menus. This drives **site 8** (`InstrumentClipView::buttonAction`), the only
 # entry site that names a *leaf* rather than a root -- `main`'s
 # `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)`, here
-# `openShellMenu(..., ShellMenuNode::Osc0FileSelector)`. It is reachable from
+# `openMenu(..., MenuNode::Osc0FileSelector)`. It is reachable from
 # the boot view with no SHIFT, so it does NOT hit the null-`Clip*` `SoundEditor::setup` crash that
 # confines the MenuAction verb above to one arm of five.
 #
@@ -216,7 +216,7 @@
 
 # **The claim.** A select press on the file is `BrowserScene`'s deferred choice (`main`'s
 # `SampleBrowser::enterKeyPress` file arm in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) going through
-# `ShellBrowserHost` -> `claimSampleFile` (`gui/ui/shell_choice_dispatch.cpp`), whose completion
+# `ShellBrowserHost` -> `claimSampleFile` (`gui/ui/browser_host.cpp`), whose completion
 # (`deliverSampleClaimDone`) re-roots the menu onto the source page on success.
 #
 # **The landing page is not photographed here.** The menu lands on the page and column `main` lands on. The file column
@@ -273,7 +273,7 @@
 19000  snapshot pad-menu-closed
 
 # ---------------------------------------------------------------------------------------------
-# **Sites 12 and 13 of `gui/ui/shell_menu_entry.cpp`'s table, the note editor
+# **Sites 12 and 13 of `gui/ui/menu_entry.cpp`'s table, the note editor
 # and the note-row editor.** The menu reaches each one here.
 #
 # Root here is `InstrumentClipView` with no menu open, and the clip has no notes: `pad-menu-closed`

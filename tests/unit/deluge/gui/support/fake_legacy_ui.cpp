@@ -435,7 +435,7 @@ void wireShellGuestServices() {
 void refreshMenuModeGates() {
 }
 
-bool shellMenuLearnMode() {
+bool menuLearnMode() {
 	return false;
 }
 
@@ -528,7 +528,7 @@ void refreshShellDxColumn() {
 void refreshShellSamplePreviewSounds() {
 }
 
-void forgetShellMenuContext() {
+void forgetMenuContext() {
 }
 
 void endShellRecorderTakeForTeardown() {
@@ -544,7 +544,7 @@ void dispatchShellActions() {
 void discardShellActionsBeforeClose() {
 }
 
-// `gui/ui/shell_choice_dispatch.cpp`'s poll: the real one reads `deluge::scenes::browser::browser_scene()` and performs
+// `gui/ui/browser_host.cpp`'s poll: the real one reads `deluge::scenes::browser::browser_scene()` and performs
 // loads that name `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`.
 void pollShellBrowserHost() {
 	fakelegacyui::browser_host_polls++;

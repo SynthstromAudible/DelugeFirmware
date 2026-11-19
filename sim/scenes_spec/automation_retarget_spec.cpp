@@ -472,7 +472,7 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 			UiStackGuard ui_guard;
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			setRootUILowLevel(&automationView);
-			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false))
+			expect(deluge::gui::ui::openMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false))
 			    .to_be_true();
 			expect(automationView.getAffectEntire()).to_be_false();
 		}
@@ -482,7 +482,7 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 			fx.clip->affectEntire = false;
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			setRootUILowLevel(&automationView);
-			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/true))
+			expect(deluge::gui::ui::openMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/true))
 			    .to_be_true();
 			expect(automationView.getAffectEntire()).to_be_true();
 		}

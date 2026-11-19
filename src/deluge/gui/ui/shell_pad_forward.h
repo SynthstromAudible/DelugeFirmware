@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief The **pad** half of the seam `shell_choice_dispatch.h` is the noun half of and
+/// @brief The **pad** half of the seam `browser_host.h` is the noun half of and
 ///        `shell_action_dispatch.h` is the verb half of -- what a grid pad the menu did not
 ///        claim is forwarded to.
 ///
@@ -43,7 +43,7 @@
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
-/// The same two reasons `shell_choice_dispatch.h` and `shell_action_dispatch.h` give for the same
+/// The same two reasons `browser_host.h` and `shell_action_dispatch.h` give for the same
 /// shape. **In `gui/ui/`** because deciding an arm is exactly the half that gets to name
 /// `keyboardScreen`, `instrumentClipView` and `performanceView` -- the symbols `src/scenes` may not
 /// include (`scenes-includes-outside`, `scripts/check_layer_rules.py`). **Its own translation unit**
@@ -143,7 +143,7 @@ bool menuShowsAutomationViewParam();
 
 /// @brief Replace what performs a decided forward; `nullptr` restores the real one.
 ///
-/// `shell_choice_dispatch.h`'s `setSampleClaimDispatch` for the same reason it exists there: the
+/// `browser_host.h`'s `setSampleClaimDispatch` for the same reason it exists there: the
 /// decision is the part worth pinning, and performing it means calling into `keyboardScreen` /
 /// `instrumentClipView` / `performanceView`, whose handlers need model state a spec should not have
 /// to build. `deluge_scenes_spec` links `deluge_app`, so those symbols resolve -- this is about what

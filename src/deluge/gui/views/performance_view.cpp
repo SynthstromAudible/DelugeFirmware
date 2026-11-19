@@ -53,7 +53,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 
 extern "C" {}
@@ -849,17 +849,17 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 			}
 
 			if (!defaultEditingMode) {
-				// Site 4 of `gui/ui/shell_menu_entry.cpp`'s table.
+				// Site 4 of `gui/ui/menu_entry.cpp`'s table.
 				// Legacy names the root by pointer here; the port names it by the fact that
 				// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
 				// `PerformanceView`, which is exactly `setup()`'s
 				// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
 				// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
 				// (`scenes/menu/context.cpp:365-367`).
-				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-				                                     /*performanceView=*/true,
-				                                     /*sessionOrArrangerRoot=*/false,
-				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+				(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                /*performanceView=*/true,
+				                                /*sessionOrArrangerRoot=*/false,
+				                                /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 			}
 		}
 	}

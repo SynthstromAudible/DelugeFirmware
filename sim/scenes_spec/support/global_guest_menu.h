@@ -76,8 +76,8 @@ inline const menu::Node& menu_node_for_root(menu::MenuContext::Root root) {
 	}
 }
 
-/// @brief The context `openShellMenu`'s `NoteMode` installs -- `context_for` over the fixture's song
-///        and clip, then `ctx.root` set (`gui/ui/shell_menu_entry.cpp`) -- for any root.
+/// @brief The context `openMenu`'s `NoteMode` installs -- `context_for` over the fixture's song
+///        and clip, then `ctx.root` set (`gui/ui/menu_entry.cpp`) -- for any root.
 inline menu::MenuContext menu_context_at(SongFixture& fx, menu::MenuContext::Root root) {
 	menu::MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
 	                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,
@@ -90,7 +90,7 @@ inline menu::MenuContext menu_context_at(SongFixture& fx, menu::MenuContext::Roo
 ///
 /// **What this establishes, exactly:**
 ///   * `menu_scene()` is open at `menu_node_for_root(root)` with `menu_context_at(fx, root)`, so
-///     `menu_scene().menu_context().root == root`. That is the context `openShellMenu`'s `NoteMode`
+///     `menu_scene().menu_context().root == root`. That is the context `openMenu`'s `NoteMode`
 ///     installs, **without** that entry point's side effects: no kit `affectEntire` clear, no undo-log
 ///     rule, no `view.setActiveModControllableTimelineCounter`.
 ///   * `menu::assign_node_ids` has run over that one root alone, replacing any earlier assignment.
@@ -123,7 +123,7 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 /// menu, context and node ids, and then the guest on `uiNavigationHierarchy` -- `setRootUILowLevel(
 /// &instrumentClipView)` followed by `openUI(&shellHostUI)`, which runs `opened()` itself and so starts
 /// the guest's stack at the initial scene. `getCurrentUI()` is `&shellHostUI` and `getRootUI()` is
-/// `&instrumentClipView`, exactly as when `openShellMenu` opens a note editor from the clip view.
+/// `&instrumentClipView`, exactly as when `openMenu` opens a note editor from the clip view.
 ///
 /// **Why the guest must be current over `instrumentClipView`.** `ActionLogger::getNewAction` refuses an action whenever
 /// the current UI is not the root, unless a note editor is open (`model/action/action_logger.cpp`) -- the gate every

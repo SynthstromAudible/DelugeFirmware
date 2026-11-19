@@ -231,7 +231,7 @@ struct Descriptor {
 	///       write -- an item writing the menu's own navigation state is what `MenuState`'s mailbox
 	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. The host that performs the
 	///       claim is therefore the owner of the re-rooting too. That is
-	///       `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/shell_choice_dispatch.h`), and the entry
+	///       `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/browser_host.h`), and the entry
 	///       point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the browser needs no
 	///       extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**

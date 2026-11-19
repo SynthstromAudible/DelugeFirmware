@@ -29,7 +29,7 @@ class ParamManagerForTimeline;
 /// @brief "Is the sound menu open?", asked by the views, the keyboard screen and the automation display of the menu
 ///        that runs on the guest, where the current UI is `ShellHostUI`. Header in `util/` on `note_editor_open.h`'s
 ///        terms; the answers are the guest's own: `gui/ui/shell_guest_services.cpp`, except the published owner and
-///        params (`gui/ui/shell_choice_dispatch.cpp`) and the shortcut press (`gui/ui/shell_menu_entry.cpp`).
+///        params (`gui/ui/browser_host.cpp`) and the shortcut press (`gui/ui/menu_entry.cpp`).
 
 namespace deluge::gui::ui {
 
@@ -37,7 +37,7 @@ namespace deluge::gui::ui {
 ///        not the settings.
 bool soundMenuOpen();
 
-/// @brief The owner the sound menu edits, as the menu last published it (`publishShellMenuTarget`). Read only while
+/// @brief The owner the sound menu edits, as the menu last published it (`publishMenuTarget`). Read only while
 ///        `soundMenuOpen()`.
 ModControllable* soundMenuModControllable();
 
@@ -91,7 +91,7 @@ void changeRangeForNote(int32_t note);
 /// The gate first (`shortcutPadGate`: SHIFT, or an audition held over the instrument clip view, inside the two
 /// shortcut modes; the automation view's interpolation pads stay the view's). Then the item: a kit with nothing to edit
 /// has none; a coming-soon cell says "Feature not (yet?) implemented"; the sequence-direction pad with one row
-/// auditioning opens the note-row editor; any other pad goes to `openShellMenuAtShortcut`, which opens, re-roots or
+/// auditioning opens the note-row editor; any other pad goes to `openMenuAtShortcut`, which opens, re-roots or
 /// says its refusal. Off a clip minder the context names no clip, so the song view's table and the song are read, as
 /// legacy's `setup()` reads them.
 /// @param x,y The pad.

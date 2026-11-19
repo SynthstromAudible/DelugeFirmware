@@ -3,7 +3,7 @@
 /// UI
 ///        modes `selectEncoderUIModes` lists, and not while LEARN holds learn mode.
 ///
-/// The menu is opened on the global guest over the instrument clip view, as `openShellMenu` leaves it, and every turn
+/// The menu is opened on the global guest over the instrument clip view, as `openMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls. The page is the MIDI follow
 /// CHANNEL list: a turn moves its cursor, and its first row, CHANNEL A, allows learn.
 

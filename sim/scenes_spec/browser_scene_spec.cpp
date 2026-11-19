@@ -1956,7 +1956,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 
-		// The load is an instrument-load request on the interaction tier (`shell_choice_dispatch.cpp`'s
+		// The load is an instrument-load request on the interaction tier (`browser_host.cpp`'s
 		// `requestMidiDefinitionLoad`), which the host makes, and `LoadMidiDeviceDefinitionUI` stays open until
 		// `definitionLoaded` closes it. So the press hands the path to the host, loads nothing itself and waits.
 		Error unused = Error::NONE;

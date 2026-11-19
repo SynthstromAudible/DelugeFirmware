@@ -74,7 +74,7 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "support/fake_note_bridge.h"
 #include "support/host_flash.h"

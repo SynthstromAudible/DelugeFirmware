@@ -32,8 +32,8 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/load/instrument_load.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
@@ -101,7 +101,7 @@
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "util/functions.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include <cstdio>
 #include <iterator>
@@ -724,10 +724,9 @@ void frontClip(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum) {
 /// last one loaded; the leg's Select step brings it to the leg's item from there.
 bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = nullptr) {
 	frontClip(leg, clip, rootUI, drum);
-	const bool opened =
-	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	const bool opened = deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0FileSelector);
 	for (int32_t t = 0; opened && t < 16 && !browserOnTop(); t++) {
 		guestTick();
 		if (t > 0 && guestTop(deluge::scenes::menu::kMenuSceneKind)) {
@@ -1783,9 +1782,8 @@ void actLeg() {
 		g_cancelLoadingTicks = 0;
 		// The scenes browser's auto-load request (`ShellBrowserHost::preview`, then `BrowserScene::preview_settled`):
 		// the sound its menu resolved, no completion.
-		deluge::gui::sampleClaim.request({.path = legFile(),
-		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,
-		                                  .target = deluge::gui::ui::shellMenuTarget()});
+		deluge::gui::sampleClaim.request(
+		    {.path = legFile(), .origin = deluge::gui::ClaimOrigin::AutoLoad, .target = deluge::gui::ui::menuTarget()});
 		return;
 	}
 	if (g_leg == Leg::Gate) {

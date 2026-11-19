@@ -86,7 +86,7 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset);
 /// `exitUI` removes the input top first (`gui/ui/shell_host_ui.cpp`), and `timerCallback` closes once
 /// nothing stacked takes input.
 /// The key holds only while nothing else re-opens the menu mid-session. The `.cpp` names every writer
-/// of the menu's context -- `openShellMenu`, `GlobalControls::handle_settings_menu` (Shift+Select)
+/// of the menu's context -- `openMenu`, `GlobalControls::handle_settings_menu` (Shift+Select)
 /// and a song swap -- and the `Scene::is_root` gate that keeps the second out of a guest session
 /// today, which a future `is_root()` override on a scene the guest hosts would break.
 void exitNoteModeBeforeClose();

@@ -97,7 +97,7 @@
 #include "util/cfunctions.h"
 #include "util/comparison.h"
 #include "util/functions.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 #include <new>
 #include <string.h>
@@ -1447,7 +1447,7 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			return;
 		}
 
-		// Site 7 of `gui/ui/shell_menu_entry.cpp`'s table. Under `UI_MODE_NOTES_PRESSED` (pad selection on, a pad
+		// Site 7 of `gui/ui/menu_entry.cpp`'s table. Under `UI_MODE_NOTES_PRESSED` (pad selection on, a pad
 		// held) `setup(clip)` opens the note editor on an instrument clip; `src/scenes` may not read the UI mode, so
 		// the mode is named here, as `setup()` infers it: the undo log wiped, a kit's affect-entire left on. An audio
 		// clip, or the arranger's null clip, opens the root it opens under `UI_MODE_NONE`.
@@ -1460,9 +1460,9 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 		    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
 		const bool noteEditor =
 		    currentUIMode == UI_MODE_NOTES_PRESSED && clip != nullptr && clip->type == ClipType::INSTRUMENT;
-		(void)deluge::gui::ui::openShellMenu(
+		(void)deluge::gui::ui::openMenu(
 		    clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/onArrangerView,
-		    /*sessionViewRoot=*/false, kitGlobalFx, deluge::gui::ui::ShellMenuNode::ContextRoot,
+		    /*sessionViewRoot=*/false, kitGlobalFx, deluge::gui::ui::MenuNode::ContextRoot,
 		    noteEditor ? deluge::gui::ui::NoteMode::NoteEditorFromUiMode : deluge::gui::ui::NoteMode::None);
 	}
 }
@@ -3054,7 +3054,7 @@ bool AutomationView::getAffectEntire() {
 	// are you in the sound menu for a kit?
 	else if (getCurrentOutputType() == OutputType::KIT && deluge::gui::ui::soundMenuOpen()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
-		if (deluge::gui::ui::shellKitGlobalFx()) {
+		if (deluge::gui::ui::menuKitGlobalFx()) {
 			return true;
 		}
 		// otherwise you're in the kit row context which is the same as if affect entire is disabled

@@ -59,8 +59,8 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/load/instrument_load.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_target.h"
@@ -83,8 +83,8 @@
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/menu_entry.h"
 #include "util/sample_preview_open.h"
-#include "util/shell_menu_entry.h"
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
@@ -836,7 +836,7 @@ struct KitRig {
 
 describe browser_choice_target(
     "gui::ui::sampleClaimTargetFor", $ {
-	    // The choosing half, driven by name. It is declared in `shell_choice_dispatch.h` rather than left
+	    // The choosing half, driven by name. It is declared in `browser_host.h` rather than left
 	    // in the `.cpp`'s anonymous namespace for the reason `stemExportTypeForRootUI` is
 	    // (`gui/ui/shell_action_dispatch.h`): the acting half cannot be run in a spec, and this half must
 	    // be. Nothing in this group touches a scene, a card or a song.
@@ -1404,7 +1404,7 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 	});
 
 	it("cancels an auto-load claim whenever the selection asks for another preview", _ {
-		// `ShellBrowserHost::preview` (`gui/ui/shell_choice_dispatch.cpp`): a move supersedes the auto-load of the file
+		// `ShellBrowserHost::preview` (`gui/ui/browser_host.cpp`): a move supersedes the auto-load of the file
 		// it left.
 		CleanBrowser clean;
 		ClaimSpy spy;

@@ -173,14 +173,14 @@ extern std::function<void()> on_action_dispatch;
 
 /// @brief How many times the fake `pollShellBrowserHost()` has been called since `reset()`.
 ///
-/// The real one is `gui/ui/shell_choice_dispatch.cpp`'s, which names `browser_scene()` and so belongs to the
+/// The real one is `gui/ui/browser_host.cpp`'s, which names `browser_scene()` and so belongs to the
 /// `deluge_scenes` closure this suite never builds. What the poll does is `sim/scenes_spec/browser_choice_spec.cpp`'s;
 /// this counter keeps the guest linking here.
 extern int browser_host_polls;
 
 /// @brief How many times `deluge::gui::ui::deliverShellBrowserAnswers()` was called since `reset()`.
 ///
-/// The real one is `gui/ui/shell_choice_dispatch.cpp`'s, which names `browser_scene()`. What this suite can see is
+/// The real one is `gui/ui/browser_host.cpp`'s, which names `browser_scene()`. What this suite can see is
 /// where the guest calls it outside its after-tick poll: as it closes and as every UI is taken down, after its stack's
 /// exits have run.
 extern int browser_answer_deliveries;

@@ -323,7 +323,7 @@ audition the same way, with `host_end_audition(AuditionEnd::KeyboardWhenAudition
 of a kit or multisamples, the slice, the deletes of a sample or a `.syx`, the MIDI-definition load, the `.syx`
 cartridge read) and `preview` a `PreviewRequest`. Until one is installed (`BrowserScene::set_host`) the browser asks
 `null_browser_host()`, which performs nothing. `gui::ui::wireShellBrowserHost`, which `wireShellGuestServices()`
-calls, installs the application's `ShellBrowserHost` (`gui/ui/shell_choice_dispatch.cpp`); it performs each request
+calls, installs the application's `ShellBrowserHost` (`gui/ui/browser_host.cpp`); it performs each request
 when the browser makes it. How a request ended comes back through the scene's answer methods (`deferred_load_done`,
 `long_press_done`, `slice_ready`, `file_deleted`, `preview_settled`). An answer produced while its request is still
 being performed (a refusal, a claim that ends in its first pass, the preview's stop) is held, and
@@ -371,7 +371,7 @@ reach past the page.
 ### The DX7 pages (`menu/nodes/dx.h`)
 
 `dx_menu` ports `dxMenu`, "DX7 source": SELECT on oscillator 1's type set to DX7 enters it (`osc0_type_chain`), and
-MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'s table). It lists the browse row,
+MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s table). It lists the browse row,
 "DX7 parameters" (the globals and "DX7 operator N") and the engine version; both lists open the parameter page,
 `DxParamItem`. Eight points reach past the pages.
 
@@ -692,8 +692,8 @@ The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` bui
 registry. It is the seam the scenes run through while the root views are legacy `UI`s: every scene
 opens over one of them, and the guest hands that view whatever no scene claims. It lasts until the
 root views are scenes and the shell is the root (the root-view program, `docs/dev/roadmap.md`).
-`openShellMenu` (`util/shell_menu_entry.h`) is the menu's door: every entry site routes through it,
-and `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
+`openMenu` (`util/menu_entry.h`) is the menu's door: every entry site routes through it,
+and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -760,7 +760,7 @@ What a user can see differ from `main` today, beyond the features below that the
 |---|---|
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
-| `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; `main` clears after a successful `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). | `gui/ui/shell_menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
+| `openMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; `main` clears after a successful `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). | `gui/ui/menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
 | The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record, so an Off the shell never saw can go unsent; no case against `main` is known. | `src/shell/leds.cpp`'s `led_send_needed` |
 | A RECORD press a scene takes never toggles recording on its release; `main` toggles on such a release within 500 ms of a RECORD tap the transport took. | `GlobalControls::tail_button_action`; `tests/ui-scripts/parity/DIFFERENCES.md` D127 |
 | After a sample take lands on the oscillator's page, the focused file selector's own shortcut pad blinks; `main`'s blocking recorder loop re-plans the recorder's pad after the take. | `MenuScene::on_resume`; `tests/ui-scripts/parity/DIFFERENCES.md` D128 |

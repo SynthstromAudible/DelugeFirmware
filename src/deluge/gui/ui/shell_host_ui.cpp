@@ -20,9 +20,9 @@
 #include "gui/ui/ui.h"
 
 #include "foundation/panic.h" // FREEZE_WITH_ERROR
+#include "gui/ui/browser_host.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_note_mode.h"
@@ -1150,7 +1150,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
 	if (top.kind() == deluge::scenes::menu::kMenuSceneKind
-	    && (!isUIModeWithinRange(selectEncoderUIModes) || shellMenuLearnMode())) {
+	    && (!isUIModeWithinRange(selectEncoderUIModes) || menuLearnMode())) {
 		return;
 	}
 	// `void`: legacy discards nothing because there is nothing to discard
@@ -1192,7 +1192,7 @@ void ShellHostUI::uisTakenDown() {
 	forgetShellDrumCreator();
 	// The menu's context outlives the guest (its close paths read the root), so it names the outgoing song whether the
 	// guest is up or not.
-	forgetShellMenuContext();
+	forgetMenuContext();
 	if (!isUIOpen(this)) {
 		return;
 	}

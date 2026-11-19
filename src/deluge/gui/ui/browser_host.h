@@ -191,11 +191,11 @@ void setFolderImportDispatch(FolderImportDispatch dispatch);
 /// @brief Publish the owner and params of what the menu edits now, for `soundMenuModControllable` and
 ///        `soundMenuParamManager` (`util/sound_menu_open.h`). The menu calls it through its context hook whenever its
 ///        context changes: every open and re-root, a kit-global adopt, a forget and a song swap.
-void publishShellMenuTarget();
+void publishMenuTarget();
 
 /// @brief The engine objects the menu's context names now, resolved in the current song: what a claim, an import
 ///        or a slice started from the menu acts on.
-deluge::gui::SoundTarget shellMenuTarget();
+deluge::gui::SoundTarget menuTarget();
 
 /// @brief Tell the browser scene whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
 ///        opens the browser with no `SoundEditor::beginScreen` after it, so only the browser's own BROWSE blink runs.

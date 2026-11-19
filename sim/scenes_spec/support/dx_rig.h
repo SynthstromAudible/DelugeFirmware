@@ -6,8 +6,8 @@
 ///
 /// For the spec files only: it names `gui/` objects, which the scenes library may not.
 
+#include "gui/ui/browser_host.h"
 #include "gui/ui/menu_view_of.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"

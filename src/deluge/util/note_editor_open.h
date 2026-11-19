@@ -24,7 +24,7 @@
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
 ///
-/// `util/shell_menu_entry.h`'s reason, for two of the same kind of caller:
+/// `util/menu_entry.h`'s reason, for two of the same kind of caller:
 /// `model/action/action_logger.cpp` and `model/note/note_row.cpp` ask this question, and both are
 /// inside `check_layer_rules.py`'s `NON_UI` glob, each already at its `model-includes-ui` baseline.
 /// A `gui/ui/` header there would raise a ratchet that may only shrink. This header includes nothing,

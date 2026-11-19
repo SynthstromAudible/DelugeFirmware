@@ -78,7 +78,7 @@
 
 #include "support/printers/rgb_printer.h"
 #include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
-#include "util/shell_menu_entry.h"  // openShellMenuAtShortcut
+#include "util/menu_entry.h"        // openMenuAtShortcut
 #include "util/sound_menu_open.h"
 
 #include "cppspec.hpp"

@@ -87,12 +87,12 @@ public:
 	/// so a push whose argument names a deeper node lands there instead.
 	///
 	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`.**
-	///          `GlobalControls::handle_settings_menu` always does, and `openGuest` (`gui/ui/shell_menu_entry.cpp`)
+	///          `GlobalControls::handle_settings_menu` always does, and `openGuest` (`gui/ui/menu_entry.cpp`)
 	///          does when it is given no `arg` and arms no landing. `on_enter` re-roots unconditionally: from
 	///          `node_by_id(arg)` when `arg != 0`, and otherwise from `ctx_.root` -- the copy this
 	///          function just installed -- so whichever node was passed here is overwritten one
 	///          call later. Measured, not reasoned: mutating
-	///          `gui/ui/shell_menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
+	///          `gui/ui/menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
 	///          root left **nothing in the suite noticing**. The parameter is kept because this is
 	///          the only entry point that installs a `MenuContext` at all, and because a scene left
 	///          pointing at the wrong root between this call and `on_enter` is a real (if brief)
@@ -388,7 +388,7 @@ public:
 	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
 	///
 	/// This exists for a real gap rather than convenience: the application's
-	/// entry points resolve this context themselves (`gui/ui/shell_menu_entry.cpp`), and two of its
+	/// entry points resolve this context themselves (`gui/ui/menu_entry.cpp`), and two of its
 	/// fields -- `is_session_view` and `is_performance` -- change nothing about which root is opened
 	/// and everything about which items are relevant inside it. Without this accessor a caller
 	/// passing the wrong one is invisible from outside the scene, so "the session and the arranger
@@ -491,7 +491,7 @@ public:
 	///
 	/// Its caller is the application, between ticks (`gui::ui::shellSampleClaimDone`), and the shape
 	/// for that is `open()` -- which already installs a `MenuContext` and re-roots `path`/`depth`
-	/// from `gui/ui/shell_menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
+	/// from `gui/ui/menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
 	/// rather than merely heavier: a pending re-root would sit in the field until the next
 	/// `after_render`, one frame later, and `retarget` clears the mailboxes (see its body), so any
 	/// re-root filed across a re-root would be silently dropped.

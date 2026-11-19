@@ -233,8 +233,8 @@ void exitNoteModeBeforeClose() {
 	// answer `None` on every real close. `menu_context().root` outlives the stack, so what matters is
 	// every writer that could replace it between this session's open and its close. There are three:
 	//
-	//   * `openShellMenu`, the guest's one open site, runs `menu_scene().open(...)` before
-	//     `openUI(&shellHostUI)` (`openGuest` in `gui/ui/shell_menu_entry.cpp`), so every session begins by
+	//   * `openMenu`, the guest's one open site, runs `menu_scene().open(...)` before
+	//     `openUI(&shellHostUI)` (`openGuest` in `gui/ui/menu_entry.cpp`), so every session begins by
 	//     writing its own root.
 	//   * `GlobalControls::handle_settings_menu`, the port
 	//     of Shift+Select, re-opens the menu at `Root::Settings`, and the guest's shell does

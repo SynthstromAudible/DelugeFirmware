@@ -258,7 +258,7 @@ LED starts blinking on it.
 ## The firmware host
 
 `gui::ui::ShellHostUI` (`gui/ui/shell_host_ui.h`) is a legacy `UI` holding one `Shell` over a
-`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`). It is the seam between the
+`GuestSurfaceSet`, opened by `openMenu` (`util/menu_entry.h`). It is the seam between the
 shell and the legacy UI stack while the root views are legacy `UI`s: every scene opens over one of
 them, and the host forwards to it whatever no scene claims. It lasts until the root views are scenes
 and the shell is the root (the root-view program, `docs/dev/roadmap.md`); then it is deleted.

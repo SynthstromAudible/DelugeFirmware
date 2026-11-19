@@ -22,10 +22,10 @@
 
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/ui/browser_host.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/ui.h"
@@ -61,8 +61,8 @@
 #include "scenes/services/mod_knobs.h"
 #include "scenes/services/view_state.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/menu_entry.h"
 #include "util/sample_preview_open.h"
-#include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
 #include <atomic>
@@ -149,7 +149,7 @@ void setViewStates(GuestServices& services) {
 
 void handOffGuestOverlays(uint32_t now_ms) {
 	// The kit-global-FX latch goes with the menu, as `exitCompletely` clears it.
-	clearShellKitGlobalFx();
+	clearMenuKitGlobalFx();
 	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
 	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.
 	(void)deluge::scenes::menu_scene().take_transition();
@@ -294,7 +294,7 @@ void refreshMenuModeGates() {
 	    {.learn = currentUIMode == UI_MODE_NONE, .select_and_back = selectAndBack});
 }
 
-bool shellMenuLearnMode() {
+bool menuLearnMode() {
 	return deluge::scenes::menu_scene().learn_mode();
 }
 
@@ -371,7 +371,7 @@ void refreshShellSamplePreviewSounds() {
 	guestPreviewSounds.store(sounds, std::memory_order_relaxed);
 }
 
-void forgetShellMenuContext() {
+void forgetMenuContext() {
 	deluge::scenes::menu_scene().forget_context();
 }
 

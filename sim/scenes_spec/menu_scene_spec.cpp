@@ -2192,7 +2192,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// range.
 		//
 		// Two callers arrive this way and both were affected: site 8 of
-		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
+		// `gui/ui/menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView`'s file-selector entry) and the
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Without the range, the file selector's browser refuses to

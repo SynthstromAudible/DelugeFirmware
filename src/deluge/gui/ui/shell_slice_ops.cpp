@@ -17,7 +17,7 @@
 
 #include "gui/ui/shell_slice_ops.h"
 
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -42,7 +42,7 @@ using deluge::scenes::slicing::PreviewRequest;
 using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
-/// @brief `SlicerScene`'s host: every call names the sound the menu edits (`shellMenuTarget`), then does what
+/// @brief `SlicerScene`'s host: every call names the sound the menu edits (`menuTarget`), then does what
 ///        the legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
@@ -154,7 +154,7 @@ private:
 	/// @brief Aim the slice at the sound the menu edits; false, aiming at nothing, when the menu names no sound
 	///        with a source and range (its context forgotten by a teardown), so a commit or an audition is refused.
 	bool retargetToMenu() {
-		const deluge::gui::SoundTarget target = shellMenuTarget();
+		const deluge::gui::SoundTarget target = menuTarget();
 		if (target.sound == nullptr || target.source == nullptr || target.range == nullptr) {
 			return false;
 		}

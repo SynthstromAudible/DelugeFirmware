@@ -44,7 +44,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_preview.h" // the loader the scenes browser previews through
-#include "gui/ui/shell_choice_dispatch.h"  // shellPreviewer
+#include "gui/ui/browser_host.h"           // shellPreviewer
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
@@ -62,7 +62,7 @@
 #include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include <array>
 #include <cstddef>
@@ -764,10 +764,9 @@ bool openGuestBrowser() {
 	deluge::harness::guestClose();
 	currentSong->setCurrentClip(clip);
 	changeRootUI(&instrumentClipView);
-	const bool opened =
-	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	const bool opened = deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0FileSelector);
 	for (int32_t t = 0; opened && t < 16 && !deluge::harness::browserOnTop(); t++) {
 		deluge::harness::guestTick();
 	}

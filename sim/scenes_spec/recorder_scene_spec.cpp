@@ -49,7 +49,7 @@
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "support/global_guest_menu.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "shell/leds.h"
 #include "shell/profiles/deluge.h"
@@ -953,8 +953,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		setRootUILowLevel(&instrumentClipView);
 		{
 			PublishedOutputRecording output;
-			expect(deluge::gui::ui::openShellMenu(k.song.clip, 0, false, false, false, false,
-			                                      deluge::gui::ui::ShellMenuNode::Osc0Recorder))
+			expect(deluge::gui::ui::openMenu(k.song.clip, 0, false, false, false, false,
+			                                      deluge::gui::ui::MenuNode::Osc0Recorder))
 			    .to_be_true();
 			for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
 				(void)shellHostUI.timerCallback();

@@ -65,8 +65,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/preset_acquisition.h"
+#include "util/menu_entry.h"
 #include "util/misc.h"
-#include "util/shell_menu_entry.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -248,9 +248,9 @@ void openRecorder() {
 	auto* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output));
 	g_sound = sound;
 	g_range = nullptr;
-	if (!deluge::gui::ui::openShellMenu(g_clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                    /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0Recorder)) {
+	if (!deluge::gui::ui::openMenu(g_clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                               /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0Recorder)) {
 		return;
 	}
 	for (int32_t t = 0; t < 8 && !guestTop(kRecorderSceneKind) && isUIOpen(&shellHostUI); t++) {

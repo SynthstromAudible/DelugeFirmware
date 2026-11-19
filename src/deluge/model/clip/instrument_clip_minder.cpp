@@ -58,7 +58,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include <cstring>
 #include <string.h>
 
@@ -294,10 +294,10 @@ gotError:
 	                               deluge::serialization::Value::makeScalar(std::string{newName}));
 
 	if (is_dx) {
-		// Site 11 of `gui/ui/shell_menu_entry.cpp`'s table: "DX7 source" on the new FM synth.
-		(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-		                                     /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-		                                     /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Dx);
+		// Site 11 of `gui/ui/menu_entry.cpp`'s table: "DX7 source" on the new FM synth.
+		(void)deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+		                                /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+		                                /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Dx);
 	}
 
 	renderUIsForOled();
@@ -435,15 +435,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. Main's `setupKitGlobalFXMenu` write is made to the
-			// menu's own latch (`shellKitGlobalFx`), which the open and the shortcut presses then read. The
+			// Site 6 of `gui/ui/menu_entry.cpp`'s table. Main's `setupKitGlobalFXMenu` write is made to the
+			// menu's own latch (`menuKitGlobalFx`), which the open and the shortcut presses then read. The
 			// root is then one of six, and `context_for` runs the same six tests in the same order; the two UI-mode
 			// roots legacy could otherwise pick are unreachable because this arm is `currentUIMode == UI_MODE_NONE`.
 			const bool kitGlobalFx = deluge::gui::ui::editKitAffectEntire();
-			if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
-			                                    /*performanceView=*/false,
-			                                    /*sessionOrArrangerRoot=*/false,
-			                                    /*sessionViewRoot=*/false, kitGlobalFx)) {
+			if (!deluge::gui::ui::openMenu(getCurrentClip(), /*sourceIndex=*/0,
+			                               /*performanceView=*/false,
+			                               /*sessionOrArrangerRoot=*/false,
+			                               /*sessionViewRoot=*/false, kitGlobalFx)) {
 				return ActionResult::DEALT_WITH;
 			}
 		}

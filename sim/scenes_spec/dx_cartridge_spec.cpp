@@ -18,7 +18,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "hid/display/display.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"

@@ -104,8 +104,8 @@
 #include "playback/render_requests.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
+#include "util/menu_entry.h"
 #include "util/misc.h"
-#include "util/shell_menu_entry.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -587,9 +587,9 @@ void stepEditorSetup() {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
 	}
 	// Site 6's open: the clip view's SELECT on a synth clip, which resolves the sound root over the clip.
-	if (!deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                    /*kitGlobalFx=*/false)
+	if (!deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                               /*kitGlobalFx=*/false)
 	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
 		g_report.fail("RETIRED the ported menu could not be opened on the synth clip");
 		g_stage = Stage::Report;

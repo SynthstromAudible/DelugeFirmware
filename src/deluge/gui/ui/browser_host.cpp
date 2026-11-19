@@ -16,10 +16,10 @@
  */
 
 /// @file
-/// @brief The browser scene's host. See `shell_choice_dispatch.h` for why it lives here and how its answers reach the
+/// @brief The browser scene's host. See `browser_host.h` for why it lives here and how its answers reach the
 ///        browser.
 
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/shell_slice_ops.h"
 
 #include "gui/l10n/strings.h"
@@ -50,8 +50,8 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "storage/byte_channel.h"
+#include "util/menu_entry.h"
 #include "util/notify.h"
-#include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
 #include <atomic>
@@ -253,7 +253,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
-/// The request names the sound the menu edits (`shellMenuTarget`); the claim reads nothing else for it.
+/// The request names the sound the menu edits (`menuTarget`); the claim reads nothing else for it.
 ///
 /// Only a claim reaches here: `BrowserScene` decides Shift+Select on a file in a kit with the press, asking its host
 /// for a slice or refusing.
@@ -274,7 +274,7 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	    .mayDoWaveTable = args.mayDoWaveTable,
 	    .origin = origin,
 	    .completion = completion,
-	    .target = shellMenuTarget(),
+	    .target = menuTarget(),
 	});
 }
 
@@ -294,7 +294,7 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	claimCancel();
 	deluge::gui::FolderImportRequest request{.kind = kind,
 	                                         .completion = &shellLongPressImportDone,
-	                                         .target = shellMenuTarget(),
+	                                         .target = menuTarget(),
 	                                         .rangeChosen = &shellImportRangeChosen};
 	if (choice.is_folder) {
 		request.folder = choice.path;
@@ -484,13 +484,13 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 }
 
 namespace {
-/// What `publishShellMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
+/// What `publishMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
 std::atomic<ModControllable*> publishedMod{nullptr};
 std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
 } // namespace
 
-void publishShellMenuTarget() {
-	const deluge::gui::SoundTarget target = shellMenuTarget();
+void publishMenuTarget() {
+	const deluge::gui::SoundTarget target = menuTarget();
 	publishedMod.store(target.mod, std::memory_order_relaxed);
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
@@ -503,7 +503,7 @@ ParamManagerForTimeline* soundMenuParamManager() {
 	return publishedParams.load(std::memory_order_relaxed);
 }
 
-deluge::gui::SoundTarget shellMenuTarget() {
+deluge::gui::SoundTarget menuTarget() {
 	return resolvedFor(deluge::scenes::menu_scene().menu_context());
 }
 
@@ -629,7 +629,7 @@ void deliverSampleClaimDone(bool success) {
 	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
 		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
 		// write to `setupKitGlobalFXMenu` the latch takes.
-		latchShellKitGlobalFxOnReentry();
+		latchMenuKitGlobalFxOnReentry();
 	}
 }
 

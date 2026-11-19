@@ -99,7 +99,7 @@ void refreshShellSamplePreviewSounds();
 
 /// @brief Forget the song and the rest of what the menu was open on, for a teardown of every UI under the
 ///        guest (`ShellHostUI::uisTakenDown`): the song may go next.
-void forgetShellMenuContext();
+void forgetMenuContext();
 
 /// @brief End the recorder's running take for a teardown of every UI under the guest (`ShellHostUI::uisTakenDown`),
 ///        posting no `ClearWorking` (`RecorderScene::taken_down`). A no-op with no take running.
@@ -139,7 +139,7 @@ bool guestKnobsSeeAutomationEditor();
 void refreshMenuModeGates();
 
 /// @brief Whether the menu is in its learn mode (`MenuScene::learn_mode`).
-bool shellMenuLearnMode();
+bool menuLearnMode();
 
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the
 ///        lifetime it had left, as legacy's own popup outlives the menu, and becomes the popup `view` last drew.

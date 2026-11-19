@@ -92,8 +92,8 @@
 #include "storage/file_item.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"        // getInstrumentFolder, to pin kAcqDir against drift
-#include "util/shell_menu_entry.h" // openShellMenu, the DX stage's door to the menu
+#include "util/functions.h"  // getInstrumentFolder, to pin kAcqDir against drift
+#include "util/menu_entry.h" // openMenu, the DX stage's door to the menu
 #include "util/string.h"
 
 #include <algorithm>
@@ -3417,8 +3417,7 @@ void runDxTick() {
 		g_dxListingWait.restart();
 		Clip* clip = makeDxClip();
 		if (clip == nullptr
-		    || !deluge::gui::ui::openShellMenu(clip, 0, false, false, false, false,
-		                                       deluge::gui::ui::ShellMenuNode::Dx)) {
+		    || !deluge::gui::ui::openMenu(clip, 0, false, false, false, false, deluge::gui::ui::MenuNode::Dx)) {
 			g_report.fail("DX the DX7 menu did not open on a DX7 synth clip");
 			finishDxStage();
 			return;

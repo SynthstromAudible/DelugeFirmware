@@ -3,7 +3,7 @@
 ///        marks it: after a select turn on an item that edits the instrument
 ///        (`MenuItem::selectEncoderActionEditsInstrument`), when there is a sound to edit, never in the settings menu.
 ///
-/// The menu is opened on the global guest over the instrument clip view, as `openShellMenu` leaves it, and every turn
+/// The menu is opened on the global guest over the instrument clip view, as `openMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls.
 
 #include "deluge-project/mapping_table.h"

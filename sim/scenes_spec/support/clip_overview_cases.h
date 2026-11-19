@@ -14,7 +14,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
 #include "processing/sound/sound_drum.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "support/song_fixture.h"
 
@@ -82,12 +82,12 @@ inline std::string_view name_of(Case c) {
 /// @brief The root UI and the kit-global latch, put back however the caller ends.
 struct RootGuard {
 	RootUI* saved = getRootUI();
-	bool savedLatch = deluge::gui::ui::shellKitGlobalFx();
+	bool savedLatch = deluge::gui::ui::menuKitGlobalFx();
 	RootGuard() = default;
 	RootGuard(const RootGuard&) = delete;
 	RootGuard& operator=(const RootGuard&) = delete;
 	~RootGuard() {
-		deluge::gui::ui::setShellKitGlobalFx(savedLatch);
+		deluge::gui::ui::setMenuKitGlobalFx(savedLatch);
 		if (saved != nullptr) {
 			setRootUILowLevel(saved);
 		}
@@ -102,8 +102,8 @@ struct RootGuard {
 /// row with affect-entire off under a latch a press set while it was on, which nothing has cleared since.
 /// @return The clip view the overview is drawn under.
 inline ClipView& set_up(Case c) {
-	deluge::gui::ui::setShellKitGlobalFx(c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
-	                                     || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched);
+	deluge::gui::ui::setMenuKitGlobalFx(c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
+	                                    || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched);
 	switch (c) {
 	case Case::Synth:
 		(void)make_synth_song();

@@ -48,7 +48,9 @@ EXEMPT = ("tests/ui-scripts/parity/DIFFERENCES.md",)
 GLUE = (
     "src/deluge/gui/ui/shell_",
     "src/deluge/gui/ui/menu_view_of",
-    "src/deluge/util/shell_menu_entry",
+    "src/deluge/gui/ui/menu_entry",
+    "src/deluge/gui/ui/browser_host",
+    "src/deluge/util/menu_entry",
 )
 OURS = ("src/scenes/", "src/shell/", "src/ui/", "src/gfx/", "sim/", "tests/") + GLUE
 SUFFIXES = {".h", ".hpp", ".c", ".cpp", ".md", ".txt", ".py"}
