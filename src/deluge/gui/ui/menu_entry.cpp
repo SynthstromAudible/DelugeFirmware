@@ -16,13 +16,12 @@
  */
 
 #include "util/menu_entry.h"
-#include "gui/ui/menu_view_of.h"
-#include "util/sound_menu_open.h"
 
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser_host.h" // publishMenuTarget
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_pad_forward.h"
@@ -50,6 +49,7 @@
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
+#include "util/sound_menu_open.h"
 
 #include <cstddef>
 #include <optional>

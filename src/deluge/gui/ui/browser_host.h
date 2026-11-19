@@ -29,8 +29,9 @@
 ///
 /// **How answers reach the browser.** An answer produced before the request returns would reach the scene that asked
 /// from inside its own hook, so it is held. `pollShellBrowserHost` delivers held answers after the shell's tick, and
-/// `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. Every other answer
-/// is delivered when it arrives.
+/// `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. A new preview drops
+/// an older preview's held answer, which would otherwise end the new one's wait. Every other answer is delivered when
+/// it arrives.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///

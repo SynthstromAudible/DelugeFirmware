@@ -693,6 +693,9 @@ public:
 	/// `AudioEngine::stopAnyPreviewing` does.
 	void preview(const PreviewRequest& request) override {
 		const Performing performing;
+		// A new preview supersedes an older one's held answer: delivered now, it would end this preview's wait.
+		std::erase_if(heldAnswers(),
+		              [](const BrowserAnswer& answer) { return answer.kind == BrowserAnswer::Kind::PreviewSettled; });
 		// A move supersedes an auto-load claim of the file it has left.
 		claimCancel();
 		SamplePreviewer& previewer = shellPreviewer();

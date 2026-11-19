@@ -408,11 +408,13 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 describe boot_browser_host("the browser's host, installed with the services", $ {
 	it("gives the browser the application's host, not the one that performs nothing", _ {
+		deluge::scenes::browser::BrowserHost* const saved = deluge::scenes::browser::browser_scene().installed_host();
 		deluge::scenes::browser::browser_scene().set_host(nullptr);
 		deluge::gui::ui::wireShellGuestServices();
 		const deluge::scenes::browser::BrowserHost* host = deluge::scenes::browser::browser_scene().installed_host();
 		expect(host).not_().to_be_null();
 		expect(host).not_().to_equal(&deluge::scenes::browser::null_browser_host());
+		deluge::scenes::browser::browser_scene().set_host(saved);
 	});
 });
 // clang-format on

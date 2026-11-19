@@ -328,8 +328,9 @@ when the browser makes it. How a request ended comes back through the scene's an
 `long_press_done`, `slice_ready`, `file_deleted`, `preview_settled`). An answer produced while its request is still
 being performed (a refusal, a claim that ends in its first pass, the preview's stop) is held, and
 `gui::ui::pollShellBrowserHost` delivers it after the tick, so no answer reaches a scene from inside the hook that
-asked; `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. Any other
-answer (an asynchronous load ending, the `.syx` read, the preview's load) is delivered when it arrives.
+asked; `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. A new
+preview drops an older preview's held answer, which would otherwise end the new one's wait. Any other answer (an
+asynchronous load ending, the `.syx` read, the preview's load) is delivered when it arrives.
 
 Two more outboxes stay beside `take_action()`. `BrowserScene::take_scroll()` parks the scroll-in the host runs
 from the image store (see the file browser below); `gui::ui::pollShellBrowserHost` takes it as its last step, after

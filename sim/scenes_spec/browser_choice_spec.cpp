@@ -1348,6 +1348,29 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		expect(browser::browser_scene().preview_outstanding()).to_be_false();
 	});
 
+	it("drops a leaving browser's held stop answer once the next visit files its own preview", _ {
+		// The stop `on_exit` asked for answers about a visit that is over: delivered after the next visit's first
+		// preview, it would end that preview's wait and spend its spare blink.
+		CleanBrowser clean;
+		ClaimSpy spy;
+		ScratchCard card;
+		ShellRig r;
+		r.open_browser();
+		deluge::gui::ui::pollShellBrowserHost();
+		while (r.shell.stack().depth() > 0) {
+			r.shell.stack().pop(SceneKind::Null);
+		}
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
+		r.open_browser();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_false();
+		deluge::gui::ui::pollShellBrowserHost();
+		expect(browser::browser_scene().preview_outstanding()).to_be_true();
+		browser::browser_scene().preview_settled(true);
+		expect(browser::browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
+	});
+
 	it("sounds the preview while the guest's sample browser is frontmost, and not under the menu", _ {
 		// `AudioEngine::renderSamplePreview` renders the preview drum only for the UIs `samplePreviewUIOpen` names;
 		// under the guest the current UI is `shellHostUI`, so it reads which scene the guest's last tick left frontmost.

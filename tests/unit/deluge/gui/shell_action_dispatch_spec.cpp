@@ -311,6 +311,7 @@ describe shell_browser_answers("ShellHostUI delivering the browser host's held a
 			depth_at_delivery = static_cast<int>(r.guest.shell().stack().depth());
 		};
 		fakelegacyui::browser_answer_deliveries = 0;
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
 
 		r.guest.uisTakenDown();
 

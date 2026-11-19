@@ -123,14 +123,17 @@ struct BrowserDisplay final : deluge::hid::Display {
 struct CleanBrowser {
 	QuietAudio quiet;
 	deluge::hid::Display* saved_display;
+	/// The host installed before the example, which `reset` replaces with the recording one.
+	deluge::scenes::browser::BrowserHost* saved_host;
 	BrowserDisplay display_impl;
 
-	CleanBrowser() : saved_display(display) {
+	CleanBrowser() : saved_display(display), saved_host(browser_scene().installed_host()) {
 		display = &display_impl;
 		reset();
 	}
 	~CleanBrowser() {
 		reset();
+		browser_scene().set_host(saved_host);
 		display = saved_display;
 	}
 	static void reset() {
