@@ -99,7 +99,7 @@ void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string
 		c.draw_string(options[static_cast<size_t>(option)], textPixelX, textPixelY, 6, 9, 0, panel_w - 27);
 		if (option == current) {
 			// `invertLeftEdgeForMenuHighlighting(invertStartX, OLED_MAIN_WIDTH_PIXELS - 44,
-			// textPixelY, textPixelY + 8)` (`oled_canvas/canvas.cpp:26-33`).
+			// textPixelY, textPixelY + 8)` (`oled_canvas/canvas.cpp`).
 			if (invert) {
 				c.invert_area_rounded(invertStartX, panel_w - 44, textPixelY, textPixelY + 8);
 			}
@@ -112,7 +112,7 @@ void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string
 		option++;
 	}
 
-	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:238-249`),
+	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp`),
 	// which runs *after* the base renderer and is the only legacy subclass that draws past it: an L
 	// arrow, then the name indented past it with the rows' `- 27` right clip.
 	if (!footer.empty()) {

@@ -35,7 +35,7 @@ extern "C" {
 /// @brief Where a button name sits in the Deluge's button matrix.
 ///
 /// The table is `src/shell/profiles/deluge.cpp`'s `kMatrix` (itself from
-/// `src/definitions_cxx.hpp:59-84`), copied into C because the BSP may not depend on the app.
+/// the `*ButtonCoord` constants of `src/definitions_cxx.hpp`), copied into C because the BSP may not depend on the app.
 /// `tests/unit/harness/tables_spec.cpp` cross-checks the copy against `deluge_profile()` so the
 /// two cannot drift.
 /// @param name Button name, spelled as `shell::button_name()` spells it.
@@ -57,7 +57,7 @@ int ui_script_encoder_index(const char* role);
 ///
 /// The reverse of `ui_script_button_xy`, over the same table. `host_script.c`'s `.state` writer
 /// uses this to name an indicator LED by the button at its legacy `x + y*9` coordinate
-/// (`indicator_leds.h:30-64` builds every `LED` value from its button's own coordinates, so the
+/// (the `LED` enum in `indicator_leds.h` builds every value from its button's own coordinates, so the
 /// matrix already *is* the LED table) — kept here rather than re-scanned from a second copy of
 /// the table, which is exactly the drift this split exists to prevent.
 /// @param x Matrix column.

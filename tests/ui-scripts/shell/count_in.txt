@@ -21,13 +21,13 @@
 #     t >= 800 ms : 0   (the count-in ended)
 0     snapshot idle              # count 0: the overlay is on the stack and draws nothing, so the
                                  # clip view is the whole panel. `.state` has both `scene` lines
-300   snapshot count_4           # `notify_drain.cpp:97-100`: the digit in a framed, CENTRED popup
+300   snapshot count_4           # `drain_notifications` (`notify_drain.cpp`): the digit in a framed, CENTRED popup
                                  # box -- centred and not right-aligned, and static and not
                                  # blinking, because `alignRight`/`blinkSpeed` are dead arguments on
                                  # the shipped OLED build (`count_in_scene.h` carries the grep)
 600   snapshot count_3           # the poll noticed the change on its own: no input, one tick,
                                  # a different digit in the same box
-900   snapshot after_zero        # `:102-103`'s cancel arm. The box is gone AND the scene took
-                                 # itself off the stack (`after_render`'s `Remove`), so `.state` is
-                                 # back to one `scene` line
+900   snapshot after_zero        # `drain_notifications`' `else` arm (`cancelPopup()`). The box is gone AND the scene
+                                 # took itself off the stack (`after_render`'s `Remove`), so `.state` is back to one
+                                 # `scene` line
 1000  quit

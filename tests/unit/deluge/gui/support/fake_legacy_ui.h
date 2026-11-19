@@ -24,10 +24,10 @@ class UI;
 /// five, so nothing deriving from `UI` links without them.
 ///
 /// So this file defines exactly those five plus `UI::UI` and `UI::close`, the same arrangement as
-/// `gui/support/fake_legacy_hid.cpp` (the HID buffers) and `scenes/support/fake_shortcuts.cpp`
-/// (the menu shortcut tables). Each one records that it was called and does nothing else, which is
-/// what makes them observable: a spec can assert that `ShellHostUI::exitUI` closed the guest, which
-/// is a fact about `closeUI(this)` and cannot be seen from inside the shell.
+/// `tests/unit/deluge/gui/support/fake_legacy_hid.cpp` (the HID buffers) and
+/// `tests/unit/scenes/menu/support/fake_shortcuts.cpp` (the menu shortcut tables). Each one records that it was called
+/// and does nothing else, which is what makes them observable: a spec can assert that `ShellHostUI::exitUI` closed the
+/// guest, which is a fact about `closeUI(this)` and cannot be seen from inside the shell.
 ///
 /// It also defines `deluge::scenes::scene_registry()`, for the same reason and not the same shape:
 /// `shell_host_ui.cpp` defines the one `shellHostUI` global over the application's real scene table,
@@ -102,9 +102,11 @@ int32_t ui_specific_armed_ms();
 
 /// @name The scheduler's two answers, made settable
 ///
-/// `getSystemTime()` and `isSDRoutineActive()` are declared in `OSLikeStuff/scheduler_api.h` and defined
-/// in the task scheduler, which this suite does not build -- so they are defined here over these two
-/// variables. The guest reads only the second: its clock is `AudioEngine::audioSampleTimer` (above).
+/// `getSystemTime()` is declared in `libdeluge/scheduler.h` and defined in the task scheduler, which this suite does
+/// not build -- so it is defined here over the first variable. `isSDRoutineActive()` is the card-routine answer that
+/// `sdRoutineLock` gives in main (`origin/main:src/deluge/extern.h`); nothing in the tree declares it, and this fake
+/// defines it over the second variable so a spec can hold the card busy and show the guest's input does not depend on
+/// it. The guest reads neither: its clock is `AudioEngine::audioSampleTimer` (above).
 /// @{
 /// What `getSystemTime()` returns, in seconds. The guest's clock is `AudioEngine::audioSampleTimer`, not this.
 extern double system_time_s;
@@ -116,7 +118,7 @@ extern bool sd_routine_active;
 ///
 /// `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm reads `Buttons::isShiftButtonPressed()`
 /// directly, exactly as `SoundEditor::potentialShortcutPadAction` does
-/// (`gui/ui/sound_editor.cpp`) -- not `ctx.shift`, which is the shell's own latch and a
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) -- not `ctx.shift`, which is the shell's own latch and a
 /// different fact. `hid/buttons.cpp`, where the real function reads a matrix-scan flag, is not in
 /// this suite's link closure (only `hid/button.cpp`, singular, is), so it is defined here over one
 /// settable bool, the same pattern as the scheduler's two answers above.
@@ -290,10 +292,10 @@ extern int drum_creator_discards;
 /// `SampleBrowser::exitAction` deletes the drum before `Browser::exitAction` closes.
 extern bool drum_creator_discard_saw_close;
 /// Whether `closeUI` had already run when `saveSettingsBeforeClose()` was called. Must be false: legacy saves before
-/// `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:952-962`).
+/// `exitCompletely`'s `close()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 extern bool settings_save_saw_close;
 /// Whether `closeUI` had already run when `exitNoteModeBeforeClose()` was called. Must be false:
-/// legacy's note arms run before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`).
+/// main's note arms run before `exitCompletely`'s `close()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 extern bool note_exit_saw_close;
 /// Whether `clearKnobIndicatorLevels()` had already run when `exitNoteModeBeforeClose()` was called.
 /// Must be true: the exit goes below the existing indicator clear in `ShellHostUI::closeGuest`.
@@ -311,7 +313,7 @@ extern bool note_exit_saw_knob_clear;
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
 /// under which the real `UITimerManager` would have called `timerCallback()` at all
-/// (`gui/ui_timer_manager.cpp:143-149`). A spec driving `timerCallback()` by hand is standing in for
+/// (`gui/ui_timer_manager.cpp`'s `routine`). A spec driving `timerCallback()` by hand is standing in for
 /// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
 ///
 /// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes

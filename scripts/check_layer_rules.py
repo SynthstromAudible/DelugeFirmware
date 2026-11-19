@@ -80,9 +80,9 @@ ROOT_UI_GLOBALS = (
 # `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
 # `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
 # `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
-# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s at
-# `menu/nodes/roots.cpp:354-360` read and write `allowNormalization`, `exportMixdown` and five more
-# through one macro (`:348`, `:351`). So
+# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s in
+# `menu/nodes/roots.cpp` (the stem-export block, `DELUGE_STEM_TOGGLE`) read and write `allowNormalization`,
+# `exportMixdown` and five more through one macro. So
 # `MenuAction::StartStemExport` is the one
 # verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
 #
@@ -104,8 +104,8 @@ STEM_EXPORT_PROCESS_CALLS = (
 # The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
 # `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global this tree really declares.
 # Both were taken from their `extern` declarations, not from memory:
-# `gui/waveform/waveform_renderer.h:65 extern WaveformRenderer waveformRenderer` and
-# `gui/waveform/waveform_basic_navigator.h:64 extern WaveformBasicNavigator waveformBasicNavigator`.
+# `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`) and
+# `extern WaveformBasicNavigator waveformBasicNavigator` (`gui/waveform/waveform_basic_navigator.h`).
 #
 # `gui/waveform/` is split in two: the *arithmetic* (peak scanning, the scroll/zoom
 # navigator) moved verbatim to `model/sample/waveform_scan.h` and
@@ -150,9 +150,9 @@ CATALOGUE_DISPATCH_CALLS = (
 #
 # `currentUIMode` and `isUIModeActive(` are deliberately NOT here, and the reason is measured
 # rather than assumed: `is_comment_line` does not strip a TRAILING comment, so the three
-# `holding_save_ = true;  // `:240` currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON` lines in
-# `services/global_controls.cpp` would give this row a non-zero baseline out of pure citation
-# text. They are also a different concern -- reading a mode, not driving an output -- which the
+# `holding_save_ = true;` lines in `services/global_controls.cpp`, whose trailing comment names
+# `currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON`, would give this row a non-zero baseline out of pure
+# comment text. They are also a different concern -- reading a mode, not driving an output -- which the
 # ports model as their own booleans.
 LEGACY_HID_DRIVERS = (
     "uiNeedsRendering",
@@ -168,13 +168,13 @@ LEGACY_HID_DRIVERS = (
 # of `CATALOGUE_DISPATCH_CALLS`: it is not a driver call, it is the persisted SETTING BYTE that
 # `flash::Status::readCurrentValue`/`writeCurrentValue`
 # read and write, ported as a value in `menu/nodes/settings.cpp` and recorded there
-# (`nodes/settings.h:320-322`). Excluding the spelling rather than the file keeps the other four
-# drivers -- and every other `PadLEDs::` member -- gated inside `settings.cpp` too.
+# (the `hid/` state note in `nodes/settings.h`). Excluding the spelling rather than the file keeps the other four
+# drivers -- and every other `PadLEDs::` member -- gated inside `menu/nodes/settings.cpp` too.
 LEGACY_HID_DRIVER_RE = (
     r"\b(uiNeedsRendering\(|renderUIsForOled\(|indicator_leds::|"
     r"PadLEDs::(?!flashCursor\b)|uiTimerManager\.)"
 )
-# The UI-stack entry points (`gui/ui/ui.h:184-197`), matched with a following `(`.
+# The UI-stack entry points (declared in `gui/ui/ui.h`), matched with a following `(`.
 UI_STACK_CALLS = (
     "openUI",
     "closeUI",
@@ -192,7 +192,7 @@ UI_STACK_CALLS = (
 # exempt the next `shell_`-prefixed file somebody drops into `gui/ui/`, and the whole value of
 # these two rows is that adding a legacy->port edge is a decision somebody has to write down here.
 #
-# * `deluge.cpp` -- the three boot calls: `scenes::assigned_node_ids()` and the service
+# * `src/deluge/deluge.cpp` -- the three boot calls: `scenes::assigned_node_ids()` and the service
 #   install. `src/scenes/registry.h`'s own note is the boot author's copy of this.
 # * `gui/ui/shell_host_ui.{h,cpp}` -- the guest itself, `ShellHostUI : UI`.
 # * `gui/ui/shell_guest_surfaces.{h,cpp}` -- `GuestSurfaceSet`, the `SurfaceSet` that copies into
@@ -316,9 +316,9 @@ LEGACY_PORT_SEAMS = (
 
 RULES = [
     (
-        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link
-        # closures (`src/bsp/rust/build.rs`, `sim/CMakeLists.txt`), so the link does not stop a
-        # legacy file reaching into the ported UI: this row does.
+        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link closures
+        # (`src/bsp/rust/build/device.rs`, `src/bsp/rust/build/host_app.rs`, `sim/CMakeLists.txt`), so the link does not
+        # stop a legacy file reaching into the ported UI: this row does.
         #
         # The rule: the ported UI enters the firmware
         # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
@@ -448,7 +448,7 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
     (
-        # Spec G §5: the shell reads no wall clock of its own -- every tick and gate deadline is
+        # The shell reads no wall clock of its own -- every tick and gate deadline is
         # driven by the `now_ms` the caller passes in, so the shell can be driven by a fake clock
         # in a spec exactly as it is driven by the real one on device. Two rows, one glob each
         # (this checker matches one glob per rule row): src/shell/** and src/ui/** both apply.
@@ -460,7 +460,7 @@ RULES = [
     ),
     (
         # Same rule, src/ui/** side -- the scenes and widgets that draw on the shell's ticks must
-        # be exactly as clock-free as the shell that drives them (task-5 ratchet extension).
+        # be exactly as clock-free as the shell that drives them.
         "shell-no-clock",
         "src/ui/**",
         "symbol",
@@ -494,7 +494,7 @@ RULES = [
         # the menu's context could not be written at all.
         # NOTE: the pattern's `(?:.*/)` tail means this row only
         # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
-        # `deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
+        # `src/deluge/deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
         # allowed. That is deliberate: dropping the tail would
         # also flag every standard-library include, and this row has no way to tell `<cstdint>`
         # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
@@ -618,7 +618,7 @@ RULES = [
     (
         # Menus draw only through widgets: no direct OledFrame primitive calls from the scene
         # layer. The real risk is `f.<primitive>`, not `canvas.` -- OledFrame exposes
-        # pixel/hline/rect/glyphs directly (ui/oled/frame.h:165-269).
+        # pixel/hline/rect/glyphs directly (`ui/oled/frame.h`).
         #
         # A ratchet against drift, not a proof: this only sees the two local names it lists, so a
         # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
@@ -655,10 +655,10 @@ RULES = [
         # jcong;`, `nodes/settings.cpp`) precisely because the include rule forbids the
         # header -- so an include row alone cannot see the call.
         #
-        # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading
-        # which root UI is current is the same coupling as calling into it: legacy's
-        # `isRelevant() == (getRootUI() == &sessionView)` predicates (`song/midi_learn.h`) are
-        # ported as `MenuContext` questions, not as root-UI reads.
+        # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading which root UI is current
+        # is the same coupling as calling into it: legacy's `isRelevant() == (getRootUI() == &sessionView)` predicates
+        # (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) are ported as `MenuContext` questions, not as
+        # root-UI reads.
         #
         # Same ratchet-not-proof caveat as the rows above: it sees these spellings, not every
         # possible one.
@@ -953,7 +953,7 @@ def count_file(path: Path) -> dict[str, int]:
 
     A SYMBOL rule skips two kinds of line: a comment (`is_comment_line` above) and an
     `#include` directive. A symbol row matches whole words, so without the include skip a path
-    such as `scenes/slicer/slicer_scene.h` would trip `scenes-no-root-ui`'s `slicer` -- a
+    with a `slicer/` directory in it would trip `scenes-no-root-ui`'s `slicer` -- a
     directory name, not the coupling the row exists to forbid.
 
     It loses nothing, and that is checkable rather than argued. Every symbol row here is

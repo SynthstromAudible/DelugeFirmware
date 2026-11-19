@@ -269,8 +269,9 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 	});
 
 	it("reports the held character in held_index, on the press tick and after it", _ {
-		// `held_index` is the level under `index`'s edge -- what a press-and-hold repeat re-reads
-		// every tick (legacy's `UI_MODE_HOLDING_BACKSPACE`, `qwerty_ui.cpp:218-227,449-453`).
+		// `held_index` is the level under `index`'s edge -- what a press-and-hold repeat re-reads every tick (main's
+		// `UI_MODE_HOLDING_BACKSPACE`, set in `QwertyUI::padAction` and repeated by `QwertyUI::timerCallback` in
+		// `qwerty_ui.cpp`).
 		{
 			// The tick of the press: `GridFrame::pad` answers `held` from a mask that already
 			// includes the event being delivered, so both are set.

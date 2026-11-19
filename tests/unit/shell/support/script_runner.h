@@ -119,7 +119,7 @@ struct RunOptions {
 /// board profile). Both are `ParseError`s, deliberately: the two are indistinguishable to the
 /// person reading the failure -- a script line naming something that does not exist -- and a
 /// second error type would only make every caller test two fields to ask one question. The `line`
-/// is the script's own 1-based source line in both cases; line 0 means the failure belongs to no
+/// is the script's own 1-based source line in both cases; a line number of 0 means the failure belongs to no
 /// script line at all (a bad `tick_ms`, or a snapshot that could not be written).
 struct RunResult {
 	/// How many `snapshot` steps were written.
@@ -515,7 +515,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	RunResult result;
 	if (opts.tick_ms == 0) {
 		// `t += 0` never advances and the `t >= last_ms` break only fires for an empty script, so
-		// without this the run hangs rather than saying what is wrong. Line 0: not a script fault.
+		// without this the run hangs rather than saying what is wrong. Line number 0: not a script fault.
 		result.error = detail::make_error(0, "tick_ms must be greater than zero");
 		return result;
 	}
@@ -666,7 +666,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 			}
 			case StepKind::Pad: {
 				// A typo'd coordinate should be an error naming the line here, exactly as
-				// host_script.c's validate_script rejects the same thing at load (M-2): without
+				// host_script.c's validate_script rejects the same thing at load: without
 				// this, a negative `s.a`/`s.b` narrows to a large positive `uint8_t` and is handed
 				// to the shell's matrix handler to do something undefined with, rather than being
 				// caught the way `unknown button` etc. already are.
@@ -679,7 +679,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				}
 				// `Step::down` is deliberately unread: the parser already folds `up` into velocity
 				// 0 (`tests/harness/ui_script.cpp`'s `pad ... up` parse), which is exactly what `DELUGE_EVENT_PAD`'s
-				// `value` means ("0 = release", `control_surface.h:50`), so the two would say the same thing twice.
+				// `value` means ("0 = release", `control_surface.h`), so the two would say the same thing twice.
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(s.a),
 				                                      static_cast<uint8_t>(s.b), static_cast<int16_t>(s.c)},
 				                     t);
@@ -722,7 +722,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					// Not reachable today (the queue is drained at the top of every run, and no
 					// committed script pushes enough notices in one run to fill it), but a full
 					// queue silently dropping a script's `notice` step is the same silent-loss
-					// class I-1 fixes for `.state` lines (M-7): the golden would record a screen
+					// class as a `.state` line lost to truncation: the golden would record a screen
 					// with no popup and nothing would say why.
 					result.error = detail::make_error(line, "notice queue full");
 					return result;
@@ -754,7 +754,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		for (const std::string& name : due_snapshots) {
 			for (uint8_t i = 0; i < fake.oled().size(); i++) {
 				if (!deluge::harness::write_file(out_dir, name + ".oled" + std::to_string(i) + ".pbm", fake.pbm(i))) {
-					// Line 0: an I/O failure belongs to no script line -- see `RunResult::error`.
+					// Line number 0: an I/O failure belongs to no script line -- see `RunResult::error`.
 					result.error = detail::make_error(0, "could not write a snapshot pbm");
 					return result;
 				}
@@ -765,7 +765,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				// Mirrors level 3's hard failure on the same overflow (host_script.c's
 				// HOST_SCRIPT_STATE_MAX_LINES / script_fail): a `.state` that lost a line rather
 				// than merely truncating one is a golden that has quietly stopped telling two
-				// screens apart, which is the one thing this harness exists to prevent (I-1).
+				// screens apart, which is the one thing this harness exists to prevent.
 				result.error = detail::make_error(0, "snapshot \"" + name + "\": .state needed more than 256 lines");
 				return result;
 			}

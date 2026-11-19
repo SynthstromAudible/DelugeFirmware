@@ -1546,7 +1546,7 @@ void actShellSlice() {
 	g_shellBackNoContextRefused = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
-	// What the ported menu edits: the kit's drum, as the clip view selected it.
+	// What the menu edits: the kit's drum, as the clip view selected it.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
 	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);

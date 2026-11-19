@@ -1,4 +1,4 @@
-# ShellMenu: shortcut pads with an audition pad held inside the sound menu. From the content card's synth clip, SELECT
+# Shortcut pads with an audition pad held inside the sound menu. From the content card's synth clip, SELECT
 # opens the sound menu, and with audition pad (17,3) held the LPF frequency shortcut (8,7) jumps to the FILTER page;
 # BACK leaves the menu. Then the clip is made a kit: with drum row 0 selected and its menu open, row 2 auditioned +
 # (8,7) opens row 0's FILTER page (the selection stays on row 0), a turn edits row 0's LPF, BACK leaves, and SHIFT +

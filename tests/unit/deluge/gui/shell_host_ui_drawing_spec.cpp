@@ -37,7 +37,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(copy_of(OLED::main.bytes())).to_equal(rendered);
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
-		// time it calls here (`gui/ui/ui.cpp:396`).
+		// time it calls here (`doAnyPendingOLEDRendering` in `gui/ui/ui.cpp`).
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
@@ -171,7 +171,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		// `UI`'s contract: quizzable without any rendering (`UI::renderMainPads`). Legacy asks it
 		// this way in `uiNeedsRendering` (`gui/ui/ui.cpp`) and in `closeUI`
-		// (`:186-187`).
+		//.
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_true();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -234,7 +234,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 	});
 
 	it("draws the clip view's sidebar under a marker over the keyboard screen", _ {
-		// `SampleMarkerEditor::renderSidebar` (`gui/ui/sample_marker_editor.cpp:875-881`): over the
+		// `SampleMarkerEditor::renderSidebar` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): over the
 		// keyboard screen, `instrumentClipView`'s sidebar; over any other root, the UI underneath's.
 		Rig r;
 		r.marker.overlay = true;
@@ -294,7 +294,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		// `SoundEditor::blinkShortcut` flashes through `PadLEDs::flashMainPad`, index
 		// `y + x * kDisplayHeight`, with the colour code it was set up with
-		// (`sound_editor.cpp:1205-1245`).
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		r.base.flashes = {{3, 2, FlashColour::Default}, {14, 5, FlashColour::Yellow}};
 		tick(10);
 		const fakelegacy::PadFlash none{255, -1};
@@ -438,7 +438,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 	});
 
 	it("hands the main pads back when the guest closes while it owns them", _ {
-		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp:233-241`), and by
+		// `closeUI` asks the closing guest whether it drew the pads (`gui/ui/ui.cpp`), and by
 		// then its stack is empty and answers no -- so the guest itself must ask for the root view's
 		// main pads, or the keyboard's last frame stays on them.
 		Rig r;
@@ -459,7 +459,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		}
 		expect(mainAsked).to_be_true();
 		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
-		// its stack (`gui/ui/ui.cpp:336-360`), so a request after the close would be dropped.
+		// its stack (`gui/ui/ui.cpp`), so a request after the close would be dropped.
 		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
 		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close)).to_equal(fakelegacyui::UiCall::Render);
 		expect(nth_or(fakelegacyui::ui_calls, 1, fakelegacyui::UiCall::Render)).to_equal(fakelegacyui::UiCall::Close);
@@ -467,8 +467,8 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 	it("asks for the sidebar when a marker comes to answer for it, and again when it goes", _ {
 		// `SampleMarkerEditor::opened` asks for the sidebar over any root but the clip view
-		// (`gui/ui/sample_marker_editor.cpp:133-135`): its `renderSidebar` answers for the root
-		// (`:875-881`), so the sidebar must be drawn again through it.
+		// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): its `renderSidebar` answers for the root
+		// -- so the sidebar must be drawn again through it.
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::None;
@@ -523,9 +523,9 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
-		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
+		// `SoundEditor::canSeeViewUnderneath()` is true (`origin/main:src/deluge/gui/ui/sound_editor.h`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
-		// animation only while it does (`gui/ui/ui.cpp:76-80`).
+		// animation only while it does (`gui/ui/ui.cpp`).
 		r.base.occludes = false;
 		expect(r.guest.canSeeViewUnderneath()).to_be_true();
 
@@ -534,7 +534,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		// It is emphatically not `oled_transparent(Main)`, which this scene never changes: legacy
 		// keeps OLED transparency in the `oledShowsUIUnderneath` member instead (`gui/ui/ui.h`),
-		// and `Slicer` holds the two at opposite values on one object (`gui/ui/slicer.h:33-38`).
+		// and `Slicer` holds the two at opposite values on one object (`origin/main:src/deluge/gui/ui/slicer.h`).
 		expect(r.guest.oledShowsUIUnderneath).to_be_false();
 	});
 
@@ -546,11 +546,10 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		r.base.regions = PadRegions::None;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
-		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
-		// the next UI down is about to be asked with (`gui/ui/ui.cpp:103-113`), so a false answer must
-		// leave them alone.
+		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask (`menu::greyout_mask`,
+		// `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me" (`UI::getGreyoutColsAndRows` in
+		// `gui/ui/ui.h`). The two out-parameters are accumulators the caller zeroed and the next UI down is about to be
+		// asked with (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`), so a false answer must leave them alone.
 		r.base.greyout = {};
 		uint32_t cols = 0xDEADBEEF;
 		uint32_t rows = 0xFEEDFACE;
@@ -576,7 +575,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(rows).to_equal(uint32_t(0x00000080));
 
 		// A scene above with an empty mask obeys the one beneath, as legacy's top-down walk does
-		// (`gui/ui/ui.cpp:103-113`): a popup over the menu leaves the menu's greyout standing.
+		// (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`): a popup over the menu leaves the menu's greyout standing.
 		r.over.overlay = true;
 		r.over.regions = PadRegions::None;
 		r.over.greyout = {};
@@ -631,7 +630,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 	it("reports the greyout while it owns the pads, so legacy greys the guest's pixels once", _ {
 		// Legacy greys whatever `PadLEDs::image` holds in its send path (`prepareColour`,
-		// `hid/led/pad_leds.cpp:284-298`), the guest's pixels included.
+		// `hid/led/pad_leds.cpp`), the guest's pixels included.
 		Rig r;
 		r.base.overlay = true;
 		r.base.regions = PadRegions::Main;

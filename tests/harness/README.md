@@ -9,7 +9,7 @@ and compiled directly into the host BSP. **This directory must not include anyth
   (`ui_script_load` / `ui_script_next_due`) for the host BSP.
 - `snapshot.{h,cpp}` -- the `.state` formatter (`StateLines`), an `oled_pbm` PBM writer, and
   `write_file`.
-- `fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
+- `tests/harness/fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
   it isn't shared).
 
 ## Script format
@@ -143,15 +143,15 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
    failure is the point: it proves the run itself succeeds (no parse/run error, the right
    number of snapshots) *before* any golden exists to hide behind.
 4. Asserting `snapshots == N` and diffing against the golden pins the *count*, but not what the
-   golden actually says (M-10): a golden that was recorded wrong the first time then passes
+   golden actually says: a golden that was recorded wrong the first time then passes
    forever against itself. Where practical, also read a fact back out of the run's own `.state`/
    `.pbm` output (`tests/unit/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
    case is the pattern to follow -- it checks the pressed pad's colour, the two LEDs' declared
    states, and that each counter step actually redrew the OLED) rather than trusting the golden
    diff alone the way `"boots to the splash..."`/`"navigates, shows a popup..."` do.
 
-**A `snapshot` step at the same `at_ms` as an input step orders differently at the two levels**
-(M-4): level 3 applies every due step and then writes pending snapshots in the same pump call
+**A `snapshot` step at the same `at_ms` as an input step orders differently at the two levels**:
+level 3 applies every due step and then writes pending snapshots in the same pump call
 (`host_script.c`'s `host_script_pump`), so a `snapshot` that shares the input's own `at_ms` sees
 the *pre*-input screen -- the app has not yet consumed the event it just queued. Level 2 ticks the
 shell (which consumes the input) before writing the snapshot, so the same script sees the

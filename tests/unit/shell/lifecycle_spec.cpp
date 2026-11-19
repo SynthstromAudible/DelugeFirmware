@@ -20,7 +20,8 @@ namespace {
 /// The kind the application's song-root scene registers under in these specs.
 constexpr SceneKind kRoot = SceneKind::FirstApp;
 
-/// @brief A BUTTON event at matrix (x, y), as `tick_spec.cpp`/`input_lowering_spec.cpp` build them.
+/// @brief A BUTTON event at matrix (x, y), as
+/// `tests/unit/shell/tick_spec.cpp`/`tests/unit/shell/input_lowering_spec.cpp` build them.
 DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
 	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
 }
@@ -189,8 +190,9 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("the idle deadline arriving while the working animation runs pushes no screensaver", _ {
-		// `Screensaver::tick` (`hid/display/screensaver.cpp:113-120`): the working animation inhibits it, and each
-		// inhibited check re-arms the full timeout from then.
+		// `shell::Screensaver::tick` (`src/shell/screensaver.cpp`) mirrors `Screensaver::timerEvent`
+		// (`hid/display/screensaver.cpp`): the working animation inhibits it, and each inhibited check re-arms the full
+		// timeout from then.
 		deluge::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
@@ -221,7 +223,8 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.tick(0);
 		r.shell.tick(1000);
 		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
-		// While showing, the service re-checks its inhibitors (`kInhibitRecheckMS`, `screensaver.cpp:183-184`).
+		// While showing, the service re-checks its inhibitors (`kInhibitRecheckMS` in `Screensaver::timerEvent`,
+		// `hid/display/screensaver.cpp`).
 		expect(r.shell.next_wake().has_value()).to_be_true();
 
 		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
@@ -249,7 +252,8 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 	});
 
 	it("a working animation that ends before the idle deadline does not move it", _ {
-		// Main asks about inhibitors only when the deadline comes (`screensaver.cpp:115-120`).
+		// Main asks about inhibitors only when the deadline comes (`Screensaver::timerEvent` in
+		// `hid/display/screensaver.cpp`).
 		deluge::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
@@ -267,7 +271,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 
 	it("a timed popup does not inhibit the screensaver", _ {
 		// Legacy's inhibitors are the permanent-looking popup class, the working animation and stem export only
-		// (`screensaver.cpp:106-113`): an ordinary popup is covered.
+		// (`Screensaver::timerEvent`'s inhibitor arm in `hid/display/screensaver.cpp`): an ordinary popup is covered.
 		deluge::notify::dirty().drain();
 		drain_global_notices();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
@@ -384,9 +388,9 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Screensaver);
 		expect(r.screensaver.enters).to_equal(1);
 
-		// The OFF arm (`:171-174`'s `unsetTimer`), and legacy's ordering: the wake is unconditional
-		// and happens *before* the OFF test, so switching the screensaver off while it is showing
-		// takes it down rather than stranding the panel.
+		// The OFF arm (`Screensaver::settingsChanged`'s `unsetTimer` in `hid/display/screensaver.cpp`), and legacy's
+		// ordering: the wake is unconditional and happens *before* the OFF test, so switching the screensaver off while
+		// it is showing takes it down rather than stranding the panel.
 		r.shell.set_screensaver_idle_ms(0);
 		expect(r.shell.screensaver_idle_ms()).to_equal(uint32_t(0));
 		expect(r.shell.stack().top().kind()).to_equal(kRoot);

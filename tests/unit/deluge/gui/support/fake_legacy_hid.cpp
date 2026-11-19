@@ -33,7 +33,7 @@ namespace deluge::hid::display {
 oled_canvas::Canvas OLED::main;
 bool OLED::needsSending = false;
 
-// The fake stands in for `OLED::sendMainImage` (`hid/display/oled.cpp:335-385`) and keeps the two
+// The fake stands in for `OLED::sendMainImage` (`hid/display/oled.cpp`) and keeps the two
 // things about it a guest can observe: it does nothing when the flag is down, and it lowers the
 // flag when it sends. Everything else that function does -- the screensaver swap, the console and
 // popup compositing, the sysex mirror, the actual `deluge_display_blit_oled` -- belongs to legacy
@@ -59,7 +59,7 @@ RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 // that if the array exists to be looked at.
 uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 
-// Stands in for `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`). The real one reads `image`
+// Stands in for `sortLedsForCol` (`hid/led/pad_leds.cpp`). The real one reads `image`
 // through `prepareColour` and pushes the pair to the control surface; the fake records the column
 // it was asked for and pushes what `image` holds *at that moment*, which is what lets a spec check
 // that the guest wrote the buffer BEFORE asking legacy to send it, not after.
@@ -104,7 +104,7 @@ namespace indicator_leds {
 
 bool ledStates[NUM_LED_COLS * NUM_LED_ROWS];
 
-// Stands in for `setLedState` (`hid/led/indicator_leds.cpp:42-52`): records the call and keeps
+// Stands in for `setLedState` (`hid/led/indicator_leds.cpp`): records the call and keeps
 // `ledStates[]` as the real one does. The real one also stops any blinker on the LED.
 void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	(void)allowContinuedBlinking;

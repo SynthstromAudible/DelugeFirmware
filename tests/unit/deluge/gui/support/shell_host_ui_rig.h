@@ -430,8 +430,8 @@ inline void set_clock_ms(uint32_t ms) {
 ///
 /// Nothing here decides when the guest should run. Each round reads the duration the guest last
 /// asked `uiTimerManager` for, advances the clock by exactly that, clears the timer the way
-/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp:63-67`), and calls
-/// `timerCallback()` the way that function's `UI_SPECIFIC` arm does (`:142-148`). A guest that
+/// `UITimerManager::routine` does before it dispatches (`gui/ui_timer_manager.cpp`), and calls
+/// `timerCallback()` the way that function's `UI_SPECIFIC` arm does. A guest that
 /// re-arms nothing ends the loop early -- which is what makes "the blink froze on an idle system" a
 /// failed expectation rather than a slow test.
 /// @return The clock each callback ran at, in order; shorter than \p rounds if the chain stopped.

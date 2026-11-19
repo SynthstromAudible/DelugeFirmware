@@ -34,11 +34,11 @@ namespace icons = deluge::gfx::oled::icons;
 //      inverting branch is `invertAreaRounded(...)`, which forwards `roundedCornersEnabled` and,
 //      when set, clears the four corner pixels back off. `kDelugeStyle48.rounded` is true, so
 //      the corners stay dark and the pixels one row in are lit. Asserted both ways below.
-//  D2. `list` draws no scrollbar: neither legacy menu renderer draws one -- there is no
+//  D2. `list` draws no scrollbar: neither of main's menu renderers draws one -- there is no
 //      scrollbar anywhere in the firmware to port -- so `list` draws none and `scrollbar` is
 //      specified and tested on its own.
 //  D5. `list` takes an explicit rect (`list(f, rect, ListState&, span<ListRow>)`) rather than
-//      always painting the whole frame. `menu_rect(f)` returns the rect a legacy menu occupies,
+//      always painting the whole frame. `menu_rect(f)` returns the rect a main menu occupies,
 //      and the first scene below asserts that the resulting pixels are identical to painting
 //      the whole frame.
 

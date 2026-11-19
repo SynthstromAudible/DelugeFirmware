@@ -121,7 +121,7 @@ constexpr std::string_view kWaveTableHeader = "tests/unit/deluge/dsp-next/waveta
 constexpr std::string_view kPitchHeader = "tests/integration/scenarios/pitch_pin_records.h";
 
 /// Pin proposeLoadCandidates()'s policy: which paths a load tries, in what order. The async loader opens candidates
-/// in exactly this order, so a wrong order silently opens the wrong file or misses one it used to find.
+/// in exactly this order, so a wrong order silently opens the wrong file or misses one the right order would find.
 bool checkProposeLoadCandidates() {
 	bool ok = true;
 	using Candidates = std::array<std::string, AudioFileManager::kMaxLoadCandidates>;
@@ -310,17 +310,17 @@ bool checkSampleBuildAbandon() {
 	//      fills. Caught by the crash loop below -- the next begin()'s adopt eventually hits
 	//      AudioFileManager::adoptAudioFileObject's FREEZE_WITH_ERROR("RAF1"): a hard, unmistakable
 	//      stop rather than a silent pass.
-	//  (b) A leak that drops the lease but never actually destroys the object (e.g. abandon() calls
-	//      removeReason() but not destroyAudioFileObject()): the chunk sits adopted but UNLEASED, so
-	//      it stays evictable, and deluge_resource_adopt's own table-full path silently reclaims it
-	//      via evict_lowest() (manager.rs) when room is needed. The crash loop above would then never
-	//      fail -- begin() just keeps succeeding as old leaked chunks get quietly evicted to make
-	//      room -- so it is blind to this shape. evict_lowest() DOES bump `DelugeResourceStats.
-	//      evictions` (manager.rs:1054) even though the deliberate evict_chunk() a correct abandon()
-	//      goes through does not (manager.rs:1296-1312) -- so a correct run should see zero evictions
-	//      here (nothing in this test creates real memory pressure), and a stats reset immediately
-	//      before the loop plus an `evictions == 0` assertion immediately after catches shape (b)
-	//      without needing a live chunk-count query the public C ABI doesn't expose.
+	//  (b) A leak that drops the lease but never actually destroys the object (e.g. abandon() calls removeReason() but
+	//      not destroyAudioFileObject()): the chunk sits adopted but UNLEASED, so it stays evictable, and
+	//      deluge_resource_adopt's own table-full path silently reclaims it via evict_lowest()
+	//      (`crates/deluge_resource/src/manager.rs`) when room is needed. The crash loop above would then never fail --
+	//      begin() just keeps succeeding as old leaked chunks get quietly evicted to make room -- so it is blind to
+	//      this shape. evict_lowest() DOES bump `DelugeResourceStats. evictions`
+	//      (`crates/deluge_resource/src/manager.rs`) even though the deliberate evict_chunk() a correct abandon() goes
+	//      through does not -- so a correct run should see zero evictions here (nothing in this test creates real
+	//      memory pressure), and a stats reset immediately before the loop plus an `evictions == 0` assertion
+	//      immediately after catches shape (b) without needing a live chunk-count query the public C ABI doesn't
+	//      expose.
 	{
 		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
 		if (mgr != nullptr) {

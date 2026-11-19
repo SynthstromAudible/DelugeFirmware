@@ -18,7 +18,7 @@
 420   button Back up
 440   snapshot after_back
 # The select press above does not ascend -- `source0_transpose` / `lpf_freq` are `PatchedParam`
-# nodes, whose `selectButtonPress` opens the source picker (`gui/menu_item/patched_param.cpp:32-38`).
+# nodes, whose `selectButtonPress` opens the source picker (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`).
 # The Back above comes back to the leaf; the select turn below is what edits it a second time, and
 # keeps this script's "the value moved" assertion about the leaf's own kind.
 500   encoder Select +2               # 1.00 -> 3.00: `decimal_value` claims the select turn, not the

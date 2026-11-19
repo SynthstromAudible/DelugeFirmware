@@ -2,7 +2,7 @@
 # opening `context_menu::ContextMenuScene` over the menu, and the menu's own `go_up_on_resume`
 # behaviour when that scene closes.
 #
-# Legacy is `reset_settings::Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
+# Legacy is `reset_settings::Reset::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`):
 # `openUI(&contextMenu)` plus `soundEditor.shouldGoUpOneLevelOnBegin = true`. The port spells the two
 # as `MenuState::pending_scene` + `MenuState::go_up_on_resume`, drained in `MenuScene::after_render`.
 #

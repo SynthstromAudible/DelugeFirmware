@@ -28,7 +28,7 @@ namespace {
 /// Legacy's own numbers, written out here rather than reached for through the port, so this file
 /// is a second opinion on them rather than an echo. `kNumBytesInColUpdateMessage = 49`,
 /// `kNumBytesInSidebarRedraw = kNumBytesInColUpdateMessage`, `kNumBytesInMainPadRedraw =
-/// kNumBytesInColUpdateMessage * 8` (`src/definitions_cxx.hpp:95`, `:98`, `:100`).
+/// kNumBytesInColUpdateMessage * 8` (`src/definitions_cxx.hpp`).
 constexpr uint32_t kLegacyColUpdate = 49;
 constexpr uint32_t kLegacyMainPadRedraw = kLegacyColUpdate * 8;
 constexpr uint32_t kLegacySidebarRedraw = kLegacyColUpdate;
@@ -40,7 +40,7 @@ constexpr uint32_t kLegacyOledGate = (kLegacyMainPadRedraw + kLegacySidebarRedra
 constexpr size_t kLegacyPanelBytes = OLED_MAIN_WIDTH_PIXELS * OLED_MAIN_HEIGHT_PIXELS / 8;
 
 /// `indicator_leds::LED::PLAY` is `fromCartesian(playButtonCoord)` = (8, 3) -> 8 + 3 * 9 = 35
-/// (`src/deluge/hid/led/indicator_leds.h:54`), which is also what the Deluge profile's
+/// (`src/deluge/hid/led/indicator_leds.h`), which is also what the Deluge profile's
 /// `led_by_button` carries for `ButtonId::Play`.
 constexpr uint8_t kPlayBoardLed = 35;
 
@@ -261,8 +261,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		expect(fakelegacy::oled_marked()).to_be_false();
 
 		// And the other half of the predicate: right HEIGHT, wrong width. Without this, a
-		// `fits_legacy_panel` that compared height alone passed every example in this file --
-		// mutation 19, which survived until this block was added. Both boards above are 96 and 64
+		// `fits_legacy_panel` that compared height alone passed every example in this file
+		// without this block. Both boards above are 96 and 64
 		// rows, so height alone rejects them.
 		static constexpr DelugeDisplayDesc kNarrow[] = {{64, 48, 5}};
 		DelugeBoard narrowBoard = kDelugeBoard;
@@ -340,7 +340,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		}
 		// KNOWN GAP, stated here rather than implied by an assertion that cannot see it.
 		// `send_columns` writes rows 0..rows-1, but `sortLedsForCol` reads
-		// `image[y][x]` for every `y < kDisplayHeight` (`hid/led/pad_leds.cpp:267-272`), so on a
+		// `image[y][x]` for every `y < kDisplayHeight` (`hid/led/pad_leds.cpp`), so on a
 		// board shorter than legacy's 8 rows the remaining rows go out as whatever `image` last
 		// held. This example cannot cover that: `fakelegacy::reset()` zeroed the whole image, so
 		// asserting row 4 is black would pass for the wrong reason. What is asserted is only the
@@ -371,7 +371,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 	// ---- ownership by region: main pads and sidebar ---------------------------------------------
 
 	it("writes a Main-only stack's pairs 0-7 and leaves pair 8 of PadLEDs::image as legacy left it", _ {
-		// `QwertyUI::drawKeys` draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`); the sidebar
+		// `QwertyUI::drawKeys` draws the main pads only (`gui/ui/qwerty_ui.cpp`); the sidebar
 		// is the root view's, drawn by legacy.
 		ShellRig r;
 		r.base.regions = PadRegions::Main;
@@ -496,7 +496,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		r.set.flash_pad(14, 5, FlashColour::Palette6);
 		r.set.flash_pad(0, 5, FlashColour::Yellow);
 		// `flashMainPad` indexes `y + x * kDisplayHeight` and sends colour 0 as the plain flash
-		// (`hid/led/pad_leds.h:128-135`).
+		// (`hid/led/pad_leds.h`).
 		const fakelegacy::PadFlash none{255, -1};
 		expect(fakelegacy::pad_flashes.size()).to_equal(size_t(3));
 		expect(nth_or(fakelegacy::pad_flashes, 0, none).idx).to_equal(uint8_t(2 + 3 * 8));

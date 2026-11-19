@@ -16,7 +16,7 @@
  */
 
 /// See `host_script_tables.h` for why this is its own translation unit: it must link into both
-/// the host BSP and `deluge_spec` (`tests/unit/harness/tables_spec.cpp`'s cross-check), and
+/// the host BSP and the unit specs (`tests/unit/harness/tables_spec.cpp`'s cross-check), and
 /// `host_script.c` proper cannot -- it pulls in BSP statics. This file depends on nothing beyond
 /// the C standard library.
 
@@ -31,7 +31,7 @@ typedef struct HostScriptButton {
 } HostScriptButton;
 
 /// The Deluge's 4 × 9 button matrix, row-major, exactly as `src/shell/profiles/deluge.cpp`'s
-/// `kMatrix` spells it (which is `src/definitions_cxx.hpp:59-84` in turn). Names are
+/// `kMatrix` spells it (which is the `*ButtonCoord` constants of `src/definitions_cxx.hpp` in turn). Names are
 /// `shell::button_name()`'s (`src/shell/profile.cpp`). `ButtonId::None` holes -- (4,0) and
 /// (4,2) -- carry no button and so are absent.
 static const HostScriptButton k_buttons[] = {

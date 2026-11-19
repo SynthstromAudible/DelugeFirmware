@@ -1,4 +1,4 @@
-# ShellMenu: AFFECT ENTIRE in a kit row's sound menu. The content card's synth clip is made a kit and drum row 0's menu
+# AFFECT ENTIRE in a kit row's sound menu. The content card's synth clip is made a kit and drum row 0's menu
 # opened over the clip view. On the root list (a row that enters a submenu, which does not use affect-entire) AFFECT
 # ENTIRE toggles the clip's affect-entire, as the clip view's own button does: its LED lights and stays. SHIFT + (8,7)
 # opens the row's FILTER page on LPF frequency, which does use it: holding AFFECT ENTIRE blinks its LED fast (the hold

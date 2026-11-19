@@ -1,11 +1,13 @@
 # Level-2 acceptance: the action seam (`scenes/menu/action.h`) -- a
 # `nodes::ActionItem` whose whole body is "file one `MenuAction` and get out of the way".
 #
-# Legacy's four (`stem_export/start.h:51`, `audio_clip/set_clip_length_equal_to_sample_length.h:31`,
-# `song/midi_learn.h:33`, `song/configure_macros.h:33`) all set `shouldEnterSubmenu()` to false, so
-# `SoundEditor` calls `selectButtonPress()` WITHOUT navigating (`gui/ui/sound_editor.cpp:420-423`).
-# The port has no such flag: it descends for one tick, `on_focus` files the request, and
-# `after_render`'s drain ascends straight back out. From the user's side the two are the same
+# Main's four (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`,
+# `origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`,
+# `origin/main:src/deluge/gui/menu_item/song/midi_learn.h`,
+# `origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) all set `shouldEnterSubmenu()` to false, so
+# `SoundEditor` calls `selectButtonPress()` WITHOUT navigating (`SoundEditor::buttonAction` in
+# `origin/main:src/deluge/gui/ui/sound_editor.cpp`). The port has no such flag: it descends for one tick, `on_focus`
+# files the request, and `after_render`'s drain ascends straight back out. From the user's side the two are the same
 # gesture, and "the same gesture" is precisely a claim about pixels.
 #
 # So the press deliberately has NO snapshot. There is nothing for one to show: the frame after the

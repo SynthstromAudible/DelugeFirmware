@@ -1,9 +1,8 @@
-# ShellMenu with HorizontalMenus off: what a toggle draws. SETTINGS > COMMUNITY FEATURES' DRUM RANDOMIZER (a
-# SettingToggle) shows a checkbox that SELECT flips in place, twice. OSC SYNC (Shift + pad (3,7), legacy's osc::Sync,
-# a Toggle) opens alone: main lists DISABLED and ENABLED, ours OFF and ON (D134, accepted); a Select detent moves
-# between them. PING-PONG (Shift +
-# pad (14,4), a toggle Selection) opens alone and lists its own options. A black encoder drops the first detent of its
-# first turn after boot and of a reversal: COMMUNITY FEATURES is row 11, so +12.
+# With HorizontalMenus off: what a toggle draws. SETTINGS > COMMUNITY FEATURES' DRUM RANDOMIZER (a
+# SettingToggle) shows a checkbox that SELECT flips in place, twice. OSC SYNC (Shift + pad (3,7), a Toggle) opens
+# alone and lists DISABLED and ENABLED, as main's `Toggle::getNameFor` does; a Select detent moves between them.
+# PING-PONG (Shift + pad (14,4), a toggle Selection) opens alone and lists its own options. A black encoder drops the
+# first detent of its first turn after boot and of a reversal: COMMUNITY FEATURES is row 11, so +12.
 # card: tests/fixtures/card-shell-menu-vertical.card
 100   snapshot boot
 300   button Shift down

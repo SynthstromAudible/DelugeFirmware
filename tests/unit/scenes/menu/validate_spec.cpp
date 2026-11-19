@@ -7,7 +7,7 @@
 /// be resolved, and the real shortcut tables are cross-checked in
 /// `sim/scenes_spec/shortcuts_spec.cpp`. What is checked here is the rule engine itself -- one fake
 /// tree that breaks four rules at once, and one that breaks none -- with the shortcut lookup the
-/// `ShortcutToNothing` rule sweeps supplied by `support/fake_shortcuts.h`.
+/// `ShortcutToNothing` rule sweeps supplied by `tests/unit/scenes/menu/support/fake_shortcuts.h`.
 
 #include "modulation/params/param.h"
 #include "scenes/menu/context.h"
@@ -43,8 +43,8 @@ public:
 
 /// @brief The **one** shared `CustomItem` every custom node below points at.
 ///
-/// Fix round 2, I4: the cap counts *nodes*, not distinct instances, so the case that must trip it
-/// is exactly the one the old distinct-instance count could not see -- many nodes behind one
+/// The cap counts *nodes*, not distinct instances, so the case that must trip it
+/// is exactly the one a distinct-instance count could not see -- many nodes behind one
 /// implementation, which is what the real tree does with `nodes::kPending`. Sharing one item here
 /// means this example fails if the rule ever goes back to counting instances.
 const NullItem kSharedItem;

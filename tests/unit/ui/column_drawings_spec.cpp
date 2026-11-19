@@ -37,7 +37,8 @@ void draw(uitest::Rig48& r, const DrawColumn& data) {
 	               [&](OledFrame& slot) { draw_column(slot, false, const_cast<DrawColumn*>(&data)); });
 }
 
-/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`), its `uint8_t`s kept.
+/// `voice::Portamento::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/voice/portamento.h`), its
+/// `uint8_t`s kept.
 void legacy_portamento(Canvas& image, float norm) {
 	constexpr uint8_t porta_graphics_width = 25;
 	const uint8_t center_x = kStartX + kWidth / 2;
@@ -67,7 +68,7 @@ void legacy_portamento(Canvas& image, float norm) {
 	image.draw_horizontal_line(porta_start_y + 1, porta_x1 + note_offset, higher_note_end_x);
 }
 
-/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`).
+/// `unison::Detune::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/unison/detune.h`).
 void legacy_detune(Canvas& image, float norm) {
 	for (int i = 0; i < 3; ++i) {
 		constexpr int32_t line_spacing = 5;
@@ -100,7 +101,7 @@ void legacy_detune(Canvas& image, float norm) {
 	}
 }
 
-/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`).
+/// `osc::PulseWidth::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`).
 void legacy_pulse_width(Canvas& image, int32_t value) {
 	const float norm = value / 50.0f;
 	constexpr int32_t x_padding = 4;
@@ -119,8 +120,8 @@ void legacy_pulse_width(Canvas& image, int32_t value) {
 	image.draw_horizontal_line(end_y, pw_x, end_x);
 }
 
-/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`): `Number::drawBar` (`number.cpp:156-173`) over the
-/// value clamped to 0..24, and the inverted "!" above 24.
+/// `delay::Amount::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/delay/amount.h`): `Number::drawBar`
+/// (`origin/main:src/deluge/gui/menu_item/number.cpp`) over the value clamped to 0..24, and the inverted "!" above 24.
 void legacy_delay_amount(Canvas& image, int32_t value) {
 	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 5;
@@ -151,7 +152,8 @@ void legacy_delay_amount(Canvas& image, int32_t value) {
 	}
 }
 
-/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`) over a two-slot region.
+/// `osc::AudioRecorder::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) over a
+/// two-slot region.
 void legacy_recorder(Canvas& image, int32_t width, int32_t source, bool current, bool full_inversion) {
 	const uint8_t start_x = kStartX + 8;
 	const uint8_t start_y = kStartY + kSlotYOffset + 6;
@@ -176,7 +178,7 @@ void legacy_recorder(Canvas& image, int32_t width, int32_t source, bool current,
 	}
 }
 
-/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`).
+/// `sample::LoopPoint::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`).
 void legacy_loop_point(Canvas& image, bool start) {
 	const int32_t line_x = start ? kStartX + 8 : kStartX + kWidth - 12;
 	for (int32_t y = kStartY + kSlotYOffset - 1; y <= kStartY + kHeight - 5; y += 2) {
@@ -186,7 +188,8 @@ void legacy_loop_point(Canvas& image, bool start) {
 	image.draw_icon(deluge::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
 }
 
-/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
+/// (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`).
 void legacy_clip_end(Canvas& image) {
 	const int32_t line_x = kStartX + kWidth - 6;
 	for (int32_t y = kStartY + 1; y <= kStartY + kHeight - 5; y += 2) {

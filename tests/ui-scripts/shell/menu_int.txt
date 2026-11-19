@@ -7,11 +7,11 @@
 # legacy's `Integer::selectEncoderAction`, never the gold pair. Both turns below are `Select`, and
 # both move `nodes::saturation`.
 #
-# `int_value` claims no gold input, so there is no gold-knob debounce question here.
-# `menu_gold_turn.txt` drives this exact node (`nodes::saturation`) with a SEEDED `ModKnobs` and
-# shows what a gold turn does when it reaches the service instead of the widget:
-# it moves a real, unrelated param and pushes a popup, because `nodes::saturation` -- built with
-# `int_item()` -- has no `bind.param` of its own for `ModKnobs::popup_suppressed` to match against.
+# `int_value` claims no gold input, so there is no gold-knob debounce question here. `menu_gold_turn.txt` drives this
+# exact node (`nodes::saturation`) with a SEEDED `ModKnobs` and shows what a gold turn does when it reaches the service
+# instead of the widget: it moves a real, unrelated param and pushes a popup, because `nodes::saturation` -- built with
+# `int_item()` -- has no `bind.param` of its own for `GuestKnobPresentation::suppress_value_popup`
+# (`src/scenes/services/guest_knob_presentation.h`) to match against.
 #
 # Level-2 acceptance: an Int leaf (nodes::saturation), opened directly at depth 0.
 # The generic recipe every menu_* script drives; the C++ spec pins the node and the model asserts.

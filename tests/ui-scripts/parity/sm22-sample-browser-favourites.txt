@@ -1,4 +1,4 @@
-# ShellMenu: the sample browser's favourites row. On CLIPS' first file a main-pad press shows the keyboard with the
+# The sample browser's favourites row. On CLIPS' first file a main-pad press shows the keyboard with the
 # favourites on row 7; SHIFT + (0,7) sets favourite 0 to the file; a move hides the keyboard, a press on (0,7) shows it
 # and another loads the favourite (its pad flashes every 500 ms: two windows 250 ms apart); SHIFT + Vertical recolours
 # it; SHIFT + (0,7) unsets it.

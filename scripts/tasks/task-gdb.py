@@ -2,7 +2,7 @@
 """dbt gdb — attach GDB to the device through the server `dbt debug` runs.
 
 Builds the device image (unless --no-build) and opens arm-none-eabi-gdb on the ELF `dbt build` stages at
-build/<Config>/deluge.elf, connected to the debug server on :3333. It attaches to the running firmware; it does not
+build/<Config>/deluge.elf, connected to the debug server on port 3333. It attaches to the running firmware; it does not
 load an image.
 """
 

@@ -9,10 +9,9 @@
 /// deliberately never builds that closure (`tests/trees/host/CMakeLists.txt`), yet it *does* compile
 /// `validate.cpp`, which calls `shortcut_node` for its `ShortcutToNothing` rule.
 ///
-/// So the host suite links this fake instead: the same three entry points over one installable
-/// table, which is exactly what `validate_spec.cpp` needs to drive that rule over fake trees. The
-/// real tables are cross-checked against legacy in `sim/scenes_spec/shortcuts_spec.cpp`, where the
-/// model closure exists.
+/// So the host suite links this fake instead: the same three entry points over one installable table, which is exactly
+/// what `tests/unit/scenes/menu/validate_spec.cpp` needs to drive that rule over fake trees. The real tables are
+/// cross-checked against legacy in `sim/scenes_spec/shortcuts_spec.cpp`, where the model closure exists.
 
 #include "scenes/menu/shortcuts.h"
 

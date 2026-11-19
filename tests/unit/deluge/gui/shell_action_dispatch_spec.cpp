@@ -2,15 +2,13 @@
 /// @brief `ShellHostUI::timerCallback`'s poll of the menu's action outbox -- that it happens, how
 ///        often, on which paths, and after what.
 ///
-/// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()`
-/// is stubbed here, in `gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices`
-/// already is: the real one reads
-/// `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`, `stemExport`
-/// and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
-/// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or
-/// even that the outbox is what gets read** -- that half is
-/// `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions` groups (the drain,
-/// and one per verb body), in the binary that links the real scene.
+/// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()` is stubbed
+/// here, in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices` already
+/// is: the real one reads `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`,
+/// `stemExport` and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
+/// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or even that the outbox
+/// is what gets read** -- that half is `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions`
+/// groups (the drain, and one per verb body), in the binary that links the real scene.
 ///
 /// What is left is the half that exists nowhere else: the call site. And it is the half that the
 /// hazard is actually about. `MenuScene::take_action()` is "a one-slot mailbox with a silent

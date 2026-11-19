@@ -287,10 +287,10 @@ void runTick() {
 	}
 
 	case Stage::TemplateArm:
-		// The one Missing branch that WRITES. StartupSongMode::TEMPLATE makes `usingTemplate` true, which
-		// is what routes CheckCanary -> CheckTemplate at all (startup_song_policy.cpp:31); with no canary
-		// and no template on the card, CheckTemplate answers Missing and the machine CREATES the template
-		// -- StartupPhase::WriteTemplate, which stages the document and writes it through the byte channel.
+		// The one Missing branch that WRITES. StartupSongMode::TEMPLATE makes `usingTemplate` true, which is what
+		// routes CheckCanary -> CheckTemplate at all (`nextStartupPhase` (`startup_song_policy.cpp`)); with no canary
+		// and no template on the card, CheckTemplate answers Missing and the machine CREATES the template --
+		// StartupPhase::WriteTemplate, which stages the document and writes it through the byte channel.
 		//
 		// Nothing reached this before: the existing legs run LASTOPENED, so `usingTemplate` is false and
 		// CheckTemplate is skipped entirely -- the template write was never reached by this gate without

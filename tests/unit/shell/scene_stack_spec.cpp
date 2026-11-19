@@ -278,7 +278,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	//
 	// The four rows below pin a shell hazard: `SceneKind::Popup` is a scene here where legacy's
 	// popup is a display overlay, so `remove`ing one must not fire `on_resume` on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
-	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table.
+	// (`origin/main:src/deluge/gui/ui/slicer.cpp`), which wipes the slice table.
 
 	it("has an input scene only while a non-transparent scene is stacked", _ {
 		Rig r;
@@ -367,7 +367,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	it("a refused replace_top resumes the scene it exited, whatever the input top is", _ {
 		// `replace_top`'s rollback is the one arm that is *not* an input-top question.
 		// `changeUIAtLevel`'s failure path calls `oldUI->focusRegained()` unconditionally
-		// (`gui/ui/ui.cpp:126-131`), and it is right to: the previous scene really was exited, so
+		// (`gui/ui/ui.cpp`), and it is right to: the previous scene really was exited, so
 		// `on_resume` is the paired notification for an `on_exit` that ran, not a claim about the
 		// top. Here the restored scene is the passive layer, and it is still the one told.
 		Rig r;

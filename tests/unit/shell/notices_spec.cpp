@@ -42,7 +42,7 @@ Notice make_notice(Notice::Kind kind, std::string_view text = {}, uint8_t popup_
 
 /// Legacy's `Error::NONE`/`Error::ABORTED_BY_USER`, mirrored numerically on the same terms as
 /// `notices.cpp`'s own `kErrorNone`/`kErrorAbortedByUser` (see that file's citation of
-/// `definitions_cxx.hpp:455,474`) -- kept as a separate copy here rather than reused from
+/// `Error` in `definitions_cxx.hpp`) -- kept as a separate copy here rather than reused from
 /// `notices.cpp`'s anonymous namespace, so the spec pins the *values* `Notices::drain` is
 /// contractually bound to suppress, not merely whatever constant the implementation happens to
 /// define.
@@ -243,7 +243,7 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("Error suppresses NONE and ABORTED_BY_USER, exactly as OLED::displayError does", _ {
-		// oled.cpp:1173-1180: `switch (error) { case Error::NONE: case Error::ABORTED_BY_USER:
+		// `OLED::displayError` (`oled.cpp`): `switch (error) { case Error::NONE: case Error::ABORTED_BY_USER:
 		// return; ... }` -- displayPopup is never reached for either code.
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, kErrorNone));
@@ -262,9 +262,9 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a Warn text notice is persistent; a later notice replaces it and re-arms the timeout", _ {
-		// notify_drain.cpp:137 (`flashes = (severity == Warn) ? 0 : 3`) feeds
+		// `notify_drain.cpp` (`flashes = (severity == Warn) ? 0 : 3`) feeds
 		// OLED::displayPopup's `persistent = !numFlashes` (`oled.h`), so a Warn text notice
-		// never sets TimerName::DISPLAY (oled.cpp:642) and so never auto-expires.
+		// never sets TimerName::DISPLAY (`OLED::popupText` in `oled.cpp`) and so never auto-expires.
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
 		r.notices.drain(r.queue, 0);
@@ -278,7 +278,7 @@ describe shell_notices("shell::Notices", $ {
 
 		// A later, non-persistent notice replaces it and re-arms the ordinary timeout -- no
 		// special "cancel persistence" step, exactly as legacy's OLED::popupText unconditionally
-		// re-decides persistence on every call (oled.cpp:636-643).
+		// re-decides persistence on every call (`oled.cpp`).
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, r.notices.timeout_for(1) * 100);
 		expect(r.stack.depth()).to_equal(size_t(1)); // still just the one popup
@@ -368,7 +368,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 
 		// An application scene, pushed above the live popup -- legitimate, since the popup never took
-		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` now has its
+		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` has its
 		// own expiry-driven removal, so a `Console` pushed here with no active lines would be
 		// removed by the very `tick()` below this test means to check ONLY pops the expired popup.
 		expect(r.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
@@ -393,7 +393,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.stack.top().kind()).to_equal(SceneKind::FirstApp);
 
 		// `show_popup_with_timeout` must find the popup by scanning the whole stack, not just `top()`
-		// (which now reads the stand-in scene) -- otherwise this pushes a second `SceneKind::Popup`
+		// (which reads the stand-in scene) -- otherwise this pushes a second `SceneKind::Popup`
 		// entry pointing at the same `PopupScene` instance.
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SECOND"));
 		r.notices.drain(r.queue, 10);
@@ -417,7 +417,7 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a popup is drawn over what the scene beneath shows on the OLED, as legacy's is composited", _ {
-		// `OLED::sendMainImage` (`hid/display/oled.cpp:364-376`) draws a popup onto the image the UI beneath left, so
+		// `OLED::sendMainImage` (`hid/display/oled.cpp`) draws a popup onto the image the UI beneath left, so
 		// around the popup's window the screen still shows that UI. Transparent on Main is what makes the shell's
 		// walk draw the scene beneath first.
 		Rig r;
@@ -429,7 +429,7 @@ describe shell_notices("shell::Notices", $ {
 		// The shell picks the grid base as the topmost scene that is *not* a grid overlay and
 		// clears the grid before drawing it, so a notice that claimed to be the base -- having no
 		// `render_grid` of its own -- would leave the pads black. Legacy's popups, console lines
-		// and working animation are OLED-only (`OLED::sendMainImage`, `oled.cpp:364-376`): the
+		// and working animation are OLED-only (`OLED::sendMainImage`, `oled.cpp`): the
 		// pads keep showing the view underneath.
 		Scene* const all[] = {&r.popup, &r.console, &r.working, &r.notification};
 		for (Scene* scene : all) {
@@ -476,11 +476,11 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a console line's glyphs are not clipped -- E and F must not render identically", _ {
-		// Round-1 review finding: `ConsoleScene::render_oled` drew each line into a `kLineHeight`-tall
-		// region shorter than `FontId::Apple7`'s real height (`text_height_for`, 9 -- `ui/core/metrics.h`'s
-		// own note that this face draws one row lower than its 7-row sibling), which clipped every
+		// `ConsoleScene::render_oled` must draw each line into a region as tall as
+		// `FontId::Apple7`'s real height (`text_height_for`, 9 -- `ui/core/metrics.h`'s
+		// own note that this face draws one row lower than its 7-row sibling); a shorter region clips every
 		// glyph's bottom row. `E` and `F` differ ONLY in that bottom bar, so they are the cheapest
-		// possible shape probe: a set-pixel COUNT assertion (the pre-existing "actually drew
+		// possible shape probe: a set-pixel COUNT assertion (the "actually drew
 		// something" check above) cannot tell a clipped `E` from a clipped `F` -- both lose the same
 		// row and come out identical -- but a full-frame comparison can, and must.
 		ConsoleScene e;
@@ -521,7 +521,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(std::string(notice_kind_name(Notice::Kind::CancelNotification)))
 		    .to_equal(std::string("CancelNotification"));
 
-		// Legacy composites the popup over the running UI's image (`oled.cpp:364-376`) and routes
+		// Main composites the popup over the running UI's image (`OLED::sendMainImage` in `oled.cpp`) and routes
 		// it no input.
 		expect(r.notification.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(r.notification.input_transparent()).to_be_true();
@@ -536,7 +536,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(banner.pbm()).to_equal(widget.pbm());
 
 		// Top-pinned: legacy's band is `OLED_MAIN_TOPMOST_PIXEL` to `+ kTextSpacingY + 1`
-		// (`oled.cpp:750-751`), so nothing below that band is lit.
+		// (`OLED::displayNotification` in `oled.cpp`), so nothing below that band is lit.
 		const int32_t top = banner.frame.origin.y;
 		const int32_t end_y = deluge::ui::oled::text_height_for(banner.frame.style.row_font) + 1;
 		bool lit_below = false;
@@ -550,7 +550,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("the banner lives legacy's 2000 ms DISPLAY timer, then tick() removes it", _ {
 		// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp`); its expiry runs
-		// `OLED::timerRoutine` -> `removePopup()` (`gui/ui_timer_manager.cpp`, `oled.cpp`).
+		// `OLED::timerRoutine` -> `removePopup()` (`hid/display/oled.cpp`, dispatched by `gui/ui_timer_manager.cpp`).
 		Rig r;
 		(void)r.queue.push(make_notification("Probability", "100%"));
 		r.notices.drain(r.queue, 100);
@@ -567,7 +567,7 @@ describe shell_notices("shell::Notices", $ {
 	   "takes it down", _ {
 		// `OLED::timerRoutine` (`oled.cpp`): while a working animation runs, the `DISPLAY`
 		// timer's expiry animates instead of calling `removePopup()`, and the banner stays until
-		// `removeWorkingAnimation` takes a `NOTIFICATION` popup down (`:735-736`).
+		// `removeWorkingAnimation` takes a `NOTIFICATION` popup down.
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
 		(void)r.queue.push(make_notification("Probability", "100%"));
@@ -664,8 +664,8 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a second Notification replaces the banner and restarts its 2000 ms", _ {
-		// One popup slot: `setupPopup` overwrites it (`oled.cpp:122-132`) and `setTimer` re-arms
-		// `DISPLAY` (`:794`).
+		// One popup slot: `setupPopup` overwrites it (`oled.cpp`) and `setTimer` re-arms
+		// `DISPLAY` (`OLED::displayNotification`).
 		Rig r;
 		(void)r.queue.push(make_notification("Probability", "100%"));
 		r.notices.drain(r.queue, 0);
@@ -706,9 +706,9 @@ describe shell_notices("shell::Notices", $ {
 
 	it("CancelNotification with no sink removes only the banner: a popup, a Console line and a scene "
 	   "above all stay", _ {
-		// Legacy's cancel is guarded on the slot holding a NOTIFICATION
-		// (`horizontal_menu.cpp:363-365`, `:587-589`), and `removePopup` never touches the console
-		// (`oled.cpp:253-258`).
+		// Legacy's cancel is guarded on the slot holding a NOTIFICATION (`HorizontalMenu::switchVisiblePage`,
+		// `switchHorizontalMenu` and `endSession` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), and
+		// `removePopup` never touches the console (`oled.cpp`).
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, 0);
@@ -768,7 +768,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("the banner shares legacy's one popup slot: a popup replaces it, it replaces a popup, and "
 	   "CancelPopup and ClearWorking take it down", _ {
-		{ // `popupText` -> `setupPopup` overwrites the slot (`oled.cpp:605-618`, `:122-132`).
+		{ // `popupText` -> `setupPopup` overwrites the slot (`oled.cpp`).
 			Rig r;
 			(void)r.queue.push(make_notification("Probability", "100%"));
 			(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
@@ -776,7 +776,7 @@ describe shell_notices("shell::Notices", $ {
 			expect(stacked(r, SceneKind::Notification)).to_be_false();
 			expect(stacked(r, SceneKind::Popup)).to_be_true();
 		}
-		{ // `displayNotification` -> `setupPopup` overwrites it the other way (`oled.cpp:768`).
+		{ // `displayNotification` -> `setupPopup` overwrites it the other way (`oled.cpp`).
 			Rig r;
 			(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 			(void)r.queue.push(make_notification("Probability", "100%"));
@@ -784,14 +784,14 @@ describe shell_notices("shell::Notices", $ {
 			expect(stacked(r, SceneKind::Popup)).to_be_false();
 			expect(stacked(r, SceneKind::Notification)).to_be_true();
 		}
-		{ // `cancelPopup` -> `removePopup` has no type test (`oled.h:164`, `oled.cpp:253-258`).
+		{ // `cancelPopup` -> `removePopup` has no type test (`oled.h`, `oled.cpp`).
 			Rig r;
 			(void)r.queue.push(make_notification("Probability", "100%"));
 			(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
 			r.notices.drain(r.queue, 0);
 			expect(stacked(r, SceneKind::Notification)).to_be_false();
 		}
-		{ // `removeWorkingAnimation` removes a NOTIFICATION popup (`oled.cpp:733-737`).
+		{ // `removeWorkingAnimation` removes a NOTIFICATION popup (`oled.cpp`).
 			Rig r;
 			(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
 			(void)r.queue.push(make_notification("Probability", "100%"));

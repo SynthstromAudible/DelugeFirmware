@@ -22,30 +22,30 @@ namespace {
 constexpr SceneKind kBase = SceneKind::FirstApp;
 
 /// `LedId`'s values equal `ButtonId`'s for the LEDs under buttons (the rule `shell/leds.h` states), and
-/// the extended `uitest::test_profile_input`'s `led_by_button` (`fake_surfaces.h`) wires `Play` to
+/// the extended `uitest::test_profile_input`'s `led_by_button` (`tests/support/mocks/fake_surfaces.h`) wires `Play` to
 /// board LED 9 -- exactly the id/board-index pair this file's LED-diff spec needs.
 constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Play));
 constexpr uint8_t kPlayBoardLed = 9;
 
 /// Legacy's byte budget for one main-grid column-pair send, independently of `surfaces.h`'s
 /// `kBytesPerColumnPair`: `kNumBytesInColUpdateMessage = 49` and `kNumBytesInMainPadRedraw =
-/// kNumBytesInColUpdateMessage * 8` (`src/definitions_cxx.hpp:94,100`) for the whole 8-pair main
+/// kNumBytesInColUpdateMessage * 8` (`src/definitions_cxx.hpp`) for the whole 8-pair main
 /// grid, so one pair is that figure divided by 8.
 constexpr int32_t kLegacyNumBytesInColUpdateMessage = 49;
 constexpr int32_t kLegacyNumBytesInMainPadRedraw = kLegacyNumBytesInColUpdateMessage * 8;
 static_assert(kBytesPerColumnPair == static_cast<uint32_t>(kLegacyNumBytesInMainPadRedraw / 8));
 
 /// Legacy's full greyout strength (`setGreyoutAmount(1)` -> `greyProportion = 1 * 6500000`,
-/// `hid/led/pad_leds.cpp:786-788`), repeated here (as `tick_spec.cpp` also does) so this file pins
+/// `hid/led/pad_leds.cpp`), repeated here (as `tests/unit/shell/tick_spec.cpp` also does) so this file pins
 /// the value the `GreyOut` tween is bound to rather than reusing whatever constant the
 /// implementation happens to define.
 constexpr int32_t kGreyoutAmountFull = 6500000;
-/// Legacy's backpressure retry interval (`setTimerForSoon`, `hid/led/pad_leds.cpp:1063-1067`:
+/// Legacy's backpressure retry interval (`setTimerForSoon`, `hid/led/pad_leds.cpp`:
 /// `uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 20)`), independently of `shell.cpp`'s own
 /// (unexported) constant of the same value.
 constexpr uint32_t kBackpressureRetryMs = 20;
-/// Legacy's `UI_MS_PER_REFRESH` (`board_config.h:55`), the `Fade` tween's step cadence
-/// (`renderFade`, `pad_leds.cpp:1478`).
+/// Legacy's `UI_MS_PER_REFRESH` (`board_config.h`), the `Fade` tween's step cadence
+/// (`renderFade`, `pad_leds.cpp`).
 constexpr uint32_t kFadeCadenceMs = 50;
 
 /// @brief `count` distinct colours, deterministic from `seed`, for a scroll-tween spec: a flat
@@ -296,7 +296,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.grid().dirty).to_be_true(); // pair 6 is still owed
 		// Intra-pair byte order: column `pair * 2` (2, untouched -- the flat `colour`) rows 0..7,
 		// then column `pair * 2 + 1` (3, overridden) rows 0..7 -- `sortLedsForCol`'s order
-		// (`pad_leds.cpp:265-272`), which `read_column_pair` ports.
+		// (`pad_leds.cpp`), which `read_column_pair` ports.
 		const ColumnPair& pair1 = r.fake.columns_sent.back().second;
 		for (uint8_t i = 0; i < 8; i++) {
 			expect(pair1.colours[i]).to_equal(r.base.colour);
@@ -534,7 +534,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.row_colours = to_rows;
 		r.shell.tick(100); // halfway: offset == 1
 
-		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp:1430-1455`): the sidebar moves
+		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp`): the sidebar moves
 		// with the rows, unlike the horizontal case -- `scroll_vertical` shifts every column.
 		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
 		for (uint8_t y = 0; y < dims.rows; y++) {
@@ -561,7 +561,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		// Grey every row (and therefore every pad, regardless of column) -- sidesteps
-		// `GreyoutMask`'s right-to-left column numbering (see `tick_spec.cpp`'s greyout test).
+		// `GreyoutMask`'s right-to-left column numbering (see `tests/unit/shell/tick_spec.cpp`'s greyout test).
 		r.base.mask = deluge::ui::grid::GreyoutMask{.cols = 0, .rows = 0xFF};
 		r.shell.init({kBase, 0});
 		RGB colour{120, 90, 60};
@@ -582,7 +582,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.grid().grid().at(0, 0)).not_().to_equal(full_grey);
 
 		// Past the duration, the ramp settles back at full strength -- legacy's `amountDone > 1`
-		// snap (`pad_leds.cpp:984-987`), matching the ordinary static pass that resumes right after.
+		// snap (`timerRoutine` in `pad_leds.cpp`), matching the ordinary static pass that resumes right after.
 		r.shell.tick(250);
 		expect(r.fake.grid().grid().at(0, 0)).to_equal(full_grey);
 	});

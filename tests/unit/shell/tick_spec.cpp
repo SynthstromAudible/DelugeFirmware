@@ -45,7 +45,7 @@ constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(3);
 constexpr deluge::ui::LedId kRecordLed = static_cast<deluge::ui::LedId>(4);
 constexpr deluge::ui::LedId kSongLed = static_cast<deluge::ui::LedId>(5);
 
-/// @brief A BUTTON event at matrix (x, y), as `input_lowering_spec.cpp` builds them.
+/// @brief A BUTTON event at matrix (x, y), as `tests/unit/shell/input_lowering_spec.cpp` builds them.
 DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
 	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
 }
@@ -407,7 +407,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 		r.consume_pending();
 
-		// Play, at matrix (8, 3) -- `definitions_cxx.hpp:68`, mirrored in `test_profile_input`.
+		// Play, at matrix (8, 3) -- `playButtonCoord` (`definitions_cxx.hpp`), mirrored in `test_profile_input`.
 		const size_t blits_before = r.fake.blits.size();
 		r.shell.on_board_event(button_ev(8, 3, true), 25);
 		r.shell.tick(30);

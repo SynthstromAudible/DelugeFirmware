@@ -158,9 +158,10 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("draws a continuous integer in the Big face over main's value bar", _ {
-		// `IntegerContinuous::drawPixelsForOled` (`gui/menu_item/integer.cpp:63-72`): `drawInteger(kTextBigSpacingX,
-		// kTextBigSizeY, 15)` then `drawHorizontalBar(35, 10)` (`number.cpp:33-71`, height 8), the bar at a
-		// canvas-absolute row with no `OLED_MAIN_TOPMOST_PIXEL` term.
+		// `IntegerContinuous::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`):
+		// `drawInteger(kTextBigSpacingX, kTextBigSizeY, 15)` then `drawHorizontalBar(35, 10)`
+		// (`origin/main:src/deluge/gui/menu_item/number.cpp`, height 8), the bar at a canvas-absolute row with no
+		// `OLED_MAIN_TOPMOST_PIXEL` term.
 		const auto legacy_bar = [](deluge::gfx::oled::Canvas& c, int32_t value, int32_t min, int32_t max) {
 			const int32_t left_most = 10 + 2;
 			const int32_t right_most = 128 - 10 - 3;
@@ -208,9 +209,10 @@ describe values_w("ui::oled::values", $ {
 		legacy_bar(pan.reference, -12, -32, 32);
 		expect(pan.pbm()).to_equal(pan.reference_pbm());
 
-		// The 64-row panel's branch (`integer.cpp:65-66`) asks `drawInteger(13, 15, 20)` for a height with no font, which
-		// garbles the glyphs; the port draws the huge face cleanly at row 20 (DIFFERENCES.md D46, accepted), with the bar
-		// inverted over the digits it overlaps.
+		// The 64-row panel's branch (`IntegerContinuous::drawPixelsForOled` in
+		// `origin/main:src/deluge/gui/menu_item/integer.cpp`) asks `drawInteger(13, 15, 20)` for a height with no font,
+		// which garbles the glyphs; the port draws the huge face cleanly at row 20 (DIFFERENCES.md D46, accepted), with
+		// the bar inverted over the digits it overlaps.
 		uitest::Rig64 tall;
 		int32_t t = 28;
 		int_value(tall.frame, tall.frame.bounds(), t, Range{.min = 0, .max = 50}, ValueStyle{.continuous = true});
@@ -265,7 +267,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("applies the select turn only when focused and clamps to the range", _ {
-		// Legacy `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`): add, then clamp.
+		// Legacy `Integer::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): add, then clamp.
 		uitest::Rig48 r;
 		int32_t value = 125;
 		r.input.turn = 3;
@@ -292,7 +294,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("scales the select turn by 5 while shift is held", _ {
-		// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp`) multiplies a
+		// `SoundEditor::selectEncoderAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) multiplies a
 		// non-submenu item's offset by 5 while SHIFT is held.
 		uitest::Rig48 r;
 		int32_t value = 10;
@@ -304,8 +306,8 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("ignores the gold knobs", _ {
-		// Legacy's gold knobs never reach a menu item: `SoundEditor::modEncoderAction` falls through
-		// to `View::modEncoderAction` (`gui/views/view.cpp`), which edits a param.
+		// Main's gold knobs never reach a menu item: `SoundEditor::modEncoderAction` falls through
+		// to `View::modEncoderAction` (`origin/main:src/deluge/gui/views/view.cpp`), which edits a param.
 		uitest::Rig48 r;
 		int32_t value = 10;
 		r.input.edit[0] = 4;
@@ -472,7 +474,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("moves a decimal by 10^edit_pos per select detent", _ {
-		// Legacy `Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`).
+		// Legacy `Decimal::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`).
 		uitest::Rig48 r;
 		int32_t value = 100;
 		int8_t edit_pos = 1;
@@ -889,7 +891,7 @@ describe values_w("ui::oled::values", $ {
 
 	// ---------------------------------------------------------------- range_value
 
-	// `Range::drawPixelsForOled` (`gui/menu_item/range.cpp:97-131`) is a *different* legacy routine
+	// `Range::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/range.cpp`) is a *different* legacy routine
 	// from `Integer::drawPixelsForOled`, and the difference is load-bearing: it centres on
 	// `kTextHugeSpacingX * character_count` -- a monospaced width -- where Integer centres on
 	// `get_string_width_in_pixels`. For "60" the two agree by luck; for the strings below they do
@@ -905,8 +907,8 @@ describe values_w("ui::oled::values", $ {
 		expect(resp.focused).to_be_true();
 		expect(resp.changed).to_be_false();
 
-		// getText's mayShowJustOne arm (`integer_range.cpp:79-84`): rightLength 0, so textLength
-		// is 3, stringWidth 54, stringStartX (128 - 54) >> 1 == 37.
+		// getText's mayShowJustOne arm (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`): rightLength 0, so
+		// textLength is 3, stringWidth 54, stringStartX (128 - 54) >> 1 == 37.
 		r.reference.draw_string("120", 37, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "ui/widgets/range_value_point_48.pbm", r.pbm());
@@ -943,8 +945,9 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("shows both ends even when they are equal, once an edge is selected", _ {
-		// `mayShowJustOne` is `editingRangeEdge == RangeEdit::OFF` (`range.cpp:102`), so selecting an
-		// edge on a coincident pair reveals the hyphen -- which is how the user sees there are two.
+		// `mayShowJustOne` is `editingRangeEdge == RangeEdit::OFF` (`Range::drawPixelsForOled` in
+		// `origin/main:src/deluge/gui/menu_item/range.cpp`), so selecting an edge on a coincident pair reveals the
+		// hyphen -- which is how the user sees there are two.
 		uitest::Rig48 r;
 		int32_t lower = 7, upper = 7;
 		RangeEdge edge = RangeEdge::Left;
@@ -957,9 +960,9 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("inverts the selected end plus one row above and below, at both geometries", _ {
-		// `range.cpp:117-130`: LEFT inverts from stringStartX for leftLength digits; RIGHT inverts
-		// backwards from stringEndX for rightLength. The band is `baseY .. baseY + digitHeight + 1`
-		// with `baseY` already decremented by one, i.e. digitHeight + 2 rows.
+		// `Range::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/range.cpp`): LEFT inverts from stringStartX
+		// for leftLength digits; RIGHT inverts backwards from stringEndX for rightLength. The band is
+		// `baseY .. baseY + digitHeight + 1` with `baseY` already decremented by one, i.e. digitHeight + 2 rows.
 		uitest::Rig48 left;
 		int32_t l = 90, u = 150;
 		RangeEdge edge = RangeEdge::Left;
@@ -993,20 +996,20 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("walks the edge with the horizontal encoder exactly as Range::horizontalEncoderAction does", _ {
-		// `range.cpp:35-84` as a table: a turn towards the end already selected switches editing
-		// off; any other turn selects the end the turn points at.
+		// `Range::horizontalEncoderAction` (`origin/main:src/deluge/gui/menu_item/range.cpp`) as a table: a turn
+		// towards the end already selected switches editing off; any other turn selects the end the turn points at.
 		struct Step {
 			RangeEdge from;
 			int8_t horizontal;
 			RangeEdge to;
 		};
 		const Step steps[] = {
-		    {RangeEdge::Off, -1, RangeEdge::Left},    // `:52-53`
-		    {RangeEdge::Off, 1, RangeEdge::Right},    // `:73-74`
-		    {RangeEdge::Left, -1, RangeEdge::Off},    // `:44-46`
-		    {RangeEdge::Left, 1, RangeEdge::Right},   // `:73-74` from LEFT
-		    {RangeEdge::Right, 1, RangeEdge::Off},    // `:67-68`
-		    {RangeEdge::Right, -1, RangeEdge::Left},  // `:52-53` from RIGHT
+		    {RangeEdge::Off, -1, RangeEdge::Left},
+		    {RangeEdge::Off, 1, RangeEdge::Right},
+		    {RangeEdge::Left, -1, RangeEdge::Off},
+		    {RangeEdge::Left, 1, RangeEdge::Right},
+		    {RangeEdge::Right, 1, RangeEdge::Off},
+		    {RangeEdge::Right, -1, RangeEdge::Left},
 		    {RangeEdge::Left, 0, RangeEdge::Left},    // no turn, no move
 		};
 		for (const Step& step : steps) {
@@ -1024,7 +1027,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("moves the selected range edge on the select turn", _ {
-		// Legacy `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:33`).
+		// Legacy `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
 		uitest::Rig48 r;
 		int32_t lower = 3, upper = 9;
 		RangeEdge edge = RangeEdge::Left;
@@ -1067,8 +1070,8 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("pushes the far end with RangeClamp::Push, the IntegerRange rule", _ {
-		// `IntegerRange::selectEncoderAction` (`integer_range.cpp:39-52`): each end moves inside
-		// [min, max] and drags the other along rather than crossing it.
+		// `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`): each end
+		// moves inside [min, max] and drags the other along rather than crossing it.
 		{
 			uitest::Rig48 r;
 			int32_t lower = 100, upper = 100;
@@ -1105,8 +1108,8 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("bounds each end against the other with RangeClamp::Bound, the KeyRange rule", _ {
-		// `KeyRange::selectEncoderAction` (`key_range.cpp:36-43`): the other end IS the bound, so
-		// an end stops dead at its neighbour and the neighbour never moves. This is the example that
+		// `KeyRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`): the other end IS the
+		// bound, so an end stops dead at its neighbour and the neighbour never moves. This is the example that
 		// separates the two policies: with Push the same detent would give 6-6.
 		{
 			uitest::Rig48 r;
@@ -1143,9 +1146,10 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("with no edge selected, moves a coincident pair as one and refuses to move a split one", _ {
-		// The one statement both subclasses share (`integer_range.cpp:57-67`,
-		// `key_range.cpp:48-57`), and the reason it matters: a range the user has not opened an
-		// edge on behaves exactly like a plain number until it is split.
+		// The one statement both subclasses share (`IntegerRange::selectEncoderAction` in
+		// `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::selectEncoderAction` in
+		// `origin/main:src/deluge/gui/menu_item/key_range.cpp`), and the reason it matters: a range the user has not
+		// opened an edge on behaves exactly like a plain number until it is split.
 		{
 			uitest::Rig48 r;
 			int32_t lower = 100, upper = 100;

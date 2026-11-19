@@ -137,9 +137,8 @@ void deluge_scenario_start_stem_export(int32_t mode) {
 	stemExport.renderOffline = true;
 	stemExport.exportToSilence = true;
 	stemExport.exportMixdown = (stemMode == StemExportType::MIXDOWN);
-	// A MIXDOWN is the full master output, so it must include the song-level FX — see
-	// host_render_main.cpp's deluge_render_driver() (the field-for-field reference this
-	// mirrors) for the mechanical reason: the offline render path only feeds a recorder
+	// A MIXDOWN is the full master output, so it must include the song-level FX, for a mechanical
+	// reason: the offline render path only feeds a recorder
 	// whose channel is OFFLINE_OUTPUT, which is selected only when includeSongFX is set.
 	if (stemMode == StemExportType::MIXDOWN) {
 		stemExport.includeSongFX = true;

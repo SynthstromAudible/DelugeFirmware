@@ -219,7 +219,7 @@ enum class Stage : uint8_t {
 	Listing,       ///< The load browser lists SONGS, as a song loaded from it leaves it.
 	InertRun,      ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
 	EditorSetup,   ///< retired_song: the loaded song is given a synth clip.
-	EditorRun,     ///< ...the ported menu on top, NEXT_SONG, and the swap watched.
+	EditorRun,     ///< ...the menu on top, NEXT_SONG, and the swap watched.
 	AuditionSetup, ///< held_audition: an audition pad held on the clip view when NEXT_SONG arrives.
 	AuditionRun,   ///< ...the note must end when the UIs are taken down, not at the swap.
 	NoteSetup,     ///< tapped_note: a note pad tapped on the clip view when NEXT_SONG arrives.
@@ -282,7 +282,7 @@ bool g_modButtonReleased = false;
 int32_t g_preSwapSteps = 0;
 int32_t g_postSwapSteps = 0;
 int32_t g_staleEditor = 0;
-/// retired_song: whether the ported menu was still open, editing the outgoing song, once the load was over.
+/// retired_song: whether the menu was still open, editing the outgoing song, once the load was over.
 bool g_guestOnOldSong = false;
 int32_t g_staleView = 0;
 

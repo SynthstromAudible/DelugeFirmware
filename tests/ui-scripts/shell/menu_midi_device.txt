@@ -7,10 +7,12 @@
 #   * which CABLE  -- `MidiDevicesItem` publishes `MenuState::midi_cable_choice`, and
 #     `MenuScene::after_render` copies it into `MenuContext::midi_cable` (mailbox 3);
 #   * which DIRECTION -- `MpeDirectionItem` republishes `MenuState::mpe_direction` every frame
-#     (`midi_device.cpp`, legacy's `DirectionSelector::writeCurrentValue`);
+#     (`scenes/menu/nodes/midi_device.cpp`, main's `DirectionSelector::writeCurrentValue` in
+#     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`);
 #   * which ZONE -- `MpeZoneItem` does the same for `MenuState::mpe_zone`;
 #   * which VALUE -- `MpeZoneChannelsItem::commit` turns all three into one `MIDIPort` field
-#     (`mpe/zone_num_member_channels.cpp:66-85`).
+#     (`ZoneNumMemberChannels::writeCurrentValue` in
+#     `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).
 #
 # The script picks the SECOND cable, the OUT direction and the UPPER zone -- the non-default arm of
 # every one of the three -- so a port that dropped any selection writes a different byte on a

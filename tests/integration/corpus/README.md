@@ -1,13 +1,13 @@
 # Corpus runners (host)
 
 Each `<name>_run.py` here sweeps the song corpus (and the committed songs and presets beside it) through
-golden_vt_render, one song per run through `driver.py`, and judges each run itself; its registry entry names it with
+golden_vt_render, one song per run through `tests/integration/corpus/driver.py`, and judges each run itself; its registry entry names it with
 `runner = "corpus"` and `corpus_runner = "<name>"`. What a runner compares with lives under `tests/golden/<consumer>/`
 (`tests/golden/README.md`).
 
-## Song serialization round-trip (`songs_run.py`)
+## Song serialization round-trip (`tests/integration/corpus/songs_run.py`)
 
-Regression net for the **project-model extraction** (Phase 0 — see
+Regression net for the **project-model extraction** (see
 [docs/dev/project_model_extraction.md](../../../docs/dev/project_model_extraction.md)).
 It pins the *serialization behaviour* of `Song` so any accidental change to what
 gets written to disk during the extraction is caught.

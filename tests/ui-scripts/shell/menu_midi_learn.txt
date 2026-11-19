@@ -1,9 +1,9 @@
 # Level-2 acceptance: a global-MIDI-command learn item (nodes::midi_command_play),
 # entered from the MIDI COMMANDS list with its slot already learned.
 #
-# `midi::Command` (`gui/menu_item/midi/command.cpp:33-87` drawPixelsForOled) has exactly two shapes,
+# `midi::Command` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp` drawPixelsForOled) has exactly two shapes,
 # and the interesting transition between them is the select encoder: `Command::selectEncoderAction`
-# (`:88-91`) clears the binding on ANY motion, in either direction, because the item has no value to
+# clears the binding on ANY motion, in either direction, because the item has no value to
 # walk. So one detent takes the three-line device/channel/message readout to the one-line
 # "COMMAND UNASSIGNED".
 #

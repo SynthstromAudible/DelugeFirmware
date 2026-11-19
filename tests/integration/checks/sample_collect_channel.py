@@ -14,9 +14,9 @@ The registry entry requires each marker and the result line; this module judges 
 
 What the checks cover:
   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the source.
-  SC-RENAMED    the fixture's recording really was renamed. Required, because a collect-media save rewrites filePath
-                for recordings and NOTHING else -- so if the rename stops happening, nothing moves in the audio-file
-                vector and SC-ORDERED becomes a check that cannot fail.
+  SC-RENAMED    the fixture's recording really is renamed by the save. Required, because a collect-media save rewrites
+                filePath for recordings and NOTHING else -- so if the rename stops happening, nothing moves in the
+                audio-file vector and SC-ORDERED becomes a check that cannot fail.
   SC-ORDERED    the audio-file list is still sorted and every resident file still findable, once the save is over.
   SC-ATOMIC     the same invariant, checked on EVERY tick while the collection is in flight. This is the one the design
                 is actually for: the hazard is another tier bisecting the vector BETWEEN two transfers, and SC-ORDERED

@@ -1,17 +1,12 @@
 /// @file
 /// @brief `dump_menu_tree` -- walks every root of the declarative menu tree (`nodes::kAllRoots`,
-///        `scenes/menu/nodes/nodes.h`) and prints it as JSON, in the schema the retired Python
-///        DocEmitter used to emit (task-10-brief.md).
+///        `scenes/menu/nodes/nodes.h`) and prints it as JSON, in the schema the Python `DocEmitter` of main's menu
+///        generator emits.
 ///
-/// ## The recovered schema
+/// ## The schema
 ///
-/// `src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py` was deleted at `e23db5f87`
-/// ("chore(menus): retire the Python menu generator") when Task 6 replaced the six subtrees it
-/// generated with `constexpr Node` tables. The brief cites it for this dump's output shape but
-/// cannot read a deleted file, so it was recovered from git history
-/// (`git log --oneline --diff-filter=D -- '*doc_emitter.py'` -> `e23db5f87`;
-/// `git show e23db5f87^:src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py`). Its
-/// `DocEmitter` visitor produced, per menu (`main.py`'s `top_level_menus`):
+/// `origin/main:src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py` emits, per menu
+/// (`origin/main:src/deluge/gui/menu_item/generate/main.py`'s `top_level_menus`):
 ///
 ///   visit_menu (a leaf):         {"type": "basic", "title", "name", "description", ["available_when"]}
 ///   visit_submenu:                {"type": "submenu", "title", "name", "description", "children",
@@ -22,56 +17,41 @@
 ///   visit_multicontext_instance:  {"type": "multicontext", "title", "name", "description"}
 ///
 /// (`visit_multicontext` itself raises -- only a `.with_context()` instance is ever visited.)
-/// `main.py` wrote `json.dumps([menu.visit(emitter) for menu in top_level_menus])`: a plain JSON
-/// array, no `sort_keys`, no indent. `title`/`name` were the menu's l10n *key* string (e.g.
-/// `"STRING_FOR_LPF_FREQUENCY"`, `dsl.py`'s `Menu.__init__` docstring), and `description` was read
-/// verbatim from a `docs/menus/*.md` file the menu named (`read_description`).
+/// `origin/main:src/deluge/gui/menu_item/generate/main.py` writes
+/// `json.dumps([menu.visit(emitter) for menu in top_level_menus])`: a plain JSON array, no `sort_keys`, no indent.
+/// `title`/`name` are the menu's l10n *key* string (e.g. `"STRING_FOR_LPF_FREQUENCY"`,
+/// `origin/main:src/deluge/gui/menu_item/generate/dmui/dsl.py`'s `Menu.__init__` docstring), and `description` is read
+/// verbatim from a `docs/menus/*.md` file the menu names (`read_description`).
 ///
-/// ## Why this dump differs
+/// ## How this dump differs
 ///
-/// `Kind` (`node.h`) has no `MultiMode`/`MultiModeMode` counterpart: five `Kind` enumerators were
-/// dropped for having zero users once all eleven roots were declared (`node.h`'s own note), and
-/// `MultiModeMenu` was one of the DSL concepts that did not survive the port to plain `Node` data
-/// at all. So `"multimode"`/`"multimode-mode"` never appear in this dump's actual output -- they
-/// are listed above only so the schema this file approximates is documented in full, as the brief
-/// asks. What this dump actually maps, per the brief:
+/// `Kind` (`node.h`) has no `MultiMode`/`MultiModeMode` counterpart: the enumerators with no users were dropped once
+/// all eleven roots were declared (`node.h`'s own note), and `MultiModeMenu` is a DSL concept that plain `Node` data
+/// has no equivalent of. So `"multimode"`/`"multimode-mode"` never appear in this dump's actual output -- they are
+/// listed above only so the schema this file approximates is documented in full. What this dump actually maps:
 ///
 ///   * `Kind::Submenu` -> `"submenu"`; every other `Kind` (a leaf, including `Kind::Custom`) ->
 ///     `"basic"`.
-///   * a node with `Node::relevant` set -> `"available_when"` = `relevance::name_of(fn)` (Task 6's
-///     registry) -- the *name* of the guarding predicate, not its result in any one context. A
-///     node with no `relevant` gets no `"available_when"` key at all (`relevance::name_of(nullptr)`
-///     would answer `"always"`, but the brief's mapping is keyed on "a node with `relevant`", so a
-///     null one is left out rather than spelled out).
-///   * a node with `Node::dynamic_children` set -> `"multicontext"` -- but this dump does not
-///     attempt to expand it. **Fix round 1** caught the first cut of this file inventing a
-///     `"children"` shape (an array of `{"context", "nodes"}` objects) for that case, and that
-///     invention was wrong on its own terms: the recovered `doc_emitter.py`'s `"multicontext"`
-///     entry (`visit_multicontext_instance`, above) has **no `"children"` key at all** -- the
-///     Python DSL pre-resolved every `.with_context()` instance to one context *before* the
-///     visitor ever ran, so the visitor itself never had more than one context's worth of data to
-///     print. This dump has no equivalent pre-resolution step (there is no single "the" context a
-///     `Node` tree is dumped under -- that is the whole reason `dynamic_children` takes a
-///     `MenuContext` argument), so there is no verified shape to fall back to either. No node in
-///     the tree sets `dynamic_children` today (a tree-wide grep for `dynamic_submenu(` confirms
-///     it), so rather than keep a dormant, never-exercised guess at a JSON shape, `emit_node`
-///     fails loudly instead: it prints the offending node's resolved name and `node_id` to stderr
-///     and exits non-zero. That failure is the deliberate design point where E2 -- whoever adds
-///     the first real `dynamic_children` node -- has to stop and design this dump's shape against
-///     an actual case, rather than silently inheriting whatever this file guessed in the
-///     abstract. **Fix round 2** removed the last trace of the abandoned attempt: this file used
-///     to build ten `MenuContext`s (Task 8's fixtures, via a real `Song`/`Clip`/`Instrument`) so
-///     the (now-deleted) expansion code would have something to call `dynamic_children(ctx, ...)`
-///     with. Nothing else here ever read a `MenuContext` -- confirmed by testing, not just
-///     reasoning: dropping the whole fixture-building call and keeping only the one line it
-///     happened to also do (`l10n::chosenLanguage = &l10n::built_in::english;`, load-bearing for
-///     `text_of()` below -- the tool segfaults without it) reproduced this dump's output
-///     byte-for-byte. So the fixture builder (`sim/scenes_spec/menu_dump_contexts.{h,cpp}`, and
-///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
-///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone. The only
-///     `MenuContext`s the dump makes are the ones `option_names` asks the names hooks in (`g_names_contexts`): empty
-///     ones with a source index, and the booted song's first instrument clip as its row editor sees it, for the values
-///     an owner adds. They feed only `"options"`, never the walk.
+///   * a node with `Node::relevant` set -> `"available_when"` = `relevance::name_of(fn)` (the relevance registry) --
+///     the *name* of the guarding predicate, not its result in any one context. A node with no `relevant` gets no
+///     `"available_when"` key at all (`relevance::name_of(nullptr)` would answer `"always"`, but the mapping is keyed
+///     on "a node with `relevant`", so a null one is left out rather than spelled out).
+///   * a node with `Node::dynamic_children` set -> `"multicontext"` -- but this dump does not attempt to expand it.
+///     The `"multicontext"` entry of `origin/main:src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py`
+///     (`visit_multicontext_instance`, above) has **no `"children"` key at all** -- the Python DSL pre-resolves every
+///     `.with_context()` instance to one context *before* the visitor runs, so the visitor itself never has more than
+///     one context's worth of data to print. This dump has no equivalent pre-resolution step (there is no single "the"
+///     context a `Node` tree is dumped under -- that is the whole reason `dynamic_children` takes a `MenuContext`
+///     argument), so there is no verified shape to fall back to either. No node in the tree sets `dynamic_children`
+///     (a tree-wide grep for `dynamic_submenu(` confirms it), so rather than keep a dormant, never-exercised guess at
+///     a JSON shape, `emit_node` fails loudly instead: it prints the offending node's resolved name and `node_id` to
+///     stderr and exits non-zero. Whoever adds the first real `dynamic_children` node has to stop there and design
+///     this dump's shape against an actual case, rather than silently inheriting whatever this file guessed in the
+///     abstract. The dump builds no `MenuContext` to expand against, and the walk never reads one: the only
+///     `MenuContext`s it makes are the ones `option_names` asks the names hooks in (`g_names_contexts`): empty ones
+///     with a source index, and the booted song's first instrument clip as its row editor sees it, for the values an
+///     owner adds. They feed only `"options"`, never the walk. The one line that is load-bearing is
+///     `l10n::chosenLanguage = &l10n::built_in::english;` in `dump_menu_tree`: `text_of()` segfaults without it.
 ///   * a node that offers values -> `"options"`, its value names in list order (`option_names`):
 ///     a target row's name table (with the names it takes with no audio input plugged in merged in), static
 ///     `bind.names`, a `bind.dynamic_names` hook asked in each of `g_names_contexts` and merged (`merge_names`), or a
@@ -82,32 +62,29 @@
 ///     the key.
 ///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
 ///     same shape as `"children"`: the pages a select press on that node opens instead of going up
-///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
+///     a level (main's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
 ///     appear in this dump **only** under a `"select_chain"` -- `arpOctaveModeToNoteModeMenu` and
-///     its three relatives (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu` /
-///     `gateOffTimeMenu` (`:1223-1232`) are named by no submenu literal in legacy or in the port.
-///     A node with no chain gets no key at all, as with `available_when`. A chain that looped
-///     would have no finite nested spelling, so `emit_chain_targets` fails loudly on one rather
-///     than guessing a shape (`fail_on_chain_cycle`; nothing in the tree loops today).
-///   * `"id"` = `node_id(n)` on every entry (ruling Q7) -- the lookup key a future `.state` golden
+///     its three relatives (`origin/main:src/deluge/gui/ui/menus.cpp`) and `cvSubmenu` / `gateModeMenu` /
+///     `gateOffTimeMenu` (also `origin/main:src/deluge/gui/ui/menus.cpp`) are named by no submenu literal in main or
+///     here. A node with no chain gets no key at all, as with `available_when`. A chain that revisits a node on its
+///     own path is written as a `"ref"` stub (`emit_chain_ref`) rather than nested without end.
+///   * `"id"` = `node_id(n)` on every entry -- the lookup key a future `.state` golden
 ///     (`app16/<id>`) resolves against. A node reached only through `dynamic_children` never gets
 ///     an id (`node_id.h`'s own contract: `children` and `chain_targets` are walked, a dynamic
 ///     hook's produce is not), so such an entry prints `"id": 0` -- 0 is reserved for "no node"
 ///     everywhere else in this registry too.
 ///   * `"name"`/`"title"` are resolved display text (`deluge_profile().text_or_digits`), not the
-///     l10n symbolic key the retired schema carried: `Node::name`/`Node::title` are plain
+///     l10n symbolic key the Python schema carries: `Node::name`/`Node::title` are plain
 ///     `uint16_t` ids with no reverse mapping back to a `STRING_FOR_...` spelling, and resolved
 ///     text is what a JSON consumer -- or a human spot-checking this dump against
 ///     `website/src/content/docs/reference/menu_hierarchies.mdx` -- actually wants.
-///   * `"description"` is dropped entirely -- structurally absent from every emitted entry, not
-///     present-but-empty. The retired schema's `description` was a whole markdown file's
-///     contents, read from `docs/menus/`; `Node` (`node.h`) carries nothing like it, so there is
-///     nothing to put there. (E2's own per-item docs, if they ever exist, would be the thing to
-///     wire up here.) **Fix round 1:** this matters to more than this comment -- anything written
-///     against `doc_emitter.py`'s shape (expecting `entry["description"]` to exist, even as `""`)
-///     will `KeyError`/throw on this dump's output instead. That warning is repeated where a
-///     consumer is more likely to actually read it:
-///     `website/src/data/generated/README.md`, next to the JSON itself.
+///   * `"description"` is dropped entirely -- structurally absent from every emitted entry, not present-but-empty. The
+///     Python schema's `description` is a whole markdown file's contents, read from `docs/menus/`; `Node` (`node.h`)
+///     carries nothing like it, so there is nothing to put there. Anything written against
+///     `origin/main:src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py`'s shape (expecting
+///     `entry["description"]` to exist, even as `""`) will `KeyError`/throw on this dump's output instead. That warning
+///     is repeated where a consumer is more likely to actually read it: `website/src/data/generated/README.md`, next to
+///     the JSON itself.
 ///
 /// ## The walk
 ///
@@ -555,15 +532,13 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 
 /// @brief A chain target that is already on the walk's own path, as a `"ref"` stub.
 ///
-/// **The real case this dump was told to wait for.** Its predecessor here was `fail_on_chain_cycle`,
-/// which printed the node and exited: "a cycle is fine as *data* but has no finite nested-JSON
-/// spelling, and inventing one (a `$ref`-style stub, say) without a real case to design against is
-/// the mistake fix round 1 caught for `dynamic_children`". E2 task 9 supplies the case, and it is
-/// legacy's, not the port's: `patch_cable_strength::rangeMenu`'s select press opens
-/// `source_selection::rangeMenu` (`patch_cable_strength.cpp:302-309`) and that page's select press
-/// opens the strength page straight back (`source_selection/range.cpp:30-32`). A two-hop loop, on
-/// purpose -- it is how the user toggles between "which source modulates this cable's depth" and
-/// "by how much".
+/// A cycle is fine as *data* but has no finite nested-JSON spelling, so the walk stops at a node already on its own
+/// path and writes a stub instead. The case is main's: `patch_cable_strength::rangeMenu`'s select press opens
+/// `source_selection::rangeMenu` (`PatchCableStrength::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) and that page's select press opens the strength
+/// page straight back (`Range::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/source_selection/range.cpp`). A two-hop loop, on purpose -- it is how the user
+/// toggles between "which source modulates this cable's depth" and "by how much".
 ///
 /// The stub carries the same `"id"` the full entry does, so a consumer resolves the loop by looking
 /// that id up in an entry it has already seen on this path; `"ref": true` is the only key that
@@ -592,11 +567,11 @@ void emit_chain_ref(std::string& out, const menu::Node& node, int brace_level) {
 
 /// @brief `node`'s `chain_targets` span, in the same array shape `emit_static_children` writes.
 ///
-/// These are the pages a select press on `node` opens -- legacy's `selectButtonPress()` chaining.
+/// These are the pages a select press on `node` opens -- main's `MenuItem::selectButtonPress` chaining.
 /// Seven nodes in the tree have them, and for four of those (`arpOctaveModeToNoteModeMenu` and
 /// relatives) plus three under settings (`cvSubmenu`, `gateModeMenu`, `gateOffTimeMenu`) this is
-/// the *only* place they appear in the dump: no submenu literal names them, in legacy or in the
-/// port (`node.h`'s `chain_targets` note).
+/// the *only* place they appear in the dump: no submenu literal names them, in main or here
+/// (`node.h`'s `chain_targets` note).
 void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level) {
 	out += "[\n";
 	bool first = true;
@@ -619,39 +594,33 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
 
-/// @brief Fail closed on a `Node::dynamic_children` node -- see the file header's "Fix round 1"
-///        note. There is no verified JSON shape for this dump to fall back to (the recovered
-///        `doc_emitter.py`'s own `"multicontext"` entry has no `"children"` key at all -- its
-///        Python DSL pre-resolved the context upstream, which this dump cannot do), so rather
-///        than guess one, this prints the offending node and stops the whole dump.
+/// @brief Fail closed on a `Node::dynamic_children` node. There is no verified JSON shape for this dump to fall back
+///        to (`origin/main:src/deluge/gui/menu_item/generate/dmui/visitor/doc_emitter.py`'s own `"multicontext"` entry
+///        has no `"children"` key at all -- its Python DSL pre-resolved the context upstream, which this dump cannot
+///        do), so rather than guess one, this prints the offending node and stops the whole dump.
 ///
-/// @note **E2 task 10 went looking for the real case this arm was waiting for and did not find
-///       one.** The plan expected three: the MIDI device list and the CV and gate output selectors
-///       (`gui/menu_item/midi/devices.cpp`, `cv/selection.h`, `gate/selection.h`). None of the
-///       three can be a `dynamic_children` node, for a reason that has nothing to do with this
-///       tool: a submenu's rows are labelled from `Node::name`, a single static `uint16_t` l10n id
-///       (`MenuScene::render_vertical`), and `Devices` labels every row with
-///       `MIDICable::getDisplayName()` (`devices.cpp:169`), a runtime string with no id at all --
-///       while the two selectors' option lists are *static* in legacy
-///       (`cv/selection.h:47-54 getOptions`, `gate/selection.h:56-71 getOptions`) over the
-///       compile-time `NUM_PHYSICAL_CV_CHANNELS` / `NUM_GATE_CHANNELS`. All three shipped as
-///       `CustomItem`s that draw their own list (`scenes/menu/nodes/dynamic.h`), which is what
-///       legacy does too, so the tree still sets `dynamic_children` nowhere and this arm still has
-///       nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is not a
-///       placeholder any more" example pins that zero, so the day a node does set the hook, that
-///       example fails and points here.
+/// @note No node sets `dynamic_children`, and none can. The candidates are the MIDI device list and the CV and gate
+///       output selectors (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`,
+///       `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
+///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`). A submenu's rows are labelled from `Node::name`, a
+///       single static `uint16_t` l10n id (`MenuScene::render_vertical`), and `Devices` labels every row with
+///       `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
+///       `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime string with no id at all -- while the two
+///       selectors' option lists are *static* in main (`getOptions` in
+///       `origin/main:src/deluge/gui/menu_item/cv/selection.h` and in
+///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
+///       `NUM_GATE_CHANNELS`. All three are `CustomItem`s that draw their own list (`scenes/menu/nodes/dynamic.h`), as
+///       main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is not a
+///       placeholder any more" example pins that zero, so the day a node does set the hook, that example fails and
+///       points here.
 ///
-///       The shape the brief proposed for that day -- `"type": "submenu"` plus `"dynamic": true`
-///       and the children the hook yields *under the dump's own fixture* -- is not viable as
-///       written, and the reason is recorded here so it is not re-proposed: fix round 2 removed
-///       this tool's `MenuContext` fixtures entirely (see the file header), so there is no context
-///       to expand against, and building one back would make the committed JSON a function of
-///       whatever `MIDIDeviceManager`'s globals happen to hold in the dump process -- exactly the
-///       determinism the `ui-menu-dump` gate compares for. A static "every node this hook may
-///       yield" span on `Node`, in the shape `chain_targets` already has for `select_chain` and
-///       for the same three reasons (`assign_node_ids` numbers it, `validate_tree` checks it, this
-///       dump prints it), is the design that would survive -- but it is a `node.h` change with no
-///       user, so it stays a note rather than dormant code.
+///       A `"type": "submenu"` entry with `"dynamic": true` and the children the hook yields under a fixture context
+///       is not viable: the dump builds no `MenuContext` to expand against, and building one would make the committed
+///       JSON a function of whatever `MIDIDeviceManager`'s globals happen to hold in the dump process -- exactly the
+///       determinism the `ui-menu-dump` gate compares for. A static "every node this hook may yield" span on `Node`,
+///       in the shape `chain_targets` has for `select_chain` and for the same three reasons (`assign_node_ids`
+///       numbers it, `validate_tree` checks it, this dump prints it), is the design that would survive -- but it is a
+///       `node.h` change with no user, so it stays a note rather than dormant code.
 ///
 /// Never returns. Nothing has been written to stdout yet regardless of how much of `out` was
 /// built so far (`main` only writes it out once, at the very end), so this cannot leave a
@@ -672,7 +641,7 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///        regardless of which optional fields this particular node has.
 void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	if (node.dynamic_children != nullptr) {
-		fail_on_dynamic_children(node); // noreturn -- see the file header's "Fix round 1" note
+		fail_on_dynamic_children(node); // noreturn
 	}
 
 	const int field_level = brace_level + 1;
@@ -740,7 +709,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 } // namespace
 
 bool deluge::scenes::menu::dump_menu_tree(std::string& out) {
-	// Load-bearing (fix round 2 tested this, not just reasoned about it): `text_of` below
+	// Load-bearing: `text_of` below
 	// resolves every "name"/"title" through `deluge_profile().text_or_digits`, which reads
 	// `l10n::chosenLanguage` -- normally set once at boot by the real app (`OLED()`'s
 	// constructor). Nothing else does that here, so without this line `chosenLanguage` is null
