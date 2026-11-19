@@ -17,6 +17,9 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
+		if (p.card != nullptr) {
+			expect(bind::contract::card_facts_are_stable(*p.card)).to_be_true();
+		}
 		if (p.ui != nullptr) {
 			expect(bind::contract::ui_facts_are_stable(*p.ui)).to_be_true();
 			expect(bind::contract::flash_cursor_is_named(*p.ui)).to_be_true();

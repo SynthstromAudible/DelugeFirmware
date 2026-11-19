@@ -2178,7 +2178,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 describe menu_action_perform_fact("UiFacts::performance_editing_mode over the real performanceView", $ {
 	// What `PerformEditorItem` reads (`menu/nodes/actions.cpp`), answered by the host from `performanceView`'s two
-	// bools (`ShellUiFacts::performance_editing_mode`, `gui/ui/shell_bind_host.cpp`). The first example pins the
+	// bools (`HostUiFacts::performance_editing_mode`, `gui/ui/shell_host/ui_facts.cpp`). The first example pins the
 	// mapping on every pair of the bools. The rest drive the view's own gestures, with no menu and no `Shell`, and
 	// check the fact follows each: `PerformanceView::buttonAction`'s BACK arm, its shift+KEYBOARD exit and cycle, and
 	// the four callers of the private `PerformanceView::releaseViewOnExit` (`buttonAction`'s CLIP_VIEW arm, its

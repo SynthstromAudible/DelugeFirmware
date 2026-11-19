@@ -14,9 +14,9 @@ namespace deluge::scenes::bind {
 ///        holder's host does not provide; a scene that needs one checks it before use, as it would any optional
 ///        dependency.
 struct Ports {
-	const AudioFacts* audio{nullptr};
-	const CardFacts* card{nullptr};
-	const UiFacts* ui{nullptr};
+	const AudioFacts* audio{nullptr}; ///< the audio hardware's and engine's live facts
+	const CardFacts* card{nullptr};   ///< the loads the card is running
+	const UiFacts* ui{nullptr};       ///< the UI's modes, popups and display settings
 	bool operator==(const Ports&) const = default;
 };
 

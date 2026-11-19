@@ -344,7 +344,7 @@ ahead of the shell from the same file, as are the sound editor's KEYBOARD, SESSI
 
 `nodes::PerformEditorItem` shows the performance view's editing mode, which it reads as
 `UiFacts::performance_editing_mode()`; the host answers it from `performanceView`'s two bools
-(`gui/ui/shell_bind_host.cpp`), and the item's press files `MenuAction::OpenPerformanceView`, whose dispatcher writes
+(`gui/ui/shell_host/ui_facts.cpp`), and the item's press files `MenuAction::OpenPerformanceView`, whose dispatcher writes
 them.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)

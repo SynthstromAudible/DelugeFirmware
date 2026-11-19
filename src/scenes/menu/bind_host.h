@@ -2,7 +2,8 @@
 
 /// @file
 /// @brief The app's write sink, runtime facts and ports, which a menu opened in the app binds its target nodes through.
-/// Declared here and defined by the app (gui/ui/shell_bind_host.cpp), as the scenes link the app.
+/// Declared here and defined by the app, as the scenes link the app: the ports by gui/ui/shell_host/ports.cpp, the rest
+/// by gui/ui/shell_bind_host.cpp.
 
 #include "controls/sink.h"
 #include "scenes/bind/ports/ports.h"

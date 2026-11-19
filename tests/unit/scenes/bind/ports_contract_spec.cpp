@@ -23,6 +23,10 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(static_cast<int>(p.ui->performance_editing_mode())).to_equal(static_cast<int>(PerformanceEditing::Param));
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
 		expect(contract::voice_count_is_a_count(*p.audio)).to_be_true();
+		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
+		host.card.replacing = true;
+		expect(p.card->output_may_be_replaced()).to_be_true();
+		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
 		expect(contract::flash_cursor_is_named(*p.ui)).to_be_true();
 	});
 });

@@ -15,6 +15,14 @@ namespace deluge::scenes::bind::contract {
 	       && ui.dx7_engine_enabled() == ui.dx7_engine_enabled();
 }
 
+/// @brief The card's facts are stable across two calls. No case that the host and a fake both answer the same way
+///        can fail on a correct host's idle state, so a falsifiable CardFacts case is the fake's alone (the unit spec
+///        sets it loading and expects true).
+[[nodiscard]] inline bool card_facts_are_stable(const CardFacts& card) {
+	return card.sample_load_in_flight() == card.sample_load_in_flight()
+	       && card.output_may_be_replaced() == card.output_may_be_replaced();
+}
+
 /// @brief The voice count is never negative.
 [[nodiscard]] inline bool voice_count_is_a_count(const AudioFacts& audio) {
 	return audio.live_voice_count() >= 0;

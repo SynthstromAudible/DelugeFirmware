@@ -3,7 +3,6 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
@@ -365,10 +364,6 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 		}
 	}
 	return true;
-}
-
-const bind::RuntimeFacts& SlicerScene::facts() const {
-	return facts_ != nullptr ? *facts_ : menu::host_runtime_facts();
 }
 
 bind::Ports SlicerScene::ports() const {
