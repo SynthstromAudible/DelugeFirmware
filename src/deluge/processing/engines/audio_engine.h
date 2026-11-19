@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "processing/engines/voice_culling.h"
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
@@ -215,7 +216,6 @@ extern bool inputMonitoringWarmedUp;
 // window, or the host's audio would be heard twice. Cleared at the start of each render
 extern bool usbInputMonitoredByTrack;
 extern bool mustUpdateReverbParamsBeforeNextRender;
-extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
 extern uint32_t i2sRXBufferPos;
 extern int32_t cpuDireness;

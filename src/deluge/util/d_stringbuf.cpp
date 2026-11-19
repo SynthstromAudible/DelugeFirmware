@@ -64,3 +64,31 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) 
 
 	return output;
 }
+
+// May give wrong result for -2147483648
+int32_t stringToInt(char const* __restrict__ string) {
+	uint32_t number = 0;
+	bool is_negative = (*string == '-');
+	if (is_negative) {
+		string++;
+	}
+
+	while (*string >= '0' && *string <= '9') {
+		number *= 10;
+		number += (*string - '0');
+		string++;
+	}
+
+	if (is_negative) {
+		if (number >= 2147483648) {
+			return -2147483648;
+		}
+		return -(int32_t)number;
+	}
+	return static_cast<int32_t>(number);
+}
+
+// Shared scratch space used by formatting and ordered container searches.
+// Shared external C buffer; its declaration and ABI are used throughout the firmware.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, readability-identifier-naming)
+char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));

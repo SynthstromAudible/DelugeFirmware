@@ -59,10 +59,11 @@ jobs:
         run: |
           ../32bit_unit_tests/SmallPointerTests -ojunit
           ../32bit_unit_tests/MemoryManagerTests -ojunit
-      - name: Run main CppUTest
+      - name: Run unit CppUTest suites
         working-directory: build/results
         run: |
           ../unit/UnitTests -ojunit
+          ../unit/parameters/ParameterTests -ojunit
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v7
