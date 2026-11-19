@@ -17,6 +17,7 @@
 
 #include "gui/l10n/effect_names.h"
 
+#include "effects/reverb_presets.h"
 #include "gui/l10n/l10n.h"
 
 #include <array>
@@ -95,6 +96,13 @@ std::string_view filter_morph_name(effects::FilterMode mode, bool short_name) {
 		break;
 	}
 	return getView(STRING_FOR_NONE);
+}
+
+std::string_view reverb_preset_name(size_t preset) {
+	static constexpr std::array<String, effects::kReverbPresets.size()> kNames{String::STRING_FOR_SMALL_ROOM_REVERB,
+	                                                                           String::STRING_FOR_MEDIUM_ROOM_REVERB,
+	                                                                           String::STRING_FOR_LARGE_ROOM_REVERB};
+	return getView(kNames[preset % kNames.size()]);
 }
 
 } // namespace deluge::l10n

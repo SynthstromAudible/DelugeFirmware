@@ -11,6 +11,7 @@
 #include "effects/compressor.h"
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
+#include "effects/reverb_presets.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
 #include "gui/l10n/effect_names.h"
@@ -20,7 +21,6 @@
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
 #include "music-theory/note_length.h"
 
@@ -181,9 +181,23 @@ std::string delay_popup(const project::Song& song, const effects::EffectStates& 
 	return std::string{"Ping pong: "} + ping_pong_name(fx.delay.ping_pong) + "\n" + delay_type_name(fx.delay.type);
 }
 
+/// The preset nearest @p song's reverb.
+size_t current_reverb_preset(const project::Song& song) {
+	return effects::nearest_reverb_preset_of(song.reverb.room_size, song.reverb.damping);
+}
+
+/// The preset after the one nearest @p song's reverb.
+size_t next_reverb_preset(const project::Song& song) {
+	return (current_reverb_preset(song) + 1) % effects::kReverbPresets.size();
+}
+
+/// Reverb preset @p preset's popup name.
+std::string reverb_name(size_t preset) {
+	return std::string{l10n::reverb_preset_name(preset)};
+}
+
 std::string sidechain_reverb_popup(const project::Song& song, const effects::EffectStates& fx) {
-	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n"
-	       + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
+	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n" + reverb_name(current_reverb_preset(song));
 }
 
 std::string comp_reverb_popup(const project::Song& song, const bind::CompView& comp) {
@@ -191,7 +205,7 @@ std::string comp_reverb_popup(const project::Song& song, const bind::CompView& c
 	if (comp.editing) {
 		return out + "Comp Param: " + kCompParamNames[comp.param % kCompParamNames.size()];
 	}
-	return out + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
+	return out + reverb_name(current_reverb_preset(song));
 }
 
 std::string mod_fx_popup(effects::ModFXType type, effects::ModFxParam param) {
@@ -232,15 +246,14 @@ void say(KnobPush& out, const Reads& inputs, std::string popup, std::string noti
 
 /// The next reverb preset, as two song settings.
 void push_reverb(KnobPush& out, const project::Song& song) {
-	const size_t next = (deluge::model::reverbPresetOf(song) + 1) % deluge::model::kNumReverbPresets;
-	out.song.emplace_back("reverb/roomSize", deluge::model::kReverbPresetRoomSize[next]);
-	out.song.emplace_back("reverb/dampening", deluge::model::kReverbPresetDamping[next]);
+	const size_t next = next_reverb_preset(song);
+	out.song.emplace_back("reverb/roomSize", effects::kReverbPresets[next].room_size);
+	out.song.emplace_back("reverb/dampening", effects::kReverbPresets[next].damping);
 }
 
 /// The reverb name after @p out's preset change.
-const char* pushed_reverb_name(const project::Song& song) {
-	return deluge::model::reverbPresetName((deluge::model::reverbPresetOf(song) + 1)
-	                                       % deluge::model::kNumReverbPresets);
+std::string pushed_reverb_name(const project::Song& song) {
+	return reverb_name(next_reverb_preset(song));
 }
 
 /// The text a step of setting @p id shows, from the effects @p after it.

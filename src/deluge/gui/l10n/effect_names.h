@@ -22,6 +22,7 @@
 
 #include "effects/words.h"
 
+#include <cstddef>
 #include <string_view>
 
 namespace deluge::l10n {
@@ -45,5 +46,10 @@ namespace deluge::l10n {
 /// @return "Drive" for the low-pass ladders, "FM" for the high-pass ladder, "Morph" for the SVF modes and "None" for
 ///         OFF.
 [[nodiscard]] std::string_view filter_morph_name(effects::FilterMode mode, bool short_name);
+
+/// @brief The name of reverb preset @p preset, as the knobs' popups show it.
+/// @param preset The preset's index into effects::kReverbPresets; it wraps modulo the number of presets.
+/// @return "Small room", "Medium room" or "Large room" in the current language.
+[[nodiscard]] std::string_view reverb_preset_name(size_t preset);
 
 } // namespace deluge::l10n

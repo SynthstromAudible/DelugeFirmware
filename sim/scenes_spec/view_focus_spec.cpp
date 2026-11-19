@@ -16,6 +16,8 @@
 
 #include "controls/knob_focus.h"
 #include "effects/host_chain/params.h"
+#include "effects/reverb_presets.h"
+#include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -773,17 +775,17 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::scenes::spec::make_current(f.song);
 		const auto set = [&](size_t preset) {
-			deluge::edits::songSettingFromMenu("reverb/roomSize", deluge::model::kReverbPresetRoomSize[preset]);
-			deluge::edits::songSettingFromMenu("reverb/dampening", deluge::model::kReverbPresetDamping[preset]);
+			deluge::edits::songSettingFromMenu("reverb/roomSize", deluge::effects::kReverbPresets[preset].room_size);
+			deluge::edits::songSettingFromMenu("reverb/dampening", deluge::effects::kReverbPresets[preset].damping);
 		};
-		for (size_t preset = 0; preset < deluge::model::kNumReverbPresets; preset++) {
+		for (size_t preset = 0; preset < deluge::effects::kReverbPresets.size(); preset++) {
 			set(preset);
 			expect(deluge::model::reverbPresetOf(f.song->project)).to_equal(preset);
 			deluge::model::cycleReverbPreset(*f.song);
-			expect(deluge::model::reverbPresetOf(f.song->project)).to_equal((preset + 1) % deluge::model::kNumReverbPresets);
+			expect(deluge::model::reverbPresetOf(f.song->project)).to_equal((preset + 1) % deluge::effects::kReverbPresets.size());
 		}
-		expect(std::string{deluge::model::reverbPresetName(0)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB)});
-		expect(std::string{deluge::model::reverbPresetName(2)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB)});
+		expect(std::string{deluge::l10n::reverb_preset_name(0)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB)});
+		expect(std::string{deluge::l10n::reverb_preset_name(2)}).to_equal(std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB)});
 		deluge::scenes::spec::make_current(nullptr);
 	});
 
