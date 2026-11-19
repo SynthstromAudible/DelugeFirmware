@@ -21,8 +21,11 @@
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
+#include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -100,6 +103,32 @@ struct SamplePlayback {
 /// @brief How many unison parts each voice plays, how far apart and how wide.
 /// @param state The sound's state.
 [[nodiscard]] synth::UnisonState unison(const SoundState& state) noexcept;
+
+/// @brief How the sound's voices are allocated and tuned as a whole, its unison included.
+/// @param state The sound's state.
+[[nodiscard]] synth::VoicingState voicing(const SoundState& state) noexcept;
+
+/// @brief Whether the second oscillator is hard-synced to the first (kept while FM plays).
+/// @param state The sound's state.
+[[nodiscard]] bool oscillator_sync(const SoundState& state) noexcept;
+
+/// @brief Where an oscillator slot's phase starts a note: none for one that runs free. An FM sound's is its carrier's.
+/// @param state The sound's state.
+/// @param id The slot.
+[[nodiscard]] synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept;
+
+/// @brief FM's two modulators' pitches (kept while another engine plays).
+/// @param state The sound's state.
+[[nodiscard]] std::array<synth::Pitch, 2> modulators(const SoundState& state) noexcept;
+
+/// @brief Whether FM's second modulator modulates the first rather than the carriers.
+/// @param state The sound's state.
+[[nodiscard]] bool modulator1_to_modulator0(const SoundState& state) noexcept;
+
+/// @brief One of the sound's four LFOs, in file order: LFO1 and LFO3 one per sound, LFO2 and LFO4 one per voice.
+/// @param state The sound's state.
+/// @param index 0..3.
+[[nodiscard]] synth::LfoState lfo(const SoundState& state, size_t index) noexcept;
 
 /// @brief What the sound's host keeps in its state for now: its sidechain send and, as a kit row, its MIDI output.
 struct HostFields {

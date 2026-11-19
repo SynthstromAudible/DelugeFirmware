@@ -18,10 +18,13 @@
 #include "instruments/deluge/deluge_synth.h"
 
 #include "dsp-next/fixed/pitch/fine_tune.h"
+#include "instruments/deluge/state_access.h"
 #include "synth/voice/unison.h"
 
 namespace deluge::instrument {
 namespace {
+
+constexpr size_t kNumSlots = 2;
 
 /// Mark @p part in @p parts when @p differs.
 void mark(Parts& parts, Part part, bool differs) noexcept {
@@ -37,91 +40,104 @@ constexpr Part slot_part(Part a, size_t s) noexcept {
 
 } // namespace
 
-synth::SoundConfig DelugeSynth::derive(const State& record) noexcept {
-	const FlatSoundState state = record;
+synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 	using dsp::fixed::FineTune;
 	synth::SoundConfig config;
+	const synth::VoicingState v = instrument::voicing(state);
 	synth::Voicing& voicing = config.voicing;
-	voicing.priority = state.voice_priority;
-	voicing.polyphony = state.polyphonic;
-	voicing.max_voices = state.max_voice_count;
-	voicing.transpose = state.transpose;
-	voicing.cents = state.cents;
-	voicing.tune = FineTune::of_cents(state.cents);
-	voicing.unison_detune = state.unison_detune;
-	voicing.unison_spread = state.unison_stereo_spread;
-	voicing.unison = synth::derive_unison(state.num_unison, state.unison_detune, state.unison_stereo_spread);
+	voicing.priority = v.priority;
+	voicing.polyphony = v.polyphony;
+	voicing.max_voices = v.max_voices;
+	voicing.transpose = v.master.transpose;
+	voicing.cents = v.master.cents;
+	voicing.tune = FineTune::of_cents(v.master.cents);
+	voicing.unison_detune = v.unison.detune;
+	voicing.unison_spread = v.unison.spread;
+	voicing.unison = synth::derive_unison(v.unison.count, v.unison.detune, v.unison.spread);
 	synth::EngineSettings& engine = config.engine;
-	engine.mode = state.synth_mode;
-	engine.osc_sync = state.oscillator_sync;
-	engine.osc_retrigger_phase = state.osc_retrigger_phase;
-	engine.modulator1_to_modulator0 = state.modulator1_to_modulator0;
+	engine.mode = synth_mode(state);
+	engine.osc_sync = oscillator_sync(state);
+	engine.modulator1_to_modulator0 = instrument::modulator1_to_modulator0(state);
+	const std::array<synth::Pitch, 2> mods = modulators(state);
 	for (size_t m = 0; m < engine.modulators.size(); m++) {
-		engine.modulators[m] = {.transpose = state.modulator_transpose[m],
-		                        .cents = state.modulator_cents[m],
-		                        .tune = FineTune::of_cents(state.modulator_cents[m]),
-		                        .retrigger_phase = state.modulator_retrigger_phase[m]};
+		engine.modulators[m] = {.transpose = mods[m].tuning.transpose,
+		                        .cents = mods[m].tuning.cents,
+		                        .tune = FineTune::of_cents(mods[m].tuning.cents),
+		                        .retrigger_phase = phase_word(mods[m].retrigger)};
 	}
 	for (size_t l = 0; l < config.lfos.size(); l++) {
-		config.lfos[l].wave_type = state.lfo_wave_type[l];
-		config.lfos[l].sync_type = state.lfo_sync_type[l];
-		config.lfos[l].sync_level = state.lfo_sync_level[l];
+		const synth::LfoState lfo_state = lfo(state, l);
+		config.lfos[l].wave_type = lfo_state.shape;
+		config.lfos[l].sync_type = lfo_state.sync_type;
+		config.lfos[l].sync_level = lfo_state.sync_level;
 	}
 	for (size_t s = 0; s < config.sources.size(); s++) {
-		const SourceState& source = state.sources[s];
-		config.sources[s] = {.osc_type = source.osc_type,
-		                     .transpose = source.transpose,
-		                     .cents = source.cents,
-		                     .tune = FineTune::of_cents(source.cents),
-		                     .repeat_mode = source.repeat_mode,
-		                     .time_stretch_amount = source.time_stretch_amount,
-		                     .interpolation_mode = source.interpolation_mode,
-		                     .pitch_and_speed_independent = source.pitch_and_speed_independent,
-		                     .reversed = source.reversed};
+		const auto id = static_cast<SourceId>(s);
+		const Tuning tuning = source_tuning(state, id);
+		const SamplePlayback playback = sample_playback(state, id);
+		engine.osc_retrigger_phase[s] = phase_word(source_retrigger(state, id));
+		config.sources[s] = {.osc_type = source_type(state, id),
+		                     .transpose = tuning.transpose,
+		                     .cents = tuning.cents,
+		                     .tune = FineTune::of_cents(tuning.cents),
+		                     .repeat_mode = playback.repeat_mode,
+		                     .time_stretch_amount = playback.time_stretch_amount,
+		                     .interpolation_mode = playback.interpolation,
+		                     .pitch_and_speed_independent = playback.pitch_and_speed_independent,
+		                     .reversed = playback.reversed};
 	}
 	return config;
 }
 
-Parts DelugeSynth::changes(const State& before_record, const State& after_record) noexcept {
-	const FlatSoundState before = before_record;
-	const FlatSoundState after = after_record;
+Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 	Parts parts;
+	const synth::VoicingState was_voicing = voicing(before);
+	const synth::VoicingState now_voicing = voicing(after);
 	mark(parts, Part::VOICING,
-	     before.voice_priority != after.voice_priority || before.polyphonic != after.polyphonic
-	         || before.max_voice_count != after.max_voice_count);
-	mark(parts, Part::TUNING, before.transpose != after.transpose || before.cents != after.cents);
-	mark(parts, Part::UNISON_COUNT, before.num_unison != after.num_unison);
-	mark(parts, Part::UNISON_DETUNE, before.unison_detune != after.unison_detune);
-	mark(parts, Part::UNISON_SPREAD, before.unison_stereo_spread != after.unison_stereo_spread);
-	mark(parts, Part::MODE, before.synth_mode != after.synth_mode);
-	mark(parts, Part::OSC_SYNC, before.oscillator_sync != after.oscillator_sync);
-	for (size_t s = 0; s < before.sources.size(); s++) {
-		const SourceState& was = before.sources[s];
-		const SourceState& now = after.sources[s];
-		mark(parts, slot_part(Part::SOURCE_A_TYPE, s), was.osc_type != now.osc_type);
-		mark(parts, slot_part(Part::SOURCE_A_TUNING, s), was.transpose != now.transpose || was.cents != now.cents);
-		mark(parts, slot_part(Part::SOURCE_A_PLAYBACK, s),
-		     was.repeat_mode != now.repeat_mode || was.reversed != now.reversed
-		         || was.time_stretch_amount != now.time_stretch_amount
-		         || was.interpolation_mode != now.interpolation_mode
-		         || was.pitch_and_speed_independent != now.pitch_and_speed_independent);
-		mark(parts, slot_part(Part::SOURCE_A_RANGES, s), was.ranges != now.ranges);
-		mark(parts, slot_part(Part::SOURCE_A_DX, s), was.dx_patch != now.dx_patch);
+	     was_voicing.priority != now_voicing.priority || was_voicing.polyphony != now_voicing.polyphony
+	         || was_voicing.max_voices != now_voicing.max_voices);
+	mark(parts, Part::TUNING, was_voicing.master != now_voicing.master);
+	mark(parts, Part::UNISON_COUNT, was_voicing.unison.count != now_voicing.unison.count);
+	mark(parts, Part::UNISON_DETUNE, was_voicing.unison.detune != now_voicing.unison.detune);
+	mark(parts, Part::UNISON_SPREAD, was_voicing.unison.spread != now_voicing.unison.spread);
+	mark(parts, Part::MODE, synth_mode(before) != synth_mode(after));
+	mark(parts, Part::OSC_SYNC, oscillator_sync(before) != oscillator_sync(after));
+	bool retrigger = false;
+	for (size_t s = 0; s < kNumSlots; s++) {
+		const auto id = static_cast<SourceId>(s);
+		mark(parts, slot_part(Part::SOURCE_A_TYPE, s), source_type(before, id) != source_type(after, id));
+		mark(parts, slot_part(Part::SOURCE_A_TUNING, s), source_tuning(before, id) != source_tuning(after, id));
+		mark(parts, slot_part(Part::SOURCE_A_PLAYBACK, s), sample_playback(before, id) != sample_playback(after, id));
+		mark(parts, slot_part(Part::SOURCE_A_RANGES, s), source_ranges(before, id) != source_ranges(after, id));
+		const DxPatchState* was_patch = dx_patch(before, id);
+		const DxPatchState* now_patch = dx_patch(after, id);
+		mark(parts, slot_part(Part::SOURCE_A_DX, s),
+		     (was_patch != nullptr) != (now_patch != nullptr) || (was_patch != nullptr && *was_patch != *now_patch));
+		retrigger = retrigger || source_retrigger(before, id) != source_retrigger(after, id);
 	}
-	mark(parts, Part::RETRIGGER,
-	     before.osc_retrigger_phase != after.osc_retrigger_phase
-	         || before.modulator_retrigger_phase != after.modulator_retrigger_phase);
-	mark(parts, Part::MODULATOR_TUNING,
-	     before.modulator_transpose != after.modulator_transpose || before.modulator_cents != after.modulator_cents);
-	mark(parts, Part::MODULATOR_ROUTING, before.modulator1_to_modulator0 != after.modulator1_to_modulator0);
-	mark(parts, Part::LFO_WAVE, before.lfo_wave_type != after.lfo_wave_type);
-	mark(parts, Part::LFO_SYNC,
-	     before.lfo_sync_type != after.lfo_sync_type || before.lfo_sync_level != after.lfo_sync_level);
-	mark(parts, Part::EFFECTS, before.effects != after.effects);
-	mark(parts, Part::HOST,
-	     before.side_chain_send_level != after.side_chain_send_level
-	         || before.output_midi_channel != after.output_midi_channel
-	         || before.output_midi_note_for_drum != after.output_midi_note_for_drum);
+	const std::array<synth::Pitch, 2> was_mods = modulators(before);
+	const std::array<synth::Pitch, 2> now_mods = modulators(after);
+	bool modulator_tuning = false;
+	for (size_t m = 0; m < was_mods.size(); m++) {
+		retrigger = retrigger || was_mods[m].retrigger != now_mods[m].retrigger;
+		modulator_tuning = modulator_tuning || was_mods[m].tuning != now_mods[m].tuning;
+	}
+	mark(parts, Part::RETRIGGER, retrigger);
+	mark(parts, Part::MODULATOR_TUNING, modulator_tuning);
+	mark(parts, Part::MODULATOR_ROUTING,
+	     instrument::modulator1_to_modulator0(before) != instrument::modulator1_to_modulator0(after));
+	bool lfo_wave = false;
+	bool lfo_sync = false;
+	for (size_t l = 0; l < 4; l++) {
+		const synth::LfoState was = lfo(before, l);
+		const synth::LfoState now = lfo(after, l);
+		lfo_wave = lfo_wave || was.shape != now.shape;
+		lfo_sync = lfo_sync || was.sync_type != now.sync_type || was.sync_level != now.sync_level;
+	}
+	mark(parts, Part::LFO_WAVE, lfo_wave);
+	mark(parts, Part::LFO_SYNC, lfo_sync);
+	mark(parts, Part::EFFECTS, sound_effects(before) != sound_effects(after));
+	mark(parts, Part::HOST, host_fields(before) != host_fields(after));
 	return parts;
 }
 

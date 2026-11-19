@@ -55,6 +55,9 @@ struct Recall {
 	bool operator==(const Recall&) const = default;
 };
 
+/// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, 0xFFFFFFFF for free-running.
+[[nodiscard]] uint32_t phase_word(const synth::Retrigger& retrigger) noexcept;
+
 /// @brief The flat record @p flat as the state it plays and what it keeps for a switch back.
 [[nodiscard]] std::pair<ComposedState, Recall> compose(const FlatSoundState& flat);
 

@@ -27,13 +27,9 @@ namespace {
 constexpr uint32_t kFreeRunning = 0xFFFFFFFF; ///< the flat record's retrigger phase for an oscillator that runs free
 
 // The flat record and the synth config carry the phase as the file's 32-bit word; the composed state holds it typed,
-// so the crossing is here and in phase_of.
+// so the crossing is here and in phase_word.
 synth::Retrigger retrigger_of(uint32_t phase) {
 	return phase == kFreeRunning ? synth::Retrigger{} : synth::Retrigger{dsp::UQ<32>::from_raw(phase)};
-}
-
-uint32_t phase_of(const synth::Retrigger& retrigger) {
-	return retrigger ? retrigger->raw() : kFreeRunning;
 }
 
 synth::Pitch pitch_of(int16_t transpose, int8_t cents, uint32_t phase) {
@@ -146,7 +142,7 @@ SourceState source_of(const synth::SlotState& slot, const SourceState& kept, uin
 	const auto take_pitch = [&](const synth::Pitch& pitch) {
 		src.transpose = pitch.tuning.transpose;
 		src.cents = pitch.tuning.cents;
-		phase = phase_of(pitch.retrigger);
+		phase = phase_word(pitch.retrigger);
 	};
 	std::visit(
 	    [&](const auto& state) {
@@ -165,7 +161,7 @@ SourceState source_of(const synth::SlotState& slot, const SourceState& kept, uin
 		    }
 		    else if constexpr (std::is_same_v<T, synth::SampleState>) {
 			    src.osc_type = OscType::SAMPLE;
-			    phase = phase_of(state.retrigger);
+			    phase = phase_word(state.retrigger);
 			    src.repeat_mode = state.playback.repeat_mode;
 			    src.time_stretch_amount = state.playback.time_stretch_amount;
 			    src.interpolation_mode = state.playback.interpolation;
@@ -211,6 +207,10 @@ void put_lfo(FlatSoundState& f, size_t i, const synth::LfoState& lfo) {
 }
 
 } // namespace
+
+uint32_t phase_word(const synth::Retrigger& retrigger) noexcept {
+	return retrigger ? retrigger->raw() : kFreeRunning;
+}
 
 std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	ComposedState state{
@@ -283,7 +283,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 		for (size_t m = 0; m < 2; m++) {
 			f.modulator_transpose[m] = modulators[m].tuning.transpose;
 			f.modulator_cents[m] = modulators[m].tuning.cents;
-			f.modulator_retrigger_phase[m] = phase_of(modulators[m].retrigger);
+			f.modulator_retrigger_phase[m] = phase_word(modulators[m].retrigger);
 		}
 		f.modulator1_to_modulator0 = m1_to_m0;
 	};
@@ -294,7 +294,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 			f.sources[s] = recall.slots[s];
 			f.sources[s].transpose = fm->carriers[s].tuning.transpose;
 			f.sources[s].cents = fm->carriers[s].tuning.cents;
-			f.osc_retrigger_phase[s] = phase_of(fm->carriers[s].retrigger);
+			f.osc_retrigger_phase[s] = phase_word(fm->carriers[s].retrigger);
 		}
 		f.oscillator_sync = recall.sync;
 		return f;

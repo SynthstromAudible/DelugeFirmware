@@ -197,6 +197,51 @@ synth::UnisonState unison(const SoundState& state) noexcept {
 	return state.plays.voicing.unison;
 }
 
+synth::VoicingState voicing(const SoundState& state) noexcept {
+	return state.plays.voicing;
+}
+
+bool oscillator_sync(const SoundState& state) noexcept {
+	const synth::DualSourceState* slots = slots_of(state.plays);
+	return slots != nullptr ? slots->sync : state.recall.sync;
+}
+
+synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept {
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot == nullptr) {
+		return std::get_if<synth::FmState>(&state.plays.engine)->carriers[index_of(id)].retrigger;
+	}
+	if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
+		return sample->retrigger;
+	}
+	if (const auto* va = std::get_if<synth::VaState>(slot)) {
+		return va->pitch.retrigger;
+	}
+	if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
+		return wavetable->pitch.retrigger;
+	}
+	if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
+		return dx->pitch.retrigger;
+	}
+	return std::get_if<synth::InputState>(slot)->pitch.retrigger;
+}
+
+std::array<synth::Pitch, 2> modulators(const SoundState& state) noexcept {
+	const auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
+	return fm != nullptr ? fm->modulators : state.recall.modulators;
+}
+
+bool modulator1_to_modulator0(const SoundState& state) noexcept {
+	const auto* fm = std::get_if<synth::FmState>(&state.plays.engine);
+	return fm != nullptr ? fm->modulator1_to_modulator0 : state.recall.modulator1_to_modulator0;
+}
+
+synth::LfoState lfo(const SoundState& state, size_t index) noexcept {
+	// LFO1 and LFO3 run per sound, LFO2 and LFO4 per voice
+	const auto& pair = (index % 2 == 0) ? state.plays.instrument_lfos : state.plays.voice_lfos;
+	return pair[index / 2];
+}
+
 HostFields host_fields(const SoundState& state) noexcept {
 	return {.side_chain_send_level = state.plays.side_chain_send_level,
 	        .output_midi_channel = state.plays.output_midi_channel,

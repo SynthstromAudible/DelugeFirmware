@@ -20,6 +20,8 @@
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
 
+#include <array>
+#include <cstddef>
 #include <string>
 
 namespace deluge::test {
@@ -87,6 +89,38 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 		const instrument::DxPatchState* patch = instrument::dx_patch(record, id);
 		if ((patch != nullptr) != src.dx_patch.has_value() || (patch != nullptr && !(*patch == *src.dx_patch))) {
 			return "dx_patch";
+		}
+	}
+	const synth::VoicingState voicing = instrument::voicing(record);
+	if (voicing.priority != flat.voice_priority || voicing.polyphony != flat.polyphonic
+	    || voicing.max_voices != flat.max_voice_count || voicing.master.transpose != flat.transpose
+	    || voicing.master.cents != flat.cents) {
+		return "voicing";
+	}
+	if (instrument::oscillator_sync(record) != flat.oscillator_sync) {
+		return "oscillator_sync";
+	}
+	for (size_t s = 0; s < flat.sources.size(); s++) {
+		if (instrument::phase_word(instrument::source_retrigger(record, static_cast<instrument::SourceId>(s)))
+		    != flat.osc_retrigger_phase[s]) {
+			return "source_retrigger";
+		}
+	}
+	const std::array<synth::Pitch, 2> mods = instrument::modulators(record);
+	for (size_t m = 0; m < mods.size(); m++) {
+		if (mods[m].tuning.transpose != flat.modulator_transpose[m] || mods[m].tuning.cents != flat.modulator_cents[m]
+		    || instrument::phase_word(mods[m].retrigger) != flat.modulator_retrigger_phase[m]) {
+			return "modulators";
+		}
+	}
+	if (instrument::modulator1_to_modulator0(record) != flat.modulator1_to_modulator0) {
+		return "modulator1_to_modulator0";
+	}
+	for (size_t l = 0; l < 4; l++) {
+		const synth::LfoState lfo = instrument::lfo(record, l);
+		if (lfo.shape != flat.lfo_wave_type[l] || lfo.sync_type != flat.lfo_sync_type[l]
+		    || lfo.sync_level != flat.lfo_sync_level[l]) {
+			return "lfo";
 		}
 	}
 	if (!(instrument::sound_effects(record) == flat.effects)) {
