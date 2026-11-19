@@ -675,8 +675,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (getSynthMode() == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		// if (getSynthMode() == SynthMode::FM || (sources[0].oscType != OscType::SQUARE && sources[0].oscType !=
-		// OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
+		// if (getSynthMode() == SynthMode::FM || (config_.sources[0].osc_type != OscType::SQUARE &&
+		// config_.sources[0].osc_type != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
 	case params::LOCAL_OSC_A_VOLUME:
 		if (getSynthMode() == SynthMode::RINGMOD) {
@@ -700,8 +700,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (getSynthMode() == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		// if (getSynthMode() == SynthMode::FM || (sources[1].oscType != OscType::SQUARE && sources[1].oscType !=
-		// OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
+		// if (getSynthMode() == SynthMode::FM || (config_.sources[1].osc_type != OscType::SQUARE &&
+		// config_.sources[1].osc_type != OscType::JUNO60_SUBOSC)) return PatchCableAcceptance::DISALLOWED;
 		break;
 	case params::LOCAL_OSC_B_VOLUME:
 		if (getSynthMode() == SynthMode::RINGMOD) {
@@ -966,7 +966,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			    || std::ranges::any_of(std::views::iota(0, kNumSources),
 			                           [&](int32_t s) {
 				                           return isSourceActiveCurrently(s, paramManager)
-				                                  && sources[s].oscType != OscType::SAMPLE;
+				                                  && config_.sources[s].osc_type != OscType::SAMPLE;
 			                           })
 			    || (voice->kernel.envelope(0).stage() != Envelope::Stage::FAST_RELEASE
 			        && !voice->do_fast_release(kSoftCullIncrement));
@@ -1322,7 +1322,8 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
+		    && (config_.sources[s].osc_type != OscType::SAMPLE
+		        || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1341,7 +1342,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
-		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
+		if (sourceEverActive && config_.sources[s].osc_type == OscType::SAMPLE
 		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
 				return sources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
@@ -1375,7 +1376,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 			continue;
 		}
 
-		if (sources[s].oscType != OscType::SAMPLE) {
+		if (config_.sources[s].osc_type != OscType::SAMPLE) {
 			return 0;
 		}
 		else if (config_.sources[s].repeat_mode == SampleRepeatMode::CUT
@@ -1412,7 +1413,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 			continue;
 		}
 
-		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
+		if (config_.sources[s].osc_type != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
 		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
@@ -1441,7 +1442,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 			continue;
 		}
 
-		switch (sources[s].oscType) {
+		switch (config_.sources[s].osc_type) {
 
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
@@ -1470,7 +1471,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
-	       && (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
+	       && (getSynthMode() == SynthMode::FM || config_.sources[s].osc_type != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
@@ -1483,7 +1484,7 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager*
 
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
+	       && (getSynthMode() == SynthMode::FM || config_.sources[s].osc_type != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
@@ -1817,7 +1818,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
-		if (sources[s].oscType == OscType::DX7 and sources[s].dxPatch) {
+		if (config_.sources[s].osc_type == OscType::DX7 and sources[s].dxPatch) {
 			sources[s].dxPatch->computeLfo(output.size());
 		}
 	}
@@ -1946,12 +1947,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		             && (paramView.modulated(params::LOCAL_HPF_FREQ) || (hpfFreq != std::numeric_limits<int32_t>::min())
 		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
 		// What changes this block for each of the sound's voices; their settings are its config.
-		std::array<OscType, kNumSources> oscTypes;
 		std::array<bool, kNumSources> dxPatchChangeds;
 		std::array<bool, kNumSources> sourceEverActives;
 		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
-			oscTypes[s] = sources[s].oscType;
 			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
@@ -1975,7 +1974,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .clipping_amount = modControllableSnapshot().effects.saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
-		    .osc_type = oscTypes,
 		    .dx_patch_changed = dxPatchChangeds,
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
@@ -2501,8 +2499,9 @@ void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFla
 			for (int32_t s = 0; s < kNumSources; s++) {
 				bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-				if (sourceEverActive && getSynthMode() != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
-				    && voice->guides[s].audioFileHolder && voice->guides[s].audioFileHolder->audioFile) {
+				if (sourceEverActive && getSynthMode() != SynthMode::FM
+				    && config_.sources[s].osc_type == OscType::SAMPLE && voice->guides[s].audioFileHolder
+				    && voice->guides[s].audioFileHolder->audioFile) {
 
 					// For samples, set the current play pos for the new unison part, if num unison went up
 					if (newNum > oldNum) {
@@ -2869,7 +2868,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 
 	int32_t maxRawOscTranspose = -32768;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
+		if (getSynthMode() == SynthMode::FM || config_.sources[s].osc_type != OscType::SAMPLE) {
 			maxRawOscTranspose = std::max<int32_t>(maxRawOscTranspose, config_.sources[s].transpose);
 		}
 	}
@@ -2896,7 +2895,7 @@ int16_t Sound::getMinOscTranspose() {
 
 	int32_t minRawOscTranspose = 32767;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
+		if (getSynthMode() == SynthMode::FM || config_.sources[s].osc_type != OscType::SAMPLE) {
 			minRawOscTranspose = std::min<int32_t>(minRawOscTranspose, config_.sources[s].transpose);
 		}
 	}
@@ -2916,7 +2915,7 @@ int16_t Sound::getMinOscTranspose() {
 deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
+		if (config_.sources[s].osc_type == OscType::SAMPLE || config_.sources[s].osc_type == OscType::WAVETABLE) {
 			if (sources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
 				return deluge::storage::Walk::Stop;
 			}
@@ -3016,12 +3015,12 @@ VoiceKind Sound::voiceKind() const {
 		return VoiceKind::RINGMOD;
 	}
 	bool sample = false;
-	for (const Source& source : sources) {
-		if (source.oscType == OscType::DX7) {
+	for (const deluge::synth::SourceConfig& source : config_.sources) {
+		if (source.osc_type == OscType::DX7) {
 			return VoiceKind::FM;
 		}
-		sample |= source.oscType == OscType::SAMPLE || source.oscType == OscType::INPUT_L
-		          || source.oscType == OscType::INPUT_R || source.oscType == OscType::INPUT_STEREO;
+		sample |= source.osc_type == OscType::SAMPLE || source.osc_type == OscType::INPUT_L
+		          || source.osc_type == OscType::INPUT_R || source.osc_type == OscType::INPUT_STEREO;
 	}
 	if (getSynthMode() == SynthMode::FM) {
 		return VoiceKind::FM;
@@ -3042,7 +3041,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 	}
 
 	// Stereo live-input
-	if ((sources[0].oscType == OscType::INPUT_STEREO || sources[1].oscType == OscType::INPUT_STEREO)
+	if ((config_.sources[0].osc_type == OscType::INPUT_STEREO || config_.sources[1].osc_type == OscType::INPUT_STEREO)
 	    && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) {
 		return true;
 	}
@@ -3065,7 +3064,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 			continue;
 		}
 
-		if (source->oscType == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
+		if (config_.sources[s].osc_type == OscType::SAMPLE) { // Just SAMPLE, because WAVETABLEs can't be stereo.
 
 			int32_t numRanges = std::ssize(source->ranges);
 

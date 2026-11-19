@@ -250,7 +250,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 
 	// A port-backed source by the sound's current type, else the oscillator the note built. A slot holding none (a
 	// mode change under a live voice) renders nothing this block.
-	Source* component = slot.source_for(cfg.osc_type[s]);
+	Source* component = slot.source_for(block.config->sources[s].osc_type);
 	if (component == nullptr) [[unlikely]] {
 		return SourceRenderResult::SKIP;
 	}

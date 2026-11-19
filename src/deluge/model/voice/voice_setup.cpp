@@ -50,7 +50,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 				guide.noteOffReceived = false;
 				guide.sequenceSyncLengthTicks = 0;
 				if (synthMode != SynthMode::FM
-				    && (source.oscType == OscType::SAMPLE || source.oscType == OscType::WAVETABLE)) {
+				    && (sound.config().sources[s].osc_type == OscType::SAMPLE
+				        || sound.config().sources[s].osc_type == OscType::WAVETABLE)) {
 					MultiRange* range = sound.sources[s].getRange(noteAfterArpeggiation + sound.getTranspose());
 					AudioFileHolder* holder = range != nullptr ? range->getAudioFileHolder() : nullptr;
 					if (holder == nullptr || holder->audioFile == nullptr) {
@@ -58,7 +59,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 					}
 					else {
 						guide.audioFileHolder = holder;
-						if (source.oscType == OscType::SAMPLE
+						if (sound.config().sources[s].osc_type == OscType::SAMPLE
 						    && sound.config().sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 							guide.sequenceSyncLengthTicks = sampleSyncLength;
 							// lastSwungTickActioned, not getActualSwungTickCount(): ticksLate counts from it
@@ -77,8 +78,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		// A sample plays the way the sound reverses it for this note, between the bounds that sets.
 		for (int32_t s = 0; s < kNumSources && !ringModFails; s++) {
 			Source& source = sound.sources[s];
-			if (synthMode != SynthMode::FM && source.oscType == OscType::SAMPLE && voice.guides[s].audioFileHolder
-			    && flags.checkSourceEverActive(s)) {
+			if (synthMode != SynthMode::FM && sound.config().sources[s].osc_type == OscType::SAMPLE
+			    && voice.guides[s].audioFileHolder && flags.checkSourceEverActive(s)) {
 				source.invertReversed = sound.invertReversed;
 				voice.guides[s].setupPlaybackBounds(sound.playsReversed(s));
 			}
@@ -102,10 +103,10 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source& source = sound.sources[s];
 		SourceSetup& out = setup.sources[s];
-		out.osc_type = source.oscType;
+		out.osc_type = sound.config().sources[s].osc_type;
 		out.ever_active = flags.checkSourceEverActive(s);
 		// Not a wavetable's file: a wavetable plays at the source's own pitch
-		const auto* sampleHolder = source.oscType == OscType::SAMPLE
+		const auto* sampleHolder = sound.config().sources[s].osc_type == OscType::SAMPLE
 		                               ? static_cast<const SampleHolderForVoice*>(voice.guides[s].audioFileHolder)
 		                               : nullptr;
 		const deluge::synth::SourceConfig& settings = sound.config().sources[s];
@@ -113,7 +114,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		out.fine_tuner =
 		    sampleHolder != nullptr ? deluge::dsp::fixed::FineTune::of_cents(sampleHolder->cents) : settings.tune;
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
-		if (!forNoteChange && synthMode != SynthMode::FM && source.oscType == OscType::DX7 && out.ever_active) {
+		if (!forNoteChange && synthMode != SynthMode::FM && sound.config().sources[s].osc_type == OscType::DX7
+		    && out.ever_active) {
 			out.dx_patch = source.ensureDxPatch();
 		}
 	}
@@ -143,7 +145,7 @@ ReleaseInfo release_info_for(Sound& sound, ParamManagerForTimeline* paramManager
 		}
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
-		release.osc_types[s] = sound.sources[s].oscType;
+		release.osc_types[s] = sound.config().sources[s].osc_type;
 	}
 	return release;
 }

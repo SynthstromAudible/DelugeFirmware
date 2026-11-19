@@ -68,9 +68,10 @@ struct EngineSettings {
 /// @brief A sound's settings as its voices play them, derived from its state in one place.
 /// @brief One oscillator's playback settings, as its voices play them.
 struct SourceConfig {
-	int32_t transpose{0};      ///< semitones; a sample oscillator's ranges carry their own
-	int32_t cents{0};          ///< a sample oscillator's ranges carry their own
-	dsp::fixed::FineTune tune; ///< the cents as a phase-increment multiplier
+	OscType osc_type{OscType::SQUARE}; ///< what the oscillator plays
+	int32_t transpose{0};              ///< semitones; a sample oscillator's ranges carry their own
+	int32_t cents{0};                  ///< a sample oscillator's ranges carry their own
+	dsp::fixed::FineTune tune;         ///< the cents as a phase-increment multiplier
 	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
 	int32_t time_stretch_amount{0}; ///< a stretched sample's speed offset
 	InterpolationMode interpolation_mode{InterpolationMode::LINEAR};

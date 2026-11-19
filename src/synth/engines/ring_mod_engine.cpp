@@ -107,7 +107,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp:
 			    .wave_table = block.voice_block->wave_tables[s],
 			    .wave_index_last = static_cast<int32_t>(block.levels->wave_indexes_last_time[s]),
 			    .wave_index_increment = wave_index_increments[s],
-			    .osc_type = cfg.osc_type[s],
+			    .osc_type = block.config->sources[s].osc_type,
 			    .retrigger_phase = block.config->engine.osc_retrigger_phase[s],
 			};
 		}

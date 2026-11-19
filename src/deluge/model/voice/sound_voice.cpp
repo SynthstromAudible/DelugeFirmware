@@ -73,7 +73,7 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 
 	// The samples' ports play this note's source through this voice's guides
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
+		if (sound.getSynthMode() != SynthMode::FM && sound.config().sources[s].osc_type == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
 				ports(u, s).sample.bind(&sound.config().sources[s], &guides[s]);
@@ -110,7 +110,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source* source = &sound.sources[s];
-		if (source->oscType == OscType::SAMPLE) {
+		if (sound.config().sources[s].osc_type == OscType::SAMPLE) {
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
@@ -151,7 +151,8 @@ void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_
 			    .part = static_cast<uint8_t>(u),
 			    .source = static_cast<uint8_t>(s),
 			    .active = slot.active,
-			    .cache = cfg.osc_type[s] == OscType::SAMPLE && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
+			    .cache = config.sources[s].osc_type == OscType::SAMPLE
+			             && kernel.pitch_mod_disallows_cache(control_block, cfg, s),
 			    .phase_increment = slot.phase_increment_stored_value.raw(), // the dump records the word
 			};
 		}
@@ -168,7 +169,7 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = engineClock()};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		AudioFileHolder* holder = guides[s].audioFileHolder;
-		const OscType oscType = sound.sources[s].oscType;
+		const OscType oscType = sound.config().sources[s].osc_type;
 		if (oscType == OscType::WAVETABLE && holder != nullptr) {
 			block.wave_tables[s] = static_cast<WaveTable*>(holder->audioFile)->view();
 		}

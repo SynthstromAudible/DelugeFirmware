@@ -52,7 +52,6 @@ struct BlockValues {
 	bool doing_osc_sync{};             ///< Source 1 is hard-synced to source 0
 	bool engine_rendering_in_stereo{}; ///< The engine renders in stereo (headphones), so voices may pan
 
-	std::array<OscType, kNumSources> osc_type{};      ///< Each source's type as set
 	std::array<bool, kNumSources> dx_patch_changed{}; ///< A DX7 source's patch changed since the last block
 
 	/// The sound's global patch-source values, copied into the voice's own before its patching. The sound's patching
