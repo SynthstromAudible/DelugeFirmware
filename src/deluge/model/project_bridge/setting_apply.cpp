@@ -22,6 +22,7 @@
 #include "effects/words.h"
 #include "instruments/deluge/dx7_init_voice.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_rules.h"
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -435,64 +436,29 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
                                                                const deluge::serialization::Value& value) {
-	if (path == "mode" && sound.boundState() != nullptr) {
-		// Into FM the filters go off; out of it, a filter that is off comes back on.
-		deluge::instrument::SoundState state = *sound.boundState();
-		const SynthMode was = state.synth_mode;
-		const SynthMode now = deluge::instrument::parse_synth_mode(value.str());
-		deluge::effects::FilterState& filter = state.effects.filter;
-		if (now == SynthMode::FM && was != SynthMode::FM) {
-			filter.lpf_mode = FilterMode::OFF;
-			filter.hpf_mode = FilterMode::OFF;
-		}
-		else if (now != SynthMode::FM && was == SynthMode::FM) {
-			if (filter.lpf_mode == FilterMode::OFF) {
-				filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
-			}
-			if (filter.hpf_mode == FilterMode::OFF) {
-				filter.hpf_mode = FilterMode::HPLADDER;
-			}
-		}
-		state.synth_mode = now;
-		return state;
+	namespace instrument = deluge::instrument;
+	if (sound.boundState() == nullptr) {
+		return std::nullopt;
+	}
+	if (path == "mode") {
+		return instrument::with_mode(*sound.boundState(), instrument::parse_synth_mode(value.str()));
 	}
 	std::string_view rest;
 	const int32_t s = oscillatorOf(path, rest);
-	if (s < 0 || sound.boundState() == nullptr || (rest != "type" && rest != "loopMode")) {
+	if (s < 0 || (rest != "type" && rest != "loopMode")) {
 		return std::nullopt;
 	}
-	deluge::instrument::SoundState state = *sound.boundState();
-	deluge::instrument::SourceState& source = state.sources[s];
+	const auto id = static_cast<instrument::SourceId>(s);
 	if (rest == "loopMode") {
 		const auto mode = static_cast<SampleRepeatMode>(deluge::serialization::int_of(&value).value_or(0));
-		if (mode == SampleRepeatMode::STRETCH) {
-			source.pitch_and_speed_independent = true;
-		}
-		else if (source.repeat_mode == SampleRepeatMode::STRETCH) {
-			source.pitch_and_speed_independent = false;
-		}
-		source.repeat_mode = mode;
-		return state;
+		return instrument::with_loop_mode(*sound.boundState(), id, mode);
 	}
-	const OscType type = deluge::instrument::parse_osc_type(value.str());
-	source.osc_type = type;
-	// The runtime's ranges are of one kind whatever the type in between; changing kind keeps only top notes.
-	const bool wavetableKind = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
-	if ((type == OscType::SAMPLE || type == OscType::WAVETABLE) && wavetableKind != (type == OscType::WAVETABLE)) {
-		for (deluge::instrument::RangeState& range : source.ranges) {
-			range = deluge::instrument::RangeState{.top_note = range.top_note};
-		}
-		if (source.ranges.empty()) {
-			source.ranges.push_back(deluge::instrument::RangeState{.top_note = deluge::instrument::kOpenTopNote});
-		}
-	}
-	else {
-		sound.sources[s].seedRangesInto(source); // the runtime's ranges, as the record holds them
-	}
-	if (type == OscType::DX7 && !source.dx_patch) {
-		source.dx_patch.emplace(deluge::instrument::DxPatchState{.params = deluge::instrument::kDx7InitVoice});
-	}
-	return state;
+	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
+	instrument::SourceState held;
+	sound.sources[s].seedRangesInto(held);
+	const bool heldAreWavetable = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
+	return instrument::with_osc_type(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held.ranges,
+	                                 heldAreWavetable);
 }
 
 } // namespace deluge::bridge
