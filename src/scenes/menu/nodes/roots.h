@@ -5,73 +5,75 @@
 ///
 /// The generated subtrees and the sound-editor root are declared elsewhere. This file declares
 /// everything `SoundEditor::setup` can open that is *not* that root and not the settings root
-/// (`settings.h`): the kit-drum root, the MIDI/CV root, the MIDI- and gate-drum roots, the audio
+/// (`nodes/settings.h`): the kit-drum root, the MIDI/CV root, the MIDI- and gate-drum roots, the audio
 /// clip root, the performance-view root, the song root and the kit global-FX root -- and the
 /// pages they share, which are the `UnpatchedGlobal` twins of the sound-editor root's patched/sound pages.
 ///
 /// **Why the global pages are new nodes and not the sound-editor root's.** `params::UnpatchedGlobal` and
-/// `params::UnpatchedSound` both start at `UNPATCHED_NUM_SHARED`
-/// (`modulation/params/param.h:211-236`), so `UNPATCHED_LPF_FREQ` and `UNPATCHED_PORTAMENTO` are
-/// the *same integer* in two different numbering spaces -- only `ParamRef::kind` separates them.
-/// A page whose params are a host chain's therefore needs its own nodes, carrying
-/// `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared** param
-/// (`param.h:177-208` -- the stutter rate, the EQ four, the sidechain shape, the arp params, the
-/// bitcrush and decimation) the id is identical on both sides and this file names the sound-editor root's node
-/// rather than declaring a second one, exactly as `sound_actions.h` names `sample0_recorder`.
+/// `params::UnpatchedSound` both start at `UNPATCHED_NUM_SHARED` (`modulation/params/param.h`), so `UNPATCHED_LPF_FREQ`
+/// and `UNPATCHED_PORTAMENTO` are the *same integer* in two different numbering spaces -- only `ParamRef::kind`
+/// separates them. A page whose params are a host chain's therefore needs its own nodes, carrying
+/// `Kind::UNPATCHED_GLOBAL`. Where a legacy page uses a **shared** param (the `UnpatchedShared` enum of
+/// `modulation/params/param.h` -- the stutter rate, the EQ four, the sidechain shape, the arp params, the bitcrush and
+/// decimation) the id is identical on both sides and this file names the sound-editor root's node rather than declaring
+/// a second one, exactly as `sound_actions.h` names `sample0_recorder`.
+///
+/// Each legacy global below is a variable of `origin/main:src/deluge/gui/ui/menus.cpp`.
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `global_level` | `globalLevelMenu` (`:940`) | `UnpatchedParam`, `UNPATCHED_VOLUME`, BAR | Int (param) |
-/// | `global_pitch` | `globalPitchMenu` (`:943`) | `UnpatchedParam`, `UNPATCHED_PITCH_ADJUST` | Int (param) |
-/// | `global_pan` | `globalPanMenu` (`:946`) | `unpatched_param::Pan`, `UNPATCHED_PAN` | Int (pan scaling) |
-/// | `song_master` | `songMasterMenu` (`:948`) / `audioClipMasterMenu` (`:1154`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `kit_clip_master` | `kitClipMasterMenu` (`:956`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `global_lpf_freq/res/morph` | `globalLPF*Menu` (`:966,969,972`) | `filter::UnpatchedFilterParam` | Int (param) |
-/// | `global_hpf_freq/res/morph` | `globalHPF*Menu` (`:979,982,985`) | `filter::UnpatchedFilterParam` | Int (param) |
-/// | `global_lpf` / `global_hpf` | `globalLPFMenu` (`:975`) / `globalHPFMenu` (`:989`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `global_filters` | `globalFiltersMenu` (`:992`) | `Submenu` | Submenu (Vertical) |
-/// | `global_delay_amount` | `globalDelayFeedbackMenu` (`:1016`) | `delay::Amount_Unpatched` | Int (param) |
-/// | `global_delay_rate` | `globalDelayRateMenu` (`:1018`) | `UnpatchedParam` | Int (param) |
-/// | `global_delay` | `globalDelayMenu` (`:1021`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `global_reverb_amount` | `globalReverbSendAmountMenu` (`:1034`) | `reverb::Amount_Unpatched` | Int (param) |
-/// | `global_reverb` | `globalReverbMenu` (`:1040`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `global_mod_fx_depth` | `globalModFXDepthMenu` (`:1072`) | `mod_fx::Depth_Unpatched` | Int (param) |
-/// | `global_mod_fx_rate` | `globalModFXRateMenu` (`:1074`) | `mod_fx::Rate_Unpatched` | Int (param) |
-/// | `global_mod_fx` | `globalModFXMenu` (`:1077`) | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
-/// | `global_distortion` | `globalDistortionMenu` (`:1088`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `global_fx` | `globalFXMenu` (`:1096`) | `Submenu` | Submenu (Vertical) |
-/// | `global_sidechain_volume` | `globalSidechainVolumeMenu` (`:1109`) | `sidechain::GlobalVolume` | Int (param; its Edit raises the reverb's recompute) |
-/// | `global_sidechain` | `globalSidechainMenu` (`:1112`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_level` | `globalLevelMenu` | `UnpatchedParam`, `UNPATCHED_VOLUME`, BAR | Int (param) |
+/// | `global_pitch` | `globalPitchMenu` | `UnpatchedParam`, `UNPATCHED_PITCH_ADJUST` | Int (param) |
+/// | `global_pan` | `globalPanMenu` | `unpatched_param::Pan`, `UNPATCHED_PAN` | Int (pan scaling) |
+/// | `song_master` | `songMasterMenu` / `audioClipMasterMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `kit_clip_master` | `kitClipMasterMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_lpf_freq/res/morph` | `globalLPF*Menu` | `filter::UnpatchedFilterParam` | Int (param) |
+/// | `global_hpf_freq/res/morph` | `globalHPF*Menu` | `filter::UnpatchedFilterParam` | Int (param) |
+/// | `global_lpf` / `global_hpf` | `globalLPFMenu` / `globalHPFMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_filters` | `globalFiltersMenu` | `Submenu` | Submenu (Vertical) |
+/// | `global_delay_amount` | `globalDelayFeedbackMenu` | `delay::Amount_Unpatched` | Int (param) |
+/// | `global_delay_rate` | `globalDelayRateMenu` | `UnpatchedParam` | Int (param) |
+/// | `global_delay` | `globalDelayMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_reverb_amount` | `globalReverbSendAmountMenu` | `reverb::Amount_Unpatched` | Int (param) |
+/// | `global_reverb` | `globalReverbMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_mod_fx_depth` | `globalModFXDepthMenu` | `mod_fx::Depth_Unpatched` | Int (param) |
+/// | `global_mod_fx_rate` | `globalModFXRateMenu` | `mod_fx::Rate_Unpatched` | Int (param) |
+/// | `global_mod_fx` | `globalModFXMenu` | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
+/// | `global_distortion` | `globalDistortionMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `global_fx` | `globalFXMenu` | `Submenu` | Submenu (Vertical) |
+/// | `global_sidechain_volume` | `globalSidechainVolumeMenu` | `sidechain::GlobalVolume` | Int (param; its Edit raises the reverb's recompute) |
+/// | `global_sidechain` | `globalSidechainMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
-/// @note **`globalEQMenu` (`:1005`) and `eqMenu` (`:752`) are the same four children**
+/// @note **`globalEQMenu` and `eqMenu` are the same four children**
 ///       (`bassMenu`, `trebleMenu`, `bassFreqMenu`, `trebleFreqMenu`, all shared-numbering
 ///       `UnpatchedParam`s) under the same name, so `global_fx` names the sound-editor root's `eq` rather than
 ///       declaring an identical second page. `stutterMenu` is literally the same legacy object in
 ///       both trees, and so is the sound-editor root's `stutter` node.
 ///
 /// @note **The MIDI/CV root carries two titles.** `SoundEditor::setup` rewrites the single
-///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in --
-///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output,
-///       `STRING_FOR_CV_INSTRUMENT` for a CV one. One `Node::title` is one static id, so
-///       the port declares **two nodes over one child list**: `root_midi_or_cv` (the MIDI title)
-///       and `root_cv` (the CV one). `midi_or_cv_root(ctx)` picks between them from
-///       the instrument kind in `MenuContext::addresses`, which is the same fact `setup()` branched on, and
-///       `MenuScene::roots()` holds the MIDI spelling because that is the constructor argument in
-///       `menus.cpp`. Both are in `kBatch3Roots`, so both get node ids and both are validated.
+///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in -- `STRING_FOR_MIDI_INST_MENU_TITLE` for a
+///       MIDI output, `STRING_FOR_CV_INSTRUMENT` for a CV one. One `Node::title` is one static id, so the port declares
+///       **two nodes over one child list**: `root_midi_or_cv` (the MIDI title) and `root_cv` (the CV one).
+///       `midi_or_cv_root(ctx)` picks between them from the instrument kind in `MenuContext::addresses`, which is the
+///       same fact `setup()` branched on, and `MenuScene::roots()` holds the MIDI spelling because that is the
+///       constructor argument in `origin/main:src/deluge/gui/ui/menus.cpp`. Both are in `kAllRoots`, so both get
+///       node ids and both are validated.
 ///
 /// @note **No item here is a `Kind::Custom` placeholder.** Each item whose value or whose action lives behind
 ///       the `scenes-includes-outside` wall -- `gui/` or `hid/`, which no `get`/`set` hook in this layer may
 ///       reach -- is a real node item:
 ///
-///         * `drum_name_edit` is a `nodes::EditNameItem` (`edit_name.h`) that opens `rename::RenameScene` on
+///         * `drum_name_edit` is a `nodes::EditNameItem` (`nodes/edit_name.h`) that opens `rename::RenameScene` on
 ///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` (`EditName::beginSession`
-///           opens `RenameUI`, `gui/menu_item/edit_name.cpp`) -- exactly as `sound_actions.h`'s two do for the clip
-///           and the track.
+///           opens `RenameUI`, `origin/main:src/deluge/gui/menu_item/edit_name.cpp`) -- exactly as `sound_actions.h`'s
+///           two do for the clip and the track.
 ///         * `midi_device_linked` is a `nodes::MidiDeviceLinkedItem` (`nodes/output_items.h`) that ports the whole
 ///           `Toggle`: the ON arm opens `browser::BrowserScene` on `BrowserId::MidiDeviceDefinition`
-///           (`midi/device_definition/linked.h:42`) and the OFF arm clears the linked file name (`:45-48`).
+///           (the `if` arm of `Linked::writeCurrentValue` in
+///           `origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) and the OFF arm clears the linked
+///           file name (its `else` arm).
 ///         * `set_clip_length`, `start_stem_export`, `song_midi_learn` and `configure_song_macros` are
 ///           `nodes::ActionItem`s that file a `MenuAction` through `MenuWalkState::pending_action`, the verb
 ///           counterpart of `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
@@ -79,8 +81,9 @@
 ///         * `audio_source_selector` is a `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`.
 ///         * `specific_output_selector` is a `nodes::SpecificOutputItem` (`nodes/output_items.h`): the song's
 ///           output list walked with the select encoder, skipping every output the audio track cannot record
-///           from (`audio_clip/specific_output_source_selector.h`).
-///         * `audio_clip_waveform` is the marker editor (`audio_clip/sample_marker_editor.h:26`).
+///           from (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`).
+///         * `audio_clip_waveform` is the marker editor (`SampleMarkerEditor` in
+///         `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`).
 ///         * `perform_editor` is a `nodes::PerformEditorItem` that renders the three-option list and files
 ///           `MenuAction::OpenPerformanceView`; the mode it shows is the host's
 ///           `bind::RuntimeFacts::performance_editing_mode()`.
@@ -161,8 +164,8 @@ inline constexpr Node global_pitch =
 inline constexpr Node global_pan = param(sid(String::STRING_FOR_PAN), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_PAN},
                                          Hint::Pan, nullptr, 0, Scaling::Pan);
 
-/// `songMasterMenu` (`:948`) and `audioClipMasterMenu` (`:1154`): two legacy objects, the same name
-/// and the same two children, so one node serves both trees.
+/// `songMasterMenu` and `audioClipMasterMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): two legacy objects, the same
+/// name and the same two children, so one node serves both trees.
 inline constexpr const Node* kSongMasterChildren[] = {&global_level, &global_pan};
 inline constexpr Node song_master = submenu(sid(String::STRING_FOR_MASTER), kSongMasterChildren, Layout::Horizontal);
 
@@ -174,7 +177,8 @@ inline constexpr Node kit_clip_master =
 // The global filters page
 //
 // `filter::UnpatchedFilterParam`'s relevance is `FilterInfo::isOn()` for its own slot
-// (`filter/param.h:87-89`) -- the same predicate the patched filter params use.
+// (`UnpatchedFilterParam::isRelevant` in `origin/main:src/deluge/gui/menu_item/filter/param.h`) -- the same predicate
+// the patched filter params use.
 
 inline constexpr Node global_lpf_freq =
     with_column_draw(param(sid(String::STRING_FOR_FREQUENCY), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_FREQ},
@@ -230,7 +234,8 @@ inline constexpr const Node* kGlobalDelayChildren[] = {&global_delay_amount, &de
                                                        &global_delay_rate, &delay_type};
 inline constexpr Node global_delay = submenu(sid(String::STRING_FOR_DELAY), kGlobalDelayChildren, Layout::Horizontal);
 
-// `reverb::Amount_Unpatched` renders a BAR (`reverb/amount.h:23`, the unpatched twin of `Amount`).
+// `reverb::Amount_Unpatched` renders a BAR (`Amount_Unpatched::getRenderingStyle` in
+// `origin/main:src/deluge/gui/menu_item/reverb/amount_unpatched.h`, the unpatched twin of `Amount`).
 inline constexpr Node global_reverb_amount = with_column_name(
     param(sid(String::STRING_FOR_AMOUNT), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_REVERB_SEND_AMOUNT}, Hint::Bar,
           nullptr, sid(String::STRING_FOR_REVERB_AMOUNT)),
@@ -266,9 +271,10 @@ inline constexpr Node global_fx = submenu(sid(String::STRING_FOR_FX), kGlobalFxC
 // The global sidechain page
 //
 // `sidechain::GlobalVolume` is the second `unpatched_param::UpdatingReverbParams` in the whole tree
-// (`sidechain/volume_global.h:6`; the first is the sound-editor root's `sidechain_shape`): the reverb recomputes
-// after a write to it, which SetParamValue raises for the param. Its rendering style is SIDECHAIN_DUCKING
-// (`volume_global.h:10`), i.e. `Hint::Ducking`.
+// (`origin/main:src/deluge/gui/menu_item/sidechain/volume_global.h`; the first is the sound-editor root's
+// `sidechain_shape`): the reverb recomputes after a write to it, which SetParamValue raises for the param. Its
+// rendering style is SIDECHAIN_DUCKING (`GlobalVolume::getRenderingStyle` in
+// `origin/main:src/deluge/gui/menu_item/sidechain/volume_global.h`), i.e. `Hint::Ducking`.
 
 inline constexpr Node global_sidechain_volume =
     with_column_name(param(sid(String::STRING_FOR_VOLUME_DUCKING),
@@ -280,10 +286,10 @@ inline constexpr Node global_sidechain =
     submenu(sid(String::STRING_FOR_SIDECHAIN), kGlobalSidechainChildren, Layout::Horizontal);
 
 // ---------------------------------------------------------------------------------------------
-// The kit-drum root (`soundEditorRootMenuDrum`, `:1807`)
+// The kit-drum root (`soundEditorRootMenuDrum` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 //
 // Identical to `sound_root` but for its first child: a kit row's actions page renames the *drum*
-// (`drumNameEditMenu`, `:1126`) where a synth's renames the track and the clip.
+// (`drumNameEditMenu`) where a synth's renames the track and the clip.
 
 inline constexpr Node drum_name_edit = custom(sid(String::STRING_FOR_RENAME_DRUM), &kEditDrumName);
 
@@ -307,15 +313,16 @@ inline constexpr const Node* kDrumRootChildren[] = {&drum_actions, &sound_master
 inline constexpr Node root_drum = submenu(sid(String::STRING_FOR_SOUND), kDrumRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The MIDI / CV root (`soundEditorRootMenuMIDIOrCV`, `:1952`)
+// The MIDI / CV root (`soundEditorRootMenuMIDIOrCV` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
 inline constexpr const Node* kMidiOrCvActionsChildren[] = {&edit_name};
 inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTIONS), kMidiOrCvActionsChildren);
 
-/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
-/// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
-/// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
-/// Its row is a checkbox and it has no page of its own, so its values are a toggle's: the words a toggle's page lists.
+/// `midiDeviceLinkedMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
+/// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked file name
+/// (`Linked::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`). Both arms
+/// are `nodes::kMidiDeviceLinked`. Its row is a checkbox and it has no page of its own, so its values are a toggle's:
+/// the words a toggle's page lists.
 inline constexpr Node midi_device_linked =
     with_value_names(with_relevant(custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked),
                                    relevance::is_midi_out),
@@ -364,15 +371,17 @@ inline constexpr Node midi_pgm =
                              midi_preset_turn),
                    midi_preset_text);
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
-/// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
-/// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout
-/// with two slots and `Layout::FIXED` (`with_fixed_columns`).
+/// `midiProgramMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) is a `midi::ProgramSubMenu`
+/// (`origin/main:src/deluge/gui/menu_item/midi/program.h`), a horizontal menu, whose name *is* its title
+/// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout with two slots and
+/// `Layout::FIXED` (`with_fixed_columns`).
 inline constexpr Node midi_program = with_fixed_columns(
     submenu(sid(String::STRING_FOR_MIDI_PROGRAM_MENU_TITLE), kMidiProgramChildren, Layout::Horizontal));
 
-// The MIDI/CV arpeggiator: `arpMenuMIDIOrCV` (`:670`) differs from `arpMenu` only in its basic
-// page, whose gate and rate live on `ArpeggiatorSettings` rather than in a param collection
-// (`arpeggiator/midi_cv/gate.h:22-30`, `rate.h:22-30`).
+// The MIDI/CV arpeggiator: `arpMenuMIDIOrCV` (`origin/main:src/deluge/gui/ui/menus.cpp`) differs from `arpMenu` only in
+// its basic page, whose gate and rate live on `ArpeggiatorSettings` rather than in a param collection (`midi_cv::Gate`
+// in `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/gate.h`, `midi_cv::Rate` in
+// `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rate.h`).
 inline constexpr Node arp_gate_midi = with_title(
     setting_item(sid(String::STRING_FOR_GATE), Kind::Int, arp_row("arpeggiator/gate", false), Hint::LengthSlider),
     sid(String::STRING_FOR_ARP_GATE_MENU_TITLE));
@@ -418,15 +427,16 @@ inline constexpr Node root_cv = submenu(sid(String::STRING_FOR_CV_INSTRUMENT), k
 /// @brief Which of the two MIDI/CV root nodes @p ctx wants -- the port of `setup()`'s retitle.
 const Node& midi_or_cv_root(const MenuContext& ctx);
 
-// ---------------------------------------------------------------------------------------------
-// The MIDI-drum and gate-drum roots (`:1969`, `:1977`)
+// --------------------------------------------------------------------------------------------- The MIDI-drum and
+// gate-drum roots (`soundEditorRootMenuMidiDrum` and `soundEditorRootMenuGateDrum` in
+// `origin/main:src/deluge/gui/ui/menus.cpp`)
 
 inline constexpr const Node* kNonAudioDrumRootChildren[] = {&drum_actions, &arp_midi, &randomizer};
 inline constexpr Node root_midi_drum = submenu(sid(String::STRING_FOR_MIDI), kNonAudioDrumRootChildren);
 inline constexpr Node root_gate_drum = submenu(sid(String::STRING_FOR_GATE), kNonAudioDrumRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The audio-clip root (`soundEditorRootMenuAudioClip`, `:1987`)
+// The audio-clip root (`soundEditorRootMenuAudioClip` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
 inline constexpr Node set_clip_length =
     custom(sid(String::STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH), &kSetClipLengthItem);
@@ -435,12 +445,12 @@ inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTION
 
 inline constexpr Node audio_source_selector =
     with_value_names(custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem), kAudioSourceOptions);
-/// `specificOutputSelectorMenu` (`gui/ui/menus.cpp`), an
+/// `specificOutputSelectorMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`), an
 /// `audio_clip::SpecificSourceOutputSelector` -- the picker for which track this audio track
 /// records from, **not** a browser (`nodes/output_items.h`).
 inline constexpr Node specific_output_selector =
     custom(sid(String::STRING_FOR_TRACK), &kSpecificOutputSelector, relevance::audio_source_is_specific);
-// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp`), the only one of the two
+// `audioClipSampleMarkerEditorMenuEnd` (`origin/main:src/deluge/gui/ui/menus.cpp`), the only one of the two
 // `audio_clip::SampleMarkerEditor` globals any submenu names. Relevant only once the clip has a
 // sample, as the legacy item's `isRelevant` is.
 inline constexpr Node audio_clip_waveform = with_value_text(
@@ -462,9 +472,10 @@ inline constexpr const Node* kAudioClipFxChildren[] = {&eq,      &global_delay, 
                                                        &stutter, &global_mod_fx, &audio_clip_distortion};
 inline constexpr Node audio_clip_fx = submenu(sid(String::STRING_FOR_FX), kAudioClipFxChildren);
 
-// `audio_clip::Transpose` (`audio_clip/transpose.h:20-46`): a `Decimal` over the sample holder's
-// transpose+cents pair, with a learn-only `ParamRef` on `UNPATCHED_PITCH_ADJUST` (`:41-45`) --
-// exactly the shape `with_learn_param` exists for (`node.h`'s `Binding` precedence note).
+// `audio_clip::Transpose` (`origin/main:src/deluge/gui/menu_item/audio_clip/transpose.h`): a `Decimal` over the sample
+// holder's transpose+cents pair, with a learn-only `ParamRef` on `UNPATCHED_PITCH_ADJUST`
+// (`Transpose::getLearningThing`) -- exactly the shape `with_learn_param` exists for (`node.h`'s `Binding` precedence
+// note).
 inline constexpr Node audio_clip_transpose =
     with_learn_param(with_decimal_places(setting_item(sid(String::STRING_FOR_TRANSPOSE), Kind::Decimal,
                                                       {.kind = deluge::scenes::bind::Target::Kind::MODEL,
@@ -509,7 +520,7 @@ inline constexpr const Node* kAudioClipRootChildren[] = {
 inline constexpr Node root_audio_clip = submenu(sid(String::STRING_FOR_AUDIO_CLIP), kAudioClipRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The performance-view root (`soundEditorRootMenuPerformanceView`, `:2008`)
+// The performance-view root (`soundEditorRootMenuPerformanceView` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
 inline constexpr Node perform_editor =
     with_value_names(custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem), kPerformEditingModeNames);
@@ -517,8 +528,9 @@ inline constexpr Node perform_editor =
 inline constexpr const Node* kPerformanceRootChildren[] = {&perform_editor, &global_filters, &global_fx};
 inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_FX), kPerformanceRootChildren);
 
-// ---------------------------------------------------------------------------------------------
-// Stem export (`:2018-2069`), shared by the song and kit-global-FX roots
+// --------------------------------------------------------------------------------------------- Stem export
+// (`startStemExportMenu` and its siblings in `origin/main:src/deluge/gui/ui/menus.cpp`), shared by the song and
+// kit-global-FX roots
 
 inline constexpr Node start_stem_export = custom(sid(String::STRING_FOR_START_EXPORT), &kStartStemExportItem);
 inline constexpr Node stem_normalization = toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION),
@@ -552,10 +564,10 @@ inline constexpr const Node* kKitFxStemExportChildren[] = {&start_stem_export, &
 inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT_AUDIO), kKitFxStemExportChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The song root (`soundEditorRootMenuSongView`, `:2085`)
+// The song root (`soundEditorRootMenuSongView` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
-/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:30`) rather than
-/// `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
+/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`origin/main:src/deluge/gui/menu_item/swing/interval.h`) rather
+/// than `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
 inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
 /// `swing::Interval::selectEncoderAction` (`wrapSwingIntervalSyncLevel`): a turn wraps within the even levels and
 /// never lands on 0, OFF. `defaults::SwingInterval` inherits it.
@@ -568,8 +580,8 @@ inline constexpr Node swing_interval =
 inline constexpr Node active_scales =
     with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem), preset_scale_names);
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
-/// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
-/// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are
+/// (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) and `song::MidiLearn::isRelevant`
+/// (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) are both `getRootUI() == &sessionView`, so both are
 /// hidden in the arranger and the song automation view even though `SoundEditor::setup`
 /// opens this same root there. They are the only two nodes in the whole tree that spend
 /// `MenuContext::is_session_view`.
@@ -578,8 +590,8 @@ inline constexpr Node configure_song_macros =
 inline constexpr Node song_midi_learn =
     custom(sid(String::STRING_FOR_MIDI_LEARN), &kSongMidiLearnItem, relevance::is_session_view);
 
-/// `record::ThresholdMode::getOptions` (`record/threshold_mode.h:44-54`), shared with the settings
-/// root's `defaultThresholdRecordingModeMenu`.
+/// `record::ThresholdMode::getOptions` (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`), shared with
+/// the settings root's `defaultThresholdRecordingModeMenu`.
 inline constexpr uint16_t kThresholdModeNames[] = {
     sid(String::STRING_FOR_DISABLED),
     sid(String::STRING_FOR_LOW),
@@ -598,13 +610,14 @@ inline constexpr const Node* kSongRootChildren[] = {&song_master,           &glo
 inline constexpr Node root_song = submenu(sid(String::STRING_FOR_SONG), kSongRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The kit global-FX root (`soundEditorRootMenuKitGlobalFX`, `:2138`)
+// The kit global-FX root (`soundEditorRootMenuKitGlobalFX` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
 inline constexpr const Node* kKitFxActionsChildren[] = {&edit_name, &kit_fx_stem_export};
 inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), kKitFxActionsChildren);
 
-// `arpeggiator::KitRate` is the kit's own `UNPATCHED_ARP_RATE`, shown only on the kit's global-FX
-// page (`arpeggiator/rate.h:19-26`); `arpGateMenu` is shared with the sound arpeggiator.
+// `arpeggiator::KitRate` is the kit's own `UNPATCHED_ARP_RATE`, shown only on the kit's global-FX page
+// (`KitRate::isRelevant` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rate.h`); `arpGateMenu` is shared with
+// the sound arpeggiator.
 inline constexpr Node arp_kit_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_ARP_RATE}, Hint::Knob,
           param_shows::kKitEffects, sid(String::STRING_FOR_ARP_RATE_MENU_TITLE));

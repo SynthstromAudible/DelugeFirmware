@@ -52,7 +52,7 @@
 // `util/functions.h` is outside this layer's include allowance (`src/scenes/CMakeLists.txt`, and
 // `scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the one function needed is
 // declared here at the global scope where it is defined (`getOutputTypeName` in
-// `util/functions.cpp`) -- the spelling `multi_range.cpp` uses for the three note-name tables.
+// `util/functions.cpp`) -- the spelling `nodes/multi_range.cpp` uses for the three note-name tables.
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 namespace deluge::scenes::menu::nodes {
@@ -64,7 +64,7 @@ namespace {
 /// `output_items.h` builds `kMidiDeviceLinked` from a raw literal so that header does not drag
 /// `scenes/browser/browser_scene.h` into every table that names the item; the literal is only
 /// correct while `BrowserId` keeps its numbering, so it is pinned here, in the translation unit
-/// that already sees both -- exactly what `sample.cpp` does for `MarkerType`.
+/// that already sees both -- exactly what `nodes/sample.cpp` does for `MarkerType`.
 static_assert(static_cast<uint16_t>(browser::BrowserId::MidiDeviceDefinition) == 1);
 
 size_t depth_of(const MenuState& state) {
@@ -72,7 +72,7 @@ size_t depth_of(const MenuState& state) {
 }
 
 /// @brief Draw the focused node's title, as `MenuItem::renderOLED` does before it calls
-///        `drawPixelsForOled` (`gui/menu_item/menu_item.cpp:37-41`).
+///        `drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`).
 void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
@@ -105,7 +105,7 @@ std::optional<serialization::Value> track_row(const MenuContext& ctx, uint32_t o
 }
 
 /// @brief The MIDI track the menu edits, with the type test legacy leaves to `isRelevant`
-///        (`midi/device_definition/linked.h:51-54`).
+///        (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`).
 std::optional<bind::TrackFact> midi_track_of(const MenuContext& ctx) {
 	const std::optional<bind::TrackFact> track = track_of(ctx);
 	return track && track->kind == bind::TrackKind::MIDI_OUT ? track : std::nullopt;
@@ -114,17 +114,18 @@ std::optional<bind::TrackFact> midi_track_of(const MenuContext& ctx) {
 // ---------------------------------------------------------------------------------------------
 // `SpecificSourceOutputSelector`'s four private helpers, as free functions over the context.
 //
-// Legacy keeps `audioOutputBeingEdited`, `outputIndex` and `numOutputs` as members of a singleton
-// item (`specific_output_source_selector.h:109-112`). A `CustomItem` is `const` and shared, so the
-// first is re-resolved from the context on every call, the second lives in
-// `MenuState::list[depth].cursor` (`SourceSelectionItem`'s reason, `nodes/patch_cables.h`) and the
-// third is asked of the song each time -- which is strictly fresher than legacy's snapshot, taken
-// once in `beginSession` and then used by every subsequent `selectEncoderAction` (`:32`, `:155`).
-// An index is a position in the song's track list ("only outputs still in the main song list are
-// selectable; hibernated instruments should not display here", `:122`).
+// Legacy keeps `audioOutputBeingEdited`, `outputIndex` and `numOutputs` as members of a singleton item
+// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`). A `CustomItem` is `const` and
+// shared, so the first is re-resolved from the context on every call, the second lives in
+// `MenuState::list[depth].cursor` (`SourceSelectionItem`'s reason, `nodes/patch_cables.h`) and the third is asked of
+// the song each time -- which is strictly fresher than legacy's snapshot, taken once in `beginSession` and then used by
+// every subsequent `selectEncoderAction`. An index is a position in the song's track list (main's
+// `SpecificSourceOutputSelector::isRelevant`: "only outputs still in the main song list are selectable; hibernated
+// instruments should not display here").
 
 /// @brief The audio track being edited, with the type test legacy leaves to `isRelevant`
-///        (`specific_output_source_selector.h:102-105`) -- here `relevance::audio_source_is_specific`.
+///        (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) -- here
+///        `relevance::audio_source_is_specific`.
 std::optional<uint32_t> editing_of(const MenuContext& ctx) {
 	const std::optional<bind::TrackFact> track = track_of(ctx);
 	return track && track->kind == bind::TrackKind::AUDIO ? std::optional{track->output_id} : std::nullopt;
@@ -143,8 +144,8 @@ std::optional<uint32_t> recording_from_of(const MenuContext& ctx, uint32_t editi
 	return value >= 0 ? std::optional{static_cast<uint32_t>(value)} : std::nullopt;
 }
 
-/// @brief `getRecordableOutputIndex` (`:117-132`): @p out's position in the song's track list, or -1 if it is not
-///        there or cannot be recorded from.
+/// @brief main's `SpecificSourceOutputSelector::getRecordableOutputIndex`: @p out's position in the song's track list,
+///        or -1 if it is not there or cannot be recorded from.
 int32_t recordable_index(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
                          std::optional<uint32_t> out) {
 	if (!editing || !out) {
@@ -158,8 +159,8 @@ int32_t recordable_index(std::span<const bind::TrackFact> tracks, std::optional<
 	return -1;
 }
 
-/// @brief `getOutputFromSelectedIndex` (`:134-137`): the track at @p index, or null when the audio track cannot
-///        record from it.
+/// @brief main's `SpecificSourceOutputSelector::getOutputFromSelectedIndex`: the track at @p index, or null when the
+///        audio track cannot record from it.
 const bind::TrackFact* track_at(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
                                 int32_t index) {
 	if (!editing || index < 0 || static_cast<size_t>(index) >= tracks.size()) {
@@ -168,13 +169,13 @@ const bind::TrackFact* track_at(std::span<const bind::TrackFact> tracks, std::op
 	return bind::can_record_from(*editing, tracks[index]) ? &tracks[index] : nullptr;
 }
 
-/// @brief `getNextRecordableOutputIndex` (`:139-168`): walk @p offset detents from @p start,
+/// @brief main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex`: walk @p offset detents from @p start,
 ///        stopping only on rows the audio track can record from and stopping dead at either end.
 int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::TrackFact> tracks,
                               std::optional<uint32_t> editing, int32_t start, int32_t offset) {
 	if (offset == 0) {
-		// `:141-143`. Legacy reads its `outputIndex` member here rather than `startIndex`; the only
-		// caller passes the member as `startIndex`, so the two are the same value.
+		// Main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex` reads its `outputIndex` member here
+		// rather than `startIndex`; the only caller passes the member as `startIndex`, so the two are the same value.
 		return track_at(tracks, editing, start) != nullptr
 		           ? start
 		           : recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
@@ -202,12 +203,13 @@ int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::Trac
 }
 
 /// @brief `getOutputTypeName(outputType, channel)` for @p track, with legacy's own channel arm
-///        (`specific_output_source_selector.h:70-79`).
+///        (`SpecificSourceOutputSelector::drawPixelsForOled` in
+///        `origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`).
 ///
 /// @note That arm is **unreachable today**, and is reproduced rather than dropped so it stays
 ///       correct if it ever becomes reachable: the only tracks that get here can be recorded from,
 ///       which already excludes MIDI and CV. The same filter is why an audio source is labelled from
-///       channel 0 -- i.e. always "Audio Player" (`util/functions.cpp:614-626`) whatever its mode.
+///       channel 0 -- i.e. always "Audio Player" (`getOutputTypeName` in `util/functions.cpp`) whatever its mode.
 ///       Legacy has the identical behaviour; it is a fidelity result, not a port decision.
 std::string_view output_type_text(const bind::TrackFact& track) {
 	OutputType type = OutputType::SYNTH;
@@ -260,7 +262,8 @@ std::optional<serialization::Value> MidiDeviceLinkedItem::definition_file(const 
 }
 
 bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
-	// `readCurrentValue` (`linked.h`): linked when the track names a file.
+	// Main's `Linked::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`):
+	// linked when the track names a file.
 	const std::optional<serialization::Value> file = definition_file(ctx);
 	return file && !file->str().empty();
 }
@@ -279,20 +282,20 @@ std::string_view MidiDeviceLinkedItem::row_note(const MenuContext& ctx, std::spa
 }
 
 const deluge::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {
-	// `renderSubmenuItemTypeForOled` (`linked.h:56-78`), icon half: `getToggleValue()` is
+	// Main's `Linked::renderSubmenuItemTypeForOled`, icon half: `getToggleValue()` is
 	// `readCurrentValue`'s answer, which `linked()` above already is.
 	return linked(ctx) ? &deluge::gfx::oled::icons::checkedBox : &deluge::gfx::oled::icons::uncheckedBox;
 }
 
 void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `Toggle::selectButtonPress` -> `toggleValue()` (`gui/menu_item/toggle.h:25-29`, `:33-44`):
-	// read the current value, invert it, write it. The write is `Linked::writeCurrentValue`
-	// (`linked.h:37-49`), whose two arms are the two below. `CustomItem::on_focus` IS
-	// `beginSession` (`node.h`), and a descent into this item is what the press that legacy answered
-	// without navigating turns into here (`output_items.h`, and `nodes/actions.h` for the shape).
+	// `Toggle::selectButtonPress` -> `toggleValue()` (`origin/main:src/deluge/gui/menu_item/toggle.h`): read the
+	// current value, invert it, write it. The write is `Linked::writeCurrentValue`
+	// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`), whose two arms are the two below.
+	// `CustomItem::on_focus` IS `beginSession` (`node.h`), and a descent into this item is what the press that legacy
+	// answered without navigating turns into here (`output_items.h`, and `nodes/actions.h` for the shape).
 	if (linked(ctx)) {
-		// Unlinking (`:45-48`): the new value is false, so just clear the file name. No UI is
-		// opened, so nothing is filed and `render` is what takes the user back out.
+		// Unlinking (the `else` arm of main's `Linked::writeCurrentValue`): the new value is false, so just clear the
+		// file name. No UI is opened, so nothing is filed and `render` is what takes the user back out.
 		if (midi_track_of(ctx) && ctx.sink != nullptr) {
 			(void)ctx.sink->write_text({.kind = bind::Target::Kind::MODEL,
 			                            .path = "deviceDefinitionFileName",
@@ -301,11 +304,11 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 		}
 		return;
 	}
-	// Linking (`:41-43`): `openUI(&loadMidiDeviceDefinitionUI)`. The descriptor for that browser
-	// already ships complete -- title, XML extensions, `MIDI_DEVICES/DEFINITION`, both icon pieces,
-	// its `can`, its `start_at` and an `accept` that performs the real load
-	// (`browser::BrowserId::MidiDeviceDefinition`, `scenes/browser/browser_scene.cpp`) -- so this is
-	// the whole of the wiring it was waiting for.
+	// Linking (the `if (t)` arm of main's `Linked::writeCurrentValue`): `openUI(&loadMidiDeviceDefinitionUI)`. The
+	// descriptor for that browser already ships complete -- title, XML extensions, `MIDI_DEVICES/DEFINITION`, both icon
+	// pieces, its `can`, its `start_at` and an `accept` that performs the real load
+	// (`browser::BrowserId::MidiDeviceDefinition`, `scenes/browser/browser_scene.cpp`) -- so this is the whole of the
+	// wiring it was waiting for.
 	//
 	// A scene may not touch the `Shell` stack itself, so the push is recorded in
 	// `MenuWalkState::pending_scene` and `MenuScene::after_render` turns it into an
@@ -313,11 +316,10 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	// `shouldGoUpOneLevelOnBegin` here -- it never descended into the item in the first place -- so
 	// the two agree on where the user lands when the browser closes: the parent list.
 	//
-	// **Not ported:** `LoadMidiDeviceDefinitionUI` refuses to open unless the root UI is a clip
-	// minder as well (`load_midi_device_definition_ui.cpp:45-47`); that conjunct is a root-UI read
-	// this layer may not make, and `BrowserScene`'s `can` keeps the half that discriminates. The
-	// browser's host performs the load (`BrowserHost::perform`), as it performs the sample side's
-	// claim.
+	// **Not ported:** `LoadMidiDeviceDefinitionUI` refuses to open unless the root UI is a clip minder as well
+	// (`LoadMidiDeviceDefinitionUI::opened` in `load_midi_device_definition_ui.cpp`); that conjunct is a root-UI read
+	// this layer may not make, and `BrowserScene`'s `can` keeps the half that discriminates. The browser's host
+	// performs the load (`BrowserHost::perform`), as it performs the sample side's claim.
 	browser::browser_scene().open(ctx);
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, browser_arg_};
 }
@@ -333,11 +335,11 @@ void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	// (`nodes/actions.cpp`), and what `PendingCustom::render` drew before this item existed.
 	draw_title_for(f, state);
 
-	// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`toggle.h:42`): the user is left on the
-	// parent list. `after_render`'s leaf arm turns `entered` into `ascend()`, which is how a
-	// `CustomItem` that legacy never entered leaves again. Legacy never draws this item at all, so
-	// the port's one frame of its own title before it leaves is a difference -- the same one
-	// `ResetItem` already ships, and stated for the same reason.
+	// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`origin/main:src/deluge/gui/menu_item/toggle.h`): the user
+	// is left on the parent list. `after_render`'s leaf arm turns `entered` into `ascend()`, which is how a
+	// `CustomItem` that legacy never entered leaves again. Legacy never draws this item at all, so the port's one frame
+	// of its own title before it leaves is a difference -- the same one `ResetItem` already ships, and stated for the
+	// same reason.
 	//
 	// Set unconditionally rather than once, which matters only at **depth 0** -- this node opened as
 	// a root through `SceneId::arg` or `open()`. There `on_focus` was skipped entirely
@@ -358,7 +360,7 @@ deluge::ui::shell::Result MidiDeviceLinkedItem::handle(const deluge::ui::shell::
 // `SpecificOutputItem` -- `audio_clip::SpecificSourceOutputSelector`
 
 void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `beginSession` (`specific_output_source_selector.h:30-47`).
+	// `beginSession` (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`).
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
 	state.scroll[d] = deluge::ui::ScrollText{};
@@ -368,8 +370,8 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
 	int32_t index = recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
 	if (index < 0) {
-		// `:36-41` -- "if the stored source was removed or became invalid, land on the first valid
-		// target instead", and write that choice straight back to the model. A model write from
+		// Main's `SpecificSourceOutputSelector::beginSession` -- "if the stored source was removed or became invalid,
+		// land on the first valid target instead", and write that choice straight back to the model. A model write from
 		// `on_focus` is legacy's own (`beginSession` does exactly this).
 		index = next_recordable_index(ctx, tracks, editing, -1, 1);
 		if (editing) {
@@ -377,7 +379,7 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 		}
 	}
 	if (index < 0) {
-		index = 0; // `:43-45`
+		index = 0; // as main's `beginSession` does
 	}
 	state.list[d].cursor = static_cast<int16_t>(index);
 }
@@ -390,15 +392,15 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const std::vector<bind::TrackFact> tracks =
 	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
 
-	// `selectEncoderAction` (`:49-58`). Done here rather than in `handle` for
+	// Main's `SpecificSourceOutputSelector::selectEncoderAction`. Done here rather than in `handle` for
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
 	// before `after_render`, so reading it from the render is what keeps the page in step with the
 	// encoder instead of one tick behind it (`browser_scene.h` §5.7 records the same finding).
 	if (const auto turn = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); turn != 0) {
 		const int32_t next = next_recordable_index(ctx, tracks, editing, state.list[d].cursor, turn);
-		if (next >= 0) { // `:51-53`
+		if (next >= 0) { // main's `selectEncoderAction` returns early on a negative index
 			state.list[d].cursor = static_cast<int16_t>(next);
-			// `:56` -- `setOutputRecordingFrom(...)`. A render may not write the model
+			// Main's `selectEncoderAction` calls `setOutputRecordingFrom(...)` here. A render may not write the model
 			// (`menu_scene.h`), so the write is recorded and `commit()` performs it, which is where
 			// every other kind's write happens too. Filed on every turn legacy would have written
 			// on, including one that hit an end and moved nothing: legacy re-writes the same output
@@ -409,12 +411,13 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 		}
 	}
 
-	// `drawPixelsForOled` (`:59-100`), laid out at legacy's own offsets from the top of the panel.
+	// Main's `SpecificSourceOutputSelector::drawPixelsForOled`, laid out at legacy's own offsets from the top of the
+	// panel.
 	//
 	// **`ui::oled::output_name` is deliberately not used**, even though it is the port of the same
 	// two-line output display (`ui/oled/misc.h`). Its rows are `View::drawOutputNameFromDetails`'s
 	// (12 and 30 on a 64-row panel), and that display has no screen title above it; this item does
-	// (`MenuItem::renderOLED`, `gui/menu_item/menu_item.cpp:37-41`), and at row 12 the type label
+	// (`MenuItem::renderOLED`, `origin/main:src/deluge/gui/menu_item/menu_item.cpp`), and at row 12 the type label
 	// would collide with the title rule the profile puts at `menu_base_y`. Legacy's own numbers --
 	// 14 and 28, with 21 for the empty case -- clear it, so they are what this draws.
 	//
@@ -430,9 +433,9 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 
 	const bind::TrackFact* out = track_at(tracks, editing, state.list[d].cursor);
 	if (out == nullptr) {
-		// `:64-67`. Not an l10n id: legacy's literal is not in `gui/l10n/strings.h`, and inventing
-		// one would be a change to the l10n data rather than a port (`browser_scene.h`'s
-		// `Descriptor::title` makes the same call).
+		// Main's `drawPixelsForOled` empty case. Not an l10n id: legacy's literal is not in `gui/l10n/strings.h`, and
+		// inventing one would be a change to the l10n data rather than a port (`browser_scene.h`'s `Descriptor::title`
+		// makes the same call).
 		deluge::ui::oled::text(
 		    f, deluge::gfx::oled::Rect{area.x, area.y + 21, area.w, type_h}, "No track",
 		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
@@ -441,8 +444,8 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 		deluge::ui::oled::text(
 		    f, deluge::gfx::oled::Rect{area.x, area.y + 14, area.w, type_h}, output_type_text(*out),
 		    deluge::ui::oled::TextStyle{.font = type_font, .align = deluge::ui::oled::Align::Centre});
-		// `:87-99` -- centred when it fits, left-aligned when it does not (the side-scroller legacy
-		// arms in that case has no port; see `output_items.h`).
+		// Main's `drawPixelsForOled` name row -- centred when it fits, left-aligned when it does not (the side-scroller
+		// legacy arms in that case has no port; see `output_items.h`).
 		const std::optional<serialization::Value> named = track_row(ctx, out->output_id, "name");
 		const std::string name_text = named ? named->str() : std::string{};
 		const std::string_view name{name_text};
@@ -462,9 +465,9 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 }
 
 void SpecificOutputItem::commit(const MenuContext& ctx, MenuState& state) const {
-	// `selectEncoderAction`'s `:55-56`, in the one place a write may happen. The cursor cannot have
-	// moved between the render that set `value_changed` and this call -- `after_render` runs
-	// immediately after, with no input in between (`ActiveScalesItem::commit`'s note).
+	// Main's `selectEncoderAction` write (`setOutputRecordingFrom`), in the one place a write may happen. The cursor
+	// cannot have moved between the render that set `value_changed` and this call -- `after_render` runs immediately
+	// after, with no input in between (`ActiveScalesItem::commit`'s note).
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	if (!editing || ctx.facts == nullptr) {
 		return;

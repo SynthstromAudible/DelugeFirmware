@@ -4,45 +4,45 @@
 /// @brief `ActiveScalesItem` -- the two preset-scale checklists.
 ///
 /// The port of `deluge::gui::menu_item::ActiveScaleMenu` (`gui/menu_item/active_scales.{h,cpp}`),
-/// which legacy instantiates twice (`gui/ui/menus.cpp`):
+/// which legacy instantiates twice (`origin/main:src/deluge/gui/ui/menus.cpp`):
 ///
 // clang-format off
 /// | node | legacy global | `ActiveScaleMenu::Kind` | the bitset it edits |
 /// |---|---|---|---|
-/// | `default_active_scale` | `defaultActiveScaleMenu` (`gui/ui/menus.cpp:1670`) | `DEFAULT` | `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h:74`) |
-/// | `active_scales` | `activeScaleMenu` (`gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`Song::disabledPresetScales`) |
+/// | `default_active_scale` | `defaultActiveScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `DEFAULT` | `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h`) |
+/// | `active_scales` | `activeScaleMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`Song::disabledPresetScales`) |
 // clang-format on
 ///
-/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`model/scale/preset_scales.h`),
+/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`music-theory/preset_scales.h`),
 /// labelled from `scalelikeNames`, each carrying a checked or unchecked box. The select
 /// press toggles the row's bit and stays put; there is nothing to navigate into.
 ///
 /// ## Why this needs no new widget
 ///
-/// `ActiveScaleMenu::drawSubmenuItemsForOled` (`active_scales.cpp:62-99`) says so itself: its own
-/// comment is "adapted from submenu.cpp & toggle.cpp". It is `Submenu::drawSubmenuItemsForOled` with
-/// a checkbox in place of the arrow, and `ui::oled::list` already ports that renderer -- same label
-/// origin (`style.inset_x` == `kTextSpacingX`), same icon x (`rect.right() - kSubmenuIconSpacingX -
-/// 3`, `ui/oled/list.cpp` against `menu_item.h:280`), same label shortening (`4 + kSubmenuIconSpacingX +
-/// 3`, `ui/oled/list.cpp` against `menu_item.h:278`), same `invertLeftEdgeForMenuHighlighting`
-/// highlight, same side scroller on the focused row. So this item composes `list` and hands it
-/// `icons::checkedBox` / `icons::uncheckedBox`, which is the same thing `ContextMenuScene`
-/// could *not* do and had to grow `option_window` for.
+/// `ActiveScaleMenu::drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`) says so
+/// itself: its own comment is "adapted from submenu.cpp & toggle.cpp". It is `Submenu::drawSubmenuItemsForOled` with a
+/// checkbox in place of the arrow, and `ui::oled::list` already ports that renderer -- same label origin
+/// (`style.inset_x` == `kTextSpacingX`), same icon x (`rect.right() - kSubmenuIconSpacingX - 3`, `ui/oled/list.cpp`
+/// against `MenuItem::getSubmenuItemTypeRenderIconStart` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), same
+/// label shortening (`4 + kSubmenuIconSpacingX + 3`, `ui/oled/list.cpp` against
+/// `MenuItem::getSubmenuItemTypeRenderLength` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), same
+/// `invertLeftEdgeForMenuHighlighting` highlight, same side scroller on the focused row. So this item composes `list`
+/// and hands it `icons::checkedBox` / `icons::uncheckedBox`, which is the same thing `ContextMenuScene` could *not* do
+/// and had to grow `option_window` for.
 ///
 /// The windowing agrees too, and that is worth stating because it looks like it might not.
-/// `drawPixelsForOled` (`:28-59`) builds its three-row window by hand -- row 0 at the top of the
-/// list, row 2 at the bottom, row 1 everywhere in between -- and `list_window_start` (`ui/oled/list.h`)
-/// derives exactly that from "keep the cursor near the middle as the ends allow" for a three-row
-/// window. On the 64-row panel `style.menu_rows` is five and the port shows five, where legacy's
-/// hand-built vector is `kOLEDMenuNumOptionsVisible` (3, `static_assert`ed at
-/// `gui/menu_item/source_selection.cpp:61`) whatever the panel; that is the same
-/// let-the-widget-own-the-window simplification `MidiDevicesItem` and `MultiRangeItem` already make
-/// (`nodes/dynamic.h`), and it only differs on a panel geometry no shipped device has.
+/// `ActiveScaleMenu::drawPixelsForOled` builds its three-row window by hand -- row 0 at the top of the list, row 2 at
+/// the bottom, row 1 everywhere in between -- and `list_window_start` (`ui/oled/list.h`) derives exactly that from
+/// "keep the cursor near the middle as the ends allow" for a three-row window. On the 64-row panel `style.menu_rows` is
+/// five and the port shows five, where legacy's hand-built vector is `kOLEDMenuNumOptionsVisible` (3, `static_assert`ed
+/// at `SourceSelection::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/source_selection.cpp`) whatever the
+/// panel; that is the same let-the-widget-own-the-window simplification `MidiDevicesItem` and `MultiRangeItem` already
+/// make (`nodes/dynamic.h`), and it only differs on a panel geometry no shipped device has.
 ///
 /// ## The cursor
 ///
 /// Legacy's `currentPos` is a mutable member of the menu item, so it survives leaving the page and
-/// coming back, and `beginSession` deliberately does **not** reset it (`:17-19` is only a redraw).
+/// coming back, and `beginSession` deliberately does **not** reset it (it only calls `readValueAgain`, a redraw).
 /// A `CustomItem` here is `const`, so the cursor lives in `MenuState::list[depth]` -- which survives
 /// the same round trip, because the scene keeps one per depth and both of these nodes are always at
 /// the same depth (a direct child of their own root). The one case the two spellings could diverge
@@ -50,7 +50,7 @@
 ///
 /// ## The write
 ///
-/// `selectButtonPress` (`:108-112`) flips the bit and returns `NO_NAVIGATION`. A `CustomItem::render`
+/// `ActiveScaleMenu::selectButtonPress` flips the bit and returns `NO_NAVIGATION`. A `CustomItem::render`
 /// may not touch the model (`menu_scene.h`), so the render records the press through
 /// `MenuTick::value_changed`/`value_node` and `commit()` performs the flip -- the same split the
 /// three patch-cable pages use, and the one place in the scene where a write is allowed.
@@ -65,11 +65,12 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief Which bitset an `ActiveScalesItem` edits -- legacy's `ActiveScaleMenu::Kind`
-///        (`gui/menu_item/active_scales.h:15`).
+///        (`origin/main:src/deluge/gui/menu_item/active_scales.h`).
 enum class ScaleSet : uint8_t {
-	/// `currentSong->disabledPresetScales` (`active_scales.cpp:118-120`, `:130-132`).
+	/// `currentSong->disabledPresetScales` (`ActiveScaleMenu::isDisabled` in
+	/// `origin/main:src/deluge/gui/menu_item/active_scales.cpp`, `ActiveScaleMenu::setDisabled`).
 	Song,
-	/// `FlashStorage::defaultDisabledPresetScales` (`:115-117`, `:127-129`).
+	/// `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h`).
 	Default,
 };
 
@@ -92,10 +93,11 @@ public:
 	ScaleSet set() const { return set_; }
 
 	/// @brief Is scale @p index currently *disabled*? `ActiveScaleMenu::isDisabled`
-	///        (`active_scales.cpp:114-124`), including its "no song, nothing is disabled" arm.
+	///        (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`), including its "no song, nothing is disabled"
+	///        arm.
 	bool is_disabled(const MenuContext& ctx, size_t index) const;
-	/// @brief `ActiveScaleMenu::setDisabled` (`active_scales.cpp:126-133`). A null song is a no-op,
-	///        exactly as legacy's `else if (currentSong)` makes it.
+	/// @brief `ActiveScaleMenu::setDisabled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`). A null song is
+	///        a no-op, exactly as legacy's `else if (currentSong)` makes it.
 	void set_disabled(const MenuContext& ctx, size_t index, bool value) const;
 
 private:

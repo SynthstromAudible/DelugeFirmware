@@ -8,23 +8,24 @@
 // clang-format off
 /// | node | legacy item | legacy `beginSession` opens | scene |
 /// |---|---|---|---|
-/// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`gui/menu_item/file_selector.h:26`) | `sampleBrowser` (`file_selector.cpp:36-47 beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
-/// | `sample0_start` / `sample1_start` | `sample::Start` (`gui/menu_item/sample/start.h:21`) | `sampleMarkerEditor`, `markerType = START` (`sample/loop_point.cpp:69 beginSession`) | `marker::MarkerScene`, `MarkerType::START` |
-/// | `sample0_end` / `sample1_end` | `sample::End` (`gui/menu_item/sample/end.h:21`) | `sampleMarkerEditor`, `markerType = END` (same line) | `marker::MarkerScene`, `MarkerType::END` |
-/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`gui/menu_item/audio_clip/sample_marker_editor.h:26`) | `sampleMarkerEditor`, `markerType = whichMarker` (`audio_clip/sample_marker_editor.cpp`, `beginSession`) | `marker::MarkerScene`, `MarkerType::END` |
-/// | `sample0_recorder` / `sample1_recorder` | `osc::AudioRecorder` (`gui/menu_item/osc/audio_recorder.h:28`) | `audioRecorder` (`osc/audio_recorder.h:50 beginSession`) | `recorder::RecorderScene` |
+/// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`origin/main:src/deluge/gui/menu_item/file_selector.h`) | `sampleBrowser` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp` `beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
+/// | `sample0_start` / `sample1_start` | `sample::Start` (`origin/main:src/deluge/gui/menu_item/sample/start.h`) | `sampleMarkerEditor`, `markerType = START` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp` `beginSession`) | `marker::MarkerScene`, `MarkerType::START` |
+/// | `sample0_end` / `sample1_end` | `sample::End` (`origin/main:src/deluge/gui/menu_item/sample/end.h`) | `sampleMarkerEditor`, `markerType = END` (set in its constructor) | `marker::MarkerScene`, `MarkerType::END` |
+/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`) | `sampleMarkerEditor`, `markerType = whichMarker` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`, `beginSession`) | `marker::MarkerScene`, `MarkerType::END` |
+/// | `sample0_recorder` / `sample1_recorder` | `osc::AudioRecorder` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) | `audioRecorder` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`) | `recorder::RecorderScene` |
 // clang-format on
 ///
-/// All five legacy classes are the same shape, and it is `EditNameItem`'s
-/// (`nodes/edit_name.h`) and `ContextMenuItem`'s (`nodes/context_menu_items.h`): a `MenuItem` whose
-/// entire body is a `beginSession` override that points a UI at something and calls `openUI()` on
-/// it. `CustomItem::on_focus` IS `beginSession` (`node.h`), so that is where these do the same
-/// thing -- except that a scene may not touch the `Shell` stack itself, so instead of opening a UI
-/// each records the push in `MenuWalkState::pending_scene` and `MenuScene::after_render` turns it into
-/// an `Action::Kind::Push`. `MenuWalkState::go_up_on_resume` is set alongside it, which is legacy's
-/// `soundEditor.shouldGoUpOneLevelOnBegin = true` -- set by all five
-/// (`file_selector.cpp:37`, `sample/loop_point.cpp:67`, `osc/audio_recorder.h:37`,
-/// `audio_clip/sample_marker_editor.cpp`).
+/// All five legacy classes are the same shape, and it is `EditNameItem`'s (`nodes/edit_name.h`) and `ContextMenuItem`'s
+/// (`nodes/context_menu_items.h`): a `MenuItem` whose entire body is a `beginSession` override that points a UI at
+/// something and calls `openUI()` on it. `CustomItem::on_focus` IS `beginSession` (`node.h`), so that is where these do
+/// the same thing -- except that a scene may not touch the `Shell` stack itself, so instead of opening a UI each
+/// records the push in `MenuWalkState::pending_scene` and `MenuScene::after_render` turns it into an
+/// `Action::Kind::Push`. `MenuWalkState::go_up_on_resume` is set alongside it, which is legacy's
+/// `soundEditor.shouldGoUpOneLevelOnBegin = true` -- set by all five (`FileSelector::beginSession` in
+/// `origin/main:src/deluge/gui/menu_item/file_selector.cpp`, `LoopPoint::beginSession` in
+/// `origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`, `AudioRecorder::beginSession` in
+/// `origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`,
+/// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`).
 ///
 /// @note **Each opener also applies `menu::select_source`, legacy's `setCurrentSource`.**
 ///       Three of the five legacy classes follow `shouldGoUpOneLevelOnBegin` with
@@ -37,25 +38,23 @@
 ///       `audio_clip::SampleMarkerEditor` is the one opener with no such call, and it is the one
 ///       item here built with a negative source index.
 ///
-/// @note **No refusal is spelled here, deliberately.** Legacy refuses in
-///       `checkPermissionToBeginSession`, which `SoundEditor::setup` consults *before* navigating;
-///       the port splits that in two. The range half is `menu::permission_for` and the walk's range
-///       gate (`MenuWalk::enter_range_picker_if_needed`, `MenuScene::on_enter`'s deep link), which
-///       make the first range and refuse with INSUFFICIENT_RAM before the item is focused, so
-///       `on_focus` never meets a source without one. They ask about the item's own source
-///       (`CustomItem::range_source`, `menu::range_rule_context`), as `main`'s overrides pass their
-///       own `source_id_`: REC 2 under oscillator 1's context is about oscillator 2.
-///       `Node::range_specific` is carried by all but `audio_clip_waveform` -- exactly as legacy,
-///       whose `audio_clip::SampleMarkerEditor` does not route through
-///       `checkPermissionToBeginSessionForRangeSpecificParam`. The rest -- `LoopPoint`'s "make sure a Sample is
-///       loaded" (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null
-///       `sampleHolder.audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
-///       "already recording" (`AudioRecorder::opened`) -- is each scene's own `can()`,
-///       consulted by its `on_enter`. A refused push is not a lost frame: `SceneStack::push`
-///       (`shell/scene_stack.cpp`) unwinds and resumes the input top, which is the menu
-///       whenever the refused scene is an opaque one (all of these are) -- and that is where
-///       `go_up_on_resume` steps back out of the item, the same place legacy's failed `openUI`
-///       leaves it. This is `EditNameItem`'s shipped behaviour, not a new rule.
+/// @note **No refusal is spelled here, deliberately.** Legacy refuses in `checkPermissionToBeginSession`, which
+///       `SoundEditor::setup` consults *before* navigating; the port splits that in two. The range half is
+///       `menu::permission_for` and the walk's range gate (`MenuWalk::enter_range_picker_if_needed`,
+///       `MenuScene::on_enter`'s deep link), which make the first range and refuse with INSUFFICIENT_RAM before the
+///       item is focused, so `on_focus` never meets a source without one. They ask about the item's own source
+///       (`CustomItem::range_source`, `menu::range_rule_context`), as `main`'s overrides pass their own `source_id_`:
+///       REC 2 under oscillator 1's context is about oscillator 2. `Node::range_specific` is carried by all but
+///       `audio_clip_waveform` -- exactly as legacy, whose `audio_clip::SampleMarkerEditor` does not route through
+///       `checkPermissionToBeginSessionForRangeSpecificParam`. The rest -- `LoopPoint`'s "make sure a Sample is loaded"
+///       (`LoopPoint::checkPermissionToBeginSession` in `origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`),
+///       `audio_clip::SampleMarkerEditor`'s null `sampleHolder.audioFile` (`SampleMarkerEditor::isRelevant` in
+///       `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`), `AudioRecorder`'s "already
+///       recording" (`AudioRecorder::opened`) -- is each scene's own `can()`, consulted by its `on_enter`. A refused
+///       push is not a lost frame: `SceneStack::push` (`shell/scene_stack.cpp`) unwinds and resumes the input top,
+///       which is the menu whenever the refused scene is an opaque one (all of these are) -- and that is where
+///       `go_up_on_resume` steps back out of the item, the same place legacy's failed `openUI` leaves it. This is
+///       `EditNameItem`'s shipped behaviour, not a new rule.
 
 #include "scenes/menu/node.h"
 
@@ -119,7 +118,7 @@ public:
 	///                     Spelled as a number rather than the enum so this header does not have to
 	///                     pull `definitions_cxx.hpp`'s enum into every table that names an item --
 	///                     the same trade `EditNameItem::target_` and `ContextMenuItem::
-	///                     descriptor_id_` make, and pinned by `static_assert` in `sample.cpp`.
+	///                     descriptor_id_` make, and pinned by `static_assert` in `nodes/sample.cpp`.
 	MarkerItem(int8_t source_index, uint16_t marker) : SampleSceneItem{source_index}, marker_{marker} {}
 
 	/// @brief Which marker this item opens on. Exposed for the same reason `source_index()` is.
@@ -155,9 +154,10 @@ inline const MarkerItem kSample1Start{1, 0}; ///< `MarkerType::START`
 inline const MarkerItem kSample0End{0, 3};   ///< `MarkerType::END`
 inline const MarkerItem kSample1End{1, 3};   ///< `MarkerType::END`
 /// `audioClipSampleMarkerEditorMenuEnd` -- the **END** marker, and the only one of the pair the audio-clip root shows
-/// (`audioClipSampleMenu` in `gui/ui/menus.cpp`). Its sibling `audioClipSampleMarkerEditorMenuStart` is reachable only
-/// from the V1 grid shortcut table (`setShortcutsVersion` in `gui/ui/sound_editor.cpp`), which is
-/// `menu/shortcuts.h`'s business and not a node in any submenu.
+/// (`audioClipSampleMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`). Its sibling
+/// `audioClipSampleMarkerEditorMenuStart` is reachable only from the V1 grid shortcut table (`setShortcutsVersion` in
+/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is `menu/shortcuts.h`'s business and not a node in any
+/// submenu.
 inline const MarkerItem kAudioClipWaveform{-1, 3};
 /// `audioClipSampleMarkerEditorMenuStart`: the **START** marker of the audio clip's waveform.
 inline const MarkerItem kAudioClipWaveformStart{-1, 0};
