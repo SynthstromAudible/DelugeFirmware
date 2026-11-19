@@ -144,8 +144,8 @@ src/scenes/menu/nodes/output_items.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/nodes/patch_cables.cpp	scenes-reads-outside-bind	3
 src/scenes/menu/nodes/patch_cables.h	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/roots.cpp	scenes-reads-outside-bind	11
-src/scenes/menu/nodes/scales.cpp	scenes-reads-outside-bind	3
-src/scenes/menu/nodes/settings.cpp	scenes-reads-outside-bind	14
+src/scenes/menu/nodes/scales.cpp	scenes-reads-outside-bind	2
+src/scenes/menu/nodes/settings.cpp	scenes-reads-outside-bind	13
 src/scenes/menu/nodes/sound_actions.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/sound_fx.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/nodes/sound_lfo.cpp	scenes-reads-outside-bind	1

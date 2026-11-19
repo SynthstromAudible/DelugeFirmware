@@ -40,11 +40,11 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
-#include "model/scale/preset_scales.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h" // polarityToString
-#include "notify/notice_queue.h"          // the USB enable's "restart to apply"
+#include "music-theory/preset_scales.h"
+#include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
@@ -579,22 +579,22 @@ int32_t get_default_scale(const MenuContext&) {
 	// `defaults::DefaultScale::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`) with its own
 	// `scaleToOptionIndex`: USER_SCALE is not offerable as a default, so the option index
 	// is the scale index with that one slot removed.
-	const Scale scale = flashStorageCodeToScale(FlashStorage::defaultScale);
-	return scale >= USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
+	const deluge::music::Scale scale = deluge::music::flashStorageCodeToScale(FlashStorage::defaultScale);
+	return scale >= deluge::music::USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
 }
 void set_default_scale(const MenuContext&, int32_t value) {
 	// `origin/main:src/deluge/gui/menu_item/defaults/scale.h` `writeCurrentValue` over `optionIndexToScale`
 	int32_t index = value;
-	if (index >= USER_SCALE) {
+	if (index >= deluge::music::USER_SCALE) {
 		index += 1;
 	}
-	FlashStorage::defaultScale = scaleToFlashStorageCode(static_cast<Scale>(index));
+	FlashStorage::defaultScale = deluge::music::scaleToFlashStorageCode(static_cast<deluge::music::Scale>(index));
 }
 size_t default_scale_names(const MenuContext&, std::span<std::string_view> out) {
 	size_t n = 0; // `DefaultScale::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`)
-	for (uint8_t i = 0; i < NUM_SCALELIKE && n < out.size(); i++) {
-		if (i != USER_SCALE) {
-			out[n++] = scalelikeNames[i];
+	for (uint8_t i = 0; i < deluge::music::NUM_SCALELIKE && n < out.size(); i++) {
+		if (i != deluge::music::USER_SCALE) {
+			out[n++] = deluge::music::scalelikeNames[i];
 		}
 	}
 	return n;

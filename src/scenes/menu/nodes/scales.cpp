@@ -31,8 +31,8 @@
 #include "gfx/oled/icons.h"
 
 #include "deluge-project/song.h"
-#include "model/scale/preset_scales.h"
 #include "model/song/song.h"
+#include "music-theory/preset_scales.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
@@ -52,8 +52,8 @@ namespace {
 /// `NUM_PRESET_SCALES` is `LAST_PRESET_SCALE + 1`, i.e. the preset scales and nothing after them -- `USER_SCALE` and
 /// the rest of `NUM_SCALELIKE` are not offered here, exactly as `ActiveScaleMenu::selectEncoderAction`'s clamp to
 /// `LAST_PRESET_SCALE` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`) says.
-constexpr size_t kScaleRows = NUM_PRESET_SCALES;
-static_assert(kScaleRows == static_cast<size_t>(LAST_PRESET_SCALE) + 1,
+constexpr size_t kScaleRows = deluge::music::NUM_PRESET_SCALES;
+static_assert(kScaleRows == static_cast<size_t>(deluge::music::LAST_PRESET_SCALE) + 1,
               "the row count must be the closed range legacy's clamp allows, or the last scale is "
               "unreachable (too few) or a non-preset scalelike leaks in (too many)");
 
@@ -86,7 +86,7 @@ size_t preset_scale_names(const MenuContext& /*ctx*/, std::span<std::string_view
 	const size_t count = std::min(kScaleRows, out.size());
 	for (size_t i = 0; i < count; i++) {
 		// `scalelikeNames` holds `char const*` with static storage, so the views outlive the call.
-		out[i] = std::string_view{scalelikeNames[i]};
+		out[i] = std::string_view{deluge::music::scalelikeNames[i]};
 	}
 	return count;
 }
@@ -138,9 +138,9 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// the focused row's side scroller -- see `scales.h` for why that is the same renderer and not merely a similar one.
 	deluge::ui::oled::ListRow rows[kScaleRows];
 	for (size_t i = 0; i < kScaleRows; i++) {
-		// `scalelikeNames` holds `char const*` with static storage (`model/scale/preset_scales.h`),
+		// `scalelikeNames` holds `char const*` with static storage (`music-theory/preset_scales.h`),
 		// so the view outlives this frame.
-		rows[i].label = std::string_view{scalelikeNames[i]};
+		rows[i].label = std::string_view{deluge::music::scalelikeNames[i]};
 		rows[i].icon =
 		    is_disabled(ctx, i) ? &deluge::gfx::oled::icons::uncheckedBox : &deluge::gfx::oled::icons::checkedBox;
 		rows[i].selectable = true;
