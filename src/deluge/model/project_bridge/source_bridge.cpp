@@ -16,6 +16,7 @@
  */
 
 #include "model/project_bridge/source_bridge.h"
+#include <optional>
 
 #include "processing/dx7/dx_patch.h"
 #include "processing/engines/audio_engine.h"
@@ -33,6 +34,30 @@ std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& source) {
 	return std::move(into.ranges);
 }
 
+namespace {
+
+/// Where @p longer holds one range @p shorter does not, the others in order with their files and zones; nullopt when
+/// there is no such range. With @p fileless, only a range holding no file counts (a new range has none).
+std::optional<size_t> extraAt(const std::vector<deluge::instrument::RangeState>& shorter,
+                              const std::vector<deluge::instrument::RangeState>& longer, bool fileless) {
+	const auto same = [](const deluge::instrument::RangeState& a, const deluge::instrument::RangeState& b) {
+		return a.file_path == b.file_path && a.start_pos == b.start_pos && a.end_pos == b.end_pos
+		       && a.loop_start_pos == b.loop_start_pos && a.loop_end_pos == b.loop_end_pos;
+	};
+	for (size_t at = 0; at < longer.size(); at++) {
+		bool rest = !fileless || longer[at].file_path.empty();
+		for (size_t i = 0; rest && i < shorter.size(); i++) {
+			rest = same(shorter[i], longer[i < at ? i : i + 1]);
+		}
+		if (rest) {
+			return at;
+		}
+	}
+	return std::nullopt;
+}
+
+} // namespace
+
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges) {
 	::Source& source = sound.sources[s];
 	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
@@ -46,6 +71,29 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			return Error::INSUFFICIENT_RAM;
 		}
 		return applyRanges(sound, s, ranges);
+	}
+	// One range more, holding no file: the range editor's insert. One fewer: its delete. The others keep their files
+	// and zones, which is how the changed one is found; any other change of length is refused.
+	if (ranges.size() == now.size() + 1) {
+		if (const std::optional<size_t> at = extraAt(now, ranges, true)) {
+			sound.killAllVoices(); // range storage is about to change
+			::MultiRange* inserted = nullptr;
+			{
+				AudioEngine::AudioTickHold hold;
+				inserted = source.ranges.insertMultiRange(static_cast<int32_t>(*at));
+			}
+			if (inserted == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
+			inserted->topNote = ranges[*at].top_note;
+			return applyRanges(sound, s, ranges);
+		}
+	}
+	if (ranges.size() + 1 == now.size()) {
+		if (const std::optional<size_t> gone = extraAt(ranges, now, false)) {
+			sound.deleteMultiRange(s, static_cast<int32_t>(*gone));
+			return applyRanges(sound, s, ranges);
+		}
 	}
 	if (now.size() != ranges.size()) {
 		return Error::UNSPECIFIED;

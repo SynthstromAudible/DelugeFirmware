@@ -808,23 +808,19 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-203`): range storage is about
-	// to change, so every voice is unassigned and none may be assigned during the allocation.
-	sound->killAllVoices();
-	::MultiRange* inserted = nullptr;
-	{
-		AudioEngine::AudioTickHold hold;
-		inserted = sound->sources[source].ranges.insertMultiRange(at);
+	// `MultiRange::selectEncoderAction`'s insert: a range with no file at @p at, the one below it narrowed
+	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	if (at > ranges.size()) {
+		return false;
 	}
-	if (inserted == nullptr) {
+	ranges.insert(ranges.begin() + at, deluge::instrument::RangeState{.top_note = top_note});
+	if (previous_top && at > 0) {
+		ranges[at - 1].top_note = *previous_top;
+	}
+	if (deluge::edits::rangesFor(*sound, source, std::move(ranges)) == Error::INSUFFICIENT_RAM) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
 	}
-	inserted->topNote = top_note;
-	if (previous_top && at > 0) {
-		sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
-	}
-	deluge::edits::recordRanges(*sound, source);
 	return true;
 }
 
@@ -834,12 +830,13 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns the voices.
-	sound->deleteMultiRange(source, index);
+	// `MultiRange::deletePress`: the range goes, the one below it widened
+	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	ranges.erase(ranges.begin() + index);
 	if (lower_top && index > 0) {
-		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
+		ranges[index - 1].top_note = *lower_top;
 	}
-	deluge::edits::recordRanges(*sound, source);
+	deluge::edits::rangesFor(*sound, source, std::move(ranges));
 	return true;
 }
 

@@ -41,6 +41,7 @@ struct SourceRig {
 		while (std::ssize(source->ranges) < count) {
 			(void)source->ranges.insertMultiRange(std::ssize(source->ranges));
 		}
+		deluge::edits::recordRanges(*sound, 0); // the ranges built here are the record's
 		target.sound = sound;
 		target.source = source;
 		target.sourceIndex = 0;

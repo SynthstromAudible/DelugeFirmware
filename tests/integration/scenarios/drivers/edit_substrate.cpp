@@ -719,9 +719,10 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	          != "SAMPLES/OTHER.WAV",
 	      "ranges: a refused list leaves the runtime's file");
 	auto longer = ranges;
-	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
+	longer.insert(longer.begin(),
+	              {deluge::instrument::RangeState{.top_note = 30}, deluge::instrument::RangeState{.top_note = 40}});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
-	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
+	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: two ranges more at once is refused");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "ranges: a refusal leaves the slot");
 

@@ -98,18 +98,21 @@ inline void effectSettingFor(ModControllable& owner, std::string_view path, delu
 /// @param sound  The sound being edited.
 /// @param s      Source (oscillator) index.
 /// @param ranges The source's new ranges.
-inline void rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
+/// @return Error::NONE when the ranges landed, else why not (INSUFFICIENT_RAM for a range that could not be made).
+inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument::RangeState> ranges) {
+	Error error = Error::NONE;
 	if (const std::optional<deluge::project::SlotAddress> slot = songSlotOf(sound)) {
 		deluge::edits::Context ctx{*currentSong, currentSong->project};
 		deluge::edits::SetSourceRanges edit{*slot, static_cast<uint8_t>(s), std::move(ranges)};
-		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-			D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
-		}
-		return;
+		error = deluge::edits::apply(ctx, edit);
 	}
-	if (deluge::bridge::applyRanges(sound, s, ranges) != Error::NONE) {
+	else {
+		error = deluge::bridge::applyRanges(sound, s, ranges);
+	}
+	if (error != Error::NONE) {
 		D_PRINTLN("ranges refused: osc%d", static_cast<int>(s + 1));
 	}
+	return error;
 }
 
 /// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.

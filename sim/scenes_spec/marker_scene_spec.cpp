@@ -623,11 +623,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		deluge::edits::recordRanges(*r.sound, 0); // the range set up here is the record's
 		// A range below the edited one, so the edited one is the source's second.
 		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* below = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		below->sampleHolder.filePath = "SAMPLES/A.WAV";
 		below->sampleHolder.audioFile = r.sample;
+		deluge::edits::recordRanges(*r.sound, 0);
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		// The edited range's remembered view and lock, in the store under its identity.
 		deluge::scenes::services::view_state().forget_unless(r.song.song->project.identity());

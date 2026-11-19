@@ -2995,8 +2995,6 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	AudioExcludedSection section;
 	killAllVoices();
 	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
-	// The range collection just shrank: reflect it into the record.
-	sources[s].seedDocRanges();
 }
 
 // This function has to give the same outcome as Source::renderInStereo()
