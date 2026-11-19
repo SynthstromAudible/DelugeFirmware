@@ -22,6 +22,7 @@
 #include "plugin-api/types/interpolation_mode.h"
 #include "plugin-api/types/sync.h"
 #include "plugin-api/types/voice_priority.h"
+#include "synth/sources/source_state.h"
 
 #include <array>
 #include <cstdint>
@@ -53,12 +54,7 @@ struct RangeState {
 };
 
 /// @brief The DX7 patch a DX7 source carries: the 156 voice bytes and two extensions.
-struct DxPatchState {
-	std::array<uint8_t, 156> params{};
-	uint8_t engine_mode{0};
-	int32_t random_detune{0};
-	bool operator==(const DxPatchState&) const = default;
-};
+using DxPatchState = synth::DxPatch;
 
 /// @brief One of a sound's two sources.
 struct SourceState {

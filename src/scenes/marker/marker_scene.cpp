@@ -129,14 +129,13 @@ deluge::instrument::SourceId MarkerScene::source_id() const {
 	return static_cast<deluge::instrument::SourceId>(where_.source);
 }
 
-const deluge::instrument::RangeState* MarkerScene::range_state() const {
+std::optional<deluge::instrument::RangeState> MarkerScene::range_state() const {
 	const deluge::instrument::SoundState* sound = sound_state();
 	if (sound == nullptr) {
-		return nullptr;
+		return std::nullopt;
 	}
-	const std::span<const deluge::instrument::RangeState> ranges =
-	    deluge::instrument::source_ranges(*sound, source_id());
-	return where_.range < ranges.size() ? &ranges[where_.range] : nullptr;
+	const std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(*sound, source_id());
+	return where_.range < ranges.size() ? std::optional{ranges[where_.range]} : std::nullopt;
 }
 
 int64_t MarkerScene::audio_clip_row(std::string_view path) const {
@@ -154,8 +153,8 @@ MarkerScene::Zone MarkerScene::zone() const {
 		return {.start = static_cast<uint64_t>(audio_clip_row("startSamplePos")),
 		        .end = static_cast<uint64_t>(audio_clip_row("endSamplePos"))};
 	}
-	const deluge::instrument::RangeState* range = range_state();
-	if (range == nullptr) {
+	const std::optional<deluge::instrument::RangeState> range = range_state();
+	if (!range) {
 		return {};
 	}
 	return {.start = range->start_pos,
@@ -412,7 +411,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	if (sound == nullptr) {
 		return;
 	}
-	const std::span<const deluge::instrument::RangeState> held = deluge::instrument::source_ranges(*sound, source_id());
+	const std::vector<deluge::instrument::RangeState> held = deluge::instrument::source_ranges(*sound, source_id());
 	if (where_.range >= held.size()) {
 		return;
 	}

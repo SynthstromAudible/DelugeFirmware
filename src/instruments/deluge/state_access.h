@@ -80,8 +80,8 @@ struct SamplePlayback {
 /// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files.
 /// @param state The sound's state.
 /// @param id The slot.
-/// @return The ranges, valid while @p state is unchanged; empty for a slot that plays none.
-[[nodiscard]] std::span<const RangeState> source_ranges(const SoundState& state, SourceId id) noexcept;
+/// @return The ranges; empty for a slot that plays none.
+[[nodiscard]] std::vector<RangeState> source_ranges(const SoundState& state, SourceId id);
 
 /// @brief An oscillator slot's DX7 patch.
 /// @param state The sound's state.

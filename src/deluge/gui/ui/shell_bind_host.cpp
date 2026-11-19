@@ -809,9 +809,8 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::selectEncoderAction`'s insert: a range with no file at @p at, the one below it narrowed
-	std::vector<deluge::instrument::RangeState> ranges(
-	    std::from_range,
-	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source)));
+	std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source));
 	if (at > ranges.size()) {
 		return false;
 	}
@@ -835,9 +834,8 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::deletePress`: the range goes, the one below it widened
-	std::vector<deluge::instrument::RangeState> ranges(
-	    std::from_range,
-	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source)));
+	std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source));
 	if (index >= ranges.size()) {
 		return false;
 	}
@@ -969,7 +967,7 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		namespace instrument = deluge::instrument;
 		const instrument::SoundState& state = *sound->boundState();
 		const auto id = static_cast<instrument::SourceId>(source);
-		const std::span<const instrument::RangeState> held = instrument::source_ranges(state, id);
+		const std::vector<instrument::RangeState> held = instrument::source_ranges(state, id);
 		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
 		    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
 			std::vector<instrument::RangeState> ranges{held.begin(), held.end()};

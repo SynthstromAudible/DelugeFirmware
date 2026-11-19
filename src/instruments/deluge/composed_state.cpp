@@ -75,14 +75,6 @@ OscType type_of(synth::InputChannel channel) {
 	return OscType::INPUT_L;
 }
 
-synth::DxPatch patch_of(const DxPatchState& p) {
-	return {.params = p.params, .engine_mode = p.engine_mode, .random_detune = p.random_detune};
-}
-
-DxPatchState patch_of(const synth::DxPatch& p) {
-	return {.params = p.params, .engine_mode = p.engine_mode, .random_detune = p.random_detune};
-}
-
 /// What slot @p src plays, its phase @p phase; @p kept takes what the kind does not hold, the fields it does left at
 /// their defaults.
 synth::SlotState slot_of(const SourceState& src, uint32_t phase, SourceState& kept) {
@@ -137,7 +129,7 @@ synth::SlotState slot_of(const SourceState& src, uint32_t phase, SourceState& ke
 		keep_no_tuning();
 		synth::Dx7State dx{.pitch = pitch, .patch = {}};
 		if (src.dx_patch) {
-			dx.patch = patch_of(*src.dx_patch);
+			dx.patch = *src.dx_patch;
 		}
 		kept.dx_patch.reset();
 		return dx;
@@ -196,7 +188,7 @@ SourceState source_of(const synth::SlotState& slot, const SourceState& kept, uin
 			    take_pitch(state.pitch);
 			    src.dx_patch.reset();
 			    if (state.patch) {
-				    src.dx_patch = patch_of(*state.patch);
+				    src.dx_patch = *state.patch;
 			    }
 		    }
 		    else {

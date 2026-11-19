@@ -51,7 +51,7 @@ SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
 	        .reversed = source.reversed};
 }
 
-std::span<const RangeState> source_ranges(const SoundState& state, SourceId id) noexcept {
+std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
 	return state.sources[index_of(id)].ranges;
 }
 

@@ -36,6 +36,22 @@
 /// as its address. The operator lives in the type's own namespace so that lookup finds it from inside CppSpec. Every
 /// spec that compares the type includes this header: whether a type streams is decided once per type in a binary, so
 /// a spec linked with others that print the same type must agree with them.
+namespace deluge::synth {
+
+/// @brief Prints a DX7 patch as its 156 voice bytes, its engine mode and its random detune.
+/// @param os The stream to print to.
+/// @param p The patch.
+/// @return @p os.
+inline std::ostream& operator<<(std::ostream& os, const DxPatch& p) {
+	os << "{params [";
+	for (std::size_t i = 0; i < p.params.size(); ++i) {
+		os << (i == 0 ? "" : " ") << int{p.params[i]};
+	}
+	return os << std::format("], engine_mode {}, random_detune {}}}", p.engine_mode, p.random_detune);
+}
+
+} // namespace deluge::synth
+
 namespace deluge::instrument {
 
 /// @brief Prints a range field by field, e.g.
@@ -48,18 +64,6 @@ inline std::ostream& operator<<(std::ostream& os, const RangeState& r) {
 	                         "cents {}}}",
 	                         r.top_note, r.file_path, r.start_pos, r.end_pos, r.loop_start_pos, r.loop_end_pos,
 	                         r.transpose, r.cents);
-}
-
-/// @brief Prints a DX7 patch as its 156 voice bytes, its engine mode and its random detune.
-/// @param os The stream to print to.
-/// @param p The patch.
-/// @return @p os.
-inline std::ostream& operator<<(std::ostream& os, const DxPatchState& p) {
-	os << "{params [";
-	for (std::size_t i = 0; i < p.params.size(); ++i) {
-		os << (i == 0 ? "" : " ") << int{p.params[i]};
-	}
-	return os << std::format("], engine_mode {}, random_detune {}}}", p.engine_mode, p.random_detune);
 }
 
 /// @brief Prints a source field by field, an enum as its number, an absent DX7 patch as `none`, e.g.
