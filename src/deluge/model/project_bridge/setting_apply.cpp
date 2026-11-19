@@ -342,6 +342,26 @@ std::optional<deluge::effects::EffectStates> withEffectValue(deluge::effects::Ef
 }
 } // namespace
 
+bool runtimeTakes(const ::Sound& sound, std::string_view path) {
+	const bool fm = sound.getSynthMode() == SynthMode::FM;
+	std::string_view rest;
+	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
+		const OscType type = sound.sources[s].oscType;
+		if (isSamplePlayback(rest)) {
+			const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
+			return !fm && (type == OscType::SAMPLE || (input && rest == "linearInterpolation"));
+		}
+		if (rest == "transpose" || rest == "cents") {
+			return fm || type != OscType::SAMPLE;
+		}
+		return true;
+	}
+	if (path.starts_with("modulator")) {
+		return fm;
+	}
+	return true;
+}
+
 Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
                   const deluge::instrument::SoundState& after, ::Song& song) {
 	using deluge::instrument::Part;

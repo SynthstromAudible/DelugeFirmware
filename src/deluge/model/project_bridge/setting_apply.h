@@ -77,6 +77,11 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 [[nodiscard]] std::optional<deluge::instrument::SoundState>
 stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
+/// @brief Whether @p sound's runtime takes a setting at @p path in its current engine and oscillator types: not sample
+/// playback where an oscillator plays no samples (or the sound is FM; live input takes its interpolation), not a sample
+/// oscillator's own tuning outside FM (its ranges' tuning is its own), not a modulator outside FM.
+[[nodiscard]] bool runtimeTakes(const ::Sound& sound, std::string_view path);
+
 /// @brief Bring @p sound to @p after, which its record already holds, from @p before, what it held: the sound's own
 /// fields and config follow the record, and each part that changed has the runtime effect its menu always had — voices
 /// stop for a new engine, a type that plays files, input or a DX7 patch, a reversed sample or stretch coming or
