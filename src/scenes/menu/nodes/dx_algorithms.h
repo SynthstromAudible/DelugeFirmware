@@ -27,7 +27,7 @@ struct DxAlgorithmDiagram {
 };
 
 /// @brief The diagram of algorithm @p algorithm.
-/// @param algorithm The algorithm, 0-based; below `kDxAlgorithms`.
+/// @param algorithm The algorithm, 0-based; out of range is clamped to the last algorithm.
 /// @return The diagram, which lives for the whole run.
 [[nodiscard]] const DxAlgorithmDiagram& dx_algorithm_diagram(size_t algorithm);
 

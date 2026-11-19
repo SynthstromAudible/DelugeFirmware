@@ -1,11 +1,13 @@
 #include "scenes/menu/nodes/dx_algorithms.h"
 
+#include <algorithm>
 #include <array>
-#include <cassert>
 
 namespace deluge::scenes::menu {
 
 namespace {
+
+// The bitmaps keep the rows of 16 bytes they were drawn in, so clang-format leaves them be.
 
 // clang-format off
 constexpr std::array<uint8_t, 228> kAlgorithm01{
@@ -678,8 +680,7 @@ constexpr std::array<DxAlgorithmDiagram, kDxAlgorithms> kDiagrams{{
 } // namespace
 
 const DxAlgorithmDiagram& dx_algorithm_diagram(size_t algorithm) {
-	assert(algorithm < kDxAlgorithms);
-	return kDiagrams[algorithm];
+	return kDiagrams[std::min(algorithm, kDxAlgorithms - 1)];
 }
 
 } // namespace deluge::scenes::menu

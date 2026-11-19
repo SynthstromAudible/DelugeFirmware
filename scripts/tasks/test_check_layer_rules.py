@@ -243,7 +243,7 @@ class ScenesReadsOutsideBind(unittest.TestCase):
             "src/scenes/services/planted.h",
             '#include "model/song/song.h"\n'
             '#include "modulation/sync.h"\n'
-            '#include "processing/dx7/algorithm_diagrams.h"\n',
+            '#include "processing/dx7/dx_patch.h"\n',
         )
         self.assertEqual(counts.get("scenes-reads-outside-bind"), 3)
 
