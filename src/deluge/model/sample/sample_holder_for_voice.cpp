@@ -107,11 +107,6 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 
 void SampleHolderForVoice::setCents(int32_t newCents) {
 	cents = newCents;
-	recalculateFineTuner();
-}
-
-void SampleHolderForVoice::recalculateFineTuner() {
-	fineTuner.setup_cents(cents);
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {

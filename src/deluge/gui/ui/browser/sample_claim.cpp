@@ -448,7 +448,7 @@ bool SampleClaim::stepDecideSample() {
 
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
-	oldOscType_ = current_.target.source->getOscType();
+	oldOscType_ = current_.target.source->oscType;
 	setOscTypeFor(current_.target, OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.target, current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's

@@ -1,7 +1,7 @@
 #include "modulation/params/param.h"
+#include "support/oracles/phase_increment_fine_tuner.h"
 #include "synth/matrix/param_format.h"
 #include "synth/voice/unison.h"
-#include "util/phase_increment_fine_tuner.h"
 
 #include <array>
 #include <cmath>
@@ -12,6 +12,7 @@
 
 using deluge::synth::derive_unison;
 using deluge::synth::UnisonLayout;
+using deluge::test::oracle::PhaseIncrementFineTuner;
 
 namespace {
 

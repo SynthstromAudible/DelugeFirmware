@@ -22,7 +22,6 @@
 #include "storage/audio/sample_load_walk.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "synth/sources/input/live/live_inputs.h"
-#include "util/phase_increment_fine_tuner.h"
 
 class Sound;
 class ParamManagerForTimeline;
@@ -85,7 +84,6 @@ public:
 	// These are not valid for Samples
 	int16_t transpose;
 	int8_t cents;
-	PhaseIncrementFineTuner fineTuner;
 
 	MultiRangeArray ranges;
 
@@ -127,7 +125,6 @@ public:
 	/// @param independent True for independent.
 	void setPitchAndSpeedIndependent(bool independent);
 	/// @}
-	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
 	/// @brief Report each range's file to @p visitor, with a checkpoint before each. Loads nothing.
@@ -135,13 +132,12 @@ public:
 	/// @return Walk::Stop if a checkpoint stopped the walk.
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	void setReversed(bool newReversed);
-	int32_t getRangeIndex(int32_t note);
 	MultiRange* getRange(int32_t note);
+	int32_t getRangeIndex(int32_t note);
 	MultiRange* getOrCreateFirstRange();
 	bool hasAtLeastOneAudioFileLoaded();
 	void doneReadingFromFile(Sound* sound);
 	bool hasAnyLoopEndPoint();
-	OscType getOscType();
 	void setOscType(OscType newType);
 
 	DxPatch* ensureDxPatch();

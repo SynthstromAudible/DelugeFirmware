@@ -1,5 +1,5 @@
 #include "dsp-next/fixed/pitch/fine_tune.h"
-#include "util/phase_increment_fine_tuner.h"
+#include "support/oracles/phase_increment_fine_tuner.h"
 
 #include <algorithm>
 #include <array>
@@ -9,6 +9,7 @@
 #include "support/spec_main.h"
 
 using deluge::dsp::fixed::FineTune;
+using deluge::test::oracle::PhaseIncrementFineTuner;
 
 namespace {
 

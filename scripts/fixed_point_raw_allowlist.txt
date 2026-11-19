@@ -129,7 +129,6 @@ src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
 src/deluge/util/functions.h raw=0 boundary=4
 src/deluge/util/param_functions.cpp raw=0 boundary=2
-src/deluge/util/phase_increment_fine_tuner.cpp raw=0 boundary=3
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 boundary=8

@@ -70,10 +70,9 @@ add_library(deluge_test_dsp_closure STATIC EXCLUDE_FROM_ALL
   ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_panic.cpp)
 target_include_directories(deluge_test_dsp_closure PRIVATE
   ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src ${DELUGE_REPO_ROOT}/tests/support/mocks)
-# The synth library's: the param math and the unison fine tuner, which read dsp-next's table interpolation.
+# The synth library's: the param math, which reads dsp-next's table interpolation.
 add_library(deluge_test_synth_closure STATIC EXCLUDE_FROM_ALL
-  ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp
-  ${DELUGE_REPO_ROOT}/src/deluge/util/phase_increment_fine_tuner.cpp)
+  ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp)
 target_include_directories(deluge_test_synth_closure PRIVATE ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
 target_link_libraries(deluge_test_synth_closure PRIVATE deluge_dsp_fixed)
 set_target_properties(deluge_test_dsp_closure deluge_test_synth_closure PROPERTIES

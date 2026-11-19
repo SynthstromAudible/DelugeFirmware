@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "model/sample/sample_holder.h"
-#include "util/phase_increment_fine_tuner.h"
 
 class Source;
 
@@ -30,7 +29,7 @@ public:
 
 	SampleHolderForVoice(SampleHolderForVoice&& other) noexcept
 	    : SampleHolder(std::move(other)), loopStartPos(other.loopStartPos), loopEndPos(other.loopEndPos),
-	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), fineTuner(other.fineTuner),
+	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked),
 	      clustersForLoopStart_(std::exchange(other.clustersForLoopStart_, nullptr)) {}
 	SampleHolderForVoice& operator=(SampleHolderForVoice&& other) noexcept {
 		SampleHolder::operator=(std::move(other));
@@ -39,14 +38,12 @@ public:
 		transpose = other.transpose;
 		cents = other.cents;
 		loopLocked = other.loopLocked;
-		fineTuner = other.fineTuner;
 		clustersForLoopStart_ = std::exchange(other.clustersForLoopStart_, nullptr);
 		return *this;
 	}
 	~SampleHolderForVoice() override;
 	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	void setCents(int32_t newCents);
-	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	/// @brief Set the transpose from the sample's midiNote, which its detection has already settled; an unset or failed
 	///        note leaves the transpose alone. @p thatOneNote is the MIDI key a range covering just one note covers.
@@ -65,7 +62,6 @@ public:
 	int8_t cents;
 	/// Whether the loop length should be kept constant when updating the start/end position.
 	bool loopLocked;
-	PhaseIncrementFineTuner fineTuner;
 
 	/// Passive lookahead reservation anchored at this voice's loop-start marker; pins a small window
 	/// of cluster residency around the loop point, mirroring SampleHolder::clustersForStart_.

@@ -41,7 +41,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
-#include "util/phase_increment_fine_tuner.h"
 
 #include <array>
 #include <cstdint>
