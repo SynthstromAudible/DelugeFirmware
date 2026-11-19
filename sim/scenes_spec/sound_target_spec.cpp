@@ -5,6 +5,7 @@
 ///        and a reallocation that had to clear the ranges starts again from range 0.
 
 #include "gui/ui/sound_target.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "model/edits/setting_edit.h"
@@ -35,7 +36,7 @@ struct SourceRig {
 	SoundTarget target{};
 
 	SourceRig(int32_t count, int16_t index) {
-		source->setOscType(OscType::SAMPLE);
+		deluge::test::setOscType(*sound, 0, OscType::SAMPLE);
 		(void)source->getOrCreateFirstRange();
 		while (std::ssize(source->ranges) < count) {
 			(void)source->ranges.insertMultiRange(std::ssize(source->ranges));

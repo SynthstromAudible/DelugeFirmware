@@ -26,6 +26,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "gui/context_menu/clear_song.h"
 #include "gui/ui/browser/browser.h"
@@ -175,7 +176,7 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(synth->sources[0]);
 	if (holder == nullptr) {
 		return false;

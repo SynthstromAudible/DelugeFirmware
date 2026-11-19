@@ -735,7 +735,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 		}
 		range->topNote = 60;
 	}
-	sound.sources[0].seedDocRanges();
+	deluge::edits::recordRanges(sound, 0);
 	ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	ranges[2].end_pos = 700;
 	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};

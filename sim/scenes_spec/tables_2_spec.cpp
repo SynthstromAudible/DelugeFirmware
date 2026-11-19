@@ -33,6 +33,7 @@
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -1467,16 +1468,16 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as legacy's menu does), so
 			// both sources are saws while the hook is driven.
 			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->sources[0].oscType, spec::menu_engine(f.ctx).sound->sources[1].oscType};
-			spec::menu_engine(f.ctx).sound->sources[0].setOscType(OscType::SAW);
-			spec::menu_engine(f.ctx).sound->sources[1].setOscType(OscType::SAW);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 0, OscType::SAW);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 1, OscType::SAW);
 			const SynthMode before = spec::menu_engine(f.ctx).sound->getSynthMode();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
 			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(before));
-			spec::menu_engine(f.ctx).sound->sources[0].setOscType(osc_before[0]);
-			spec::menu_engine(f.ctx).sound->sources[1].setOscType(osc_before[1]);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 0, osc_before[0]);
+			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 1, osc_before[1]);
 			covered++;
 		}
 

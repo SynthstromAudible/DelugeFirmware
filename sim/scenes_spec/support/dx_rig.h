@@ -13,6 +13,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -58,7 +59,7 @@ struct DxRig {
 	DxRig() {
 		deluge::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
 	~DxRig() { deluge::scenes::spec::make_current(saved); }
 	DxRig(const DxRig&) = delete;

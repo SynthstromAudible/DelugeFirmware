@@ -42,6 +42,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "support/sound_fixtures.h"
 
 #include <cstdio>
 
@@ -92,7 +93,7 @@ int source_memory_main(int /*argc*/, char** /*argv*/, Io io) {
 		return 0;
 	}
 	auto& synth = *static_cast<SoundInstrument*>(instrument);
-	synth.sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(synth, 0, OscType::SAMPLE);
 	if (MultiRange* range = synth.sources[0].getOrCreateFirstRange(); range != nullptr) {
 		range->getAudioFileHolder()->filePath = "SAMPLES/SM/TONE.WAV";
 	}

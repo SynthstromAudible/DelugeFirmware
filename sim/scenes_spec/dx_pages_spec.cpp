@@ -17,6 +17,7 @@
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
@@ -230,7 +231,7 @@ describe dx_pages("the DX7 menu pages", ${
 
 	it("goes up on SELECT from any other oscillator type, as main's type answers nothing", _ {
 		MenuRig r;
-		r.sound->sources[0].setOscType(OscType::SAW);
+		deluge::test::setOscType(*r.sound, 0, OscType::SAW);
 		r.open(nodes::source0);
 		r.select();
 		expect(r.focused()).not_().to_equal(&nodes::dx_menu);
@@ -481,7 +482,7 @@ describe dx_pages("the DX7 menu pages", ${
 		r.tick();
 		expect(r.focused()).to_equal(&nodes::dx_param);
 		expect(static_cast<int32_t>(r.state().dx.param)).to_equal(40);
-		r.sound->sources[0].setOscType(OscType::SAW);
+		deluge::test::setOscType(*r.sound, 0, OscType::SAW);
 		expect(nodes::dx_shortcut_fallback(nodes::modulator0_volume, r.menu_context(), 4)).to_be_null();
 	});
 

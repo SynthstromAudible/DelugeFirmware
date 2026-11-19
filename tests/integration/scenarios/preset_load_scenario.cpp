@@ -28,6 +28,7 @@
 #include "scenarios/slot_coherence.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -666,7 +667,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	kit.addDrum(drum);
 	drum->setName(name);
 	drum->setupAsSample(&paramManager);
-	drum->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*drum, 0, OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
 		setupFailed(legName(g_leg), "a drum has no sample range");
@@ -674,7 +675,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	}
 	holder->filePath = samplePath;
 	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
-	drum->sources[0].seedDocRanges();
+	deluge::edits::recordRanges(*drum, 0);
 	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }

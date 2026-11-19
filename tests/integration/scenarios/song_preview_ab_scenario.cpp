@@ -55,6 +55,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
@@ -3384,7 +3385,7 @@ Clip* makeDxClip() {
 		return nullptr;
 	}
 	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
-	sound->sources[0].setOscType(OscType::DX7);
+	deluge::test::setOscType(*sound, 0, OscType::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;
 }

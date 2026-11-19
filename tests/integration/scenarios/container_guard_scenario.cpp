@@ -30,6 +30,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
@@ -841,13 +842,13 @@ bool setupLeg() {
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceFail: {
-		// Ring-mod with a sample source that has no sample: Sound::noteOn lets a ring-mod note through, and the voice's
-		// own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
+		// Ring-mod with a wavetable source that has no file: Sound::noteOn lets a ring-mod note through, and the
+		// voice's own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		deluge::edits::settingFor(
 		    *synth, "mode",
 		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::RINGMOD))));
-		synth->sources[0].setOscType(OscType::SAMPLE);
+		deluge::test::setOscType(*synth, 0, OscType::WAVETABLE);
 		return true;
 	}
 	case Leg::VoiceMultiRange: {
@@ -1326,7 +1327,7 @@ void editLeg() {
 		// The oscillator-type menu's shape (gui/menu_item/osc/type.h): end the voices, then change the type.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		synth->killAllVoices();
-		synth->sources[0].setOscType(OscType::SQUARE);
+		deluge::test::setOscType(*synth, 0, OscType::SQUARE);
 		break;
 	}
 	case Leg::VoiceFail: {

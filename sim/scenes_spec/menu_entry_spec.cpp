@@ -37,6 +37,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/scene.h"
 #include "shell/shell.h"
@@ -600,7 +601,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
@@ -618,7 +619,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 		f.song->setCurrentClip(f.clip);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
@@ -763,7 +764,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0)).to_equal(&nodes::modulator0_volume);
 
@@ -776,7 +777,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		closeGuest();
 
 		// The same pad on a sound that is not DX7 is refused, with setup()'s popup.
-		sound->sources[0].setOscType(OscType::SAW);
+		deluge::test::setOscType(*sound, 0, OscType::SAW);
 		expect(entry::openShellMenuAtShortcut(f.clip, 4, 0, false, false, false, false)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
@@ -1843,8 +1844,8 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::SAW);
-		sound->sources[1].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::SAW);
+		deluge::test::setOscType(*sound, 1, OscType::DX7);
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
@@ -1852,7 +1853,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		}
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(spy.last_popup).to_equal(text(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		sound->sources[1].setOscType(OscType::SAW);
+		deluge::test::setOscType(*sound, 1, OscType::SAW);
 		nullifyUIs();
 	});
 

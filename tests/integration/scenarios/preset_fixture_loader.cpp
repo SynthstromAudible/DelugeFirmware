@@ -16,6 +16,7 @@
  */
 
 #include "scenarios/preset_fixture_loader.h"
+#include "support/sound_fixtures.h"
 
 #include "gui/views/session_view.h"
 #include "model/edits/setting_edit.h"
@@ -94,7 +95,7 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
 	MultiRange* range = synth->sources[0].getOrCreateFirstRange();
 	AudioFileHolder* holder = (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 	if (holder == nullptr) {

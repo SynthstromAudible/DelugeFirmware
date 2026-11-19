@@ -31,6 +31,7 @@
 #include "scenarios/slot_coherence.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -265,7 +266,7 @@ bool startTake(const char* marker) {
 	if (!frontClip(marker)) {
 		return false;
 	}
-	static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output))->sources[0].setOscType(OscType::SAW);
+	deluge::test::setOscType(*static_cast<SoundInstrument*>(g_clip->output), 0, OscType::SAW);
 	g_recordingPath.clear();
 	openRecorder();
 	const bool onTop = guestTop(kRecorderSceneKind);

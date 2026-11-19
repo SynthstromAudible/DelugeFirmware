@@ -29,6 +29,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/instrument_load.h"
@@ -176,7 +177,7 @@ bool buildFixture() {
 		g_report.fail("the boot song has no synth");
 		return false;
 	}
-	synth->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
 	AudioFileHolder* surviveHolder = firstHolder(synth->sources[0]);
 	if (surviveHolder == nullptr) {
 		g_report.fail("the synth's source has no range");

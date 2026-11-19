@@ -11,6 +11,7 @@
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+#include "support/sound_fixtures.h"
 
 #include "shell/notices.h"
 
@@ -116,7 +117,7 @@ struct DxSong {
 	DxSong() {
 		deluge::scenes::spec::make_current(song.song);
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].setOscType(OscType::DX7);
+		deluge::test::setOscType(*sound, 0, OscType::DX7);
 	}
 	~DxSong() { deluge::scenes::spec::make_current(saved); }
 	DxSong(const DxSong&) = delete;

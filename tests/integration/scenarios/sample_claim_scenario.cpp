@@ -28,6 +28,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/folder_import.h"
@@ -610,7 +611,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	kit.addDrum(drum);
 	drum->setName(name);
 	drum->setupAsSample(&paramManager);
-	drum->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*drum, 0, OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
 		setupFailed("kit", "a drum has no sample range");
@@ -828,7 +829,7 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 	if (clip == nullptr) {
 		return setupFailed(leg, "the boot song has no synth clip");
 	}
-	g_synth->sources[0].setOscType(osc);
+	deluge::test::setOscType(*g_synth, 0, osc);
 	return openBrowser(leg, clip, &instrumentClipView);
 }
 
@@ -1315,7 +1316,7 @@ bool openLeg() {
 			return setupFailed("import-multi", "no synth clip could be created");
 		}
 		// A wavetable oscillator: the import makes it a sample one, and finds the range it fills again.
-		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::WAVETABLE);
+		deluge::test::setOscType(*static_cast<SoundInstrument*>(g_importSynthClip->output), 0, OscType::WAVETABLE);
 		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {

@@ -37,6 +37,7 @@
 #include "scenarios/slot_coherence.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -352,7 +353,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 	kit.addDrum(drum);
 	drum->setName(name);
 	drum->setupAsSample(&paramManager);
-	drum->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*drum, 0, OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
 		setupFailed("a drum has no sample range");
@@ -363,7 +364,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 		(void)holder->loadFile(false, false, true);
 	}
 	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
-	drum->sources[0].seedDocRanges();
+	deluge::edits::recordRanges(*drum, 0);
 	currentSong->live.param_backup.backUp(drum, clip, &paramManager, true);
 	return drum;
 }
@@ -381,8 +382,8 @@ bool buildSong() {
 	if (synth == nullptr) {
 		return setupFailed("the boot song has no synth");
 	}
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	synth->sources[1].setOscType(OscType::WAVETABLE);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
+	deluge::test::setOscType(*synth, 1, OscType::WAVETABLE);
 	AudioFileHolder* sampleHolder = firstHolder(synth->sources[0]);
 	AudioFileHolder* waveTableHolder = firstHolder(synth->sources[1]);
 	if (sampleHolder == nullptr || waveTableHolder == nullptr) {
@@ -396,8 +397,8 @@ bool buildSong() {
 	static_cast<SampleHolder*>(sampleHolder)->endPos = 9999999;
 	// The song's synth is bound to its slot, so its sources save their ranges from their records: reseed them, as the
 	// sample browser's claim does.
-	synth->sources[0].seedDocRanges();
-	synth->sources[1].seedDocRanges();
+	deluge::edits::recordRanges(*synth, 0);
+	deluge::edits::recordRanges(*synth, 1);
 
 	// The new-kit-track gesture, which loads kSongKitPath.
 	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kSongKitPath);
@@ -501,7 +502,7 @@ bool writePresets() {
 	}
 	auto* synth = static_cast<SoundInstrument*>(synthBase);
 	synth->setupAsSample(&synthParams);
-	synth->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(synth->sources[0]);
 	if (holder == nullptr) {
 		return setupFailed("the preset synth has no sample range");
@@ -864,7 +865,7 @@ bool buildCrucialSong() {
 	}
 	synthClipBase->activeIfNoSolo = false;
 	auto* synthB = static_cast<SoundInstrument*>(synthClipBase->output);
-	synthB->sources[0].setOscType(OscType::SAMPLE);
+	deluge::test::setOscType(*synthB, 0, OscType::SAMPLE);
 	AudioFileHolder* synthBHolder = firstHolder(synthB->sources[0]);
 	if (synthBHolder == nullptr) {
 		return setupFailed("the second synth has no sample range");
@@ -872,7 +873,7 @@ bool buildCrucialSong() {
 	synthBHolder->setAudioFile(nullptr);
 	synthBHolder->filePath = kCrucialSynthSample;
 	(void)synthBHolder->loadFile(false, false, true);
-	synthB->sources[0].seedDocRanges(); // the save writes the source's record, not the holder
+	deluge::edits::recordRanges(*synthB, 0); // the save writes the source's record, not the holder
 
 	// A second audio clip, on a track of its own: its track's active clip, but not playing.
 	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 5);
