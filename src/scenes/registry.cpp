@@ -41,11 +41,9 @@
 namespace deluge::scenes {
 
 uint16_t assigned_node_ids() {
-	// Fix round 2, M1. `assign_node_ids` had no non-spec caller: the application built its scene
-	// table without it, and the three places `MenuScene` needs an id -- `save_state`,
-	// `restore_state` and the shortcut-pad jump -- each answered 0 and quietly did nothing. Three
-	// silent no-ops waiting for whoever wired this up. The registry is where the application's
-	// menu tree becomes reachable, so it is where the tree gets numbered: one function-local
+	// `MenuScene` needs an id in three places -- `save_state`, `restore_state` and the shortcut-pad
+	// jump -- and each answers 0, and quietly does nothing, until the tree is numbered. The registry is
+	// where the application's menu tree becomes reachable, so it is where the tree gets numbered: one function-local
 	// static, run once, before any `Shell` can reach the scene.
 	//
 	// Over `nodes::kAllRoots`: `MenuScene::roots()` first, in the same order, so every root keeps the id

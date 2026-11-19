@@ -26,7 +26,7 @@ void paint_columns(deluge::ui::grid::GridFrame& f, const WaveformRenderData& cac
 		peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
 	}
 	// `renderOneCol`'s monochrome arm: `renderFullScreen` passes no colour, so the brightness is 128
-	// (`WaveformRenderer::renderOneCol`, `gui/waveform/waveform_renderer.cpp:243-246`).
+	// (`WaveformRenderer::renderOneCol`, `gui/waveform/waveform_renderer.cpp`).
 	deluge::ui::grid::waveform_full(f, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
 }
 

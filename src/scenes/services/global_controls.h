@@ -4,9 +4,9 @@
 /// @brief `GlobalControls` -- the transport-and-global half of `View`, plus the tail of
 ///        `Buttons::buttonAction`, as a `shell::Service`.
 ///
-/// The port of `View::buttonAction`'s global arms (`gui/views/view.cpp:141-488`) and of the
+/// The port of `View::buttonAction`'s global arms (`gui/views/view.cpp`) and of the
 /// button tail `Buttons::buttonAction` runs *after* the current UI has declined an event
-/// (`hid/buttons.cpp:143-231`), together with the LEDs those two decide:
+/// (`hid/buttons.cpp`), together with the LEDs those two decide:
 /// `View::setLedStates`, `View::setTimeBaseScaleLedState` and
 /// `PlaybackHandler::setLedStates`. The clip-arm
 /// flash -- `View::flashPlayEnable`, `View::flashPlayDisable`
@@ -26,31 +26,31 @@
 /// `Router::route`'s chain is **top scene -> `mod_knobs` -> `global_controls`**
 /// (`shell/router.cpp`'s `run_chain`), and this service is deliberately last. That is
 /// `Buttons::buttonAction` exactly: it calls `getCurrentUI()->buttonAction(b, on, inCardRoutine)`
-/// at `hid/buttons.cpp:134`, returns early if the UI dealt with it (`:139-141`), and only then
-/// runs the tail at `:143-231`. So a scene gets first refusal and this service is the last word,
+/// at `hid/buttons.cpp`, returns early if the UI dealt with it, and only then
+/// runs the tail. So a scene gets first refusal and this service is the last word,
 /// which is what "routed last" means.
 ///
 /// @par Two legacy fallbacks, two reachability rules, and only one of them is gated
 ///
 /// The tail runs for **any** current UI that declined the event. `View::buttonAction` runs only for
 /// a **root view**: `UI::buttonAction`'s base implementation is `return
-/// ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) and does **not** forward to `view`, unlike
+/// ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h`) and does **not** forward to `view`, unlike
 /// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction`, which hand every root view's
 /// gold knobs and mod buttons on (`gui/ui/root_knobs`), which is why `ModKnobs` really is a
 /// base-class fallback. `View::buttonAction` has exactly
 /// two callers, `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp`)
 /// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp`) -- and
-/// `grep "public RootUI"` finds exactly those two classes (`gui/views/timeline_view.h:27`,
-/// `gui/ui/keyboard/keyboard_screen.h:35`). So "the current UI is the root UI" is not an
+/// `grep "public RootUI"` finds exactly those two classes (`gui/views/timeline_view.h`,
+/// `gui/ui/keyboard/keyboard_screen.h`). So "the current UI is the root UI" is not an
 /// approximation of the rule; it **is** the rule.
 ///
 /// Hence `handle()` gates the `View`-arm group on `stack_.input_top().is_root()`
 /// (`shell/scene.h`'s `Scene::is_root`, added for this) and leaves the tail ungated. With a
 /// non-root scene on top -- a menu, a browser, the marker editor -- `SAVE`, `LOAD`,
 /// `SYNC_SCALING`, `TAP_TEMPO`, `BACK` and shift+`SELECT_ENC` do nothing here, exactly as they do
-/// nothing in legacy: `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp`) ends by
+/// nothing in legacy: `SoundEditor::buttonAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ends by
 /// delegating to `currentMenuItem->buttonAction`, whose base
-/// (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path names
+/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`) returns `NOT_DEALT_WITH`, and nothing on that path names
 /// `view`.
 ///
 /// @warning **Before the gate, the divergence was live and its only protection was an accident.**
@@ -69,17 +69,17 @@
 ///
 /// `handle()` runs `View::buttonAction`'s arms first and the `Buttons::buttonAction` tail second,
 /// because that is the order legacy runs them in and the first can suppress the second: an arm
-/// that reaches `View::buttonAction`'s `return ActionResult::DEALT_WITH` makes `buttons.cpp:139-141`
+/// that reaches `View::buttonAction`'s `return ActionResult::DEALT_WITH` makes `Buttons::buttonAction` (`buttons.cpp`)
 /// jump straight to `dealtWith` and the tail never runs. The one place that matters is `PLAY` and
 /// `RECORD`: under MIDI learn `View` claims them (`View::buttonAction`'s PLAY and RECORD arms) and the transport tail
 /// is skipped; outside learn the arm's `&& currentUIMode == UI_MODE_MIDI_LEARN` fails, the chain
-/// falls to `view.cpp`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
+/// falls to `gui/views/view.cpp`'s `return ActionResult::NOT_DEALT_WITH`, and the tail runs.
 ///
 /// @par The MIDI-learn boundary
 ///
 /// Four arms of `View::buttonAction` are learn-mode work end to end and belong to `MidiLearn`,
-/// not here: the `TAP_TEMPO` learn branch (`view.cpp:150-168`), the `LEARN` button
-/// (`:185-196`), `PLAY` under learn (`:199-212`) and `RECORD` under learn (`:215-228`). The rule
+/// not here: the `TAP_TEMPO` learn branch, the `LEARN` button,
+/// `PLAY` under learn and `RECORD` under learn. The rule
 /// is: **the service that owns the mode owns the arm, and the other asks
 /// it.** This service asks, through `LearnMode::active()` (`services/learn_mode.h`) -- one
 /// virtual call, no second copy of the mode.
@@ -117,20 +117,20 @@
 ///     menus, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
 ///     missing.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
-///     it guards (`hid/buttons.cpp:190-192`). `scenes-no-display` forbids `display->`, and the
+///     it guards (`Buttons::buttonAction` in `hid/buttons.cpp`). `scenes-no-display` forbids `display->`, and the
 ///     seam that would replace it does not reach: that popup is raised by *model* code straight to
 ///     the legacy display (`model/song/song.cpp`), never through `notify::` or
 ///     `shell::PopupScene`, so even an injected `PopupScene` could not see it. **This one is a
 ///     behaviour difference, not merely a missing call**: with that popup up, legacy's short
 ///     RECORD tap dismisses it and does nothing else, while this port falls through to
 ///     `PlaybackHandler::recordButtonPressed()` and toggles recording.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:341-355`). The note-editor test
-///     (`:340-343`) needs no port here: it holds only in a note mode, and the ported note mode never lets
-///     this service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler,
-///     whose `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
-///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` . The two fill adjustments
-///     (`:345-354`) name `instrumentClipView`, on `scenes-no-root-ui`'s list, and `InstrumentClipScene`
-///     is not ported. What survives is the arm's "otherwise", `currentSong->changeFillMode(on)`.
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`View::buttonAction` in `gui/views/view.cpp`). The
+///     note-editor test needs no port here: it holds only in a note mode, and the ported note mode never lets this
+///     service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler, whose
+///     `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
+///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` . The two fill adjustments name `instrumentClipView`, on
+///     `scenes-no-root-ui`'s list, and `InstrumentClipScene` is not ported. What survives is the arm's "otherwise",
+///     `currentSong->changeFillMode(on)`.
 ///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`PlaybackHandler::setLedStates`).
 ///     The external-clock LED is a board *signal*, not an `IndicatorLED`, so it has no `ButtonId`
 ///     and therefore no `ui::LedId` (`shell/profiles/deluge.h`: "LedId values = ButtonId values").
@@ -138,37 +138,35 @@
 ///
 /// @par The pre-UI section: verified, not re-ported
 ///
-/// `Buttons::buttonAction`'s section above the UI call (`hid/buttons.cpp:88-132`) is not re-ported here: **two of its
+/// `Buttons::buttonAction`'s section above the UI call (`hid/buttons.cpp`) is not re-ported here: **two of its
 /// five items are ported and three are not**:
 ///
-///   * `:88-95`'s `considerShiftReleaseForSticky = false` on any press -- ported,
+///   * `considerShiftReleaseForSticky = false` on any press -- ported,
 ///     `InputLowering::on_button` (`shell/input_lowering.cpp`). Its *cross-screen* twin on
 ///     the very next line is **not**.
-///   * `:100-107`'s mod-button loop -- ported, as `Router`'s `is_mod_or_gold` plus `ModKnobs`
-///     .
-///   * `:109-113`'s `AFFECT_ENTIRE` -> `display->cancelPopup()` -- **not ported**. It belongs to
+///   * The mod-button loop -- ported, as `Router`'s `is_mod_or_gold` plus `ModKnobs`.
+///   * The `AFFECT_ENTIRE` -> `display->cancelPopup()` -- **not ported**. It belongs to
 ///     the notice seam (`notify::Notice::Kind::CancelPopup`), not to this service.
-///   * `:114-121`'s `BACK` -> `TimerName::BACK_MENU_EXIT` long-press, whose callback is
-///     `getCurrentUI()->exitUI()` (`gui/ui_timer_manager.cpp:150-156`) -- **not ported**. It is a
+///   * The `BACK` -> `TimerName::BACK_MENU_EXIT` long-press, whose callback is
+///     `getCurrentUI()->exitUI()` (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`) -- **not ported**. It is a
 ///     scene-exit gesture, so it belongs to whoever owns "hold BACK to leave", not here.
-///   * `:122-127`'s `CROSS_SCREEN_EDIT` arming `considerCrossScreenReleaseForCrossScreenMode` --
+///   * The `CROSS_SCREEN_EDIT` arming `considerCrossScreenReleaseForCrossScreenMode` --
 ///     **not ported**. Cross-screen mode is a clip-view fact.
-///   * `:128-132`'s `selectButtonPressUsedUp = false` -- ported, and generalised: `InputLowering`
-///     clears the used-up bit for **every** button on its own press
-///     (`InputLowering::on_button`), which subsumes both this and `buttons.cpp:178`'s
-///     `recordButtonPressUsedUp = false`.
+///   * `selectButtonPressUsedUp = false` -- ported, and generalised: `InputLowering` clears the used-up bit for
+///     **every** button on its own press (`InputLowering::on_button`), which subsumes both this and the `RECORD` arm of
+///     `Buttons::buttonAction` (`buttons.cpp`): `recordButtonPressUsedUp = false`.
 ///
-/// And the tail's `SHIFT` arm (`hid/buttons.cpp:169-171`, `Buttons::commandToggleShift`) is already
+/// And the tail's `SHIFT` arm (`Buttons::buttonAction` in `hid/buttons.cpp`, `Buttons::commandToggleShift`) is already
 /// `InputLowering::toggle_shift` (`shell/input_lowering.cpp`),
 /// called from `on_button` *before* the event is ever emitted. `handle()` therefore reports
 /// `ButtonId::Shift` handled -- legacy's tail does deal with it -- and does nothing.
 ///
 /// @par `#ifdef undoButtonX` is dead code
 ///
-/// Undo (`:425-441`) and redo (`:442-448`) look like arms this service must port, but they are
-/// inside `#ifdef undoButtonX` (`view.cpp:425-448`), and **`undoButtonX` is
+/// The undo and redo buttons look like arms this service must port, but they are
+/// inside `#ifdef undoButtonX` (`View::buttonAction` in `gui/views/view.cpp`), and **`undoButtonX` is
 /// defined nowhere in this repository** -- the only two occurrences are that `#ifdef` and the
-/// `#ifndef` on the `BACK` arm at `:407`. The `BACK` arm (`:404-421`) *is* the undo/redo, and it
+/// `#ifndef` on the `BACK` arm. The `BACK` arm *is* the undo/redo, and it
 /// is what this service ports.
 ///
 /// @par The play flash is the clip-arm flash, and it is not a Play-LED flash
@@ -182,21 +180,19 @@
 /// render. The only time-driven thing in legacy that *does* set `IndicatorLED::PLAY` is
 /// `View::midiLearnFlash`, which is `services::MidiLearn`'s
 /// (`services/midi_learn.h`). So what this service owns is the
-/// clip-arm phase and its 60 ms (`kFastFlashTime`, `definitions_cxx.hpp:160`) deadline;
+/// clip-arm phase and its 60 ms (`kFastFlashTime`, `definitions_cxx.hpp`) deadline;
 /// `clip_arm_flash_on()` is the fact, and the scenes that paint armed clips (the unported `SessionScene`)
 /// are its consumers.
 ///
 /// @note `View::flashPlayRoutine` does **not** re-arm its own timer -- the re-arm lives in
-///       `SessionView::flashPlayRoutine` (`gui/views/session_view.cpp`), which calls
-///       `view.flashPlayEnable()` again only while some clip is actually armed (`:2423-2424`,
-///       `:2441-2444`). That is view-side and not ported, so here `tick()` toggles the phase once
-///       per `flash_play_enable()` and stops. A future `SessionScene` re-arms it exactly where
-///       legacy does.
+///       `SessionView::flashPlayRoutine` (`gui/views/session_view.cpp`), which calls `view.flashPlayEnable()` again
+///       only while some clip is actually armed. That is view-side and not ported, so here `tick()` toggles the phase
+///       once per `flash_play_enable()` and stops. A future `SessionScene` re-arms it exactly where legacy does.
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` and `UiContext::now_ms` are the only
 ///          places a clock arrives (`shell-no-clock`). Legacy's `AudioEngine::audioSampleTimer`
 ///          press timings (`View::buttonAction`'s SAVE and LOAD arms, `Buttons::buttonAction`) become milliseconds
-///          here; `kShortPressTime` is `kSampleRate / 2` (`definitions_cxx.hpp:1028`), which is
+///          here; `kShortPressTime` is `kSampleRate / 2` (`definitions_cxx.hpp`), which is
 ///          exactly the 500 ms `LoweringConfig::short_press_ms` already carries
 ///          (`shell/input_lowering.h`).
 
@@ -225,7 +221,7 @@ class GlobalControls final : public deluge::ui::shell::Service {
 public:
 	/// @brief The one `currentUIMode` value this service reads.
 	///
-	/// Legacy has a single `uint32_t currentUIMode` (`gui/ui/ui.h:30`), and this service asks it
+	/// Legacy has a single `uint32_t currentUIMode` (`gui/ui/ui.h`), and this service asks it
 	/// in seven places. `src/scenes` may not include `gui/ui/ui.h`, so the value is reconstructed:
 	/// `ViewState::ui_mode` carries what the root scene knows, and `effective_ui_mode()` folds in
 	/// the two modes this service sets for itself (`HoldingSave`, `HoldingLoad`) and the one
@@ -236,12 +232,12 @@ public:
 	/// to grow a name for it: every test here is against a *specific* mode, so `Other` correctly
 	/// fails all of them.
 	enum class UiMode : uint8_t {
-		None,          ///< `UI_MODE_NONE` (`gui/ui/ui.h:34`, which is 0).
+		None,          ///< `UI_MODE_NONE` (`gui/ui/ui.h`, which is 0).
 		MidiLearn,     ///< `UI_MODE_MIDI_LEARN`. Never set through `ViewState`; see `LearnMode`.
 		RecordCountIn, ///< `UI_MODE_RECORD_COUNT_IN` -- read by the `TAP_TEMPO` arm (`View::buttonAction`).
-		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm (`view.cpp:328`).
-		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
-		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
+		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm of `View::buttonAction`.
+		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`View::buttonAction` in `gui/views/view.cpp`). Owned here.
+		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `gui/views/view.cpp`). Owned here.
 		Other,         ///< Any other mode: active, and none of the above.
 	};
 
@@ -258,7 +254,8 @@ public:
 		/// one owner of the mode and not two.
 		UiMode ui_mode = UiMode::None;
 		/// `getCurrentUI()->toClipMinder() != nullptr` (`View::buttonAction` and `View::setTimeBaseScaleLedState` in
-		/// `view.cpp`). Decides whether the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
+		/// `gui/views/view.cpp`). Decides whether the SYNC_SCALING LED blinks and whether sync scaling may be started
+		/// at all.
 		bool current_ui_is_clip_minder = false;
 		/// `getRootUI() == &performanceView` (`View::buttonAction`'s SAVE and LOAD arms) -- the fifth term of the
 		/// SAVE/LOAD guard, which lets KEYBOARD+SAVE through only in performance view.
@@ -276,7 +273,7 @@ public:
 	};
 
 	/// @param stack    The scene stack this service pushes the settings menu onto
-	///                 (`view.cpp`).
+	///                 (`gui/views/view.cpp`).
 	/// @param lowering The input lowering it reads and writes the used-up bit and the press clock
 	///                 on.
 	/// @param learn    MIDI learn, asked before the `PLAY`/`RECORD`/`TAP_TEMPO` arms. A real
@@ -334,7 +331,7 @@ public:
 	void flash_play_enable(uint32_t now_ms);
 	/// @brief Disarm it and clear the phase -- `View::flashPlayDisable`.
 	///
-	/// Legacy's tail (`:2774-2782`) is a render request against `sessionView`/`performanceView`,
+	/// Legacy's `flashPlayDisable` tail is a render request against `sessionView`/`performanceView`,
 	/// which is view-side and not ported; a scene reading `clip_arm_flash_on()` sees the change on
 	/// its next tick.
 	void flash_play_disable();
@@ -375,8 +372,8 @@ public:
 	/// @brief Is the SAVE button being held down for the save gesture? `UI_MODE_HOLDING_SAVE_BUTTON`
 	///        (`View::buttonAction`).
 	bool holding_save() const { return holding_save_; }
-	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`,
-	///        which also clears it).
+	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in
+	///        `gui/views/view.cpp`, which also clears it).
 	bool holding_load() const { return holding_load_; }
 	/// @brief The three call sites this port reaches but cannot make -- see the class doc's
 	///        "deliberately NOT ported".
@@ -416,28 +413,28 @@ public:
 	uint32_t unported_opens_total() const;
 	/// @}
 
-	/// @brief `kShortPressTime` (`definitions_cxx.hpp:1028`, `kSampleRate / 2`) in milliseconds.
+	/// @brief `kShortPressTime` (`definitions_cxx.hpp`, `kSampleRate / 2`) in milliseconds.
 	///
 	/// The same 500 ms `LoweringConfig::short_press_ms` already carries; named here because the
 	/// SAVE and LOAD arms measure against their own press clock (`View::buttonAction`) rather
 	/// than through `InputLowering::was_short_press`, which only knows the button's own press.
 	static constexpr uint32_t kShortPressMs = 500;
-	/// @brief `kFastFlashTime` (`definitions_cxx.hpp:160`) -- the clip-arm flash's half-period.
+	/// @brief `kFastFlashTime` (`definitions_cxx.hpp`) -- the clip-arm flash's half-period.
 	static constexpr uint32_t kClipArmFlashMs = 60;
 	/// @brief How long `indicator_leds::indicateAlertOnLed` blinks for.
 	///
-	/// `indicateAlertOnLed` is `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`), which
-	/// sets `blinksLeft = numBlinks * 2` == 6 (`:75`) and then calls `updateBlinkingLedStates`
-	/// **once, at arm time** (`:79`), which decrements it to 5 (`:123`). The fold-back at `:126-129`
-	/// therefore happens after **five** further `kFastFlashTime` timeouts (`:106-112`), not six:
-	/// 300 ms, not 360. Pinned against legacy's own countdown in `global_controls_spec.cpp`.
+	/// `indicateAlertOnLed` is `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp`), which sets
+	/// `blinksLeft = numBlinks * 2` == 6 and then calls `updateBlinkingLedStates` **once, at arm time**, which
+	/// decrements it to 5 (`blinksLeft--` in its body). The fold-back in its `blinksLeft == 0` branch therefore happens
+	/// after **five** further `kFastFlashTime` timeouts (`ledBlinkTimeout`), not six: 300 ms, not 360. Pinned against
+	/// legacy's own countdown in `global_controls_spec.cpp`.
 	static constexpr uint32_t kAlertMs = (3 * 2 - 1) * kClipArmFlashMs;
 
 private:
 	/// @brief What `View::buttonAction` did with a button, in the three shapes that matter here.
 	///
 	/// Legacy has only two answers -- `DEALT_WITH` and `NOT_DEALT_WITH` (`View::buttonAction`'s two returns) --
-	/// and the tail runs only for the second (`hid/buttons.cpp:139-141`). The port needs a third,
+	/// and the tail runs only for the second (`Buttons::buttonAction` in `hid/buttons.cpp`). The port needs a third,
 	/// because four of the arms are `MidiLearn`'s: legacy *deals with* them, so the tail must be
 	/// skipped, but this service does none of the work, so the event must still be reported
 	/// unhandled to the router. Collapsing the two would either run the transport tail under MIDI
@@ -450,7 +447,7 @@ private:
 		LearnOwns,
 	};
 
-	/// @brief `View::buttonAction`'s arms (`gui/views/view.cpp:141-488`).
+	/// @brief `View::buttonAction`'s arms (`gui/views/view.cpp`).
 	/// @param button The button.
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
@@ -458,7 +455,7 @@ private:
 	/// @return Which of the three shapes above the arm was.
 	ViewArm view_button_action(deluge::ui::shell::ButtonId button, bool on, const deluge::ui::shell::UiContext& ctx,
 	                           deluge::ui::shell::Result& r);
-	/// @brief `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`).
+	/// @brief `Buttons::buttonAction`'s tail (`hid/buttons.cpp`).
 	/// @param button The button.
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
@@ -466,12 +463,12 @@ private:
 	deluge::ui::shell::Result tail_button_action(deluge::ui::shell::ButtonId button, bool on,
 	                                             const deluge::ui::shell::UiContext& ctx);
 
-	/// @brief The `SAVE` arm (`view.cpp:233-275`).
+	/// @brief The `SAVE` arm of `View::buttonAction`.
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
-	/// @param result Where the pending-overdubs refusal popup (`:257-258`) is appended.
+	/// @param result Where the pending-overdubs refusal popup is appended.
 	void handle_save(bool on, const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
-	/// @brief The `LOAD` arm (`view.cpp:278-333`).
+	/// @brief The `LOAD` arm of `View::buttonAction`.
 	/// @param on  Press or release.
 	/// @param ctx The world around it.
 	void handle_load(bool on, const deluge::ui::shell::UiContext& ctx);
@@ -480,12 +477,12 @@ private:
 	/// @return True when neither SYNTH/KIT/MIDI/CV is held and KEYBOARD is not held in performance
 	///         view -- i.e. when the arm's body may run.
 	bool load_save_allowed(const deluge::ui::shell::UiContext& ctx) const;
-	/// @brief The `SYNC_SCALING` arm (`view.cpp:336-403`).
+	/// @brief The `SYNC_SCALING` arm of `View::buttonAction`.
 	/// @param on     Press or release.
 	/// @param ctx    The world around it.
 	/// @param result Where a refusal popup is appended.
 	void handle_sync_scaling(bool on, const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
-	/// @brief The `SELECT_ENC`+shift arm (`view.cpp:451-482`): open the settings menu.
+	/// @brief The `SELECT_ENC`+shift arm of `View::buttonAction`: open the settings menu.
 	/// @param ctx    The world around it.
 	/// @param result Where the refusal popup or the push is appended.
 	void handle_settings_menu(const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
@@ -495,7 +492,7 @@ private:
 	void count_unported(UnportedOpen which);
 
 	/// @brief Is the SYNC_SCALING LED in `View::setTimeBaseScaleLedState`'s blink arm
-	///        (`view.cpp`) right now?
+	///        (`gui/views/view.cpp`) right now?
 	///
 	/// Asked by `leds()` and by `next_timer()`, which has to request a wake for it -- see the note
 	/// there.
@@ -509,7 +506,7 @@ private:
 	Song* song_ = nullptr;
 	ViewState view_{};
 
-	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`).
+	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `gui/views/view.cpp`).
 	bool holding_save_ = false;
 	bool holding_load_ = false;
 	/// `View::timeSaveButtonPressed` -- **one** member, shared by both arms exactly as legacy shares

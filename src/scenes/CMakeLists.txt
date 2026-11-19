@@ -98,7 +98,7 @@ add_library(deluge_scenes STATIC
     browser/browser_scene.cpp
     # the sample marker editor.
     marker/marker_scene.cpp
-    # the audio recorder -- the one scene that replaces `gui/ui/audio_recorder.cpp`'s
+    # the audio recorder -- the one scene that replaces `origin/main:src/deluge/gui/ui/audio_recorder.cpp`'s
     # menu-driven half (its output-recording half stays on the legacy object; see the header).
     recorder/recorder_scene.cpp
     # the mod-encoder value popup -- the first of the three overlay scenes.
@@ -149,9 +149,9 @@ target_include_directories(deluge_scenes PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/../../include
     ${CMAKE_CURRENT_LIST_DIR}/../deluge
 )
-# deluge_ui_shell already brings deluge_ui_core/deluge_ui_oled/deluge_ui_grid/deluge_notify PUBLIC
-# (src/shell/CMakeLists.txt:11); deluge_app is the portable application (an OBJECT library) this
-# layer is allowed to read model/modulation/playback/storage from.
+# deluge_ui_shell already brings deluge_ui_core/deluge_ui_oled/deluge_ui_grid/deluge_notify PUBLIC (the
+# `target_link_libraries(deluge_ui_shell PUBLIC ...)` in src/shell/CMakeLists.txt); deluge_app is the portable
+# application (an OBJECT library) this layer is allowed to read model/modulation/playback/storage from.
 #
 # $<COMPILE_ONLY:deluge_app> (CMake >= 3.27 -- both cmake_minimum_required floors that build this
 # file were raised to 3.27 for exactly this, see CMakeLists.txt and sim/CMakeLists.txt): deluge_app

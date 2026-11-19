@@ -124,7 +124,8 @@ public:
 	/// @brief Hardware: whether a mic or line input is plugged in. No record holds it; it changes under the song.
 	[[nodiscard]] virtual bool audio_inputs_present() const = 0;
 	/// @brief Audio: the voices sounding now, synth and audio-clip (`cpu::VoiceUsage::sample`,
-	/// `cpu/voice_usage.h:94-96`). No record holds it; it changes every render. Zero for a host that renders nothing.
+	/// `origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`). No record holds it; it changes every render. Zero for
+	/// a host that renders nothing.
 	[[nodiscard]] virtual int32_t live_voice_count() const { return 0; }
 	/// @brief Whether the sound at @p slot is a kit's only drum, on its clip's first note row: the kit a whole folder
 	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit`, which also asks that the

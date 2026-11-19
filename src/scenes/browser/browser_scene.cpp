@@ -120,7 +120,7 @@ bool caseless_equals(std::string_view a, std::string_view b) {
 /// @brief What `Browser::renderOLED` draws of a row's name.
 ///
 /// Legacy takes `strrchr(displayName, finalChar)` with `finalChar = isFolder ? 0 : '.'`, and falls
-/// back to `finalChar = 0` when there is no dot at all (`browser.cpp:981-989`) -- so a folder shows
+/// back to `finalChar = 0` when there is no dot at all (`Browser::renderOLED` in `browser.cpp`) -- so a folder shows
 /// its whole name, a file shows everything before its **last** dot, and an extensionless file shows
 /// its whole name too.
 /// @param name     The entry's `FileItem::filename`.
@@ -137,10 +137,10 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 // ---------------------------------------------------------------------------------------------
 // The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
-/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`sample_browser.cpp:86`).
+/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
-// --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
+// --- Sample: `SampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) ---
 
 /// @brief The file `SoundEditor::getCurrentAudioFileHolder` holds, as the
 ///        record names it: an audio clip's own, or the selected range's.
@@ -181,10 +181,10 @@ bool sample_can(const menu::MenuContext& ctx) {
 }
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
-	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path; one that is blank or outside
-	// SAMPLES/ gives way to the file last previewed or loaded (`deluge::model::lastFilePathLoaded`, which the host
-	// answers), and only when that is blank too to the default folder. Then dissect it into a directory and the
-	// filename to select.
+	// `SampleBrowser::opened` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): take the holder's path; one
+	// that is blank or outside SAMPLES/ gives way to the file last previewed or loaded
+	// (`deluge::model::lastFilePathLoaded`, which the host answers), and only when that is blank too to the default
+	// folder. Then dissect it into a directory and the filename to select.
 	const std::optional<std::string> held = sample_path(ctx);
 	std::string last;
 	std::string_view path = held ? std::string_view{*held} : std::string_view{};
@@ -218,7 +218,8 @@ int8_t entry_direction(ListingAction action) {
 }
 
 uint16_t sample_folder_refusal(std::string_view dir, std::string_view name) {
-	// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:346-351`).
+	// "Don't allow user to go into TEMP clips folder" (`SampleBrowser::enterKeyPress` in
+	// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	if (caseless_equals(name, "TEMP") && caseless_equals(dir, "SAMPLES/CLIPS")) {
 		return sid(String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED);
 	}
@@ -255,16 +256,15 @@ std::optional<std::string> midi_device_file(const menu::MenuContext& ctx) {
 }
 
 bool midi_device_can(const menu::MenuContext& ctx) {
-	// `LoadMidiDeviceDefinitionUI::opened` (`:45-47`) refuses unless the current output is a MIDI
-	// one. Its other conjunct, `getRootUI()->toClipMinder()`, is a UI read this layer may not make
-	// (`scenes-no-root-ui`); the menu tree only reaches this item from a clip minder anyway, since
-	// `midi_device_linked` hangs off the MIDI/CV root, so the surviving test is the one that
-	// discriminates.
+	// `LoadMidiDeviceDefinitionUI::opened` (`gui/ui/load/load_midi_device_definition_ui.cpp`) refuses unless the
+	// current output is a MIDI one. Its other conjunct, `getRootUI()->toClipMinder()`, is a UI read this layer may not
+	// make (`scenes-no-root-ui`); the menu tree only reaches this item from a clip minder anyway, since
+	// `midi_device_linked` hangs off the MIDI/CV root, so the surviving test is the one that discriminates.
 	return midi_device_file(ctx).has_value();
 }
 
 void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
-	// `setupForLoadingMidiDeviceDefinition` (`:83-124`): with no remembered file, open on the
+	// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition`: with no remembered file, open on the
 	// default folder; otherwise split the remembered path and select that file, extension included.
 	const std::optional<std::string> file = midi_device_file(ctx);
 	if (!file || file->empty()) {
@@ -277,9 +277,9 @@ void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::s
 	}
 	dir = path.substr(0, slash);
 	name = path.substr(slash + 1);
-	// Legacy appends ".XML" unconditionally (`load_midi_device_definition_ui.cpp:122-124`) to a name that already
-	// carries it, so the search never matches and the browser opens on the folder's first entry. Kept as legacy has
-	// it.
+	// Legacy appends ".XML" unconditionally (`LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` in
+	// `load_midi_device_definition_ui.cpp`) to a name that already carries it, so the search never matches and the
+	// browser opens on the folder's first entry. Kept as legacy has it.
 	name += ".XML";
 }
 
@@ -297,7 +297,7 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 	return AcceptOutcome::DeferAndWait;
 }
 
-// --- DX7 `.syx` banks: `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`) ---
+// --- DX7 `.syx` banks: `DxSyxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`) ---
 
 char const* kSyxExtensions[] = {"SYX", nullptr};
 
@@ -320,8 +320,9 @@ AcceptOutcome dx_syx_accept(const menu::MenuContext& /*ctx*/, std::string_view /
 }
 
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
-    // `SampleBrowser::SampleBrowser` plus `SampleBrowser::opened` (`sample_browser.cpp`): the wave icon, "Audio files",
-    // the audio extensions, note names interpreted, and folders allowed to share a name with a file.
+    // `SampleBrowser::SampleBrowser` plus `SampleBrowser::opened`
+    // (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): the wave icon, "Audio files", the audio extensions,
+    // note names interpreted, and folders allowed to share a name with a file.
     {
         .title = "Audio files",
         .extensions = kAudioExtensions,
@@ -335,10 +336,10 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
         .folder_refusal = sample_folder_refusal,
         .accept = sample_accept,
     },
-    // `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`:84-88`): the MIDI plug
+    // `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition`: the MIDI plug
     // (two pieces), "Load midi device", and the base class's XML extensions
-    // (`Browser::opened`, `browser.cpp:181`) with note names off and folder/file name sharing
-    // disallowed (`:182`).
+    // (`Browser::opened`, `browser.cpp`) with note names off and folder/file name sharing
+    // disallowed.
     {
         .title = "Load midi device",
         .extensions = allowedFileExtensionsXML,
@@ -788,8 +789,7 @@ void BrowserScene::file_request(ListingRequest req) {
 	if (listing_.request(req) != RequestOutcome::Accepted) {
 		// `Busy` (something else holds the catalogue), `ResultPending` (this seam owes a collect) or
 		// `Dropped` (the owner's queue was full). None of the three loses the request: it is kept and
-		// retried from `after_render`, which is legacy's own answer on the same return
-		// (`browser.cpp:113-117`: clear the flag so the next event retries).
+		// retried from `after_render`.
 		pending_ = std::move(req);
 		return;
 	}
@@ -799,7 +799,7 @@ void BrowserScene::file_request(ListingRequest req) {
 Result BrowserScene::apply(const ListingResult& out) {
 	// `runPendingListing`'s failure arm -> `Browser::onListingFailed`:
 	// `displayError` (already raised by the seam, which is why nothing is announced here) then
-	// `close()`. Reload is legacy's one silent exception (`browser.cpp:747-753`): it empties the
+	// `close()`. Reload is legacy's one silent exception (`browser.cpp`): it empties the
 	// catalogue and leaves the browser standing.
 	if (out.error != Error::NONE) {
 		if (out.action != ListingAction::Reload) {
@@ -813,16 +813,16 @@ Result BrowserScene::apply(const ListingResult& out) {
 		return repaint_all();
 	}
 
-	// The second pass of `predictExtendedText`'s `doNewRead` arm (`browser.cpp:826-838`), one tick
-	// later: the folder has been re-read around the typed text, so run the search again.
+	// The second pass of `predictExtendedText`'s `doNewRead` arm (`Browser::continuePrediction` in `browser.cpp`), one
+	// tick later: the folder has been re-read around the typed text, so run the search again.
 	if (searching_) {
 		searching_ = false;
 		if (search_for_entered_text() != SearchOutcome::Found) {
-			// `notFound` with `mayDefaultToBrandNewNameOnEntry` false (`:842-846`): put the selected
-			// file's name back, and undo the cursor advance the keystroke made
-			// (`qwerty_ui.cpp:357-359`). This is the same pair `run_search_after_typing` applies on
-			// the synchronous miss; the only difference is that the cursor had to be carried across
-			// the re-read in `search_revert_cursor_`.
+			// `notFound` with `mayDefaultToBrandNewNameOnEntry` false (`Browser::predictExtendedText` in
+			// `gui/ui/browser/browser.cpp`): put the selected file's name back, and undo the cursor advance the
+			// keystroke made (`QwertyUI::padAction` in `qwerty_ui.cpp`). This is the same pair
+			// `run_search_after_typing` applies on the synchronous miss; the only difference is that the cursor had to
+			// be carried across the re-read in `search_revert_cursor_`.
 			if (file_index_ >= 0) {
 				set_entered_text_from_current_filename();
 			}
@@ -833,7 +833,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	}
 
 	if (out.action == ListingAction::Reload) {
-		// `reloadImpl`'s tail (`browser.cpp:752-772`).
+		// `reloadImpl`'s tail (`browser.cpp`).
 		const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 		int32_t index;
 		if (reload_from_end_) {
@@ -847,14 +847,14 @@ Result BrowserScene::apply(const ListingResult& out) {
 		return repaint_all();
 	}
 
-	// `arrivedInNewFolder`'s post-read tail (`browser.cpp:389-495`).
+	// `arrivedInNewFolder`'s post-read tail (`browser.cpp`).
 	edit_.cursor = 0;
 	edit_.scroll = 0;
 
 	std::string name = std::move(select_after_listing_);
 	select_after_listing_.clear();
-	// `UpLevel` fills its own: legacy assigns the folder it just left to `enteredText` and lists
-	// starting at it (`browser.cpp:1388-1392`), so the entry to land on is the one you came out of.
+	// `UpLevel` fills its own: legacy assigns the folder it just left to `enteredText` and lists starting at it
+	// (`Browser::goUpOneDirectoryLevelImpl` in `browser.cpp`), so the entry to land on is the one you came out of.
 	if (name.empty()) {
 		name = out.entered_text;
 	}
@@ -862,7 +862,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 	if (count == 0) {
 		// "Or if no files found at all..." with `mayDefaultToBrandNewNameOnEntry` false
-		// (`browser.cpp:483-490`): no text, no selection, top of the list.
+		// (`Browser::applyListingSelection` in `browser.cpp`): no text, no selection, top of the list.
 		entered_len_ = 0;
 		file_index_ = -1;
 		scroll_ = 0;
@@ -879,8 +879,8 @@ Result BrowserScene::apply(const ListingResult& out) {
 			file_index_ = i;
 		}
 		else if (FileCatalogue::numFileItemsDeletedAtStart != 0) {
-			// `noExactFileFound`'s re-read (`browser.cpp:404-407`): the search string culled entries
-			// off the start of the folder and we are about to fall back to "the first one", so the
+			// `noExactFileFound`'s re-read (`Browser::applyListingSelection` in `browser.cpp`): the search string
+			// culled entries off the start of the folder and we are about to fall back to "the first one", so the
 			// window has to be read again without it. Legacy `goto`s; here it is another listing.
 			ListingRequest req = make_request(ListingAction::Open);
 			file_request(std::move(req));
@@ -891,7 +891,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	set_entered_text_from_current_filename();
 	scroll_ = file_index_;
 	// "Starting in the middle or end of a short folder should still fill as many display rows as
-	// possible" (`browser.cpp:415-416`).
+	// possible" (`Browser::useFoundFile` in `browser.cpp`).
 	clamp(visible_rows_);
 	// `folderContentsReady(direction)`, which previews the entry the listing landed on.
 	file_preview(entry_direction(out.action));
@@ -902,7 +902,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 // Selection and text
 
 void BrowserScene::clamp(int32_t visible_rows, bool allow_no_file_selection) {
-	// `Browser::clampFileSelectionAndScroll` (`browser.cpp:1009-1063`), statement for statement.
+	// `Browser::clampFileSelectionAndScroll` (`browser.cpp`), statement for statement.
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 	if (count <= 0) {
 		file_index_ = -1;
@@ -958,11 +958,11 @@ void BrowserScene::set_entered_text_from_current_filename() {
 
 BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// The in-memory half of `Browser::predictExtendedText`. Legacy searches
-	// for the text **left of the cursor**, not the whole string (`:800`, `searchString.resize
+	// for the text **left of the cursor**, not the whole string (`Browser::predictExtendedText`'s `searchString.resize
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
 	//
-	// Re-pin the name comparator before searching, exactly as legacy does at `:785-786`, through
+	// Re-pin the name comparator before searching, exactly as `Browser::predictExtendedText` does, through
 	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
 	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
 	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
@@ -974,8 +974,8 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 
 	const int32_t i = FileCatalogue::searchFileItems(search.c_str());
-	// "If that search takes us off the right-hand end of the list..." (`:822`): the cached window
-	// cannot answer, so the folder has to be read again around the search string.
+	// "If that search takes us off the right-hand end of the list..." (`Browser::predictExtendedText`): the cached
+	// window cannot answer, so the folder has to be read again around the search string.
 	if (i >= count) {
 		return SearchOutcome::NeedsRead;
 	}
@@ -983,12 +983,12 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
 	if (!case_prefix_equal(item.displayName(), search, search.size())) {
 		// "If the search landed on the first cached item, the folder cache may be missing earlier
-		// entries" (`:860-864`, issue #4584).
+		// entries" (`Browser::predictExtendedText`, issue #4584).
 		if (i == 0) {
 			return SearchOutcome::NeedsRead;
 		}
 		// Legacy's remaining arm appends up to four '0's to the search string and tries again
-		// (`:868-874`), a slot-browser behaviour whose comment says "this code is original but I
+		// (`Browser::predictExtendedText`), a slot-browser behaviour whose comment says "this code is original but I
 		// don't know what it does". None of this scene's three descriptors is a slot browser --
 		// each was split off `Browser` directly, and `filePrefix` is null for all three -- so the arm is
 		// deliberately not ported rather than transcribed unexercised.
@@ -998,12 +998,12 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const bool moved = i != file_index_;
 	file_index_ = i;
 	// "Typing/prediction can land on a cached item without needing to move the viewport unless it is
-	// offscreen" (`:882-883`).
+	// offscreen" (`Browser::predictExtendedText`).
 	clamp(visible_rows_);
 	// Replaces the typed text with the found entry's name and leaves the cursor where the typing
 	// left it -- which is what `text_edit` draws as the prediction highlight.
 	set_entered_text_from_current_filename();
-	// "If we're now on a different file than before, preview it" (`browser.cpp:1488-1491`).
+	// "If we're now on a different file than before, preview it" (`Browser::continuePrediction` in `browser.cpp`).
 	if (moved) {
 		file_preview(0);
 	}
@@ -1015,21 +1015,22 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 	case SearchOutcome::Found:
 		break;
 	case SearchOutcome::NotFound:
-		// `:842-846`, with `mayDefaultToBrandNewNameOnEntry` false for every descriptor: put the
-		// selected file's name back and undo the cursor advance (`qwerty_ui.cpp:357-359`).
+		// The `notFound` arm of `Browser::predictExtendedText`, with `mayDefaultToBrandNewNameOnEntry` false for every
+		// descriptor: put the selected file's name back and undo the cursor advance (`QwertyUI::padAction` in
+		// `qwerty_ui.cpp`).
 		if (file_index_ >= 0) {
 			set_entered_text_from_current_filename();
 		}
 		edit_.cursor = static_cast<int16_t>(revert_cursor_to);
 		break;
 	case SearchOutcome::NeedsRead: {
-		// Legacy loops synchronously (`:826-837`); the seam cannot, so the read is dispatched and
-		// the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
-		// legacy's own direction for this read (`:830`).
+		// Legacy loops synchronously (`doNewRead` in `Browser::predictExtendedText`); the seam cannot, so the read is
+		// dispatched and the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
+		// legacy's own direction for this read.
 		//
 		// The cursor to fall back to travels with the request. Legacy decrements
 		// `enteredTextEditPos` whenever `predictExtendedText()` answers false
-		// (`qwerty_ui.cpp:357-359`) -- and that includes the `doNewRead -> doSearch -> notFound`
+		// (`QwertyUI::padAction` in `qwerty_ui.cpp`) -- and that includes the `doNewRead -> doSearch -> notFound`
 		// route, which here lands a whole tick later. Without carrying it, a typed character that
 		// needs a re-read and then still finds nothing would leave the cursor one column past
 		// legacy's: the prediction highlight starts a column late and the NEXT keystroke truncates
@@ -1046,25 +1047,25 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 }
 
 void BrowserScene::type_char(char c) {
-	// `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp:254-369`), minus the four
+	// `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp`), minus the four
 	// `currentUIMode` guards (prediction-in-progress, preset-loading) that have no counterpart
 	// here: this scene's equivalent of "the card is busy" is `Listing::in_flight()`, and `handle()`
 	// has already refused the press in that state.
 	const int32_t pos = edit_.cursor;
 
-	// "First character must be alphanumerical" (`:273-280`).
+	// "First character must be alphanumerical" (`QwertyUI::padAction` in `gui/ui/qwerty_ui.cpp`).
 	if (pos == 0 && !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
 		return;
 	}
 
-	// "If this char was already predicted, that's easy and we can just move forward" (`:305-317`).
+	// "If this char was already predicted, that's easy and we can just move forward" (`QwertyUI::padAction`).
 	if (pos < entered_len_ && char_case_equal(entered_[pos], c)) {
 		edit_.cursor = static_cast<int16_t>(pos + 1);
 		return;
 	}
 
 	char nc = c;
-	// "If char is a letter... If following another letter, make it lowercase" (`:334-343`).
+	// "If char is a letter... If following another letter, make it lowercase" (`QwertyUI::padAction`).
 	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(entered_[pos - 1])) {
 		nc = static_cast<char>(nc + 32);
 	}
@@ -1072,7 +1073,7 @@ void BrowserScene::type_char(char c) {
 		return; // the buffer's own ceiling; see `kMaxEnteredChars`
 	}
 
-	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`:350-353`): typing
+	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`QwertyUI::padAction`): typing
 	// mid-string truncates the tail rather than inserting.
 	entered_len_ = static_cast<uint16_t>(pos);
 	entered_[entered_len_++] = nc;
@@ -1126,7 +1127,7 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 void BrowserScene::step_selection(int32_t offset) {
 	// `Browser::selectEncoderAction`, the non-slot path.
 	//
-	// @note Legacy's shift/`numberEditPos` arm (`:576-629`) walks whole slot numbers -- "SONG12" ->
+	// @note Legacy's shift/`numberEditPos` arm (`Browser::selectEncoderAction`) walks whole slot numbers -- "SONG12" ->
 	//       "SONG13" -- and is guarded by `nameAfterPrefix`, which returns null unless the name
 	//       starts with `filePrefix`. Every descriptor here leaves `filePrefix` null (only the
 	//       slot-based load/save browsers set it), so legacy's own guard takes the `nonNumeric`
@@ -1179,9 +1180,8 @@ void BrowserScene::step_selection(int32_t offset) {
 }
 
 void BrowserScene::request_reload(bool from_end, int32_t direction, int32_t offset) {
-	// Legacy's `pendingReloadSearchFromEnd_` / `pendingReloadCatalogSearchDirection_` pair
-	// (`browser.h:177-178`), which exist for exactly this: the two facts `reloadImpl` needs and
-	// `ListingRequest`'s generic fields do not carry.
+	// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) carries the same two facts: the two facts
+	// `reloadImpl` needs and `ListingRequest`'s generic fields do not carry.
 	reload_from_end_ = from_end;
 	reload_direction_ = direction;
 	reload_offset_ = offset;
@@ -1204,7 +1204,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
 		// `SampleBrowser::enterKeyPress` announces
-		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI` (`:144-147`) returns silently. The
+		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI::enterKeyPress` returns silently. The
 		// louder of the two is kept for both -- a select press that does nothing at all is the shape
 		// of bug this stack has been bitten by twice.
 		notify::notice_error_code(static_cast<int16_t>(Error::FILE_NOT_FOUND));
@@ -1233,7 +1233,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 	}
 
 	// Shift+Select on a file in a kit's sample browser opens the slicer instead of claiming
-	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`); on anything else shift changes nothing.
+	// (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`); on anything else
+	// shift changes nothing.
 	if (shift && id_ == BrowserId::Sample && ctx_.is_kit) {
 		Result r;
 		r.handled = true;
@@ -1341,10 +1342,10 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 		f.gate().request_repaint_after(kListingPollMs, now);
 	}
 
-	// `canvas.drawScreenTitle(title)` (`browser.cpp:926`).
+	// `canvas.drawScreenTitle(title)` (`Browser::renderOLED` in `browser.cpp`).
 	deluge::ui::oled::title(f, descriptor(id_).title);
 
-	// `browser.cpp:928-938`. The `NO_INVERSION` step is `Style::highlighting == Highlighting::
+	// `browser.cpp`. The `NO_INVERSION` step is `Style::highlighting == Highlighting::
 	// NoInversion` here -- the same mapping `list`, `columns`, `popup` and `text_edit` already
 	// make for the same flash setting.
 	const int32_t icon_x = f.style.highlighting != Highlighting::NoInversion ? kRowIconX : f.style.inset_x;
@@ -1352,7 +1353,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 	const int32_t width = f.bounds().w;
 
 	// Legacy reads `display->getNumBrowserAndMenuLines()`, which is a hard-coded 3 on every panel
-	// (`hid/display/oled.h:152`); the port reads `Style::menu_rows`, which is 3 on the shipped
+	// (`hid/display/oled.h`); the port reads `Style::menu_rows`, which is 3 on the shipped
 	// 48-row panel and 5 on a 64-row one. Same number where legacy runs today, and a taller panel
 	// fills its rows instead of leaving two blank -- the same choice `list`/`menu_rect` already
 	// made for the menu.
@@ -1363,7 +1364,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 	const Descriptor& d = descriptor(id_);
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 
-	// "If we're currently typing a filename which doesn't (yet?) have a file..." (`:951-955`): one
+	// "If we're currently typing a filename which doesn't (yet?) have a file..." (`Browser::renderOLED`): one
 	// row, showing the edited text against the file icon.
 	const int32_t drawn = (file_index_ == -1) ? 1 : rows;
 
@@ -1383,7 +1384,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 			is_selected = (i == file_index_);
 		}
 
-		// `drawGraphicMultiLine(graphic, iconStartX, yPixel, iconWidth)` (`:973-978`).
+		// `drawGraphicMultiLine(graphic, iconStartX, yPixel, iconWidth)` (`Browser::renderOLED`).
 		const gfx::oled::Icon& glyph = is_folder ? gfx::oled::icons::browserFolder : *d.file_icon;
 		deluge::ui::oled::icon(f, gfx::oled::Point{icon_x, y}, glyph);
 		if (!is_folder && d.file_icon_pt2 != nullptr) {
@@ -1392,7 +1393,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 
 		if (is_selected) {
 			// `drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas)`
-			// (`:992`): the rect's right edge is legacy's `xPixelMax` and its width in whole
+			// (`qwerty_ui.cpp`): the rect's right edge is legacy's `xPixelMax` and its width in whole
 			// characters is legacy's `maxChars`.
 			//
 			const Rect row{text_x, y, width - text_x, kTextSpacingY};
@@ -1411,7 +1412,7 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 			}
 		}
 		else {
-			// `canvas.drawString(name[0..displayStringLength), textStartX, yPixel, ...)` (`:1000`).
+			// `canvas.drawString(name[0..displayStringLength), textStartX, yPixel, ...)` (`Browser::renderOLED`).
 			deluge::ui::oled::text(f, Rect{text_x, y, width - text_x, kTextSpacingY}, row_label(name, is_folder),
 			                       {.font = f.style.row_font});
 		}
@@ -1436,7 +1437,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		render_waveform(f);
 		break;
 	case BrowserPads::Keyboard:
-		// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`). The sidebar is deliberately untouched -- legacy clears the
+		// `QwertyUI::drawKeys` (`qwerty_ui.cpp`). The sidebar is deliberately untouched -- legacy clears the
 		// *main* pads only.
 		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 		if (id_ == BrowserId::DxSyx) {
@@ -1591,7 +1592,7 @@ Result BrowserScene::after_render() {
 	// Read and cleared up front, so every early return below drops this tick's keystroke rather
 	// than acting on it a tick later against a catalogue that has since been replaced. That is
 	// legacy's own answer too: `padAction` opens with `if (listingInProgress_) return
-	// ActionResult::DEALT_WITH;` (`browser.cpp:1187`), which swallows the press outright.
+	// ActionResult::DEALT_WITH;` (`browser.cpp`), which swallows the press outright.
 	const deluge::ui::Response resp = resp_;
 	resp_ = {};
 	const bool grid_pass = grid_pass_;
@@ -1694,8 +1695,9 @@ Result BrowserScene::after_render() {
 		return r;
 	}
 
-	// 5. The long press, answered once at its deadline. While a sample load runs the hold stays and nothing answers
-	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:307-310`).
+	// 5. The long press, answered once at its deadline. While a sample load runs the hold stays and nothing answers it,
+	//    so its release still enters (`SampleBrowser::timerCallback`'s gate,
+	//    `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
 		hold_deadline_ms_.reset();
 		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
@@ -1806,7 +1808,7 @@ Result BrowserScene::after_render() {
 
 Result BrowserScene::press_key(char c) {
 	if (c == deluge::ui::grid::kTextKeyboardEnter) {
-		// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
+		// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp`) -> `enterKeyPress()`.
 		return enter_key_press(shift_);
 	}
 	if (c == deluge::ui::grid::kTextKeyboardBackspace) {
@@ -1885,7 +1887,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.button == ButtonId::Back) {
-			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1783-1787`): a press, with no UI mode up (a Select hold
+			// `Browser::buttonAction`'s BACK arm (`browser.cpp`): a press, with no UI mode up (a Select hold
 			// or a held X_ENC is one). Claimed either way.
 			if (event.on && !mode_up()) {
 				return back();
@@ -1895,7 +1897,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.button == ButtonId::SelectEnc) {
-			// `Browser::mainButtonAction` (`browser.cpp:1874`): the press, with no UI mode up, starts a hold and the
+			// `Browser::mainButtonAction` (`browser.cpp`): the press, with no UI mode up, starts a hold and the
 			// release of that hold enters. The sample browser answers a hold that lasts `kLongPressMs`
 			// (`after_render`); a release after that answer, or one with no press before it, does nothing.
 			Result r;
@@ -2212,7 +2214,7 @@ Result BrowserScene::long_press() {
 		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
 	}
 	if (ctx_.is_kit) {
-		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp`).
+		// `SampleBrowser::canImportWholeKit` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
 		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}

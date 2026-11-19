@@ -590,7 +590,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 	//          undefined behaviour with a visible symptom. There is no behaviour to preserve, so
 	//          nothing is declared here and the knob keeps whatever it was last showing -- the
 	//          shell's own rule for an undeclared indicator (`Shell::flush`) and the only defined
-	//          thing to do. Not annotated in `view.cpp` itself; see the sibling @warning above.
+	//          thing to do. Not annotated in `gui/views/view.cpp` itself; see the sibling @warning above.
 	return out;
 }
 
@@ -690,7 +690,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp`): `numBlinks` 255 (i.e. forever) on
+	// `indicator_leds::blinkLed(led)`'s defaults (`hid/led/indicator_leds.h`): `numBlinks` 255 (i.e. forever) on
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 

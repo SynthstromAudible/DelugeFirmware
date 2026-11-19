@@ -3,15 +3,14 @@
 /// @brief `BrowserScene` -- one file browser, parameterised by descriptor, over the extracted
 ///        catalogue and the async listing seam.
 ///
-/// Legacy has a `Browser` base (`gui/ui/browser/browser.{h,cpp}`) over `QwertyUI` and a family of
-/// subclasses. **Three of them are reachable from the ported menu tree** and are the three descriptors
-/// below: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`), opened by the sample-file items,
-/// `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by
-/// `midi_device_linked`, and `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`), opened by "load DX7 .syx file".
-/// Everything the three differ in -- title, extensions, where they start, which
-/// icon a row draws, what accepting a file does -- is `Descriptor`, and `SceneId::arg` selects one,
-/// exactly as `rename::Target` and `context_menu::Descriptor` turned their own legacy hierarchies
-/// into tables.
+/// Legacy has a `Browser` base (`gui/ui/browser/browser.{h,cpp}`) over `QwertyUI` and a family of subclasses. **Three
+/// of them are reachable from the menu tree** and are the three descriptors below: `SampleBrowser`
+/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), opened by the sample-file items,
+/// `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by `midi_device_linked`, and
+/// `DxSyxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`), opened by "load DX7 .syx file". Everything
+/// the three differ in -- title, extensions, where they start, which icon a row draws, what accepting a file does -- is
+/// `Descriptor`, and `SceneId::arg` selects one, exactly as `rename::Target` and `context_menu::Descriptor` turned
+/// their own legacy hierarchies into tables.
 ///
 /// The **load/save family** (`gui/ui/load/load_song_ui`, `load_instrument_preset_ui`,
 /// `load_pattern_ui`, and all of `gui/ui/save/`) is deliberately **out of scope**: those are opened
@@ -98,27 +97,29 @@ namespace deluge::scenes::browser {
 
 /// @brief Which browser `SceneId::arg` names.
 ///
-/// **Three, not legacy's nine.** These are every legacy `Browser` subclass a node in the ported menu
+/// **Three, not legacy's nine.** These are every legacy `Browser` subclass a node in the menu
 /// tree opens. Every other one -- `LoadSongUI`, `LoadInstrumentPresetUI`, `LoadPatternUI`,
 /// `SaveSongUI`, `SaveInstrumentPresetUI`, `SaveKitRowUI` -- is opened from a root
 /// UI or a view the port does not have, so adding an entry for one now would be an untested,
 /// unreachable code path.
 enum class BrowserId : uint16_t {
-	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:84`), the audio-file browser the sample
+	/// `sampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), the audio-file browser the sample
 	/// menu items open.
 	Sample = 0,
 	/// `loadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), which
 	/// `midi::device_definition::Linked::writeCurrentValue` opens
-	/// (`gui/menu_item/midi/device_definition/linked.h:42`).
+	/// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`).
 	///
 	/// @note `midi_device_linked` is not a plain browser
-	///       opener but a `Toggle`: `linked.h:42` is only the ON arm of `writeCurrentValue`, and the
+	///       opener but a `Toggle`: the ON arm of `writeCurrentValue` in
+	///       `origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h` is only half of it, and the
 	///       OFF arm clears the linked file name. `nodes::MidiDeviceLinkedItem`
 	///       (`menu/nodes/output_items.h`) carries both, and is one of the two items that set
 	///       `CustomItem::on_focus_is_press()` -- because a restore replaying the ON arm would
 	///       silently clear a user's setting.
 	MidiDeviceDefinition = 1,
-	/// `dxBrowser` (`gui/ui/browser/dx_browser.cpp`), the DX7 `.syx` bank browser "load DX7 .syx file" opens.
+	/// `dxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`), the DX7 `.syx` bank browser "load DX7 .syx
+	/// file" opens.
 	DxSyx = 2,
 	Count,
 };
@@ -144,7 +145,7 @@ struct Descriptor {
 	///
 	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` sets
-	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp:87`). Neither is in
+	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp`). Neither is in
 	/// `gui/l10n/strings.h` at all, so there is no id to carry: a `uint16_t` here would have meant
 	/// inventing two string ids and a translation table entry each, which is a change to the l10n
 	/// data rather than a port of the browser.
@@ -164,12 +165,13 @@ struct Descriptor {
 	/// @brief `Browser::fileIconPt2`, or null. Only the MIDI plug has one (its ninth column).
 	const gfx::oled::Icon* file_icon_pt2;
 
-	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h:290`), threaded through
+	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h`), threaded through
 	///        the listing rather than read off a browser -- see `FileCatalogue`'s own note.
 	bool interpret_note_names;
 
 	/// @brief `Browser::allowFoldersSharingNameWithFile`. `SampleBrowser::opened` sets it true
-	///        (`sample_browser.cpp:113`); the base leaves it false (`browser.cpp:182`).
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`); the base leaves it false (`Browser::opened`
+	///        in `browser.cpp`).
 	bool allow_folders_sharing_name_with_file;
 
 	/// @brief May the browser open on this context at all?
@@ -183,10 +185,10 @@ struct Descriptor {
 
 	/// @brief Where the browser opens: the directory to list, and the entry to land on inside it.
 	///
-	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s
-	/// `currentPath`/`searchFilename` split (`sample_browser.cpp:136-171`) and
-	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`:83-124`). Both end in
-	/// "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
+	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s `currentPath`/`searchFilename` split
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and
+	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`load_midi_device_definition_ui.cpp`). Both
+	/// end in "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
 	///
 	/// @param ctx  What the browser was opened over.
 	/// @param dir  Out: the directory to list. Left empty to use `Descriptor::default_dir`.
@@ -195,10 +197,10 @@ struct Descriptor {
 
 	/// @brief Why this folder may not be entered, as an l10n string id; 0 to allow it.
 	///
-	/// One legacy refusal, and it is `SampleBrowser`'s: `TEMP` inside `SAMPLES/CLIPS`
-	/// (`sample_browser.cpp:346-351`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null means "every
-	/// folder may be entered", which is what `LoadMidiDeviceDefinitionUI::enterKeyPress` does
-	/// (`load_midi_device_definition_ui.cpp:150-154`).
+	/// One legacy refusal, and it is `SampleBrowser`'s: `TEMP` inside `SAMPLES/CLIPS` (`SampleBrowser::enterKeyPress`
+	/// in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null
+	/// means "every folder may be entered", which is what `LoadMidiDeviceDefinitionUI::enterKeyPress` does
+	/// (`load_midi_device_definition_ui.cpp`).
 	uint16_t (*folder_refusal)(std::string_view dir, std::string_view name);
 
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
@@ -215,7 +217,7 @@ struct Descriptor {
 	///
 	/// @note **The sample dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
 	/// *return* affordance:
-	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
+	///       `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
 	///       (`SampleBrowser::finishLegacyClaim`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
@@ -233,7 +235,8 @@ struct Descriptor {
 	///       point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the browser needs no
 	///       extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
-	///       (`gui/ui/sound_editor.cpp:2095-2100`, consumed by `osc/audio_recorder.h:40-48`): the
+	///       (`SoundEditor::maybeGetParentMenu` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, consumed by
+	///       `AudioRecorder::beginSession` in `origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`): the
 	///       recorder scene hands no claim to a host, so nothing calls the entry point for it. Recorded on
 	///       `nodes::AudioRecorderItem::on_focus`.
 	///
@@ -306,7 +309,8 @@ struct BrowserChoice {
 
 	BrowserId id = BrowserId::Sample;
 	/// The chosen file's full path, as `getCurrentFilePath()` would have spelled it
-	/// (`sample_browser.h:163 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.h` `getCurrentFilePath`): `currentDir` + "/" + the
+	/// filename, extension included.
 	std::string path;
 	Op op = Op::Enter;
 	ClaimArgs claim{};
@@ -367,7 +371,7 @@ inline constexpr deluge::ui::shell::SceneKind kBrowserSceneKind =
 ///
 /// Legacy: `textStartX = 14`, `iconStartX = 1`, each stepped by one `kTextSpacingX` when
 /// `FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`
-/// (`browser.cpp:928-933`). That setting is what this toolkit spells as `Style::highlighting ==
+/// (`Browser::renderOLED` in `browser.cpp`). That setting is what this toolkit spells as `Style::highlighting ==
 /// Highlighting::NoInversion` -- the same mapping `list`, `columns`, `popup` and `text_edit`
 /// already make -- so the scene reads the profile rather than the flash byte, and both shipped
 /// profiles ship `PartialInversion`, so this stays on the `!= NoInversion` arm.
@@ -444,7 +448,7 @@ public:
 	///        `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief `Main` while the keyboard or a waveform is drawn on the main pads, the sidebar being the view beneath's
-	///        (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`); `None` in the root state, where
+	///        (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp`); `None` in the root state, where
 	///        `SampleBrowser::renderMainPads` answers false and the root view's pads show.
 	deluge::ui::shell::PadRegions pad_regions() const override {
 		return pads_ == BrowserPads::Root ? deluge::ui::shell::PadRegions::None : deluge::ui::shell::PadRegions::Main;
@@ -469,8 +473,9 @@ public:
 	///
 	/// The sample browser greys the mute column only while its keyboard or a waveform shows, or over the keyboard
 	/// screen, and every column but the audition column otherwise: `SampleBrowser::getGreyoutColsAndRows`
-	/// (`gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every column, keyboard
-	/// included, as `LoadMidiDeviceDefinitionUI` does (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every
+	/// column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
+	/// (`gui/ui/load/load_midi_device_definition_ui.cpp`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override {
 		if (id_ == BrowserId::MidiDeviceDefinition) {
 			return deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0};
@@ -588,10 +593,10 @@ public:
 	///        host's poll keeps ticking the load.
 	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
 
-	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
+	/// @brief Install a dispatcher other than `deluge::scenes::run_inline` on the scene's seam.
 	///
-	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h`'s `Owner::run`),
-	/// so with the shipped dispatcher a listing has already finished when `request()` returns and
+	/// **For specs.** The shipped dispatcher, `run_inline` (`scenes/run_inline.h`), runs the op on the caller's
+	/// stack, so with it a listing has already finished when `request()` returns and
 	/// the in-flight state -- which is most of this scene's behaviour -- can never be observed.
 	/// See the honesty note in `listing.h`.
 	/// @param dispatch The dispatcher; must satisfy `Listing::Dispatch`'s contract.
@@ -604,10 +609,11 @@ private:
 	enum class SearchOutcome : uint8_t {
 		/// It named an entry, which is now selected.
 		Found,
-		/// Nothing in the folder starts with the typed text (legacy's `notFound`, `browser.cpp:841`).
+		/// Nothing in the folder starts with the typed text (legacy's `notFound`, `Browser::continuePrediction` in
+		/// `browser.cpp`).
 		NotFound,
 		/// The cached window cannot answer -- the folder has to be read again around the search
-		/// string. Legacy loops synchronously (`doNewRead`, `:826`); this scene dispatches.
+		/// string. Legacy loops synchronously (`doNewRead` in `Browser::predictExtendedText`); this scene dispatches.
 		NeedsRead,
 	};
 
@@ -683,8 +689,8 @@ private:
 	SearchOutcome search_for_entered_text();
 	/// @brief `search_for_entered_text` plus the two arms its caller owes -- restore the previous text
 	///        on a miss, dispatch a wider read on `NeedsRead`.
-	/// @param revert_cursor_to Where the cursor was before the keystroke, for legacy's
-	///                         `enteredTextEditPos--` on a failed prediction (`qwerty_ui.cpp:357`).
+	/// @param revert_cursor_to Where the cursor was before the keystroke, for legacy's `enteredTextEditPos--` on a
+	///                         failed prediction (`QwertyUI::padAction` in `qwerty_ui.cpp`).
 	void run_search_after_typing(int32_t revert_cursor_to);
 	/// @brief `Browser::selectEncoderAction`, including its four reload arms.
 	/// @param offset Signed detents.
@@ -694,21 +700,22 @@ private:
 	/// @param offset    The turn that produced it.
 	void finish_select(int32_t new_index, int32_t offset);
 	/// @brief File one of `selectEncoderAction`'s four folder-window re-reads.
-	/// @param from_end   Legacy's `pendingReloadSearchFromEnd_` (`browser.h:178`).
-	/// @param direction  Legacy's `pendingReloadCatalogSearchDirection_` (`:177`); read only when
+	/// @param from_end   Legacy's `Browser::ReloadTail::searchFromEnd` (`gui/ui/browser/browser.h`).
+	/// @param direction  Legacy's `Browser::ReloadTail::searchDirection`; read only when
 	///                   @p from_end.
 	/// @param offset     The turn that provoked it, applied to the search on landing.
 	void request_reload(bool from_end, int32_t direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
-	///              (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`).
+	///              (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	/// @return What the shell should do.
 	deluge::ui::shell::Result enter_key_press(bool shift);
 	/// @brief `SampleBrowser::canImportWholeKit`: a kit whose only drum is the one edited, on source 0.
 	/// @return Whether this kit may take a whole folder or a slice.
 	bool fresh_kit() const;
-	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:310-356`): a popup, or one of the
-	///        two folder menus, for the item Select is held on.
+	/// @brief `SampleBrowser::timerCallback`'s long-press arm
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a popup, or one of the two folder menus,
+	///        for the item Select is held on.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result long_press();
 	/// @brief `Browser::backButtonAction`: ascend, or close at the top.
@@ -763,8 +770,7 @@ private:
 	/// this side because `ListingAction::Open` performs no selection search of its own
 	/// (`listing.h`: the seam carries no selection state).
 	std::string select_after_listing_{};
-	/// Legacy's `pendingReloadSearchFromEnd_` / `pendingReloadCatalogSearchDirection_` pair
-	/// (`browser.h:177-178`) and the turn that provoked the reload.
+	/// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) and the turn that provoked the reload.
 	/// @{
 	bool reload_from_end_ = false;
 	int32_t reload_direction_ = 0;
@@ -774,14 +780,14 @@ private:
 	/// runs again when it lands. Legacy's `Browser::PredictionTarget::doneNewRead`, one tick later.
 	bool searching_ = false;
 	/// Where the cursor goes if that second search also finds nothing -- legacy's
-	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`qwerty_ui.cpp:357-359`), which
+	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`QwertyUI::padAction` in `qwerty_ui.cpp`), which
 	/// has to survive the tick boundary the re-read introduces. Only read while `searching_`.
 	int32_t search_revert_cursor_ = 0;
 
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;
 
-	/// `Browser::fileIndexSelected` (`browser.h:268`) / `scrollPosVertical` (`:270`).
+	/// `Browser::fileIndexSelected` (`browser.h`) / `scrollPosVertical`.
 	/// @{
 	int32_t file_index_ = -1;
 	int32_t scroll_ = 0;

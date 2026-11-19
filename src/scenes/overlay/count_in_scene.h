@@ -4,7 +4,7 @@
 /// @brief `CountInScene` -- the record count-in digit: a small centred, framed popup box showing
 ///        the beats remaining before recording starts.
 ///
-/// Ports the count-in half of `drain_notifications` (`gui/ui/notify_drain.cpp:92-114`). This is
+/// Ports the count-in half of `drain_notifications` (`gui/ui/notify_drain.cpp`). This is
 /// **not** a `View`/UI method at all -- the digit itself is `PlaybackHandler::count_in_visual()`
 /// (`PlaybackHandler::count_in_visual`), moved by the count-in entry of
 /// `PlaybackHandler::setupPlaybackUsingInternalClock` (resetting it to 0 and setting `UI_MODE_RECORD_COUNT_IN`) and
@@ -22,22 +22,20 @@
 /// behaviour would be new UX legacy does not have (the same shape as the "7SEG/OLED split" note in
 /// `param_popup_scene.h`):
 ///
-///   * `Display::displayPopup` (`hid/display/display.h:48-49`: `bool alignRight = false,
+///   * `Display::displayPopup` (`hid/display/display.h`: `bool alignRight = false,
 ///     uint8_t drawDot = 255, int32_t blinkSpeed = 1`) is a `numeric_driver`-era interface written
 ///     for the retired 7SEG display, and `OLED` is its **only** surviving override --
 ///     `grep -rn "class .*Display\|: public Display" src/deluge/hid/display/*.h` finds nothing
 ///     else. `OLED::displayPopup` (`oled.h`) takes `alignRight`/`drawDot`/`blinkSpeed` as
 ///     **unnamed** parameters and reads none of the three; its whole body is
 ///     `popupText(newText, !numFlashes, type)`.
-///   * `OLED::popupText` (`oled.cpp`) centres every line
-///     (`textPixelX = (OLED_MAIN_WIDTH_PIXELS - lineWidths[l]) >> 1`, `:629`) and has no blink or
-///     phase of any kind -- the only timer it touches is `uiTimerManager.setTimer(TimerName::DISPLAY,
-///     800)` for a **non-persistent** popup (`:636-638`), and this one is not: `numFlashes == 0`
-///     makes `persistent` true (`popupText`'s `bool persistent = !numFlashes` at the call site,
-///     `OLED::displayPopup` in `oled.h`), which takes the `else` branch (`oled.cpp:640-643`) and *cancels* any pending
-///     timeout.
-///     `grep -rn blinkSpeed src/deluge` turns up no reader anywhere in the tree, and `alignRight`'s
-///     only other use is an unrelated local in `instrument_clip_view.cpp`.
+///   * `OLED::popupText` (`oled.cpp`) centres every line (`textPixelX = (OLED_MAIN_WIDTH_PIXELS - lineWidths[l]) >>
+///     1`) and has no blink or phase of any kind -- the only timer it touches is
+///     `uiTimerManager.setTimer(TimerName::DISPLAY, 800)` for a **non-persistent** popup, and this one is not:
+///     `numFlashes == 0` makes `persistent` true (`popupText`'s `bool persistent = !numFlashes` at the call site,
+///     `OLED::displayPopup` in `oled.h`), which takes the `else` branch (`OLED::popupText` in `oled.cpp`) and *cancels*
+///     any pending timeout. `grep -rn blinkSpeed src/deluge` turns up no reader anywhere in the tree, and
+///     `alignRight`'s only other use is an unrelated local in `instrument_clip_view.cpp`.
 ///
 ///   So on the shipped OLED-only build the digit is centred, not right-aligned, and it never
 ///   blinks. This scene reproduces the real, observable behaviour -- centred, static -- not the
@@ -45,12 +43,12 @@
 ///
 ///   The other two facts are real:
 ///
-///   * **Cancelled at zero**: `notify_drain.cpp:102-103`, the `else` arm's `display->cancelPopup()`.
-///   * **The mode clear is masked, and real, but has no port here**: `notify_drain.cpp:104-111`
+///   * **Cancelled at zero**: `drain_notifications` (`notify_drain.cpp`), the `else` arm's `display->cancelPopup()`.
+///   * **The mode clear is masked, and real, but has no port here**: `notify_drain.cpp`
 ///     clears `currentUIMode &= UI_MODE_AUDITIONING` rather than assigning 0, because
 ///     `UI_MODE_AUDITIONING` (`1 << 30`) is a flag ORed on top of the exclusive
 ///     `UI_MODE_RECORD_COUNT_IN`, and an exact clear would drop it whenever a count-in ends during
-///     an audition-pad or keyboard hold. `currentUIMode` is declared in `gui/ui/ui.h:30`, which
+///     an audition-pad or keyboard hold. `currentUIMode` is declared in `gui/ui/ui.h`, which
 ///     `src/scenes` may never include (Global Constraint 3) -- this scene has no way to touch it.
 ///     This is the same wall `services::GlobalControls` already documents for its own
 ///     `UiMode::RecordCountIn` (`services/global_controls.h`): the mode is
@@ -83,11 +81,11 @@
 ///
 /// @par What this scene actually does
 ///
-///   * `tick()` -- `notify_drain.cpp:96`'s edge-detector (`if (count_in != shown_count_in)`) against
-///     `playbackHandler.count_in_visual()`, plus its `if (count_in > 0)` arm (`:97-101`): format the
-///     digit and (re)draw the box. Idempotent -- an unchanged count changes nothing, matching
-///     legacy's own guard exactly (legacy does not redraw either).
-///   * The `else` arm (`:102-111`): stop drawing (legacy's `cancelPopup()`); the masked mode clear
+///   * `tick()` -- the edge-detector of `drain_notifications` (`notify_drain.cpp`) (`if (count_in != shown_count_in)`)
+///     against `playbackHandler.count_in_visual()`, plus its `if (count_in > 0)` arm: format the digit and (re)draw the
+///     box. Idempotent -- an unchanged count changes nothing, matching legacy's own guard exactly (legacy does not
+///     redraw either).
+///   * The `else` arm: stop drawing (legacy's `cancelPopup()`); the masked mode clear
 ///     is the documented gap above.
 ///   * `after_render()` -- fires `Action::Kind::Remove` the tick this scene stops showing, so
 ///     whatever pushes it can push-and-forget; never `Pop`, which would also take down anything
@@ -124,7 +122,7 @@ public:
 	/// @return Always `Result::unhandled()`.
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
-	/// @brief The poll: `notify_drain.cpp:92-113`, reproduced against
+	/// @brief The poll: `drain_notifications` (`notify_drain.cpp`), reproduced against
 	///        `playbackHandler.count_in_visual()`. See the class doc's "poll, not a caller-driven
 	///        popup" note for why this, and not a `show()` a caller invokes, is the entry point.
 	/// @param dt_ms Unused: nothing here counts down a duration, only compares the model's own
@@ -163,7 +161,7 @@ public:
 	/// @}
 
 private:
-	static constexpr size_t kTextCap = 11; // `char buffer[12]` (notify_drain.cpp:98).
+	static constexpr size_t kTextCap = 11; // `char buffer[12]` (`drain_notifications` in `notify_drain.cpp`).
 	char digit_[kTextCap + 1] = {};
 	size_t digit_len_ = 0;
 

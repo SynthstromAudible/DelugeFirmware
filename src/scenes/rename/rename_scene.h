@@ -38,15 +38,14 @@ namespace deluge::scenes::rename {
 
 /// @brief Which rename target `SceneId::arg` names.
 ///
-/// **Three, not legacy's four.** `renameClipUI`, `renameOutputUI` and `renameDrumUI` are all
-/// reachable from the ported menu tree (`nodes::edit_clip_name`, `nodes::edit_track_name`,
-/// `nodes::drum_name_edit`, all three `EditName` items in `gui/ui/menus.cpp:1125-1129`).
-/// `renameMidiCCUI` is **not**: its only opener is `AutomationView::padAction` (`gui/views/automation_view.cpp`),
-/// a view the port does not have, and no `Node` in `nodes::kAllRoots` reaches it. Adding a
-/// fourth entry now would be an untested, unreachable code path, so it is deliberately absent --
-/// whoever ports the automation view adds `MidiCc` here, with `read`/`write` transcribed from
-/// `rename_midi_cc_ui.cpp` and a `can` from its `canRename()` (the only real `canRename` override
-/// legacy has).
+/// **Three, not legacy's four.** `renameClipUI`, `renameOutputUI` and `renameDrumUI` are all reachable from the menu
+/// tree (`nodes::edit_clip_name`, `nodes::edit_track_name`, `nodes::drum_name_edit`, all three `EditName` items in
+/// `nameEditMenu`, `drumNameEditMenu` and `audioOutputNameEditMenu` of `origin/main:src/deluge/gui/ui/menus.cpp`).
+/// `renameMidiCCUI` is **not**: its only opener is `AutomationView::padAction` (`gui/views/automation_view.cpp`), a
+/// view the port does not have, and no `Node` in `nodes::kAllRoots` reaches it. Adding a fourth entry now would be an
+/// untested, unreachable code path, so it is deliberately absent -- whoever ports the automation view adds `MidiCc`
+/// here, with `read`/`write` transcribed from `rename_midi_cc_ui.cpp` and a `can` from its `canRename()` (the only real
+/// `canRename` override legacy has).
 enum class TargetId : uint16_t { Clip = 0, Output = 1, Drum = 2, Count };
 
 /// @brief What one rename target reads, writes and refuses -- one legacy `RenameUI` subclass, as
@@ -72,7 +71,7 @@ struct Target {
 	bool (*write)(const menu::MenuContext&, std::string_view);
 
 	/// @brief `RenameUI::allowEmpty()` -- true for every target but the drum
-	///        (`rename_drum_ui.h:32`).
+	///        (`RenameDrumUI::allowEmpty` in `origin/main:src/deluge/gui/ui/rename/rename_drum_ui.h`).
 	bool allow_empty;
 };
 
@@ -115,14 +114,14 @@ public:
 	///        `QwertyUI::drawKeys`'s `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief `Main`: the keyboard is drawn on the main pads, and the sidebar is the view
-	///        beneath's (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`).
+	///        beneath's (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp`).
 	deluge::ui::shell::PadRegions pad_regions() const override { return deluge::ui::shell::PadRegions::Main; }
 	/// @brief False: the base view still paints, and the sidebar it paints is what shows through.
 	bool occludes_grid() const override { return false; }
 	/// @brief True: `RenameUI`'s constructor sets `oledShowsUIUnderneath = true`
-	///        (`rename_ui.cpp:26`), and `renderOLED` then clears only its own window.
+	///        (`rename_ui.cpp`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
-	/// @brief `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp:58-61`): `*cols = 0b11`.
+	/// @brief `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp`): `*cols = 0b11`.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b11, 0}; }
 
 	/// @brief The name being edited. Exposed for specs and for whoever needs to see the in-flight
@@ -134,7 +133,7 @@ public:
 	int32_t cursor() const { return edit_.cursor; }
 
 private:
-	/// @brief `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp:254-369`), minus the
+	/// @brief `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp`), minus the
 	///        prediction and card-routine machinery neither of which a rename has.
 	void type_char(char c);
 	/// @brief `QwertyUI::processBackspace` (`gui/ui/qwerty_ui.cpp`).
@@ -146,9 +145,9 @@ private:
 	/// @param now            This tick's clock.
 	/// @return True if a character was deleted, so the caller can ask for a repaint.
 	bool advance_repeat(bool backspace_held, uint32_t now);
-	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp:45-52`).
+	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp`).
 	deluge::ui::shell::Result enter_key_press();
-	/// @brief `RenameUI::exitUI` -> `close()` (`rename_ui.cpp:99-102`), as an `Action`.
+	/// @brief `RenameUI::exitUI` -> `close()` (`rename_ui.cpp`), as an `Action`.
 	static deluge::ui::shell::Result close();
 
 	menu::MenuContext ctx_{};
