@@ -378,16 +378,21 @@ def kit_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
     )
 
 
+def audio_clip(fx: dict) -> str:
+    """The audio clip, playing the track's sample over the clip, with @p fx's params and any clip attributes."""
+    return AUDIO_CLIP.format(
+        frames=RATE * SAMPLE_SECONDS,
+        ticks=CLIP_TICKS,
+        clip_attributes=fx.get("clip_attributes", ""),
+        **{key: value for key, value in fx.items() if key != "clip_attributes"},
+    )
+
+
 def audio_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
     return song_xml(
         voices,
         instruments=AUDIO_TRACK.format(**fx),
-        clips=AUDIO_CLIP.format(
-            frames=RATE * SAMPLE_SECONDS,
-            ticks=CLIP_TICKS,
-            clip_attributes=fx.get("clip_attributes", ""),
-            **{key: value for key, value in fx.items() if key != "clip_attributes"},
-        ),
+        clips=audio_clip(fx),
     )
 
 
@@ -559,9 +564,7 @@ def audio_parts(fx: dict, extra_tags: str = "") -> tuple[str, str]:
         track = track.replace(
             "\t\t</audioTrack>", f"\t\t\t{extra_tags}\n\t\t</audioTrack>"
         )
-    return track, AUDIO_CLIP.format(
-        frames=RATE * SAMPLE_SECONDS, ticks=CLIP_TICKS, **fx
-    )
+    return track, audio_clip(fx)
 
 
 # An owner's own stutter settings, as its element saves them when it does not use the song's: free (unquantized) and
