@@ -470,13 +470,14 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 	const Rect band{rect.x, rect.y + kValueY, rect.w, digit_h};
 
 	// **Cleared one row taller than it is drawn, top and bottom.** The highlight below inverts `digit_h + 2` rows --
-	// legacy's own `baseY - 1 .. baseY + digitHeight +
-	// 1` (`Range::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/range.cpp`) -- and an XOR over a row this
-	// pass did not clear toggles that row on every frame instead of settling. Legacy never sees it because `OLED::main`
-	// is cleared whole before `drawPixelsForOled`; this widget clears only what it owns, so what it owns has to be the
-	// *inverted* extent, not the glyph band. Row `kValueY - 1` is 17, five rows below the title rule at
-	// `kTitleSeparatorY` (12), so nothing above is touched. Pinned by the "moves nothing across twenty quiet ticks"
-	// example, which is the one that caught it.
+	// legacy's own
+	// `baseY - 1 .. baseY + digitHeight + 1` (`Range::drawPixelsForOled` in
+	// `origin/main:src/deluge/gui/menu_item/range.cpp`) -- and an XOR over a row this pass did not clear toggles that
+	// row on every frame instead of settling. Legacy never sees it because `OLED::main` is cleared whole before
+	// `drawPixelsForOled`; this widget clears only what it owns, so what it owns has to be the *inverted* extent, not
+	// the glyph band. Row `kValueY - 1` is 17, five rows below the title rule at `kTitleSeparatorY` (12), so nothing
+	// above is touched. Pinned by the "moves nothing across twenty quiet ticks" example, which is the one that caught
+	// it.
 	f.clear(Rect{rect.x, band.y - 1, rect.w, digit_h + 2});
 
 	// `getText(buffer, &leftLength, &rightLength, editingRangeEdge == RangeEdit::OFF)`.

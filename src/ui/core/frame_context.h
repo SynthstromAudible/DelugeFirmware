@@ -174,9 +174,8 @@ struct InputMask {
 ///    decide something, without ever calling `claim_back()`, left the input looking unclaimed. The
 ///    shell audits each tick's claims against what the scene said its widgets own
 ///    (`shell::ownership_audit`), so a read that claimed nothing would hide exactly the drift that
-///    audit exists to catch. Folding the claim into the read itself, as this rule now does, closes
-///    that gap -- there is no longer a way to read an input through a frame without also claiming
-///    it.
+///    audit exists to catch. A frame cannot read an input without also claiming it: the claim is part of the read
+///    itself.
 ///
 /// 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask`, not a
 ///    flag: `region(rect, m)` gives the child `mask & m`, so it only ever narrows and a child can

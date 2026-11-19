@@ -613,9 +613,10 @@ public:
 	///     not. That group needs no gate.
 	///   * `View::buttonAction` is reached only from a **root view**. `UI::buttonAction`'s base implementation is
 	///     `return ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h`) -- it does *not* forward to `view`, unlike main's
-	///     three mod hooks (`origin/main:src/deluge/gui/ui/ui.cpp`), which do (HEAD's `UI` hooks call `root_knobs`).
-	///     `grep "public RootUI"` finds exactly two classes in the tree, `TimelineView` (`gui/views/timeline_view.h`)
-	///     and `KeyboardScreen` (`gui/ui/keyboard/keyboard_screen.h`), and **both** forward to `View::buttonAction`
+	///     three mod hooks (`origin/main:src/deluge/gui/ui/ui.cpp`), which do (`gui/ui/ui.cpp`'s hooks call
+	///     `root_knobs::turn`/`mod_button`/`push` instead). `grep "public RootUI"` finds exactly two classes in the
+	///     tree, `TimelineView` (`gui/views/timeline_view.h`) and `KeyboardScreen`
+	///     (`gui/ui/keyboard/keyboard_screen.h`), and **both** forward to `View::buttonAction`
 	///     (`TimelineView::buttonAction` in `gui/views/timeline_view.cpp`, `KeyboardScreen::buttonAction`). So "is the
 	///     current UI the root UI" is not an approximation of that reachability rule -- it **is** the rule, exactly.
 	///

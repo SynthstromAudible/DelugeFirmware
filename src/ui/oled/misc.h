@@ -39,8 +39,7 @@ struct OutputNameData {
 	/// @brief Unused: carried for parity with legacy's `editedByUser`, but nothing in this
 	///        library reads it.
 	///
-	/// @note Draws nothing. The only renderer that ever consulted this was the 7-segment
-	///       display, which no longer exists. Kept so a scene's data shape does not have to
+	/// @note Draws nothing. No current renderer reads it. Kept so a scene's data shape does not have to
 	///       change later.
 	bool edited;
 };

@@ -81,8 +81,8 @@ public:
 	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
 	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp`).
 	/// main's `UI::modEncoderAction` and `UI::modButtonAction` (`origin/main:src/deluge/gui/ui/ui.cpp`) are the
-	/// **base-class** implementations, and both do nothing but forward to `view` (HEAD's hand the call to
-	/// `root_knobs::turn` and `root_knobs::mod_button`) -- so the current
+	/// **base-class** implementations, and both do nothing but forward to `view` (`gui/ui/ui.cpp`'s hooks call
+	/// `root_knobs::turn` and `root_knobs::mod_button` instead) -- so the current
 	/// UI gets first refusal and `View` is the fallback. Six UIs override the first
 	/// (`SoundEditor`; `ArrangerView`, `gui/views/arranger_view.h`;
 	/// `AutomationView`, `gui/views/automation_view.h`; `PerformanceView`,
@@ -99,11 +99,12 @@ public:
 	/// same dispatcher one step lower: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in the tail
 	/// (`hid/buttons.cpp`), after the scene's own `buttonAction` call, and what it runs there is
 	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- main's `UI::modEncoderButtonAction`
-	/// (`origin/main:src/deluge/gui/ui/ui.cpp`) being another bare forward to `view` (HEAD's calls `root_knobs::push`),
-	/// overridden by five UIs (`gui/views/instrument_clip_view.h`, `SoundEditor::modEncoderButtonAction` in
-	/// `origin/main:src/deluge/gui/ui/sound_editor.h`, `gui/views/session_view.h`, `gui/views/performance_view.h`,
-	/// `gui/views/automation_view.h`). Every `Result` along the way is `apply()`d immediately, whether or not it
-	/// reports `handled`, and routing stops at the first `handled` step.
+	/// (`origin/main:src/deluge/gui/ui/ui.cpp`) being another bare forward to `view` (`gui/ui/ui.cpp`'s calls
+	/// `root_knobs::push` instead), overridden by five UIs (`gui/views/instrument_clip_view.h`,
+	/// `SoundEditor::modEncoderButtonAction` in `origin/main:src/deluge/gui/ui/sound_editor.h`,
+	/// `gui/views/session_view.h`, `gui/views/performance_view.h`, `gui/views/automation_view.h`). Every `Result` along
+	/// the way is `apply()`d immediately, whether or not it reports `handled`, and routing stops at the first `handled`
+	/// step.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.
 	/// @return True if some step of the chain reported `handled`; false if the event fell off the

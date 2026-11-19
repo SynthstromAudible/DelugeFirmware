@@ -282,12 +282,11 @@ inline constexpr size_t kRangeTextMax = 12;
 ///       the same two. `f.turn()` moves the selected edge by `range.step` per detent, multiplied by 5 while `f.shift()`
 ///       is held, for the reason `int_value`'s doc gives; the gold knobs are never read.
 ///
-/// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held
-///       and consults `mayEditRangeEdge` before selecting an edge. Neither is ported:
-///       shift is the shell's, and `mayEditRangeEdge`'s only override in the whole firmware is
-///       `MultiRange`'s (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), which is a different editor this
-///       widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever gains
-///       a second consumer.
+/// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held and consults `mayEditRangeEdge`
+///       before selecting an edge. Neither is ported: shift is the shell's, and `mayEditRangeEdge`'s only override in
+///       the whole firmware is `MultiRange`'s (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), which is a
+///       different editor this widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever
+///       gains a second consumer.
 ///
 /// @param f       Frame to render into and read input from.
 /// @param rect    Rect the string is laid out relative to and centred across.

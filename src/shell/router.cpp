@@ -8,17 +8,17 @@ namespace {
 ///        consulted for, *after* the top scene has had them and declined?
 ///
 /// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** implementations of
-/// `modEncoderAction`/`modButtonAction` forward to in main (`origin/main:src/deluge/gui/ui/ui.cpp`; HEAD's call
-/// `root_knobs`). The dispatchers call the current UI, never `view` directly -- `interpretEncoders` in
-/// `hid/encoder_input.cpp`, `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp` -- so a UI that overrides
-/// the hook wins and one that does not falls through to `View`. Hence: scene first, service second. See
-/// `Router::route`'s doc for the override census.
+/// `modEncoderAction`/`modButtonAction` forward to in main (`origin/main:src/deluge/gui/ui/ui.cpp`; `gui/ui/ui.cpp`'s
+/// hooks call `root_knobs::turn`/`mod_button` instead). The dispatchers call the current UI, never `view` directly --
+/// `interpretEncoders` in `hid/encoder_input.cpp`, `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp` -- so
+/// a UI that overrides the hook wins and one that does not falls through to `View`. Hence: scene first, service second.
+/// See `Router::route`'s doc for the override census.
 ///
 /// A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is included too, from one step further down the same
 /// dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its *tail* (`hid/buttons.cpp`,
 /// reached only past the `getCurrentUI()->buttonAction` call), and the line it runs there is
 /// `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a hook whose base implementation (main's
-/// `UI::modEncoderButtonAction`, `origin/main:src/deluge/gui/ui/ui.cpp`, forwards to `view`; HEAD's hands the call to
+/// `UI::modEncoderButtonAction`, `origin/main:src/deluge/gui/ui/ui.cpp`, forwards to `view`; `gui/ui/ui.cpp`'s calls
 /// `root_knobs::push`), and which five UIs override (`gui/views/instrument_clip_view.h`,
 /// `SoundEditor::modEncoderButtonAction` in `origin/main:src/deluge/gui/ui/sound_editor.h`, `gui/views/session_view.h`,
 /// `gui/views/performance_view.h`, `gui/views/automation_view.h`). Scene first, then here.
@@ -71,9 +71,8 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// `midi_learn` last. The four `View::buttonAction` arms it owns
-	// (`gui/views/view.cpp`) sit in the SAME
-	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
-	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
+	// (`gui/views/view.cpp`) sit in the SAME `if`/`else if` chain as the arms `global_controls` owns, so their relative
+	// order is only observable if both could claim one event -- and `GlobalControls::view_button_action` answers
 	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own
 	// tail for them. Last is what keeps that abstention live.
 	//

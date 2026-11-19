@@ -417,13 +417,13 @@ private:
 	///          `sim/scenes_spec/slicer_scene_spec.cpp` is split into <= 63-detent turns.
 	///
 	///          **Legacy saturates where this wraps, and does so on the far side of the detent
-	///          division.** `interpretEncoders` takes whole detents from the encoder
-	///          (`hid/encoder_input.cpp`'s `interpretEncoders`, `int32_t detentDelta = fe.take()`) and then makes two
-	///          different choices, in a comment that says so: tempo and select get
-	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`hid/encoder_input.cpp`), while
-	///          horizontal and vertical are handed the **full `int32_t`** (the `horizontalEncoderAction` and
-	///          `verticalEncoderAction` calls) "for natural acceleration". So legacy's worst case is a saturated turn;
-	///          this one's is a reversed turn, and its `UiEvent::delta` cannot express more than 127 detents at all.
+	///          division.** `interpretEncoders` (`hid/encoder_input.cpp`) takes whole detents
+	///          from the encoder (`int32_t detentDelta = fe.take()`) and then makes two different choices, in a
+	///          comment that says so: tempo and select get
+	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))`, while horizontal and vertical are handed the
+	///          **full `int32_t`** (the `horizontalEncoderAction` and `verticalEncoderAction` calls) "for natural
+	///          acceleration". So legacy's worst case is a saturated turn; this one's is a reversed turn, and its
+	///          `UiEvent::delta` cannot express more than 127 detents at all.
 	///
 	///          Widening it is not local: it touches the board-event boundary (`DelugeInputEvent`),
 	///          `saturating_add` (in `input_lowering.cpp`, which already caps `tick_delta_` at

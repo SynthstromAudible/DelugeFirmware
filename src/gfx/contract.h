@@ -4,7 +4,7 @@
 ///        may only include the standard library): traps immediately if @p cond is false.
 ///
 /// Why not `assert`: `assert()` is compiled out by `-DNDEBUG`. Every shipped build defines `NDEBUG`, so on the device
-/// the checks did not exist — and the conditions they guard are not recoverable runtime conditions but memory-safety
+/// the checks would not exist — and the conditions they guard are not recoverable runtime conditions but memory-safety
 /// preconditions. A `Canvas` built over a span shorter than its geometry writes off the end of caller memory on the
 /// *first* draw call; a `PadGrid` indexed out of range reads or writes past its buffer. Compiling those checks out is
 /// exactly backwards.

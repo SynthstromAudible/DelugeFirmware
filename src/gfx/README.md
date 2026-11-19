@@ -13,7 +13,7 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
 - `RGB` and the palette (`gfx/grid/rgb.h`, `gfx/grid/palette.h`) live at their new path but are
   still declared in the **global namespace** (palette contents under `deluge::gui::colours`,
   unchanged). Moving `RGB` into `deluge::gfx::grid` touches roughly 600 call sites across the
-  codebase and is out of scope for the file move; do it as its own follow-up pass.
+  codebase; do it as its own pass.
 - `gfx/grid/sine_table.{h,cpp}` duplicates `util::sineWaveSmall`
   (`origin/main:src/deluge/util/lookuptables/lookuptables.cpp`) and a local port of
   `origin/main:src/deluge/util/waves.h`'s `getSine`, so that `RGB::fromHue`/`fromHuePastel` don't
