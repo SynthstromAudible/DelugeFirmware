@@ -254,7 +254,7 @@ bool SampleClaim::stepStart() {
 
 	if (makeWaveTable_
 	    || (current_.mayDoWaveTable == 1
-	        && current_.target.sound->config().sources[current_.target.sourceIndex].osc_type == OscType::WAVETABLE)) {
+	        && current_.target.sound->oscType(current_.target.sourceIndex) == OscType::WAVETABLE)) {
 		phase_ = Phase::PrepareWavetable;
 	}
 	else {
@@ -440,11 +440,12 @@ bool SampleClaim::stepDecideSample() {
 		}
 		// Otherwise, reset pitch. Popular request, late 2022.
 		// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-		std::vector<deluge::instrument::RangeState> ranges =
-		    current_.target.sound->boundState()->sources[current_.target.sourceIndex].ranges;
-		ranges[current_.target.rangeIndex].transpose = 0;
-		ranges[current_.target.rangeIndex].cents = 0;
-		deluge::edits::rangesFor(*current_.target.sound, current_.target.sourceIndex, std::move(ranges));
+		(void)deluge::edits::editRange(*current_.target.sound, current_.target.sourceIndex,
+		                               static_cast<size_t>(current_.target.rangeIndex),
+		                               [](deluge::instrument::RangeState& range) {
+			                               range.transpose = 0;
+			                               range.cents = 0;
+		                               });
 	}
 
 	removeWaveTableKnobs();
@@ -454,7 +455,7 @@ bool SampleClaim::stepDecideSample() {
 
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
-	oldOscType_ = current_.target.sound->config().sources[current_.target.sourceIndex].osc_type;
+	oldOscType_ = current_.target.sound->oscType(current_.target.sourceIndex);
 	setOscTypeFor(current_.target, OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.target, current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's

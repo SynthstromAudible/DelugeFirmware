@@ -73,8 +73,7 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 
 	// The samples' ports play this note's source through this voice's guides
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (sound.getSynthMode() != SynthMode::FM && sound.config().sources[s].osc_type == OscType::SAMPLE
-		    && guides[s].audioFileHolder) {
+		if (sound.getSynthMode() != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
 				ports(u, s).sample.bind(&sound.config().sources[s], &guides[s]);
 			}
@@ -110,7 +109,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		SourceResources* source = &sound.sources[s];
-		if (sound.config().sources[s].osc_type == OscType::SAMPLE) {
+		if (sound.oscType(s) == OscType::SAMPLE) {
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
@@ -169,7 +168,7 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 	deluge::synth::VoiceBlock block{.num_active_voices = sound.numActiveVoices(), .clock = engineClock()};
 	for (int32_t s = 0; s < kNumSources; s++) {
 		AudioFileHolder* holder = guides[s].audioFileHolder;
-		const OscType oscType = sound.config().sources[s].osc_type;
+		const OscType oscType = sound.oscType(s);
 		if (oscType == OscType::WAVETABLE && holder != nullptr) {
 			block.wave_tables[s] = static_cast<WaveTable*>(holder->audioFile)->view();
 		}

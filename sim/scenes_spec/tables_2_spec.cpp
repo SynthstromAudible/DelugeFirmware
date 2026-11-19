@@ -1467,7 +1467,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		{ // --- synth_mode --------------------------------------------------------------------
 			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as legacy's menu does), so
 			// both sources are saws while the hook is driven.
-			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->config().sources[0].osc_type, spec::menu_engine(f.ctx).sound->config().sources[1].osc_type};
+			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->oscType(0), spec::menu_engine(f.ctx).sound->oscType(1)};
 			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 0, OscType::SAW);
 			deluge::test::setOscType(*spec::menu_engine(f.ctx).sound, 1, OscType::SAW);
 			const SynthMode before = spec::menu_engine(f.ctx).sound->getSynthMode();

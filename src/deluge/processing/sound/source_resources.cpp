@@ -84,7 +84,7 @@ void SourceResources::seedRangesInto(deluge::instrument::SourceState& d) const {
 	}
 }
 
-// Only to be called if already determined that oscType == OscType::SAMPLE
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
 int32_t SourceResources::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
 	if (range != nullptr) {
@@ -129,7 +129,7 @@ deluge::storage::Walk SourceResources::walkSampleDemands(deluge::storage::Sample
 	return deluge::storage::Walk::Continue;
 }
 
-// Only to be called if already determined that oscType == OscType::SAMPLE
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
 void SourceResources::followDirection(bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
@@ -200,7 +200,7 @@ bool SourceResources::hasAtLeastOneAudioFileLoaded() {
 	return false;
 }
 
-// Only to be called if already determined that oscType == OscType::SAMPLE
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
 bool SourceResources::hasAnyLoopEndPoint() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);

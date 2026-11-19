@@ -858,7 +858,7 @@ bool openOsc2Claim() {
 	}
 	frontClip(legName(g_leg), clip, &instrumentClipView, nullptr);
 	if (g_leg == Leg::WaveTableOsc2) {
-		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->config().sources[1].osc_type)};
+		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->oscType(1))};
 		deluge::edits::settingFor(*g_synth, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 	}
 	return true;
@@ -2010,8 +2010,7 @@ void checkLeg() {
 		                    && (menu.state().path[0] != &deluge::scenes::menu::nodes::file0_selector) == horizontal;
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
-		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "",
-		       static_cast<int>(g_synth->config().sources[0].osc_type),
+		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
 		       static_cast<int>(g_synth->state_->sources[0].repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
@@ -2064,7 +2063,7 @@ void checkLeg() {
 		const bool wantWaveTable = (g_leg == Leg::WaveTable);
 		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		const OscType osc = g_synth->config().sources[0].osc_type;
+		const OscType osc = g_synth->oscType(0);
 		printf("SC-%s bound=%d path=%s osc=%d modKnobMode=%d ticks=%d\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(osc),
 		       static_cast<int>(g_synth->modKnobMode), g_wait.ticks());
@@ -2087,7 +2086,7 @@ void checkLeg() {
 		const bool wantWaveTable = (g_leg == Leg::WaveTableOsc2);
 		AudioFileHolder* holder = firstHolder(*g_synth, 1);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		const OscType osc = g_synth->config().sources[1].osc_type;
+		const OscType osc = g_synth->oscType(1);
 		printf("SC-OSC2 leg=%s bound=%d osc=%d ticks=%d\n", legName(g_leg), bound ? 1 : 0, static_cast<int>(osc),
 		       g_wait.ticks());
 		if (!bound || osc != (wantWaveTable ? OscType::WAVETABLE : OscType::SAMPLE)) {
@@ -2177,7 +2176,7 @@ void checkLeg() {
 		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
-		const OscType osc = g_synth->config().sources[0].osc_type;
+		const OscType osc = g_synth->oscType(0);
 		const ConversionMark conv = conversionsSince(g_convBefore);
 		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d converted=%d fromCard=%d\n",
 		       bound ? 1 : 0, isWaveTable ? 1 : 0, static_cast<int>(osc),
@@ -2451,14 +2450,14 @@ void checkLeg() {
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
 			    ranges, matched, static_cast<int>(synth->config().sources[0].repeat_mode),
-			    static_cast<int>(synth->config().sources[0].osc_type), synth->editedByUser ? 1 : 0,
-			    browserClosed ? 1 : 0, editorRange, g_wait.ticks());
+			    static_cast<int>(synth->oscType(0)), synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange,
+			    g_wait.ticks());
 			if (editorRange != kImportMultiCount / 2) {
 				g_report.fail("IM-MULTI the menu context was not left on the middle range");
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
 			    || synth->config().sources[0].repeat_mode != SampleRepeatMode::ONCE
-			    || synth->config().sources[0].osc_type != OscType::SAMPLE || !browserClosed) {
+			    || synth->oscType(0) != OscType::SAMPLE || !browserClosed) {
 				g_report.fail(
 				    "IM-MULTI the multisample import did not end with one range per file in pitch order, each "
 				    "bound to its file with the top note today's importer gives it and the transpose its detection "

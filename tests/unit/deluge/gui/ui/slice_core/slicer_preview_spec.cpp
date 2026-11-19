@@ -76,9 +76,6 @@ private:
 
 // clang-format off
 describe slicer_preview_group("slicer preview", ${
-	/// A release loads nothing and therefore never waits: its note-off is sent at once, whatever a load is doing. This is
-	/// asserted rather than left as a reading of the control flow, because a release that waited for a load would leave a
-	/// note sounding after the finger lifted.
 	it("plays the pressed slice's zone and transpose, through the drum's ranges", _ {
 		SlicerPreviewProbe probe;
 		probe.answer(LoadAnswer::Loaded);
@@ -92,6 +89,9 @@ describe slicer_preview_group("slicer preview", ${
 		}
 	});
 
+	/// A release loads nothing and therefore never waits: its note-off is sent at once, whatever a load is doing. This is
+	/// asserted rather than left as a reading of the control flow, because a release that waited for a load would leave a
+	/// note sounding after the finger lifted.
 	it("a release never defers and always sounds its note off", _ {
 		SlicerPreviewProbe probe;
 		probe.answer(LoadAnswer::Loading); // every load is still loading

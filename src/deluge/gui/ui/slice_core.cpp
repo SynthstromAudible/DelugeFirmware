@@ -131,13 +131,13 @@ void SliceCore::sound_audition(const AuditionTarget& target) {
 	if (target.on) {
 		SoundDrum* drum = (SoundDrum*)getCurrentKit()->firstDrum;
 		(void)drum->getOrCreateFirstRange(0);
-		std::vector<deluge::instrument::RangeState> ranges = drum->boundState()->sources[0].ranges;
-		ranges[0].start_pos = target.startPoint;
-		if (target.endPoint != -1) {
-			ranges[0].end_pos = target.endPoint;
-		}
-		ranges[0].transpose = static_cast<int16_t>(target.transpose);
-		deluge::edits::rangesFor(*drum, 0, std::move(ranges));
+		(void)deluge::edits::editRange(*drum, 0, 0, [&](deluge::instrument::RangeState& range) {
+			range.start_pos = target.startPoint;
+			if (target.endPoint != -1) {
+				range.end_pos = target.endPoint;
+			}
+			range.transpose = static_cast<int16_t>(target.transpose);
+		});
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = deluge::gui::modelStackFor(target_, modelStackMemory);
@@ -198,11 +198,11 @@ bool SliceCore::restore_full_range() {
 	if (sample == nullptr) {
 		return false;
 	}
-	std::vector<deluge::instrument::RangeState> ranges = soundDrum->boundState()->sources[0].ranges;
-	ranges[0].start_pos = 0;
-	ranges[0].end_pos = sample->lengthInSamples;
-	ranges[0].transpose = 0;
-	deluge::edits::rangesFor(*soundDrum, 0, std::move(ranges));
+	(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
+		range.start_pos = 0;
+		range.end_pos = sample->lengthInSamples;
+		range.transpose = 0;
+	});
 	return true;
 }
 
@@ -295,11 +295,11 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 			for (int32_t i = 0; i < pending_.sliceCount; i++) {
 				SoundDrum* soundDrum = static_cast<SoundDrum*>(kit->getDrumFromIndex(i));
 				(void)soundDrum->getOrCreateFirstRange(0);
-				std::vector<deluge::instrument::RangeState> ranges = soundDrum->boundState()->sources[0].ranges;
-				ranges[0].start_pos = pending_.manualPoints[i].startPos;
-				ranges[0].end_pos = (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
-				ranges[0].transpose = static_cast<int16_t>(pending_.manualPoints[i].transpose);
-				deluge::edits::rangesFor(*soundDrum, 0, std::move(ranges));
+				(void)deluge::edits::editRange(*soundDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
+					range.start_pos = pending_.manualPoints[i].startPos;
+					range.end_pos = (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
+					range.transpose = static_cast<int16_t>(pending_.manualPoints[i].transpose);
+				});
 			}
 		}
 		return SliceEnd{.landed = true, .error = Error::NONE};
@@ -317,7 +317,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 	// Do the first Drum
 
 	// Ensure osc type is "sample"
-	if (target_.sound->config().sources[target_.sourceIndex].osc_type != OscType::SAMPLE) {
+	if (target_.sound->oscType(target_.sourceIndex) != OscType::SAMPLE) {
 		target_.sound->killAllVoices();
 		deluge::edits::settingFor(*target_.sound, deluge::edits::oscSettingPath(target_.sourceIndex, "type"),
 		                          deluge::serialization::Value::makeScalar("sample"));
@@ -369,11 +369,16 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 
-		std::vector<deluge::instrument::RangeState> ranges = firstDrum->boundState()->sources[0].ranges;
-		ranges[0].start_pos = 0;
-		ranges[0].end_pos = nextDrumStart;
-		deluge::edits::rangesFor(*firstDrum, 0, std::move(ranges));
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->playsReversed(0), CLUSTER_ENQUEUE);
+		// The Edit claims the clusters of a zone it moves; a zone already in place is claimed here
+		const bool zoneMoves =
+		    firstRange->sampleHolder.startPos != 0 || firstRange->sampleHolder.endPos != nextDrumStart;
+		(void)deluge::edits::editRange(*firstDrum, 0, 0, [&](deluge::instrument::RangeState& range) {
+			range.start_pos = 0;
+			range.end_pos = nextDrumStart;
+		});
+		if (!zoneMoves) {
+			firstRange->sampleHolder.claimClusterReasons(firstDrum->playsReversed(0), CLUSTER_ENQUEUE);
+		}
 		if (doEnvelopes) {
 			setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
 		}

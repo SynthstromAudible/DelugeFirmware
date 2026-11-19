@@ -37,23 +37,53 @@ std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& so
 namespace {
 
 /// Where @p longer holds one range @p shorter does not, the others in order with their files and zones; nullopt when
-/// there is no such range. With @p fileless, only a range holding no file counts (a new range has none).
+/// there is no such range. With @p fileless, only a range holding no file counts (a new range has none). Ranges alike
+/// in file and zone (empty new ones) are told apart by their top notes, of which only the extra one's lower neighbour
+/// may have moved; failing that, by file and zone alone.
 std::optional<size_t> extraAt(const std::vector<deluge::instrument::RangeState>& shorter,
                               const std::vector<deluge::instrument::RangeState>& longer, bool fileless) {
 	const auto same = [](const deluge::instrument::RangeState& a, const deluge::instrument::RangeState& b) {
 		return a.file_path == b.file_path && a.start_pos == b.start_pos && a.end_pos == b.end_pos
 		       && a.loop_start_pos == b.loop_start_pos && a.loop_end_pos == b.loop_end_pos;
 	};
-	for (size_t at = 0; at < longer.size(); at++) {
-		bool rest = !fileless || longer[at].file_path.empty();
-		for (size_t i = 0; rest && i < shorter.size(); i++) {
-			rest = same(shorter[i], longer[i < at ? i : i + 1]);
+	const auto find = [&](bool by_top) -> std::optional<size_t> {
+		for (size_t at = 0; at < longer.size(); at++) {
+			bool rest = !fileless || longer[at].file_path.empty();
+			for (size_t i = 0; rest && i < shorter.size(); i++) {
+				const deluge::instrument::RangeState& other = longer[i < at ? i : i + 1];
+				rest = same(shorter[i], other) && (!by_top || i + 1 == at || shorter[i].top_note == other.top_note);
+			}
+			if (rest) {
+				return at;
+			}
 		}
-		if (rest) {
-			return at;
+		return std::nullopt;
+	};
+	if (const std::optional<size_t> at = find(true)) {
+		return at;
+	}
+	return find(false);
+}
+
+/// Whether @p ranges can replace @p now in place: the same length, each range keeping its file, and the top notes in
+/// order wherever one moves or is @p added (two ranges a malformed file left on one top note stand).
+bool takes(const std::vector<deluge::instrument::RangeState>& now,
+           const std::vector<deluge::instrument::RangeState>& ranges, std::optional<size_t> added = std::nullopt) {
+	if (now.size() != ranges.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < ranges.size(); i++) {
+		if (ranges[i].file_path != now[i].file_path) {
+			return false;
+		}
+		const bool moved = ranges[i].top_note != now[i].top_note || added == i;
+		if (moved
+		    && ((i > 0 && ranges[i].top_note <= ranges[i - 1].top_note)
+		        || (i + 1 < ranges.size() && ranges[i + 1].top_note <= ranges[i].top_note))) {
+			return false;
 		}
 	}
-	return std::nullopt;
+	return true;
 }
 
 } // namespace
@@ -76,6 +106,12 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	// and zones, which is how the changed one is found; any other change of length is refused.
 	if (ranges.size() == now.size() + 1) {
 		if (const std::optional<size_t> at = extraAt(now, ranges, true)) {
+			// Judged before anything changes: the list as it will be once the range is in
+			std::vector<deluge::instrument::RangeState> next = now;
+			next.insert(next.begin() + static_cast<std::ptrdiff_t>(*at), ranges[*at]);
+			if (!takes(next, ranges, *at)) {
+				return Error::UNSPECIFIED;
+			}
 			sound.killAllVoices(); // range storage is about to change
 			::MultiRange* inserted = nullptr;
 			{
@@ -91,24 +127,17 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	}
 	if (ranges.size() + 1 == now.size()) {
 		if (const std::optional<size_t> gone = extraAt(ranges, now, false)) {
+			std::vector<deluge::instrument::RangeState> next = now;
+			next.erase(next.begin() + static_cast<std::ptrdiff_t>(*gone));
+			if (!takes(next, ranges)) {
+				return Error::UNSPECIFIED;
+			}
 			sound.deleteMultiRange(s, static_cast<int32_t>(*gone));
 			return applyRanges(sound, s, ranges);
 		}
 	}
-	if (now.size() != ranges.size()) {
+	if (!takes(now, ranges)) {
 		return Error::UNSPECIFIED;
-	}
-	for (size_t i = 0; i < ranges.size(); i++) {
-		if (ranges[i].file_path != now[i].file_path) {
-			return Error::UNSPECIFIED;
-		}
-		// Order is judged only where the list changes: two ranges a malformed file left on one top note stand.
-		const bool moved = ranges[i].top_note != now[i].top_note;
-		if (moved
-		    && ((i > 0 && ranges[i].top_note <= ranges[i - 1].top_note)
-		        || (i + 1 < ranges.size() && ranges[i + 1].top_note <= ranges[i].top_note))) {
-			return Error::UNSPECIFIED;
-		}
 	}
 	std::vector<SampleHolderForVoice*> moved; // claimed once the render is free again
 	{
@@ -129,7 +158,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			holder.loopEndPos = ranges[i].loop_end_pos;
 			holder.transpose = ranges[i].transpose;
 			holder.setCents(ranges[i].cents);
-			if (zoneMoved && holder.audioFile != nullptr && sound.config().sources[s].osc_type == OscType::SAMPLE) {
+			if (zoneMoved && holder.audioFile != nullptr && sound.oscType(s) == OscType::SAMPLE) {
 				moved.push_back(&holder);
 			}
 		}
@@ -151,7 +180,7 @@ std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResource
 
 Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
 	::SourceResources& source = sound.sources[s];
-	if (sound.config().sources[s].osc_type != OscType::DX7) {
+	if (sound.oscType(s) != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}
 	if (dxPatchOf(source) != patch) {

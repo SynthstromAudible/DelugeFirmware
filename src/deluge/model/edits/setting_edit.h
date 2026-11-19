@@ -115,6 +115,19 @@ inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument
 	return error;
 }
 
+/// @brief A gesture's change of range @p i of source @p s of @p sound: @p change edits a copy of the record's range,
+/// which reaches the sound as rangesFor's.
+/// @return Error::NONE when it landed; UNSPECIFIED when the source has no range @p i.
+template <class Change>
+Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
+	std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[s].ranges;
+	if (i >= ranges.size()) {
+		return Error::UNSPECIFIED;
+	}
+	std::forward<Change>(change)(ranges[i]);
+	return rangesFor(sound, s, std::move(ranges));
+}
+
 /// @brief Record source @p s's ranges as a gesture left them, after it loaded files or reshaped the list itself.
 /// @param sound The sound whose source changed.
 /// @param s     Source (oscillator) index.

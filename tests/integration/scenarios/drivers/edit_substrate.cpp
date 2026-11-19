@@ -723,6 +723,14 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	              {deluge::instrument::RangeState{.top_note = 30}, deluge::instrument::RangeState{.top_note = 40}});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
 	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: two ranges more at once is refused");
+	// A range added above the open top note, but below it in pitch: out of order, refused before the runtime takes it
+	auto unordered = ranges;
+	unordered.push_back(deluge::instrument::RangeState{.top_note = 40, .end_pos = deluge::instrument::kUnsetEndPos});
+	const auto heldBefore = std::ssize(sound.sources[0].ranges);
+	deluge::edits::SetSourceRanges insertOutOfOrder{*slot, 0, unordered};
+	check(deluge::edits::apply(ctx, insertOutOfOrder) != Error::NONE
+	          && std::ssize(sound.sources[0].ranges) == heldBefore,
+	      "ranges: an insert out of order is refused before the runtime takes a range");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "ranges: a refusal leaves the slot");
 
@@ -940,7 +948,7 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	check(state != nullptr && state->sources[0].osc_type == OscType::DX7 && state->sources[0].dx_patch.has_value()
 	          && state->sources[0].dx_patch->params == deluge::instrument::kDx7InitVoice,
 	      "blank dx: its state holds a DX7 oscillator on the init voice");
-	check(sound.config().sources[0].osc_type == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
+	check(sound.oscType(0) == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
 	      "blank dx: its runtime plays a DX7 oscillator");
 	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	ctx.song.addOutput(synth);

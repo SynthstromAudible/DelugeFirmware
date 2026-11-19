@@ -772,7 +772,7 @@ skipOctaveCorrection:
 	int32_t numWithFileLoopPoints = 0;
 	int32_t numWithResultingLoopEndPoints = 0;
 
-	if (request_.target.sound->config().sources[request_.target.sourceIndex].osc_type != OscType::SAMPLE) {
+	if (request_.target.sound->oscType(request_.target.sourceIndex) != OscType::SAMPLE) {
 		request_.target.sound->killAllVoices();
 		setOscTypeFor(request_.target, OscType::SAMPLE);
 	}
@@ -920,7 +920,7 @@ getOut:
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
-				if (request_.target.sound->config().sources[request_.target.sourceIndex].osc_type != OscType::SAMPLE) {
+				if (request_.target.sound->oscType(request_.target.sourceIndex) != OscType::SAMPLE) {
 					request_.target.sound->killAllVoices();
 					deluge::edits::settingFor(*request_.target.sound,
 					                          deluge::edits::oscSettingPath(request_.target.sourceIndex, "type"),

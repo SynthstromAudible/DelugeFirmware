@@ -48,8 +48,7 @@ public:
 	/// arpeggiator's reverse step); cleared when a voice of the sound releases.
 	bool invertReversed = false;
 
-	/// @brief Whether the ranges play backwards now: the record's direction, inverted for an arpeggiated note.
-
+	/// @brief The oscillator's ranges: each one's file, zone and cluster reservations, as it plays them.
 	MultiRangeArray ranges;
 
 	DxPatch* dxPatch;

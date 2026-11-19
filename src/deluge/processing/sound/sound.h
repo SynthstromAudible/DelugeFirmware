@@ -204,6 +204,8 @@ public:
 	void recordHeldRanges(int32_t s);
 	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it.
 	void recordHeldDxPatch(int32_t s);
+	/// @brief What oscillator @p s plays.
+	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
 	[[nodiscard]] bool playsReversed(int32_t s) const {
 		return config_.sources[s].reversed != sources[s].invertReversed;

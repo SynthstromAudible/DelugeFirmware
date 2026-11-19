@@ -424,11 +424,11 @@ void stepMidiEnding() {
 	const SourceResources& source = g_sound->sources[0];
 	AudioFileHolder* holder = g_range->getAudioFileHolder();
 	const auto* sample = holder != nullptr ? static_cast<const Sample*>(holder->audioFile) : nullptr;
-	const bool isSample = g_sound->config().sources[0].osc_type == OscType::SAMPLE;
+	const bool isSample = g_sound->oscType(0) == OscType::SAMPLE;
 	const bool pathsAgree = sample != nullptr && holder->filePath == sample->filePath;
 	const uint64_t frames = sample != nullptr ? sample->lengthInSamples : 0;
 	printf("RT-ATTACH osc=%d attached=%d pathsAgree=%d frames=%llu path=%s editorOnTop=%d steps=%d\n",
-	       static_cast<int>(g_sound->config().sources[0].osc_type), sample != nullptr ? 1 : 0, pathsAgree ? 1 : 0,
+	       static_cast<int>(g_sound->oscType(0)), sample != nullptr ? 1 : 0, pathsAgree ? 1 : 0,
 	       static_cast<unsigned long long>(frames), sample != nullptr ? sample->filePath.c_str() : "(none)",
 	       isUIOpen(&shellHostUI) ? 1 : 0, g_wait.ticks());
 	if (!isSample || sample == nullptr || !pathsAgree) {
@@ -513,10 +513,9 @@ void stepClosedWait() {
 	const SourceResources& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
-	       static_cast<int>(AudioEngine::foregroundRecordingSource()),
-	       static_cast<int>(g_sound->config().sources[0].osc_type), g_recordingPath.c_str(),
-	       static_cast<long long>(leases), g_wait.ticks());
-	if (g_sound->config().sources[0].osc_type == OscType::SAMPLE) {
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(g_sound->oscType(0)),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_wait.ticks());
+	if (g_sound->oscType(0) == OscType::SAMPLE) {
 		g_report.fail("CLOSED a take whose recorder screen was closed under it switched the source to SAMPLE");
 	}
 	if (g_recordingPath.empty() || leases > 0) {
@@ -538,8 +537,7 @@ void stepSecondEnding() {
 	if (!waitOver()) {
 		return;
 	}
-	const bool attached = g_sound->config().sources[0].osc_type == OscType::SAMPLE
-	                      && g_range->getAudioFileHolder() != nullptr
+	const bool attached = g_sound->oscType(0) == OscType::SAMPLE && g_range->getAudioFileHolder() != nullptr
 	                      && g_range->getAudioFileHolder()->audioFile != nullptr;
 	printf("RT-SECOND attached=%d\n", attached ? 1 : 0);
 	if (!attached) {
@@ -567,9 +565,8 @@ void stepNulledWait() {
 	const SourceResources& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
-	       static_cast<int>(AudioEngine::foregroundRecordingSource()),
-	       static_cast<int>(g_sound->config().sources[0].osc_type), g_recordingPath.c_str(),
-	       static_cast<long long>(leases), g_wait.ticks());
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(g_sound->oscType(0)),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_wait.ticks());
 	if (g_recordingPath.empty() || leases > 0) {
 		g_report.fail("NULLED a take whose UI stack was nullified under it was attached to something");
 	}
@@ -617,7 +614,7 @@ void stepReplacedEnding() {
 	const bool replaced = g_clip->output != g_outputBefore;
 	const bool oldAlive = hibernating(g_outputBefore);
 	// Read only while it is known to be alive.
-	const OscType oldOsc = oldAlive ? g_sound->config().sources[0].osc_type : OscType::SAW;
+	const OscType oldOsc = oldAlive ? g_sound->oscType(0) : OscType::SAW;
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-REPLACED replaced=%d oldHibernating=%d oldOsc=%d path=%s leases=%lld steps=%d\n", replaced ? 1 : 0,
 	       oldAlive ? 1 : 0, static_cast<int>(oldOsc), g_recordingPath.c_str(), static_cast<long long>(leases),
@@ -739,8 +736,7 @@ void stepNextEnding() {
 	}
 	// The sound is read only while its song is still the current one.
 	const bool sameSong = currentSong == g_songBefore;
-	const bool attached = sameSong && g_sound->config().sources[0].osc_type == OscType::SAMPLE
-	                      && g_range->getAudioFileHolder() != nullptr
+	const bool attached = sameSong && g_sound->oscType(0) == OscType::SAMPLE && g_range->getAudioFileHolder() != nullptr
 	                      && g_range->getAudioFileHolder()->audioFile != nullptr;
 	printf("RT-NEXT-ATTACH sameSong=%d attached=%d loadSeen=%d steps=%d\n", sameSong ? 1 : 0, attached ? 1 : 0,
 	       g_loadSeen ? 1 : 0, g_wait.ticks());
