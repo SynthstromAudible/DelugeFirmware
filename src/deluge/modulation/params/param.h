@@ -113,8 +113,7 @@ enum Local : ParamType {
 };
 
 /// "Global" patched params, which apply to the whole sound.
-/// ANY TIME YOU UPDATE THIS LIST, please also update the names in gui/l10n/param_names.cpp (l10n::param_name) and
-/// paramNameForFile!
+/// ANY TIME YOU UPDATE THIS LIST, please also update the names in gui/l10n/param_names.cpp and paramNameForFile!
 enum Global : ParamType {
 	FIRST_GLOBAL = LOCAL_LAST,
 	GLOBAL_VOLUME_POST_FX = FIRST_GLOBAL,

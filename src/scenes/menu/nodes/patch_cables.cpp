@@ -214,15 +214,16 @@ const deluge::instrument::SoundState* sound_state_of(const MenuContext& ctx) {
 }
 
 /// @brief The destination's short name (`l10n::patched_param_short_name_at`), the morph params named after what the
-/// sound's
-///        filter modes make them.
-std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
+///        sound's filter modes make them.
+/// @param ctx The menu context, whose sound's filter modes name the morph params.
+/// @param p   The destination's index in the patched set: the low byte of a cable's destination.
+/// @return The name; empty for an index no patched param has.
+std::string_view destination_short_name(const MenuContext& ctx, uint8_t p) {
 	const deluge::instrument::SoundState* state = sound_state_of(ctx);
 	const deluge::effects::FilterState* filter =
 	    state != nullptr ? &deluge::instrument::sound_effects(*state).filter : nullptr;
-	const auto index = static_cast<uint32_t>(p);
-	return filter != nullptr ? deluge::l10n::patched_param_short_name_at(index, filter->lpf_mode, filter->hpf_mode)
-	                         : deluge::l10n::patched_param_short_name_at(index);
+	return filter != nullptr ? deluge::l10n::patched_param_short_name_at(p, filter->lpf_mode, filter->hpf_mode)
+	                         : deluge::l10n::patched_param_short_name_at(p);
 }
 
 /// @brief `((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >>
@@ -392,9 +393,8 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		}
 		append_cable_value(buf, len, kRowChars, cable_value_to_menu(cable_value(ctx, ends.from, desc).value_or(0)));
 		append(buf, len, kRowChars, " ");
-		// The destination's short name, which is a `modulation/params/` table rather than a
-		// `util/` one, so it is called rather than transcribed.
-		append(buf, len, kRowChars, destination_short_name(ctx, desc.param_index()));
+		// The destination's short name, from `l10n::patched_param_short_name_at`.
+		append(buf, len, kRowChars, destination_short_name(ctx, static_cast<uint8_t>(desc.param_index())));
 		rows[n].label = std::string_view{buf, len};
 		rows[n].selectable = true;
 		n++;
@@ -701,7 +701,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	if (!destination.is_param()) {
 		stages[n++] = source_short_name(destination.top_source());
 	}
-	stages[n++] = destination_short_name(ctx, destination.param_index());
+	stages[n++] = destination_short_name(ctx, static_cast<uint8_t>(destination.param_index()));
 	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
 	                                std::span<const std::string_view>{stages.data(), n});
 

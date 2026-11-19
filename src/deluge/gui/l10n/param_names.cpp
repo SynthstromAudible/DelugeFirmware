@@ -27,9 +27,9 @@ namespace deluge::l10n {
 
 namespace {
 
-// GENERATED begin (B10-names_gen.py from the legacy tables in modulation/params/param.cpp)
-/// @brief The name of a patched param, empty for an id that is none.
-std::string_view patched_name(plugin::ParamId id) {
+// GENERATED begin: generated from the legacy tables by a script; regenerate, do not hand-edit
+/// @brief The name of a patched param, nullopt for an id that names no param.
+std::optional<std::string_view> patched_name(plugin::ParamId id) {
 	switch (id.value) {
 	case instrument::param::kOscAVolume.value:
 		return getView(String::STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
@@ -142,11 +142,11 @@ std::string_view patched_name(plugin::ParamId id) {
 	case instrument::param::kArpRate.value:
 		return getView(String::STRING_FOR_PARAM_GLOBAL_ARP_RATE);
 	}
-	return {};
+	return std::nullopt;
 }
 
-/// @brief The name of a sound's unpatched param, empty for an id that is none.
-std::string_view unpatched_sound_name(plugin::ParamId id) {
+/// @brief The name of a sound's unpatched param, nullopt for an id that names no param.
+std::optional<std::string_view> unpatched_sound_name(plugin::ParamId id) {
 	switch (id.value) {
 	case instrument::param::kStutterRate.value:
 		return getView(String::STRING_FOR_STUTTER_RATE);
@@ -203,11 +203,11 @@ std::string_view unpatched_sound_name(plugin::ParamId id) {
 	case instrument::param::kPortamento.value:
 		return getView(String::STRING_FOR_PORTAMENTO);
 	}
-	return {};
+	return std::nullopt;
 }
 
-/// @brief The name of a global effectable's unpatched param, empty for an id that is none.
-std::string_view unpatched_global_name(plugin::ParamId id) {
+/// @brief The name of a global effectable's unpatched param, nullopt for an id that names no param.
+std::optional<std::string_view> unpatched_global_name(plugin::ParamId id) {
 	switch (id.value) {
 	case host_chain::param::kStutterRate.value:
 		return getView(String::STRING_FOR_STUTTER_RATE);
@@ -296,24 +296,24 @@ std::string_view unpatched_global_name(plugin::ParamId id) {
 	case host_chain::param::kTempo.value:
 		return getView(String::STRING_FOR_TEMPO);
 	}
-	return {};
+	return std::nullopt;
 }
 
-/// @brief The name of an expression axis, empty for an id that is none.
-std::string_view expression_name(plugin::ParamId id) {
+/// @brief The name of an expression axis, nullopt for an id that names no param.
+std::optional<std::string_view> expression_name(plugin::ParamId id) {
 	switch (id.value) {
 	case instrument::kExpressionPitchBend.value:
 		return getView(String::STRING_FOR_PITCH_BEND);
-	case instrument::kExpressionModWheel.value:
+	case instrument::kExpressionSlide.value:
 		return getView(String::STRING_FOR_MOD_WHEEL);
 	case instrument::kExpressionPressure.value:
 		return getView(String::STRING_FOR_CHANNEL_PRESSURE);
 	}
-	return {};
+	return std::nullopt;
 }
 
-/// @brief A patched param's short name, empty for an id that is none.
-std::string_view patched_short(plugin::ParamId id) {
+/// @brief A patched param's short name, nullopt for an id that names no param.
+std::optional<std::string_view> patched_short(plugin::ParamId id) {
 	switch (id.value) {
 	case instrument::param::kOscAVolume.value:
 		return "Osc1 level";
@@ -426,7 +426,7 @@ std::string_view patched_short(plugin::ParamId id) {
 	case instrument::param::kArpRate.value:
 		return "Arp. rate";
 	}
-	return {};
+	return std::nullopt;
 }
 // GENERATED end
 
@@ -450,7 +450,7 @@ bool is_hpf_morph(plugin::ParamKind kind, plugin::ParamId id) {
 } // namespace
 
 std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id) {
-	std::string_view name;
+	std::optional<std::string_view> name;
 	switch (kind) {
 	case plugin::ParamKind::PATCHED:
 		name = patched_name(id);
@@ -470,7 +470,7 @@ std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id) {
 	case plugin::ParamKind::PATCH_CABLE:
 		break;
 	}
-	return name.empty() ? getView(String::STRING_FOR_NONE) : name;
+	return name.value_or(getView(String::STRING_FOR_NONE));
 }
 
 std::string_view param_name(plugin::ParamKind kind, plugin::ParamId id, effects::FilterMode lpf,
@@ -498,7 +498,7 @@ std::string_view param_name_at(plugin::ParamKind kind, uint32_t index, effects::
 }
 
 std::string_view patched_param_short_name(plugin::ParamId id) {
-	return patched_short(id);
+	return patched_short(id).value_or(std::string_view{""});
 }
 
 std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMode lpf, effects::FilterMode hpf) {
@@ -508,11 +508,11 @@ std::string_view patched_param_short_name(plugin::ParamId id, effects::FilterMod
 	if (id == instrument::param::kHpfMorph && is_family(hpf, effects::FilterFamily::HP_LADDER)) {
 		return "HPF FM";
 	}
-	return patched_short(id);
+	return patched_short(id).value_or(std::string_view{""});
 }
 
 std::string_view patched_param_short_name_at(uint32_t index) {
-	return patched_short(plugin::ParamId{index});
+	return patched_param_short_name(plugin::ParamId{index});
 }
 
 std::string_view patched_param_short_name_at(uint32_t index, effects::FilterMode lpf, effects::FilterMode hpf) {

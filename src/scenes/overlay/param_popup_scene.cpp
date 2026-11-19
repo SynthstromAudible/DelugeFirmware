@@ -143,7 +143,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		    context.filter
 		        ? deluge::l10n::param_name_at(kind, index, context.filter->lpf_mode, context.filter->hpf_mode)
 		        : deluge::l10n::param_name_at(kind, index);
-		if (name != deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE)) {
+		// `param_name` answers the very string `STRING_FOR_NONE` names for a param it does not know, as legacy's did.
+		if (name.data() != deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE).data()) {
 			out.append(name);
 		}
 	}

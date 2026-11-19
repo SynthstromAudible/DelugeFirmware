@@ -379,7 +379,7 @@ static_assert(kParams.size() == kParamBlocks[0].count + kParamBlocks[1].count);
 inline constexpr plugin::ParamId kExpressionPitchBend{0};
 
 /// @brief The id of the MPE Y axis (slide, the mod wheel in mono expression) in the host's expression space.
-inline constexpr plugin::ParamId kExpressionModWheel{1};
+inline constexpr plugin::ParamId kExpressionSlide{1};
 
 /// @brief The id of the MPE Z axis (pressure) in the host's expression space.
 inline constexpr plugin::ParamId kExpressionPressure{2};
