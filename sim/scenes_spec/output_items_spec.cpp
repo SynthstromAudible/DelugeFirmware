@@ -838,7 +838,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 	});
 
 	it("draws what SpecificSourceOutputSelector::drawPixelsForOled draws", _ {
-		// The pixel oracle, and it is what pins the layout: legacy's rows are `OLED_MAIN_TOPMOST_PIXEL + 14` and `+ 28`
+		// The pixel oracle, and it is what pins the layout: main's rows are `OLED_MAIN_TOPMOST_PIXEL + 14` and `+ 28`
 		// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`), and the port's frame
 		// origin already carries `OLED_MAIN_TOPMOST_PIXEL` (5, `src/board_config.h`), so a port drawing at
 		// `ui::oled::output_name`'s rows (12 and 30) would fail here.

@@ -15,10 +15,10 @@
 ///     (`memory/general_memory_allocator.cpp`)), so nothing has to call it first; and
 ///   * `currentSong`, which the model's own stack helpers read.
 ///
-/// and `Song::ensureAtLeastOneSessionClip`'s own fallback branch (`song/song.cpp`, the `couldntLoad`
-/// label taken whenever the card has no preset to load) is a pure-model recipe for a synth clip:
+/// and `Song::ensureAtLeastOneSessionClip` (`song/song.cpp`) builds its default synth with no card read, a
+/// pure-model recipe for a synth clip:
 /// `StorageManager::createNewInstrument` + `setupAsDefaultSynth` + `setAudioInstrument` +
-/// `addOutput`. This header replays exactly that branch, so no `startupConditionalTask` hook and
+/// `addOutput`. This header replays exactly that recipe, so no `startupConditionalTask` hook and
 /// no change to `deluge_scenes_spec`'s generated `main()` is needed.
 ///
 /// Determinism: the `scenes_spec` ctest row runs with `DELUGE_HOST_DETERMINISTIC=1` and
@@ -113,7 +113,7 @@ inline InstrumentClip* make_session_clip(Song* song) {
 } // namespace detail
 
 /// @brief A song whose one session clip drives a default `SoundInstrument` --
-///        `Song::ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song/song.cpp`) verbatim.
+///        `Song::ensureAtLeastOneSessionClip`'s card-less default synth (`song/song.cpp`).
 inline SongFixture make_synth_song() {
 	SongFixture f;
 	f.song = detail::make_bare_song();

@@ -173,7 +173,7 @@ struct StubDisplay final : deluge::hid::Display {
 };
 
 /// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe (`song_fixture.h`,
-///        `Song::ensureAtLeastOneSessionClip`'s `couldntLoad` branch in `song/song.cpp`), applied again.
+///        the card-less default synth of `Song::ensureAtLeastOneSessionClip` in `song/song.cpp`), applied again.
 ///
 /// The two-clip shape is the point: legacy and the port each get a clip of their own, so neither
 /// can read the other's model.
@@ -275,9 +275,8 @@ void seed_params(ParamManager& pm, int32_t value) {
 /// drives, and in the host BSP its sink keeps a shadow of what it was last handed (`record_ring` in
 /// `peripherals/ui_harness.rs`, called from `deluge_control_set_indicator` in `peripherals/control.rs`).
 ///
-/// Declared rather than included: `host_script.h` lives under `src/bsp/host`, which is on this target's link line but
-/// not on its include path, and an `extern "C"` line is cheaper -- and more explicit about the dependency -- than
-/// another include directory.
+/// Declared rather than included: `tests/harness/level3/host_script.h` is not on this target's include path, and an
+/// `extern "C"` line is cheaper -- and more explicit about the dependency -- than another include directory.
 extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);
 
 /// @brief One mod button's LED as the app declares it: lit or not, and whether it blinks.

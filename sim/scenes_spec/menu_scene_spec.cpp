@@ -269,7 +269,7 @@ constexpr Node custom_passes_through_leaf = menu::custom(sid(String::STRING_FOR_
 // so no recorded golden moves.
 
 /// The second hop of the chain: the page `chain_target_leaf` itself opens, so a spec can prove the interpreter follows
-/// a chain *from* a page it arrived at by chaining (legacy's `OctaveModeToNoteMode` -> `arpNoteModeFromOctaveModeMenu`,
+/// a chain *from* a page it arrived at by chaining (main's `OctaveModeToNoteMode` -> `arpNoteModeFromOctaveModeMenu`,
 /// `origin/main:src/deluge/gui/menu_item/arpeggiator/octave_mode.h`).
 constexpr Node chain_target_hop2 =
     menu::int_item(sid(String::STRING_FOR_MORPH), get_int, set_int, deluge::ui::oled::Range{0, 50, 1});
@@ -1079,8 +1079,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("while learning, LEARN fast-blinks at main's 60 ms", _ {
-		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (`SoundEditor::buttonAction`), `kFastFlashTime`; the release puts back
-		// the item's own blink or nothing (`SoundEditor::buttonAction`'s LEARN release arm).
+		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (main's `SoundEditor::buttonAction`,
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), `kFastFlashTime`; the release puts back the item's own
+		// blink or nothing (its LEARN release arm).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1221,8 +1222,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("reopening a root lands on the row it was closed on", _ {
-		// Each legacy `Submenu` keeps its `current_item_` for the life of the firmware (`Submenu::beginSession` in
-		// `origin/main:src/deluge/gui/menu_item/submenu.cpp`): closing the editor forgets nothing.
+		// Each of main's `Submenu` objects keeps its `current_item_` for the life of the firmware
+		// (`Submenu::beginSession` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): closing the editor forgets
+		// nothing.
 		select_language();
 		deluge::notify::dirty().drain();
 		menu_scene().reset_process_state();
@@ -1477,8 +1479,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a shortcut jump off a horizontal page cancels its notification", _ {
 		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
-		// cancels a notification popup (`HorizontalMenu::endSession` in
-		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
+		// cancels a notification popup (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2195,7 +2196,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `arg`. Without the range, the file selector's browser refuses to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
 		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` would be null -- while
-		// legacy opens it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
+		// main opens it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2248,7 +2249,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
-		// The other half of the guard, so the arm above cannot be satisfied by allocating for every deep link. Legacy
+		// The other half of the guard, so the arm above cannot be satisfied by allocating for every deep link. Main
 		// runs the range check only for the items whose `checkPermissionToBeginSession` routes into it --
 		// `Node::range_specific` -- and an ordinary param takes `MenuItem::checkPermissionToBeginSession`
 		// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), which never looks at a range at all.
@@ -2578,7 +2579,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(1);
 
 		// Clamped at the top of `kSyncLevelRange`, like `Enumeration::selectEncoderAction`'s non-wrapping clamp
-		// (`Enumeration::selectEncoderAction` in `origin/main:src/deluge/gui/menu_item/enumeration.cpp`) -- a turn well
+		// (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`) -- a turn well
 		// past the top lands on the last option, not wrapped back to 0.
 		r.turn(static_cast<int32_t>(NUM_SYNC_VALUES) + 5, 160);
 		r.shell.tick(170);
@@ -3110,14 +3111,14 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("the source-pad blink cadence never blits the OLED panels", _ {
-		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns a blink
+		// `MenuScene::next_timer()` returns a blink
 		// interval while the focused node's shortcut pad blinks -- `lpf_freq`'s does, which is
 		// exactly the previous test's fixture -- and that timer is purely a GRID concern
-		// (the submenu's OLED content never depends on it). Before `timer_repaints()` could name a
-		// surface, step 8b armed BOTH kinds of surface from every scene timer; the grid's own
+		// (the submenu's OLED content never depends on it). If `timer_repaints()` named no surface, step 8b
+		// would arm BOTH kinds of surface from every scene timer; the grid's own
 		// `flush` diffs against `last_sent` and blits nothing when a repaint changed no pixel, but
 		// the OLED panels have no such diff -- `Shell::flush` blits one unconditionally once it has
-		// rendered. So sitting on `lpf_freq` blitted both OLED panels, unconditionally, forever, at
+		// rendered. So sitting on `lpf_freq` would blit both OLED panels, unconditionally, forever, at
 		// 50 Hz -- with no pixel ever changing, which is why no golden or pixel comparison could see
 		// it.
 		//
@@ -3187,7 +3188,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 	/// @brief Open the LPF page and focus column \p column (0 = FREQ .. 3 = MORPH).
 	///
-	/// Shared by the formatting cases below and by the goldens, so both start from exactly the same state. Legacy moves
+	/// Shared by the formatting cases below and by the goldens, so both start from exactly the same state. Main moves
 	/// horizontal focus by instrument button, never by turn (`HorizontalMenu::selectEncoderAction`,
 	/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, edits and never moves focus), and SYNTH/KIT/MIDI/CV
 	/// name a page's four columns directly (`select_map`, `HorizontalMenu::buttonAction`) rather than being walked to

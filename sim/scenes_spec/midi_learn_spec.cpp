@@ -398,8 +398,8 @@ UiEvent midi_cc(::MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) 
 /// @brief The full chain a shell builds, minus the shell: a real `Router` over a real
 ///        `SceneStack`, a real `InputLowering`, and BOTH services in their shipped slots.
 ///
-/// The whole rig is a `Router` and not a bare `MidiLearn::handle` call precisely because this
-/// task's routing claim ("`midi_learn` last, after `global_controls`") is a claim about the chain.
+/// The whole rig is a `Router` and not a bare `MidiLearn::handle` call precisely because the
+/// routing claim ("`midi_learn` last, after `global_controls`") is a claim about the chain.
 /// `GlobalControls` is live in its own slot, so an example that presses PLAY under learn is
 /// really proving that `GlobalControls` abstained and `MidiLearn` picked the event up -- not that
 /// a lone service was handed it.
@@ -570,11 +570,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		(void)cables();
 	});
 
-	// -- Step 1: the five `*MidiLearnPadPressed` overloads are one question --------------------
+	// -- The five `*MidiLearnPadPressed` overloads are one question --------------------
 	//
 	// One example per overload. Each drives LEGACY's own overload plus its note-on, captures the
 	// `LearnedMIDI`, poisons it, then drives the port from `LearnTarget::<factory>` and compares
-	// the same model object. The five together are the executable form of the report's mapping
+	// the same model object. Together they pin the mapping
 	// table: if any one of them mapped onto the wrong `LearnedMIDI`, its example fails.
 
 	it("SECTION: `sectionMidiLearnPadPressed` maps onto `LearnTarget::section`", _ {
@@ -902,7 +902,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(playbackHandler.metronomeOn).to_be_false();
 	});
 
-	// -- Step 5: `endMidiLearnPressSession`'s delete-on-release -----------------------------------
+	// -- `endMidiLearnPressSession`'s delete-on-release -----------------------------------
 
 	it("delete on release: holding a learned thing and letting go CLEARS it, on both sides", _ {
 		// `views/view.cpp` for the pads. The model is asserted before AND after on each side:
@@ -973,7 +973,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.pressed().section_index).to_equal(section_slot.index);
 	});
 
-	// -- Step 4: the flash -----------------------------------------------------------------------
+	// -- The flash -----------------------------------------------------------------------
 
 	it("the flash is time-driven: the phase moves on a QUIET tick, with no input at all", _ {
 		// `View::midiLearnFlash` re-arms itself at `kFastFlashTime` and is
@@ -1168,7 +1168,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the root gate: with a NON-root scene on top, LEARN does nothing here", _ {
-		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the header's proof). Legacy's
+		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the header's proof). Main's
 		// LEARN inside a menu is `SoundEditor::buttonAction`'s own arm (`SoundEditor::getGreyoutColsAndRows` in
 		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is `MenuScene`'s to port -- so an ungated
 		// `MidiLearn` would put a second, wrong owner on the button.

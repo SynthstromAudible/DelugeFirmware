@@ -183,7 +183,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 	});
 
 	it("on a kit clip, never asks the bridge, and keeps the kit-row arm unchanged", _ {
-		// `Root::NoteRowEditor` on a kit keeps its kit arms -- `selectedNoteRow` is only ever latched by legacy's OWN
+		// `Root::NoteRowEditor` on a kit keeps its kit arms -- `selectedNoteRow` is only ever latched by main's OWN
 		// non-kit else-if (`sequence::Direction::checkPermissionToBeginSession` in
 		// `origin/main:src/deluge/gui/menu_item/sequence/direction.h`), so a kit clip has no equivalent to model here
 		// at all.
@@ -268,9 +268,9 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		//
 		// `ctx.affect_entire` must follow the clear, not merely the clip's
 		// own member -- `sequence::Direction::getIndividualNoteRow` reads `clip->affectEntire` LIVE
-		// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after legacy's identical clear, so a stale
-		// `true` left in the installed context would make `bindings::individual_note_row`
-		// keep reading/writing the kit's own mode instead of the selected
+		// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after main's identical clear, so a stale
+		// `true` left in the installed context would make `bindings::direction_target`
+		// (`scenes/menu/bindings.cpp`) keep reading/writing the kit's own mode instead of the selected
 		// drum's row -- see the dedicated example below.
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
@@ -305,7 +305,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		// The load-bearing consequence of clearing `affectEntire`, driven through the real binding rather than
 		// just read back off `MenuContext`: `bindings::read_sequence_direction`
 		// tests `ctx.root == Root::NoteRowEditor && !ctx.is_kit` first (the
-		// non-kit bridge arm), then falls through to `individual_note_row`'s kit-row arm
+		// non-kit bridge arm), then falls through to `direction_target`'s kit-row arm
 		// (`!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
 		// DRUM's row when `ctx.affect_entire` is false, exactly as legacy's live
 		// `clip->affectEntire` read does after its own clear.

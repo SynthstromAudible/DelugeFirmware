@@ -462,7 +462,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("refuses to open with nowhere to put the finished sample", _ {
 		// The port's own gate: `AudioRecorder::process`'s success arm dereferences the range with no null test
-		// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), and legacy is saved from that by
+		// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), and main is saved from that by
 		// `checkPermissionToBeginSessionForRangeSpecificParam` refusing first.
 		Guards g;
 		Rig r;
@@ -859,7 +859,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("ends a take whose guest a UI teardown took down, and frees it once it has settled", _ {
 		// A song load or a clear takes every UI down (`nullifyUIs`) with the recorder on top, and nothing ticks a closed
-		// guest: the teardown itself ends the screen's take, as legacy's recorder did once its UI was gone.
+		// guest: the teardown itself ends the screen's take, as main's recorder does once its UI is gone.
 		Guards g;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;

@@ -80,8 +80,8 @@
 ///   * **Three**: the 64-row idles, `{audio_clip_64, param_popup_64, count_in_64}/idle`.
 ///
 /// **None is vacuous, and the check is per script.** Within any one script no two snapshots are the
-/// same frame -- the `.state` half differs at every step, which is what the review that asked for
-/// this paragraph verified. *Across* scripts five are the same frame in both halves, and that is
+/// same frame -- the `.state` half differs at every step, which is what each script's
+/// snapshots show. *Across* scripts five are the same frame in both halves, and that is
 /// the point rather than a defect: `audio_clip/idle`, `param_popup/idle`, `screensaver/idle` and
 /// `count_in/after_zero` are literally the same boot state reached by four routes, as are
 /// `audio_clip/end_marker` and `screensaver/after_wake`.
@@ -383,7 +383,7 @@ void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
 
 /// @brief Place the three manual slices, on the first tick and only then.
 ///
-/// **It has to be a `before_tick` hook and not fixture setup, and the reason is legacy's.** `SlicerScene::on_enter` is
+/// **It has to be a `before_tick` hook and not fixture setup, and the reason is main's.** `SlicerScene::on_enter` is
 /// `Slicer::focusRegained` (`origin/main:src/deluge/gui/ui/slicer.cpp`) line for line, and that function *resets the
 /// whole table* -- `numManualSlice = 1`, `currentSlice = 0`, every `manualSlicePoints` entry zeroed. The push that
 /// opens the scene therefore erases anything placed before it, on the device as much as here. So the slices go in on
@@ -471,8 +471,8 @@ uitest::RunOptions opts_for_64(SceneId id) {
 ///          two or more clusters (`model/sample/waveform_scan.cpp`); anywhere else it opens
 ///          a `SampleFrameReader`, which fails with no card and makes the whole scan return false --
 ///          so both the pads and the OLED go black and every pad comparison passes on nothing.
-///          `audio_clip_scene_spec.cpp`'s `Sentinel` docstring carries the full arithmetic and the
-///          two review rounds that produced it; this is that fixture's own pair.
+///          `audio_clip_scene_spec.cpp`'s `Sentinel` docstring carries the full arithmetic;
+///          this is that fixture's own pair.
 void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.audioFile = sample;
 	sample->addReason(); // the lease `SampleHolder::setAudioFile` takes
@@ -717,7 +717,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// **Drain the popup first, and say why.** `ParamPopupScene` is a process singleton and
 		// `param_popup_64` above quits at 300 ms with 1.8 s still on its lifetime, so a bare
 		// `remaining_ms() == 0` here reads the PREVIOUS example's popup and fails for a reason that
-		// has nothing to do with this one. (It did, on the first run of this block -- 1850 ms of a
+		// has nothing to do with this one. (Otherwise it would see, say, 1850 ms of a
 		// popup this script never raised.) Two ticks longer than `kPopupLifetimeMs` puts it in the
 		// state a fresh process would have, and the same assertion after the run is then about this
 		// run alone.

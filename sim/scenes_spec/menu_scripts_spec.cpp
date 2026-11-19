@@ -1026,7 +1026,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// Three deletions, not two. One repeat proves the hold is armed; it says
 		// nothing about `kBackspaceRepeatMs`, the 80 ms steady state -- and that interval's only
 		// other cover is `rename_scene_spec.cpp`, whose hand-placed ticks all land on grid passes and
-		// which was therefore blind to the bug this script found. A regression that fired once and
+		// which is therefore blind to a repeat that fires once and stalls. A regression that fired once and
 		// then stalled would have passed both. "A" is the discriminating answer at both ends: a
 		// missing arming delay would have emptied the buffer, a missing cadence would have left "AB".
 		expect(std::string{song.clip->name}).to_equal(std::string{"A"});

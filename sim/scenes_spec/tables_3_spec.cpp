@@ -851,7 +851,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("validates the settings root clean, its sixteen follow-channel tracks included", _ {
-		// Legacy names the sixteen tracks identically and formats the track number in (`FollowChannelTrack` in
+		// Main names the sixteen tracks identically and formats the track number in (`FollowChannelTrack` in
 		// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`); their `title_arg` tells them apart.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -990,7 +990,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			const TablesRoot& sound = installed_root("sound");
 			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
 			expect(arp).not_().to_be_null();
-			// The toggle's silencing only fires on a clip that is actually sounding (legacy
+			// The toggle's silencing only fires on a clip that is actually sounding (main
 			// `origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`). `song_fixture.h` builds the clip without
 			// making it its output's active one -- nothing in the fixture plays -- so this is the one bit of state the
 			// example has to arrange for itself.
@@ -1212,7 +1212,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		}
 		flagged = reverb.size();
 		// `sidechain::Shape` (`tables_2_spec.cpp`) and `sidechain::GlobalVolume` (this file) -- the only two
-		// `unpatched_param::UpdatingReverbParams` subclasses in the whole legacy tree.
+		// `unpatched_param::UpdatingReverbParams` subclasses in the whole of main's menu.
 		expect(flagged).to_equal(size_t(2));
 		expect(reverb.contains(&nodes::sidechain_shape)).to_be_true();
 		expect(reverb.contains(&nodes::global_sidechain_volume)).to_be_true();
@@ -2008,7 +2008,7 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 });
 
 describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors and the MIDI device list", $ {
-	// The last three settings items legacy implements as bespoke `MenuItem` subclasses rather than as data:
+	// The last three settings items main implements as bespoke `MenuItem` subclasses rather than as data:
 	// `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
 	// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
 	// (`origin/main:src/deluge/gui/menu_item/midi/devices.h`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
@@ -2019,7 +2019,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	// `Node::name`, one static `uint16_t` l10n id (`MenuScene::render_vertical`), and `Devices` labels its rows with
 	// `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- a runtime string with no id at all -- while the two
-	// selectors' option lists are static in legacy (`getOptions` in
+	// selectors' option lists are static in main (`getOptions` in
 	// `origin/main:src/deluge/gui/menu_item/cv/selection.h` and
 	// `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
 	// `NUM_GATE_CHANNELS`. See `nodes/dynamic.h`'s own note.
@@ -2213,7 +2213,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
-		// Legacy's `beginSession` moves the *item's* value and leaves `soundEditor.currentSourceIndex` alone; only
+		// Main's `beginSession` moves the *item's* value and leaves `soundEditor.currentSourceIndex` alone; only
 		// `selectButtonPress` writes it (`origin/main:src/deluge/gui/menu_item/cv/selection.h` and
 		// `origin/main:src/deluge/gui/menu_item/gate/selection.h`). So `on_focus` publishes no `source_choice`, and the
 		// sentinel is still -1 after the descent that ran it.

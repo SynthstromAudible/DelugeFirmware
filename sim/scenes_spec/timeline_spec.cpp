@@ -140,7 +140,7 @@ struct TickProbe : ClipView {
 	/// @}
 };
 
-/// @brief `deluge_boot`'s own `display = new OLED` (`deluge_boot` in `src/deluge/deluge.cpp`).
+/// @brief `deluge_boot`'s own `display = new OLED` (`src/deluge/deluge.cpp`).
 ///
 /// A spec process never calls `deluge_boot()` (see `support/song_fixture.h` for why), so the
 /// `display` global is null (`hid/display/display.cpp`). Legacy's scroll arm ends in

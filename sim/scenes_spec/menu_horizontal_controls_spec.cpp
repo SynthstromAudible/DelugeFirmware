@@ -1375,7 +1375,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a select on a column that begins its own session enters it", _ {
 		// `Submenu::selectButtonPress` returns the focused item when it `allowToBeginSessionFromHorizontalMenu()`
-		// (`Submenu::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`), and the select arm
+		// (`origin/main:src/deluge/gui/menu_item/submenu.cpp`), and the select arm
 		// enters it (`SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`): the recorder,
 		// the file selectors, the cable strengths.
 		select_language();
@@ -1608,8 +1608,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("select on a patched param column opens its sources where the param row does", _ {
 		// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records the
-		// param before `SourceSelection:: beginSession` lands on the first source patched to it -- from a column as
-		// from the item alone.
+		// param before `SourceSelection::beginSession` (`origin/main:src/deluge/gui/menu_item/source_selection.h`)
+		// lands on the first source patched to it -- from a column as from the item alone.
 		select_language();
 		deluge::notify::dirty().drain();
 		int16_t vertical_cursor = -1;
@@ -2016,10 +2016,11 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// examples on shipped horizontal pages (`delay::PingPong`/`delay_ping_pong`,
 		// `randomizer::RandomizerLock`/`randomizer_lock`, `sample::PitchSpeed`/`sample<i>_pitch_speed`); a dedicated
 		// example on `randomizer_lock` covers that column kind below (`TOGGLE_COL` here is `Kind::Toggle` itself, not
-		// one of the three). Every OTHER `NO_NAVIGATION`-returning `selectButtonPress` override in `gui/menu_item/`
-		// either has no ported column kind (`ActiveScalesItem`, `PerformEditorItem`, `ActionItem`, `ContextMenuItem`,
-		// `SourceSelectionItem`) or sits only on a vertical page in the shipped tree (`Selection::isToggle()`'s other
-		// three overriders -- `arpeggiator::Mode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::SettingToggle`).
+		// one of the three). Every OTHER `NO_NAVIGATION`-returning `selectButtonPress` override among main's menu items
+		// (`Selection` in `origin/main:src/deluge/gui/menu_item/selection.h` and its siblings) either has no ported
+		// column kind (`ActiveScalesItem`, `PerformEditorItem`, `ActionItem`, `ContextMenuItem`, `SourceSelectionItem`)
+		// or sits only on a vertical page in the shipped tree (`Selection::isToggle()`'s other three overriders --
+		// `arpeggiator::Mode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::SettingToggle`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

@@ -167,7 +167,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 
 	/// @brief Tear the stack down, so `ParamPopupScene::on_exit` always runs (this scene is a process
-	///        singleton, like every other scene in this tree, so a stale stack would leak into the
+	///        singleton, like every other scene, so a stale stack would leak into the
 	///        next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {

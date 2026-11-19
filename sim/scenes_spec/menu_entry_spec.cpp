@@ -184,7 +184,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// The node is named through `SceneId::arg`, not through `open()`'s root argument, and that is the
 /// warning `MenuScene::open` carries: `on_enter` re-roots from `arg`, or from `ctx_.root` when
 /// `arg == 0`, one call later -- so passing the leaf as the "root" and a zero `arg` lands on the
-/// settings root instead, which is exactly how this helper failed the first time it was run.
+/// settings root instead.
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
 /// **The site-8 example really opens the ported browser**, because
@@ -814,10 +814,10 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 		// are written against exactly that. **Nothing must be left half-open**: the assertion is
 		// that the hierarchy did not move, not merely that the call said false.
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_false();
-		// `isUIOpen`, deliberately, and NOT `getCurrentUI()`: with an empty hierarchy `getCurrentUI()`
-		// answers `lastUIBeforeNullifying` (`origin/main:src/deluge/gui/ui/ui.cpp`), which the previous example's
-		// teardown left pointing at the guest. `currentUIIsClipMinderScreen()`'s null guard trips on the
-		// same accessor from the other side, which is why it is named here.
+		// `isUIOpen`, deliberately, and NOT `getCurrentUI()`: with an empty hierarchy `getCurrentUI()` answers
+		// `emptyStackUI` (`gui/ui/ui.cpp`; main's answers `lastUIBeforeNullifying`,
+		// `origin/main:src/deluge/gui/ui/ui.cpp`), which names no open UI, so only `isUIOpen` can say the guest is not
+		// on the stack.
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 
 		// And the same clip with the one argument flipped DOES open, so the refusal is about the
@@ -1233,7 +1233,7 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 
 	it("ends the mode after a refused take, where legacy falls back to its editor on the file selector", _ {
 		// A take already running: the recorder refuses, and the menu lands on the file selector, whose hook pushes the
-		// browser, as legacy's `openUI(&soundEditor)` does. That is an editor visit: its exit is `exitCompletely`.
+		// browser, as main's `openUI(&soundEditor)` does. That is an editor visit: its exit is `exitCompletely`.
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;

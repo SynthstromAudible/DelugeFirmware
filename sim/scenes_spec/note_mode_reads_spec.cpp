@@ -770,8 +770,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
 		// `InstrumentClipView::verticalEncoderAction` (`gui/views/instrument_clip_view.cpp`): no colour shifting in the
-		// note-row editor; the turn falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift
-		// (`gui/views/instrument_clip_view.cpp`).
+		// note-row editor; the turn falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;

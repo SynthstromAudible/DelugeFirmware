@@ -796,8 +796,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 
 describe shortcuts_profile("shell::BoardProfile without the shortcuts field", $ {
 	it("still builds and runs a Shell over deluge_profile()", _ {
-		// The removal's regression net (brief step 1): `BoardProfile::shortcuts` and
-		// `ShortcutTable` are gone, and the profile the application uses is unaffected.
+		// `BoardProfile` has no shortcuts field, and the profile the application uses builds and runs a `Shell`.
 		const deluge::ui::shell::BoardProfile& p = deluge_profile();
 		uitest::FakeSurfaceSet fake(deluge::ui::shell::kDelugeBoard, p);
 		deluge::ui::shell::SceneRegistry reg = scene_registry();

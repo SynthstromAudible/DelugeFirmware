@@ -904,12 +904,12 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	});
 
 	it("gives a cable it creates the polarity the page was showing, not the source's default", _ {
-		// The half of legacy's write path that is not the value: `getModelStack(..., allowCreation = true)` calls
+		// The half of main's write path that is not the value: `getModelStack(..., allowCreation = true)` calls
 		// `setPatchCablePolarity(polarity_in_the_ui_)` on the `!patch_cable_exists_` arm
 		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), so a polarity the user chose *before* the
 		// cable existed survives its creation.
 		//
-		// `PatchCableSet::getPatchCableIndex` (`origin/main:src/deluge/modulation/patch/patch_cable_set.cpp`) already
+		// `PatchCableSet::getPatchCableIndex` (`modulation/patch/patch_cable_set.cpp`) already
 		// gives a new cable `setDefaultPolarity()`, so the *default* needs no help -- what would be lost is a chosen
 		// one. Hence the sentinel below: the page is put in the polarity that is NOT the source's default, and the
 		// created cable must come out in it.
@@ -1237,12 +1237,13 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// not the value, so a hook that stores nothing shows; the port's read after its own write is compared with the
 		// frozen read after main's write.
 		//
-		// `ParamRef` nodes are deliberately not here: main's `UnpatchedParam::writeCurrentValue` resolves its model stack
-		// through the editor's, which with no root UI open writes the *song's* param collection where the port writes
-		// the clip's. That is a property of the harness, not of the tables, and `bindings_spec` already covers the
-		// param write path end to end. The next example covers what is specific to this batch's param nodes instead.
-		// The ratchet is the set of (fixture, path) pairs with a `set` hook, shown in that fixture, not left out for needing
-		// a booted UI, and wide enough to start from a sentinel: it must be exactly the set the rows cover.
+		// `ParamRef` nodes are deliberately not here: main's `UnpatchedParam::writeCurrentValue` resolves its model
+		// stack through the editor's, which with no root UI open writes the *song's* param collection where the port
+		// writes the clip's. That is a property of the harness, not of the tables, and `bindings_spec` already covers
+		// the param write path end to end. The next example covers what is specific to the param nodes of these tables
+		// instead. The ratchet is the set of (fixture, path) pairs with a `set` hook, shown in that fixture, not left
+		// out for needing a booted UI, and wide enough to start from a sentinel: it must be exactly the set the rows
+		// cover.
 		std::set<std::string> covered;
 		std::set<std::string> hooked;
 		for (const Fx& fx : fixtures()) {
@@ -1438,8 +1439,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
 		// `sequence::Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`) writes
-		// the *resolved* note row when there is one and the clip when there is not; `bindings::individual_note_row`
-		// resolves the kit row's.
+		// the *resolved* note row when there is one and the clip when there is not; `bindings::direction_target` and
+		// `direction_where` (`scenes/menu/bindings.cpp`) resolve the kit row's.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		const auto want_clip = static_cast<int32_t>(SequenceDirection::REVERSE);
@@ -1501,7 +1502,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			covered++;
 		}
 
-		// The toggle's silencing only fires on a clip that is actually sounding (legacy
+		// The toggle's silencing only fires on a clip that is actually sounding (main
 		// `origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`), and `song_fixture.h` never makes its clip the
 		// output's active one -- nothing in the fixture plays. Arranged here, and put back.
 		Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output);

@@ -16,7 +16,7 @@
 ///     different folder, a different sample length, a range that exists on one source and not the
 ///     other -- so an item wired to the wrong source fails rather than passing on symmetry.
 ///
-/// Plus the relevance half of the task: the file selector, loop start and loop end nodes' relevance
+/// Plus relevance: the file selector, loop start and loop end nodes' relevance
 /// is compared with the reference rows main's `isRelevant()` overrides gave over **eight** oscillator
 /// configurations rather than the single fixture `tables_1_spec.cpp` uses, the port asked through a
 /// `MenuContext` built from the model state the rows were taken in.
@@ -424,8 +424,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
 		// ... and the comparison is not vacuous. Ten near-identical items over two macro-generated
 		// oscillator pages is precisely the shape where a positional check passes with two of them
-		// crossed over, so a deliberately crossed copy is asserted NOT to match. (The real proof is
-		// the source mutation recorded in the task report; this is the guard that keeps the
+		// crossed over, so a deliberately crossed copy is asserted NOT to match. (This is the guard that keeps the
 		// assertion itself honest if someone later relaxes it.)
 		//
 		// The crossing swaps the *payload* fields only and leaves each row's node name where it is,

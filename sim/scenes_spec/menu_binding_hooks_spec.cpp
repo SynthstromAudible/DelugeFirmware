@@ -8,9 +8,9 @@
 ///        `after_render` are all public overrides, and this rig's `input` is a plain field a spec
 ///        sets directly -- `unit/ui/support/frames.h`'s own doc on `OledRig`).
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: no
-/// shipped node sets any of these three hooks yet (they arrive with the note family's own leaves
-/// in a later task), so there is nothing in the real tables this file could exercise.
+/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: the
+/// shipped nodes that set these hooks (`nodes/note.cpp`) sit behind the note bridge, so
+/// this file declares small trees that exercise each hook on its own.
 ///
 /// Each root below is a single-column horizontal page, on purpose: column 0 is already focused the
 /// moment the page opens, so a select turn edits it with no instrument-button focus dance first --
@@ -255,14 +255,13 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
 		// directly (`unit/ui/support/frames.h`'s own doc on `OledRig`).
 		//
-		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
-		// apart from `on_resume`'s OTHER four resets (`value_changed`/`value_node` alone already
-		// stop `after_render`'s `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from
-		// committing anything at all, whether or not `edit_offset` itself was cleared) -- confirmed
-		// by mutation below, and recorded in the report rather than shipped as a silently-vacuous
-		// example. Two turns, with `on_resume` run between them, isolates it: if `on_resume` failed
-		// to clear `edit_offset`, the second turn's own accumulation (`st_.tick.edit_offset += detents`)
-		// would add onto the first turn's abandoned offset instead of starting fresh from it.
+		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset apart from `on_resume`'s
+		// OTHER four resets (`value_changed`/`value_node` alone already stop `after_render`'s
+		// `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from committing anything at all,
+		// whether or not `edit_offset` itself was cleared) -- so a single sequence would pass vacuously. Two turns,
+		// with `on_resume` run between them, isolates it: if `on_resume` failed to clear `edit_offset`, the second
+		// turn's own accumulation (`st_.tick.edit_offset += detents`) would add onto the first turn's abandoned offset
+		// instead of starting fresh from it.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

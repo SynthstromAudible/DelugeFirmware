@@ -159,7 +159,7 @@ std::string legacy_canvas_pbm() {
 ///          34 -> 33 mutation did). The two evidences are complementary, not redundant: those three
 ///          constants are covered by the *textual* half of the argument -- the reverse-mapped diff
 ///          of `src/ui/oled/{rainfall,starfield}.{h,cpp}` against
-///          `c758fbca5:src/deluge/hid/display/…`, recorded in the task report -- which shows every
+///          `origin/main:src/deluge/hid/display/rainfall.cpp` and `starfield.cpp` -- which shows every
 ///          constant unmodified. Do not read the 8000-frame run as covering them.
 bool same_field(const Rainfall& a, const screensaver_oracle::Rainfall& b) {
 	for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
@@ -221,10 +221,9 @@ bool same_field(const Rainfall& a, const Rainfall& b) {
 
 /// @brief Does @p pbm have any lit pixel at all?
 ///
-/// The two header lines are skipped deliberately: `"P1\n128 48\n"` contains the character '1'
-/// three times, so a bare `pbm.find('1')` answers "lit" for a completely blank panel. (It did, in
-/// this spec's first cut -- which made the blank-mode check fail and the "not two blank panels"
-/// checks pass for the wrong reason.)
+/// The two header lines are skipped deliberately: `"P1\n128 48\n"` contains the character '1' three times, so a bare
+/// `pbm.find('1')` answers "lit" for a completely blank panel. (A bare search would make the blank-mode check fail and
+/// the "not two blank panels" checks pass for the wrong reason.)
 /// @param pbm A P1 PBM, `page_major_to_pbm`'s own format.
 /// @return True when at least one pixel row carries a '1'.
 bool any_pixel(const std::string& pbm) {
