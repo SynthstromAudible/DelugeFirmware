@@ -73,7 +73,8 @@ struct KnobPush {
 /// @param focus  What the knobs point at.
 /// @param knob   0 the lower, 1 the upper.
 /// @param on     Press (true) or release.
-/// @param gesture The gesture's context. The owner's effects and the device facts come from the host's runtime facts.
+/// @param gesture The gesture's context. The owner's effects come from the host's track and sound ports; the device
+/// facts from its runtime facts.
 [[nodiscard]] KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
                                  const PushInputs& gesture);
 

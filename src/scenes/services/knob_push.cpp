@@ -41,8 +41,8 @@ namespace params = deluge::modulation::params;
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
-/// What a push reads beyond the song's records: the owner's effects and the device facts, from the host's ports,
-/// and the gesture's context.
+/// What a push reads beyond the song's records: the owner's effects (from the host's track and sound ports), the device
+/// facts (from its runtime facts) and the gesture's context.
 struct Reads {
 	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
 	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
@@ -53,10 +53,11 @@ struct Reads {
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	const bind::Ports& ports = menu::host_ports();
 	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const effects::EffectStates* fx = owner_effects(focus, *menu::host_ports().tracks, *menu::host_ports().sound)) {
+	if (const effects::EffectStates* fx = owner_effects(focus, *ports.tracks, *ports.sound)) {
 		out.effects = *fx;
 	}
 	return out;

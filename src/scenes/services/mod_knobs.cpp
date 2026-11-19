@@ -125,7 +125,8 @@ bool ModKnobs::bound() const {
 }
 
 const effects::EffectStates* ModKnobs::owner_effects() const {
-	return services::owner_effects(*focus_, *menu::host_ports().tracks, *menu::host_ports().sound);
+	const bind::Ports& ports = menu::host_ports();
+	return services::owner_effects(*focus_, *ports.tracks, *ports.sound);
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {
@@ -278,13 +279,14 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	const bind::Ports& ports = menu::host_ports();
 	controls::Sink& sink = menu::host_controls_sink();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		// The song's compressor knobs edit settings, not params (`modEncoderActionForNonExistentParam`).
 		const project::ChainAddress song_chain{.kind = project::ChainAddress::Kind::SONG};
-		const effects::EffectStates* fx = menu::host_ports().tracks->chain_effects(song_chain);
+		const effects::EffectStates* fx = ports.tracks->chain_effects(song_chain);
 		if (fx != nullptr) {
 			const CompTurn turn = comp_turn(*comp, *fx, offset);
 			if (sink.write_effect(song_chain, turn.path, turn.value)) {
@@ -612,10 +614,11 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		return out; // no song: nothing to read, so nothing is declared
 	}
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	const bind::Ports& ports = menu::host_ports();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
-		    menu::host_ports().tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
+		    ports.tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
 		out.non_existent_param = true;
 		out.non_existent_knob_pos = fx != nullptr ? comp_knob_pos(*comp, *fx) : -64;
 		return out;

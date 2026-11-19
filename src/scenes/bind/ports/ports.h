@@ -26,6 +26,7 @@ struct Ports {
 	const TrackFacts* tracks{nullptr}; ///< the song's tracks and what its owners play that their records do not hold
 	const controls::Facts* controls{nullptr}; ///< what the knobs read: live param values, stutter, note tails
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
+	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {
 		return audio != nullptr && sound != nullptr && tracks != nullptr && controls != nullptr;
 	}
