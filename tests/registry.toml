@@ -877,6 +877,12 @@ gates = "the song master's filter chain renders as recorded"
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
 
 [[harness]]
+name = "render-audio-cents"
+template = "render-song"
+gates = "an audio clip's fine tune renders as recorded, and differs from the clip untuned"
+env = { RENDER_GENERATED = "RS_AUDIO_CENTS" }
+
+[[harness]]
 name = "render-audio-track-fx"
 template = "render-song"
 gates = "an audio track's effect chain renders as recorded"

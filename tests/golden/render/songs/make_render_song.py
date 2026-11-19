@@ -27,6 +27,7 @@ RS_PINGPONG_SWEEP crosses ping-pong in stereo while the rate steps through new b
 on an audio track: the resampled and analog crossings RS_KIT_PINGPONG leaves out.
 RS_AUDIO_DELAY_EXTREMES steps an audio track's delay rate from its minimum to its maximum and back: its tape heads at
 the fastest and the slowest the rate's range reaches.
+RS_AUDIO_CENTS plays the audio clip 30 cents up beside its dry twin, so an audio clip's fine tune is pinned.
 RS_LOW_CLIP covers a host chain's saturation below amount 3, which RS_KIT_FX and RS_AUDIO_FX (at 4) leave out: a
 kit at 1 and an audio track at 2.
 RS_BITCRUSH covers the bitcrush paths the FX songs leave out: a kit's bit depth alone at preset 6, an audio track's
@@ -316,7 +317,7 @@ AUDIO_TRACK = """\
 		</audioTrack>
 """
 AUDIO_CLIP = """\
-		<audioClip trackName="RSAUD" filePath="SAMPLES/RS/A.WAV" startSamplePos="0" endSamplePos="{frames}" isPlaying="1" length="{ticks}" section="0">
+		<audioClip trackName="RSAUD" filePath="SAMPLES/RS/A.WAV" startSamplePos="0" endSamplePos="{frames}" isPlaying="1" length="{ticks}" section="0"{clip_attributes}>
 			<params {params}>{param_tags}</params>
 		</audioClip>
 """
@@ -381,8 +382,17 @@ def audio_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
     return song_xml(
         voices,
         instruments=AUDIO_TRACK.format(**fx),
-        clips=AUDIO_CLIP.format(frames=RATE * SAMPLE_SECONDS, ticks=CLIP_TICKS, **fx),
+        clips=AUDIO_CLIP.format(
+            frames=RATE * SAMPLE_SECONDS,
+            ticks=CLIP_TICKS,
+            clip_attributes=fx.get("clip_attributes", ""),
+            **{key: value for key, value in fx.items() if key != "clip_attributes"},
+        ),
     )
+
+
+# An audio clip tuned up 30 cents, its effects dry: the clip's fine tune reaches the render (its twin plays it untuned).
+AUDIO_CENTS = {**DRY, "clip_attributes": ' cents="30"'}
 
 
 def master_song(voices: list[tuple[str, str, int]], fx: dict) -> str:
@@ -1224,6 +1234,8 @@ SONGS = {
     "RS_KIT_DRY": lambda v: kit_song(v, DRY),
     "RS_AUDIO_FX": lambda v: audio_song(v, FX),
     "RS_AUDIO_DRY": lambda v: audio_song(v, DRY),
+    "RS_AUDIO_CENTS": lambda v: audio_song(v, AUDIO_CENTS),
+    "RS_AUDIO_CENTS_DRY": lambda v: audio_song(v, DRY),
     "RS_MASTER_FX": lambda v: master_song(v, FX),
     "RS_MASTER_DRY": lambda v: master_song(v, DRY),
     # RS_MASTER_FX under its own name, rendered in stereo, where the master's pan applies.

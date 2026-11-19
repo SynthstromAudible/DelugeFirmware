@@ -5,6 +5,12 @@
   "rms_db": -17.61,
   "sha256": "3b05665cb83dd38b851dbfcca4f025f02b92542c6c127ecbe6e70d635bef2313"
  },
+ "RS_AUDIO_CENTS": {
+  "frames": 384000,
+  "peak": 1155538688,
+  "rms_db": -14.81,
+  "sha256": "e5d781cd07e1629dfbdad36a55c13fbe3c907cc9902fe1e38125d9bb3a648a05"
+ },
  "RS_AUDIO_COMP_BLEND": {
   "frames": 384000,
   "peak": 2147483648,
