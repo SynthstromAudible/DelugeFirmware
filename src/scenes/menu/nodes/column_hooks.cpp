@@ -34,7 +34,7 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "modulation/arpeggiator_rhythms.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
 #include <algorithm>
@@ -135,10 +135,10 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 /// `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rhythm.h`), whose centring differs by
 /// @p nudge.
 std::optional<ArtColumn> rhythm_art(int32_t value, int8_t nudge) {
-	if (value < 0 || static_cast<size_t>(value) >= arpRhythmPatternNames.size()) {
+	if (value < 0 || static_cast<size_t>(value) >= plugin::kArpRhythms.size()) {
 		return std::nullopt;
 	}
-	const std::string_view pattern{arpRhythmPatternNames[value]};
+	const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(value)].name;
 	if (value == 0) {
 		return ArtColumn{.text = pattern};
 	}
@@ -344,19 +344,20 @@ ValueText default_magnitude_text(const MenuContext&, int32_t value, ValueTextUse
 }
 
 ValueText arp_rhythm_name_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+	if (use != ValueTextUse::Column || value < 0 || value > plugin::kMaxMenuSteps) {
 		return kValueTextFallback;
 	}
-	return put(arpRhythmPatternNames[static_cast<size_t>(value)], out);
+	return put(plugin::kArpRhythms[static_cast<size_t>(value)].name, out);
 }
 
 ValueText arp_rhythm_screen_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Column || value < 0 || value > kMaxPresetArpRhythm) {
+	if (use != ValueTextUse::Column || value < 0 || value > plugin::kMaxMenuSteps) {
 		return kValueTextFallback;
 	}
 	char name[12];
-	const int written = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(value),
-	                                  arpRhythmPatternNames[static_cast<size_t>(value)]);
+	const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(value)].name;
+	const int written = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(value),
+	                                  static_cast<int>(pattern.size()), pattern.data());
 	// "%d: " alone is three bytes, so `written` is positive.
 	return put(std::string_view{name, std::min(static_cast<size_t>(written), sizeof(name) - 1)}, out);
 }

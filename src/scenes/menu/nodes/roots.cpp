@@ -48,7 +48,6 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator.h"
 #include "notify/dirty_set.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/stem_export/stem_export.h"

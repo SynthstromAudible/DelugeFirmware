@@ -8,9 +8,9 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "notify/notice_queue.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "plugin-api/types/param.h"
 
 #include <algorithm>
@@ -184,8 +184,9 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 	if (deluge::modulation::params::isParamArpRhythm(kind, param_id)) {
 		const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
 		char name[12];
-		const int n = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(display_value),
-		                            arpRhythmPatternNames[display_value]);
+		const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(display_value)].name;
+		const int n = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(display_value),
+		                            static_cast<int>(pattern.size()), pattern.data());
 		if (n > 0) {
 			out.append(std::string_view{name, std::min(static_cast<size_t>(n), sizeof(name) - 1)});
 		}

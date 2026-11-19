@@ -41,9 +41,9 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "util/functions.h"
@@ -705,7 +705,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 5, slot, col);
 		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
-		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[5]));
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::plugin::kArpRhythms[5].name));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
 		expect(static_cast<int>(slot.art.dx)).to_equal(2);
@@ -719,7 +719,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(slot.art.dx)).to_equal(1);
 		expect(std::string(col.label)).to_equal(rhythm);
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 0, slot, col);
-		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[0]));
+		expect(std::string(slot.art.text)).to_equal(std::string(deluge::plugin::kArpRhythms[0].name));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(0);
 	});
 

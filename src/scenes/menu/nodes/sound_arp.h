@@ -265,9 +265,9 @@ inline constexpr Node arp_chord_simulator = with_affect_entire(with_short_column
     setting_item(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), Kind::Enum, arp_row("arpeggiator/chordType")),
     sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE))));
 // `Rhythm::getOccupiedSlots()` (`origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`) is 2, as is its MIDI/CV
-// twin's; the range is `{0, kMaxPresetArpRhythm}` (`Rhythm::getMinValue`/`getMaxValue`), and
-// `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h`), which is the param default -- so no
-// `with_range` is needed on either.
+// twin's; the range is `{0, kMaxMenuValue}` (`Rhythm::getMinValue`/`getMaxValue`), and
+// `plugin::kArpRhythms` (`plugin-api/types/arp_rhythm.h`) holds one entry per menu step, which is the param default --
+// so no `with_range` is needed on either.
 /// `arpeggiator::Rhythm::isRelevant`: not with a MIDI or gate drum selected.
 inline constexpr Node arp_rhythm = with_relevant(
     with_value_style(
