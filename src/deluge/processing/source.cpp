@@ -137,53 +137,6 @@ void Source::seedDocRanges() {
 	}
 }
 
-void Source::reflect(const deluge::instrument::SourceState& state) {
-	transpose = state.transpose;
-	cents = state.cents;
-	repeatMode = state.repeat_mode;
-	timeStretchAmount = state.time_stretch_amount;
-	sampleControls.interpolationMode = state.interpolation_mode;
-	sampleControls.pitchAndSpeedAreIndependent = state.pitch_and_speed_independent;
-	if (sampleControls.reversed != state.reversed) {
-		setReversed(state.reversed); // the zones' ends and the clusters' claims follow the direction
-	}
-}
-
-void Source::setTranspose(int16_t newTranspose) {
-	transpose = newTranspose;
-	if (state_ != nullptr) {
-		state_->transpose = newTranspose;
-	}
-}
-
-void Source::setRepeatMode(SampleRepeatMode newMode) {
-	repeatMode = newMode;
-	if (state_ != nullptr) {
-		state_->repeat_mode = newMode;
-	}
-}
-
-void Source::setTimeStretchAmount(int8_t newAmount) {
-	timeStretchAmount = newAmount;
-	if (state_ != nullptr) {
-		state_->time_stretch_amount = newAmount;
-	}
-}
-
-void Source::setInterpolationMode(InterpolationMode newMode) {
-	sampleControls.interpolationMode = newMode;
-	if (state_ != nullptr) {
-		state_->interpolation_mode = newMode;
-	}
-}
-
-void Source::setPitchAndSpeedIndependent(bool independent) {
-	sampleControls.pitchAndSpeedAreIndependent = independent;
-	if (state_ != nullptr) {
-		state_->pitch_and_speed_independent = independent;
-	}
-}
-
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
@@ -191,13 +144,6 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
 	}
 	return 1; // Why did I put 1?
-}
-
-void Source::setCents(int32_t newCents) {
-	cents = newCents;
-	if (state_ != nullptr) {
-		state_->cents = newCents;
-	}
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
@@ -239,9 +185,6 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
-	if (state_ != nullptr) {
-		state_->reversed = newReversed;
-	}
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -253,8 +196,6 @@ void Source::setReversed(bool newReversed) {
 			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
 		}
 	}
-	// The endPos fixups above changed range zones: reflect them into the record.
-	seedDocRanges();
 }
 
 MultiRange* Source::getRange(int32_t note) {
@@ -338,7 +279,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 			range->sampleHolder.setCents(range->sampleHolder.cents + cents);
 		}
 		transpose = 0;
-		setCents(0);
+		cents = 0;
 	}
 }
 

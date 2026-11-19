@@ -555,7 +555,10 @@ void init() {
 	sampleForPreview->performInitialPatching(
 	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
-	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
+	// The preview sends all of itself to the sidechain: its state, and the runtime's copy the render reads
+	constexpr int32_t kFullSend = 2147483647;
+	sampleForPreview->boundRecord()->side_chain_send_level = kFullSend;
+	sampleForPreview->sideChainSendLevel = kFullSend;
 
 	// Before the first render reads it.
 	voiceBudget.configure(deluge_cycle_hz(), DELUGE_VOICE_BUDGET_PERCENT);

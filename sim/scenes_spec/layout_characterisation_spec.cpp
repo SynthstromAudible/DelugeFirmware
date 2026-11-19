@@ -4,8 +4,8 @@
 ///
 /// @par The oracle
 ///
-/// Each expected layout is a literal recorded from the engine (`Sound::setSynthMode`, `Sound::setupAsSample`), with
-/// the knobs named as a preset file names them: the param, and a cable's sources after `<`. Every check reads the
+/// Each expected layout is a literal recorded from the engine (`instrument::remap_for_mode`, `Sound::setupAsSample`),
+/// with the knobs named as a preset file names them: the param, and a cable's sources after `<`. Every check reads the
 /// layout four ways, and all four must equal the literal:
 ///   * the engine's array (`Sound::modKnobs`), which sound logic reads;
 ///   * the preset form, `<modKnobs>` as `Sound::writeToFile` writes it from the engine's array;
@@ -271,9 +271,11 @@ void set_pair(auto& self, Sound& sound, Song& song, uint8_t button, deluge::modu
 	expect(int(deluge::edits::apply(ctx, edit))).to_equal(int(Error::NONE), "the controls edit");
 }
 
-// The layouts, recorded from `Sound::setSynthMode` (the FM swap) and `Sound::setupAsSample` (a sample row's mode 6).
+// The layouts, recorded from `instrument::remap_for_mode` (the FM swap) and `Sound::setupAsSample` (a sample row's mode
+// 6).
 
-/// A new synth's knobs (`Sound::Sound`), recorded; `Sound::setSynthMode` brings them back after FM and out of it.
+/// A new synth's knobs (`Sound::Sound`), recorded; `instrument::remap_for_mode` brings them back after FM and out of
+/// it.
 constexpr Layout kDefaultSynth{"pan",
                                "volumePostFX",
                                "lpfResonance",
@@ -306,7 +308,7 @@ constexpr Layout with_knob(const Layout& base, size_t button, size_t knob, std::
 	return out;
 }
 
-/// The FM swap of the filter button: the modulators' volumes (`Sound::setSynthMode`, into FM).
+/// The FM swap of the filter button: the modulators' volumes (`instrument::remap_for_mode`, into FM).
 constexpr Layout kDefaultFm = with_button1(kDefaultSynth, "modulator2Volume", "modulator1Volume");
 
 /// @brief A param snapshot of @p pm: for each collection it holds, every value of a param set, how many CCs a MIDI
@@ -441,7 +443,7 @@ void turn_one_step(int32_t knob) {
 
 // clang-format off
 describe layout_characterisation("the knob layouts the engine changes on its own, pinned as it changes them", ${
-	context("the FM swap (Sound::setSynthMode), through the menu's mode write", _ {
+	context("the FM swap (instrument::remap_for_mode), through the menu's mode write", _ {
 		it("swaps a new synth's filter button for the modulators' volumes, and back", _ {
 			spec::SongFixture f = spec::make_synth_song();
 			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
@@ -458,7 +460,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			    {unpatched_knob(params::UNPATCHED_BASS), unpatched_knob(params::UNPATCHED_TREBLE)},
 			    {param_knob(params::LOCAL_HPF_RESONANCE), param_knob(params::LOCAL_LPF_FREQ)},
 			}};
-			// The pairs `Sound::setSynthMode` takes into FM: a resonance or the bass on the lower knob, any filter's upper.
+			// The pairs `instrument::remap_for_mode` takes into FM: a resonance or the bass on the lower knob, any filter's upper.
 			constexpr std::array<Layout, 3> kBefore{with_button1(kDefaultSynth, "hpfResonance", "hpfFrequency"),
 			                                        with_button1(kDefaultSynth, "bass", "treble"),
 			                                        with_button1(kDefaultSynth, "hpfResonance", "lpfFrequency")};
@@ -478,7 +480,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			spec::SongFixture f = spec::make_synth_song();
 			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 			set_pair(self, sound, *f.song, 1, param_knob(params::LOCAL_LPF_FREQ), param_knob(params::LOCAL_LPF_RESONANCE));
-			// `Sound::setSynthMode` only takes a resonance (or the bass) on the lower knob into FM.
+			// `instrument::remap_for_mode` only takes a resonance (or the bass) on the lower knob into FM.
 			constexpr Layout kCutoffLower = with_button1(kDefaultSynth, "lpfFrequency", "lpfResonance");
 			expect_synth_layout(self, f, kCutoffLower);
 			set_mode(sound, "fm");
@@ -492,7 +494,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			constexpr Layout kOn7 = with_knob(with_knob(kDefaultSynth, 7, 0, "lpfResonance"), 7, 1, "lpfFrequency");
 			expect_synth_layout(self, f, kOn7);
 			set_mode(sound, "fm");
-			// `Sound::setSynthMode` swaps the pair on every button.
+			// `instrument::remap_for_mode` swaps the pair on every button.
 			expect_synth_layout(
 			    self, f, with_knob(with_knob(kDefaultFm, 7, 0, "modulator2Volume"), 7, 1, "modulator1Volume"));
 		});
@@ -504,7 +506,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			         deluge::modulation::knobTargetOf(
 			             deluge::synth::CableTarget::depth_of(params::LOCAL_LPF_RESONANCE, PatchSource::LFO_LOCAL_1)),
 			         param_knob(params::LOCAL_LPF_FREQ));
-			// `Sound::setSynthMode` swaps a knob only when it is on the plain param, never on a cable's depth.
+			// `instrument::remap_for_mode` swaps a knob only when it is on the plain param, never on a cable's depth.
 			constexpr Layout kCable = with_button1(kDefaultSynth, "lpfResonance<lfo2", "lpfFrequency");
 			expect_synth_layout(self, f, kCable);
 			set_mode(sound, "fm");
@@ -519,7 +521,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			         param_knob(params::LOCAL_MODULATOR_0_VOLUME));
 			expect_synth_layout(
 			    self, f, with_knob(with_knob(kDefaultFm, 3, 0, "modulator2Volume"), 3, 1, "modulator1Volume"));
-			// Out of FM, `Sound::setSynthMode` brings the modulators' volumes back as the low-pass pair.
+			// Out of FM, `instrument::remap_for_mode` brings the modulators' volumes back as the low-pass pair.
 			set_mode(sound, "subtractive");
 			expect_synth_layout(self, f,
 			                    with_knob(with_knob(kDefaultSynth, 3, 0, "lpfResonance"), 3, 1, "lpfFrequency"));

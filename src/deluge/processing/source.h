@@ -103,36 +103,15 @@ public:
 	/// voice kernel can call it straight off its per-block config. Still reads `AudioEngine` stereo/input globals.
 	static bool renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
 	                           SampleHolder* sampleHolder);
-	void setCents(int32_t newCents);
-	/// @name "Record-writing setters"
-	/// Each writes the SourceState record (when bound) alongside the native cache. Every menu / runtime write site
-	/// funnels through these; save reads the record.
-	/// @{
-	/// @brief Set the transpose, in semitones.
-	/// @param newTranspose New transpose.
-	/// @brief Take @p state's tuning and sample playback into this source's fields: the record already holds them.
-	/// The type is taken by setOscType, which also reshapes the ranges.
-	void reflect(const deluge::instrument::SourceState& state);
-	void setTranspose(int16_t newTranspose);
-	/// @brief Set the sample repeat mode.
-	/// @param newMode New mode.
-	void setRepeatMode(SampleRepeatMode newMode);
-	/// @brief Set the time-stretch amount.
-	/// @param newAmount New amount.
-	void setTimeStretchAmount(int8_t newAmount);
-	/// @brief Set the sample interpolation mode.
-	/// @param newMode New mode.
-	void setInterpolationMode(InterpolationMode newMode);
-	/// @brief Set whether pitch and speed are independent.
-	/// @param independent True for independent.
-	void setPitchAndSpeedIndependent(bool independent);
-	/// @}
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
 	/// @brief Report each range's file to @p visitor, with a checkpoint before each. Loads nothing.
 	/// @param visitor Receives a demand for each range's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
+	/// @brief Play the ranges in @p newReversed's direction: a reversed range's end is clamped to its sample's length,
+	/// and every range's clusters are claimed for the direction. Writes no record.
+	/// @param newReversed Whether the ranges play backwards.
 	void setReversed(bool newReversed);
 	MultiRange* getRange(int32_t note);
 	int32_t getRangeIndex(int32_t note);

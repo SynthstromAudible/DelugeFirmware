@@ -254,44 +254,7 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	/// @brief Set the voice priority.
-	///
-	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
-	/// @param value New priority.
-	void setVoicePriority(VoicePriority value);
-
-	// Setters for the scalar fields the record owns (SoundState). The native fields are kept as caches, seeded at
-	// bind, so the recipe is uniform whether the field is hot like oscillatorSync or cold. Each writes the record
-	// (when bound) and the cache; every runtime write site funnels through these, and save reads the record.
-	void setMaxVoiceCount(uint8_t value);
-	void setSideChainSendLevel(int32_t value);
-	void setOutputMidiChannel(uint8_t value);
-	void setOutputMidiNoteForDrum(uint8_t value);
-	void setOscillatorSync(bool value);
-	// The top-level scalars follow the same recipe; setSynthMode / setNumUnison / setUnison* /
-	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
-	void setPolyphonic(PolyphonyMode value);
-	void setTranspose(int16_t value);
 	[[nodiscard]] int16_t getTranspose() const { return config_.voicing.transpose; }
-	void setModulator1ToModulator0(bool value);
-	void setOscRetriggerPhase(int32_t s, uint32_t value);
-	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
-	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
-	// path.
-	void assignModulatorTranspose(int32_t m, int16_t value);
-	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
-	// path.
-	void assignModulatorCents(int32_t m, int8_t value);
-	// Store the unison settings without recomputing the unison tables — for the load path and default setup;
-	// doneReadingFromFile() and projectSnapshot() compute the tables.
-	void assignNumUnison(uint8_t value);
-	void assignUnisonDetune(int8_t value);
-	void assignUnisonStereoSpread(uint8_t value);
-	// LFO config: the record is authoritative, the render reads a hot cache. Sync writes both fields together to match
-	// the menu gesture (one sync value sets type and level).
-	void setLfoWaveType(int32_t lfoId, LFOType value);
-	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
 	bool skippingRendering = true;
 
@@ -354,14 +317,9 @@ public:
 	bool hasFilters();
 
 	void sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack);
-	void setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack);
 	/// @brief Give the live voices' sample parts the new unison count: a part that comes plays on from its neighbour,
 	/// a part that goes lets go of its clusters. The count, detunes and level are already the new ones.
 	void revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack);
-	void setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack);
-	void setUnisonStereoSpread(int32_t newAmount);
-	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
 	/// @param knobsSong   The song whose table holds the sound's learned knobs (the one being saved, or the one a
@@ -395,18 +353,13 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(SynthMode value, Song* song);
 	[[nodiscard]] SynthMode getSynthMode() const { return config_.engine.mode; }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
-	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
-	// effects (voice kill, filter modes, patching) — for the load path.
-	void assignSynthMode(SynthMode value);
 
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	void set_cents(int8_t new_cents);
 	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
 	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
