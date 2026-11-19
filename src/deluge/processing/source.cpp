@@ -58,6 +58,10 @@ Source::~Source() {
 	}
 }
 
+void Source::attachState(deluge::instrument::SourceState* d) {
+	state_ = d;
+}
+
 void Source::bindState(deluge::instrument::SourceState* d) {
 	state_ = d;
 	seedDocSourceScalars();

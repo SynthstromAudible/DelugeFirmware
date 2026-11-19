@@ -46,6 +46,8 @@ public:
 	/// @brief Bind this Source to its record and seed the record from the native fields.
 	/// @param d The SourceState record to bind (state_->sources[s] of the owning Sound).
 	void bindState(deluge::instrument::SourceState* d);
+	/// @brief Play @p d, which already holds this source's settings: nothing is seeded into it.
+	void attachState(deluge::instrument::SourceState* d);
 
 	/// @brief Copy the scalar fields into the bound record; no-op while unbound.
 	void seedDocSourceScalars();

@@ -2744,6 +2744,10 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	doneReadingFromFile();
 
+	// The sound plays what the file holds, as the decode makes it (the reader above set its runtime to the same); its
+	// effects are the ones the render plays, which binding them copies in
+	adoptLoadedState(std::move(decoded));
+
 	return Error::NONE;
 }
 
@@ -2950,6 +2954,18 @@ void Sound::bindState() {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindState(&d->sources[s]);
 	}
+}
+
+void Sound::adoptLoadedState(deluge::instrument::SoundState loaded) {
+	// A drum reads into the record its kit adopted it into; any other sound into its own state
+	deluge::instrument::SoundState& home = (state_ == nullptr || state_ == &ownedState_) ? ownedState_ : *state_;
+	home = std::move(loaded);
+	state_ = &home;
+	bindEffects(&home.effects);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].attachState(&home.sources[s]);
+	}
+	projectSnapshot();
 }
 
 void Sound::bindState(deluge::instrument::SoundState& record) {
