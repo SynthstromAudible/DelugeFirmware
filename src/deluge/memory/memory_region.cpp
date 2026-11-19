@@ -56,7 +56,13 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	D_PRINTLN("%x to %x: Memory region %s", start, end, name);
 }
 
-uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
+uint32_t MemoryRegion::padSize(uint32_t requiredSize, bool tight) const {
+	// Dense automation arrays know their required node count. Keep their blocks
+	// on the region's normal alignment without rounding a 1024-byte buffer to 2048.
+	if (tight) {
+		auto alignment = static_cast<uint32_t>(minAlign_);
+		return ((requiredSize + 8 + alignment - 1) & ~(alignment - 1)) - 8;
+	}
 	requiredSize += 8; // dirty hack - we need the size with its headers to be aligned so we'll add it here then
 	                   // subtract 8 afterwards
 	if (requiredSize < minAlign_) {
@@ -278,10 +284,12 @@ goingToReplaceOldRecord:
 	emptySpaces.testSequentiality("M005");
 }
 
-void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
-	requiredSize = padSize(requiredSize);
+// Placement and coalescing are shared by both allocation rounding policies.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom, bool tight) {
+	requiredSize = padSize(requiredSize, tight);
 	bool large = requiredSize > pivot_;
-	// set a minimum size	requiredSize = padSize(requiredSize);
+	// set a minimum size	requiredSize = padSize(requiredSize, tight);
 	int32_t allocatedSize = 0;
 	uint32_t allocatedAddress = 0;
 	int32_t i;
@@ -750,9 +758,9 @@ gotEnoughMemory: {}
 
 void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                           uint32_t* __restrict__ getAmountExtendedLeft, uint32_t* __restrict__ getAmountExtendedRight,
-                          void* thingNotToStealFrom) {
-	minAmountToExtend = padSize(minAmountToExtend);
-	idealAmountToExtend = padSize(idealAmountToExtend);
+                          void* thingNotToStealFrom, bool tight) {
+	minAmountToExtend = padSize(minAmountToExtend, tight);
+	idealAmountToExtend = padSize(idealAmountToExtend, tight);
 
 	uint32_t* header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = (*header & SPACE_SIZE_MASK);

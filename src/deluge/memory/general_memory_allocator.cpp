@@ -130,7 +130,7 @@ extern "C" void delugeDealloc(void* address) {
 	GeneralMemoryAllocator::get().dealloc(address);
 #endif
 }
-void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize, bool tight) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -140,11 +140,11 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	lock = true;
 	void* address = nullptr;
 	if (requiredSize < kExternalSwitchSize) {
-		address = regions[MEMORY_REGION_EXTERNAL_SMALL].alloc(requiredSize, false, NULL);
+		address = regions[MEMORY_REGION_EXTERNAL_SMALL].alloc(requiredSize, false, nullptr, tight);
 	}
 	// if it's a large object or the small object allocator was full stick it in the big one
 	if (address == nullptr) {
-		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
+		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, nullptr, tight);
 	}
 	lock = false;
 	if (!address) {
@@ -154,7 +154,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	return address;
 }
 
-void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize, bool tight) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -164,11 +164,11 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 	lock = true;
 	void* address = nullptr;
 	if (requiredSize < kInternalSwitchSize) {
-		address = regions[MEMORY_REGION_INTERNAL_SMALL].alloc(requiredSize, false, NULL);
+		address = regions[MEMORY_REGION_INTERNAL_SMALL].alloc(requiredSize, false, nullptr, tight);
 	}
 	// if it's a large object or the small object allocator was full stick it in the big one
 	if (address == nullptr) {
-		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
+		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, nullptr, tight);
 	}
 	lock = false;
 	if (address == nullptr) {
@@ -184,7 +184,7 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 // from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
 // available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
-                                    void* thingNotToStealFrom) {
+                                    void* thingNotToStealFrom, bool tight) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -197,7 +197,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	if (!makeStealable) {
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
-			address = allocInternal(requiredSize);
+			address = allocInternal(requiredSize, tight);
 
 			if (address != nullptr) {
 				return address;
@@ -207,7 +207,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		}
 
 		// Second try external region
-		address = allocExternal(requiredSize);
+		address = allocExternal(requiredSize, tight);
 
 		if (address) {
 			return address;
@@ -226,7 +226,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 #endif
 
 	lock = true;
-	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
+	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom, tight);
 	lock = false;
 	return address;
 }
@@ -273,7 +273,8 @@ uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToSho
 
 void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                                     uint32_t* __restrict__ getAmountExtendedLeft,
-                                    uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom) {
+                                    uint32_t* __restrict__ getAmountExtendedRight, void* thingNotToStealFrom,
+                                    bool tight) {
 
 	*getAmountExtendedLeft = 0;
 	*getAmountExtendedRight = 0;
@@ -284,7 +285,7 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 
 	lock = true;
 	regions[getRegion(address)].extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
-	                                   getAmountExtendedRight, thingNotToStealFrom);
+	                                   getAmountExtendedRight, thingNotToStealFrom, tight);
 	lock = false;
 }
 

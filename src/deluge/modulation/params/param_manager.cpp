@@ -55,7 +55,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 }
 
 Error ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(MIDIParamCollection));
 	if (!memory) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -69,43 +69,51 @@ Error ParamManager::setupMIDI() {
 }
 
 Error ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
+	void* memory_unpatched = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(UnpatchedParamSet));
+	if (memory_unpatched == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
 	summaries[1] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[0].paramCollection = new (memory_unpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
 
 Error ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
+	void* memory_unpatched = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(UnpatchedParamSet));
+	if (memory_unpatched == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
-	if (!memoryPatched) {
+	void* memory_patched = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(PatchedParamSet));
+	if (memory_patched == nullptr) {
 ramError2:
-		delugeDealloc(memoryUnpatched);
+		delugeDealloc(memory_unpatched);
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
-	if (!memoryPatchCables) {
-		delugeDealloc(memoryPatched);
+	void* memory_patch_cables = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(PatchCableSet));
+	if (memory_patch_cables == nullptr) {
+		delugeDealloc(memory_patched);
 		goto ramError2;
 	}
 
 	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
 	summaries[3] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
-	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[0].paramCollection = new (memory_unpatched) UnpatchedParamSet(&summaries[0]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[1].paramCollection = new (memory_patched) PatchedParamSet(&summaries[1]);
+	// ParamManager owns these placement-constructed collections and destroys them before deallocation.
+	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+	summaries[2].paramCollection = new (memory_patch_cables) PatchCableSet(&summaries[2]);
 	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
@@ -202,8 +210,8 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 	while (otherSummary != otherStopAt) {
 		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
+		newSummary->paramCollection = static_cast<ParamCollection*>(
+		    GeneralMemoryAllocator::get().allocMaxSpeedTight(otherSummary->paramCollection->objectSize));
 
 		// If that failed, deallocate all the previous memories
 		if (!newSummary->paramCollection) {
@@ -329,7 +337,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
 	if (!summaries[offset].paramCollection) {
 
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(ExpressionParamSet));
 		if (!memory) {
 			return false;
 		}

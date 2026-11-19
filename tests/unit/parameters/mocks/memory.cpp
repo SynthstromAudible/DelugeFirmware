@@ -11,7 +11,7 @@ std::unordered_map<void*, uint32_t> allocations;
 }
 MemoryRegion::MemoryRegion() = default;
 GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
-void* GeneralMemoryAllocator::alloc(uint32_t size, bool, bool, void*) {
+void* GeneralMemoryAllocator::alloc(uint32_t size, bool, bool, void*, bool) {
 	void* p = std::malloc(size);
 	if (p)
 		allocations.emplace(p, size);
@@ -28,7 +28,7 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* p) {
 }
 // Declining in-place growth/shrink is supported by the production allocator
 // contract. This deliberately exercises the real container relocation path.
-void GeneralMemoryAllocator::extend(void*, uint32_t, uint32_t, uint32_t* left, uint32_t* right, void*) {
+void GeneralMemoryAllocator::extend(void*, uint32_t, uint32_t, uint32_t* left, uint32_t* right, void*, bool) {
 	*left = *right = 0;
 }
 uint32_t GeneralMemoryAllocator::shortenLeft(void*, uint32_t, uint32_t) {

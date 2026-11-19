@@ -352,3 +352,34 @@ TEST(MemoryAllocation, stealableAllocations) {
 	mock().checkExpectations();
 };
 } // namespace
+
+TEST(MemoryAllocation, tightCurveBuffersDoNotDoubleAtPowerOfTwoBoundary) {
+	void* buffer = memreg.alloc(1024, false, nullptr, true);
+	CHECK(buffer != nullptr);
+	uint32_t size = getAllocatedSize(buffer);
+	CHECK(size >= 1024);
+	CHECK(size < 1024 + 64);
+	CHECK(testAllocationStructure(buffer, size, SPACE_HEADER_ALLOCATED));
+	testWritingMemory(buffer, size);
+	CHECK(testReadingMemory(buffer, size));
+	memreg.dealloc(buffer);
+	buffer = memreg.alloc(4096, false, nullptr, true);
+	CHECK(buffer != nullptr);
+	CHECK(testAllocationStructure(buffer, getAllocatedSize(buffer), SPACE_HEADER_ALLOCATED));
+	memreg.dealloc(buffer);
+}
+
+TEST(MemoryAllocation, tightCurveBuffersExtendWithoutDamagingExistingNodes) {
+	void* buffer = memreg.alloc(1024, false, nullptr, true);
+	CHECK(buffer != nullptr);
+	uint32_t before = getAllocatedSize(buffer);
+	testWritingMemory(buffer, before);
+	uint32_t left = 0;
+	uint32_t right = 0;
+	memreg.extend(buffer, 256, 256, &left, &right, nullptr, true);
+	CHECK(left + right >= 256);
+	CHECK(testReadingMemory(buffer, before));
+	void* extended = static_cast<char*>(buffer) - left;
+	CHECK(testAllocationStructure(extended, getAllocatedSize(extended), SPACE_HEADER_ALLOCATED));
+	memreg.dealloc(extended);
+}

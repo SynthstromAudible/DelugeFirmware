@@ -150,7 +150,7 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 	else {
 		int32_t newSize = numElements + 1;
 		uint32_t allocatedSize = newSize * elementSize;
-		memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize);
+		memory = GeneralMemoryAllocator::get().alloc(allocatedSize, true, false, nullptr, tight_allocations_);
 
 		if (!memory) {
 			numElements = 0;
@@ -478,13 +478,14 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNe
 
 		uint32_t allocatedMemorySize = numAdditionalElementsNeeded * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize);
-		if (!newMemory) {
+		void* new_memory =
+		    GeneralMemoryAllocator::get().alloc(allocatedMemorySize, true, false, nullptr, tight_allocations_);
+		if (new_memory == nullptr) {
 			LOCK_EXIT
 			return false;
 		}
 
-		setMemory(newMemory, allocatedMemorySize);
+		setMemory(new_memory, static_cast<int32_t>(allocatedMemorySize));
 		LOCK_EXIT
 		return true;
 	}
@@ -534,7 +535,7 @@ tryAgain:
 #endif
 		GeneralMemoryAllocator::get().extend(memoryAllocationStart, (newNum)*elementSize - allocatedSize,
 		                                     (newNum + numExtraSpacesToAllocate) * elementSize - allocatedSize,
-		                                     &amountExtendedLeft, &amountExtendedRight);
+		                                     &amountExtendedLeft, &amountExtendedRight, nullptr, tight_allocations_);
 
 		// If successfully extended...
 		if (amountExtendedLeft || amountExtendedRight) {
@@ -556,10 +557,12 @@ getBrandNewMemory:
 #endif
 
 		uint32_t newMemoryAllocationSize = (newNum + numExtraSpacesToAllocate) * elementSize;
-		newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
+		newMemory =
+		    GeneralMemoryAllocator::get().alloc(newMemoryAllocationSize, true, false, nullptr, tight_allocations_);
 		if (!newMemory) {
 			newMemoryAllocationSize = newNum * elementSize;
-			newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
+			newMemory =
+			    GeneralMemoryAllocator::get().alloc(newMemoryAllocationSize, true, false, nullptr, tight_allocations_);
 		}
 
 		// If that didn't work...
@@ -700,7 +703,7 @@ startAgain:
 		uint32_t amountExtendedLeft, amountExtendedRight;
 		GeneralMemoryAllocator::get().extend(memoryAllocationStart, minNumToExtend * elementSize,
 		                                     idealNumToExtendIfExtendingAllocation * elementSize, &amountExtendedLeft,
-		                                     &amountExtendedRight, thingNotToStealFrom);
+		                                     &amountExtendedRight, thingNotToStealFrom, tight_allocations_);
 
 		if (amountExtendedLeft || amountExtendedRight) {
 			memoryAllocationStart = (char* __restrict__)memoryAllocationStart - amountExtendedLeft;
@@ -922,13 +925,14 @@ Error ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thing
 
 		uint32_t allocatedMemorySize = newMemorySize * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize, thingNotToStealFrom);
-		if (!newMemory) {
+		void* new_memory = GeneralMemoryAllocator::get().alloc(allocatedMemorySize, true, false, thingNotToStealFrom,
+		                                                       tight_allocations_);
+		if (new_memory == nullptr) {
 			LOCK_EXIT
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		setMemory(newMemory, allocatedMemorySize);
+		setMemory(new_memory, static_cast<int32_t>(allocatedMemorySize));
 	}
 
 	// Otherwise, if some memory...
@@ -1095,11 +1099,11 @@ getBrandNewMemory:
 
 getBrandNewMemoryAgain:
 			uint32_t allocatedSize = desiredSize;
-			void* __restrict__ newMemory =
-			    GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize, thingNotToStealFrom);
+			void* __restrict__ new_memory = GeneralMemoryAllocator::get().alloc(
+			    allocatedSize, true, false, thingNotToStealFrom, tight_allocations_);
 
 			// If that didn't work...
-			if (!newMemory) {
+			if (new_memory == nullptr) {
 
 				// If our expectations weren't already as low as they can go, then lower our expectations and try
 				// again...
@@ -1126,7 +1130,7 @@ getBrandNewMemoryAgain:
 			// Copy until we get up to either the wrap point or the insertion point
 			int32_t firstElements = std::min(i, elementsBeforeWrap);
 			if (firstElements > 0) {
-				copyToNewMemory(newMemory, 0, getElementAddress(0), firstElements, newMemorySize, newMemoryStartIndex);
+				copyToNewMemory(new_memory, 0, getElementAddress(0), firstElements, newMemorySize, newMemoryStartIndex);
 			}
 
 			// If we didn't reach the wrap point because we reached the insertion point, do some more, up until the wrap
@@ -1134,7 +1138,7 @@ getBrandNewMemoryAgain:
 			if (firstElements < elementsBeforeWrap) {
 				int32_t secondElementsTotal = std::min(elementsBeforeWrap, numElements);
 				if (secondElementsTotal > 0) {
-					copyToNewMemory(newMemory, firstElements + numToInsert, getElementAddress(firstElements),
+					copyToNewMemory(new_memory, firstElements + numToInsert, getElementAddress(firstElements),
 					                secondElementsTotal - firstElements, newMemorySize, newMemoryStartIndex);
 				}
 			}
@@ -1143,7 +1147,7 @@ getBrandNewMemoryAgain:
 			// See if we need to do any more before the insertion point...
 			int32_t elementsAfterWrapBeforeInsertion = i - elementsBeforeWrap;
 			if (elementsAfterWrapBeforeInsertion > 0) {
-				copyToNewMemory(newMemory, elementsBeforeWrap, memory, elementsAfterWrapBeforeInsertion, newMemorySize,
+				copyToNewMemory(new_memory, elementsBeforeWrap, memory, elementsAfterWrapBeforeInsertion, newMemorySize,
 				                newMemoryStartIndex);
 			}
 
@@ -1151,7 +1155,7 @@ getBrandNewMemoryAgain:
 			int32_t upTo = std::max(elementsBeforeWrap, i);
 			int32_t elementsLeft = numElements - upTo;
 			if (elementsLeft > 0) {
-				copyToNewMemory(newMemory, upTo + numToInsert, getElementAddress(upTo), elementsLeft, newMemorySize,
+				copyToNewMemory(new_memory, upTo + numToInsert, getElementAddress(upTo), elementsLeft, newMemorySize,
 				                newMemoryStartIndex);
 			}
 
@@ -1160,8 +1164,8 @@ getBrandNewMemoryAgain:
 			AudioEngine::bypassCulling = true;
 
 			delugeDealloc(memoryAllocationStart);
-			memory = newMemory;
-			memoryAllocationStart = newMemory;
+			memory = new_memory;
+			memoryAllocationStart = new_memory;
 			memorySize = newMemorySize;
 			memoryStart = newMemoryStartIndex;
 		}

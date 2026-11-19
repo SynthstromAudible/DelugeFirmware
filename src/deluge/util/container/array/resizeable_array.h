@@ -58,9 +58,16 @@ public:
 
 	uint32_t elementSize;
 	bool emptyingShouldFreeMemory;
+
+private:
+	// Uses existing header padding. Other arrays retain the allocator size classes.
+	bool tight_allocations_ = false;
+
+public:
 	uint32_t staticMemoryAllocationSize;
 
 protected:
+	void useTightAllocations() { tight_allocations_ = true; }
 	void* memory;
 	int32_t numElements;
 	int32_t memorySize; // In elements, not bytes

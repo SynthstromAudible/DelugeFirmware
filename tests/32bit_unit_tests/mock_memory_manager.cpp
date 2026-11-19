@@ -66,7 +66,7 @@ MemoryRegion::MemoryRegion() = default;
 GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
 
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
-                                    void* thingNotToStealFrom) {
+                                    void* thingNotToStealFrom, bool /*tight*/) {
 	return mockAllocator.alloc(requiredSize, mayUseOnChipRam, makeStealable, thingNotToStealFrom);
 }
 
@@ -74,7 +74,7 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	return mockAllocator.dealloc(address);
 }
 
-void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize, bool /*tight*/) {
 	return mockAllocator.allocExternal(requiredSize);
 }
 
@@ -93,7 +93,7 @@ uint32_t GeneralMemoryAllocator::shortenLeft(void* address, uint32_t amountToSho
 
 void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
                                     uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight,
-                                    void* thingNotToStealFrom) {
+                                    void* thingNotToStealFrom, bool /*tight*/) {
 	return mockAllocator.extend(address, minAmountToExtend, idealAmountToExtend, getAmountExtendedLeft,
 	                            getAmountExtendedRight, thingNotToStealFrom);
 }
