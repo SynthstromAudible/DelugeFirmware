@@ -17,7 +17,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include <optional>
 
@@ -30,7 +30,7 @@ struct MenuEngine {
 	Sound* sound = nullptr;                    ///< the sound at the context's slot
 	ParamManagerForTimeline* params = nullptr; ///< the clip's, a sound drum's note row's, or the song's
 	ArpeggiatorSettings* arp = nullptr;        ///< the clip's, or the selected drum's
-	Source* source = nullptr;                  ///< the sound's source at the context's index
+	SourceResources* source = nullptr;         ///< the sound's source at the context's index
 	MultiRange* range = nullptr;               ///< the source's range at the context's index
 	ModControllable* mod = nullptr;            ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };

@@ -26,7 +26,7 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/DX7Cartridge.h"
 #include "util/functions.h"
 #include "util/try.h"

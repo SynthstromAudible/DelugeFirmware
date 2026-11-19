@@ -81,7 +81,7 @@
 #include "model/song/song.h"            // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"   // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h" // setupAsBlankSynth(), for the preset fixture writer
-#include "processing/source.h"                 // the DX7 oscillator the stage gives the clip
+#include "processing/sound/source_resources.h" // the DX7 oscillator the stage gives the clip
 #include "runtime/app_loop.h"                  // nowUs, the stall bounds' clock
 #include "scenarios/guest_drive.h"             // the guest's tick, input and what it has on top
 #include "scenes/menu/menu_scene.h"            // the cartridge page the read lands on

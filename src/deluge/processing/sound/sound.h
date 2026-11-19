@@ -35,7 +35,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/voice_budget.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"
@@ -218,7 +218,7 @@ public:
 
 	ParamLPF paramLPF{};
 
-	Source sources[kNumSources];
+	SourceResources sources[kNumSources];
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.

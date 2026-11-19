@@ -63,7 +63,7 @@ int32_t picker_cursor(const MenuContext& ctx) {
 describe menu_records("a menu's questions, answered from the record", ${
 	it("opens the range picker on the range the source remembers, and on the middle one for a source with none", _ {
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) reads
-		// `Source::defaultRangeI`, which a flick and every played note (`Source::getRange`) write.
+		// `SourceResources::defaultRangeI`, which a flick and every played note (`SourceResources::getRange`) write.
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);

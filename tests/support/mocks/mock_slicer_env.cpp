@@ -184,7 +184,7 @@ AudioFileHolder* deluge::gui::audioFileHolderFor(const SoundTarget&) {
 void deluge::gui::cutSound(const SoundTarget&) {
 }
 
-MultiRange* Source::getOrCreateFirstRange() {
+MultiRange* SourceResources::getOrCreateFirstRange() {
 	return g_range.get();
 }
 
@@ -364,10 +364,9 @@ DELUGE_STUB_FN(stub_canvasDrawHorizontalLine, "_ZN6deluge3hid7display11oled_canv
 DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*, nullptr)
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
 
-DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
+DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN15SourceResources10setOscTypeEN6deluge10instrument7OscTypeE")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
-DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
-DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
+DELUGE_STUB_FN(stub_sourceDtor, "_ZN15SourceResourcesD1Ev")
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
@@ -417,7 +416,7 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
 ::Sound* soundAt(::Song& /*song*/, deluge::project::SlotAddress /*address*/) {
 	return nullptr;
 }
-std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/) {
+std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& /*source*/) {
 	return {};
 }
 Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& ranges) {

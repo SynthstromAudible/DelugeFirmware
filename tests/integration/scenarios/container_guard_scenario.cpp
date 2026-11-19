@@ -88,7 +88,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
@@ -853,7 +853,7 @@ bool setupLeg() {
 	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
-		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
 		if (static_cast<SoundInstrument*>(g_clip->output)->getOrCreateFirstRange(0) == nullptr
 		    || source.ranges.insertMultiRange(1) == nullptr) {
 			return setupFailed("no memory for two multi-ranges");

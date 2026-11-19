@@ -106,7 +106,7 @@ inline void unload_files(const MenuContext& ctx) {
 	if (spec::menu_engine(ctx).sound == nullptr) {
 		return;
 	}
-	for (Source& source : spec::menu_engine(ctx).sound->sources) {
+	for (SourceResources& source : spec::menu_engine(ctx).sound->sources) {
 		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
 			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
 		}

@@ -492,7 +492,7 @@ RULES = [
         # `src/deluge/processing/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as
         # `model/` -- it is where two of the types `MenuContext` is *defined* in terms
         # of happen to live: `Sound` (`processing/sound/sound.h`) and `Source`
-        # (`processing/source.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
+        # (`processing/sound/source_resources.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
         # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
         # the menu's context could not be written at all.
         # NOTE: the pattern's `(?:.*/)` tail means this row only

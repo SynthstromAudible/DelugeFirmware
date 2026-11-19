@@ -41,7 +41,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"

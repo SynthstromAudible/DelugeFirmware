@@ -31,7 +31,7 @@ class AudioFile;
 class AudioFileHolder;
 class Sample;
 class SoundDrum;
-class Source;
+class SourceResources;
 
 namespace deluge::gui {
 

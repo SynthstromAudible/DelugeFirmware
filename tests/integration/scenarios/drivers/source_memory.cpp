@@ -36,7 +36,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenarios/drivers/driver.h"
 #include "serialization/value.h"
 #include "storage/audio/audio_file_holder.h"

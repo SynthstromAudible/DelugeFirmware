@@ -50,7 +50,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
@@ -201,7 +201,7 @@ private:
 struct SoundRig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sound* sound = nullptr;
-	Source* source[2] = {nullptr, nullptr};
+	SourceResources* source[2] = {nullptr, nullptr};
 	MultisampleRange* range[2] = {nullptr, nullptr};
 	Sample* sample[2] = {nullptr, nullptr};
 

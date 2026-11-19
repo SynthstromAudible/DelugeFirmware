@@ -21,14 +21,14 @@
 #include "processing/dx7/dx_patch.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multisample_range.h"
 
 #include <vector>
 
 namespace deluge::bridge {
 
-std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& source) {
+std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& source) {
 	deluge::instrument::SourceState into;
 	source.seedRangesInto(into);
 	return std::move(into.ranges);
@@ -59,7 +59,7 @@ std::optional<size_t> extraAt(const std::vector<deluge::instrument::RangeState>&
 } // namespace
 
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges) {
-	::Source& source = sound.sources[s];
+	::SourceResources& source = sound.sources[s];
 	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
 	if (now == ranges) {
 		sound.recordHeldRanges(s); // a gesture changed the runtime itself and records the result
@@ -143,14 +143,14 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	return Error::NONE;
 }
 
-std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::Source& source) {
+std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResources& source) {
 	deluge::instrument::SourceState into;
 	source.seedDxPatchInto(into);
 	return into.dx_patch;
 }
 
 Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
-	::Source& source = sound.sources[s];
+	::SourceResources& source = sound.sources[s];
 	if (sound.config().sources[s].osc_type != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}

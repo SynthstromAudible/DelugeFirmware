@@ -33,7 +33,7 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"

@@ -64,7 +64,7 @@
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo

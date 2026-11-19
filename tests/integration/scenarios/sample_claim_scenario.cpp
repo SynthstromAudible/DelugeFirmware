@@ -75,7 +75,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenarios/guest_drive.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "scenarios/slot_coherence.h"
@@ -748,7 +748,7 @@ Sample* previewedSample() {
 	if (deluge::gui::ui::shellPreviewer().pending()) {
 		return nullptr;
 	}
-	Source& source = AudioEngine::sampleForPreview->sources[0];
+	SourceResources& source = AudioEngine::sampleForPreview->sources[0];
 	if (source.ranges.empty()) {
 		return nullptr;
 	}
@@ -838,7 +838,7 @@ std::string g_osc2TypeBefore;
 
 /// Oscillator 2 of the boot synth on @p clip, as the menu's resolved sound target names it (`resolvedFor`).
 deluge::gui::SoundTarget osc2Target(Clip& clip) {
-	Source& source = g_synth->sources[1];
+	SourceResources& source = g_synth->sources[1];
 	return {.sound = g_synth,
 	        .mod = g_synth,
 	        .params = &clip.paramManager,
@@ -1172,7 +1172,7 @@ void prepareLeg() {
 			}
 			g_imStallRangePaths.clear();
 			if (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr) {
-				Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+				SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
 				for (int32_t i = 0; i < std::ssize(source.ranges); i++) {
 					g_imStallRangePaths.push_back(
 					    static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath);
@@ -2348,7 +2348,7 @@ void checkLeg() {
 	}
 	case Leg::ImportStall: {
 		deluge_audio_load_set_latency_ms(0);
-		Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
 		bool rangesKept = std::ssize(source.ranges) == std::ssize(g_imStallRangePaths);
 		for (int32_t i = 0; rangesKept && i < std::ssize(source.ranges); i++) {
 			rangesKept = static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath
@@ -2430,7 +2430,7 @@ void checkLeg() {
 		}
 		else {
 			auto* synth = static_cast<SoundInstrument*>(g_importSynthClip->output);
-			Source& source = synth->sources[0];
+			SourceResources& source = synth->sources[0];
 			const int32_t ranges = std::ssize(source.ranges);
 			int32_t matched = 0;
 			for (int32_t i = 0; i < ranges; i++) {

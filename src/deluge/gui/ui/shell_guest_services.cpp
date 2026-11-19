@@ -44,7 +44,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -249,7 +249,7 @@ bool shellNoteWithinCurrentRange(int32_t untransposed) {
 	if (sound == nullptr) {
 		return false;
 	}
-	Source& source = sound->sources[ctx.source_index];
+	SourceResources& source = sound->sources[ctx.source_index];
 	if (std::ssize(source.ranges) <= 1 || ctx.range_index >= std::ssize(source.ranges)) {
 		return false;
 	}

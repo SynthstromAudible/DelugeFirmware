@@ -24,7 +24,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/DX7Cartridge.h"
 
 #include "support/card_access.h"

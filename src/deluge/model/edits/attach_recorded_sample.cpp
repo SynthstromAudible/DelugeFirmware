@@ -9,7 +9,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
@@ -57,7 +57,7 @@ Error AttachRecordedSample::apply(Context& ctx) {
 	if (const Error error = type.apply(ctx); error != Error::NONE) {
 		return error;
 	}
-	::Source& source = sound->sources[source_];
+	::SourceResources& source = sound->sources[source_];
 	AudioFileHolder* holder =
 	    range_ < source.ranges.size() ? source.ranges.getElement(range_)->getAudioFileHolder() : nullptr;
 	if (holder == nullptr) {

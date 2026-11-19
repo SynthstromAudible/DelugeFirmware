@@ -2704,7 +2704,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const deluge::instrument::SourceState& from = state.sources[s];
-		Source& source = sources[s];
+		SourceResources& source = sources[s];
 		source.setOscType(from.osc_type);
 		if (from.dx_patch) {
 			DxPatch* patch = source.ensureDxPatch();
@@ -3005,7 +3005,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
 }
 
-// This function has to give the same outcome as Source::renderInStereo()
+// This function has to give the same outcome as SourceResources::renderInStereo()
 VoiceKind Sound::voiceKind() const {
 	if (getSynthMode() == SynthMode::RINGMOD) {
 		return VoiceKind::RINGMOD;
@@ -3052,9 +3052,9 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	uint32_t mustExamineSourceInEachVoice = 0;
 
-	// Have a look at what samples, if any, are in each Source
+	// Have a look at what samples, if any, each source holds
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source* source = &sources[s];
+		SourceResources* source = &sources[s];
 
 		if (!modelStack->checkSourceEverActive(s)) {
 			continue;

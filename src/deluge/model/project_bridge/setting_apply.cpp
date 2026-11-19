@@ -36,7 +36,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/tree.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "util/comparison.h"
@@ -226,7 +226,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	}
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source& source = sound.sources[s];
+		SourceResources& source = sound.sources[s];
 		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
 			squareCameOrWent = squareCameOrWent || before.sources[s].osc_type == OscType::SQUARE
 			                   || after.sources[s].osc_type == OscType::SQUARE;

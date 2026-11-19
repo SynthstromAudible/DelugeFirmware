@@ -28,7 +28,7 @@ class ModelStackWithThreeMainThings;
 class MultiRange;
 class ParamManagerForTimeline;
 class Sound;
-class Source;
+class SourceResources;
 
 namespace deluge::instrument {
 enum class OscType : uint8_t;
@@ -46,10 +46,11 @@ struct SoundTarget {
 	::MultiRange* range = nullptr;
 	int16_t rangeIndex = -1;
 	int8_t sourceIndex = 0;
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 };
 
-/// @brief Point @p target's range at the one its index names after @p retype, by `Source::setOscType`'s rule for the
+/// @brief Point @p target's range at the one its index names after @p retype, by `SourceResources::setOscType`'s rule
+/// for the
 ///        legacy editor's range: nothing moves unless the ranges were reallocated, and a reallocation that had to
 ///        clear them starts again from range 0. An index past the end leaves the range as it is.
 void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype);

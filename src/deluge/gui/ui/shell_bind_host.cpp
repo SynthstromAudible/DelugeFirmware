@@ -92,7 +92,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
@@ -542,7 +542,7 @@ private:
 			if (AudioEngine::sampleForPreview == nullptr) {
 				return {};
 			}
-			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			::SourceResources& source = AudioEngine::sampleForPreview->sources[0];
 			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				return {};
 			}
@@ -567,7 +567,7 @@ private:
 		if (sound == nullptr || address.source >= kNumSources) {
 			return {};
 		}
-		::Source& source = sound->sources[address.source];
+		::SourceResources& source = sound->sources[address.source];
 		if (source.ranges.size() <= address.range || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 			return {};
 		}

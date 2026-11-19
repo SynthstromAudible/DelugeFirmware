@@ -58,7 +58,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "shell/shell.h"
 #include "storage/audio/audio_file.h"
@@ -421,7 +421,7 @@ void stepMidiEnding() {
 	if (!waitOver()) {
 		return;
 	}
-	const Source& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sources[0];
 	AudioFileHolder* holder = g_range->getAudioFileHolder();
 	const auto* sample = holder != nullptr ? static_cast<const Sample*>(holder->audioFile) : nullptr;
 	const bool isSample = g_sound->config().sources[0].osc_type == OscType::SAMPLE;
@@ -510,7 +510,7 @@ void stepClosedWait() {
 	if (!waitOver()) {
 		return;
 	}
-	const Source& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()),
@@ -564,7 +564,7 @@ void stepNulledWait() {
 	if (!waitOver()) {
 		return;
 	}
-	const Source& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()),

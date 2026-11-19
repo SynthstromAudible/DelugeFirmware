@@ -16,7 +16,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -106,7 +106,7 @@ describe waveforms("a waveform by its address", ${
 		expect(waveforms.info(range).has_value()).to_be_false();
 
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
-		Source& source = sound->sources[0];
+		SourceResources& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
 		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
@@ -142,7 +142,7 @@ describe waveforms("a waveform by its address", ${
 		Song* const saved = currentSong;
 		currentSong = synth.song;
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
-		Source& source = sound->sources[0];
+		SourceResources& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
 		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));

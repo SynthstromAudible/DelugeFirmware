@@ -80,7 +80,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -339,7 +339,7 @@ Sample* make_sample() {
 ///        pointing at `kChosenPath`, so `sample_start_at` lands the browser on that file.
 struct SongRig {
 	spec::SongFixture song = spec::make_synth_song();
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	SongRig(const SongRig&) = delete;

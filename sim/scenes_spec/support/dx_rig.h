@@ -23,7 +23,7 @@
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/menu_engine.h"
 #include "support/mocks/fake_surfaces.h"

@@ -21,7 +21,7 @@
 
 #include "model/sample/sample_holder.h"
 
-class Source;
+class SourceResources;
 
 class SampleHolderForVoice final : public SampleHolder {
 public:

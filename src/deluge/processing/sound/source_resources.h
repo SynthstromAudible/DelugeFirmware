@@ -29,10 +29,10 @@ class DxPatch;
 
 #include "instruments/deluge/sound_state.h"
 
-class Source {
+class SourceResources {
 public:
-	Source();
-	~Source();
+	SourceResources();
+	~SourceResources();
 
 	/// @brief Copy the DX7 patch into @p d: the 156 params, engineMode and random_detune, or clear it when the
 	/// engine patch is absent (non-DX7 osc).

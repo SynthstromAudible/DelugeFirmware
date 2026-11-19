@@ -17,20 +17,21 @@
 
 #pragma once
 
-class Source;
+class SourceResources;
 
-/// @brief What an oscillator-type change did to a source's ranges, as `Source::setOscType` reports it.
+/// @brief What an oscillator-type change did to a source's ranges, as `SourceResources::setOscType` reports it.
 struct RangesRetype {
 	bool reallocated = false; ///< The ranges were rebuilt as the new type's ranges.
 	bool cleared = false;     ///< The rebuild had to empty them first: range 0 is the only one left.
 };
 
-/// @brief What `Source::setOscType` does to one source's ranges while this is alive. A claim or an import watches the
+/// @brief What `SourceResources::setOscType` does to one source's ranges while this is alive. A claim or an import
+/// watches the
 ///        type change it makes through the source's setting Edit, which reports nothing back. One at a time, on the
 ///        interaction tier.
 class RangesRetypeWatch {
 public:
-	explicit RangesRetypeWatch(const Source& source);
+	explicit RangesRetypeWatch(const SourceResources& source);
 	~RangesRetypeWatch();
 	RangesRetypeWatch(const RangesRetypeWatch&) = delete;
 	RangesRetypeWatch& operator=(const RangesRetypeWatch&) = delete;
@@ -38,10 +39,10 @@ public:
 	/// @return What happened to the watched source's ranges so far.
 	[[nodiscard]] RangesRetype result() const { return result_; }
 
-	/// @brief `Source::setOscType`'s report: @p source's ranges were rebuilt, emptied first when @p cleared.
-	static void rangesRetyped(const Source& source, bool cleared);
+	/// @brief `SourceResources::setOscType`'s report: @p source's ranges were rebuilt, emptied first when @p cleared.
+	static void rangesRetyped(const SourceResources& source, bool cleared);
 
 private:
-	const Source* source_;
+	const SourceResources* source_;
 	RangesRetype result_{};
 };

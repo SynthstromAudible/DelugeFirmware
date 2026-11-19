@@ -78,7 +78,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -187,7 +187,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
 /// **The site-8 example really opens the ported browser**, because
-/// `MenuScene::on_enter` performs the `Source::getOrCreateFirstRange()` legacy's permission
+/// `MenuScene::on_enter` performs the `SourceResources::getOrCreateFirstRange()` legacy's permission
 /// check performs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) -- so `browser::sample_can` stops
 /// refusing and the scene reads `SAMPLES/` off the fixture card, which holds a file. The latch keeps the audio
 /// routine still while that listing is built and emptied (`support/card_access.h`).
@@ -292,7 +292,7 @@ Sample* make_marker_sample() {
 
 /// @brief Give @p sound's source 0 one range holding @p sample, recorded as a load records it.
 void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
-	Source& source = sound.sources[0];
+	SourceResources& source = sound.sources[0];
 	sound.state_->sources[0].osc_type = OscType::SAMPLE;
 	sound.state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	sound.projectSnapshot();

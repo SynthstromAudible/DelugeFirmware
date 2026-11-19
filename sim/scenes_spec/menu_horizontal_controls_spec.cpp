@@ -47,7 +47,7 @@
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "util/functions.h"
 
 #include "support/menu_engine.h"
@@ -2423,7 +2423,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2454,7 +2454,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});

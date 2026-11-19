@@ -32,7 +32,7 @@
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -130,7 +130,7 @@ struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sample* sample = make_sample();
 	Sound* sound = nullptr;
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	const BoardProfile& profile;

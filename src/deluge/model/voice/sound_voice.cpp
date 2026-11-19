@@ -109,7 +109,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 	kernel.note_off(release_info_for(sound, paramManager, note_tails_allowed), allow_release_stage, engineClock());
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source* source = &sound.sources[s];
+		SourceResources* source = &sound.sources[s];
 		if (sound.config().sources[s].osc_type == OscType::SAMPLE) {
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
@@ -178,8 +178,8 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 		    oscType == OscType::SAMPLE && holder != nullptr
 		    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !guides[s].noteOffReceived);
 		block.source_in_stereo[s] =
-		    Source::renderInStereo(oscType, sound.config().voicing.unison_spread, sound.config().voicing.unison.count,
-		                           static_cast<SampleHolder*>(holder));
+		    SourceResources::renderInStereo(oscType, sound.config().voicing.unison_spread,
+		                                    sound.config().voicing.unison.count, static_cast<SampleHolder*>(holder));
 	}
 	return block;
 }
@@ -226,7 +226,7 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
-	const Source& source = sound.sources[s];
+	const SourceResources& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
 	const bool reversed = sound.playsReversed(s);

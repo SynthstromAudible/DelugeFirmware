@@ -329,7 +329,7 @@ reach past the page.
   Shift + a select turn (insert) are owned inputs, so the picker reads them from the frame snapshot.
   At depth 0 (a shortcut opens it at the root) the menu leaves BACK to `handle()`;
   `menu::owned_input` merges the item's `back` claim so the picker sees it there too.
-* **The range memory is the source's own** (`Source::defaultRangeI`), read through
+* **The range memory is the source's own** (`SourceResources::defaultRangeI`), read through
   `RuntimeFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
   `beginSession` and flick do. Insert and delete are their own sink verbs, which kill the voices and
   keep the other ranges' samples.

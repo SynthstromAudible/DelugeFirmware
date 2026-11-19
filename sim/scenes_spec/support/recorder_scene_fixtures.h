@@ -25,7 +25,7 @@
 #include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multisample_range.h"
 
 #include "support/song_fixture.h"
@@ -80,7 +80,7 @@ struct RecorderDisplay final : deluge::hid::Display {
 struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sound* sound = nullptr;
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	const BoardProfile& profile;

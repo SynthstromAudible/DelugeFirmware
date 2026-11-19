@@ -149,7 +149,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -429,7 +429,7 @@ Sample* make_sample() {
 /// @return The range, so a caller can read the marker positions back.
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
 	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-	Source& source = sound->sources[0];
+	SourceResources& source = sound->sources[0];
 	sound->state_->sources[0].osc_type = OscType::SAMPLE;
 	sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	sound->state_->sources[0].reversed = false;
@@ -809,7 +809,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().state().walk.pending_after_range).to_equal(&nodes::source0_transpose);
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
 		// so it took `numRanges >> 1` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
-		// `MultiRange::beginSession`), which the picker writes back to `Source::defaultRangeI`.
+		// `MultiRange::beginSession`), which the picker writes back to `SourceResources::defaultRangeI`.
 		expect(static_cast<SoundInstrument*>(song.instrument)->sources[0].defaultRangeI).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);

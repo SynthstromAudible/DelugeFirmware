@@ -61,7 +61,8 @@ const deluge::instrument::SoundState* sound_state(const MenuContext& ctx) {
 	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
-/// @brief Does source @p index hold a loaded audio file? `Source::hasAtLeastOneAudioFileLoaded`: a fact of the card.
+/// @brief Does source @p index hold a loaded audio file? `SourceResources::hasAtLeastOneAudioFileLoaded`: a fact of the
+/// card.
 bool loaded(const MenuContext& ctx, uint8_t index) {
 	return ctx.facts != nullptr && ctx.addresses.slot
 	       && ((ctx.facts->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;

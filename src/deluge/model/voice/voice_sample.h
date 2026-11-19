@@ -29,7 +29,7 @@ class TimeStretcher;
 class SampleCache;
 class Sample;
 class VoiceSamplePlaybackGuide;
-class Source;
+class SourceResources;
 
 class VoiceSample final : public SampleLowLevelReader {
 public:

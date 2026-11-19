@@ -43,7 +43,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		bool ringModFails = false;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			VoiceSamplePlaybackGuide& guide = voice.guides[s];
-			const Source& source = sound.sources[s];
+			const SourceResources& source = sound.sources[s];
 			guide.audioFileHolder = nullptr;
 			bool playable = flags.checkSourceEverActive(s);
 			if (playable) [[likely]] {
@@ -77,7 +77,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 
 		// A sample plays the way the sound reverses it for this note, between the bounds that sets.
 		for (int32_t s = 0; s < kNumSources && !ringModFails; s++) {
-			Source& source = sound.sources[s];
+			SourceResources& source = sound.sources[s];
 			if (synthMode != SynthMode::FM && sound.config().sources[s].osc_type == OscType::SAMPLE
 			    && voice.guides[s].audioFileHolder && flags.checkSourceEverActive(s)) {
 				source.invertReversed = sound.invertReversed;
@@ -101,7 +101,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source& source = sound.sources[s];
+		SourceResources& source = sound.sources[s];
 		SourceSetup& out = setup.sources[s];
 		out.osc_type = sound.config().sources[s].osc_type;
 		out.ever_active = flags.checkSourceEverActive(s);

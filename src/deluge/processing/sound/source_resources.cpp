@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/sound_state.h"
 #include "libdeluge/system.h" // AudioExcludedSection
@@ -33,12 +33,12 @@
 #include <cstring>
 #include <iterator>
 
-Source::Source() {
+SourceResources::SourceResources() {
 	defaultRangeI = -1;
 	dxPatch = nullptr;
 }
 
-Source::~Source() {
+SourceResources::~SourceResources() {
 	// destruct dxPatch if it was allocated
 	if (dxPatch != nullptr) {
 		dxPatch->~DxPatch();
@@ -47,7 +47,7 @@ Source::~Source() {
 	}
 }
 
-void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
+void SourceResources::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	if (dxPatch != nullptr) {
 		deluge::instrument::DxPatchState p;
 		for (int32_t b = 0; b < 156; b++) {
@@ -62,7 +62,7 @@ void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	}
 }
 
-void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
+void SourceResources::seedRangesInto(deluge::instrument::SourceState& d) const {
 	d.ranges.clear();
 	int32_t numRanges = std::ssize(ranges);
 	d.ranges.reserve(numRanges);
@@ -85,7 +85,7 @@ void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
+int32_t SourceResources::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
 	if (range != nullptr) {
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
@@ -94,8 +94,8 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
-bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
-                            SampleHolder* sampleHolder) {
+bool SourceResources::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
+                                     SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) {
 		return false;
 	}
@@ -109,13 +109,13 @@ bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t
 	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
-void Source::detachAllAudioFiles() {
+void SourceResources::detachAllAudioFiles() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
 	}
 }
 
-deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
+deluge::storage::Walk SourceResources::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
 			return deluge::storage::Walk::Stop;
@@ -130,7 +130,7 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-void Source::followDirection(bool reversed) {
+void SourceResources::followDirection(bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -144,7 +144,7 @@ void Source::followDirection(bool reversed) {
 	}
 }
 
-MultiRange* Source::getRange(int32_t note) {
+MultiRange* SourceResources::getRange(int32_t note) {
 	if (std::ssize(ranges) == 1) {
 		return ranges.getElement(0);
 	}
@@ -160,7 +160,7 @@ MultiRange* Source::getRange(int32_t note) {
 	}
 }
 
-int32_t Source::getRangeIndex(int32_t note) {
+int32_t SourceResources::getRangeIndex(int32_t note) {
 	if (std::ssize(ranges) <= 1) {
 		return 0;
 	}
@@ -173,7 +173,7 @@ int32_t Source::getRangeIndex(int32_t note) {
 	}
 }
 
-MultiRange* Source::getOrCreateFirstRange() {
+MultiRange* SourceResources::getOrCreateFirstRange() {
 	if (ranges.empty()) {
 		MultiRange* newRange = ranges.insertMultiRange(
 		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
@@ -191,7 +191,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 	}
 }
 
-bool Source::hasAtLeastOneAudioFileLoaded() {
+bool SourceResources::hasAtLeastOneAudioFileLoaded() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (ranges.getElement(e)->getAudioFileHolder()->audioFile) {
 			return true;
@@ -201,7 +201,7 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-bool Source::hasAnyLoopEndPoint() {
+bool SourceResources::hasAnyLoopEndPoint() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 		if (range->sampleHolder.loopEndPos) {
@@ -213,7 +213,7 @@ bool Source::hasAnyLoopEndPoint() {
 
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied; likewise to or from an input type, whose live histories are replaced.
-void Source::setOscType(OscType newType) {
+void SourceResources::setOscType(OscType newType) {
 
 	int32_t multiRangeSize;
 	if (newType == OscType::SAMPLE) {
@@ -245,7 +245,7 @@ doChangeType:
 	reconcileLiveInputs(newType);
 }
 
-void Source::reconcileLiveInputs(OscType type) {
+void SourceResources::reconcileLiveInputs(OscType type) {
 	if (liveInputs.holds_for(type)) {
 		return;
 	}
@@ -257,7 +257,7 @@ void Source::reconcileLiveInputs(OscType type) {
 	// next holds the old histories, freed here, outside the section
 }
 
-DxPatch* Source::ensureDxPatch() {
+DxPatch* SourceResources::ensureDxPatch() {
 	if (dxPatch == nullptr) {
 		DxEngine* engine = getDxEngine();
 		if (engine == nullptr) {
