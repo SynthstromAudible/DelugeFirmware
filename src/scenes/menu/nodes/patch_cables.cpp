@@ -39,12 +39,12 @@
 #include "ui/oled/values.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/param_names.h"
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "model/project_bridge/patch_cable_words.h"
-#include "modulation/params/param.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 
@@ -56,7 +56,6 @@
 
 namespace deluge::scenes::menu::nodes {
 
-namespace params = deluge::modulation::params;
 using deluge::l10n::String;
 
 namespace {
@@ -214,15 +213,16 @@ const deluge::instrument::SoundState* sound_state_of(const MenuContext& ctx) {
 	                                                        : nullptr;
 }
 
-/// @brief The destination's short name (`getPatchedParamShortName`), the morph params named after what the sound's
+/// @brief The destination's short name (`l10n::patched_param_short_name_at`), the morph params named after what the
+/// sound's
 ///        filter modes make them.
 std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
 	const deluge::instrument::SoundState* state = sound_state_of(ctx);
 	const deluge::effects::FilterState* filter =
 	    state != nullptr ? &deluge::instrument::sound_effects(*state).filter : nullptr;
-	const char* name = filter != nullptr ? params::getPatchedParamShortName(p, filter->lpf_mode, filter->hpf_mode)
-	                                     : params::getPatchedParamShortName(p);
-	return name != nullptr ? std::string_view{name} : std::string_view{};
+	const auto index = static_cast<uint32_t>(p);
+	return filter != nullptr ? deluge::l10n::patched_param_short_name_at(index, filter->lpf_mode, filter->hpf_mode)
+	                         : deluge::l10n::patched_param_short_name_at(index);
 }
 
 /// @brief `((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >>

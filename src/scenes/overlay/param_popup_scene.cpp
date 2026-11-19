@@ -6,10 +6,11 @@
 
 #include "ui/oled/popup.h"
 
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
-#include "modulation/params/param.h"
 #include "notify/notice_queue.h"
 #include "plugin-api/types/arp_rhythm.h"
 #include "plugin-api/types/param.h"
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <string_view>
 #include <utility>
 
 namespace deluge::scenes::overlay {
@@ -103,10 +105,10 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		const auto type = static_cast<deluge::modulation::params::ParamType>(param_id);
-		out.append(context.filter ? deluge::modulation::params::getPatchedParamShortName(type, context.filter->lpf_mode,
-		                                                                                 context.filter->hpf_mode)
-		                          : deluge::modulation::params::getPatchedParamShortName(type));
+		const auto index = static_cast<uint32_t>(param_id);
+		out.append(context.filter ? deluge::l10n::patched_param_short_name_at(index, context.filter->lpf_mode,
+		                                                                      context.filter->hpf_mode)
+		                          : deluge::l10n::patched_param_short_name_at(index));
 	}
 	else if (context.midi_clip) {
 		// The MIDI-clip CC/expression form. The caller has already resolved
@@ -135,10 +137,12 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		}
 	}
 	else {
-		const char* name = context.filter ? deluge::modulation::params::getParamDisplayName(
-		                                        kind, param_id, context.filter->lpf_mode, context.filter->hpf_mode)
-		                                  : deluge::modulation::params::getParamDisplayName(kind, param_id);
-		if (name != deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE)) {
+		const auto index = static_cast<uint32_t>(param_id);
+		const std::string_view name =
+		    context.filter
+		        ? deluge::l10n::param_name_at(kind, index, context.filter->lpf_mode, context.filter->hpf_mode)
+		        : deluge::l10n::param_name_at(kind, index);
+		if (name != deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE)) {
 			out.append(name);
 		}
 	}

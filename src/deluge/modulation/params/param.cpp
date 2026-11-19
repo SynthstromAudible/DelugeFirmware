@@ -19,9 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
-#include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
 #include <cstring>
@@ -58,74 +58,7 @@ bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::Ef
 }
 
 char const* getPatchedParamShortName(ParamType type) {
-	// clang-format off
-	static char const* const NAMES[GLOBAL_NONE] = {
-	                                      //          //
-	    [LOCAL_OSC_A_VOLUME]             = "Osc1 level",
-	    [LOCAL_OSC_B_VOLUME]             = "Osc2 level",
-	    [LOCAL_VOLUME]                   = "Level",
-	    [LOCAL_NOISE_VOLUME]             = "Noise",
-	    [LOCAL_MODULATOR_0_VOLUME]       = "Mod1 level",
-	    [LOCAL_MODULATOR_1_VOLUME]       = "Mod2 level",
-	    [LOCAL_FOLD]                     = "Wavefold",
-	    [LOCAL_MODULATOR_0_FEEDBACK]     = "Mod1 feed",
-	    [LOCAL_MODULATOR_1_FEEDBACK]     = "Mod2 feed",
-	    [LOCAL_CARRIER_0_FEEDBACK]       = "Osc1 feed",
-	    [LOCAL_CARRIER_1_FEEDBACK]       = "Osc2 feed",
-	    [LOCAL_LPF_RESONANCE]            = "LPF reso",
-	    [LOCAL_HPF_RESONANCE]            = "HPF reso",
-	    [LOCAL_ENV_0_SUSTAIN]            = "Env1 sus",
-	    [LOCAL_ENV_1_SUSTAIN]            = "Env2 sus",
-	    [LOCAL_ENV_2_SUSTAIN]            = "Env3 sus",
-	    [LOCAL_ENV_3_SUSTAIN]            = "Env4 sus",
-	    [LOCAL_LPF_MORPH]                = "LPF Morph",
-	    [LOCAL_HPF_MORPH]                = "HPF Morph",
-	    [LOCAL_OSC_A_PHASE_WIDTH]        = "Osc1 PW",
-	    [LOCAL_OSC_B_PHASE_WIDTH]        = "Osc2 PW",
-	    [LOCAL_OSC_A_WAVE_INDEX]         = "Osc1 wave",
-	    [LOCAL_OSC_B_WAVE_INDEX]         = "Osc2 wave",
-	    [LOCAL_PAN]                      = "Pan",
-	    [LOCAL_LPF_FREQ]                 = "LPf freq",
-	    [LOCAL_PITCH_ADJUST]             = "Pitch",
-	    [LOCAL_OSC_A_PITCH_ADJUST]       = "Osc1 pitch",
-	    [LOCAL_OSC_B_PITCH_ADJUST]       = "Osc2 pitch",
-	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = "Mod1 pitch",
-	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = "Mod1 pitch",
-	    [LOCAL_HPF_FREQ]                 = "HPF freq",
-	    [LOCAL_LFO_LOCAL_FREQ_1]           = "LFO2 rate",
-	    [LOCAL_LFO_LOCAL_FREQ_2]           = "LFO4 rate",
-	    [LOCAL_ENV_0_ATTACK]             = "Env1attack",
-	    [LOCAL_ENV_1_ATTACK]             = "Env2attack",
-	    [LOCAL_ENV_2_ATTACK]             = "Env3attack",
-	    [LOCAL_ENV_3_ATTACK]             = "Env4attack",
-	    [LOCAL_ENV_0_DECAY]              = "Env1 decay",
-	    [LOCAL_ENV_1_DECAY]              = "Env2 decay",
-	    [LOCAL_ENV_2_DECAY]              = "Env3 decay",
-	    [LOCAL_ENV_3_DECAY]              = "Env4 decay",
-	    [LOCAL_ENV_0_RELEASE]            = "Env1 rel",
-	    [LOCAL_ENV_1_RELEASE]            = "Env2 rel",
-	    [LOCAL_ENV_2_RELEASE]            = "Env3 rel",
-	    [LOCAL_ENV_3_RELEASE]            = "Env4 rel",
-	    [GLOBAL_VOLUME_POST_FX]          = "POSTFXLVL",
-	    [GLOBAL_VOLUME_POST_REVERB_SEND] = "Side level",
-	    [GLOBAL_REVERB_AMOUNT]           = "Reverb amt",
-	    [GLOBAL_MOD_FX_DEPTH]            = "ModFXdepth",
-	    [GLOBAL_DELAY_FEEDBACK]          = "Delay feed",
-	    [GLOBAL_DELAY_RATE]              = "Delay rate",
-	    [GLOBAL_MOD_FX_RATE]             = "ModFX rate",
-	    [GLOBAL_LFO_FREQ_1]                = "LFO1 rate",
-	    [GLOBAL_LFO_FREQ_2]                = "LFO3 rate",
-	    [GLOBAL_ARP_RATE]                = "Arp. rate",
-	};
-	// clang-format on
-
-	if (type < GLOBAL_NONE) {
-		return NAMES[type];
-	}
-	else {
-		__builtin_unreachable();
-		return nullptr;
-	}
+	return l10n::patched_param_short_name_at(type).data();
 }
 
 char const* getPatchedParamShortName(ParamType type, const deluge::model::EffectsOwner* owner) {
@@ -137,171 +70,15 @@ char const* getPatchedParamShortName(ParamType type, const deluge::model::Effect
 }
 
 char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf) {
-	// See getParamDisplayName: the ladder filters rename morph after what it actually does.
-	if (type == LOCAL_LPF_MORPH
-	    && model::filter::SpecificFilter(lpf).getFamily() == model::filter::FilterFamily::LP_LADDER) {
-		return "LPF Drive";
-	}
-	if (type == LOCAL_HPF_MORPH
-	    && model::filter::SpecificFilter(hpf).getFamily() == model::filter::FilterFamily::HP_LADDER) {
-		return "HPF FM";
-	}
-	return getPatchedParamShortName(type);
+	return l10n::patched_param_short_name_at(type, lpf, hpf).data();
 }
 
 char const* getPatchedParamDisplayName(int32_t p) {
-	using enum l10n::String;
-
-	static l10n::String const NAMES[GLOBAL_NONE] = {
-	    [LOCAL_OSC_A_VOLUME] = STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME,
-	    [LOCAL_OSC_B_VOLUME] = STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME,
-	    [LOCAL_VOLUME] = STRING_FOR_PARAM_LOCAL_VOLUME,
-	    [LOCAL_NOISE_VOLUME] = STRING_FOR_PARAM_LOCAL_NOISE_VOLUME,
-	    [LOCAL_MODULATOR_0_VOLUME] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME,
-	    [LOCAL_MODULATOR_1_VOLUME] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME,
-	    [LOCAL_FOLD] = STRING_FOR_WAVEFOLDER,
-	    [LOCAL_MODULATOR_0_FEEDBACK] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK,
-	    [LOCAL_MODULATOR_1_FEEDBACK] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK,
-	    [LOCAL_CARRIER_0_FEEDBACK] = STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK,
-	    [LOCAL_CARRIER_1_FEEDBACK] = STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK,
-	    [LOCAL_LPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_LPF_RESONANCE,
-	    [LOCAL_HPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_HPF_RESONANCE,
-	    [LOCAL_ENV_0_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN,
-	    [LOCAL_ENV_1_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN,
-	    [LOCAL_ENV_2_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_2_SUSTAIN,
-	    [LOCAL_ENV_3_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_3_SUSTAIN,
-	    [LOCAL_LPF_MORPH] = STRING_FOR_PARAM_LOCAL_LPF_MORPH,
-	    [LOCAL_HPF_MORPH] = STRING_FOR_PARAM_LOCAL_HPF_MORPH,
-	    [LOCAL_OSC_A_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH,
-	    [LOCAL_OSC_B_PHASE_WIDTH] = STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH,
-	    [LOCAL_OSC_A_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX,
-	    [LOCAL_OSC_B_WAVE_INDEX] = STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX,
-	    [LOCAL_PAN] = STRING_FOR_PARAM_LOCAL_PAN,
-	    [LOCAL_LPF_FREQ] = STRING_FOR_PARAM_LOCAL_LPF_FREQ,
-	    [LOCAL_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_PITCH_ADJUST,
-	    [LOCAL_OSC_A_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST,
-	    [LOCAL_OSC_B_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST,
-	    [LOCAL_MODULATOR_0_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST,
-	    [LOCAL_MODULATOR_1_PITCH_ADJUST] = STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST,
-	    [LOCAL_HPF_FREQ] = STRING_FOR_PARAM_LOCAL_HPF_FREQ,
-	    [LOCAL_LFO_LOCAL_FREQ_1] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_1,
-	    [LOCAL_LFO_LOCAL_FREQ_2] = STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ_2,
-	    [LOCAL_ENV_0_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK,
-	    [LOCAL_ENV_1_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK,
-	    [LOCAL_ENV_2_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_2_ATTACK,
-	    [LOCAL_ENV_3_ATTACK] = STRING_FOR_PARAM_LOCAL_ENV_3_ATTACK,
-	    [LOCAL_ENV_0_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_0_DECAY,
-	    [LOCAL_ENV_1_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_1_DECAY,
-	    [LOCAL_ENV_2_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_2_DECAY,
-	    [LOCAL_ENV_3_DECAY] = STRING_FOR_PARAM_LOCAL_ENV_3_DECAY,
-	    [LOCAL_ENV_0_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE,
-	    [LOCAL_ENV_1_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE,
-	    [LOCAL_ENV_2_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_2_RELEASE,
-	    [LOCAL_ENV_3_RELEASE] = STRING_FOR_PARAM_LOCAL_ENV_3_RELEASE,
-	    [GLOBAL_VOLUME_POST_FX] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX,
-	    [GLOBAL_VOLUME_POST_REVERB_SEND] = STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND,
-	    [GLOBAL_REVERB_AMOUNT] = STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT,
-	    [GLOBAL_MOD_FX_DEPTH] = STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH,
-	    [GLOBAL_DELAY_FEEDBACK] = STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK,
-	    [GLOBAL_DELAY_RATE] = STRING_FOR_PARAM_GLOBAL_DELAY_RATE,
-	    [GLOBAL_MOD_FX_RATE] = STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE,
-	    [GLOBAL_LFO_FREQ_1] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_1,
-	    [GLOBAL_LFO_FREQ_2] = STRING_FOR_PARAM_GLOBAL_LFO_FREQ_2,
-	    [GLOBAL_ARP_RATE] = STRING_FOR_PARAM_GLOBAL_ARP_RATE,
-	};
-
-	if (p < GLOBAL_NONE) {
-		// These can basically be 13 chars long, or 14 if the last one is a dot.
-		return l10n::get(NAMES[p]);
-	}
-	else {
-		return l10n::get(STRING_FOR_NONE);
-	}
+	return l10n::param_name_at(Kind::PATCHED, static_cast<uint32_t>(p)).data();
 }
 
 char const* getParamDisplayName(Kind kind, int32_t p) {
-	using enum l10n::String;
-	if (kind == Kind::PATCHED) {
-		return getPatchedParamDisplayName(p);
-	}
-
-	if ((kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL) && p < (UNPATCHED_NUM_SHARED)) {
-		static l10n::String const NAMES[UNPATCHED_NUM_SHARED] = {
-		    [UNPATCHED_STUTTER_RATE] = STRING_FOR_STUTTER_RATE,
-		    [UNPATCHED_BASS] = STRING_FOR_BASS,
-		    [UNPATCHED_TREBLE] = STRING_FOR_TREBLE,
-		    [UNPATCHED_BASS_FREQ] = STRING_FOR_BASS_FREQUENCY,
-		    [UNPATCHED_TREBLE_FREQ] = STRING_FOR_TREBLE_FREQUENCY,
-		    [UNPATCHED_SAMPLE_RATE_REDUCTION] = STRING_FOR_DECIMATION,
-		    [UNPATCHED_BITCRUSHING] = STRING_FOR_BITCRUSH,
-		    [UNPATCHED_MOD_FX_OFFSET] = STRING_FOR_MODFX_OFFSET,
-		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
-		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
-		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD,
-		    [UNPATCHED_ARP_GATE] = STRING_FOR_ARP_GATE_MENU_TITLE,
-		    [UNPATCHED_ARP_RHYTHM] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
-		    [UNPATCHED_ARP_SEQUENCE_LENGTH] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
-		    [UNPATCHED_ARP_CHORD_POLYPHONY] = STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
-		    [UNPATCHED_ARP_RATCHET_AMOUNT] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
-		    [UNPATCHED_NOTE_PROBABILITY] = STRING_FOR_NOTE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_REVERSE_PROBABILITY] = STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_BASS_PROBABILITY] = STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_SWAP_PROBABILITY] = STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_GLIDE_PROBABILITY] = STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_CHORD_PROBABILITY] = STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_RATCHET_PROBABILITY] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_SPREAD_GATE] = STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-		    [UNPATCHED_ARP_SPREAD_OCTAVE] = STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
-		    [UNPATCHED_SPREAD_VELOCITY] = STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
-		};
-		return l10n::get(NAMES[p]);
-	}
-
-	if (kind == Kind::EXPRESSION && p < kNumExpressionDimensions) {
-		static l10n::String const NAMES[kNumExpressionDimensions] = {
-		    [Expression::X_PITCH_BEND] = STRING_FOR_PITCH_BEND,
-		    [Expression::Y_SLIDE_TIMBRE] = STRING_FOR_MOD_WHEEL,
-		    [Expression::Z_PRESSURE] = STRING_FOR_CHANNEL_PRESSURE,
-		};
-		return l10n::get(NAMES[p]);
-	}
-
-	constexpr ParamType unc = UNPATCHED_NUM_SHARED;
-
-	if (kind == Kind::UNPATCHED_SOUND && p < util::to_underlying(UNPATCHED_SOUND_MAX_NUM)) {
-		using enum UnpatchedSound;
-		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
-		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
-		};
-		return l10n::get(NAMES[p - unc]);
-	}
-
-	if (kind == Kind::UNPATCHED_GLOBAL && p < UNPATCHED_GLOBAL_MAX_NUM) {
-		using enum UnpatchedGlobal;
-
-		static l10n::String const NAMES[UNPATCHED_GLOBAL_MAX_NUM - unc] = {
-		    [UNPATCHED_MOD_FX_RATE - unc] = STRING_FOR_MOD_FX_RATE,
-		    [UNPATCHED_MOD_FX_DEPTH - unc] = STRING_FOR_MOD_FX_DEPTH,
-		    [UNPATCHED_DELAY_RATE - unc] = STRING_FOR_DELAY_RATE,
-		    [UNPATCHED_DELAY_AMOUNT - unc] = STRING_FOR_DELAY_AMOUNT,
-		    [UNPATCHED_ARP_RATE - unc] = STRING_FOR_ARP_RATE_MENU_TITLE,
-		    [UNPATCHED_PAN - unc] = STRING_FOR_PAN,
-		    [UNPATCHED_LPF_FREQ - unc] = STRING_FOR_LPF_FREQUENCY,
-		    [UNPATCHED_LPF_RES - unc] = STRING_FOR_LPF_RESONANCE,
-		    [UNPATCHED_LPF_MORPH - unc] = STRING_FOR_LPF_MORPH,
-		    [UNPATCHED_HPF_FREQ - unc] = STRING_FOR_HPF_FREQUENCY,
-		    [UNPATCHED_HPF_RES - unc] = STRING_FOR_HPF_RESONANCE,
-		    [UNPATCHED_HPF_MORPH - unc] = STRING_FOR_HPF_MORPH,
-		    [UNPATCHED_REVERB_SEND_AMOUNT - unc] = STRING_FOR_REVERB_AMOUNT,
-		    [UNPATCHED_VOLUME - unc] = STRING_FOR_MASTER_LEVEL,
-		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
-		    [UNPATCHED_PITCH_ADJUST - unc] = STRING_FOR_MASTER_PITCH,
-		    [UNPATCHED_TEMPO - unc] = STRING_FOR_TEMPO,
-		};
-		return l10n::get(NAMES[p - unc]);
-	}
-
-	return l10n::get(STRING_FOR_NONE);
+	return l10n::param_name_at(kind, static_cast<uint32_t>(p)).data();
 }
 
 char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::EffectsOwner* owner) {
@@ -314,21 +91,7 @@ char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::Effec
 
 char const* getParamDisplayName(Kind kind, int32_t p, deluge::effects::FilterMode lpf,
                                 deluge::effects::FilterMode hpf) {
-	using enum l10n::String;
-	const bool isLPFMorph = (kind == Kind::PATCHED && p == LOCAL_LPF_MORPH)
-	                        || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_LPF_MORPH);
-	const bool isHPFMorph = (kind == Kind::PATCHED && p == LOCAL_HPF_MORPH)
-	                        || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_HPF_MORPH);
-
-	// The ladder filters repurpose morph, so they name it after what it actually does. The SVF modes really do
-	// morph, and a filter which is off has no morph param at all, so both keep the default name.
-	if (isLPFMorph && model::filter::SpecificFilter(lpf).getFamily() == model::filter::FilterFamily::LP_LADDER) {
-		return l10n::get(STRING_FOR_LPF_DRIVE);
-	}
-	if (isHPFMorph && model::filter::SpecificFilter(hpf).getFamily() == model::filter::FilterFamily::HP_LADDER) {
-		return l10n::get(STRING_FOR_HPF_FM);
-	}
-	return getParamDisplayName(kind, p);
+	return l10n::param_name_at(kind, static_cast<uint32_t>(p), lpf, hpf).data();
 }
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation) {

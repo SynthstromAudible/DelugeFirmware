@@ -16,12 +16,12 @@
 #include "effects/words.h"
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "modulation/params/param.h"
 #include "music-theory/note_length.h"
 
 #include <algorithm>
@@ -37,7 +37,6 @@ namespace {
 using deluge::l10n::String;
 using deluge::project::ControllerMapping;
 namespace ip = deluge::instrument::param;
-namespace params = deluge::modulation::params;
 
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
@@ -446,14 +445,14 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += source_short_name(second);
 			out += " -> ";
 		}
-		out += params::getPatchedParamShortName(static_cast<params::ParamType>(destination ? destination->index : 0),
-		                                        fx.filter.lpf_mode, fx.filter.hpf_mode);
+		out += l10n::patched_param_short_name_at(destination ? destination->index : 0, fx.filter.lpf_mode,
+		                                         fx.filter.hpf_mode);
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
 		const std::optional<uint8_t> index = host_chain::find_runtime_index(id);
-		return index ? params::getParamDisplayName(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
-		                                           fx.filter.hpf_mode)
+		return index ? std::string{l10n::param_name_at(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
+		                                               fx.filter.hpf_mode)}
 		             : std::string{};
 	}
 	const std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(id);
@@ -462,7 +461,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 	}
 	const plugin::ParamKind kind =
 	    slot->set == instrument::RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND;
-	return params::getParamDisplayName(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode);
+	return std::string{l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode)};
 }
 
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.

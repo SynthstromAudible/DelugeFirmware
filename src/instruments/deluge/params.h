@@ -378,6 +378,12 @@ static_assert(kParams.size() == kParamBlocks[0].count + kParamBlocks[1].count);
 /// @brief The id of the MPE X axis (pitch bend) in the host's expression space, which numbers the axes X, Y, Z.
 inline constexpr plugin::ParamId kExpressionPitchBend{0};
 
+/// @brief The id of the MPE Y axis (slide, the mod wheel in mono expression) in the host's expression space.
+inline constexpr plugin::ParamId kExpressionModWheel{1};
+
+/// @brief The id of the MPE Z axis (pressure) in the host's expression space.
+inline constexpr plugin::ParamId kExpressionPressure{2};
+
 /// @brief The first of the sound's global patched params: the per-voice ones have lower ids.
 inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 
