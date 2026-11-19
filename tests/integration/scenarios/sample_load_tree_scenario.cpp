@@ -31,6 +31,7 @@
 
 #include "extern.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "scenarios/slot_coherence.h"
@@ -506,6 +507,7 @@ bool writePresets() {
 		return setupFailed("the preset synth has no sample range");
 	}
 	holder->filePath = kSynthPresetSample;
+	deluge::edits::recordRanges(*synth, 0); // the set-up synth plays its state, which the save writes
 	currentSong->live.param_backup.backUp(*synth, nullptr, &synthParams, true);
 	if (!writeInstrumentDocument(*synth, kSynthPresetPath, "\n</sound>\n")) {
 		return false;

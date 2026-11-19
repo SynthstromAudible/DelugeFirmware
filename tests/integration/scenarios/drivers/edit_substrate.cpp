@@ -54,6 +54,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/deluge_synth.h"
+#include "instruments/deluge/dx7_init_voice.h"
 #include "instruments/deluge/settings.h"
 #include "io/midi/mapping_index.h"
 #include "model/drum/drum.h"
@@ -918,6 +919,28 @@ void testRemovalDropsOnlyOwnRecords(deluge::edits::Context& ctx) {
 }
 
 // A DX7 source's patch changes through an Edit, its slot following, and its engine as it is chosen today; a source
+// A blank DX7 synth, as a new clip's synth is set up, plays a DX7 oscillator on the init voice: in its state, its
+// runtime and its record once added.
+void testBlankDxSynth(deluge::edits::Context& ctx) {
+	ParamManagerForTimeline paramManager;
+	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	check(synth != nullptr, "blank dx: a new synth");
+	if (synth == nullptr) {
+		return;
+	}
+	Sound& sound = *static_cast<SoundInstrument*>(synth);
+	static_cast<SoundInstrument*>(synth)->setupAsBlankSynth(&paramManager, true);
+	const deluge::instrument::SoundState* state = sound.boundState();
+	check(state != nullptr && state->sources[0].osc_type == OscType::DX7 && state->sources[0].dx_patch.has_value()
+	          && state->sources[0].dx_patch->params == deluge::instrument::kDx7InitVoice,
+	      "blank dx: its state holds a DX7 oscillator on the init voice");
+	check(sound.sources[0].oscType == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
+	      "blank dx: its runtime plays a DX7 oscillator");
+	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
+	ctx.song.addOutput(synth);
+	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "blank dx: its record is what it plays");
+}
+
 // that is not a DX7 oscillator refuses one.
 void testSetDxPatch(deluge::edits::Context& ctx) {
 	using deluge::serialization::Value;
@@ -1575,6 +1598,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testDrumIdsAreUnique(ctx);
 	testRemovalDropsOnlyOwnRecords(ctx);
 	testSetDxPatch(ctx);
+	testBlankDxSynth(ctx);
 	testKnobTargets(ctx);
 	testSetControls(ctx);
 	testKnobGesturesRecord(ctx);

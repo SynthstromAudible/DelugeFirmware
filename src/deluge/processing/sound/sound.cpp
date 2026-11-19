@@ -36,6 +36,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_rules.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/clock.h"
 #include "libdeluge/system.h"
@@ -265,6 +266,7 @@ void Sound::initParams(ParamManager* paramManager) {
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
+	const deluge::instrument::SoundState before = state_ != nullptr ? *state_ : seededState();
 
 	config_.voicing.polyphony = PolyphonyMode::AUTO;
 	deluge::model::changeEffects(
@@ -301,9 +303,11 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	setupDefaultExpressionPatching(paramManager);
 
 	doneReadingFromFile();
+	adoptState(deluge::instrument::as_sample_sound(before));
 }
 
 void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
+	const deluge::instrument::SoundState before = state_ != nullptr ? *state_ : seededState();
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -360,6 +364,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	setTranspose(-12); // unbound at this setup point → writes the snapshot
 
 	doneReadingFromFile();
+	adoptState(deluge::instrument::as_default_synth(before));
 }
 
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
@@ -378,6 +383,7 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 }
 
 void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
+	const deluge::instrument::SoundState before = state_ != nullptr ? *state_ : seededState();
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -412,6 +418,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	setupDefaultExpressionPatching(paramManager);
 
 	doneReadingFromFile();
+	adoptState(deluge::instrument::as_blank_synth(before, is_dx));
 }
 
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -2746,7 +2753,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// The sound plays what the file holds, as the decode makes it (the reader above set its runtime to the same); its
 	// effects are the ones the render plays, which binding them copies in
-	adoptLoadedState(std::move(decoded));
+	adoptState(std::move(decoded));
 
 	return Error::NONE;
 }
@@ -2956,8 +2963,8 @@ void Sound::bindState() {
 	}
 }
 
-void Sound::adoptLoadedState(deluge::instrument::SoundState loaded) {
-	// A drum reads into the record its kit adopted it into; any other sound into its own state
+void Sound::adoptState(deluge::instrument::SoundState loaded) {
+	// A drum plays the record its kit adopted it into; any other sound its own state
 	deluge::instrument::SoundState& home = (state_ == nullptr || state_ == &ownedState_) ? ownedState_ : *state_;
 	home = std::move(loaded);
 	state_ = &home;

@@ -100,6 +100,35 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		expect(with_loop_mode(independent, SourceId::B, SampleRepeatMode::ONCE).sources[1].pitch_and_speed_independent)
 		    .to_equal(true);
 	});
+
+	it("sets a sound up for samples, keeping the rest", _ {
+		SoundState s;
+		s.unison_detune = 33;
+		const SoundState sample = as_sample_sound(s);
+		expect(sample.polyphonic).to_equal(PolyphonyMode::AUTO);
+		expect(sample.effects.filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
+		expect(sample.sources[0].osc_type).to_equal(OscType::SAMPLE);
+		expect(sample.sources[1].osc_type).to_equal(OscType::SAMPLE);
+		expect(int{sample.unison_detune}).to_equal(33);
+	});
+
+	it("sets up the default synth: a saw an octave down over a square, four detuned parts", _ {
+		const SoundState synth = as_default_synth(SoundState{});
+		expect(synth.sources[0].osc_type).to_equal(OscType::SAW);
+		expect(int{synth.sources[1].transpose}).to_equal(-12);
+		expect(int{synth.transpose}).to_equal(-12);
+		expect(int{synth.num_unison}).to_equal(4);
+		expect(int{synth.unison_detune}).to_equal(10);
+		expect(synth.effects.filter.lpf_mode).to_equal(FilterMode::TRANSISTOR_24DB);
+	});
+
+	it("sets up a blank DX7 synth on the init voice, and leaves a blank synth's oscillators", _ {
+		const SoundState dx = as_blank_synth(SoundState{}, true);
+		expect(dx.sources[0].osc_type).to_equal(OscType::DX7);
+		expect(dx.sources[0].dx_patch.has_value()).to_equal(true);
+		expect(dx.sources[0].dx_patch->params == kDx7InitVoice).to_equal(true);
+		expect(as_blank_synth(SoundState{}, false) == SoundState{}).to_equal(true);
+	});
 });
 // clang-format on
 

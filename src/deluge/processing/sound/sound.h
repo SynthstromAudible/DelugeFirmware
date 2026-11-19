@@ -168,17 +168,17 @@ public:
 	/// adoptDrum on (its own copy, ownedState_, before adoption and once its record goes), null before it is first
 	/// bound (a sound under preview or audition writes its runtime fields and snapshot directly).
 	deluge::instrument::SoundState* state_{nullptr};
-	/// @brief Bind this sound's own state and seed it from the runtime fields: a sound that was set up rather than
-	/// loaded (a load adopts its decoded state, adoptLoadedState).
+	/// @brief Bind this sound's own state and seed it from the runtime fields: a sound neither loaded nor set up (each
+	/// of those adopts its state, adoptState).
 	void bindState();
 	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds (binding its
 	/// own state first when unbound), its own state moved in or another record's copied, and from then on every setter
 	/// writes the record.
 	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
 	void bindState(deluge::instrument::SoundState& record);
-	/// @brief Play @p loaded, the state a load decoded and ruled: into the record a drum's kit bound it to, else into
-	/// the sound's own state, which its record takes when it is adopted.
-	void adoptLoadedState(deluge::instrument::SoundState loaded);
+	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
+	/// record a drum's kit bound it to, else in the sound's own state, which its record takes when it is adopted.
+	void adoptState(deluge::instrument::SoundState loaded);
 	/// @brief Take the state back from the record the sound is bound into, as the record goes: the state moves into the
 	/// sound's own, which it then plays, and the record is left empty. Nothing when it plays its own state already, or
 	/// none.

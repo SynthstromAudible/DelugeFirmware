@@ -42,6 +42,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -180,6 +181,7 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 		return false;
 	}
 	holder->filePath = samplePath;
+	deluge::edits::recordRanges(*synth, 0); // the set-up synth plays its state, which the save writes
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {

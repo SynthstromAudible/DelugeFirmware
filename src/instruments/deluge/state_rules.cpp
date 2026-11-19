@@ -89,4 +89,32 @@ SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) 
 	return state;
 }
 
+SoundState as_sample_sound(SoundState state) {
+	state.polyphonic = PolyphonyMode::AUTO;
+	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
+	state.sources[0].osc_type = OscType::SAMPLE;
+	state.sources[1].osc_type = OscType::SAMPLE;
+	return state;
+}
+
+SoundState as_default_synth(SoundState state) {
+	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
+	state.sources[0].osc_type = OscType::SAW;
+	state.sources[1].transpose = -12;
+	state.num_unison = 4;
+	state.unison_detune = 10;
+	state.transpose = -12;
+	return state;
+}
+
+SoundState as_blank_synth(SoundState state, bool dx) {
+	if (dx) {
+		state.sources[0].osc_type = OscType::DX7;
+		if (!state.sources[0].dx_patch) {
+			state.sources[0].dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
+		}
+	}
+	return state;
+}
+
 } // namespace deluge::instrument

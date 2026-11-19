@@ -44,4 +44,15 @@ namespace deluge::instrument {
 /// leaving it gives that up.
 [[nodiscard]] SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode);
 
+/// @brief @p state set up to play samples (a new kit row, the sample browser's preview): polyphony automatic, the 24dB
+/// ladder low-pass, both oscillators sample ones.
+[[nodiscard]] SoundState as_sample_sound(SoundState state);
+
+/// @brief @p state set up as the default new synth: a saw an octave down over a square, four detuned unison parts,
+/// the 24dB ladder low-pass.
+[[nodiscard]] SoundState as_default_synth(SoundState state);
+
+/// @brief @p state set up as a blank new synth, a DX7 one when @p dx (its first oscillator the init voice).
+[[nodiscard]] SoundState as_blank_synth(SoundState state, bool dx);
+
 } // namespace deluge::instrument
