@@ -563,14 +563,15 @@ void BrowserScene::preview_settled(bool has_sample) {
 	const bool spare_blink = std::exchange(spare_blink_from_preview_, false);
 	const BrowserPads before = pads_;
 	if (has_sample) {
-		// `showPreview`'s `unsetTimer(SHORTCUT_BLINK)`, except for the open's own first preview.
+		// `SampleBrowser::previewIfPossible`'s (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
+		// `unsetTimer(SHORTCUT_BLINK)`, except for the open's own first preview.
 		if (!spare_blink) {
 			browse_blink_ = BrowseBlink::Off;
 		}
-		// `showPreview`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are drawn
-		// if they should be and are not, or the waveform if the keyboard is hidden.
+		// `previewIfPossible`: a move scrolls the waveform in unless the keyboard is always up; otherwise the keys are
+		// drawn if they should be and are not, or the waveform if the keyboard is hidden.
 		showing_preview_ = true;
-		nav_identity_ = 0; // `showPreview` reopens the navigator: every landed preview opens zoomed out
+		nav_identity_ = 0; // `previewIfPossible` reopens the navigator: every landed preview opens zoomed out
 		if (direction != 0 && !keyboard_always_visible_) {
 			pads_ = BrowserPads::Waveform;
 			pad_scroll_.reset();
@@ -587,8 +588,8 @@ void BrowserScene::preview_settled(bool has_sample) {
 		}
 	}
 	else if ((showing_preview_ || (keys_drawn_ && !keyboard_visible_)) && !keyboard_always_visible_) {
-		// `clearPreviewDisplay`: a move scrolls the root view in; otherwise it shows unless the keyboard still claims
-		// the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
+		// The no-preview arm of `SampleBrowser::previewIfPossible`: a move scrolls the root view in; otherwise it shows
+		// unless the keyboard still claims the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
 		showing_preview_ = false;
 		keys_drawn_ = keyboard_visible_;
 		if (direction != 0 || !keyboard_visible_) {
@@ -965,7 +966,8 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
 	//
-	// Re-pin the name comparator before searching, exactly as `Browser::predictExtendedText` does, through
+	// Re-pin the name comparator before searching, as `Browser::predictExtendedText` does by setting
+	// `shouldInterpretNoteNames` and `octaveStartsFromA` from the browser's own setting, through
 	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
 	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
 	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
@@ -1485,8 +1487,9 @@ void BrowserScene::render_browse_blink(deluge::ui::grid::GridFrame& f) {
 }
 
 void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
-	// `showPreview`'s `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new
-	// sample as `waveformBasicNavigator.opened()` does.
+	// `SampleBrowser::previewIfPossible`'s (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
+	// `waveformRenderer.renderFullScreen` of the preview drum's sample, opened zoomed out on each new sample as
+	// `waveformBasicNavigator.opened()` does.
 	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
 	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
 	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);

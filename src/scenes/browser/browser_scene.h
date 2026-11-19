@@ -280,7 +280,8 @@ struct PreviewRequest {
 struct ScrollRequest {
 	/// The selection's move: -1 or 1.
 	int8_t direction = 0;
-	/// Scroll the root view in (`clearPreviewDisplay`); otherwise the browser's own main pads.
+	/// Scroll the root view in (the no-preview arm of `SampleBrowser::previewIfPossible`); otherwise the browser's own
+	/// main pads.
 	bool to_root = false;
 	/// Scroll what is shown out into nothing (`currentFileChanged`, while the next preview loads).
 	bool into_nothing = false;
@@ -454,7 +455,7 @@ public:
 		return pads_ == BrowserPads::Root ? deluge::ui::shell::PadRegions::None : deluge::ui::shell::PadRegions::Main;
 	}
 	/// @brief True for the sample browser: `SampleBrowser` greys at once (`reassessGreyout(true)`) whenever its pads
-	///        change, in `showPreview`, `clearPreviewDisplay` and the keyboard's reveal.
+	///        change, in `previewIfPossible` and the keyboard's reveal.
 	bool greyout_changes_instantly() const override { return id_ == BrowserId::Sample; }
 	/// @brief Everything but the audition column, which `SampleBrowser::padAction` hands to the instrument clip view.
 	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
