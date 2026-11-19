@@ -132,9 +132,15 @@ void keep_unwritten(FlatSoundState& state, const FlatSoundState& from);
 [[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, SoundState& state,
                                                              const plugin::CodecContext& context);
 
-/// @brief What a sound's slot says once it is changed: the state it decodes to, and its instrument entries the change
+/// @brief What a sound's slot says once it is changed: the record it decodes to, and its instrument entries the change
 /// touched, in file order.
 struct SlotChange {
+	SoundState state;
+	std::vector<std::string_view> changed;
+};
+
+/// @brief A SlotChange in the file's flat layout: what the codec's parse form decodes a change to.
+struct FlatSlotChange {
 	FlatSoundState state;
 	std::vector<std::string_view> changed;
 };
@@ -148,10 +154,10 @@ struct SlotChange {
 /// @param current  The state the slot decoded to before the change.
 /// @param context  The file context.
 /// @return The new state and the instrument entries the change touched, or why the element cannot be read.
-[[nodiscard]] std::expected<SlotChange, plugin::StateError> decode_change(const serialization::Value& element,
-                                                                          const serialization::Value& previous,
-                                                                          const FlatSoundState& current,
-                                                                          const plugin::CodecContext& context);
+[[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> decode_change(const serialization::Value& element,
+                                                                              const serialization::Value& previous,
+                                                                              const FlatSoundState& current,
+                                                                              const plugin::CodecContext& context);
 
 /// @brief The state @p state becomes when its setting at @p path takes @p value, as decode_change of its slot with that
 /// leaf changed gives it, with the instrument entries the write touched. Only the path's own entry, and "mode" (which a
@@ -163,10 +169,10 @@ struct SlotChange {
 /// @param value   The value in its Edit form (canonical; a sync level as the level itself).
 /// @param context The file context: the slot's tick magnitude.
 /// @return The new state and the entries touched, or why the entry cannot be read.
-[[nodiscard]] std::expected<SlotChange, plugin::StateError> with_setting(const FlatSoundState& state,
-                                                                         std::string_view path,
-                                                                         const serialization::Value& value,
-                                                                         const plugin::CodecContext& context);
+[[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> with_setting(const FlatSoundState& state,
+                                                                             std::string_view path,
+                                                                             const serialization::Value& value,
+                                                                             const plugin::CodecContext& context);
 
 /// @brief The instrument's top-level keys whose encoding differs between @p a and @p b (present in one alone included),
 /// in file order.
@@ -195,10 +201,10 @@ struct SlotChange {
 /// @param keys    The instrument's top-level keys the change reaches.
 /// @param context The file context.
 /// @return The new state and the entries touched, or why an entry cannot be read.
-[[nodiscard]] std::expected<SlotChange, plugin::StateError> change_to(const FlatSoundState& state,
-                                                                      const FlatSoundState& next,
-                                                                      std::span<const std::string_view> keys,
-                                                                      const plugin::CodecContext& context);
+[[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> change_to(const FlatSoundState& state,
+                                                                          const FlatSoundState& next,
+                                                                          std::span<const std::string_view> keys,
+                                                                          const plugin::CodecContext& context);
 
 /// @brief decode_change of @p element onto @p current, whose slot is taken to be what @p current encodes to.
 /// @param element The sound's changed slot.
@@ -213,5 +219,29 @@ decode_onto(const serialization::Value& element, const FlatSoundState& current, 
 /// @param state The state to dump.
 /// @return A Map of the fields by name.
 [[nodiscard]] serialization::Value dump_state(const FlatSoundState& state);
+
+/// @brief decode_change() onto a sound's record: the change is read in the file's layout and composed.
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> decode_change(const serialization::Value& element,
+                                                                          const serialization::Value& previous,
+                                                                          const SoundState& current,
+                                                                          const plugin::CodecContext& context);
+
+/// @brief with_setting() on a sound's record.
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& state, std::string_view path,
+                                                                         const serialization::Value& value,
+                                                                         const plugin::CodecContext& context);
+
+/// @brief differing_entries() of two sounds' records, encoded per component.
+[[nodiscard]] std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+                                                              const plugin::CodecContext& context);
+
+/// @brief change_to() between two sounds' records.
+[[nodiscard]] std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state, const SoundState& next,
+                                                                      std::span<const std::string_view> keys,
+                                                                      const plugin::CodecContext& context);
+
+/// @brief decode_onto() onto a sound's record.
+[[nodiscard]] std::expected<SoundState, plugin::StateError>
+decode_onto(const serialization::Value& element, const SoundState& current, const plugin::CodecContext& context);
 
 } // namespace deluge::instrument

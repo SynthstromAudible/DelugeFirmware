@@ -171,8 +171,7 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 	Error error = applyChange(sound, before, change.state, song);
 	// The runtime reshapes ranges as it takes a type (keeping only top notes across kinds), which it reflects into the
 	// record: the gates' audit checks that the record is the change's afterwards.
-	if (error == Error::NONE && typedWriteAudit().enabled
-	    && !(*record == deluge::instrument::SoundState(change.state))) {
+	if (error == Error::NONE && typedWriteAudit().enabled && !(*record == change.state)) {
 		error = Error::UNSPECIFIED;
 	}
 	return error;
@@ -228,8 +227,7 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
 	else if (want && got->state == want->state) {
 		const bool named = std::ranges::all_of(
 		    got->changed, [&](std::string_view key) { return std::ranges::contains(want->changed, key); });
-		if (got->changed != deluge::instrument::changed_entries(before, deluge::instrument::SoundState(got->state))
-		    || !named) {
+		if (got->changed != deluge::instrument::changed_entries(before, got->state) || !named) {
 			why = " (touched entries)";
 		}
 	}
@@ -238,7 +236,7 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
 		deluge::instrument::SoundState again = want->state;
 		(void)deluge::instrument::write_setting(again, path, value);
 		const std::string_view key = path.substr(0, path.find('/'));
-		if (!(again == deluge::instrument::SoundState(got->state))
+		if (!(again == got->state)
 		    || deluge::instrument::changed_entries(want->state, got->state) != std::vector<std::string_view>{key}) {
 			why = " (state)";
 		}

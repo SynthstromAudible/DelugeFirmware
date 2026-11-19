@@ -1232,10 +1232,12 @@ void keep_unwritten(FlatSoundState& state, const FlatSoundState& from) {
 	}
 }
 
-std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
-                                                            const FlatSoundState& current,
-                                                            const plugin::CodecContext& context) {
-	SlotChange change; // from a new synth's state
+// Entry by entry: an unchanged one keeps the current state's, a changed one is read, with its legacy leaves kept:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+std::expected<FlatSlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
+                                                                const FlatSoundState& current,
+                                                                const plugin::CodecContext& context) {
+	FlatSlotChange change; // from a new synth's state
 	FlatSoundState& decoded = change.state;
 	if (auto read = decode_impl(element, decoded, context, /*file_read=*/false); !read) {
 		return std::unexpected(read.error());
@@ -1331,9 +1333,9 @@ std::vector<std::string_view> differing_entries(const FlatSoundState& a, const F
 	return keys;
 }
 
-std::expected<SlotChange, plugin::StateError> change_to(const FlatSoundState& state, const FlatSoundState& next,
-                                                        std::span<const std::string_view> keys,
-                                                        const plugin::CodecContext& context) {
+std::expected<FlatSlotChange, plugin::StateError> change_to(const FlatSoundState& state, const FlatSoundState& next,
+                                                            std::span<const std::string_view> keys,
+                                                            const plugin::CodecContext& context) {
 	Value previous = Value::makeMap();
 	Value element = Value::makeMap();
 	const auto add = [&](std::string_view key) {
@@ -1354,9 +1356,9 @@ std::expected<SlotChange, plugin::StateError> change_to(const FlatSoundState& st
 	return decode_change(element, previous, state, context);
 }
 
-std::expected<SlotChange, plugin::StateError> with_setting(const FlatSoundState& state, std::string_view path,
-                                                           const serialization::Value& value,
-                                                           const plugin::CodecContext& context) {
+std::expected<FlatSlotChange, plugin::StateError> with_setting(const FlatSoundState& state, std::string_view path,
+                                                               const serialization::Value& value,
+                                                               const plugin::CodecContext& context) {
 	const std::string_view key = path.substr(0, path.find('/'));
 	// The slot as far as this write reads it: the entry it changes, and the mode its reading may depend on. Every other
 	// entry is absent from both, so it compares equal and keeps the state's value.
@@ -1379,7 +1381,7 @@ std::expected<SlotChange, plugin::StateError> with_setting(const FlatSoundState&
 
 std::expected<FlatSoundState, plugin::StateError> decode_onto(const Value& element, const FlatSoundState& current,
                                                               const plugin::CodecContext& context) {
-	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
+	return decode_change(element, encode(current, context), current, context).transform([](FlatSlotChange change) {
 		return std::move(change.state);
 	});
 }
@@ -1429,6 +1431,55 @@ Value dump_state(const FlatSoundState& state) {
 		map.set("source" + std::to_string(s + 1), std::move(source));
 	}
 	return map;
+}
+
+namespace {
+
+/// @p change composed into a record's.
+std::expected<SlotChange, plugin::StateError> composed(std::expected<FlatSlotChange, plugin::StateError> change) {
+	return std::move(change).transform([](FlatSlotChange flat) {
+		return SlotChange{.state = SoundState(flat.state), .changed = std::move(flat.changed)};
+	});
+}
+
+} // namespace
+
+std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
+                                                            const SoundState& current,
+                                                            const plugin::CodecContext& context) {
+	return composed(decode_change(element, previous, FlatSoundState(current), context));
+}
+
+std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& state, std::string_view path,
+                                                           const serialization::Value& value,
+                                                           const plugin::CodecContext& context) {
+	return composed(with_setting(FlatSoundState(state), path, value, context));
+}
+
+std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
+                                                const plugin::CodecContext& context) {
+	std::vector<std::string_view> keys;
+	for (const std::string_view key : kStateKeys) {
+		const std::optional<Value> ea = encode_entry(a, key, context);
+		const std::optional<Value> eb = encode_entry(b, key, context);
+		if (ea.has_value() != eb.has_value() || (ea && !(*ea == *eb))) {
+			keys.push_back(key);
+		}
+	}
+	return keys;
+}
+
+std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state, const SoundState& next,
+                                                        std::span<const std::string_view> keys,
+                                                        const plugin::CodecContext& context) {
+	return composed(change_to(FlatSoundState(state), FlatSoundState(next), keys, context));
+}
+
+std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, const SoundState& current,
+                                                          const plugin::CodecContext& context) {
+	return decode_onto(element, FlatSoundState(current), context).transform([](const FlatSoundState& flat) {
+		return SoundState(flat);
+	});
 }
 
 } // namespace deluge::instrument
