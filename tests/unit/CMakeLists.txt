@@ -82,6 +82,7 @@ add_executable(UnitTests
         lfo_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
+        parameter_value_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp
         volume_param_gain_tests.cpp
