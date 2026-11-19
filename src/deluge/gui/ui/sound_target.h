@@ -27,7 +27,6 @@ class ModControllable;
 class ModelStackWithThreeMainThings;
 class MultiRange;
 class ParamManagerForTimeline;
-class SampleControls;
 class Sound;
 class Source;
 
@@ -48,7 +47,6 @@ struct SoundTarget {
 	int16_t rangeIndex = -1;
 	int8_t sourceIndex = 0;
 	Source* source = nullptr;
-	SampleControls* sampleControls = nullptr;
 };
 
 /// @brief Point @p target's range at the one its index names after @p retype, by `Source::setOscType`'s rule for the

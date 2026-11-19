@@ -76,7 +76,7 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
-				ports(u, s).sample.bind(&sound.sources[s], &sound.config().sources[s], &guides[s]);
+				ports(u, s).sample.bind(&sound.config().sources[s], &guides[s]);
 			}
 		}
 	}
@@ -111,7 +111,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source* source = &sound.sources[s];
 		if (source->oscType == OscType::SAMPLE) {
-			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+			source->invertReversed = false; // Reset temporary flag back to normal
 		}
 	}
 }
@@ -228,7 +228,8 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 	const Source& source = sound.sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
+	const bool reversed = sound.playsReversed(s);
+	guides[s].setupPlaybackBounds(reversed);
 
 	LoopType loopingType = guides[s].getLoopingType(sound.config().sources[s].repeat_mode);
 
@@ -242,9 +243,8 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 		SourceSlot* voiceUnisonPartSource = &kernel.unison_parts[u].slots[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive =
-			    ports(u, s).sample.zoneChanged(&guides[s], sample, source.sampleControls.isCurrentlyReversed(),
-			                                   markerType, loopingType, priority_rating());
+			bool stillActive = ports(u, s).sample.zoneChanged(&guides[s], sample, reversed, markerType, loopingType,
+			                                                  priority_rating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);

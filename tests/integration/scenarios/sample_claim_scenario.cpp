@@ -845,8 +845,7 @@ deluge::gui::SoundTarget osc2Target(Clip& clip) {
 	        .range = source.getOrCreateFirstRange(),
 	        .rangeIndex = 0,
 	        .sourceIndex = 1,
-	        .source = &source,
-	        .sampleControls = &source.sampleControls};
+	        .source = &source};
 }
 
 /// The boot synth's clip current under the clip view; for the wavetable leg, oscillator 2 a sample oscillator first,
@@ -2014,7 +2013,7 @@ void checkLeg() {
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "",
-		       static_cast<int>(g_synth->sources[0].oscType), static_cast<int>(g_synth->sources[0].repeatMode),
+		       static_cast<int>(g_synth->sources[0].oscType), static_cast<int>(g_synth->sources[0].state_->repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2234,7 +2233,7 @@ void checkLeg() {
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "",
-		       drum != nullptr ? static_cast<int>(drum->sources[0].repeatMode) : -1,
+		       drum != nullptr ? static_cast<int>(drum->sources[0].state_->repeat_mode) : -1,
 		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
 		       g_wait.ticks());
 		if (!bound) {
@@ -2405,7 +2404,7 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(soundDrum->sources[0].repeatMode), soundDrum->sideChainSendLevel);
+				       static_cast<int>(soundDrum->sources[0].state_->repeat_mode), soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]
 				    && holder->filePath == std::string{kImportKitFolder} + "/IMK_" + kImportKitNames[drums] + ".WAV") {
@@ -2452,13 +2451,14 @@ void checkLeg() {
 			const int32_t editorRange = menuRange >= 0 && menuRange < ranges ? menuRange : -1;
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
-			    ranges, matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
+			    ranges, matched, static_cast<int>(source.state_->repeat_mode), static_cast<int>(source.oscType),
 			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_wait.ticks());
 			if (editorRange != kImportMultiCount / 2) {
 				g_report.fail("IM-MULTI the menu context was not left on the middle range");
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
-			    || source.repeatMode != SampleRepeatMode::ONCE || source.oscType != OscType::SAMPLE || !browserClosed) {
+			    || source.state_->repeat_mode != SampleRepeatMode::ONCE || source.oscType != OscType::SAMPLE
+			    || !browserClosed) {
 				g_report.fail(
 				    "IM-MULTI the multisample import did not end with one range per file in pitch order, each "
 				    "bound to its file with the top note today's importer gives it and the transpose its detection "

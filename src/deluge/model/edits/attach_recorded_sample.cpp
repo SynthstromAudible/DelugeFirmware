@@ -64,7 +64,7 @@ Error AttachRecordedSample::apply(Context& ctx) {
 		return Error::UNSPECIFIED;
 	}
 	holder->filePath = take->filePath;
-	holder->setAudioFile(take, source.sampleControls.isCurrentlyReversed(), true);
+	holder->setAudioFile(take, source.isCurrentlyReversed(), true);
 	SetSourceRanges ranges{slot_, source_, deluge::bridge::rangesOf(source)};
 	return ranges.apply(ctx);
 }

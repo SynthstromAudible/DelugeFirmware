@@ -18,12 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sample/sample_controls.h"
 #include "storage/audio/sample_load_walk.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "synth/sources/input/live/live_inputs.h"
 
-class Sound;
 class ParamManagerForTimeline;
 class WaveTable;
 class SampleHolder;
@@ -39,28 +37,20 @@ public:
 	/// @brief Non-owning pointer into the owning Sound's SoundState (state_->sources[s]); null while unbound.
 	///
 	/// A Source is never copied by value (it lives as a fixed member of its Sound), so this pointer has no clone
-	/// hazard. The Sound binds it at bindState and re-seeds it at doneReadingFromFile. Save reads the record via the
-	/// Sound's state_.
+	/// hazard. The record holds the oscillator's settings; the Sound's config is what the render reads of them.
 	deluge::instrument::SourceState* state_{nullptr};
 
-	/// @brief Bind this Source to its record and seed the record from the native fields.
+	/// @brief Bind this Source to its record and seed the record's DX7 patch and ranges from the native ones.
 	/// @param d The SourceState record to bind (state_->sources[s] of the owning Sound).
 	void bindState(deluge::instrument::SourceState* d);
 	/// @brief Play @p d, which already holds this source's settings: nothing is seeded into it.
 	void attachState(deluge::instrument::SourceState* d);
 
-	/// @brief Copy the scalar fields into the bound record; no-op while unbound.
-	void seedDocSourceScalars();
-
-	/// @brief Copy the scalars seedDocSourceScalars copies, into @p d.
-	/// @param d The record to fill.
-	void seedScalarsInto(deluge::instrument::SourceState& d) const;
-
 	/// @brief Re-seed the bound record's DX7 patch from the native patch; no-op while unbound.
 	///
 	/// The DX7 patch is mutated in place (per-param edits, engine mode, cartridge load) rather than through one
 	/// setter, so the whole optional<DxPatchState> record is re-seeded after any mutation (bind,
-	/// doneReadingFromFile, the dx/ menus, setOscType via ensureDxPatch).
+	/// a load's reseedRecord, the dx/ menus, setOscType via ensureDxPatch).
 	void seedDocDxPatch();
 
 	/// @brief Copy the DX7 patch into @p d: the 156 params, engineMode and random_detune, or clear it when the
@@ -79,13 +69,14 @@ public:
 	/// @param d The record to fill.
 	void seedRangesInto(deluge::instrument::SourceState& d) const;
 
-	SampleControls sampleControls;
-
 	OscType oscType;
 
-	// These are not valid for Samples
-	int16_t transpose;
-	int8_t cents;
+	/// @brief Whether the note last set up on this sample source plays against the record's direction (the
+	/// arpeggiator's reverse step); cleared when a voice of the sound releases.
+	bool invertReversed = false;
+
+	/// @brief Whether the ranges play backwards now: the record's direction, inverted for an arpeggiated note.
+	[[nodiscard]] bool isCurrentlyReversed() const { return state_->reversed != invertReversed; }
 
 	MultiRangeArray ranges;
 
@@ -93,9 +84,6 @@ public:
 	bool dxPatchChanged = false;
 	/// @brief The live histories this oscillator's voices read while its type is an input type; empty otherwise.
 	deluge::synth::LiveInputStore liveInputs;
-	SampleRepeatMode repeatMode;
-
-	int8_t timeStretchAmount;
 
 	int16_t defaultRangeI; // -1 means none yet
 
@@ -109,21 +97,18 @@ public:
 	/// @param visitor Receives a demand for each range's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
-	/// @brief Play the ranges in @p newReversed's direction: a reversed range's end is clamped to its sample's length,
-	/// and every range's clusters are claimed for the direction. Writes no record.
-	/// @param newReversed Whether the ranges play backwards.
-	void setReversed(bool newReversed);
+	/// @brief Play the ranges in the direction isCurrentlyReversed() names: a reversed range's end is clamped to its
+	/// sample's length, and every range's clusters are claimed for the direction. Writes no record.
+	void followDirection();
 	MultiRange* getRange(int32_t note);
 	int32_t getRangeIndex(int32_t note);
 	MultiRange* getOrCreateFirstRange();
 	bool hasAtLeastOneAudioFileLoaded();
-	void doneReadingFromFile(Sound* sound);
 	bool hasAnyLoopEndPoint();
 	void setOscType(OscType newType);
 
 	DxPatch* ensureDxPatch();
 
-private:
 	/// @brief Makes or frees the live histories to match the type, handing them to the render inside an
 	/// audio-excluded section. [task]
 	void reconcileLiveInputs();

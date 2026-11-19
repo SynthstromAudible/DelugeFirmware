@@ -293,7 +293,8 @@ Sample* make_marker_sample() {
 void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
 	Source& source = sound.sources[0];
 	source.oscType = OscType::SAMPLE;
-	source.repeatMode = SampleRepeatMode::ONCE;
+	source.state_->osc_type = OscType::SAMPLE;
+	source.state_->repeat_mode = SampleRepeatMode::ONCE;
 	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
 	range->sampleHolder.audioFile = sample;
 	range->sampleHolder.startPos = 0;

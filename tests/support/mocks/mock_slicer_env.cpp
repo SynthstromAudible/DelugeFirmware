@@ -354,11 +354,9 @@ DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::
 
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
 DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
-DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
-DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are

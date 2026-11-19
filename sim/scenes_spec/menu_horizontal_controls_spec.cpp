@@ -378,6 +378,7 @@ struct Rig {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (Source& source : sound->sources) {
 			source.oscType = OscType::SQUARE;
+			source.state_->osc_type = OscType::SQUARE;
 			source.ranges.clear();
 		}
 		deluge::bridge::recordLoadedSound(*sound, *song.song);

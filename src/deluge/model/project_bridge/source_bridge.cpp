@@ -89,7 +89,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	// A claim reaches the sample reserve, which must not run while the render is excluded. Only a playing sample
 	// source's zones are claimed.
 	for (SampleHolderForVoice* holder : moved) {
-		holder->claimClusterReasons(source.sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
+		holder->claimClusterReasons(source.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 	}
 	source.seedDocRanges();
 	return Error::NONE;

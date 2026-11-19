@@ -820,8 +820,7 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath = thisSample->filePath;
-		range->sampleHolder.setAudioFile(thisSample, request_.target.source->sampleControls.isCurrentlyReversed(),
-		                                 true);
+		range->sampleHolder.setAudioFile(thisSample, request_.target.source->isCurrentlyReversed(), true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, rangeCoversJustOneNote, topNote);
 
@@ -991,7 +990,7 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(nullptr);
 			holder->filePath = thisSample->filePath;
-			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
+			holder->setAudioFile(thisSample, source->isCurrentlyReversed(), true);
 
 			deluge::edits::recordRanges(*drum, 0);
 

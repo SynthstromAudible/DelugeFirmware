@@ -262,7 +262,7 @@ void SliceCore::begin_slice(const Target& target, std::string_view path, Preview
 	slice_load_.request(
 	    deluge::storage::SampleDemand{
 	        .holder = holder,
-	        .reversed = target_.source->sampleControls.isCurrentlyReversed(),
+	        .reversed = target_.source->isCurrentlyReversed(),
 	        .manuallySelected = true,
 	        .clusterLoadInstruction = CLUSTER_ENQUEUE,
 	    },
@@ -367,14 +367,13 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		                          deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
 
 		deluge::edits::settingFor(*firstDrum, "osc1/reversed", deluge::serialization::Value::makeNumber(0));
-		firstDrum->sources[0].sampleControls.invertReversed = false;
+		firstDrum->sources[0].invertReversed = false;
 
 		if (!firstRange->sampleHolder.audioFile) {
 			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isCurrentlyReversed(),
-		                                             CLUSTER_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].isCurrentlyReversed(), CLUSTER_ENQUEUE);
 		// The zone edits above set up the first drum's slice range: record them.
 		deluge::edits::recordRanges(*firstDrum, 0);
 		if (doEnvelopes) {

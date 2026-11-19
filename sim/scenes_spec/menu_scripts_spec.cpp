@@ -431,8 +431,9 @@ MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample)
 	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	Source& source = sound->sources[0];
 	source.oscType = OscType::SAMPLE;
-	source.repeatMode = SampleRepeatMode::ONCE;
-	source.sampleControls.reversed = false;
+	source.state_->osc_type = OscType::SAMPLE;
+	source.state_->repeat_mode = SampleRepeatMode::ONCE;
+	source.state_->reversed = false;
 	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
 	if (sample != nullptr) {
 		range->sampleHolder.audioFile = sample;

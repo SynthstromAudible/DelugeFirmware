@@ -1571,14 +1571,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		const std::string forwards = r.oled();
 
-		r.source->sampleControls.reversed = true;
+		r.source->state_->reversed = true;
 		r.open(MarkerType::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
 		expect(forwards).not_().to_equal(reversed);
 
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
-		r.source->sampleControls.reversed = false;
+		r.source->state_->reversed = false;
 		r.range->sampleHolder.endPos = 3 * kZoomMax;
 		r.open(MarkerType::END);
 		r.tick(20);
@@ -1869,13 +1869,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// `reverseRemap` (`sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
-		r.source->sampleControls.reversed = true;
+		r.source->state_->reversed = true;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
-		r.source->sampleControls.reversed = false;
+		r.source->state_->reversed = false;
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

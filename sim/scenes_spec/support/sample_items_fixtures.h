@@ -81,6 +81,7 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	for (int32_t i = 0; i < 2; i++) {
 		Source& s = sound.sources[i];
 		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
+		s.state_->osc_type = s.oscType;
 		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}

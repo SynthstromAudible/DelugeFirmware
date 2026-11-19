@@ -61,21 +61,6 @@ bool isSamplePlayback(std::string_view rest) {
 	       || rest == "linearInterpolation";
 }
 
-/// @p state's tuning and sample playback, into @p source's runtime fields (its type is taken by Source::setOscType). A
-/// new direction re-claims the ranges' clusters, and the zone ends the runtime clamps for it go back into the record.
-void takeSourceSettings(Source& source, const deluge::instrument::SourceState& state) {
-	source.transpose = state.transpose;
-	source.cents = state.cents;
-	source.repeatMode = state.repeat_mode;
-	source.timeStretchAmount = state.time_stretch_amount;
-	source.sampleControls.interpolationMode = state.interpolation_mode;
-	source.sampleControls.pitchAndSpeedAreIndependent = state.pitch_and_speed_independent;
-	if (source.sampleControls.reversed != state.reversed) {
-		source.setReversed(state.reversed);
-		source.seedDocRanges();
-	}
-}
-
 /// The model stack a gesture on @p sound works in: its clip (a kit row's note row in its kit's clip) and the params it
 /// plays with there, or its backed-up params when it has no clip. Nullptr when it has no params at all.
 ModelStackWithSoundFlags* modelStackFor(void* memory, ::Sound& sound, ::Song& song) {
@@ -247,7 +232,11 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			                   || after.sources[s].osc_type == OscType::SQUARE;
 			source.setOscType(after.sources[s].osc_type);
 		}
-		takeSourceSettings(source, after.sources[s]);
+		if (before.sources[s].reversed != after.sources[s].reversed) {
+			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
+			source.followDirection();
+			source.seedDocRanges();
+		}
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);

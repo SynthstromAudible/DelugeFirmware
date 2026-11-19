@@ -103,7 +103,8 @@ void openGate() {
 
 void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
 	// A one-shot that looks like a kick sends to the sidechain. Otherwise, no change.
-	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
+	if (source->state_->repeat_mode == SampleRepeatMode::ONCE
+	    && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
 	}
 }
@@ -269,7 +270,7 @@ bool SampleClaim::stepPrepareSample() {
 	}
 	else {
 		setOscTypeFor(current_.target, OscType::SAMPLE);
-		reversed = current_.target.source->sampleControls.isCurrentlyReversed();
+		reversed = current_.target.source->isCurrentlyReversed();
 	}
 	AudioFileHolder* holder = prepareHolder(current_.target, current_.path);
 	load_.request(
@@ -382,8 +383,8 @@ bool SampleClaim::stepDecideSample() {
 	}
 
 	// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-	if (current_.target.source->repeatMode == SampleRepeatMode::STRETCH
-	    || current_.target.source->repeatMode == SampleRepeatMode::LOOP) {}
+	if (const SampleRepeatMode repeatMode = current_.target.source->state_->repeat_mode;
+	    repeatMode == SampleRepeatMode::STRETCH || repeatMode == SampleRepeatMode::LOOP) {}
 
 	// Otherwise...
 	else {
@@ -482,7 +483,7 @@ bool SampleClaim::stepDecideWavetable() {
 	}
 
 	if (waveTableFile_ != nullptr) {
-		waveTableHolder_->setAudioFile(waveTableFile_, current_.target.source->sampleControls.isCurrentlyReversed(),
+		waveTableHolder_->setAudioFile(waveTableFile_, current_.target.source->isCurrentlyReversed(),
 		                               /*manuallySelected=*/true, CLUSTER_ENQUEUE);
 		recordClaimRanges(current_.target);
 	}

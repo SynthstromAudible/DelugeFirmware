@@ -349,7 +349,8 @@ struct SongRig {
 		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
-		source->repeatMode = SampleRepeatMode::ONCE;
+		source->state_->osc_type = OscType::SAMPLE;
+		source->state_->repeat_mode = SampleRepeatMode::ONCE;
 		Sample* sample = make_sample();
 		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
 		range->sampleHolder.audioFile = sample;

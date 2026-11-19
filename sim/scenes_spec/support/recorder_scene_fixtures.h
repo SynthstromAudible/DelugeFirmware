@@ -112,7 +112,7 @@ struct Rig {
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
-		source->sampleControls.reversed = false;
+		source->state_->osc_type = OscType::SQUARE;
 		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
 	}
 

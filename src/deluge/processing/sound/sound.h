@@ -187,29 +187,20 @@ public:
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
-	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
-	/// @return The seeded state.
-	[[nodiscard]] deluge::instrument::SoundState seededState() const;
-	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
-	///
-	/// @pre state_ is bound.
-	/// @note Run from bindState and again at doneReadingFromFile: a SoundDrum's adoptDrum binds the record before its
-	///       fields are parsed, so the bind-time seed is stale for drums and must be refreshed once parsing has
-	///       finished.
-	void seedDocSoundScalars();
-	/// @brief Copy the scalars seedDocSoundScalars copies, into @p d.
-	/// @param d The record to fill.
-	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
 	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
 	/// doneReadingFromFile and after edits; the render reads it.
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
 	deluge::synth::SoundConfig config_{};
-	/// @brief Re-derive config_ from state_; an unbound sound takes its oscillators' settings from them.
+	/// @brief Re-derive config_ from state_.
 	void projectSnapshot();
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
+	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
+	[[nodiscard]] bool playsReversed(int32_t s) const {
+		return config_.sources[s].reversed != sources[s].invertReversed;
+	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
 	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
@@ -383,8 +374,8 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
-	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
-	/// reproject the snapshot. Does nothing when unbound.
+	/// @brief Re-read the record's effects, DX7 patches and ranges from the runtime, as binding seeds them; then
+	/// reproject the snapshot.
 	///
 	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
 	/// another folder).

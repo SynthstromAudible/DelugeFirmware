@@ -662,7 +662,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, input) == Error::NONE, "setting: an oscillator becomes live input");
 	deluge::edits::SetEngineSetting linear{*slot, "osc1/linearInterpolation", Value::makeNumber(1)};
 	check(deluge::edits::apply(ctx, linear) == Error::NONE
-	          && sound.sources[0].sampleControls.interpolationMode == InterpolationMode::LINEAR,
+	          && sound.config().sources[0].interpolation_mode == InterpolationMode::LINEAR,
 	      "setting: a live-input oscillator takes linear interpolation");
 }
 
