@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The menu's OLED rendering. See `view.h`.
+/// @brief The menu's OLED rendering. See `scenes/menu/view.h`.
 
 #include "scenes/menu/view.h"
 
@@ -170,11 +170,11 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
 	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
 
-	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
+	// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the select
 	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
 	// `SoundEditor::selectEncoderAction` hands it the raw offset --
-	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). The edit is the
-	// offset times `calcNextKnobSpeed` (`:326`, `:630-633`, `kHorizontalMenuAcceleration`), truncated
+	// no SHIFT multiplier here -- and a submenu column is left alone (the `isSubmenu` early return). The edit is the
+	// offset times `calcNextKnobSpeed` (`kHorizontalMenuAcceleration`), truncated
 	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
 	// draws the page, so a detent edits the column the user was looking at; `columns` itself no
 	// longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
@@ -183,10 +183,10 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	f.claim_turn();
 	if (n != 0 && turned != 0 && kids[focus]->kind != Kind::Submenu) {
 		const Node& target = *kids[focus];
-		// `Binding::permitted`: legacy's
-		// `selectEncoderActionIsPermitted()` check, consulted *before* the edit and *before* the
-		// notification (`horizontal_menu.cpp:321-324`, ahead of `:326-328`). A refusal stages
-		// nothing and raises no notification here -- the hook raises its own popup, exactly as
+		// `Binding::permitted`: legacy's `selectEncoderActionIsPermitted()` check, consulted *before* the edit and
+		// *before* the notification (the refusal arm of `HorizontalMenu::selectEncoderAction` in
+		// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, ahead of its edit and `displayNotification`
+		// calls). A refusal stages nothing and raises no notification here -- the hook raises its own popup, exactly as
 		// legacy's side effect does.
 		if (target.bind.permitted == nullptr || target.bind.permitted(ctx)) {
 			int32_t detents = accelerated_detents(f, turned);
@@ -206,8 +206,9 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 				// The toolkit's own guard: a zero `step` would give a dead select knob
 				// (`coarse_step` in `ui/oled/values.cpp`).
 				int32_t step = range.step != 0 ? range.step : 1;
-				// `getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`): a Decimal moves 1.00 a detent, 0.01
-				// with SELECT or SHIFT held; a node's own `HorizontalStep` overrides either.
+				// `getNumberEditSize` on a horizontal page (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): a
+				// Decimal moves 1.00 a detent, 0.01 with SELECT or SHIFT held; a node's own `HorizontalStep` overrides
+				// either.
 				const HorizontalStep& hs = target.bind.horizontal_step;
 				if (target.kind == Kind::Decimal || hs.coarse != 0) {
 					const int32_t coarse = hs.coarse != 0 ? hs.coarse : (target.kind == Kind::Decimal ? 100 : step);
@@ -226,12 +227,12 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 					moved = range.min + (((moved - range.min) % span) + span) % span;
 				}
 				moved = clamp_to(turned_to.value_or(moved), range.min, range.max);
-				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
-				// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
-				// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
-				// see whether the clamp actually moved it (`:326-328`). Gating this on `moved != current`
-				// dropped the notification on a turn already at an endpoint; `commit_value` writing the same
-				// value back at a clamp is harmless, exactly as legacy's own re-write is.
+				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)` and
+				// `displayNotification(child)` unconditionally once it has decided the turn is permitted
+				// (`selectEncoderActionIsPermitted()` in `HorizontalMenu::selectEncoderAction`) -- it never re-reads
+				// the value first to see whether the clamp actually moved it. Gating this on `moved != current` dropped
+				// the notification on a turn already at an endpoint; `commit_value` writing the same value back at a
+				// clamp is harmless, exactly as legacy's own re-write is.
 				switch (target.kind) {
 				case Kind::Enum:
 					st.enum_index = moved;
@@ -302,13 +303,12 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	                                                std::span<const deluge::ui::oled::Column>{cols, n},
 	                                                page_title(ctx, st, title_scratch), page_render);
 
-	// `columns` claims the press only for a submenu column (`columns` in `ui/oled/columns.cpp`), so a
-	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
-	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
-	// `select_chain` target, or `ascend()` -- see `MenuTick::column_press`'s own doc for why that
-	// is not `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns`
-	// was handed, so the claim is idempotent (`ui/core/frame_context.h`, rule 2) and never trips
-	// `double_claim`.
+	// `columns` claims the press only for a submenu column (`columns` in `ui/oled/columns.cpp`), so a press on a
+	// *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress` forwarding to the
+	// focused item does (`Submenu::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): enter its
+	// `select_chain` target, or `ascend()` -- see `MenuTick::column_press`'s own doc for why that is not
+	// `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns` was handed, so the claim is
+	// idempotent (`ui/core/frame_context.h`, rule 2) and never trips `double_claim`.
 	const int32_t settled = n == 0 ? -1 : clamp_to(st.columns[st.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
 		st.tick.column_press = f.select_pressed();
@@ -365,7 +365,7 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		st.tick.value_node = &node;
 	}
 	// `int_value` owns the select encoder -- legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction` in `sound_editor.cpp`), and so does this port
+	// (`SoundEditor::selectEncoderAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and so does this port
 	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
 	// claim -- `int_value` never reads `select_pressed()`.
@@ -498,11 +498,11 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	NodeText scratch;
 	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
-	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
-	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`
-	// just above -- the SELECT ENCODER moves the value here: clamped, as `Enumeration::selectEncoderAction`
-	// does, unless the node's `turn` says otherwise. The gold knobs are left unclaimed, same as legacy
-	// leaves them alone for any `Enumeration`.
+	// Legacy is `SyncLevel::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`). `SyncLevel`
+	// derives from `Enumeration` (`origin/main:src/deluge/gui/menu_item/sync_level.h`), not `Integer`, so -- unlike
+	// `render_leaf_int` just above -- the SELECT ENCODER moves the value here: clamped, as
+	// `Enumeration::selectEncoderAction` does, unless the node's `turn` says otherwise. The gold knobs are left
+	// unclaimed, same as legacy leaves them alone for any `Enumeration`.
 	const IntRange r = bindings::range(node, ctx);
 	if (const int8_t d = f.turn(); d != 0) {
 		// `SoundEditor::selectEncoderAction`'s SHIFT: five detents a click for a non-submenu item.
@@ -519,16 +519,15 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 		}
 	}
 
-	// `f.bounds()`, NOT `menu_rect(f)` -- same reasoning as `render_leaf_int` above (`menu_rect(f)`
-	// would add `Style::menu_base_y` on top of the baseline's own offset and clip the string off
-	// the panel's bottom edge). But the font is `MetricBold13`, NOT `f.style.value_font`/`big_font`
-	// (both `MetricBold20`): legacy draws this one in the smaller "Big" face at its own baseline
-	// (`sync_level.cpp:37`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and `Style` carries
-	// no field for it -- `MetricBold9` is hard-coded the same way in `columns` (`ui/oled/columns.cpp`) for
-	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
-	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
-	// per character) runs off both edges of a 128px panel, which is the clipping this
-	// choice avoids.
+	// `f.bounds()`, NOT `menu_rect(f)` -- same reasoning as `render_leaf_int` above (`menu_rect(f)` would add
+	// `Style::menu_base_y` on top of the baseline's own offset and clip the string off the panel's bottom edge). But
+	// the font is `MetricBold13`, NOT `f.style.value_font`/`big_font` (both `MetricBold20`): legacy draws this one in
+	// the smaller "Big" face at its own baseline (`SyncLevel::drawPixelsForOled` in
+	// `origin/main:src/deluge/gui/menu_item/sync_level.cpp`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and
+	// `Style` carries no field for it -- `MetricBold9` is hard-coded the same way in `columns` (`ui/oled/columns.cpp`)
+	// for the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't just mismatch
+	// the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px per character) runs off both edges
+	// of a 128px panel, which is the clipping this choice avoids.
 	//
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's

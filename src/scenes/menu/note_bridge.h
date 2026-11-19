@@ -13,20 +13,20 @@
 /// expected to re-read afterward. **Those offset functions are themselves gated by legacy on a
 /// popup being up or a note (row) editor being open** --
 /// `adjustVelocity`'s `display->hasPopup() || inAutomationView || inSoundEditor`
-/// (`gui/views/instrument_clip_view.cpp:2875-2882`), `adjustNoteParameterValue`'s
-/// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`
-/// (`:3067`, `:3118`), and `setNoteRowParameterValue` likewise (`:4141`, `:4144`) -- so a write
+/// (`gui/views/instrument_clip_view.cpp`), `adjustNoteParameterValue`'s
+/// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`, and
+/// `setNoteRowParameterValue` likewise -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own
 /// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Those predicates
 /// see the ported note mode through `util/note_editor_open.h`; this bridge does not paper over the
 /// gate itself.
 ///
-/// **Reads that allocate.** The note-row entries create a `NoteRow` for a non-kit clip when none
-/// exists yet, the way `SelectedNoteRow::getIndividualNoteRow` does
-/// (`gui/menu_item/note_row/selected_note_row.h:45-61`); the bridge keeps that.
+/// **Reads that allocate.** The note-row entries create a `NoteRow` for a non-kit clip when none exists yet, the way
+/// `SelectedNoteRow::getIndividualNoteRow` does (`SelectedNoteRow::getIndividualNoteRow` in
+/// `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`); the bridge keeps that.
 ///
 /// **Iterance crosses as a raw `int32_t`** (`Iterance::toInt`/`fromInt`,
-/// `model/iterance/iterance.h`, which `src/scenes` may include) -- not as a preset index. The
+/// `origin/main:src/deluge/model/iterance/iterance.h`, which `src/scenes` may include) -- not as a preset index. The
 /// leaves convert with `Iterance::fromInt(...).toPresetIndex()` themselves.
 ///
 /// **A read with nothing selected returns 0**, matching legacy's own "no pressed note" case; the

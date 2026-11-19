@@ -20,7 +20,7 @@
 ///
 /// A node edits through its target: `scenes/bind` reads its value, range, names and applicability from its descriptor
 /// and the model, and its writes go to the menu's write sink as requests the app applies as Edits. A param node's
-/// target is a PARAM target (`scenes/bind/param_display.cpp` for its display; the app's sink writes it through
+/// target is a PARAM target (`scenes/bind/param_display.h` for its display; the app's sink writes it through
 /// SetParamValue, or SetKitParamValue under affect-entire). What remains here is the hook nodes' own read and write,
 /// the per-kind ranges, names and learn.
 ///
@@ -28,14 +28,17 @@
 /// run-on by clang-format). Every line below is transcribed, not called: `gui/menu_item/` is behind the
 /// `scenes-includes-outside` wall.
 ///
-///   * 0..50 default -- `Param::getMaxValue`/`getMinValue` (`gui/menu_item/param.h:34-35`)
+///   * 0..50 default -- `Param::getMaxValue`/`getMinValue` (`origin/main:src/deluge/gui/menu_item/param.h`)
 ///   * enum default -- `Enumeration::selectEncoderAction`'s `[0, numOptions)` clamp
-///     (`gui/menu_item/enumeration.cpp:28`)
-///   * toggle default -- `Toggle::selectEncoderAction` (`gui/menu_item/toggle.cpp:14-17`), a `Value<bool>`
-///   * automation refresh -- `automationView.possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77`,
-///     `unpatched_param.cpp:77-81`)
-///   * patched learn -- `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp`)
-///   * unpatched learn -- `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp`)
+///     (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`)
+///   * toggle default -- `Toggle::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/toggle.cpp`), a
+///     `Value<bool>`
+///   * automation refresh -- `automationView.possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
+///     `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`, `UnpatchedParam::writeCurrentValue`
+///     (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`))
+///   * patched learn -- `PatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`)
+///   * unpatched learn -- `UnpatchedParam::getLearningThing`
+///     (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)
 ///
 /// **What did NOT come across.**
 ///
@@ -45,11 +48,12 @@
 ///     it arrives as `MenuContext::affect_entire_held` -- a field the caller sets and `context_for` never does. It is
 ///     deliberately NOT `MenuContext::affect_entire`: that is the *clip's*
 ///     `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
-///     (`sound_editor.cpp:1205-1213`) where legacy edits one row only.
+///     (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) where legacy edits one row only.
 ///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
-///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:624-641`). The
-///     notify design replaces "am I in the automation view, and is this the param it is showing?"
-///     with unconditional facts. See `write()`'s own comment for which are raised and why.
+///     `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
+///     `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`, `automation_view.cpp`). The notify design
+///     replaces "am I in the automation view, and is this the param it is showing?" with unconditional facts. See
+///     `write()`'s own comment for which are raised and why.
 ///
 /// **`currentSong` references in this file: 0** (a ratchet holds it there).
 
@@ -115,14 +119,13 @@ std::array<std::array<char, 40>, kMaxDynamicNames> unavailable_text{};
 
 /// @brief How many `Kind::Enum` options @p node has -- the input to its default range.
 ///
-/// This is the *option* count, legacy's `Enumeration::size()`, not the number of names a particular
-/// caller has room to render: `Enumeration::selectEncoderAction` clamps against `size()` on every
-/// detent (`enumeration.cpp:19,28`), so running a `dynamic_names` hook to obtain it is exactly what
-/// legacy does, at the same rate. That is why the window here is the full `kMaxDynamicNames`
-/// (`node.h` -- the documented cap on what one call may produce) rather than whatever `out` span
-/// `names()` was handed: a caller with room for four names still edits a ten-option enum over its
-/// real 0..9 range. Cost is a `std::string_view[64]` -- 512 bytes on the
-/// 32-bit target -- in this frame for the duration of the hook call.
+/// This is the *option* count, legacy's `Enumeration::size()`, not the number of names a particular caller has room to
+/// render: `Enumeration::selectEncoderAction` clamps against `size()` on every detent
+/// (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`), so running a `dynamic_names` hook to obtain it is exactly
+/// what legacy does, at the same rate. That is why the window here is the full `kMaxDynamicNames` (`node.h` -- the
+/// documented cap on what one call may produce) rather than whatever `out` span `names()` was handed: a caller with
+/// room for four names still edits a ten-option enum over its real 0..9 range. Cost is a `std::string_view[64]` -- 512
+/// bytes on the 32-bit target -- in this frame for the duration of the hook call.
 size_t name_count(const Node& node, const MenuContext& ctx) {
 	if (node.bind.dynamic_names != nullptr) {
 		std::string_view window[kMaxDynamicNames]{};
@@ -279,27 +282,26 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 				// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
 				// gated; over-invalidation, never loss.
 				//
-				//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two
-				//    ways: `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77` /
-				//    `unpatched_param.cpp:77-81`), and the knob-indicator refresh
-				//    `setCurrentValueInResponseToUserInput` triggers through
-				//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`,
-				//    whose deferred `displayAutomation()` calls
-				//    `setKnobIndicatorLevels()` (`View::displayAutomation`). `legacy_redraw_for` lists both
-				//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
+				//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two ways:
+				//    `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
+				//    `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp` /
+				//    `UnpatchedParam::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)),
+				//    and the knob-indicator refresh `setCurrentValueInResponseToUserInput` triggers through
+				//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`, whose
+				//    deferred `displayAutomation()` calls `setKnobIndicatorLevels()` (`View::displayAutomation`).
+				//    `legacy_redraw_for` lists both enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp`).
 				//
 				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
-				//    `possiblyRefreshAutomationEditorGrid` ends in
-				//    `uiNeedsRendering(&automationView)` (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e.
-				//    a main-pad re-render
-				//    (`AutomationView::renderMainPads`, `:633`) -- and `ParamAutomation`/`ModTarget` appear
-				//    *only* in `r.oled`, never in `r.main_rows` (`notify_drain_mapping.cpp:13-14`). Without this
-				//    third raise, editing the param the automation view is showing would stop repainting its
-				//    grid the moment `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator
-				//    `r.main_rows` carries for exactly this; the mapping file itself is left alone.
+				//    `possiblyRefreshAutomationEditorGrid` ends in `uiNeedsRendering(&automationView)`
+				//    (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e. a main-pad re-render
+				//    (`AutomationView::renderMainPads`) -- and `ParamAutomation`/`ModTarget` appear *only* in `r.oled`,
+				//    never in `r.main_rows` (`legacy_redraw_for` in `notify_drain_mapping.cpp`). Without this third
+				//    raise, editing the param the automation view is showing would stop repainting its grid the moment
+				//    `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator `r.main_rows` carries
+				//    for exactly this; the mapping file itself is left alone.
 				//
 				//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`automation_view.cpp:624-635`),
+				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
 				//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
 				//    every param write asks for one grid repaint the drain already coalesces, rather than
 				//    silently dropping the one that mattered.
@@ -323,7 +325,7 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 }
 
 void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
-	// Mirrors `write`'s `get`/`set` hook arm (`:563-567` above): the hook owns the model write --
+	// Mirrors `write`'s `get`/`set` hook arm above: the hook owns the model write --
 	// legacy's `adjustVelocity`/`adjustProbability`/`adjustNoteIterance`/`adjustNoteFillWithOffset`
 	// -- so all this layer knows is that something the OLED shows has changed.
 	if (node.bind.adjust != nullptr) {
@@ -338,7 +340,7 @@ IntRange range(const Node& asked, const MenuContext& ctx) {
 		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
 		return shown ? IntRange{shown->least, shown->greatest, 1} : IntRange{0, 0, 1};
 	}
-	// node.h:111-117's documented order: a dynamic hook, then the literal bounds a builder was
+	// The order `Binding` documents (`node.h`): a dynamic hook, then the literal bounds a builder was
 	// given, then the legacy per-kind default.
 	if (node.bind.range != nullptr) {
 		return node.bind.range(ctx);
@@ -349,28 +351,30 @@ IntRange range(const Node& asked, const MenuContext& ctx) {
 
 	switch (node.kind) {
 	case Kind::Toggle:
-		// `Toggle` is a `Value<bool>` (`gui/menu_item/toggle.h:8`) whose encoder action stores
-		// `offset > 0` (`toggle.cpp:14-17`).
+		// `Toggle` is a `Value<bool>` (`origin/main:src/deluge/gui/menu_item/toggle.h`) whose encoder action stores
+		// `offset > 0` (`Toggle::selectEncoderAction` in `origin/main:src/deluge/gui/menu_item/toggle.cpp`).
 		return IntRange{0, 1, 1};
 
 	case Kind::Enum: {
-		// `Enumeration::selectEncoderAction` clamps to `[0, numOptions)` (`enumeration.cpp:28`).
+		// `Enumeration::selectEncoderAction` clamps to `[0, numOptions)`
+		// (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`).
 		const size_t count = name_count(node, ctx);
 		return IntRange{0, count > 0 ? static_cast<int32_t>(count) - 1 : 0, 1};
 	}
 
 	default:
 		// `origin/main:src/deluge/gui/menu_item/param.h` `Param::getMaxValue` (`kMaxMenuValue` / `kMinMenuValue`),
-		// forwarded by `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
+		// forwarded by `Integer::getMaxValue` (`origin/main:src/deluge/gui/menu_item/patched_param/integer.h`) and
+		// `UnpatchedParam::getMaxValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.h`).
 		//
-		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
-		// land. Each of them wants its own
-		// default -- legacy `menu_item::Bipolar`, `menu_item::Range`, `multi_range.h`,
-		// `menu_item::Colour`, `sync_level.h`. Until one has its own, 0..50 is a placeholder, not a claim:
-		// no table declares a node that reaches here without one, and every such node carries
-		// either a `fixed_range` from its builder or a `range` hook, both of which are
-		// consulted above before this switch is ever reached. Deliberately not a hard failure --
-		// a `FREEZE` in a library this layer means to keep pure would be worse than a wrong number.
+		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel` land. Each of them
+		// wants its own default -- legacy `menu_item::Bipolar`, `menu_item::Range`,
+		// `origin/main:src/deluge/gui/menu_item/multi_range.h`, `menu_item::Colour`,
+		// `origin/main:src/deluge/gui/menu_item/sync_level.h`. Until one has its own, 0..50 is a placeholder, not a
+		// claim: no table declares a node that reaches here without one, and every such node carries either a
+		// `fixed_range` from its builder or a `range` hook, both of which are consulted above before this switch is
+		// ever reached. Deliberately not a hard failure -- a `FREEZE` in a library this layer means to keep pure would
+		// be worse than a wrong number.
 		return IntRange{kMinMenuValue, kMaxMenuValue, 1};
 	}
 }
@@ -425,7 +429,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 
 	if (node.bind.dynamic_names != nullptr) {
 		// The hook writes views it owns (static strings, or storage of its own); `scratch` is for
-		// the id path only, and `DynamicNamesFn`'s signature (node.h:90) has nowhere to pass it.
+		// the id path only, and `DynamicNamesFn`'s signature (node.h) has nowhere to pass it.
 		return std::min(node.bind.dynamic_names(ctx, out.first(limit)), limit);
 	}
 
@@ -478,22 +482,23 @@ int32_t menu_to_pan(int32_t menu_value) {
 	return deluge::scenes::bind::stored_of(deluge::plugin::MappingKind::PAN, menu_value);
 }
 int32_t unsigned_to_menu(uint32_t stored) {
-	// `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp`).
+	// `computeCurrentValueForUnsignedMenuItem` (`util/value_scaling.cpp`).
 	return ((int64_t)stored * kMaxMenuValue + 2147483648) >> 32;
 }
 uint32_t menu_to_unsigned(int32_t menu_value) {
-	// `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp`).
+	// `computeFinalValueForUnsignedMenuItem` (`util/value_scaling.cpp`).
 	return (uint32_t)menu_value * 85899345;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The play direction (`gui/menu_item/sequence/direction.h`)
+// The play direction (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`)
 
 namespace {
 
-/// @brief Where the play direction is: `sequence::Direction::getIndividualNoteRow` (`sequence/direction.h:29-52`),
-///        minus the audition arm `bindings.h` documents as belonging to `NoteClipScene`. A kit row the clip is not on
-///        affect-entire for has its own (`:31-37`), when it has a note row; anything else edits the clip's.
+/// @brief Where the play direction is: `sequence::Direction::getIndividualNoteRow`
+///        (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), minus the audition arm `bindings.h` documents
+///        as belonging to `NoteClipScene`. A kit row the clip is not on affect-entire for has its own (the kit-row arm
+///        of `Direction::getIndividualNoteRow`), when it has a note row; anything else edits the clip's.
 deluge::scenes::bind::Target direction_target(const MenuContext& ctx) {
 	const bool row = !ctx.affect_entire && ctx.is_kit && ctx.addresses.lane.has_value();
 	return {.kind = deluge::scenes::bind::Target::Kind::MODEL,
@@ -518,10 +523,11 @@ bool has_instrument_clip(const MenuContext& ctx) {
 	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.facts != nullptr;
 }
 
-// `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`), gated as legacy gates it by
-// `soundEditor.selectedNoteRow` -- `MenuContext::selected_note_row`. Under `Root::NoteRowEditor` the latch is always
-// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp`) opens only with one row auditioning,
-// and the editor's sidebar arm never ends that mode while it stays open (`:3855-3865`), so the root answers for it.
+// `getIndividualNoteRow`'s non-kit auditioned-row arm (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`),
+// gated as legacy gates it by `soundEditor.selectedNoteRow` -- `MenuContext::selected_note_row`. Under
+// `Root::NoteRowEditor` the latch is always true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp`)
+// opens only with one row auditioning, and the editor's sidebar arm never ends that mode while it stays open
+// (`InstrumentClipView::handleNoteRowEditorPadAction`), so the root answers for it.
 bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
 	return (ctx.root == MenuContext::Root::NoteRowEditor || ctx.selected_note_row) && !ctx.is_kit
 	       && note_bridge() != nullptr && note_bridge()->row_sequence_direction(value);
@@ -534,7 +540,8 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 		*from_note_row = false;
 	}
 	int32_t bridged = 0;
-	if (note_row_bridge_direction(ctx, &bridged)) { // `:50-60`, through `NoteBridge`
+	if (note_row_bridge_direction(ctx,
+	                              &bridged)) { // `Direction::readCurrentValue`'s note-row arm, through `NoteBridge`
 		if (from_note_row != nullptr) {
 			*from_note_row = true;
 		}
@@ -543,7 +550,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 	if (!has_instrument_clip(ctx)) {
 		return 0;
 	}
-	const deluge::scenes::bind::Target target = direction_target(ctx); // `direction.h:70-75`
+	const deluge::scenes::bind::Target target = direction_target(ctx); // `Direction::readCurrentValue`
 	if (from_note_row != nullptr) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
@@ -563,7 +570,8 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	// `lastAuditionedYDisplay` (`shell_note_bridge.cpp`'s `noteRowForSequenceDirection`), and the
 	// second call finds the row the first one already created rather than making another.
 	int32_t existing = 0;
-	if (note_row_bridge_direction(ctx, &existing)) { // `:78-90`, through `NoteBridge`
+	if (note_row_bridge_direction(ctx,
+	                              &existing)) { // `Direction::writeCurrentValue`'s note-row arm, through `NoteBridge`
 		note_bridge()->set_row_sequence_direction(value);
 		deluge::notify::raise(deluge::notify::Dirty::Oled);
 		return;
@@ -571,7 +579,8 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	if (!has_instrument_clip(ctx) || ctx.sink == nullptr) {
 		return;
 	}
-	// `direction.h:83-89`: the kit row's note row, else the clip.
+	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
+	// row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), *ctx.facts, value);
 	if (request) {

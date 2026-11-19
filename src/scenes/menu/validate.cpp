@@ -31,11 +31,11 @@
 ///     reported as unreachable.
 ///   * *non-empty submenu* -> `EmptySubmenu`, quantified over the supplied contexts in which the
 ///     submenu is itself relevant (see the rule's own comment for why that qualifier is there).
-///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one
-///     `bindings.cpp` can serve and the index must be inside that kind's parameter space
-///     (`modulation/params/param.h:253-260`). Whether a *particular* song's param manager holds the
-///     param is `bridge::paramStackAt`'s answer, at the point of use, and is not something a static
-///     tree check can decide.
+///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one `bindings.cpp` can
+///     serve and the index must be inside that kind's parameter space (`params::kNumParams` and
+///     `params::kMaxNumUnpatchedParams` in `modulation/params/param.h`). Whether a *particular* song's param manager
+///     holds the param is `bridge::paramStackAt`'s answer, at the point of use, and is not something a static tree
+///     check can decide.
 ///   * *`Enum` names* -> `EnumWithoutNames`.
 ///   * *shortcut cells* -> `ShortcutToNothing`, over every `MenuContext::Root` and both shift
 ///     layers.
@@ -144,7 +144,8 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 	return true;
 }
 
-/// @brief Is @p param a pair `bindings.cpp` could resolve? (`modulation/params/param.h:253-260`.)
+/// @brief Is @p param a pair `bindings.cpp` could resolve? (`params::kNumParams`, `params::kMaxNumUnpatchedParams` in
+/// `modulation/params/param.h`.)
 bool param_in_range(const ParamRef& param) {
 	switch (param.kind) {
 	case params::Kind::PATCHED:
@@ -344,13 +345,13 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		if (n.kind == Kind::Submenu) {
 			// A dynamic submenu's children only exist at render time, so it cannot be judged here.
 			if (n.dynamic_children == nullptr) {
-				// "Non-empty under at least one context" is quantified over the contexts in which
-				// the submenu is itself *shown*: a submenu whose own `relevant` hook is false here
-				// is not on screen, so its children being filtered out is not an emptiness bug --
-				// legacy's `modulator0Menu` / `modulator1Menu` are exactly that shape, an FM-only
-				// page whose every child is FM-only too (`submenu/modulator.h:25-28`). When no
-				// supplied context shows the submenu at all, there is nothing to quantify over and
-				// the check falls back to the structural one: does it declare any children?
+				// "Non-empty under at least one context" is quantified over the contexts in which the submenu is itself
+				// *shown*: a submenu whose own `relevant` hook is false here is not on screen, so its children being
+				// filtered out is not an emptiness bug -- legacy's `modulator0Menu` / `modulator1Menu` are exactly that
+				// shape, an FM-only page whose every child is FM-only too (`Modulator::isRelevant` in
+				// `origin/main:src/deluge/gui/menu_item/submenu/modulator.h`). When no supplied context shows the
+				// submenu at all, there is nothing to quantify over and the check falls back to the structural one:
+				// does it declare any children?
 				bool populated = false;
 				bool ever_shown = false;
 				for (const MenuContext& ctx : contexts) {

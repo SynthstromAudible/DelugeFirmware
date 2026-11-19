@@ -9,16 +9,16 @@
 /// here: the data is `node.h`'s, the model access is `bindings.h`'s, and this file is the
 /// interpreter between them.
 ///
-/// **Ports.** `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:47`),
-/// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`gui/menu_item/submenu.cpp:99`, `:21`),
+/// **Ports.** `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`),
+/// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`),
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
-/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp`) -- all four already
+/// `preparePaging` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
-/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp`), `buttonAction` (back ->
+/// `SoundEditor::selectEncoderAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), `buttonAction` (back ->
 /// `goUpOneLevel`, which exits at depth 0 via `exitCompletely`),
-/// `horizontalEncoderAction` (`:1046`), `padAction` (`:1460`) with `potentialShortcutPadAction`
-/// (`:1166`), `enterSubmenu` (`:362`), `setupShortcutBlink` (`:997`) / `blinkShortcut`
-/// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect
+/// `horizontalEncoderAction`, `padAction` with `potentialShortcutPadAction`
+///, `enterSubmenu`, `setupShortcutBlink` / `blinkShortcut`
+///, `getGreyoutColsAndRows`, and the `MultiRange` redirect
 /// (`Permission::MustSelectRange`).
 ///
 /// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
@@ -127,7 +127,8 @@ public:
 	bool owns(const deluge::ui::shell::UiEvent& event) const override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_resume() override;
-	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
+	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @return True.
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True where `SoundEditor::buttonAction`'s Select arm does not act: learn mode, and any UI mode the host
@@ -147,7 +148,7 @@ public:
 	}
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
-	/// @brief `SoundEditor::padAction`'s gate in `gui/ui/sound_editor.cpp`, as a declaration.
+	/// @brief `SoundEditor::padAction`'s gate in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, as a declaration.
 	///
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
 	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --
@@ -175,7 +176,8 @@ public:
 	///        focused node had shortcut or source pads. See `Scene::timer_repaints()`'s own doc.
 	/// On the voice usage page the timer is also its 500 ms sample, which the panel shows.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override;
-	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`, `cpu/voice_usage.h:77-87`).
+	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`,
+	/// `origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`).
 	void tick(uint32_t dt_ms) override;
 	/// @brief The voice usage page's counters.
 	const VoiceUsageSampler& voice_usage() const { return voice_usage_.sampler(); }
@@ -200,7 +202,7 @@ public:
 	/// @brief Replace the facts about the root UI under the menu that the opener set: its greyout arm, and
 	///        whether it is the keyboard screen or the automation view. The host calls it whenever the root, or
 	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
-	///        greyout (`sound_editor.cpp:497-500`).
+	///        greyout (`SoundEditor::getGreyoutColsAndRows` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
 	/// @brief Re-root the open menu at @p root on @p ctx, landed on @p column, which @p root lists: `setup()` and
 	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
@@ -309,10 +311,11 @@ public:
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
 	///          `getCurrentMenuItem()->allowsLearnMode()` (`SoundEditor::buttonAction`'s LEARN arm), ported as
-	///          `MenuLearn::allows_mode`, and only then asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`).
-	///          They are different predicates over different sets: `allowsLearnMode` is true on every
-	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items, the MIDI-follow
-	///          items -- every one of which blinks *false*.
+	///          `MenuLearn::allows_mode`, and only then asks `shouldBlinkLearnLed()` for the LED
+	///          (`SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`). They are different predicates over
+	///          different sets: `allowsLearnMode` is true on every `MenuItemWithCCLearning` -- all the
+	///          patched/unpatched params, the transpose items, the MIDI-follow items -- every one of which blinks
+	///          *false*.
 	/// @{
 	/// @brief Offer a note-on to the learn node's item.
 	/// @param cable   The cable it arrived on.
@@ -388,7 +391,7 @@ public:
 	/// open the same root" could not be told apart from "the session and the arranger are the same
 	/// thing". Read-only, like `state()`.
 	///
-	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's `cppspec.hpp`
+	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's header
 	///       defines `context` as a macro (`#define context self.context`), so a member of that
 	///       name is unusable from every spec in this tree -- which is precisely where this
 	///       accessor is meant to be read.
@@ -450,19 +453,19 @@ public:
 
 	/// @brief Re-root the menu onto the horizontal page or group that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
-	///        (`gui/ui/browser/sample_browser.cpp:974-976`).
+	///        (`SampleBrowser::claimCurrentFile` in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	///
-	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and
-	/// it exists because legacy's answer to "where does accepting a file land you" is spelled in
-	/// two `MenuItem*`s no port carries. Legacy's three statements, in order, and what each becomes:
+	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and it exists because
+	/// legacy's answer to "where does accepting a file land you" is spelled in two `MenuItem*`s no port carries.
+	/// Legacy's three statements in `SoundEditor::setup`, in order, and what each becomes:
 	///
-	///   * `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`) -> `columns[0].focused`
+	///   * `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` -> `columns[0].focused`
 	///     set to the item's index among the page's visible children. Legacy's `focusChild` writes
-	///     `Submenu::current_item_`, a member of the page object (`gui/menu_item/submenu.cpp:21`);
+	///     `Submenu::current_item_`, a member of the page object (`origin/main:src/deluge/gui/menu_item/submenu.h`);
 	///     the port's focus is per *depth* (`MenuState::columns`), so moving the page to depth 0
 	///     is what makes this a separate statement rather than something the move carries along.
-	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) -> `path[0]`.
-	///   * `soundEditor.navigationDepth = 0` (`:1118`) -> `depth = 0`. This is the whole of the
+	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` -> `path[0]`.
+	///   * `soundEditor.navigationDepth = 0` -> `depth = 0`. This is the whole of the
 	///     "one extra BACK press" it would otherwise cost: without it the user is left on the file
 	///     selector at whatever depth it was opened from, one level further in than legacy leaves
 	///     them -- and, on the shortcut-pad route, out of the menu altogether.
@@ -470,9 +473,9 @@ public:
 	/// @par Why the page is resolved here rather than carried in
 	///
 	/// Legacy writes `parentMenuHeadingTo` on the way in because `SoundEditor::maybeGetParentMenu`
-	/// (`gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
-	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` (`:2084`) over
-	/// `getCurrentHorizontalMenusChain(false)` (`:2079`, dispatched on the root at `:2108-2130`).
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
+	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` over
+	/// `getCurrentHorizontalMenusChain(false)` (which dispatches on the root).
 	/// This scene has the root (`MenuContext::root`) and the chains (`chain_for`), so it answers the
 	/// same question: the first chain entry that lists the item, which for an oscillator's file
 	/// selector is the whole `source_group` (`sourceMenuGroup`), paged across its five members. A
@@ -677,8 +680,8 @@ private:
 	///        `beginScreen` -- a new screen.
 	struct Visit {
 		/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
-		///        `focusRegained` (`sound_editor.cpp`), so the release of a press that opened or
-		///        returned to the menu does not act.
+		///        `focusRegained` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the release of a press that
+		///        opened or returned to the menu does not act.
 		bool use_up_select = true;
 		/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen
 		/// the render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
@@ -686,7 +689,7 @@ private:
 		/// Learn mode and its LED.
 		MenuLearn learn;
 		/// @brief Select was held during the last render: a value edited under it uses the press up
-		///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
+		///        (`Value::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/value.h`).
 		bool select_held = false;
 		const Node* blink_screen = nullptr;
 		/// The value being edited.
@@ -736,17 +739,15 @@ public:
 	/// is `descend_to`, which asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike
 	/// `open()`, this never replaces `ctx_`.
 	///
-	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
-	///       begins the entered item's session (`SoundEditor::beginScreen`), and the toggle names no
-	///       item to navigate back from (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is
-	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
-	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
-	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
-	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
-	///       `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`), so this always lands on the
-	///       first. The port keeps focus per depth for a
-	///       session, not per menu object for the process, and meets it by a descend rather than a
-	///       re-open.
+	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen` begins the entered
+	///       item's session (`SoundEditor::beginScreen`), and the toggle names no item to navigate back from
+	///       (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is `HorizontalMenu::beginSession`
+	///       (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -> `Submenu::beginSession`
+	///       (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) -> `focusChild(nullptr)`, which keeps the
+	///       process-lifetime object's `current_item_`: a second toggle hold lands on the column last focused.
+	///       `descend_to` resets `st_.list[depth]` and `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`),
+	///       so this always lands on the first. The port keeps focus per depth for a session, not per menu object for
+	///       the process, and meets it by a descend rather than a re-open.
 	/// @param node The submenu to enter.
 	void enter_submenu(const Node& node);
 	/// @}

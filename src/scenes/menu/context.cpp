@@ -80,7 +80,8 @@ const deluge::instrument::SourceState* source_state(const MenuContext& ctx) {
 } // namespace
 
 int32_t range_count(const MenuContext& ctx) {
-	// `std::ssize(source->ranges)` at `:2005`.
+	// `std::ssize(source->ranges)`, the count main's `SoundEditor::setup` tests
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	const deluge::instrument::SourceState* source = source_state(ctx);
 	return source != nullptr ? static_cast<int32_t>(source->ranges.size()) : 0;
 }
@@ -114,7 +115,7 @@ bool ensure_first_range(MenuContext& ctx) {
 			return true; // a sink that only records the request made nothing to point at
 		}
 	}
-	// `:2005-2007` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
+	// The same unambiguous cases `context_for` resolves, re-applied now that a range
 	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
 	if (ctx.is_kit || range_count(ctx) == 1) {
 		ctx.range_index = 0;
@@ -126,8 +127,8 @@ void select_range(MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
 		return;
 	}
-	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`). The source's remembered range is the picker's to write, on a
-	// flick (`MultiRangeItem::render`).
+	// `SoundEditor::setCurrentMultiRange` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). The source's remembered
+	// range is the picker's to write, on a flick (`MultiRangeItem::render`).
 	ctx.range_index = static_cast<int16_t>(index);
 }
 
@@ -135,8 +136,9 @@ void select_source(MenuContext& ctx, int8_t index) {
 	if (!ctx.addresses.slot || index < 0 || index >= kNumSources) {
 		return;
 	}
-	// `SoundEditor::setup`'s `:1841-1843`, folded in here because this is the port of the one place legacy changes
-	// source index mid-menu: a range remembered for the *other* source names a different sample entirely.
+	// The range reset in main's `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), folded in here
+	// because this is the port of the one place legacy changes source index mid-menu: a range remembered for the
+	// *other* source names a different sample entirely.
 	//
 	// NARROWED, deliberately: legacy's condition is a disjunction, and only the second half is ported. The first --
 	// `currentUI != &soundEditor && currentUI != &sampleMarkerEditor` -- drops the remembered range whenever the menu
@@ -147,7 +149,7 @@ void select_source(MenuContext& ctx, int8_t index) {
 		ctx.range_index = -1;
 	}
 	ctx.source_index = index;
-	if (ctx.range_index < 0 && range_count(ctx) > 0) { // `:247-249`
+	if (ctx.range_index < 0 && range_count(ctx) > 0) { // the first range, as `setup` selects it
 		ctx.range_index = 0;
 	}
 }
@@ -170,15 +172,15 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	                       != static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off);
 	ctx.resolved = true;
 
-	// ---------------------------------------------------------------------------------------
-	// Part 1: which sound or chain (`:1686-1762`). Part 1 keys off the song view FIRST and only then looks at the
-	// clip, while part 2 keys off the clip first: a song-view caller that also passes a clip gets the song's chain
-	// with a clip root, as `setup()` does.
+	// --------------------------------------------------------------------------------------- Part 1: which sound or
+	// chain (main's `SoundEditor::setup`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`). Part 1 keys off the song
+	// view FIRST and only then looks at the clip, while part 2 keys off the clip first: a song-view caller that also
+	// passes a clip gets the song's chain with a clip root, as `setup()` does.
 	// ---------------------------------------------------------------------------------------
 	std::optional<project::SlotAddress> slot;
 	std::optional<project::ChainAddress> chain;
 	if (ctx.is_song_view) {
-		// `:1686-1695` -- the song's own chain.
+		// The song's own chain.
 		chain = project::ChainAddress{.kind = project::ChainAddress::Kind::SONG};
 	}
 	else if (view.clip && view.track) {
@@ -186,22 +188,22 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		ctx.is_audio_clip = view.audio_clip;
 		const uint32_t track = view.track->output_id;
 		if (view.audio_clip) {
-			// `:1757-1761` -- an audio track's chain.
+			// An audio track's chain.
 			chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
 		}
 		else if (ctx.is_kit) {
 			ctx.non_audio_drum_row =
 			    view.selected_row.has_value() && view.selected_row_type != project::DrumType::SOUND;
 			ctx.gate_drum_row = view.selected_row.has_value() && view.selected_row_type == project::DrumType::GATE;
-			// `:1708-1713` -- affect-entire ("kit global FX"), which the caller says (`setupKitGlobalFXMenu`): the
+			// Affect-entire ("kit global FX"), which the caller says (`setupKitGlobalFXMenu`): the
 			// kit's own chain. Not the clip's affect-entire: the kit-row grid shortcut enters with it on and edits the
 			// row.
 			if (kit_global_fx) {
 				chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
 				ctx.is_kit_global_fx = true;
 			}
-			// `:1715-1730` -- a selected row: a sound row with its note row in the clip is a sound to edit, one without
-			// is refused (`:1719-1721`); a MIDI or gate row has an arpeggiator and nothing else.
+			// A selected row: a sound row with its note row in the clip is a sound to edit, one without
+			// is refused; a MIDI or gate row has an arpeggiator and nothing else.
 			else if (view.selected_row) {
 				ctx.is_drum = true;
 				if (view.selected_row_type == project::DrumType::SOUND) {
@@ -213,7 +215,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 					}
 				}
 			}
-			// `:1732-1739` -- neither affect-entire nor a selected row: nothing to edit.
+			// Neither affect-entire nor a selected row: nothing to edit.
 			else {
 				ctx.resolved = false;
 			}
@@ -221,50 +223,50 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		else if (view.kind == TrackKind::SYNTH) {
 			slot = project::SlotAddress{.kind = project::SlotAddress::Kind::OUTPUT, .id = track};
 		}
-		// `:1750` -- CV or MIDI: no sound, no chain.
+		// CV or MIDI: no sound, no chain.
 	}
 
 	// The kit clip's own affect-entire, whichever branch part 1 took (a synth clip's means nothing).
 	ctx.affect_entire = ctx.is_kit && !ctx.is_audio_clip && view.affect_entire;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). Legacy picks the kit roots from the clip's
+	// Part 2: which root menu (the `item == nullptr` arm of `setup`). Legacy picks the kit roots from the clip's
 	// affect-entire and edits what `setupKitGlobalFXMenu` says, and the two can disagree: the kit's own root is taken
 	// when both say the kit, and otherwise the row's root by the selected drum's type, as legacy's arms run. The grid
 	// shortcut (affect-entire on, the row edited) so lands on the row's root, which is where its item lives; with
 	// affect-entire off and the fact set it is legacy's drum root over the kit's own effects. The note-editor roots
 	// are the caller's (`NoteMode`).
 	// ---------------------------------------------------------------------------------------
-	if (view.clip) { // `:1770`
+	if (view.clip) {
 		if (!view.audio_clip) {
-			if (view.kind == TrackKind::MIDI_OUT || view.kind == TrackKind::CV) { // `:1780-1788`
+			if (view.kind == TrackKind::MIDI_OUT || view.kind == TrackKind::CV) {
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (ctx.is_kit && ctx.is_kit_global_fx && view.affect_entire) { // `:1790-1792`
+			else if (ctx.is_kit && ctx.is_kit_global_fx && view.affect_entire) {
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
 			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::MIDI) {
-				ctx.root = MenuContext::Root::MidiDrum; // `:1794-1798`
+				ctx.root = MenuContext::Root::MidiDrum;
 			}
 			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::GATE) {
 				ctx.root = MenuContext::Root::GateDrum;
 			}
-			else { // `:1806-1808`
+			else {
 				ctx.root = ctx.is_kit ? MenuContext::Root::Drum : MenuContext::Root::Sound;
 			}
 		}
-		else { // `:1811-1813`
+		else {
 			ctx.root = MenuContext::Root::AudioClip;
 		}
 	}
-	else if (performance_view) { // `:1816-1818`
+	else if (performance_view) {
 		ctx.root = MenuContext::Root::Performance;
 	}
-	// `:1819-1822` -- the wide fact: the three song views share one root.
+	// The wide fact: the three song views share one root.
 	else if (session_or_arranger_root) {
 		ctx.root = MenuContext::Root::Song;
 	}
-	else { // `:1823-1825`
+	else {
 		ctx.root = MenuContext::Root::Settings;
 	}
 
@@ -285,7 +287,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	}
 
 	// ---------------------------------------------------------------------------------------
-	// Part 3: the range (`:1873-1897`). `setup()` selects the first range once the item's permission is YES; with no
+	// Part 3: the range. `setup()` selects the first range once the item's permission is YES; with no
 	// item to ask, it is selected where that rule is unambiguous (a kit row, or a single range), and left for the
 	// range picker otherwise (`permission_for` then says `MustSelectRange`).
 	// ---------------------------------------------------------------------------------------
@@ -379,7 +381,7 @@ Permission ensure_item_first_range(const Node& node, MenuContext& ctx) {
 
 Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
-	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. The `relevant`
+	// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`): relevance, and nothing else. The `relevant`
 	// hook is the port of the 112 `isRelevant` overrides the survey counts.
 	if (!bindings::relevant(node, ctx)) {
 		return Permission::No;
@@ -388,30 +390,30 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The rule the range-specific overrides share, via
 	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` --
 	// e.g. `menu_item::sample::Transpose::checkPermissionToBeginSession`
-	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
+	// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`), which after its own relevance and osc-type test
 	// defers to it verbatim.
 	//
 	// The discriminator is `Node::range_specific`, the items whose override ends in that call -- NOT "the node has a
 	// `bind.param`". Everything else, an ordinary patched param on a multisampled sound included, takes the base rule
-	// above and opens: legacy routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`),
-	// which returns YES without ever looking at a range.
+	// above and opens: legacy routes it through `MenuItem::checkPermissionToBeginSession`
+	// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), which returns YES without ever looking at a range.
 	if (!node.range_specific || !ctx.addresses.slot) {
 		return Permission::Yes;
 	}
 	// `main` asks about the item's own source (`whichThing`), which a per-oscillator item names itself.
 	const MenuContext rule_ctx = range_rule_context(node, ctx);
 
-	// `:1950` -- a kit row is always range-unambiguous (one range per drum), and so is a source
+	// A kit row is always range-unambiguous (one range per drum), and so is a source
 	// with exactly one range. `context_for` has already pointed `ctx.range_index` at that range.
 	if (rule_ctx.is_kit || range_count(rule_ctx) <= 1) {
 		return Permission::Yes;
 	}
 
-	// `:1955-1957` -- a range is already selected for this source index (`ctx.source_index` is what
+	// A range is already selected for this source index (`ctx.source_index` is what
 	// `context_for` resolved `ctx.range_index` against, so the legacy
 	// `currentSourceIndex == whichThing` test holds by construction). Legacy's
 	// `getCurrentUI() == &soundEditor` guard is dropped as a UI read; it is redundant here because
-	// legacy already nulls the remembered range at `:1784-1788` whenever the UI or source index
+	// legacy already nulls the remembered range in `SoundEditor::setup` whenever the UI or source index
 	// changed, which is the same condition.
 	//
 	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range_index`
@@ -421,7 +423,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 		return Permission::Yes;
 	}
 
-	return Permission::MustSelectRange; // `:1959`
+	return Permission::MustSelectRange;
 }
 
 } // namespace deluge::scenes::menu

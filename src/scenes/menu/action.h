@@ -12,11 +12,11 @@
 // clang-format off
 /// | node | legacy | what its select press does |
 /// |---|---|---|
-/// | `perform_editor` | `performance_session_view::EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:50-97`) | writes `performanceView.defaultEditingMode`/`editingParam`, resets the performance view, `openUI(&performanceView)` |
-/// | `start_stem_export` | `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) | `soundEditor.exitCompletely()`, then `getRootUI()` chooses one of four `StemExportType`s |
-/// | `set_clip_length` | `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`) | `audioClipView.setClipLengthEqualToSampleLength()` |
-/// | `song_midi_learn` | `song::MidiLearn::selectButtonPress` (`gui/menu_item/song/midi_learn.h:27-31`) | `context_menu::midiLearnMode.setupAndCheckAvailability()` + `openUI(...)` |
-/// | `configure_song_macros` | `song::ConfigureMacros::selectButtonPress` (`gui/menu_item/song/configure_macros.h:27-31`) | `context_menu::configureSongMacros.setupAndCheckAvailability()` + `openUI(...)` |
+/// | `perform_editor` | `performance_session_view::EditingMode::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) | writes `performanceView.defaultEditingMode`/`editingParam`, resets the performance view, `openUI(&performanceView)` |
+/// | `start_stem_export` | `stem_export::Start::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) | `soundEditor.exitCompletely()`, then `getRootUI()` chooses one of four `StemExportType`s |
+/// | `set_clip_length` | `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) | `audioClipView.setClipLengthEqualToSampleLength()` |
+/// | `song_midi_learn` | `song::MidiLearn::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) | `context_menu::midiLearnMode.setupAndCheckAvailability()` + `openUI(...)` |
+/// | `configure_song_macros` | `song::ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) | `context_menu::configureSongMacros.setupAndCheckAvailability()` + `openUI(...)` |
 // clang-format on
 ///
 /// Every one of those five statements names a symbol in `gui/views/`, `gui/ui/` or
@@ -82,22 +82,24 @@ enum class MenuAction : uint8_t {
 	/// @brief Enter the performance view in the editing mode named by `MenuActionRequest::arg`
 	///        (a `PerformanceEditingMode`, and never `DISABLED` -- see `nodes/actions.h`).
 	///
-	/// The dispatcher performs `editing_mode.h:56-95`: set
+	/// The dispatcher performs `EditingMode::selectButtonPress`
+	/// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`): set
 	/// `performanceView.defaultEditingMode = true` and `editingParam` from the payload, call
 	/// `performanceView.resetPerformanceView(modelStack)` unless `editingParam`, then `openUI(...)`.
 	OpenPerformanceView,
 
 	/// @brief Begin a stem export. `arg` is unused.
 	///
-	/// The dispatcher performs all of `stem_export/start.h:31-49`, **including the
-	/// `getRootUI()` fan-out that picks between `StemExportType::MIXDOWN`/`TRACK`/`CLIP`/`DRUM`**.
-	/// The `soundEditor.exitCompletely()` that precedes it (`:32`) is performed *in equivalent
-	/// form rather than verbatim*, and that is the one divergence: under the guest the open UI is
-	/// `ShellHostUI` and not `soundEditor`, so the literal call would walk `closeUI` off the front
-	/// of the navigation stack. `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp`)
-	/// empties the guest's scene stack instead and lets `ShellHostUI::timerCallback` do the close
-	/// it already owns -- the same statement the menu's own root-Back reaches. That file argues it
-	/// at length; this reference exists so the divergence is not discoverable only from there.
+	/// The dispatcher performs all of `Start::selectButtonPress`
+	/// (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`), **including the `getRootUI()` fan-out that picks
+	/// between `StemExportType::MIXDOWN`/`TRACK`/`CLIP`/`DRUM`**. The `soundEditor.exitCompletely()` that precedes it
+	/// (the first statement of `Start::selectButtonPress`) is performed *in equivalent form rather than verbatim*, and
+	/// that is the one divergence: under the guest the open UI is `ShellHostUI` and not `soundEditor`, so the literal
+	/// call would walk `closeUI` off the front of the navigation stack. `closePortedMenu`
+	/// (`gui/ui/shell_action_dispatch.cpp`) empties the guest's scene stack instead and lets
+	/// `ShellHostUI::timerCallback` do the close it already owns -- the same statement the menu's own root-Back
+	/// reaches. That file argues it at length; this reference exists so the divergence is not discoverable only from
+	/// there.
 	///
 	/// Deliberately not four enumerators: the choice is made from the root UI, which this layer
 	/// cannot read, so splitting it here would only move an unanswerable question into the menu.

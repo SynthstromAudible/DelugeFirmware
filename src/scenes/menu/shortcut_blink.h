@@ -4,8 +4,8 @@
 /// @brief The menu's shortcut blinks: which pads blink for the focused node, and legacy's counter
 ///        that decides when each one flashes.
 ///
-/// Ports `SoundEditor::updatePadLightsFor` (`gui/ui/sound_editor.cpp:1028-1146`), which sets the
-/// blink up, and `SoundEditor::blinkShortcut` (`:1205-1245`), which plays it. A blink is a pad
+/// Ports `SoundEditor::updatePadLightsFor` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which sets the
+/// blink up, and `SoundEditor::blinkShortcut`, which plays it. A blink is a pad
 /// flash the control surface plays by itself (`ui::grid::GridFrame::flash`); it paints no pixel.
 
 #include "scenes/menu/context.h"
@@ -75,9 +75,9 @@ struct BlinkPlan {
 /// @brief What blinks while @p focused is focused.
 ///
 /// The focused node's own shortcut pad, every cycle, yellow when it is the second layer's
-/// (`updatePadLightsFor`'s `setupShortcutBlink(x, y, 0, ...)`, `sound_editor.cpp:1093-1112`).
+/// (`updatePadLightsFor`'s `setupShortcutBlink(x, y, 0, ...)`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 /// Nothing blinks for the name editors and the sample-marker editors, nor under the settings, note
-/// and note-row roots (`:1029-1040`).
+/// and note-row roots (`SoundEditor::updatePadLightsFor`).
 /// The table follows `updatePadLightsFor`'s choice: a kit with affect-entire on and the host's kit-global latch set
 /// blinks from the kit's own table (`paramShortcutsForKitGlobalFX`), whatever row the menu edits; a kit-global menu
 /// with affect-entire off falls through to the sound table, as legacy's chain does.

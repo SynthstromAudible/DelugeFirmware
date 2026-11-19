@@ -16,7 +16,8 @@
 
 namespace deluge::scenes::menu {
 
-/// @brief The grid greyout under the menu -- `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:441-484`).
+/// @brief The grid greyout under the menu -- `SoundEditor::getGreyoutColsAndRows`
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuState& st);
 
 /// @brief When the pad blinks next need a frame: the shorter of the shortcut counter's two steps the plan uses, or
@@ -27,7 +28,8 @@ std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& 
 /// @brief The shortcut pads and the landing a jump arms.
 class MenuPads {
 public:
-	/// @brief Flash the shortcut blinks for `pad_subject()` (`blinkShortcut`, `sound_editor.cpp:1205-1245`).
+	/// @brief Flash the shortcut blinks for `pad_subject()` (`blinkShortcut`,
+	/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @param kit_global_latched As `plan_blinks`'.
 	void render_grid(MenuCore core, deluge::ui::grid::GridFrame& f, bool kit_global_latched = false);
 	/// @brief SHIFT + a pad: the second-layer toggle and the jump (`potentialShortcutPadAction`).
@@ -36,7 +38,7 @@ public:
 	                                                    const deluge::ui::shell::UiEvent& event,
 	                                                    const deluge::ui::shell::UiContext& ui);
 	/// @brief SHIFT + the patching-source pad (@p x, @p y): the source arm of `potentialShortcutPadAction`
-	///        (`sound_editor.cpp:1532-1609`).
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	///
 	/// The pad's source -- its second layer when the pad is the active source of a patch-cable page that blinks it
 	/// white -- is offered to the focused item, then each item above while they answer `SourcePress::GoUp`; past the

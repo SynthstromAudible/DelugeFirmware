@@ -20,7 +20,7 @@
 ///
 /// Each table below is written **column-major, exactly as legacy writes it** -- one braced line per
 /// pad column `x`, eight cells `y = 0..7` -- so a reviewer can diff it line for line against
-/// `gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
+/// `origin/main:src/deluge/gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
 /// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
 /// "unimplemented" and goes nowhere, in `SoundEditor::potentialShortcutPadAction`) and says so in the line comment.
 ///
@@ -94,7 +94,7 @@ constexpr Cells kNoCells{};
 
 // clang-format off
 
-/// `paramShortcutsForSounds` (`gui/ui/menus.cpp:2174`).
+/// `paramShortcutsForSounds` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 constexpr const Node* kSoundColumns[kShortcutCols][kShortcutRows] = {
     {&n::sample0_repeat   , &n::sample0_reverse     , &n::sample0_time_stretch, &n::sample0_pitch_speed, &n::sample0_recorder     , &n::file0_selector     , &n::sample0_interpolation, &n::sample0_start}, // x=0
     {&n::sample1_repeat   , &n::sample1_reverse     , &n::sample1_time_stretch, &n::sample1_pitch_speed, &n::sample1_recorder     , &n::file1_selector     , &n::sample1_interpolation, &n::sample1_start}, // x=1
@@ -114,7 +114,7 @@ constexpr const Node* kSoundColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , &n::spread_velocity     , &n::randomizer_lock     , &n::note_probability   , nullptr                  , nullptr                , nullptr                  , nullptr}, // x=15
 };
 
-/// `paramShortcutsForSoundsSecondLayer` (`gui/ui/menus.cpp:2194`).
+/// `paramShortcutsForSoundsSecondLayer` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=0
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=1
@@ -134,7 +134,7 @@ constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=15
 };
 
-/// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2213`).
+/// `paramShortcutsForAudioClips` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 ///
 /// `audio_clip_waveform` is `audioClipSampleMarkerEditorMenuEnd`, the only marker item this table holds under
 /// `SHORTCUTS_VERSION_3`; the START item is `audio_clip_waveform_start`, in the V1 table alone.
@@ -157,7 +157,7 @@ constexpr const Node* kAudioClipColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=15
 };
 
-/// `paramShortcutsForSongView` (`gui/ui/menus.cpp:2232`).
+/// `paramShortcutsForSongView` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 constexpr const Node* kSongColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1
@@ -177,7 +177,7 @@ constexpr const Node* kSongColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=15
 };
 
-/// `paramShortcutsForKitGlobalFX` (`gui/ui/menus.cpp:2251`).
+/// `paramShortcutsForKitGlobalFX` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 constexpr const Node* kKitGlobalFxColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
     {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1
@@ -197,12 +197,12 @@ constexpr const Node* kKitGlobalFxColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , &n::spread_velocity, &n::randomizer_lock        , &n::note_probability    , nullptr             , nullptr            , nullptr                , nullptr}, // x=15
 };
 
-/// `midiOrCVParamShortcuts` (`gui/ui/menus.cpp:1200`) -- one column, `y = 0..7`.
+/// `midiOrCVParamShortcuts` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- one column, `y = 0..7`.
 constexpr const Node* kMidiOrCvColumn[kShortcutRows] = {
     &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_octaves, &n::arp_preset, &n::edit_name, nullptr, nullptr,
 };
 
-/// `gateDrumParamShortcuts` (`gui/ui/menus.cpp`) -- one column, `y = 0..7`.
+/// `gateDrumParamShortcuts` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- one column, `y = 0..7`.
 constexpr const Node* kGateDrumColumn[kShortcutRows] = {
     &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_rhythm_midi, &n::arp_mode, &n::drum_name_edit, nullptr, nullptr,
 };
@@ -232,7 +232,7 @@ constexpr Cells with_cell(Cells base, uint8_t x, uint8_t y, const Node* node) {
 
 /// @name The `SHORTCUTS_VERSION_1` layers.
 ///
-/// `SoundEditor::setShortcutsVersion`'s V1 arm (`gui/ui/sound_editor.cpp:155-175`), as whole tables
+/// `SoundEditor::setShortcutsVersion`'s V1 arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), as whole tables
 /// rather than as writes into the V3 ones -- see the note on `menu::set_shortcuts_version`, which
 /// also accounts for the six of legacy's ten assignments that produce no difference here.
 ///
@@ -257,22 +257,21 @@ constexpr Cells kAudioClipV1Cells = with_cell(
     1, 7, &n::audio_clip_waveform_start);
 /// @}
 
-/// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy
-///        table -- `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1337-1357`).
+/// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy table --
+///        `potentialShortcutPadAction`'s own `else if` chain (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// Legacy spells them inline rather than in a table: `(4, 7)` opens `sequenceDirectionMenu` and
 /// `(15, 1..3)` the MIDI/CV randomizer trio, for `editingCVOrMIDIClip() || editingNonAudioDrumRow()`
 /// -- i.e. `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum`.
 ///
-/// **Resolve-only, and that asymmetry is deliberate.** `updatePadLightsFor`'s MIDI/CV and gate-drum
-/// arms (`sound_editor.cpp:871-891`) scan column 11 and *nothing else*, so legacy never blinks these
-/// four pads even though pressing them navigates. `shortcut_node` therefore consults this overlay;
-/// `shortcut_layer` and `shortcut_pos` do not, so the reverse lookup blinks exactly the pads legacy
-/// blinks and no more.
+/// **Resolve-only, and that asymmetry is deliberate.** `updatePadLightsFor`'s MIDI/CV and gate-drum arms
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) scan column 11 and *nothing else*, so legacy never blinks these
+/// four pads even though pressing them navigates. `shortcut_node` therefore consults this overlay; `shortcut_layer` and
+/// `shortcut_pos` do not, so the reverse lookup blinks exactly the pads legacy blinks and no more.
 ///
 /// The other two arms of that same `if` stay out, because neither is a table cell: the DX7 pad
-/// grid (`:1170-1177`, which `dxParam` answers for itself) and the patching-source column
-/// (`x in {14, 15}`, `:1180-1268`, which walks `patchingSourceShortcutPress` up the menu stack).
+/// grid (which `dxParam` answers for itself) and the patching-source column
+/// (`x in {14, 15}`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
 	out[cell_index(4, 7)] = &n::sequence_direction;     // `SoundEditor::get_basic_shortcut_action`
@@ -284,13 +283,13 @@ constexpr Cells kMidiExtraCells = [] {
 
 /// @brief Does a press at (@p x, @p y) reach `paramShortcutsForKitGlobalFX` at all?
 ///
-/// The mirror of `kMidiExtraCells`, and the other half of the same guard asymmetry. The kit
-/// global-FX arm is gated `if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1))`
-/// (`sound_editor.cpp:1208-1212`), so **column 15 is admitted only at y == 1** -- legacy can never
-/// press the table's own `(15, 2)` and `(15, 3)` cells (`randomizerLockMenu`,
-/// `randomizerNoteProbabilityMenu`), even though it transcribes them. The blink side does not share
-/// the guard: `SoundEditor::setupShortcutsBlinkFromTable` scans the whole
-/// 16x8 table, so those two cells *do* blink when their item is open.
+/// The mirror of `kMidiExtraCells`, and the other half of the same guard asymmetry. The kit global-FX arm is gated
+/// `if ((x <= (kDisplayWidth - 2)) || (x == 15 && y ==
+/// 1))` (`SoundEditor::get_basic_shortcut_action` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so **column 15
+/// is admitted only at y == 1** -- legacy can never press the table's own `(15, 2)` and `(15, 3)` cells
+/// (`randomizerLockMenu`, `randomizerNoteProbabilityMenu`), even though it transcribes them. The blink side does not
+/// share the guard: `SoundEditor::setupShortcutsBlinkFromTable` scans the whole 16x8 table, so those two cells *do*
+/// blink when their item is open.
 ///
 /// So this is press-only, exactly as `kMidiExtraCells` is: there the press side sees pads the blink
 /// side does not, here the blink side sees cells the press side does not. Both are read by
@@ -298,9 +297,9 @@ constexpr Cells kMidiExtraCells = [] {
 /// `updatePadLightsFor`.
 ///
 /// The other four roots' guards were checked against their tables and need none: the song arm
-/// (`:1142-1147`) and the audio-clip arm (`:1160-1165`) admit `x <= 14` / `x <= 14` and neither
-/// table has a column-15 cell, and the sound arm's guard (`:1271-1273`) admits exactly the cells
-/// `paramShortcutsForSounds` fills there.
+/// (`SoundEditor::get_basic_shortcut_action` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and the audio-clip
+/// arm (the same function's) admit `x <= 14` / `x <= 14` and neither table has a column-15 cell, and the sound arm's
+/// guard (`SoundEditor::potentialShortcutPadAction`) admits exactly the cells `paramShortcutsForSounds` fills there.
 using PressGateFn = bool (*)(uint8_t x, uint8_t y);
 
 constexpr bool kit_global_fx_press_gate(uint8_t x, uint8_t y) {
@@ -330,8 +329,8 @@ struct Layers {
 /// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
-/// * `NoteEditor` / `NoteRowEditor` -- nothing either: `padAction`'s own gate
-///   (`SoundEditor::padAction` in `sound_editor.cpp`) skips `potentialShortcutPadAction` on both, exactly as it does
+/// * `NoteEditor` / `NoteRowEditor` -- nothing either: `padAction`'s own gate (`SoundEditor::padAction` in
+///   `origin/main:src/deluge/gui/ui/sound_editor.cpp`) skips `potentialShortcutPadAction` on both, exactly as it does
 ///   for `Settings`, so neither root's blink or press table is ever consulted.
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
@@ -386,7 +385,7 @@ const Node* cell_of(const Cells& cells, uint8_t x, uint8_t y) {
 
 /// @brief The first pad holding @p node, scanned **column-major** -- `x` outer, `y` inner.
 ///
-/// The order is `updatePadLightsFor`'s own (`sound_editor.cpp:903-910`), not an implementation
+/// The order is `updatePadLightsFor`'s own (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), not an implementation
 /// detail: it decides which pad blinks for a node that occupies more than one cell, and the
 /// audio-clip table has five such nodes (the two sample columns, `x = 0` and `x = 1`, are
 /// duplicates). Today every one of them differs only in `x`, so both scan orders would agree --
@@ -418,8 +417,8 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 	}
 	if (second_layer) {
 		// Legacy's own fallback: the second layer *replaces* the cell only where it has one
-		// (`sound_editor.cpp:1375-1378`), so a second press of a pad with no second-layer item
-		// re-opens the first-layer item rather than nothing.
+		// (`SoundEditor::potentialShortcutPadAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so a second
+		// press of a pad with no second-layer item re-opens the first-layer item rather than nothing.
 		if (const Node* second = cell_of(*l.second, x, y); second != nullptr) {
 			return second;
 		}

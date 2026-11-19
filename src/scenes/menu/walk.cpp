@@ -110,7 +110,8 @@ void MenuWalk::restore_row(MenuCore core) {
 		if (row.submenu != node) {
 			continue;
 		}
-		// `Submenu::focusChild` (`submenu.cpp:21-36`): a child the page no longer shows leaves the first one.
+		// `Submenu::focusChild` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): a child the page no longer shows
+		// leaves the first one.
 		const Node* kids[kMaxMenuChildren];
 		const size_t n = visible_children(ctx, *node, kids);
 		for (size_t k = 0; k < n; k++) {
@@ -278,12 +279,13 @@ RangeGate MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& se
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 		return RangeGate::Refused;
 	}
-	// `handleInstrumentButtonPress`'s own suppression (`horizontal_menu.cpp:427-428`):
+	// `handleInstrumentButtonPress`'s own suppression (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
 	// `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()`. Only that ONE caller passes
 	// `suppress_when_allowed = true` -- `enter_child`'s general descend and `handleItemAction`'s
 	// already-focused-press arm (`enter_horizontal_item`, below) both honour `MUST_SELECT_RANGE`
-	// unconditionally, exactly as their own legacy call sites do (`:424`, `:669-677`, neither reads
-	// `allowToBeginSessionFromHorizontalMenu` at all).
+	// unconditionally, exactly as their own legacy call sites do (`SoundEditor::enterSubmenu`'s callers and
+	// `HorizontalMenu::handleItemAction`'s `initializeItem` arm; neither tests
+	// `allowToBeginSessionFromHorizontalMenu` at the range check).
 	if (suppress_when_allowed && child.allow_session_from_horizontal) {
 		return RangeGate::Proceed;
 	}
@@ -315,11 +317,11 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	if (st.depth + 1 >= kMenuDepth) {
 		return;
 	}
-	// `SoundEditor::beginScreen` runs `endScreen()` (-> `currentMenuItem->endSession()`) before
-	// switching to any new item (`sound_editor.cpp:977-982`); `HorizontalMenu::endSession`
-	// (`horizontal_menu.cpp:576-591`) is the one override that cancels a live notification popup
-	// (`:587-589`) -- every other `MenuItem::endSession` (`menu_item.cpp:81`) is a no-op. This is
-	// "entering a child" from a horizontal page.
+	// `SoundEditor::enterSubmenu` runs `endScreen()` (-> `currentMenuItem->endSession()`) before switching to any new
+	// item (`origin/main:src/deluge/gui/ui/sound_editor.cpp`); `HorizontalMenu::endSession`
+	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) is the one override that cancels a live notification
+	// popup -- every other `MenuItem::endSession` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`)
+	// is a no-op. This is "entering a child" from a horizontal page.
 	if (on_horizontal_page(ctx, st)) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
@@ -348,8 +350,8 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1991-1995`), ahead of every one of its arms, plus legacy's
-	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), ahead of every one of its arms, plus legacy's
+	// `MUST_SELECT_RANGE` substitution (the select-press arm of `SoundEditor::buttonAction`): both factored into
 	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
 	// doc for why the two callers need the same piece.
 	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false) != RangeGate::Proceed) {
@@ -365,10 +367,10 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	if (&child == st.walk.pending_after_range) {
 		st.walk.range_picker_pending = false;
 	}
-	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
-	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
-	// already shown. The page begins as if it came back from the item (`enterSubmenu(parent, newItem)`), which keeps a
-	// range-dependent item's range.
+	// `SoundEditor`'s select arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`, the `maybeGetParentMenu` /
+	// `focusChild` pair before `enterSubmenu`): an item a chained page lists is entered on that page, focused on it,
+	// unless that page is the one already shown. The page begins as if it came back from the item
+	// (`enterSubmenu(parent, newItem)`), which keeps a range-dependent item's range.
 	if (const Node* page = shortcut_landing_page(ctx, child); page != nullptr && page != focused(st)) {
 		descend_to(core, session, *page, &child);
 		return;
@@ -382,11 +384,11 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// `SoundEditor::goUpOneLevel`: step up, skipping any level whose
 	// permission has since become `No`. The cursor each level is restored to is the one
 	// `st.list[depth]` has been holding all along, which is what legacy's `focusChild`
-	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
+	// (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) reconstructs from the item it navigated backward from.
 	//
-	// Going up from depth 0 closes the editor (`:715-717`, `exitCompletely()`): a leaf a shortcut jump re-rooted
-	// onto, or a scene opener whose scene returned (`MenuWalkState::go_up_on_resume`), leaves the menu rather than its
-	// bare title screen. `after_render` turns the request into the scene's `Remove`.
+	// Going up from depth 0 closes the editor (`SoundEditor::goUpOneLevel`'s depth-0 `exitCompletely()`): a leaf a
+	// shortcut jump re-rooted onto, or a scene opener whose scene returned (`MenuWalkState::go_up_on_resume`), leaves
+	// the menu rather than its bare title screen. `after_render` turns the request into the scene's `Remove`.
 	//
 	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
 	// cancels its notification whether the step lands on a parent or closes the menu. Read before the loop pops
@@ -498,7 +500,7 @@ void MenuWalk::restore(MenuCore core, ValueSession& session, const SceneState& s
 		}
 		// Seed the level we are leaving with the row we took out of it, so a `Back` straight after
 		// a restore lands where the user was -- legacy rebuilds exactly this through
-		// `Submenu::focusChild(navigatedBackwardFrom)` (`gui/menu_item/submenu.cpp:21-37`).
+		// `Submenu::focusChild(navigatedBackwardFrom)` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`).
 		if (is_horizontal(ctx, *st.path[level])) {
 			st.columns[level].focused = static_cast<int8_t>(saved.path_child[level]);
 		}
@@ -512,9 +514,9 @@ void MenuWalk::restore(MenuCore core, ValueSession& session, const SceneState& s
 			// was parked on an item which opens a scene (`nodes::EditNameItem`) re-opens that
 			// scene on the next `after_render`. **That is deliberate, and it is what legacy does.**
 			// `SoundEditor::focusRegained` ends in `beginScreen()`, which
-			// calls `beginSession` on whatever the current item is (`:1015`), and
+			// calls `beginSession` on whatever the current item is, and
 			// `EditName::beginSession` opens `RenameUI` unconditionally
-			// (`gui/menu_item/edit_name.cpp:29-54`) -- there is no "only the first time" arm
+			// (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`) -- there is no "only the first time" arm
 			// anywhere in that path.
 			//
 			// It is also the only coherent answer: `restore_state` is `replace_root`'s way of
@@ -548,7 +550,7 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
                                    MenuContext::Root chain_root) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// `HorizontalMenu::switchHorizontalMenu` (`horizontal_menu.cpp:364-394`).
+	// `HorizontalMenu::switchHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	const std::span<const Node* const> chain = chain_for(chain_root);
 	if (chain.empty() || direction == 0) {
 		return false;
@@ -568,7 +570,7 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
 		// whether the range stays (`HorizontalMenu::beginSession`).
 		begin_submenu_range(ctx, st, nullptr);
 		st.columns[0] = deluge::ui::ColumnsState{};
-		// Mod FX opens on its second page, the selected effect's controls (`:383`).
+		// Mod FX opens on its second page, the selected effect's controls (`HorizontalMenu::switchHorizontalMenu`).
 		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {
 			const Node* page_kids[kMaxMenuColumns];
 			deluge::ui::oled::Column cols[kMaxMenuColumns]{};

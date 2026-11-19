@@ -3,13 +3,11 @@
 /// @brief `MenuContext` -- what a menu edits -- and the three pure functions that produce it, reach
 ///        the model through it, and gate entry into a node with it.
 ///
-/// This is the context-resolution half of `SoundEditor::setup`,
-/// `SoundEditor::getCurrentModelStack`
-/// and the common rule behind the `checkPermissionToBeginSession` overrides
-/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), ported as free
-/// functions over plain arguments. (`gui/menu_item/` has 18 *files* naming
-/// `checkPermissionToBeginSession`; two of them, `menu_item.cpp`/`.h`, are the base rather than
-/// overrides.)
+/// This is the context-resolution half of `SoundEditor::setup`, `SoundEditor::getCurrentModelStack` and the common rule
+/// behind the `checkPermissionToBeginSession` overrides
+/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), ported as free functions over plain arguments.
+/// (`gui/menu_item/` has 18 *files* naming `checkPermissionToBeginSession`; two of them,
+/// `origin/main:src/deluge/gui/menu_item/menu_item.cpp`/`.h`, are the base rather than overrides.)
 ///
 /// @note **No UI reads.** `setup()` consults `getCurrentUI()`, `currentUIMode`,
 ///       `rootUIIsClipMinderScreen()`, `Buttons::isShiftButtonPressed()` and its own
@@ -49,19 +47,20 @@ struct Node;
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
 	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing, as on `main`
-	///        (`gui/menu_item/horizontal_menu.cpp`'s `HorizontalMenu::renderingStyle` and `gui/ui/sound_editor.cpp`'s
-	///        `SoundEditor::getCurrentHorizontalMenusChain` on `origin/main`).
+	///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`'s `HorizontalMenu::renderingStyle` and
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `SoundEditor::getCurrentHorizontalMenusChain` on
+	///        `origin/main`).
 	bool horizontal_menus = true;
 	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
 	///        by default, as `MenuOnly` is).
 	bool shortcut_overlay = true;
 
-	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
+	/// @brief Which root menu `setup()` would have opened (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	///
 	/// `Count` is the enumerator count, not a root.
 	///
 	/// @note `setup()` picks `NoteEditor`/`NoteRowEditor` from a `currentUIMode` this layer may not
-	///       read (`noteEditorRootMenu` `:1775`, `noteRowEditorRootMenu` `:1778`) -- so, unlike every
+	///       read (`noteEditorRootMenu` and `noteRowEditorRootMenu` in `SoundEditor::setup`) -- so, unlike every
 	///       other enumerator here, `context_for` never assigns either one; a caller that wants one
 	///       (`gui/ui/shell_menu_entry.cpp`'s `openShellMenu`, `NoteMode`) sets `ctx.root` itself
 	///       after resolving the rest of the context.
@@ -103,11 +102,12 @@ struct MenuContext {
 	/// `bindings::write()` is its only reader; with it set on a kit row, a param write goes to every
 	/// `SoundDrum` in the kit instead of just the selected one.
 	///
-	/// @note NOT the same fact as `affect_entire` below. That one is the clip's own
-	///       `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
-	///       (`sound_editor.cpp:1205-1213`) where legacy still edits one row only; the button being
-	///       held is independent of it (`sound_editor.cpp:540-547` sets the UI mode whenever
-	///       `editingKitRow()`, whatever `affectEntire` says).
+	/// @note NOT the same fact as `affect_entire` below. That one is the clip's own `InstrumentClip::affectEntire`
+	///       setting, which is true on the kit-row grid-shortcut path
+	///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) where legacy still edits one row only; the button being
+	///       held is independent of it (the `AFFECT_ENTIRE` arm of `SoundEditor::buttonAction` in
+	///       `origin/main:src/deluge/gui/ui/sound_editor.cpp` sets the UI mode whenever `editingKitRow()`, whatever
+	///       `affectEntire` says).
 	bool affect_entire_held = false;
 
 	/// @brief The kit clip's own `InstrumentClip::affectEntire`, a *resolved output* -- it says what
@@ -117,9 +117,11 @@ struct MenuContext {
 	bool affect_entire = false;
 	bool is_kit = false;
 
-	/// @brief `soundEditor.selectedNoteRow`: a row was auditioning when Play Direction began its session on a
-	///        non-kit clip (`sequence/direction.h:117-119`), so it reads and writes the auditioned row, not the clip.
-	///        Latched by `MenuScene` when the item is entered or its column focused; cleared by a re-root.
+	/// @brief `soundEditor.selectedNoteRow`: a row was auditioning when Play Direction began its session on a non-kit
+	///        clip (`Direction::checkPermissionToBeginSession` in
+	///        `origin/main:src/deluge/gui/menu_item/sequence/direction.h`), so it reads and writes the auditioned row,
+	///        not the clip. Latched by `MenuScene` when the item is entered or its column focused; cleared by a
+	///        re-root.
 	bool selected_note_row = false;
 	bool is_drum = false;
 	/// @brief `SoundEditor::editingNonAudioDrumRow`: the kit's selected drum is a MIDI or gate drum, whatever the menu
@@ -131,17 +133,16 @@ struct MenuContext {
 	bool is_song_view = false;
 
 	/// @brief Is the root UI the **session view specifically** -- legacy's `getRootUI() == &sessionView`
-	///        (`gui/menu_item/song/midi_learn.h:35-37`,
-	///        `gui/menu_item/song/configure_macros.h:35-37`)?
+	///        (`MidiLearn::isRelevant` in `origin/main:src/deluge/gui/menu_item/song/midi_learn.h`,
+	///        `ConfigureMacros::isRelevant` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`))?
 	///
-	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()`
-	/// (`SoundEditor::setup` in `sound_editor.cpp`), and one song root serves three views: `setup()` picks
-	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView`
-	/// alike (`sound_editor.cpp:1819-1822`). Only two items in that root care which of the three it
-	/// is, and they are the two `getRootUI()` reads above; `relevance::is_session_view` is what
-	/// spends this field. So the pair is a two-bit encoding of a three-way fact -- deliberately, and
-	/// deliberately no finer: nothing in the port distinguishes the arranger from the song
-	/// automation view, because no legacy `isRelevant` does either.
+	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in
+	/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and one song root serves three views: `setup()` picks
+	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView` alike (the song-view
+	/// arm of `SoundEditor::setup`). Only two items in that root care which of the three it is, and they are the two
+	/// `getRootUI()` reads above; `relevance::is_session_view` is what spends this field. So the pair is a two-bit
+	/// encoding of a three-way fact -- deliberately, and deliberately no finer: nothing in the port distinguishes the
+	/// arranger from the song automation view, because no legacy `isRelevant` does either.
 	///
 	/// `is_song_view` is implied by this one (`sessionView` is not a clip minder), never the
 	/// reverse. `context_for` does not enforce that: it transcribes its arguments, exactly as it
@@ -152,7 +153,8 @@ struct MenuContext {
 	bool is_kit_global_fx = false;
 
 	/// @brief The greyout `SoundEditor::getGreyoutColsAndRows` decides by the root UI's type alone
-	///        (`sound_editor.cpp:441-460`), which this layer may not read: the menu's opener sets it.
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which this layer may not read: the menu's opener sets
+	///        it.
 	enum class RootGreyout : uint8_t {
 		Menu,           ///< Any other root: the menu's own arms decide.
 		Nothing,        ///< The keyboard screen, or the automation view's editor: grey nothing.
@@ -171,9 +173,10 @@ struct MenuContext {
 	///        this layer may not read: the menu's opener sets it, and the host again whenever the root changes.
 	bool root_is_automation = false;
 
-	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected
-	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
-	///        affect-entire nor a selected drum (`:1677-1684`).
+	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected `SoundDrum` has no note
+	///        row (the `noteRow == nullptr` return of `SoundEditor::setup` in
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and a kit with neither affect-entire nor a selected
+	///        drum (the last `else` of the kit arm in `SoundEditor::setup`).
 	///
 	/// `context_for()` returns a value, not `setup()`'s `bool`, so the refusal needs somewhere to
 	/// live. Nothing else in this
@@ -206,27 +209,28 @@ struct MenuContext {
 ///                                affect-entire.
 /// @param source_index            which of a `Sound`'s two sources the menu addresses
 ///                                (`setup()`'s `sourceIndex`).
-/// @param performance_view        `setup()`'s `currentUI == &performanceView && !shift` (`:1816`).
-/// @param session_or_arranger_root `setup()`'s `!rootUIIsClipMinderScreen()` (`:1687`) -- true when
+/// @param performance_view        `setup()`'s `currentUI == &performanceView && !shift`.
+/// @param session_or_arranger_root `setup()`'s `!rootUIIsClipMinderScreen()` -- true when
 ///                                the root UI is the session, arranger, song-automation or
-///                                performance view. Also stands in for `:1819`'s
+///                                performance view. Also stands in for the song-root arm's
 ///                                `currentUI == &sessionView || &arrangerView || &automationView`
 ///                                with shift not held.
 /// @param session_view_root       `getRootUI() == &sessionView` -- the *narrower* fact
 ///                                `session_or_arranger_root` cannot carry, and the only thing that
-///                                separates the three views `:1819-1822` funnels into one song root.
+///                                separates the three views the song-root arm funnels into one.
 ///                                See `MenuContext::is_session_view`. Implies
 ///                                `session_or_arranger_root`; passing it true with that false is a
 ///                                caller bug this function does not police.
-/// @param kit_global_fx           `setup()`'s `setupKitGlobalFXMenu` member (`:1709`). True to edit
-///                                the kit's own global FX, false to edit the selected row. Callers
-///                                normally pass the clip's `affectEntire`, which is exactly what
-///                                both writers of that member set it from
-///                                (`model/clip/instrument_clip_minder.cpp:466-467`,
-///                                `gui/views/automation_view.cpp:1650-1652`); the kit-row grid
-///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
-///                                false with affect-entire on, and it is why this is an argument
-///                                rather than a re-read of the clip.
+/// @param kit_global_fx `setup()`'s `setupKitGlobalFXMenu` member. True to edit the kit's own global FX, false to edit
+///                                the selected row. Callers normally pass the clip's `affectEntire`, which is exactly
+///                                what both writers of that member set it from (the `SELECT_ENC` arm of
+///                                `InstrumentClipMinder::buttonAction` in
+///                                `origin/main:src/deluge/model/clip/instrument_clip_minder.cpp`,
+///                                `AutomationView::handleSelectEncoderButtonAction` in
+///                                `origin/main:src/deluge/gui/views/automation_view.cpp`); the kit-row grid shortcut
+///                                (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the caller that passes false
+///                                with affect-entire on, and it is why this is an argument rather than a re-read of the
+///                                clip.
 MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
@@ -243,9 +247,10 @@ enum class Permission : uint8_t {
 
 /// @brief Apply the menu's permission rule to @p node in @p ctx.
 ///
-/// Ports the base `MenuItem::checkPermissionToBeginSession` (`gui/menu_item/menu_item.cpp:27-31`,
+/// Ports the base `MenuItem::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`,
 /// relevance only) plus the range rule the range-specific overrides share via
-/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp`).
+/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// The range rule fires on `Node::range_specific` -- the items whose override ends in that call --
 /// **not** on "has a `bind.param`". An ordinary patched param on a multisampled sound takes the
@@ -271,7 +276,7 @@ int32_t range_count(const MenuContext& ctx);
 ///        top one") when @p index is out of range.
 ///
 /// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
-/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp`). `MultiRange` is a
+/// `topNote` (`MultiRange::getText`, `origin/main:src/deluge/gui/menu_item/multi_range.cpp`). `MultiRange` is a
 /// `storage/` type, so the read lives here beside the other model reads rather than in the node
 /// table.
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
@@ -280,9 +285,10 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
-/// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in `main`'s
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`src/deluge/gui/ui/sound_editor.cpp`).
+/// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the choice is
+///        unambiguous -- `Source::getOrCreateFirstRange()` in `main`'s
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
 /// "Not owned by this file"): main's rule *creates* the first range before it answers anything, and can fail with
@@ -312,7 +318,8 @@ bool ensure_first_range(MenuContext& ctx);
 ///         range is still unresolved (more than one, none remembered); `Yes` otherwise.
 Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 
-/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
+/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
 /// unchecked, and every caller here has already clamped against `range_count`.
@@ -321,23 +328,23 @@ Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 void select_range(MenuContext& ctx, int32_t index);
 
 /// @brief Point @p ctx at oscillator source @p index -- `SoundEditor::setCurrentSource`
-///        (`sound_editor.cpp`), plus the range reset `SoundEditor::setup`
-///        performs alongside it (`:1786-1788`).
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), plus the range reset `SoundEditor::setup`
+///        performs alongside it.
 ///
 /// Legacy's per-source bespoke items each hold their own `source_id_` and open with
-/// `soundEditor.setCurrentSource(sourceId_)` -- `FileSelector::openBrowser`
-/// (`gui/menu_item/file_selector.cpp`), `sample::LoopPoint::beginSession`
-/// (`gui/menu_item/sample/loop_point.cpp:68`), `osc::AudioRecorder::beginSession`
-/// (`gui/menu_item/osc/audio_recorder.h:38`). Nothing in the port re-resolves the context on the
+/// `soundEditor.setCurrentSource(sourceId_)` -- `FileSelector::beginSession`
+/// (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`), `sample::LoopPoint::beginSession`
+/// (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`), `osc::AudioRecorder::beginSession`
+/// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`). Nothing in the port re-resolves the context on the
 /// way into `source1`'s page (see `relevance.h`'s note on why the per-source predicates are named
 /// rather than context-driven), so this is where an item that is *about* to hand a context to
 /// another scene makes it name its own source.
 ///
 /// Three statements of legacy's, plus one of `setup()`'s:
 ///
-///   * `currentSource` / `currentSourceIndex` / `currentSampleControls` (`:205-207`);
-///   * `:209-211` -- adopt the source's first range when none is selected yet;
-///   * `setup()`'s `:1786-1788`, which drops a remembered range whenever the source index moves.
+///   * `currentSource` / `currentSourceIndex` / `currentSampleControls`, set by `SoundEditor::setCurrentSource`;
+///   * adopt the source's first range when none is selected yet, as `setCurrentSource` does;
+///   * the range reset in `setup()`, which drops a remembered range whenever the source index moves.
 ///     Without it, an item on source 1 could open a scene over source **0**'s `MultiRange` -- the
 ///     one `context_for` resolved -- and edit the wrong sample's markers. Only the source-index
 ///     half of that condition is ported; the `.cpp` says why the UI half has nothing to clear here.
@@ -345,7 +352,7 @@ void select_range(MenuContext& ctx, int32_t index);
 /// @param ctx   The context to re-point. A context with no `sound` (an audio clip, the settings
 ///              root) is left exactly as it is: there is no source to select, which is precisely
 ///              why `audio_clip::SampleMarkerEditor::beginSession`
-///              (`gui/menu_item/audio_clip/sample_marker_editor.cpp`) has no such call.
+///              (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`) has no such call.
 /// @param index Which of `Sound::sources`. Negative, or past the last source, is a no-op --
 ///              `nodes::MarkerItem` spells "the audio-clip opener, which selects no source" as -1.
 void select_source(MenuContext& ctx, int8_t index);

@@ -14,13 +14,13 @@
 
 namespace deluge::scenes::menu {
 
-/// @brief `cpu::VoiceUsage`'s counters (`cpu/voice_usage.h:94-111`): the last sample, the maximum, and a whole-number
-///        average over every sample since the page opened.
+/// @brief `cpu::VoiceUsage`'s counters (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`): the last sample, the
+///        maximum, and a whole-number average over every sample since the page opened.
 class VoiceUsageSampler {
 public:
-	/// @brief Forget every sample (`VoiceUsage::beginSession`, `:70-73`).
+	/// @brief Forget every sample (`VoiceUsage::beginSession`).
 	void reset() { *this = {}; }
-	/// @brief Take one sample of @p live voices (`VoiceUsage::sample`, `:94-99`).
+	/// @brief Take one sample of @p live voices (`VoiceUsage::sample`).
 	void sample(int32_t live) {
 		live_ = live;
 		total_ += static_cast<uint64_t>(std::max<int32_t>(live, 0));
@@ -29,7 +29,7 @@ public:
 	}
 	[[nodiscard]] int32_t live() const { return live_; }
 	[[nodiscard]] int32_t maximum() const { return maximum_; }
-	/// @brief `averageVoiceCount` (`:101-103`): 0 before any sample.
+	/// @brief `averageVoiceCount` (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`): 0 before any sample.
 	[[nodiscard]] int32_t average() const { return count_ == 0 ? 0 : static_cast<int32_t>(total_ / count_); }
 	[[nodiscard]] uint32_t samples() const { return count_; }
 
@@ -40,9 +40,9 @@ private:
 	uint32_t count_ = 0;
 };
 
-/// @brief The voice usage page's clock (`VoiceUsage::timerCallback`, `cpu/voice_usage.h:77-87`): arriving on the page
-///        or a counter begins its session, and while the focus stays there a sample is taken every
-///        `cpu::VoiceUsage::kRefreshIntervalMs`.
+/// @brief The voice usage page's clock (`VoiceUsage::timerCallback`,
+///        `origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`): arriving on the page or a counter begins its
+///        session, and while the focus stays there a sample is taken every `cpu::VoiceUsage::kRefreshIntervalMs`.
 class VoiceUsageClock {
 public:
 	/// @brief Where the focus is relative to the voice usage page: its counters sample there.

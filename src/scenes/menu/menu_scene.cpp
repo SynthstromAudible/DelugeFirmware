@@ -107,15 +107,13 @@ SceneKind MenuScene::kind() const {
 }
 
 std::span<const Node* const> MenuScene::roots() {
-	// One slot per `MenuContext::Root`, and every one of them filled.
-	// This array is `on_enter`'s "arg 0 means the root the context chose" lookup, and adding or
-	// re-pointing a root is a change to this array alone.
-	// One node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
-	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
-	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
-	// `NoteEditor`/`NoteRowEditor` are the last two: a menu opened with `ctx.root` set to either
-	// (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s `arg == 0` path
-	// (`MenuScene::open`'s warning), exactly as every other root does.
+	// One slot per `MenuContext::Root`, and every one of them filled. This array is `on_enter`'s "arg 0 means the root
+	// the context chose" lookup, and adding or re-pointing a root is a change to this array alone. One node per
+	// `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the MIDI-titled spelling of that root -- the
+	// title `origin/main:src/deluge/gui/ui/menus.cpp`'s constructor gives it; a caller on a CV output takes
+	// `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note). `NoteEditor`/`NoteRowEditor` are the last two: a
+	// menu opened with `ctx.root` set to either (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s
+	// `arg == 0` path (`MenuScene::open`'s warning), exactly as every other root does.
 	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
 	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
 	    &nodes::root_gate_drum,     &nodes::root_audio_clip, &nodes::root_performance, &nodes::root_song,
@@ -173,17 +171,17 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
 		// ranges yet. **Measured** at level 3 on a fresh synth clip: legacy opened the
 		// sample browser and the menu did not, because `browser::sample_can` refuses a
-		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp`) and the push was
+		// null `AudioFileHolder` (`sample_can` in `scenes/browser/browser_scene.cpp`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
 		// **The range gate in full, but NOT `permission_for` around it.** Legacy's gate here is the
 		// *item's own* `checkPermissionToBeginSession` override, and the five scene-opener items
 		// override it in a way that never consults `isRelevant`:
-		// `FileSelector::checkPermissionToBeginSession` (`gui/menu_item/file_selector.cpp`)
+		// `FileSelector::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`)
 		// answers YES for any SUBTRACTIVE sound and defers the rest to the range check, while
 		// `FileSelector::isRelevant` additionally demands `oscType == SAMPLE`.
 		// `permission_for` is the port of the *base* `MenuItem::checkPermissionToBeginSession`
-		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule, so
+		// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`, relevance and nothing else) plus the range rule, so
 		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
 		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
 		// relevance -- is listed in `src/scenes/README.md`'s "Features `main` has that the scenes do not" rather than
@@ -265,8 +263,8 @@ void MenuScene::on_resume() {
 	// A folder import's range is this resume's to apply (on the step up below) or to drop.
 	const int16_t imported = std::exchange(import_range_, int16_t{-1});
 	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
-	                             // (`SoundEditor::focusRegained` in `sound_editor.cpp`)
-	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
+	                             // (`SoundEditor::focusRegained` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+	// `SoundEditor::focusRegained` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
@@ -701,8 +699,9 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	if (node == nullptr) {
 		return;
 	}
-	// `beginScreen`'s `blinkLed(LEARN)` for an item that wants it (`sound_editor.cpp:1167-1169`) restarts the shared
-	// phase, BACK's too, at this tick's `leds()`; the open's and LEARN's release are filed the same way.
+	// `beginScreen`'s `blinkLed(LEARN)` for an item that wants it (`SoundEditor::updatePadLightsFor` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`) restarts the shared phase, BACK's too, at this tick's `leds()`;
+	// the open's and LEARN's release are filed the same way.
 	if (node != visit_.blink_screen) {
 		visit_.blink_screen = node;
 		visit_.blink_restart = visit_.blink_restart || wants_learn_blink();
@@ -735,7 +734,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is a pad
 	// flash rather than an LED declaration. The set is `SoundEditor::setLedStates`
-	// (`sound_editor.cpp`), minus the parts that belong to services (`playbackHandler`,
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), minus the parts that belong to services (`playbackHandler`,
 	// `view.setKnobIndicatorLevels`).
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
@@ -754,7 +753,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 		screen->custom->leds(f, ctx_, st_);
 	}
 
-	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp:78-95`).
+	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp`).
 	if (visit_.blink_restart) {
 		visit_.blink_restart = false;
 		f.restart(deluge::ui::BlinkRate::Normal);
@@ -872,7 +871,7 @@ Result MenuScene::after_render_navigation() {
 	bool repaint = false;
 
 	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
-	// (`sound_editor.cpp`), which `MultiRangeItem` cannot do itself: it is handed a
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`MultiRange::beginSession`, `selectEncoderAction`,
 	// `deletePress` and `noteOnToChangeRange`).
@@ -883,11 +882,13 @@ Result MenuScene::after_render_navigation() {
 	}
 
 	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
-	// (`cv/selection.h:42`, `gate/selection.h:47`) -- and the device list's
-	// `soundEditor.currentMIDICable = getCable(...)` (`midi/devices.cpp:55`, `:102`). Same shape as
-	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns
-	// `currentSourceIndex` on the way through `selectButtonPress`, so `gate_selection_chain` and
-	// `gate_mode_names` must both see the output the user just picked, not the previous one.
+	// (`cv::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
+	// `gate::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- and the
+	// device list's `soundEditor.currentMIDICable = getCable(...)` (`Devices::beginSession` in
+	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`, `Devices::selectEncoderAction`). Same shape as
+	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns `currentSourceIndex` on the
+	// way through `selectButtonPress`, so `gate_selection_chain` and `gate_mode_names` must both see the output the
+	// user just picked, not the previous one.
 	if (st_.walk.source_choice >= 0) {
 		trace_drain(DrainBand::SourceChoice);
 		ctx_.source_index = st_.walk.source_choice;
@@ -915,10 +916,10 @@ Result MenuScene::after_render_navigation() {
 	}
 
 	// The horizontal menu's notification popup, `HorizontalMenu::displayNotification`
-	// (`gui/menu_item/horizontal_menu.cpp:335-343`): it shows the item's *name* alongside its
-	// value. Legacy raises it on a value change (`:326-328`, `selectEncoderAction`) and on a
+	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): it shows the item's *name* alongside its
+	// value. Legacy raises it on a value change (the tail of `HorizontalMenu::selectEncoderAction`) and on a
 	// button focus move or an already-focused button press that does not open anything
-	// (`handleInstrumentButtonPress`'s tail `:437`, `handleItemAction` `:666` -- both ported in
+	// (`handleInstrumentButtonPress`'s tail, `handleItemAction` -- both ported in
 	// `handle()`'s button code, which calls `notify_column` itself). **Not** on a select press on
 	// a value column (`Submenu::selectButtonPress` never calls `displayNotification` at all --
 	// see `MenuTick::column_press`'s doc).
@@ -933,9 +934,10 @@ Result MenuScene::after_render_navigation() {
 		}
 	}
 
-	// `Automation::selectButtonPress` (`gui/menu_item/automation/automation.cpp:38-58`): shift + select on an
-	// automation item deletes its param's automation, raises the popup where there was a param, and stays put -- on a
-	// leaf, and on a horizontal page's value column, which `Submenu::selectButtonPress` forwards the press to.
+	// `Automation::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/automation/automation.cpp`): shift +
+	// select on an automation item deletes its param's automation, raises the popup where there was a param, and stays
+	// put -- on a leaf, and on a horizontal page's value column, which `Submenu::selectButtonPress` forwards the press
+	// to.
 	bool deleting_automation = false;
 	if (st_.tick.select_shift && (st_.tick.render_resp.entered || st_.tick.column_press)) {
 		const Node* item =
@@ -971,11 +973,11 @@ Result MenuScene::after_render_navigation() {
 			}
 		}
 		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
-			// `MenuItem::selectButtonPress` returning a menu: `SoundEditor` navigates *into* it
-			// rather than going up (`gui/ui/sound_editor.cpp:394-424` -> `enterSubmenu`, which is
-			// `navigationDepth++` and a record write, exactly what `enter_child` does). The node's
-			// own hook answers, because the answer is value-dependent for two of the seven ported
-			// overrides -- see `node.h`'s `SelectChainFn`.
+			// `MenuItem::selectButtonPress` returning a menu: `SoundEditor` navigates *into* it rather than going up
+			// (the `SELECT_ENC` arm of `SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`
+			// -> `enterSubmenu`, which is `navigationDepth++` and a record write, exactly what `enter_child` does). The
+			// node's own hook answers, because the answer is value-dependent for two of the seven ported overrides --
+			// see `node.h`'s `SelectChainFn`.
 			//
 			// `enter_child` applies legacy's `maybeGetParentMenu`/`focusChild` reparenting: an item a chained page
 			// lists is entered on that page, focused on it.
@@ -991,7 +993,7 @@ Result MenuScene::after_render_navigation() {
 	}
 	else if (st_.tick.column_press) {
 		// `Submenu::selectButtonPress` forwarding to the focused item, on a horizontal page's value
-		// column (`gui/menu_item/submenu.cpp:187-194`): the column's own `selectButtonPress()`
+		// column (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): the column's own `selectButtonPress()`
 		// override runs FIRST, as the horizontal forward's own call -- not a separate arm bolted on
 		// after. No notification either way: neither `Toggle`'s/`Selection`'s `selectButtonPress`
 		// nor the chain/ascend arms below call `displayNotification` (see `MenuState::
@@ -1006,13 +1008,15 @@ Result MenuScene::after_render_navigation() {
 			}
 			else if (column->allow_session_from_horizontal) {
 				// `Submenu::selectButtonPress` returns the item itself when it begins its own session from the
-				// horizontal page (`submenu.cpp:191-193`), and the select arm enters it the general way.
+				// horizontal page (`origin/main:src/deluge/gui/menu_item/submenu.cpp`), and the select arm enters it
+				// the general way.
 				walk_.enter_child(core(), visit_.session, *column);
 			}
 			else if (const Node* chained =
 			             column->select_chain != nullptr ? column->select_chain(ctx_, st_) : nullptr) {
-				// `PatchedParam::selectButtonPress` (`patched_param.cpp:32-40`) records the param it patches. The
-				// source page reads it from the level above it, which here is the page, not the column.
+				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
+				// the param it patches. The source page reads it from the level above it, which here is the page, not
+				// the column.
 				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
 					st_.walk.patching_param = column->bind.param.index;
 				}
@@ -1045,12 +1049,13 @@ Result MenuScene::after_render_navigation() {
 	//     is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
 	//     `gui::ui::dispatchShellActions` is the consumer.
 	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
-	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
-	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is
-	//     filed is what makes the port's descend-then-leave look like legacy's never-descend.
-	//     `PerformEditorItem` is excluded because legacy *does* stay on that page
-	//     (`editing_mode.h:96`, `NO_NAVIGATION`); it files its request from `render`, not `on_focus`,
-	//     which is exactly the discriminator -- see below.
+	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on the parent list
+	//     (the `else` of that test in `SoundEditor::buttonAction`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
+	//     Ascending on the tick the request is filed is what makes the port's descend-then-leave look like legacy's
+	//     never-descend. `PerformEditorItem` is excluded because legacy *does* stay on that page
+	//     (`EditingMode::selectButtonPress` in
+	//     `origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`, `NO_NAVIGATION`); it files
+	//     its request from `render`, not `on_focus`, which is exactly the discriminator -- see below.
 	//
 	// Placed **above** the repaint check so the ascend is covered by it.
 	if (st_.walk.pending_action.engaged()) {
@@ -1165,8 +1170,8 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	    && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc) && !select_and_back_act()) {
 		return Result{.handled = true};
 	}
-	// A select or BACK press, and a select turn, restart the hold's blink (`sound_editor.cpp`'s three
-	// `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
+	// A select or BACK press, and a select turn, restart the hold's blink
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s three `blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1)` sites).
 	if (holding_affect_entire_
 	    && (((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) && event.on
 	         && (event.button == ButtonId::SelectEnc || event.button == ButtonId::Back))
@@ -1200,24 +1205,25 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		return Result{.handled = true};
 	}
 
-	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
+	// `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), observed only: the
+	// event goes on as before.
 	if (visit_.learn.observe(ctx_, st_, event, ctx,
 	                         host_gates_ ? std::optional<bool>{host_gates_->learn} : std::nullopt)) {
 		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`SoundEditor::buttonAction` in
-		                             // `sound_editor.cpp`, the learn-button release)
+		                             // `origin/main:src/deluge/gui/ui/sound_editor.cpp`, the learn-button release)
 	}
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn && event.on) {
 		read_learned_value_again(); // SHIFT + LEARN's unlearn
 	}
 
-	// A custom item owns its input while it is focused: it sees every event first and, if it
-	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
-	// `MenuItem`'s own `buttonAction` override over the rest of `SoundEditor::buttonAction`
-	// (`SoundEditor::buttonAction` in `gui/ui/sound_editor.cpp`: `currentMenuItem->buttonAction(...)` runs before
-	// anything else in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
-	// below, not after: a bespoke item's own input (the patch-cable pages' pad presses, a file browser's
-	// scroll) is exactly the kind of thing this layer cannot interpret generically, so it must not
-	// be shadowed by a case that happens to match the same event shape.
+	// A custom item owns its input while it is focused: it sees every event first and, if it consumes it, the scene
+	// does nothing else this call -- the same precedence legacy gives a `MenuItem`'s own `buttonAction` override over
+	// the rest of `SoundEditor::buttonAction` (`SoundEditor::buttonAction` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`: `currentMenuItem->buttonAction(...)` runs before anything else
+	// in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back` below, not after: a
+	// bespoke item's own input (the patch-cable pages' pad presses, a file browser's scroll) is exactly the kind of
+	// thing this layer cannot interpret generically, so it must not be shadowed by a case that happens to match the
+	// same event shape.
 	if (const Node* focused_node = focused();
 	    focused_node != nullptr && focused_node->kind == Kind::Custom && focused_node->custom != nullptr) {
 		if (Result r = focused_node->custom->handle(event, ctx, ctx_, st_); r.handled) {
@@ -1261,7 +1267,8 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// Back at the root. `owns` leaves it to this arm at depth 0, which closes the editor --
-	// `sound_editor.cpp`'s BACK case -> `SoundEditor::goUpOneLevel` -> `SoundEditor::exitCompletely`.
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s BACK case -> `SoundEditor::goUpOneLevel` ->
+	// `SoundEditor::exitCompletely`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
 	// pops the topmost scene of that kind *and everything above it* (`SceneStack::pop`), so
@@ -1299,7 +1306,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	// While the overlay shows every column is greyed, whatever the root (`getGreyoutColsAndRows`,
-	// `sound_editor.cpp:463-467`).
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	if (overlay_up()) {
 		return {0xFFFFFFFFu, 0};
 	}
@@ -1350,14 +1357,15 @@ bool MenuScene::go_up_one_level() {
 		return false; // `SoundEditor::goUpOneLevel`'s depth-0 arm, on the loop's first pass
 	}
 	walk_.ascend(core(), visit_.session);
-	// `SoundEditor::goUpOneLevel`'s depth-0 arm on a later pass: `ascend()` stepped down to depth 0 and `:720-722`
+	// `SoundEditor::goUpOneLevel`'s depth-0 arm on a later pass: `ascend()` stepped down to depth 0 and that arm
 	// refused that level too, so it asked for the close. The caller closes the editor itself, so the request is taken
 	// back here.
 	return !walk_.take_close_request();
 }
 
 void MenuScene::enter_submenu(const Node& node) {
-	walk_.descend_to(core(), visit_.session, node); // `sound_editor.cpp:364-368`
+	walk_.descend_to(core(), visit_.session,
+	                 node); // `SoundEditor::enterSubmenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
 }
 
 bool is_automation_item(const Node& item) {

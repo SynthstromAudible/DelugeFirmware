@@ -24,7 +24,8 @@ namespace deluge::scenes::menu {
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
 
 /// @brief Does @p node render and edit as a horizontal page: a `Layout::Horizontal` submenu with
-///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`, `horizontal_menu.cpp:592-597`)?
+///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`,
+///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)?
 /// @param node The node.
 /// @param ctx  The menu context.
 /// @return Whether it is a horizontal page.
@@ -58,7 +59,8 @@ bool page_lists(const Node& page, const Node& column);
 const Node* horizontal_page_listing(const Node& node, const Node& item);
 
 /// @brief The pages of @p root's horizontal-menu chain in order, each group spelled as its member pages --
-///        `SoundEditor::getCurrentHorizontalMenusChain`'s (`gui/ui/menus.cpp`, `horizontalMenusChainFor*`).
+///        `SoundEditor::getCurrentHorizontalMenusChain`'s (`origin/main:src/deluge/gui/ui/menus.cpp`,
+///        `horizontalMenusChainFor*`).
 /// @param root The menu root.
 /// @return The chain; empty for a root with none.
 std::span<const Node* const> chain_for(MenuContext::Root root);

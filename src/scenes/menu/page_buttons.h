@@ -16,14 +16,14 @@
 namespace deluge::scenes::menu {
 
 /// @brief The debounce shared by SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page --
-///        `HorizontalMenu::buttonAction`'s `navigation_buttons_debounce_threshold`
-///        (`horizontal_menu.cpp:78`), 0.14 s as milliseconds. A press is accepted only when
-///        strictly more time than this has passed since the last accepted one
-///        (`MenuState::nav_press_ms`), matching legacy's `time - last > threshold` (`:81-82`)
-///        rather than `>=`.
+///        `HorizontalMenu::buttonAction`'s `navigation_buttons_debounce_threshold` (`HorizontalMenu::buttonAction` in
+///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), 0.14 s as milliseconds. A press is accepted only
+///        when strictly more time than this has passed since the last accepted one (`MenuState::nav_press_ms`),
+///        matching legacy's `time - last > threshold` (`HorizontalMenu::buttonAction`) rather than `>=`.
 inline constexpr uint32_t kNavButtonDebounceMs = 140;
 
-/// @brief One of the six buttons pressed on a horizontal page (`gui/menu_item/horizontal_menu.cpp:70-107`).
+/// @brief One of the six buttons pressed on a horizontal page (`HorizontalMenu::buttonAction` in
+/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 /// @param chain_root The root whose chain SHIFT + CROSS_SCREEN/SCALE steps through (`MenuWalk::switch_chained_page`).
 /// @return The result when the press was the page's, else nullopt.
 std::optional<deluge::ui::shell::Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSession& session,
