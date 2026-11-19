@@ -94,12 +94,12 @@ struct RunOptions {
 	/// otherwise `Shell::boot()` -- the default boot path, which pushes nothing and leaves the
 	/// panel blank until a script's own steps put something up.
 	std::optional<SceneId> initial_scene;
-	/// The migration acceptance hook. When set, `expect_script_goldens` runs the script
+	/// The two-registry run. When set, `expect_script_goldens` runs the script
 	/// TWICE -- once against `registry` (its own parameter), once against `*second_registry` --
 	/// into sibling `got/` trees, and diffs those two trees against EACH OTHER (byte-for-byte,
-	/// with an extra/missing-file check) instead of against the recorded goldens. This is how
-	/// the migration asserts "the same script produces the same snapshots against the legacy UI and the
-	/// new scene": two scene tables, one script, nothing to record ahead of time.
+	/// with an extra/missing-file check) instead of against the recorded goldens. This checks
+	/// that "the same script produces the same snapshots" against two scene tables: one script, nothing to record
+	/// ahead of time.
 	const SceneRegistry* second_registry = nullptr;
 	/// The `ShellConfig` the run's `Shell` is built with; `seed` stays at its 0 default unless a
 	/// caller sets it. See the class doc.
@@ -447,7 +447,7 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, Boar
 /// @brief The first file that differs (or is missing on one side) between two snapshot trees, in
 ///        sorted order over the union of both directories' names.
 ///
-/// The migration double-run: "the same script produces the same snapshots" is checked by
+/// The two-registry run: "the same script produces the same snapshots" is checked by
 /// running it twice and diffing the two `got/` trees against each other, not against a golden --
 /// there is nothing to record ahead of time when the whole point is that two *sources* must agree
 /// with each other. Sorted union, not a plain zip, so a file present on only one side is caught
@@ -824,7 +824,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	}
 
 	if (opts.second_registry != nullptr) {
-		// Migration hook (RunOptions::second_registry): the second run's directory is
+		// Two-registry run (RunOptions::second_registry): the second run's directory is
 		// a sibling of the first, never the golden tree -- this mode never touches goldens at all.
 		const fs::path got_second = fs::path(UI_GOT_DIR) / "shell" / (name + "-second");
 		fs::remove_all(got_second, ec);
