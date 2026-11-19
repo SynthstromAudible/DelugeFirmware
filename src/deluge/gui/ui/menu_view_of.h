@@ -16,7 +16,8 @@ namespace deluge::gui {
 [[nodiscard]] scenes::services::MenuView menuViewOf(::Clip* clip);
 
 /// @brief The greyout arm the root UI on screen gives a menu over it -- `SoundEditor::getGreyoutColsAndRows`' switch on
-///        `getRootUI()->getUIType()` (`gui/ui/sound_editor.cpp:441-484`), which `src/scenes` may not ask.
+///        `getRootUI()->getUIType()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which `src/scenes` may not
+///        ask.
 [[nodiscard]] scenes::menu::MenuContext::RootGreyout menuRootGreyout();
 
 } // namespace deluge::gui

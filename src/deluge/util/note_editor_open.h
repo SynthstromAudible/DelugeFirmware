@@ -28,15 +28,15 @@
 /// `model/action/action_logger.cpp` and `model/note/note_row.cpp` ask this question, and both are
 /// inside `check_layer_rules.py`'s `NON_UI` glob, each already at its `model-includes-ui` baseline.
 /// A `gui/ui/` header there would raise a ratchet that may only shrink. This header includes nothing,
-/// so it passes that rule on its own terms, and the definitions -- which read the ported menu -- are
+/// so it passes that rule on its own terms, and the definitions -- which read the menu -- are
 /// `activeNoteMode()`'s neighbours in `gui/ui/shell_note_mode.cpp`.
 
 namespace deluge::gui::ui {
 
-/// @brief The ported menu on the guest's stack at `MenuContext::Root::NoteEditor`.
+/// @brief The menu on the guest's stack at `MenuContext::Root::NoteEditor`.
 bool noteEditorOpen();
 
-/// @brief The ported menu on the guest's stack at `MenuContext::Root::NoteRowEditor`.
+/// @brief The menu on the guest's stack at `MenuContext::Root::NoteRowEditor`.
 bool noteRowEditorOpen();
 
 } // namespace deluge::gui::ui

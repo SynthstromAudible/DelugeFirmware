@@ -124,9 +124,9 @@ void setViewStates(GuestServices& services) {
 	deluge::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
 	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp`: it is
-	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
-	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:166-171`), which is the
-	// state during a song swap and the state a spec that opens no UI is in.
+	// the same question with a null guard on it. While nothing is open (a song swap, or a spec that opens no UI)
+	// this tree's `getCurrentUI()` answers `emptyStackUI`, whose `toClipMinder()` is null; main's answers
+	// `lastUIBeforeNullifying`, which can itself be null (`origin/main:src/deluge/gui/ui/ui.cpp`).
 	controlView.current_ui_is_clip_minder = currentUIIsClipMinderScreen();
 	controlView.root_is_performance = getRootUI() == &performanceView;
 	controlView.root_greyout = deluge::gui::menuRootGreyout();
@@ -269,7 +269,7 @@ void changeRangeForNote(int32_t note) {
 }
 
 namespace {
-/// The ported menu's source and range at the last guest tick, which `refreshShellRangeDisplay` compares against.
+/// The menu's source and range at the last guest tick, which `refreshShellRangeDisplay` compares against.
 int32_t lastRangeShown = -1;
 int32_t lastRangeSource = -1;
 /// Whether the root drew the range highlight at the last guest tick: it goes when the guest leaves the range-dependent

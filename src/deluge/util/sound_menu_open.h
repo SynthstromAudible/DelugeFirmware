@@ -33,7 +33,7 @@ class ParamManagerForTimeline;
 
 namespace deluge::gui::ui {
 
-/// @brief Whether the ported menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
+/// @brief Whether the menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
 ///        not the settings.
 bool soundMenuOpen();
 
@@ -44,7 +44,7 @@ ModControllable* soundMenuModControllable();
 /// @brief The params the sound menu edits, as the menu last published them. Safe on the audio tier.
 ParamManagerForTimeline* soundMenuParamManager();
 
-/// @brief Whether the ported menu is the guest's frontmost scene and the guest is the current UI, whatever the menu's
+/// @brief Whether the menu is the guest's frontmost scene and the guest is the current UI, whatever the menu's
 ///        root: the guest's `getCurrentUI() == &soundEditor`.
 bool menuCurrent();
 
@@ -62,14 +62,14 @@ void mpeZonesPotentiallyUpdated();
 ///        kit's selection.
 bool drumSelectionFrozen();
 
-/// @brief Whether the ported menu is frontmost on the note-range picker.
+/// @brief Whether the menu is frontmost on the note-range picker.
 bool rangePickerOpen();
 
-/// @brief Whether the guest's frontmost scene is the sample browser or the audio recorder, or the ported menu on a
+/// @brief Whether the guest's frontmost scene is the sample browser or the audio recorder, or the menu on a
 ///        range-dependent item or the picker.
 bool rangeDependentMenuOpen();
 
-/// @brief Whether @p untransposed falls in the range the ported menu has selected, on a source of several; true when
+/// @brief Whether @p untransposed falls in the range the menu has selected, on a source of several; true when
 ///        no range-dependent item is open (callers ask `rangeDependentMenuOpen()` first). Asks `Source::getRange`,
 ///        which remembers the range as legacy's test does.
 /// @param untransposed The note as the clip has it, before the sound's transpose.
@@ -85,7 +85,7 @@ std::optional<int32_t> dxColumnFlashRow();
 /// @param note The note, transposed as the sound plays it.
 void changeRangeForNote(int32_t note);
 
-/// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
+/// @brief `SoundEditor::potentialShortcutPadAction` for the menu, whole: what the clip views, the keyboard
 ///        screen and the performance view ask of a main-grid press.
 ///
 /// The gate first (`shortcutPadGate`: SHIFT, or an audition held over the instrument clip view, inside the two

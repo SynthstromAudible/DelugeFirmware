@@ -129,7 +129,8 @@ std::optional<deluge::serialization::Value> value_of(const deluge::plugin::Setti
 }
 
 /// Whether writing stored value @p stored of @p row through @p target ends a kit row's notes: a sample played once
-/// (`sample/repeat.h:61-64`, `:73-75`), whose notes the kit's arpeggiator would otherwise hold.
+/// (`Repeat::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/sample/repeat.h`: its whole-kit arm and its
+/// one-sound arm), whose notes the kit's arpeggiator would otherwise hold.
 bool silences_kit_arp(const deluge::scenes::bind::Target& target, const deluge::plugin::SettingInfo& row,
                       int32_t stored) {
 	if (target.kind != deluge::scenes::bind::Target::Kind::SOUND || !row.path.ends_with("/loopMode")) {
@@ -149,8 +150,8 @@ bool has_sound_drum(const Kit& kit) {
 	return false;
 }
 
-/// Sends @p kit's selected drum's note-off through the kit's arpeggiator, as `sample/repeat.h`'s
-/// sendNoteOffForKitArpeggiator does.
+/// Sends @p kit's selected drum's note-off through the kit's arpeggiator, as
+/// `origin/main:src/deluge/gui/menu_item/sample/repeat.h`'s sendNoteOffForKitArpeggiator does.
 void kit_arp_note_off(Kit* kit) {
 	if (kit == nullptr || kit->selectedDrum == nullptr) {
 		return;
@@ -465,8 +466,9 @@ std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
 
 /// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
-/// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which
-/// `SampleBrowser::showPreview` draws from its source 0, range 0.
+/// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which main's
+/// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) draws from its
+/// source 0, range 0.
 class ShellWaveforms final : public deluge::scenes::services::Waveforms {
 public:
 	[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -722,8 +724,9 @@ bool ShellEditSink::delete_automation(const deluge::project::ParamAddress& addre
 namespace {
 
 /// Whether another of @p owner's siblings already has @p name: another clip of the clip's track, another audio track,
-/// another drum of the lane's kit, as legacy's rename editors refuse a name (`rename_clip_ui.cpp:35`,
-/// `rename_output_ui.cpp:35`, `RenameDrumUI`). Letter case does not count.
+/// another drum of the lane's kit, as legacy's rename editors refuse a name (`RenameClipUI::trySetName` in
+/// `rename_clip_ui.cpp`, `RenameOutputUI::trySetName` in `rename_output_ui.cpp`, `RenameDrumUI`). Letter case does not
+/// count.
 bool name_taken(const deluge::project::SettingAddress& owner, std::string_view name) {
 	if (const auto* clip_at = std::get_if<deluge::project::ClipAddress>(&owner.owner)) {
 		::Clip* clip = currentSong->clipForId(clip_at->clip_id);
@@ -793,8 +796,8 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
 		return false;
 	}
-	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:59-73`),
-	// which records no undo.
+	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`,
+	// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`), which records no undo.
 	deluge::edits::dxPatchFor(*sound, source, patch);
 	return true;
 }
@@ -816,8 +819,8 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-203`): range storage is about
-	// to change, so every voice is unassigned and none may be assigned during the allocation.
+	// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): range
+	// storage is about to change, so every voice is unassigned and none may be assigned during the allocation.
 	sound->killAllVoices();
 	::MultiRange* inserted = nullptr;
 	{
@@ -842,7 +845,8 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns the voices.
+	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns
+	// the voices.
 	sound->deleteMultiRange(source, index);
 	if (lower_top && index > 0) {
 		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
@@ -988,7 +992,8 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		return applied(fine) && took;
 	};
 	if (where.affect_entire && where.kit_output) {
-		// Every sound row of the kit, each in its range 0 (`sample/transpose.h`'s kit sweep).
+		// Every sound row of the kit, each in its range 0 (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`'s
+		// kit sweep).
 		::Output* output = currentSong->outputForId(*where.kit_output);
 		if (output == nullptr || output->type != OutputType::KIT) {
 			return false;
@@ -1137,7 +1142,8 @@ void ShellEditSink::apply(const WriteRequest& request) {
 	}
 	if (model && model->group == deluge::project::SettingGroupId::LANE_ARP
 	    && request.target.fan_out_fact == deluge::scenes::bind::Target::FanOutFact::NOTE_TAILS) {
-		// A kit row whose sound cannot hold note tails stays out of its kit's arp (`include_in_kit_arp.h:48-53`).
+		// A kit row whose sound cannot hold note tails stays out of its kit's arp (`IncludeInKitArp::writeCurrentValue`
+		// in `origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`).
 		const auto& lane = std::get<deluge::project::LaneAddress>(model->owner);
 		::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane.drum_id);
 		if (drum != nullptr && drum->type == DrumType::SOUND

@@ -80,7 +80,7 @@
 ///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
 ///     their `FlashStorage` assignment in the ported hook, matching the first statement of each
-///     legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), and call
+///     legacy `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and call
 ///     `menu::host_screensaver_settings_changed()` for the second, `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult
@@ -103,13 +103,14 @@ enum class ShellMenuNode : uint8_t {
 	/// @brief Whatever root `MenuContext::root` resolved -- `SceneId::arg == 0`.
 	ContextRoot,
 	/// @brief `deluge::scenes::menu::nodes::file0_selector`, the port of `file0SelectorMenu`
-	///        (`gui/menu_item/file_selector.h:26`; the correspondence is stated at
+	///        (`origin/main:src/deluge/gui/menu_item/file_selector.h`; the correspondence is stated at
 	///        `nodes::file0_selector`).
 	Osc0FileSelector,
 	/// @brief `deluge::scenes::menu::nodes::sample0_recorder`, the port of `sample0RecorderMenu`: the item whose hook
 	///        pushes the recorder on source 0.
 	Osc0Recorder,
-	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source", `gui/ui/menus.cpp`).
+	/// @brief `deluge::scenes::menu::nodes::dx_menu`, the port of `dxMenu` ("DX7 source",
+	/// `origin/main:src/deluge/gui/ui/menus.cpp`).
 	Dx,
 	/// @brief `deluge::scenes::menu::nodes::dx_param`, the port of `dxParam` (the DX7 parameter page), on the param
 	///        `MenuScene`'s `DxState` holds.
@@ -170,7 +171,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
                    NoteMode noteMode = NoteMode::None);
 
-/// @brief Open the ported menu on the node a shortcut pad names, from a clip view.
+/// @brief Open the menu on the node a shortcut pad names, from a clip view.
 ///
 /// The port of `SoundEditor::potentialShortcutPadAction`'s `setup(currentClip, item, x & 1)` and
 /// the `openUI` after it: the context is resolved as `openShellMenu` resolves it, with
@@ -216,7 +217,7 @@ void setShellKitGlobalFx(bool latched);
 ///        sets the latch `shellKitGlobalFx` reads.
 void latchShellKitGlobalFxOnReentry();
 
-/// @brief Point the ported menu at the latch, its one source for every shortcut-layer decision on a kit's row (the
+/// @brief Point the menu at the latch, its one source for every shortcut-layer decision on a kit's row (the
 ///        Shift + pad item, the SHIFT overlay, the horizontal-menu chain), and at the host's halves: the adopt when a
 ///        press moves the menu onto the kit's own effects, and the re-entry write after the marker editor's jump.
 void wireShellKitGlobalShortcuts();
@@ -226,20 +227,20 @@ void wireShellKitGlobalShortcuts();
 bool editKitAffectEntire();
 
 /// @brief The clip view's SHIFT shortcut overview: every main-grid pad its shortcut colour for the current clip, as the
-///        ported menu's overlay paints it. A kit with neither affect-entire nor a selected drum names none, and only a
+///        menu's overlay paints it. A kit with neither affect-entire nor a selected drum names none, and only a
 ///        sound (a synth, a kit's own effects, a kit row with a sound drum) is asked whether each item is relevant.
 ///        The clip's affect-entire picks the table; whether an item is asked as on the kit's own effects is the
 ///        kit-global latch (`shellKitGlobalFx`), clear right after a menu close and set once a pad press latches.
 void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
-/// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the ported menu.
+/// @brief Shift + the keyboard's DX column pad for operator @p op: `DxParam::openForOpOrGlobal` under the menu.
 ///
 /// With the guest closed it opens on the DX7 parameter page at the operator's param (`dx::column_param`), its pad
 /// blinking, over the current clip, keeping the undo log as `setup()` given an item does. With the guest open the
 /// press goes to `MenuScene::dx_column_press`, which toggles on the page or moves the menu there.
 /// @param op The operator, 0-5, as the column numbers its rows; 6 and 7 for the two pads below them.
-/// @return Whether the ported menu took the press: false where `openShellMenu` refused.
+/// @return Whether the menu took the press: false where `openShellMenu` refused.
 bool openShellDxColumn(int32_t op);
 
 /// @brief `InstrumentClipView::enterNoteRowEditor`'s open: with the guest closed `openShellMenu` at

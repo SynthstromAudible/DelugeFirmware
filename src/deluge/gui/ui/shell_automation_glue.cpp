@@ -66,7 +66,7 @@ std::optional<AutomationParam> paramOf(const Node* node) {
 	return deluge::scenes::menu::automation_param(*node, scene.menu_context(), scene.state());
 }
 
-/// Whether the ported menu is what takes the guest's input (not a scene it opened over itself).
+/// Whether the menu is what takes the guest's input (not a scene it opened over itself).
 bool menuTakesInput() {
 	return &shellHostUI.shell().stack().input_top() == &deluge::scenes::menu_scene();
 }

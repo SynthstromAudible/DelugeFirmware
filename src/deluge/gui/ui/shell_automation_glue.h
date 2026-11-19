@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief The automation view under the ported menu: what the view does when the menu moves, and the buttons it takes
+/// @brief The automation view under the menu: what the view does when the menu moves, and the buttons it takes
 ///        from under the menu.
 ///
 /// `MenuScene` files one record per tick of a change of its value node and its cause (`MenuScene::take_transition`,
@@ -49,7 +49,7 @@ void dispatchMenuTransitions();
 /// @return What legacy's handler answers when one of these takes the button; nullopt when none does, for the menu.
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool on);
 
-/// @brief `SoundEditor::buttonAction`'s KEYBOARD, SESSION_VIEW and Fill arms under the ported menu, which none of
+/// @brief `SoundEditor::buttonAction`'s KEYBOARD, SESSION_VIEW and Fill arms under the menu, which none of
 ///        them gates on the menu's root.
 ///
 /// KEYBOARD, on a press with no UI mode over an instrument clip: the clip view and the keyboard screen swap, the

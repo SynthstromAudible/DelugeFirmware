@@ -81,7 +81,7 @@ void refreshShellRootFacts();
 ///        reads them: `currentSong` and `currentUIMode` move between events, with no menu open to re-read them.
 void refreshKnobsForRoot();
 
-/// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the ported menu's selected
+/// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the menu's selected
 ///        range or the source's number of ranges changed (`SoundEditor::possibleChangeToCurrentRangeDisplay`, which
 ///        legacy's picker calls after every pick, insert and delete), or when the range highlight turned on or off, as
 ///        a move through legacy's menu re-renders the root.
@@ -97,7 +97,7 @@ void refreshShellDxColumn();
 ///        after the shell's, and as the guest closes.
 void refreshShellSamplePreviewSounds();
 
-/// @brief Forget the song and the rest of what the ported menu was open on, for a teardown of every UI under the
+/// @brief Forget the song and the rest of what the menu was open on, for a teardown of every UI under the
 ///        guest (`ShellHostUI::uisTakenDown`): the song may go next.
 void forgetShellMenuContext();
 
@@ -106,15 +106,15 @@ void forgetShellMenuContext();
 void endShellRecorderTakeForTeardown();
 
 /// @brief SAVE while the ported sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
-///        (`gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's view at the root, Shift
-///        deletes the note-range picker's range (`MultiRange::deletePress`, when the picker is focused) and a plain
-///        press opens the save-preset screen.
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's
+///        view at the root, Shift deletes the note-range picker's range (`MultiRange::deletePress`, when the picker is
+///        focused) and a plain press opens the save-preset screen.
 /// @param b  The button.
 /// @param on Its press (true) or release.
 /// @return `DEALT_WITH` for SAVE under the menu, whatever it did; nullopt for any other button or with no menu up.
 std::optional<ActionResult> forwardMenuSaveButton(deluge::hid::Button b, bool on);
 
-/// @brief AFFECT ENTIRE while the ported menu is frontmost, as `SoundEditor::buttonAction`'s AFFECT_ENTIRE arm takes it
+/// @brief AFFECT ENTIRE while the menu is frontmost, as `SoundEditor::buttonAction`'s AFFECT_ENTIRE arm takes it
 ///        over an instrument clip's view outside the note modes: in a kit row's menu on an item that uses it, the hold
 ///        mode (`UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`, `MenuScene::set_affect_entire_hold`); anywhere else
 ///        the clip minder's own arm, which toggles a kit clip's affect-entire.
@@ -132,13 +132,13 @@ bool drumSelectionFrozenBy(uint8_t kind, uint16_t which);
 /// @brief Whether the guest's knobs were last told the automation view's editor is on screen, for a spec.
 bool guestKnobsSeeAutomationEditor();
 
-/// @brief Tell the ported menu how `SoundEditor::buttonAction`'s UI-mode gates answer `currentUIMode` now: LEARN's
+/// @brief Tell the menu how `SoundEditor::buttonAction`'s UI-mode gates answer `currentUIMode` now: LEARN's
 ///        press acts only with no mode on, SELECT and BACK only in exactly one of five. Called before each button
 ///        is fed. The events run at the tick, so a mode change between two buttons inside one tick is read by the
 ///        later button's own refresh; no input path can put two buttons around a mode change in one tick.
 void refreshMenuModeGates();
 
-/// @brief Whether the ported menu is in its learn mode (`MenuScene::learn_mode`).
+/// @brief Whether the menu is in its learn mode (`MenuScene::learn_mode`).
 bool shellMenuLearnMode();
 
 /// @brief The guest's close hook: a knob popup still showing goes to legacy's display notification, with the

@@ -105,8 +105,8 @@ void discardShellDrumCreatorBeforeClose() {
 		return;
 	}
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	// `SampleBrowser::exitAction` (`gui/ui/browser/sample_browser.cpp`): only with no file chosen, and only while the
-	// kit holds a drum no row uses.
+	// `SampleBrowser::exitAction` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): only with no file
+	// chosen, and only while the kit holds a drum no row uses.
 	if (kit->getFirstUnassignedDrum(clip) != nullptr && !fileChosen(*drum)) {
 		instrumentClipView.deleteDrum(drum);
 		uiNeedsRendering(&instrumentClipView);

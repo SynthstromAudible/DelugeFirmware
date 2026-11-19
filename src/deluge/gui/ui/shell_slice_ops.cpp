@@ -42,7 +42,7 @@ using deluge::scenes::slicing::PreviewRequest;
 using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
-/// @brief `SlicerScene`'s host: every call names the sound the ported menu edits (`shellMenuTarget`), then does what
+/// @brief `SlicerScene`'s host: every call names the sound the menu edits (`shellMenuTarget`), then does what
 ///        the legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
@@ -118,7 +118,7 @@ public:
 			play_position_.reset();
 			return;
 		}
-		// The audition and the slice act on what the ported menu edits now; one that names no sound leaves them on
+		// The audition and the slice act on what the menu edits now; one that names no sound leaves them on
 		// the one they began on.
 		(void)retargetToMenu();
 		poll_open();
@@ -151,7 +151,7 @@ public:
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
-	/// @brief Aim the slice at the sound the ported menu edits; false, aiming at nothing, when the menu names no sound
+	/// @brief Aim the slice at the sound the menu edits; false, aiming at nothing, when the menu names no sound
 	///        with a source and range (its context forgotten by a teardown), so a commit or an audition is refused.
 	bool retargetToMenu() {
 		const deluge::gui::SoundTarget target = shellMenuTarget();

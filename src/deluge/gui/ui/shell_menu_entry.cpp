@@ -59,7 +59,7 @@
 /// @brief The fourteen sites that open the menu, and what each one wanted open.
 ///
 /// The fourteen are not uniform, and a reader deciding whether to add a fifteenth needs to know
-/// which shape it is. Each one opens the ported menu through this file.
+/// which shape it is. Each one opens the menu through this file.
 ///
 // clang-format off
 /// | # | site | what node it wants, and how it says so today | mapped to |
@@ -68,15 +68,15 @@
 /// | 2 | `gui/views/session_view.cpp` `SessionView::buttonAction` | `soundEditor.setup()` with no shift from the session view -> `soundEditorRootMenuSongView` (`SoundEditor::setup`) | `Root::Song`; `sessionViewRoot` true, which is the *only* thing two items in that root read (`MenuContext::is_session_view`) |
 /// | 3 | `gui/views/arranger_view.cpp` `ArrangerView::buttonAction` | the same call from the arranger -> the same `soundEditorRootMenuSongView` | `Root::Song`, `sessionViewRoot` **false** |
 /// | 4 | `gui/views/performance_view.cpp` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view`. Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
-/// | 5 | `gui/views/audio_clip_view.cpp` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`SoundEditor::setup` in `gui/ui/sound_editor.cpp`) | `Root::AudioClip` (`context_for`) |
-/// | 6 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`SoundEditor::setup` in `gui/ui/sound_editor.cpp`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order |
+/// | 5 | `gui/views/audio_clip_view.cpp` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::AudioClip` (`context_for`) |
+/// | 6 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order |
 /// | 7 | `gui/views/automation_view.cpp` `AutomationView::handleSelectEncoderButtonAction` | `setup(clip)` as site 6, except the clip is `nullptr` on the arranger (so: the song root), and the arm also runs under `UI_MODE_NOTES_PRESSED` with pad selection on, where `setup()` infers `noteEditorRootMenu` for an instrument clip | the same six, `Root::Song` when `onArrangerView`, and `Root::NoteEditor` through `NoteMode::NoteEditorFromUiMode` under `UI_MODE_NOTES_PRESSED` on an instrument clip |
 /// | 8 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu`. The one site that exercises a non-zero `arg` |
-/// | 12 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`SoundEditor::setup` in `sound_editor.cpp`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it |
-/// | 13 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Inside the ported menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
+/// | 12 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::NoteEditor`. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it |
+/// | 13 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`. Inside the menu the same shortcut re-roots the open menu (`openShellNoteRowEditor`); `main` stacks a second editor there and BACK then sticks, which is accepted as `main`'s bug (DIFFERENCES D92) |
 /// | 9 | `util/sound_menu_open.h` `menuShortcutPadAction`, from a clip view, the keyboard screen or the performance view | `setup(currentClip, item, x & 1)` on the item legacy's shortcut tables name for the pad, behind the Shift/audition gate, the coming-soon popup and the sequence-direction arm | `menuShortcutPadAction`, the whole press: with the guest closed the kit-global-FX latch first (`shellKitGlobalFx`), as legacy's first statement writes `setupKitGlobalFXMenu`; then the gate (`shortcutPadGate`), the coming-soon popup (`menu::shortcut_coming_soon`), the sequence-direction arm, then `openShellMenuAtShortcut` on the node `menu::shortcut_node` names, landed where `setup()` lands it (`MenuScene::arm_shortcut_landing`); off a clip minder, the song view's table and the song, as legacy's call reads them. A node that does not apply says "PARAMETER NOT APPLICABLE"; the DX7 fallback, `modulator0Volume` refused on a DX7 source, opens `nodes::dx_param` alone on the param it showed last (`nodes::dx_shortcut_fallback`; legacy tests the source the previous menu left, DIFFERENCES D90). With the guest open, a pad the Settings root forwards re-roots it in place. |
-/// | 11 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`gui/ui/menus.cpp:1735`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
-/// | 15 | `gui/ui/keyboard/column_controls/dx.cpp` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`gui/menu_item/dx/param.cpp:514-542`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
+/// | 11 | `model/clip/instrument_clip_minder.cpp` `InstrumentClipMinder::createNewInstrument` | `soundEditor.setup(clip, &dxMenu, 0)` on a new FM synth -- a named submenu (`origin/main:src/deluge/gui/ui/menus.cpp`) | `ShellMenuNode::Dx`, `SceneId::arg = node_id(nodes::dx_menu)`; a named node, so no undo-log wipe |
+/// | 15 | `gui/ui/keyboard/column_controls/dx.cpp` `DXColumn::handlePad`, Shift + a DX column pad on the keyboard screen | `dxParam.openForOpOrGlobal(op)` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`): `setup(getCurrentClip(), &dxParam, 0)` when the editor is not already on the page, then the operator's param -- or, on the page, the toggle and carry | `openShellDxColumn`: with the guest closed `ShellMenuNode::DxParam` on `dx::column_param`'s param, its pad blinking, no undo-log wipe; with it open `MenuScene::dx_column_press`, which toggles on the page or re-targets the menu to it with a `Replace` |
 /// | 14 | `gui/views/instrument_clip_view.cpp` `InstrumentClipView::enterDrumCreator` | `soundEditor.setup(clip, &file0SelectorMenu, 0)`, then `openUI(&audioRecorder)` for a take or `openUI(&sampleBrowser)`; if that refuses, `openUI(&soundEditor)`, whose `FileSelector::beginSession` opens the browser again | (a) RECORD (adding a drum row, or with an audition pad held): `openShellDrumRecorder` opens the guest on `nodes::sample0_recorder`, whose hook pushes the ported recorder; it leaves the menu at the take's end, as legacy's recorder leaves the clip view. A refused take lands on `nodes::file0_selector` instead (`landShellMenuOnFileSelectorIfRecorderRefuses`), whose hook pushes the ported browser, as legacy's fallback does. (b) Otherwise `openShellDrumCreator` opens the guest on `nodes::file0_selector`, whose hook pushes the ported browser on the new drum. A guest that refuses to open says setup()'s refusal (`Error::UNSPECIFIED`) and nothing legacy opens |
 ///
 // clang-format on
@@ -143,7 +143,7 @@ void clearKitAffectEntireForNoteMode(menu::MenuContext& ctx, Clip* clip) {
 	static_cast<InstrumentClip*>(clip)->affectEntire = false;
 	// `ctx.affect_entire` is a snapshot taken by `context_for` above,
 	// and nothing re-resolves it after this clear -- but `sequence::Direction::getIndividualNoteRow`
-	// reads `clip->affectEntire` LIVE (`gui/menu_item/sequence/direction.h`), after legacy's own
+	// reads `clip->affectEntire` LIVE (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after legacy's own
 	// identical clear. So the installed context must agree with the clip it just edited, or
 	// the play-direction binding's `!ctx.affect_entire && ctx.is_kit` test
 	// (`scenes/menu/bindings.cpp`) would still read `true` and the note-row editor would keep
@@ -272,11 +272,10 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 
 	menu::MenuContext ctx =
 	    resolveContext(clip, sourceIndex, performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFxLatch);
-	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
-	// `SoundDrum` has no note row (`SoundEditor::setup` in `gui/ui/sound_editor.cpp`) and a kit with neither
-	// affect-entire nor a selected drum (the same function). Both are `return false` in legacy, and both
-	// happen *before* the undo-log wipe below, which is why this test is above it and not beside the
-	// open.
+	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected `SoundDrum` has
+	// no note row (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and a kit with neither
+	// affect-entire nor a selected drum (the same function). Both are `return false` in legacy, and both happen
+	// *before* the undo-log wipe below, which is why this test is above it and not beside the open.
 	if (!ctx.resolved) {
 		return false;
 	}
@@ -296,15 +295,15 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		return false;
 	}
 
-	// **`SoundEditor::setup`'s one side effect that is neither UI nor context, picked up here.**
-	// `SoundEditor::setup` in `sound_editor.cpp` wipes the undo history on every menu open, in exactly the `item ==
-	// nullptr && clip != nullptr` arm this condition spells. `scenes/menu/context.cpp`'s header
-	// lists it among the `setup()` behaviour that is neither UI nor context and that whoever opens a
-	// menu must pick up -- this is that call site. Without it a user could undo
-	// past a menu edit where legacy stops them.
+	// **`SoundEditor::setup`'s one side effect that is neither UI nor context, picked up here.** `SoundEditor::setup`
+	// in `origin/main:src/deluge/gui/ui/sound_editor.cpp` wipes the undo history on every menu open, in exactly the
+	// `item == nullptr && clip != nullptr` arm this condition spells. `scenes/menu/context.cpp`'s header lists it among
+	// the `setup()` behaviour that is neither UI nor context and that whoever opens a menu must pick up -- this is that
+	// call site. Without it a user could undo past a menu edit where legacy stops them.
 	//
-	// Remembering the previously selected range across sessions (`SoundEditor::setup` in `sound_editor.cpp`) is not
-	// done here either: the source keeps it (`Source::defaultRangeI`), which the picker reads.
+	// Remembering the previously selected range across sessions (`SoundEditor::setup` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not done here either: the source keeps it
+	// (`Source::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
 	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check

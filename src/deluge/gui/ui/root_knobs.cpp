@@ -55,7 +55,7 @@ using deluge::scenes::services::ModTurn;
 class RootKnobPresentation final : public KnobPresentation {
 public:
 	/// @brief Performance view showing this param itself (which draws its display here), or a song load in flight
-	///        (`View::modEncoderAction_existentParam`).
+	///        (main's `View::modEncoderAction_existentParam`, `origin/main:src/deluge/gui/views/view.cpp`).
 	bool suppress_value_popup(const ModTurn& turn) override {
 		const bool performance_shows_it =
 		    getRootUI() == &performanceView
@@ -80,7 +80,8 @@ public:
 			uiNeedsRendering(getRootUI(), 0);
 		}
 	}
-	/// @brief The main pads of a timeline view (`View::modEncoderAction_existentParam`).
+	/// @brief The main pads of a timeline view (main's `View::modEncoderAction_existentParam`,
+	///        `origin/main:src/deluge/gui/views/view.cpp`).
 	void note_tails_changed() override {
 		if (getRootUI() != nullptr && getRootUI()->toTimelineView() != nullptr) {
 			uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);

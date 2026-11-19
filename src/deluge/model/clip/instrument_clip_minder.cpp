@@ -435,8 +435,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. Legacy's `setupKitGlobalFXMenu` write is made to the
-			// ported menu's own latch (`shellKitGlobalFx`), which the open and the shortcut presses then read. The
+			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. Main's `setupKitGlobalFXMenu` write is made to the
+			// menu's own latch (`shellKitGlobalFx`), which the open and the shortcut presses then read. The
 			// root is then one of six, and `context_for` runs the same six tests in the same order; the two UI-mode
 			// roots legacy could otherwise pick are unreachable because this arm is `currentUIMode == UI_MODE_NONE`.
 			const bool kitGlobalFx = deluge::gui::ui::editKitAffectEntire();
