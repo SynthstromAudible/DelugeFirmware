@@ -44,6 +44,6 @@ namespace deluge::l10n {
 /// @param short_name Whether to give the short form the column labels use (only the SVF family has one).
 /// @return "Drive" for the low-pass ladders, "FM" for the high-pass ladder, "Morph" for the SVF modes and "None" for
 ///         OFF.
-[[nodiscard]] std::string_view filter_morph_name(effects::FilterMode mode, bool short_name = false);
+[[nodiscard]] std::string_view filter_morph_name(effects::FilterMode mode, bool short_name);
 
 } // namespace deluge::l10n

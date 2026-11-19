@@ -80,9 +80,8 @@ const char* filter_type_name(effects::FilterType type) {
 		return text(String::STRING_FOR_HPF);
 	case effects::FilterType::EQ:
 		return text(String::STRING_FOR_EQ);
-	default:
-		return text(String::STRING_FOR_NONE);
 	}
+	return text(String::STRING_FOR_NONE);
 }
 
 const char* lpf_mode_name(effects::FilterMode mode) {
@@ -121,9 +120,10 @@ const char* filter_mode_name(effects::FilterType type, const effects::EffectStat
 		return lpf_mode_name(fx.filter.lpf_mode);
 	case effects::FilterType::HPF:
 		return hpf_mode_name(fx.filter.hpf_mode);
-	default:
-		return text(String::STRING_FOR_NONE);
+	case effects::FilterType::EQ:
+		break;
 	}
+	return text(String::STRING_FOR_NONE);
 }
 
 const char* delay_type_name(effects::DelayType type) {

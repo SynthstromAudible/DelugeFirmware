@@ -35,7 +35,8 @@ enum class FilterMode : uint8_t {
 	OFF,
 };
 
-/// @brief Which filter a chain's filter knob edits, in the order the file words name them (@ref kFilterTypeWords).
+/// @brief Which filter a chain's filter knob edits, in the order the file words name them (`kFilterTypeWords` in
+/// effects/chain.h).
 enum class FilterType : uint8_t {
 	LPF,
 	HPF,

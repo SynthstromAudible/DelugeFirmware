@@ -1861,7 +1861,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("the LPF morph column reads DRIVE on a ladder, MORPH and a slider on an SVF", _ {
 		// `filter::FilterParam` (`origin/main:src/deluge/gui/menu_item/filter/param.h`) through
-		// `SpecificFilter::getMorphName`.
+		// `l10n::filter_morph_name`.
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);

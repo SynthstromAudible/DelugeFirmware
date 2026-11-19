@@ -60,8 +60,7 @@ class SpecificFilter {
 public:
 	SpecificFilter() = default;
 	/// Construct a filtertype from a mode
-	SpecificFilter(FilterMode mode) {
-		family = effects::filter_family(mode);
+	SpecificFilter(FilterMode mode) : family(effects::filter_family(mode)) {
 		switch (mode) {
 		case FilterMode::OFF:
 			type = LpLadderType::LP12;
