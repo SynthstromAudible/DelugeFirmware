@@ -115,11 +115,13 @@ namespace deluge::test {
 LoadAnswer loadAnswer = LoadAnswer::Loaded;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
+std::vector<deluge::instrument::RangeState> lastAppliedRanges;
 
 void resetSlicerEnv() {
 	loadAnswer = LoadAnswer::Loaded;
 	auditionNoteCount = 0;
 	lastAuditionOn = -1;
+	lastAppliedRanges.clear();
 
 	g_kit.zero();
 	g_drum.zero();
@@ -137,6 +139,12 @@ void resetSlicerEnv() {
 	new (&g_sample.get()->filePath) std::string("SAMPLES/SLICE.WAV");
 
 	g_kit.get()->firstDrum = static_cast<Drum*>(g_drum.get());
+	// The drum's record, which the slicer's zone edits copy, change and hand to applyRanges: one range, as the mock's
+	// first range is.
+	static deluge::instrument::SoundState record;
+	record = deluge::instrument::SoundState{};
+	record.sources[0].ranges = {deluge::instrument::RangeState{}};
+	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
 	// voice machinery. It is the deferral re-ask at the top of that function the specs are after.
@@ -408,7 +416,8 @@ std::optional<deluge::project::SlotAddress> slotAddressOf(::Sound& /*sound*/) {
 std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/) {
 	return {};
 }
-Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
+Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& ranges) {
+	deluge::test::lastAppliedRanges = ranges;
 	return Error::NONE;
 }
 void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,

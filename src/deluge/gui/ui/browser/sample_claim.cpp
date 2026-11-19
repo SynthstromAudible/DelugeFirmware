@@ -439,9 +439,11 @@ bool SampleClaim::stepDecideSample() {
 		}
 		// Otherwise, reset pitch. Popular request, late 2022.
 		// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-		((MultisampleRange*)current_.target.range)->sampleHolder.transpose = 0;
-		((MultisampleRange*)current_.target.range)->sampleHolder.setCents(0);
-		recordClaimRanges(current_.target);
+		std::vector<deluge::instrument::RangeState> ranges =
+		    current_.target.sound->boundState()->sources[current_.target.sourceIndex].ranges;
+		ranges[current_.target.rangeIndex].transpose = 0;
+		ranges[current_.target.rangeIndex].cents = 0;
+		deluge::edits::rangesFor(*current_.target.sound, current_.target.sourceIndex, std::move(ranges));
 	}
 
 	removeWaveTableKnobs();
