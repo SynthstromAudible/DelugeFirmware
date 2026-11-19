@@ -136,7 +136,6 @@ void Source::seedDocRanges() {
 void Source::reflect(const deluge::instrument::SourceState& state) {
 	transpose = state.transpose;
 	cents = state.cents;
-	recalculateFineTuner();
 	repeatMode = state.repeat_mode;
 	timeStretchAmount = state.time_stretch_amount;
 	sampleControls.interpolationMode = state.interpolation_mode;
@@ -195,11 +194,6 @@ void Source::setCents(int32_t newCents) {
 	if (state_ != nullptr) {
 		state_->cents = newCents;
 	}
-	recalculateFineTuner();
-}
-
-void Source::recalculateFineTuner() {
-	fineTuner.setup_cents(cents);
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
@@ -332,26 +326,15 @@ void Source::doneReadingFromFile(Sound* sound) {
 
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
 
-	if (oscType == OscType::SAMPLE) {
+	// A sample oscillator's own tuning moves into each of its ranges
+	if (isActualSampleOscillator) {
 		for (int32_t e = 0; e < std::ssize(ranges); e++) {
 			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
-			if (isActualSampleOscillator) {
-				range->sampleHolder.transpose += transpose;
-				range->sampleHolder.setCents(range->sampleHolder.cents + cents);
-			}
-			else {
-				range->sampleHolder.recalculateFineTuner();
-			}
+			range->sampleHolder.transpose += transpose;
+			range->sampleHolder.setCents(range->sampleHolder.cents + cents);
 		}
-	}
-
-	if (isActualSampleOscillator) {
 		transpose = 0;
 		setCents(0);
-	}
-
-	else {
-		recalculateFineTuner();
 	}
 }
 
@@ -364,11 +347,6 @@ bool Source::hasAnyLoopEndPoint() {
 		}
 	}
 	return false;
-}
-
-// Return current osc type
-OscType Source::getOscType() {
-	return oscType;
 }
 
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get

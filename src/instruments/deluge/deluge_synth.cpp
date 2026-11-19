@@ -66,6 +66,17 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 		config.lfos[l].sync_type = state.lfo_sync_type[l];
 		config.lfos[l].sync_level = state.lfo_sync_level[l];
 	}
+	for (size_t s = 0; s < config.sources.size(); s++) {
+		const SourceState& source = state.sources[s];
+		config.sources[s] = {.transpose = source.transpose,
+		                     .cents = source.cents,
+		                     .tune = FineTune::of_cents(source.cents),
+		                     .repeat_mode = source.repeat_mode,
+		                     .time_stretch_amount = source.time_stretch_amount,
+		                     .interpolation_mode = source.interpolation_mode,
+		                     .pitch_and_speed_independent = source.pitch_and_speed_independent,
+		                     .reversed = source.reversed};
+	}
 	return config;
 }
 

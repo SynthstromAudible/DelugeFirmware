@@ -232,7 +232,8 @@ private:
 	void smooth_expression(const BlockValues& cfg, int32_t num_samples);
 	/// The sources a play-once sample's auto-release would follow: each active one, when every active one is a
 	/// play-once sample that may release itself; else none.
-	[[nodiscard]] static uint32_t play_once_sample_sources(const BlockValues& cfg, const VoiceBlock& block);
+	[[nodiscard]] static uint32_t play_once_sample_sources(const SoundConfig& config, const BlockValues& cfg,
+	                                                       const VoiceBlock& block);
 	/// Every unison part's sources ended. @return true to unassign at once; with filters on, it fast-releases instead.
 	[[nodiscard]] bool end_with_parts();
 	/// The voice's pitch adjust this block: the patched one, the kit's, bend and MPE, and portamento (which advances).

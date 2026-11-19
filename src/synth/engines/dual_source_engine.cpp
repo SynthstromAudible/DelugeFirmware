@@ -243,7 +243,8 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	        {
 	            .interpolation_buffer_size = interpolation_buffer_size(
 	                // the buffer size reads the increment's word, as a signed sample step
-	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment.raw()), cfg.cpu_direness),
+	                block.config->sources[s].interpolation_mode, static_cast<int32_t>(phase_increment.raw()),
+	                cfg.cpu_direness),
 	        },
 	};
 

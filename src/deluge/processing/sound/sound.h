@@ -208,7 +208,7 @@ public:
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
 	deluge::synth::SoundConfig config_{};
-	/// @brief Re-derive config_ from state_ (no-op when unbound).
+	/// @brief Re-derive config_ from state_; an unbound sound takes its oscillators' settings from them.
 	void projectSnapshot();
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }

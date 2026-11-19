@@ -476,7 +476,10 @@ void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song) {
 	}
 }
 
-Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
+namespace {
+
+/// The setting at @p path written into @p sound's runtime.
+Error writeSetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
 	if (!deluge::instrument::check_setting(path, value)) {
 		return Error::UNSPECIFIED;
 	}
@@ -540,6 +543,16 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 		return Error::UNSPECIFIED; // the path has no setter here
 	}
 	return Error::NONE;
+}
+
+} // namespace
+
+Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song) {
+	const Error error = writeSetting(sound, path, value, song);
+	if (error == Error::NONE) {
+		sound.projectSnapshot(); // an unbound sound's oscillator settings reach its config here
+	}
+	return error;
 }
 
 Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view path,

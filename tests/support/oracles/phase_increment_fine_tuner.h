@@ -17,25 +17,41 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "util/lookuptables/lookuptables.h"
+
 #include <algorithm>
 #include <cstdint>
+
+namespace deluge::test::oracle {
+
+/// @brief The app's fine tuner as it stood before `dsp::fixed::FineTune` replaced it (`PhaseIncrementFineTuner`):
+/// the oracle the replacement and the unison layout are held to, bit for bit.
 class PhaseIncrementFineTuner {
 public:
-	PhaseIncrementFineTuner();
+	PhaseIncrementFineTuner() { setNoDetune(); }
 
-	void setup(int32_t detuneScaled);
-	/// @brief Sets the detune from @p cents, held to ±50 (see cents_step).
+	void setup(int32_t detuneScaled) {
+		multiplier = deluge::dsp::fixed::kLinearTableInterpolator.interpolate(2147483648u + detuneScaled, 32,
+		                                                                      centAdjustTableSmall);
+	}
 	void setup_cents(int32_t cents) { setup(cents_step(cents)); }
-	/// @brief @p cents as a detune step: held to ±50, a quarter tone either way, as cents × 42949672 overflows past it.
 	[[nodiscard]] static int32_t cents_step(int32_t cents) {
 		constexpr int32_t kMaxCents = 50;
 		return std::clamp(cents, -kMaxCents, kMaxCents) * 42949672;
 	}
-	int32_t detune(int32_t phaseIncrement) const;
-	void setNoDetune();
+	[[nodiscard]] int32_t detune(int32_t phaseIncrement) const {
+		return mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(phaseIncrement),
+		                                       deluge::dsp::Q<30>::from_raw(multiplier))
+		    .raw();
+	}
+	void setNoDetune() { multiplier = 1073741824; }
 
 	bool operator==(const PhaseIncrementFineTuner&) const = default;
 
 private:
 	int32_t multiplier{};
 };
+
+} // namespace deluge::test::oracle

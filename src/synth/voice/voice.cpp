@@ -716,7 +716,7 @@ void Voice::smooth_expression(const BlockValues& cfg, int32_t num_samples) {
 	}
 }
 
-uint32_t Voice::play_once_sample_sources(const BlockValues& cfg, const VoiceBlock& block) {
+uint32_t Voice::play_once_sample_sources(const SoundConfig& config, const BlockValues& cfg, const VoiceBlock& block) {
 	uint32_t which_sources_need_attention = 0;
 
 	// Only if all active sources are play-once samples
@@ -727,7 +727,7 @@ uint32_t Voice::play_once_sample_sources(const BlockValues& cfg, const VoiceBloc
 
 		// Not for anything but a play-once sample (STRETCH is too hard to calculate), nor for one whose loop end is
 		// still obeyed
-		if (cfg.osc_type[s] != OscType::SAMPLE || cfg.repeat_mode[s] != SampleRepeatMode::ONCE
+		if (cfg.osc_type[s] != OscType::SAMPLE || config.sources[s].repeat_mode != SampleRepeatMode::ONCE
 		    || !block.sample_can_auto_release[s]) {
 			return 0;
 		}
@@ -758,7 +758,7 @@ void Voice::auto_release_if_due(const SoundConfig& config, const BlockValues& cf
 		return;
 	}
 
-	const uint32_t which_sources_need_attention = play_once_sample_sources(cfg, block);
+	const uint32_t which_sources_need_attention = play_once_sample_sources(config, cfg, block);
 	if (which_sources_need_attention == 0u) [[likely]] {
 		return;
 	}

@@ -28,6 +28,7 @@
 /// | cable_decode         | the Deluge instrument's cable decoder against the app's reader, per element  |
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_cost            | a settings Edit's host cost on a new synth, timed                          |
+/// | source_memory        | a sample synth's heap across an oscillator switch away and back           |
 /// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
 /// | engine_settings      | a sound's settings through its slot: binding, every setting Edit, both equations |
@@ -56,6 +57,7 @@ DELUGE_SCENARIO_DECLARE(cable_decode);
 DELUGE_SCENARIO_DECLARE(clip_clone_roundtrip);
 DELUGE_SCENARIO_DECLARE(document_version);
 DELUGE_SCENARIO_DECLARE(edit_cost);
+DELUGE_SCENARIO_DECLARE(source_memory);
 DELUGE_SCENARIO_DECLARE(edit_substrate);
 DELUGE_SCENARIO_DECLARE(effect_owners);
 DELUGE_SCENARIO_DECLARE(edit_undo_redo);
