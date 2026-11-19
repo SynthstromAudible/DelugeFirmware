@@ -146,7 +146,7 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		expect(turn(*f.song, on(*f.clip), 1 << 26)).to_be_true();
-		const std::optional<int32_t> read = deluge::scenes::menu::host_runtime_facts().param_value(on(*f.clip));
+		const std::optional<int32_t> read = deluge::scenes::menu::host_ports().controls->param_value(on(*f.clip));
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 
@@ -169,7 +169,7 @@ describe knob_writes("a gold knob's write by address", ${
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE,
 		                           .id = deluge::instrument::param::kLpfFrequency};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
-		expect(deluge::scenes::menu::host_runtime_facts().param_value(address))
+		expect(deluge::scenes::menu::host_ports().controls->param_value(address))
 		    .to_equal(std::optional<int32_t>{1 << 27});
 		currentSong = before;
 	});
@@ -213,7 +213,7 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 		const std::optional<int32_t> at_pos =
-		    deluge::scenes::menu::host_runtime_facts().param_value_at(on(*f.clip, lpf), 0);
+		    deluge::scenes::menu::host_ports().controls->param_value_at(on(*f.clip, lpf), 0);
 		const deluge::scenes::bind::KnobFocus focus{
 		    .owner = deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
 		                                              .clip = deluge::project::ClipAddress{f.clip->id()}}};
@@ -254,7 +254,7 @@ describe knob_writes("a gold knob's write by address", ${
 		const auto state = playbackHandler.playbackState;
 		playbackHandler.recording = RecordingMode::ARRANGEMENT;
 		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-		(void)deluge::scenes::menu::host_runtime_facts().param_value(session);
+		(void)deluge::scenes::menu::host_ports().controls->param_value(session);
 		const size_t after_read = f.song->live.clips.arrangement_only_clips.size();
 		expect(turn(*f.song, session, 1 << 26)).to_be_true();
 		const size_t after_turn = f.song->live.clips.arrangement_only_clips.size();

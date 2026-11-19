@@ -18,7 +18,6 @@
 
 #include "definitions_cxx.hpp"
 #include "scenes/bind/ports/ports.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/services/view_state.h"
@@ -190,12 +189,11 @@ struct MenuContext {
 	Root root = Root::Settings;
 
 	/// @name What a target node binds through
-	/// The model and addresses a target resolves against, the host's runtime facts, the sink its writes go to, and the
+	/// The model and addresses a target resolves against, the host's ports, the sink its writes go to, and the
 	/// same host's controls sink, which takes the gold knobs' writes and an effect setting's exact word.
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
-	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
 	deluge::scenes::bind::Ports ports{}; ///< the host's ports; a spec's fakes
 	deluge::scenes::bind::WriteSink* sink = nullptr;
 	/// The same host's controls sink: the gold knobs' writes and an effect setting's exact word.

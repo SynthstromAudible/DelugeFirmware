@@ -181,7 +181,7 @@ std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx
 /// @brief The value the cable plays now, as the engine stores it; nullopt where the sound has no such cable.
 std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, deluge::synth::CableTarget destination) {
 	const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, from, destination);
-	return address && ctx.facts != nullptr ? ctx.facts->param_value(*address) : std::nullopt;
+	return address && ctx.ports.controls != nullptr ? ctx.ports.controls->param_value(*address) : std::nullopt;
 }
 
 /// @brief The typed state of the sound @p ctx edits, or null.

@@ -9,11 +9,6 @@
 
 namespace deluge::scenes::bind::test {
 
-bool FakeFacts::allows_note_tails(project::SlotAddress slot, std::optional<project::ClipAddress> /*clip*/) const {
-	const auto found = note_tails.find(slot.id);
-	return found == note_tails.end() || found->second;
-}
-
 ModelFixture::ModelFixture() {
 	host.tracks.bend_main = kDeviceBendRange;
 	host.tracks.bend_mpe = kDeviceBendRangeMpe;
@@ -59,16 +54,6 @@ void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundS
 	else {
 		song.drum_structure.getOrCreate(slot.id).instrument = std::move(made);
 	}
-}
-
-std::optional<int32_t> FakeFacts::param_value(const project::ParamAddress& address) const {
-	for (const auto& [at, value] : param_values) {
-		if (at.owner == address.owner && at.space == address.space && at.id == address.id
-		    && at.clip_id == address.clip_id) {
-			return value;
-		}
-	}
-	return std::nullopt;
 }
 
 } // namespace deluge::scenes::bind::test

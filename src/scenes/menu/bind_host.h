@@ -1,13 +1,12 @@
 #pragma once
 
 /// @file
-/// @brief The app's write sink, runtime facts and ports, which a menu opened in the app binds its target nodes through.
+/// @brief The app's write sink and ports, which a menu opened in the app binds its target nodes through.
 /// Declared here and defined by the app, as the scenes link the app: the ports by gui/ui/shell_host/ports.cpp, the rest
 /// by gui/ui/shell_bind_host.cpp.
 
 #include "controls/sink.h"
 #include "scenes/bind/ports/ports.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/services/favourites.h"
 #include "scenes/services/waveforms.h"
@@ -20,15 +19,13 @@ class Song;
 
 namespace deluge::scenes::menu {
 
-/// @brief Whether the app's sink and facts act on @p song: they resolve slots in the song the app plays, so a menu over
+/// @brief Whether the app's sink and ports act on @p song: they resolve slots in the song the app plays, so a menu over
 ///        any other song binds nothing through them.
 bool host_binds(const ::Song& song);
 /// @brief The sink that applies a menu's writes as their targets' Edits.
 deluge::scenes::bind::WriteSink& host_write_sink();
 /// @brief The same sink as the controls' interface: the gold knobs' writes (@ref host_write_sink is the menus').
 deluge::controls::Sink& host_controls_sink();
-/// @brief The facts a menu needs that the model does not hold, answered from the running app.
-const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
 /// @brief The app's ports, which every scene's context takes; valid for the program's life.
 [[nodiscard]] const deluge::scenes::bind::Ports& host_ports();
 /// @brief Set the song's tempo from the audio clip @p clip's length, as a held tempo encoder and a pad do: a command to

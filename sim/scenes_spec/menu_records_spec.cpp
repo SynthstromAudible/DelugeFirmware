@@ -213,7 +213,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		size_t written = 0;
 		for (const Case& c : cases) {
 			const MenuContext ctx = menu::context_for(*c.song, deluge::gui::menuViewOf(c.clip), 0, false, false, false, false);
-			expect(ctx.facts).to_be_null();
+			expect(ctx.ports.controls).to_be_null();
 			expect(ctx.sink).to_be_null();
 			const deluge::project::DocClip before =
 			    *c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()});

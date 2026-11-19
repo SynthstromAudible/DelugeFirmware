@@ -1100,7 +1100,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.clip->activeIfNoSolo = true;
 		other->activeIfNoSolo = false;
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()};
-		const auto& facts = deluge::scenes::menu::host_runtime_facts();
+		const auto& facts = *deluge::scenes::menu::host_ports().controls;
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{f.clip->id()})).to_be_true();
 		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{other->id()})).to_be_false();
 		expect(facts.allows_note_tails(slot, std::nullopt)).to_be_true();

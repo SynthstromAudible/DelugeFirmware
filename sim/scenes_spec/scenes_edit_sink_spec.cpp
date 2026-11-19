@@ -369,7 +369,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture other = spec::make_synth_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the fixture makes the last song built the current one
 		const MenuContext ctx = menu::context_for(*other.song, deluge::gui::menuViewOf(other.clip), 0, false, false, false, false);
-		expect(ctx.facts).to_be_null();
+		expect(ctx.ports.controls).to_be_null();
 		expect(ctx.sink).to_be_null();
 		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();
 		(void)playing;

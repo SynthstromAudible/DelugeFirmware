@@ -33,7 +33,6 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "notify/notice_queue.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_knobs.h"
@@ -195,7 +194,7 @@ std::optional<deluge::project::ParamAddress> knob_address(int32_t knob) {
 	// An engine param its owner always holds, or a cable a paste makes; a MIDI lane only once it is made
 	// (the `autoParam` test of main's `View::modEncoderAction`, `origin/main:src/deluge/gui/views/view.cpp`).
 	if (address && address->space != deluge::project::ParamSpace::ENGINE
-	    && !deluge::scenes::menu::host_runtime_facts().param_value(*address)) {
+	    && !deluge::scenes::menu::host_ports().controls->param_value(*address)) {
 		return std::nullopt;
 	}
 	return address;

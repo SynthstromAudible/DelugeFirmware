@@ -194,7 +194,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			                                            .space = deluge::project::ParamSpace::ENGINE,
 			                                            .id = lpf,
 			                                            .clip_id = f.clip->id()};
-			expect(menu::host_runtime_facts().param_value(on_last)).to_equal(std::optional<int32_t>{0x40000000});
+			expect(menu::host_ports().controls->param_value(on_last)).to_equal(std::optional<int32_t>{0x40000000});
 		}
 		nullifyUIs();
 	});

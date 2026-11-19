@@ -42,7 +42,7 @@ namespace params = deluge::modulation::params;
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
 /// What a push reads beyond the song's records: the owner's effects (from the host's track and sound ports), the device
-/// facts (from its runtime facts) and the gesture's context.
+/// facts (from the controls port) and the gesture's context.
 struct Reads {
 	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
 	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
@@ -52,9 +52,8 @@ struct Reads {
 
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	const bind::Ports& ports = menu::host_ports();
-	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
+	Reads out{.pages = bind::app_page_sources(*ports.controls, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
 	if (const effects::EffectStates* fx = owner_effects(focus, *ports.tracks, *ports.sound)) {

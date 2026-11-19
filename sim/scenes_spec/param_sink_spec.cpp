@@ -333,7 +333,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		deluge::edits::SetParamValue late{lpf, 0x70000000, 48, 24};
 		(void)deluge::edits::apply(ctx, early);
 		(void)deluge::edits::apply(ctx, late);
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+		const deluge::controls::Facts& facts = *menu::host_ports().controls;
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		std::optional<int32_t> read[2];
 		int i = 0;

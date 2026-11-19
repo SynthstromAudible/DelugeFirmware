@@ -465,7 +465,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		World w = makeWorld();
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(w.song);
-		const auto outputs = deluge::scenes::menu::host_runtime_facts().playing_outputs();
+		const auto outputs = deluge::scenes::menu::host_ports().controls->playing_outputs();
 		expect(outputs.size()).to_equal(size_t{3});
 		if (outputs.size() == 3) {
 			using PlayingOutput = controls::PlayingOutput;
@@ -492,7 +492,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		World w = makeWorld();
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(w.song);
-		const auto rows = deluge::scenes::menu::host_runtime_facts().sound_rows(w.kit.clip->id());
+		const auto rows = deluge::scenes::menu::host_ports().controls->sound_rows(w.kit.clip->id());
 		expect(rows.size()).to_equal(size_t{2});
 		if (rows.size() == 2) {
 			expect(rows[0]).to_equal(controls::KitRow{.drum_id = *w.rowB->id(), .param_owner = OwnerId::drum(*w.rowB->id())},
@@ -500,8 +500,8 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			expect(rows[1]).to_equal(controls::KitRow{.drum_id = *w.rowA->id(), .param_owner = OwnerId::drum(*w.rowA->id())},
 			                         "the second row");
 		}
-		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(w.synth.clip->id()).empty()).to_be_true();
-		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(0xFFFFFF).empty()).to_be_true();
+		expect(deluge::scenes::menu::host_ports().controls->sound_rows(w.synth.clip->id()).empty()).to_be_true();
+		expect(deluge::scenes::menu::host_ports().controls->sound_rows(0xFFFFFF).empty()).to_be_true();
 		deluge::scenes::spec::make_current(saved);
 	});
 
@@ -510,7 +510,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(w.song);
 		RootView root;
-		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		const auto outputs = facts.playing_outputs();
 		const std::vector<controls::PlayingOutput> before(outputs.begin(), outputs.end());
 		expect(before.size()).to_equal(size_t{3});
@@ -549,7 +549,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 	});
 
 	it("reads the takeover's mode, whether a running clock records, and the cable's relative flag", _ {
-		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		{
 			TakeoverSetting mode{MIDITakeoverMode::SCALE};
 			Transport transport{RecordingMode::NORMAL};
@@ -574,7 +574,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(f.song);
-		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		expect(facts.step_region(f.clip->id()).has_value()).to_be_false();
 		{
 			HeldRegion region{*f.clip, 96, 48};
@@ -588,7 +588,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 	});
 
 	it("names a sound's params by the instrument's rows and a chain's by the global effectable's", _ {
-		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		const project::ParamTarget lpf{.space = ParamSpace::ENGINE, .id = deluge::instrument::param::kLpfFrequency};
 		const deluge::plugin::ParamInfo* sound = facts.param_info(deluge::plugin::kDelugeInstrument, lpf);
 		expect(sound).not_().to_be_null("the sound's LPF info");
@@ -610,7 +610,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
-		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const controls::Facts& facts = *deluge::scenes::menu::host_ports().controls;
 		expect(facts.param_value(cableOf(f, *f.clip)).has_value()).to_be_false();
 		expect(facts.param_value(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip)).has_value())
 		    .to_be_true();

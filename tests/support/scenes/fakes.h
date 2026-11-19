@@ -3,11 +3,13 @@
 /// @file
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
+#include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
 
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -101,17 +103,59 @@ struct FakeTrackFacts final : TrackFacts {
 	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
 };
 
+/// @brief The knobs' reads, as a spec sets them: each note-tail answer and the params' values, by their addresses.
+class FakeControlFacts final : public controls::Facts {
+public:
+	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
+	/// The value each param plays, by its address; a param absent here the song does not hold.
+	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
+	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot,
+	                                     std::optional<project::ClipAddress> clip) const override;
+	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
+	[[nodiscard]] bool stutter_active() const override { return false; }
+	[[nodiscard]] bool alt_delay() const override { return false; }
+	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
+	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return {.cable_relative = cable_relative};
+	}
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
+	step_region(std::optional<uint32_t> /*clip_id*/) const override {
+		return std::nullopt;
+	}
+	[[nodiscard]] bool param_automated(const project::ParamAddress& /*address*/) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const project::ParamAddress& /*address*/,
+	                                                      std::optional<uint32_t> /*pos*/) const override {
+		return std::nullopt;
+	}
+	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress& /*address*/,
+	                                                    uint32_t /*pos*/) const override {
+		return std::nullopt;
+	}
+	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId plugin,
+	                                                  const project::ParamTarget& target) const override {
+		return deluge_param_info(plugin, target);
+	}
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;  ///< the audio port's fake
-	FakeCardFacts card;    ///< the card port's fake
-	FakeUiFacts ui;        ///< the UI port's fake
-	FakeSoundFacts sound;  ///< the sound port's fake
-	FakeClipFacts clips;   ///< the clip port's fake
-	FakeTrackFacts tracks; ///< the track port's fake
+	FakeAudioFacts audio;      ///< the audio port's fake
+	FakeCardFacts card;        ///< the card port's fake
+	FakeUiFacts ui;            ///< the UI port's fake
+	FakeSoundFacts sound;      ///< the sound port's fake
+	FakeClipFacts clips;       ///< the clip port's fake
+	FakeTrackFacts tracks;     ///< the track port's fake
+	FakeControlFacts controls; ///< the knobs' port's fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() const {
-		return {.audio = &audio, .card = &card, .ui = &ui, .sound = &sound, .clips = &clips, .tracks = &tracks};
+		return {.audio = &audio,
+		        .card = &card,
+		        .ui = &ui,
+		        .sound = &sound,
+		        .clips = &clips,
+		        .tracks = &tracks,
+		        .controls = &controls};
 	}
 };
 

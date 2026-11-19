@@ -274,11 +274,10 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		ctx.root = MenuContext::Root::Settings;
 	}
 
-	// What a target node binds through: the model, the addresses, and the app's facts and sink, which act on the song
+	// What a target node binds through: the model, the addresses, and the app's ports and sink, which act on the song
 	// it plays: a context over any other song binds nothing through them.
 	ctx.model = &song.project;
 	if (host_binds(song)) {
-		ctx.facts = &host_runtime_facts();
 		ctx.ports = host_ports();
 		ctx.sink = &host_write_sink();
 		ctx.controls_sink = &host_controls_sink();

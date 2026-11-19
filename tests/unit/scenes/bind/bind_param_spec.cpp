@@ -126,9 +126,9 @@ describe bind_param("a param target", ${
 
 	it("shows the value the param plays, in its display's range", _ {
 		ModelFixture f;
-		f.facts.param_values.push_back({*param_address(kSoundPan, kOnSynth), kMax});
-		f.facts.param_values.push_back({*param_address(kPulseWidth, kOnSynth), kMax});
-		f.facts.param_values.push_back({*param_address(kChainLpf, kOnSong), kMin});
+		f.host.controls.param_values.push_back({*param_address(kSoundPan, kOnSynth), kMax});
+		f.host.controls.param_values.push_back({*param_address(kPulseWidth, kOnSynth), kMax});
+		f.host.controls.param_values.push_back({*param_address(kChainLpf, kOnSong), kMin});
 		const auto pan = view(kSoundPan, f.song, kOnSynth, f.ports());
 		expect(pan.has_value()).to_be_true();
 		if (pan.has_value()) {
@@ -161,9 +161,9 @@ describe bind_param("a param target", ${
 	it("applies where its conditions hold over the owner's rows, and where its partner shows", _ {
 		ModelFixture f;
 		for (const Target* t : {&kFmOnly, &kWithFm}) {
-			f.facts.param_values.push_back({*param_address(*t, kOnSynth), 0});
+			f.host.controls.param_values.push_back({*param_address(*t, kOnSynth), 0});
 		}
-		f.facts.param_values.push_back({*param_address(kChainLpfOn, kOnKitFx), 0});
+		f.host.controls.param_values.push_back({*param_address(kChainLpfOn, kOnKitFx), 0});
 		const auto applies = [&](const Target& t, const Addresses& where) {
 			const auto shown = view(t, f.song, where, f.ports());
 			return shown.has_value() && shown->applies;
@@ -182,7 +182,7 @@ describe bind_param("a param target", ${
 
 	it("asks for the stored word of a menu value, within the display's range", _ {
 		ModelFixture f;
-		f.facts.param_values.push_back({*param_address(kSoundPan, kOnSynth), 0});
+		f.host.controls.param_values.push_back({*param_address(kSoundPan, kOnSynth), 0});
 		const auto request = request_for(kSoundPan, f.song, kOnSynth, f.ports(), 10);
 		expect(request.has_value()).to_be_true();
 		if (request.has_value()) {

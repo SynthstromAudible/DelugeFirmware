@@ -27,7 +27,6 @@
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
@@ -135,8 +134,9 @@ PushInputs ModKnobs::push_inputs(bool mode_held) const {
 
 bool ModKnobs::owner_stutter_quantized() const {
 	const effects::EffectStates* fx = owner_effects();
+	const bind::Ports& ports = menu::host_ports();
 	const effects::EffectStates* song =
-	    menu::host_ports().tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
+	    ports.tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
 	return fx != nullptr && song != nullptr && stutter_quantized(*fx, *song);
 }
 
@@ -278,8 +278,8 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 }
 
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	const bind::Ports& ports = menu::host_ports();
+	const controls::Facts& facts = *ports.controls;
 	controls::Sink& sink = menu::host_controls_sink();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 
@@ -372,7 +372,7 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 			}
 		}
 	}
-	context.stuttering = menu::host_runtime_facts().stutter_active();
+	context.stuttering = menu::host_ports().controls->stutter_active();
 	out.show_value_popup(turn, source1, source2, context, now_ms);
 }
 
@@ -429,13 +429,14 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	// The button's rules (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`,
 	// `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's end,
 	// which the popup reads, and a press the rules ignore does nothing.
-	const controls::SectionResult section = controls::resolve_section(
-	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
-	    {.root_is_performance = view_.root_is_performance,
-	     .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
-	     .root_is_clip_minder = view_.root_is_clip_minder,
-	     .keeps_stutter = controls::section_keeps_stutter(song_->project, *focus_, static_cast<uint32_t>(which_button),
-	                                                      bind::app_page_sources(menu::host_runtime_facts(), board_))});
+	const controls::SectionResult section =
+	    controls::resolve_section(*focus_, static_cast<uint8_t>(mode()), which_button, on,
+	                              {.root_is_performance = view_.root_is_performance,
+	                               .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
+	                               .root_is_clip_minder = view_.root_is_clip_minder,
+	                               .keeps_stutter = controls::section_keeps_stutter(
+	                                   song_->project, *focus_, static_cast<uint32_t>(which_button),
+	                                   bind::app_page_sources(*menu::host_ports().controls, board_))});
 	if (on && !section.taken) {
 		return;
 	}
@@ -473,7 +474,7 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (ctx.shift && on) {
 		const std::optional<ParamAddress> address = knob_address(which_encoder);
-		if (address && menu::host_runtime_facts().param_value(*address).has_value()
+		if (address && menu::host_ports().controls->param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {
 			out.popup(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED);
 		}
@@ -613,8 +614,8 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	if (song_ == nullptr) {
 		return out; // no song: nothing to read, so nothing is declared
 	}
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	const bind::Ports& ports = menu::host_ports();
+	const controls::Facts& facts = *ports.controls;
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
@@ -671,7 +672,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 		}
 		return;
 	}
-	const bool stuttering = menu::host_runtime_facts().stutter_active();
+	const bool stuttering = menu::host_ports().controls->stutter_active();
 	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			// A blinking knob is driven by its blink's phase.
