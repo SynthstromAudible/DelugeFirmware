@@ -662,7 +662,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 	});
 });
 
-describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the ported menu on that pad's node", $ {
+describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the menu on that pad's node", $ {
 	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it, focused on it
 		// (`maybeGetParentMenu` and `parent->focusChild`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
@@ -783,7 +783,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
-	it("Shift + (8,7) from the clip view, menu closed, opens the ported menu through menuShortcutPadAction", _ {
+	it("Shift + (8,7) from the clip view, menu closed, opens the menu through menuShortcutPadAction", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 		deluge::hid::display::OLED oled_display;
@@ -984,7 +984,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		}
 	});
 });
-describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported menu", $ {
+describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the menu", $ {
 	// The whole route: `PlaybackHandler` offers the message to the current UI, `ShellHostUI` routes it to the menu, and
 	// the focused MIDI command's `LearnedMIDI` is written. `midiEngine.globalMIDICommands` is a process singleton, so
 	// the slot is poisoned first: a slot another example already learned would make a route that wrote nothing look
@@ -1172,7 +1172,7 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 	});
 });
 
-describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was left under, as exitCompletely does", $ {
+describe menu_entry_close_mode("leaving the menu ends the UI mode it was left under, as exitCompletely does", $ {
 	it("clears AFFECT ENTIRE held on a kit row's menu when the long-press exit closes it", _ {
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2056,7 +2056,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 });
 
-describe menu_entry_published_target("the ported menu's owner and params, which the automation view and the kit's stacks read", $ {
+describe menu_entry_published_target("the menu's owner and params, which the automation view and the kit's stacks read", $ {
 	it("names a kit row's drum and its note row's params", _ {
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;

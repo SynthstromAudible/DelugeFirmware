@@ -807,7 +807,7 @@ bool runOnePreviewTick() {
 		g_previewStarted = true;
 		// The guest's browser, opened before the first preview; it draws the waveform until a main pad is pressed.
 		if (!openGuestBrowser()) {
-			g_report.fail("[audioLoadAB/preview]: the ported browser could not be opened on the boot song");
+			g_report.fail("[audioLoadAB/preview]: the browser scene could not be opened on the boot song");
 			g_previewAborted = true;
 			return false;
 		}

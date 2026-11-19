@@ -462,7 +462,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		expect(others).to_equal(size_t(0));
 	});
 
-	it("reports no placeholder at all any more, even when strict", _ {
+	it("reports no placeholder, even when strict", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		// This tree is clean under the default (strict) options: both file selectors, the
@@ -482,7 +482,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		expect(placeholders).to_equal(size_t(0));
 	});
 
-	it("assigns an id to every node in the batch-1 tree", _ {
+	it("assigns an id to every node under kBatch1Roots", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		(void)menu::validate_tree(nodes::kBatch1Roots, contexts, {}, {},

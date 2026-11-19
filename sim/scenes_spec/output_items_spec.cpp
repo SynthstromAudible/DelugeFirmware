@@ -471,7 +471,7 @@ describe output_items_milestone("scenes::menu the tree has no placeholders left"
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 	});
 
-	it("keeps the placeholder mechanism itself, now with no users", _ {
+	it("keeps the placeholder mechanism itself, which no node uses", _ {
 		// `nodes::kPending` stays, and still answers `is_placeholder()`. That is the point of
 		// removing the *option* rather than the *rule*: the next table that needs a stand-in gets
 		// one, and `validate_tree` reports it with nothing left to suppress it.

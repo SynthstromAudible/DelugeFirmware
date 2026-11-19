@@ -307,8 +307,8 @@ bool menu_on_guest_stack() {
 } // namespace
 
 // clang-format off
-describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's question, asked of the ported mode too", $ {
-	it("both answer false with the ported menu off the guest's stack, and on it at a root that is not a note root", _ {
+describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's question, asked of the menu scene's mode too", $ {
+	it("both answer false with the menu off the guest's stack, and on it at a root that is not a note root", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -352,7 +352,7 @@ describe note_mode_reads_predicates("util/note_editor_open.h -- legacy's questio
 	});
 });
 
-describe note_mode_reads_note_editor("the note editor's handlers' own menu calls, ported", $ {
+describe note_mode_reads_note_editor("the note editor's handlers' own menu calls", $ {
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("a vertical turn off a note item keeps the selection and the focused item -- the note editor remembers its "
@@ -509,7 +509,7 @@ describe note_mode_reads_note_editor("the note editor's handlers' own menu calls
 	});
 });
 
-describe note_mode_reads_note_row_editor("the note-row editor's handlers' own menu calls, ported", $ {
+describe note_mode_reads_note_row_editor("the note-row editor's handlers' own menu calls", $ {
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("holding a note pad at the row root enters the note root and releasing it goes back, with activeNoteMode() "
@@ -871,7 +871,7 @@ describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submen
 	});
 });
 
-describe note_mode_reads_legacy_leg("each edited file's legacy arm with the ported menu closed, beside its note-mode twin", $ {
+describe note_mode_reads_legacy_leg("each edited file's legacy arm with the menu closed, beside its note-mode twin", $ {
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("instrument_clip_view.cpp: adjust_note_probability's first turn with no popup changes nothing and raises the "
@@ -962,7 +962,7 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		expect(display->hasPopupOfType(PopupType::FILL)).to_be_true();
 	});
 
-	it("view.cpp: the same press with the ported note-row editor open -- the note-editor arm: fill mode on, no popup", _ {
+	it("view.cpp: the same press with the note-row editor open -- the note-editor arm: fill mode on, no popup", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;

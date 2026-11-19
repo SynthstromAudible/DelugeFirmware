@@ -224,8 +224,8 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(menu::note_bridge()->note_velocity()).to_equal(81);
 	});
 
-	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_velocity commits on the "
-	   "FIRST turn and raises no popup -- :2852's inSoundEditor sees the mode", _ {
+	it("the note-mode arm: with the note editor open and no popup, adjust_note_velocity commits on the FIRST turn "
+	   "and raises no popup -- InstrumentClipView::adjustVelocity's inSoundEditor sees the mode", _ {
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;
@@ -248,8 +248,8 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(static_cast<int32_t>(getCurrentInstrument()->defaultVelocity)).to_equal(81);
 	});
 
-	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_probability commits on the "
-	   "FIRST turn and raises no PROBABILITY popup -- :3067/:3118", _ {
+	it("the note-mode arm: with the note editor open and no popup, adjust_note_probability commits on the FIRST "
+	   "turn and raises no PROBABILITY popup -- InstrumentClipView::adjustNoteParameterValue's inNoteEditor", _ {
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;
@@ -268,8 +268,8 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		expect(display->hasPopup()).to_be_false();
 	});
 
-	it("the note-mode arm: with the ported note-row editor open and no popup, adjust_row_probability commits on "
-	   "the FIRST turn and raises no popup -- :4101/:4104", _ {
+	it("the note-mode arm: with the note-row editor open and no popup, adjust_row_probability commits on the "
+	   "FIRST turn and raises no popup -- InstrumentClipView::setNoteRowParameterValue's inNoteRowEditor", _ {
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		ActionLogGuard logs;

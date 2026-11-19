@@ -476,7 +476,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		expect(ids(found)).to_equal(ids(want));
 	});
 
-	it("retires nine placeholders, none of which came back", _ {
+	it("gives each of the nine sample nodes a real item, none a placeholder", _ {
 		// The count `validate.h` carries, checked from the other end: none of the nine is a
 		// placeholder. The tree has no placeholder anywhere (`nodes/output_items.h`
 		// holds the last two real items), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is

@@ -611,8 +611,8 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///       `origin/main:src/deluge/gui/menu_item/cv/selection.h` and in
 ///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
 ///       `NUM_GATE_CHANNELS`. All three are `CustomItem`s that draw their own list (`scenes/menu/nodes/dynamic.h`), as
-///       main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is not a
-///       placeholder any more" example pins that zero, so the day a node does set the hook, that example fails and
+///       main's do, so this arm has nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is no
+///       placeholder" example pins that zero, so the day a node does set the hook, that example fails and
 ///       points here.
 ///
 ///       A `"type": "submenu"` entry with `"dynamic": true` and the children the hook yields under a fixture context
@@ -629,8 +629,8 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 [[noreturn]] void fail_on_dynamic_children(const menu::Node& node) {
 	std::fprintf(stderr,
 	             "menu dump: node \"%s\" (id %u) sets dynamic_children -- this dump has no\n"
-	             "menu dump: verified JSON shape for it (see menu_dump.cpp's file header,\n"
-	             "menu dump: \"Fix round 1\"). Design this dump's multicontext handling against\n"
+	             "menu dump: verified JSON shape for it (see menu_dump.cpp's file header).\n"
+	             "menu dump: Design this dump's multicontext handling against\n"
 	             "menu dump: this node's real use case before re-adding it; do not resurrect the\n"
 	             "menu dump: removed guess.\n",
 	             text_of(node.name).c_str(), menu::node_id(node));

@@ -238,7 +238,7 @@ describe settings("the Deluge instrument's settings schema", ${
 		expect(canonical_setting("voicePriority", Value::makeNumber(2))->str()).to_equal(std::string("2"));
 	});
 
-	it("shows max voices as legacy's menu does: 1–16 as themselves, the limit past 16 as off, and off as 127", _ {
+	it("shows max voices as main's menu does: 1–16 as themselves, the limit past 16 as off, and off as 127", _ {
 		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kSettings, "maxVoices");
 		expect(check_setting("maxVoices", Value::makeNumber(1))).to_be_true();
 		expect(check_setting("maxVoices", Value::makeNumber(127))).to_be_true();

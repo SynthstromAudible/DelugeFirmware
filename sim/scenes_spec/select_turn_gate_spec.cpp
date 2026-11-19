@@ -70,7 +70,7 @@ void select_turn() {
 } // namespace
 
 // clang-format off
-describe select_turn_gate("gui::ui::ShellHostUI::selectEncoderAction under the ported menu", $ {
+describe select_turn_gate("gui::ui::ShellHostUI::selectEncoderAction under the menu scene", $ {
 	it("moves the menu with no UI mode on", _ {
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;

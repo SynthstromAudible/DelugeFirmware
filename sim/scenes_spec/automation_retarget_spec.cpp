@@ -446,8 +446,8 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		expect(fx.clip->yScroll).to_equal(moved);
 	});
 });
-describe automation_sound_menu("the legacy views see the ported menu as the sound menu", $ {
-	it("reads the ported menu over the automation view as the open sound menu, and not once it is gone", _ {
+describe automation_sound_menu("the legacy views see the menu scene as the sound menu", $ {
+	it("reads the menu scene over the automation view as the open sound menu, and not once it is gone", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 		on_overview(fx.clip);
 		{

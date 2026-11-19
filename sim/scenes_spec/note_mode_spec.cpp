@@ -180,7 +180,7 @@ Call button_call_for(Root root) {
 
 // clang-format off
 describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRowEditor(), for input", $ {
-	it("answers the ported menu's root while the menu is on the guest's stack", _ {
+	it("answers the menu's root while the menu is on the guest's stack", _ {
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 

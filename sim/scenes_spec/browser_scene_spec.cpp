@@ -421,7 +421,7 @@ void tap(Rig& r, uint8_t x, uint8_t y) {
 
 // clang-format off
 describe browser_descriptors("scenes::browser descriptor table", $ {
-	it("covers exactly the three browsers the ported menu tree reaches", _ {
+	it("covers exactly the three browsers the menu tree reaches", _ {
 		// Legacy has nine `Browser` subclasses. Only `SampleBrowser`, `LoadMidiDeviceDefinitionUI` and
 		// `DxSyxBrowser` are opened from a menu item; the load/save family is opened from root UIs and is not
 		// ported. See `BrowserId`.

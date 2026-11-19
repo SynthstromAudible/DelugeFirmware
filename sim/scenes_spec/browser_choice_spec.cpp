@@ -1186,7 +1186,7 @@ describe browser_choice_reroot(
 	    });
 
 	    it(
-	        "lands the ported menu on the source page, at the root, with the file selector focused", _ {
+	        "lands the menu on the source page, at the root, with the file selector focused", _ {
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -1308,7 +1308,7 @@ describe browser_choice_reroot(
     });
 
 // clang-format off
-describe browser_choice_preview("the browser host and the ported browser's preview", $ {
+describe browser_choice_preview("the browser host and the browser scene's preview", $ {
 	before_each([] {
 		static QuietDisplay d;
 		if (display == nullptr) {

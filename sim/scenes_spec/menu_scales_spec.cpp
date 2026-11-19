@@ -217,7 +217,7 @@ describe menu_scales_table("scenes::menu the two scale checklists: the table", $
 		expect(found).to_equal(expected);
 	});
 
-	it("is not a placeholder any more", _ {
+	it("is no placeholder, and gives each node its own item", _ {
 		expect(nodes::active_scales.custom->is_placeholder()).to_be_false();
 		expect(nodes::default_active_scale.custom->is_placeholder()).to_be_false();
 		// Two instances, not one shared: the bitset an item edits is its only state.

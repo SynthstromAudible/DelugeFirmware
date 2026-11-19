@@ -162,7 +162,7 @@ std::ptrdiff_t edited_marks(const deluge::scenes::bind::RecordingSink& sink) {
 } // namespace
 
 // clang-format off
-describe menu_edited_guest("the ported menu marks the instrument it edits, as SoundEditor::selectEncoderAction does", $ {
+describe menu_edited_guest("the menu scene marks the instrument it edits, as SoundEditor::selectEncoderAction does", $ {
 	it("marks a synth edited after a turn on one of its settings", _ {
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;

@@ -71,7 +71,7 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 		expect(deluge::plugin::from_menu(row, 27).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{9, 2});
 		expect(deluge::plugin::from_menu(row, 28)).not_().to_have_value();
 	});
-	it("shows the sidechain's sync as one menu value over the even levels alone, as legacy's menu offers", _ {
+	it("shows the sidechain's sync as one menu value over the even levels alone, as main's menu offers", _ {
 		const deluge::plugin::SettingInfo& row =
 		    *deluge::plugin::find_setting(kEffectSettings, "sidechain/syncLevel");
 		const deluge::plugin::DisplayMapping& mapping = deluge::plugin::mapping_of(row);

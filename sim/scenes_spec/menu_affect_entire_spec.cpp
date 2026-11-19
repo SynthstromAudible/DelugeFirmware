@@ -114,7 +114,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_false();
 	});
 
-	it("does not take the button's level as the hold any more", _ {
+	it("does not take the button's level as the hold", _ {
 		KitMenu k;
 		k.open(nodes::lpf_freq);
 		k.shell.tick(0);

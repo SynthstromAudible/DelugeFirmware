@@ -1460,7 +1460,7 @@ describe menu_action_screensaver("the screensaver setters -- host_screensaver_se
 		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 	});
 
-	it("files nothing at all until the value is turned -- opening and descending are quiet", _ {
+	it("re-arms nothing until the value is turned -- opening and descending are quiet", _ {
 		// The other side of "a write, not a press". Walking onto the item and pressing into it is
 		// what a user does before choosing anything, and it must not re-arm anybody's screensaver.
 		select_language();
@@ -1840,7 +1840,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("takes the ported menu off the guest's stack, which is exitCompletely()'s half", _ {
+	it("takes the menu scene off the guest's stack, which is exitCompletely()'s half", _ {
 		// `soundEditor.exitCompletely()` (`Start::selectButtonPress` in
 		// `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the first statement of main's body, and
 		// under the guest what is open is `ShellHostUI` rather than `soundEditor`. The dispatcher's answer is

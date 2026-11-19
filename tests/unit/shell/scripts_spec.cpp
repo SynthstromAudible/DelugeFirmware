@@ -405,7 +405,7 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(dims).to_equal(std::string("128 32"));
 	});
 
-	it("migration hook: the same registry run twice produces identical trees", _ {
+	it("two-registry run: the same registry run twice produces identical trees", _ {
 		// The two-registry run's "nothing changed" side: two independent
 		// DemoRegistry instances (so the second run is not literally the same objects), same
 		// script, same scene table shape -- the double-run diff must find no disagreement.
@@ -418,14 +418,14 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(result.snapshots).to_equal(uint32_t(4));
 	});
 
-	it("migration hook: a registry that draws one extra pixel is caught, naming the .pbm", _ {
+	it("two-registry run: a registry that draws one extra pixel is caught, naming the .pbm", _ {
 		// The other side: two registries that visibly disagree. Run both by hand (bypassing
 		// expect_script_goldens, which would fail this very `it` block on the mismatch it exists
 		// to detect) and assert on the diff helper directly.
 		DemoRegistry good;
 		DemoRegistryExtraPixel bad;
-		const std::string out_good = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-good";
-		const std::string out_bad = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-bad";
+		const std::string out_good = std::string(UI_GOT_DIR) + "/shell/two-registry-mismatch-good";
+		const std::string out_bad = std::string(UI_GOT_DIR) + "/shell/two-registry-mismatch-bad";
 		std::error_code ec;
 		std::filesystem::remove_all(out_good, ec);
 		std::filesystem::remove_all(out_bad, ec);

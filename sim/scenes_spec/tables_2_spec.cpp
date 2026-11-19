@@ -258,7 +258,7 @@ bool raises_reverb(const Node& node) {
 } // namespace
 
 // clang-format off
-describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
+describe tables_2_shape("scenes::menu sound-editor tables: shape", $ {
 	it("declares the sound-editor root with the legacy child count and order", _ {
 		(void)fixture();
 		// `origin/main:src/deluge/gui/ui/menus.cpp`'s `soundEditorRootMenu` literal lists **27** children; the literal
@@ -423,7 +423,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 });
 
-describe tables_2_values("scenes::menu batch-2 tables: values", $ {
+describe tables_2_values("scenes::menu sound-editor tables: values", $ {
 	it("reads what main's menu reads, for every node that holds a value", _ {
 		size_t compared = 0;
 		for (const Fx& fx : fixtures()) {
@@ -567,7 +567,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 });
 
-describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
+describe tables_2_validation("scenes::menu sound-editor tables: validation", $ {
 	it("validates the sound root clean", _ {
 		Rigged& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
@@ -605,7 +605,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 	});
 });
 
-describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chaining", $ {
+describe tables_2_chaining("scenes::menu sound-editor tables: selectButtonPress chaining", $ {
 	it("answers what main's item selectButtonPress answers, value by value", _ {
 		// The rows are `MenuItem::selectButtonPress()` on the live items, mapped to the page each opens: a
 		// wrong condition, a wrong target, or a missing `select_chain` shows up as a mismatch here.
@@ -752,7 +752,7 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 });
 
-describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable items", $ {
+describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cable items", $ {
 	it("declares the three items with the legacy globals' own names, and none of them a placeholder", _ {
 		Rigged& f = fixture();
 		struct Case {
@@ -1119,7 +1119,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	});
 });
 
-describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
+describe tables_2_pixels("scenes::menu sound-editor tables: pixels", $ {
 	it("renders the sound-editor root list", _ {
 		Rigged& f = fixture();
 		deluge::notify::dirty().drain();
@@ -1232,7 +1232,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		}
 	});
 });
-describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
+describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
 		// Every `set` hook the rows name is driven for the values they name: each starts from a sentinel that is
 		// not the value, so a hook that stores nothing shows; the port's read after its own write is compared with the

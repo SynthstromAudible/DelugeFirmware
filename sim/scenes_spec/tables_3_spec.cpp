@@ -2472,7 +2472,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		}
 	});
 
-	it("is not a placeholder any more, and reports nothing under a strict validation", _ {
+	it("is no placeholder, and reports nothing under a strict validation", _ {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		expect(nodes::cv_selection.custom).to_equal(&nodes::kCvSelectionItem);

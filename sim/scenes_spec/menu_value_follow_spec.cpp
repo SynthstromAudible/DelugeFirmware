@@ -88,7 +88,7 @@ bool shell_asked_for_a_frame() {
 } // namespace
 
 // clang-format off
-describe menu_value_follow("View::displayAutomation under the ported menu", $ {
+describe menu_value_follow("View::displayAutomation under the menu scene", $ {
 	it("a full-screen param takes the value a gold knob wrote behind it", _ {
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;

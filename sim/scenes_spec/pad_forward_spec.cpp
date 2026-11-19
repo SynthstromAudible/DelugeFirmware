@@ -378,7 +378,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::Exit);
 	});
 
-	it("really removes the ported menu when the tail fires", _ {
+	it("really removes the menu scene when the tail fires", _ {
 		// The one example that runs the REAL perform: `closePortedMenu()` names no legacy view, so
 		// it is safe here, and this covers the tail firing `closePortedMenu` outside the recorder.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
@@ -447,7 +447,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("takes the note arms only while the ported menu is on the guest's stack", _ {
+	it("takes the note arms only while the menu is on the guest's stack", _ {
 		// Control for the two examples above, varying one thing: the same menu, same root and same
 		// root UI, with the menu removed from the stack. `menu_context().root` still reads
 		// `NoteEditor`; the arms must not.
@@ -942,7 +942,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		(void)shellHostUI.padAction(kDisplayWidth + 1, 4, 0);
 	});
 
-	it("keeps the kit's selected drum while the ported menu is current, as while the sound editor is", _ {
+	it("keeps the kit's selected drum while the menu scene is current, as while the sound editor is", _ {
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -960,7 +960,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(kit->selectedDrum).to_equal(a);
 	});
 
-	it("freezes the selection under exactly the ported scenes of main's three UIs", _ {
+	it("freezes the selection under exactly the scenes that stand in for main's three UIs", _ {
 		// `setSelectedDrum`'s `currentUI != &sampleBrowser && != &sampleMarkerEditor && != &renameDrumUI`.
 		namespace browser = deluge::scenes::browser;
 		namespace rename = deluge::scenes::rename;
@@ -981,7 +981,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(drumSelectionFrozenBy(deluge::ui::shell::SceneKind::FirstApp, 0)).to_be_false();
 	});
 
-	it("keeps the kit's selected drum while the ported drum rename is over the menu, and not under a clip rename", _ {
+	it("keeps the kit's selected drum while the drum rename scene is over the menu, and not under a clip rename", _ {
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();

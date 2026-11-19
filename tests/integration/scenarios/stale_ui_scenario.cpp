@@ -591,7 +591,7 @@ void stepEditorSetup() {
 	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 	                               /*kitGlobalFx=*/false)
 	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
-		g_report.fail("RETIRED the ported menu could not be opened on the synth clip");
+		g_report.fail("RETIRED the menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -653,14 +653,13 @@ void stepEditorRun() {
 		g_report.fail("RETIRED no step saw the stack empty on both sides of the swap, so nothing was tested");
 	}
 	if (g_staleEditor != 0) {
-		g_report.fail(
-		    "RETIRED input would have reached the ported menu on the outgoing song while the stack was empty");
+		g_report.fail("RETIRED input would have reached the menu on the outgoing song while the stack was empty");
 	}
 	if (g_staleView != 0) {
 		g_report.fail("RETIRED the view still pointed into the swapped-out song");
 	}
 	if (g_guestOnOldSong) {
-		g_report.fail("RETIRED the ported menu was left open on the song the load freed");
+		g_report.fail("RETIRED the menu was left open on the song the load freed");
 	}
 	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d "

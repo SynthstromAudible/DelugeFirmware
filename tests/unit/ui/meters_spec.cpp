@@ -544,7 +544,7 @@ describe meters_w("ui::oled::meters", $ {
 			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawBar(c, x, y, w, kNorms[i]); });
 	});
 
-	it("inverts exactly ten columns at half (D1)", _ {
+	it("inverts exactly ten columns at half", _ {
 		// fill_width = norm * 21 through a uint8_t is 10, and invertArea's width is exclusive --
 		// so bar_start_x .. bar_start_x + 9, not + 10.
 		uitest::Rig48 r;

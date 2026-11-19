@@ -679,7 +679,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 
 	// ---- a menu and a real ModKnobs in the same run ---------------------------------------------
 
-	it("a gold turn in a MENU with the real services now reaches ModKnobs, and pushes a popup", _ {
+	it("a gold turn in a MENU with the real services reaches ModKnobs, and pushes a popup", _ {
 		// Every menu golden in `menu_scripts_spec.cpp` was
 		// recorded with `Services{}` -- three `NullService`s -- so none of them can show what a menu
 		// does with a service that also wants gold-knob turns present. This is that frame, on the

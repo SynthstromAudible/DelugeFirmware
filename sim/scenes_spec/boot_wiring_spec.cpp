@@ -136,7 +136,7 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 });
 
 describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
-	it("the ported tables select on FlashStorage::shortcutsVersion, which every path writes", _ {
+	it("the scenes' shortcut tables select on FlashStorage::shortcutsVersion, which every path writes", _ {
 		const uint8_t saved = FlashStorage::shortcutsVersion;
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached

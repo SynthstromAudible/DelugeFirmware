@@ -375,7 +375,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		FlashStorage::holdTime = (2 * kSampleRate) / 20;
 	});
 
-	it("follows a change made while the guest is open, which is the only way the ported item can", _ {
+	it("follows a change made while the guest is open, which is the only way the settings item can", _ {
 		// **The placement is the point.** Seeding once, in `opened()`, would assume that a guest that is not open
 		// cannot be observing the threshold. That is wrong for the one writer reachable *only while the guest is
 		// open*: `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the settings item and writes
