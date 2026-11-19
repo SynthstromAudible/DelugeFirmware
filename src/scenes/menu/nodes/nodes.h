@@ -2,12 +2,11 @@
 
 /// @brief The menu tables: the per-subtree headers, and everything joined across them.
 ///
-/// The six subtrees are exactly the ones the retired Python generator produced
-/// (its output is pasted verbatim into `src/deluge/gui/ui/menus.cpp`), re-declared as `constexpr Node` literals. Each
-/// `sound_<x>.h` declares its own nodes as `inline constexpr` -- one address per node across every translation unit --
-/// so the shortcut tables can be `constexpr` arrays naming `&lpf_freq` and friends directly, the way legacy's
-/// `paramShortcutsForSounds` names `&lpfFreqMenu` Each `sound_<x>.cpp` keeps the `get`/`set` hook bodies and exports
-/// its own roots as a span:
+/// The six subtrees are exactly the ones the retired Python generator produced (its output is pasted verbatim into
+/// `origin/main:src/deluge/gui/ui/menus.cpp`), re-declared as `constexpr Node` literals. Each `sound_<x>.h` declares
+/// its own nodes as `inline constexpr` -- one address per node across every translation unit -- so the shortcut tables
+/// can be `constexpr` arrays naming `&lpf_freq` and friends directly, the way legacy's `paramShortcutsForSounds` names
+/// `&lpfFreqMenu` Each `sound_<x>.cpp` keeps the `get`/`set` hook bodies and exports its own roots as a span:
 ///
 ///   * `kSoundFiltersChildren` -- `soundFiltersMenu`
 ///   * `kSoundCompressorChildren` -- `audioCompMenu`
@@ -32,7 +31,7 @@
 ///
 /// `kBatch1Roots` stays a list of roots rather than one tree because the shortcut sweep wants the
 /// subtrees individually; `kSoundRootRoots` (`sound_root.h`) is the other spelling, one root with
-/// everything under it. Every batch-1 subtree is reachable from
+/// everything under it. Every subtree here is reachable from
 /// `sound_root` too -- they are the same node objects, not copies -- which is why the two flag
 /// lists below serve both.
 
@@ -63,8 +62,8 @@
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief All seventeen subtree roots, in `main.py`'s own order -- the `roots`
-///        argument `validate_tree` (and the menu dump) wants.
+/// @brief All seventeen subtree roots, in `origin/main:src/deluge/gui/menu_item/generate/main.py`'s own order -- the
+///        `roots` argument `validate_tree` (and the menu dump) wants.
 ///
 /// `constexpr` rather than a joined-at-startup array: with every node header-visible there is
 /// nothing to join at runtime, so the walk order every node id derives from is fixed at compile
@@ -111,10 +110,10 @@ inline constexpr std::span<const Node* const> kRangeSpecificNodes{kRangeSpecific
 
 /// @brief Every node in the whole sound tree whose binding must use `Scaling::HalfPrecision`.
 ///
-/// `osc::PulseWidth` for both sources (`gui/menu_item/osc/pulse_width.h:32,34-37`) and
-/// `audio_compressor::CompParam` (`audio_compressor/compressor_params.h`) -- the only two
-/// legacy classes that use the half-precision value scaling, and the ones `bindings.h` says must be
-/// named at the call site because nothing can infer them.
+/// `osc::PulseWidth` for both sources (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`) and
+/// `audio_compressor::CompParam` (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_params.h`) -- the
+/// only two legacy classes that use the half-precision value scaling, and the ones `bindings.h` says must be named at
+/// the call site because nothing can infer them.
 ///
 /// **No other node uses it.** A tree-wide grep for `computeCurrentValueForHalfPrecisionMenuItem` /
 /// `computeFinalValueForHalfPrecisionMenuItem` over `gui/menu_item/` finds exactly those two

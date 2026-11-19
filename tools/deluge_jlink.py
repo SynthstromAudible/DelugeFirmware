@@ -56,7 +56,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# The toolchain ./dbt uses: DBT_TOOLCHAIN_PATH's when set (a worktree shares its clone's), else this tree's.
+# The toolchain ./dbt uses: DBT_TOOLCHAIN_PATH's when set (a worktree shares its clone's), else the one in the checkout.
 TOOLCHAIN = os.path.join(
     os.environ.get("DBT_TOOLCHAIN_PATH") or REPO, "toolchain/current"
 )

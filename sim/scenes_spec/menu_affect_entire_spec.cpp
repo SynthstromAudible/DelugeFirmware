@@ -114,7 +114,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_false();
 	});
 
-	it("does not take the button's level as the hold any more", _ {
+	it("does not take the button's level as the hold", _ {
 		KitMenu k;
 		k.open(nodes::lpf_freq);
 		k.shell.tick(0);
@@ -126,7 +126,8 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 	});
 
 	it("answers for a horizontal page's focused column and a vertical list's non-entering row", _ {
-		// `Submenu::usesAffectEntire`: the focused child on a horizontal page, or a vertical row that does not enter.
+		// `Submenu::usesAffectEntire` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): the focused child on a
+		// horizontal page, or a vertical row that does not enter.
 		KitMenu k;
 		k.open(nodes::lpf_freq); // lands on the FILTER page, focused on LPF frequency
 		k.shell.tick(0);

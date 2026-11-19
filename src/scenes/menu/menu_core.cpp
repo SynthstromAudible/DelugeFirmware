@@ -61,7 +61,8 @@ const Node* focused_value(const MenuContext& ctx, const MenuState& st) {
 	}
 	if (!renders_horizontal(*node, ctx)) {
 		return nullptr; // a vertical page's row is not itself a value -- `shouldForwardButtons`
-		                // (`submenu.cpp:181-185`) only forwards on the HORIZONTAL rendering style
+		                // (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) only forwards on the HORIZONTAL
+		                // rendering style
 	}
 	const Node* column = selected_child(ctx, st, *node);
 	return (column != nullptr && column->kind != Kind::Submenu) ? column : nullptr;

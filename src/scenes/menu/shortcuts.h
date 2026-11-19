@@ -4,7 +4,7 @@
 ///        shortcut pad sits so `plan_blinks` (`shortcut_blink.h`) can blink it.
 ///
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
-/// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp`), `midiOrCVParamShortcuts` and
+/// `…ForSongView`, `…ForKitGlobalFX` (`origin/main:src/deluge/gui/ui/menus.cpp`), `midiOrCVParamShortcuts` and
 /// `gateDrumParamShortcuts` -- transcribed cell by cell as `Node` pointers, keyed by
 /// `MenuContext::Root`. `sim/scenes_spec/shortcuts_spec.cpp` cross-checks every cell of every table
 /// against the legacy array it came from, in both directions.
@@ -68,7 +68,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///        shortcut.
 ///
 /// Ports the table lookup inside `SoundEditor::potentialShortcutPadAction`
-/// (in `gui/ui/sound_editor.cpp`): which of the seven tables is consulted follows from
+/// (in `origin/main:src/deluge/gui/ui/sound_editor.cpp`): which of the seven tables is consulted follows from
 /// @p root, exactly as legacy's chain of `rootUIIsClipMinderScreen()` / `setupKitGlobalFXMenu` /
 /// `ClipType::AUDIO` / output-type tests does.
 ///
@@ -94,7 +94,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///
 /// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
 ///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`
-///       (`SoundEditor::get_basic_shortcut_action` in `gui/ui/sound_editor.cpp`), so
+///       (`SoundEditor::get_basic_shortcut_action` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so
 ///       `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and `(15, 3)` cells were never pressable. They
 ///       are still in the layer, and still blink, because `SoundEditor::setupShortcutsBlinkFromTable`
 ///       (the same file) scans the whole table with no such guard. The other four roots' guards match
@@ -112,12 +112,12 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
 
 /// @brief Where @p node's own shortcut pad is, for the focused-param blink
-///        (`SoundEditor::updatePadLightsFor` / `setupShortcutBlink`, `sound_editor.cpp:844-943`,
+///        (`SoundEditor::updatePadLightsFor` / `setupShortcutBlink`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`,
 ///        whose `currentParamShortcutX` / `currentParamShortcutY` this replaces).
 ///
 /// The reverse of `shortcut_node` over the same tables, so `MenuScene` never has to know a table's
 /// shape. The second layer is searched first and the first layer after it, which is the order
-/// `updatePadLightsFor` scans in (`:867` before `:872`).
+/// `updatePadLightsFor` scans in.
 ///
 /// @note This searches the **transcribed layers only**, so it is deliberately *not* a total inverse
 ///       of `shortcut_node`, in both directions: the four resolve-only cells are reachable by a
@@ -126,9 +126,10 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
 ///       blink side scans the whole table). Both asymmetries are legacy's; see `shortcut_node`.
 ///
 /// @note Legacy's two context-dependent suppressions are **not** ported: the reverb-sidechain one
-///       (`:873`, "x == 10 && y < 6 && editingReverbSidechain()") and the odd-column/source-0 one
-///       (`:876`). Both read `SoundEditor` state this signature does not carry, and both only
-///       *withhold* a blink; a blink on the right pad is the failure mode either way.
+///       (`SoundEditor::updatePadLightsFor`, "x == 10 && y < 6 && editingReverbSidechain()") and the
+///       odd-column/source-0 one (also in `SoundEditor::updatePadLightsFor`). Both read `SoundEditor` state this
+///       signature does not carry, and both only *withhold* a blink; a blink on the right pad is the failure mode
+///       either way.
 ///
 /// @param root Which menu root is open.
 /// @param node The node to locate.
@@ -138,7 +139,7 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
 /// @brief Which of legacy's two shortcut layouts every lookup above resolves.
 ///
 /// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1,
-/// `gui/ui/sound_editor.h:26-27`) so the settings item's `int32_t` crosses unchanged; the names are
+/// `origin/main:src/deluge/gui/ui/sound_editor.h`) so the settings item's `int32_t` crosses unchanged; the names are
 /// spelled here rather than reached for so this layer names no `gui/` header.
 enum class ShortcutsVersion : uint8_t {
 	V1 = 0, ///< The pre-3.0 layout.
@@ -152,20 +153,19 @@ ShortcutsVersion shortcuts_version();
 ///
 /// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
 ///       ten cells of `paramShortcutsForSounds` / `paramShortcutsForAudioClips` in place
-///       (`:119-135`) and its `V3` arm is a comment reading "Uses defaults" (`:139-141`) -- so on
+///       and its `V3` arm is a comment reading "Uses defaults" -- so on
 ///       device, selecting V1 and then V3 again leaves the V1 cells in place until the next reboot.
 ///       Here both layouts are `constexpr` tables and this is a pointer swap, so the round trip
 ///       restores V3. That difference is deliberate: reproducing a one-way write is not fidelity.
 ///
 /// @note **Two of legacy's ten assignments are the layers' only real difference.** Four of them
-///       (`paramShortcutsForSounds[2][6]`, `[3][6]`, `[2][7]`, `[3][7]`, `:128-132`) write the value
-///       the V3 table already holds, so they change nothing. Four more are the audio-clip marker
-///       editor, where legacy has a *start* and an *end* item: `(0..1, 7)` is `audio_clip_waveform_start` and
-///       `(0..1, 6)` is `audio_clip_waveform`, so the V1 audio-clip layer differs from V3 in both pairs.
-///       The two that genuinely move are
-///       `paramShortcutsForSounds[0][6]` / `[1][6]`, interpolation in V3 and the sample end point in
-///       V1. `modSourceShortcuts` (`:134-135`) is not in this layer at all -- it is the patching
-///       source column, which is not table data here (`shortcut_blink.h`).
+///       (`paramShortcutsForSounds[2][6]`, `[3][6]`, `[2][7]`, `[3][7]`) write the value the V3 table already holds, so
+///       they change nothing. Four more are the audio-clip marker editor, where legacy has a *start* and an *end* item:
+///       `(0..1, 7)` is `audio_clip_waveform_start` and `(0..1, 6)` is `audio_clip_waveform`, so the V1 audio-clip
+///       layer differs from V3 in both pairs. The two that genuinely move are `paramShortcutsForSounds[0][6]` /
+///       `[1][6]`, interpolation in V3 and the sample end point in V1. `modSourceShortcuts`
+///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not in this layer at all -- it is the patching source
+///       column, which is not table data here (`shortcut_blink.h`).
 /// @param version The layout to use.
 void set_shortcuts_version(ShortcutsVersion version);
 

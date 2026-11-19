@@ -26,7 +26,7 @@ public:
 	/// @brief The param a learned knob binds to on the learn node -- `MenuScene::learn_target`.
 	std::optional<deluge::project::OwnerParamTarget> target(const MenuContext& ctx, const MenuState& st) const;
 	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
-	///        `submenu.cpp:233-238`), which a child page never allows.
+	///        `origin/main:src/deluge/gui/menu_item/submenu.cpp`), which a child page never allows.
 	bool allows_mode(const MenuContext& ctx, const MenuState& st) const;
 	/// @brief Whether the focused item wants the LEARN LED blinking.
 	bool wants_blink(const MenuState& st) const;
@@ -71,13 +71,14 @@ public:
 	/// @brief Leave learn mode: the menu no longer takes input, so a later message must not be used by it.
 	void cancel() { mode_ = false; }
 
-	/// @brief `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on.
+	/// @brief `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), observed
+	/// only: the event goes on.
 	/// @param ctx   The menu context.
 	/// @param st    The menu state.
 	/// @param event The event; anything but LEARN is ignored.
 	/// @param ui    The input context: Shift and the held pads.
 	/// @param host_allows The host's `!currentUIMode` at the press, when it has a mode the shell does not see.
-	/// @return True when the release restarts the shared normal blink (`blinkLed(LEARN)`, `:736-738`).
+	/// @return True when the release restarts the shared normal blink (`blinkLed(LEARN)`, `SoundEditor::buttonAction`).
 	bool observe(const MenuContext& ctx, const MenuState& st, const deluge::ui::shell::UiEvent& event,
 	             const deluge::ui::shell::UiContext& ui, std::optional<bool> host_allows = std::nullopt);
 
@@ -85,8 +86,8 @@ public:
 	void leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::LedState shared_blink);
 
 	/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an item
-	///        that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does nothing
-	///        in it.
+	///        that allows learn; left on LEARN's release (`SoundEditor::buttonAction` in
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`). Select's release does nothing in it.
 	bool mode() const { return mode_; }
 
 private:

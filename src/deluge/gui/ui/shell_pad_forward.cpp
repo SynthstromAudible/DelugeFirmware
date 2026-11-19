@@ -51,24 +51,24 @@ namespace deluge::gui::ui {
 namespace {
 
 /// @brief `SoundEditor::isEditingAutomationViewParam`, asked
-///        of the ported menu instead of of `SoundEditor`.
+///        of the menu instead of of `SoundEditor`.
 ///
-/// **Not a call into legacy's copy, and this is the whole reason this function exists.** That copy
-/// opens with `getCurrentMenuItem()->getParamKind()`, and `getCurrentMenuItem()` is
-/// `menuItemNavigationRecord[navigationDepth]` (`SoundEditor::getCurrentMenuItem`) -- a zero-initialised member
-/// (`menuItemNavigationRecord` in `gui/ui/sound_editor.h`) written only by `SoundEditor::setup`/`navigate`, neither of
-/// which runs under the guest. So legacy's copy dereferences null here on any boot that never opened a
-/// legacy menu, and the state cannot be supplied here, because the open menu
-/// genuinely is `MenuScene`.
+/// **Not a call into main's copy, and this is the whole reason this function exists.** That copy opens with
+/// `getCurrentMenuItem()->getParamKind()`, and `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
+/// (`SoundEditor::getCurrentMenuItem`) -- a zero-initialised member (`menuItemNavigationRecord` in
+/// `origin/main:src/deluge/gui/ui/sound_editor.h`) written only by `SoundEditor::setup`/`navigate`, neither of which
+/// runs under the guest. So main's copy dereferences null here on any boot that never ran `SoundEditor::setup`, and
+/// the state cannot be supplied here, because the open menu genuinely is `MenuScene`.
 ///
 /// The param compared is the one `focused_value()` edits: on a horizontal page the focused column, as legacy's
 /// `getCurrentMenuItem()->getParamKind()` answers through `Submenu::getParamKind`; a cable page answers with the cable
 /// (kind `PATCH_CABLE`, id its descriptor word).
 ///
-/// The `clip != nullptr` guard is legacy's missing one (`:1582-1586`). Writing it in this copy is
-/// not a fix to `sound_editor.cpp`; legacy's copy is untouched.
+/// The `clip != nullptr` guard is the one main's `SoundEditor::isEditingAutomationViewParam` lacks, ahead of its
+/// `clip->lastSelectedParamKind` reads. Writing it in this copy is
+/// not a fix to `origin/main:src/deluge/gui/ui/sound_editor.cpp`; main's copy is untouched.
 bool menuShowsAutomationParam() {
-	// `:1576`'s `kind != NONE && paramID != kNoParamID` is `focused_automation_param()` answering at all.
+	// Main's `kind != NONE && paramID != kNoParamID` test is `focused_automation_param()` answering at all.
 	const std::optional<deluge::scenes::menu::AutomationParam> param =
 	    deluge::scenes::menu_scene().focused_automation_param();
 	if (!param) {
@@ -77,21 +77,20 @@ bool menuShowsAutomationParam() {
 	const auto kind = param->kind;
 	const int32_t paramID = param->id;
 
-	if (automationView.onArrangerView) { // `:1578-1580`
+	if (automationView.onArrangerView) { // main's arranger arm
 		return currentSong != nullptr && kind == currentSong->lastSelectedParamKind
 		       && paramID == currentSong->lastSelectedParamID;
 	}
-	const Clip* clip = getCurrentClip(); // `:1582`
-	return clip != nullptr && kind == clip->lastSelectedParamKind
-	       && paramID == clip->lastSelectedParamID; // `:1585-1586`
+	const Clip* clip = getCurrentClip(); // main's clip arm
+	return clip != nullptr && kind == clip->lastSelectedParamKind && paramID == clip->lastSelectedParamID;
 }
 
-/// @brief Whether the firmware-version item is what the ported menu shows: the half of the tail's firmware-version
+/// @brief Whether the firmware-version item is what the menu shows: the half of the tail's firmware-version
 ///        test (`getCurrentMenuItem() == &firmwareVersionMenu`) that asks the menu; the caller tests `x` and `y`.
 ///
 /// `getCurrentMenuItem()` is unavailable here for the same reason `menuShowsAutomationParam` above
 /// does not call `SoundEditor::isEditingAutomationViewParam`: it is a `SoundEditor` member no guest
-/// path writes. The ported equivalent of "the firmware-version item is what's open" is the focused
+/// path writes. The equivalent of "the firmware-version item is what's open" is the focused
 /// node's identity, the same shape the automation arm already asks for.
 bool onFirmwareVersionMenu() {
 	return deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::firmware_version;
@@ -117,16 +116,16 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 		keyboardScreen.padAction(x, y, velocity); // `SoundEditor::padAction`'s keyboard arm
 		break;
 	case PadForwardTarget::AuditionColumn:
-		instrumentClipView.padAction(x, y, velocity); // `:1501`
+		instrumentClipView.padAction(x, y, velocity); // `SoundEditor::padAction`'s audition-column arm
 		break;
 	case PadForwardTarget::Automation:
-		automationView.padAction(x, y, velocity); // `:1558`
+		automationView.padAction(x, y, velocity); // main's `SoundEditor::handleAutomationViewPadAction`
 		break;
 	case PadForwardTarget::Performance:
-		(void)performanceView.padAction(x, y, velocity); // `:1516`
+		(void)performanceView.padAction(x, y, velocity); // `SoundEditor::padAction`'s performance-view arm
 		break;
 	case PadForwardTarget::Exit:
-		closePortedMenu(); // `:1545`'s `exitCompletely()`; see that function's own docblock
+		closePortedMenu(); // `SoundEditor::padAction`'s tail `exitCompletely()`; see that function's own docblock
 		break;
 	case PadForwardTarget::FirmwareDiagnostic: {
 		char text[24] = {};
@@ -136,13 +135,14 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 		break;
 	}
 	case PadForwardTarget::NoteEditorEdit:
-		noteModeLegacyCalls().noteEditorEditPad(x, y, velocity); // `:1484`
+		noteModeLegacyCalls().noteEditorEditPad(x, y, velocity); // `SoundEditor::padAction`'s note-editor arm
 		break;
 	case PadForwardTarget::NoteRowEditor:
-		// The handler may have changed what is open by the time it answers; `closePortedMenu()` is
-		// safe whatever it did, because it only asks this guest's stack to remove the menu, which
-		// touches nothing when the menu is not there (`SceneStack::remove`). The arm is
-		// `sound_editor.cpp:1493-1496`: `bool handled = ...; if (!handled) { exitCompletely(); }`.
+		// The handler may have changed what is open by the time it answers; `closePortedMenu()` is safe whatever it
+		// did, because it only asks this guest's stack to remove the menu, which touches nothing when the menu is not
+		// there (`SceneStack::remove`). The arm is `SoundEditor::padAction`'s note-row branch
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): it calls `exitCompletely()` when
+		// the handler answers false.
 		if (!noteModeLegacyCalls().noteRowEditorPad(x, y, velocity)) {
 			closePortedMenu();
 		}
@@ -162,38 +162,37 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 
 	PadForwardTarget target = PadForwardTarget::None;
 	if (root == &keyboardScreen) {
-		target = PadForwardTarget::Keyboard; // `:1474-1477`
+		target = PadForwardTarget::Keyboard; // `SoundEditor::padAction`'s keyboard arm
 	}
 	else if (root == &instrumentClipView && noteMode == NoteModeKind::NoteEditor) {
-		// `:1481-1490`: the main grid to the note editor's edit action, the sidebar -- both columns,
-		// the audition column included -- to `exitCompletely()`. Neither half tests `on` or
-		// `currentUIMode`, so neither does this, and the tail's `currentUIMode == UI_MODE_NONE && on`
-		// (`:1520`) is never reached: legacy `return`s at `:1490`. The mode is folded into this
-		// `else if`'s condition for the reason the `automationView` arm below gives.
+		// `SoundEditor::padAction`'s note-editor arm: the main grid to the note editor's edit action, the sidebar --
+		// both columns, the audition column included -- to `exitCompletely()`. Neither half tests `on` or
+		// `currentUIMode`, so neither does this, and the tail's `currentUIMode == UI_MODE_NONE && on` is never reached:
+		// main's arm returns before it. The mode is folded into this `else if`'s condition for the reason the
+		// `automationView` arm below gives.
 		target = x < kDisplayWidth ? PadForwardTarget::NoteEditorEdit : PadForwardTarget::Exit;
 	}
 	else if (root == &instrumentClipView && noteMode == NoteModeKind::NoteRowEditor) {
-		// `:1492-1497`: every pad to the note-row editor's handler, which decides the exit itself.
+		// The note-row-editor arm: every pad to the note-row editor's handler, which decides the exit itself.
 		target = PadForwardTarget::NoteRowEditor;
 	}
 	else if (root == &instrumentClipView && x == kDisplayWidth + 1) {
-		// `:1499-1502`, below the two note arms, as in legacy.
+		// The audition-column arm, below the two note arms, as in main.
 		target = PadForwardTarget::AuditionColumn;
 	}
 	else if (root == &automationView && (x >= kDisplayWidth || menuShowsAutomationParam())) {
-		// `:1507-1512`, whose body is `handleAutomationViewPadAction` (`:1551-1562`): the sidebar
-		// half needs no param agreement, the main-grid half needs the menu to be showing the very
-		// param automation view is editing. The claim test is folded into THIS `else if`'s own
-		// condition, the same shape `instrumentClipView`'s arm above uses -- a bare
-		// `else if (root == &automationView) { if (claim) {...} }` would make this branch of the
-		// chain "taken" the moment the root matched, even when the inner claim failed, and the
-		// chain would never reach the tail below. `NOT_DEALT_WITH` from
-		// `handleAutomationViewPadAction` does not return in legacy either -- it falls to the tail
-		// the same way a declined claim here does.
+		// The automation arm, whose body is main's `SoundEditor::handleAutomationViewPadAction`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the sidebar half needs no param agreement, the main-grid
+		// half needs the menu to be showing the very param automation view is editing. The claim test is folded into
+		// THIS `else if`'s own condition, the same shape `instrumentClipView`'s arm above uses -- a bare
+		// `else if (root == &automationView) { if (claim) {...} }` would make this branch of the chain "taken" the
+		// moment the root matched, even when the inner claim failed, and the chain would never reach the tail below.
+		// `NOT_DEALT_WITH` from `handleAutomationViewPadAction` does not return in legacy either -- it falls to the
+		// tail the same way a declined claim here does.
 		target = PadForwardTarget::Automation;
 	}
 	else if (root == &performanceView) {
-		target = PadForwardTarget::Performance; // `:1515-1517`
+		target = PadForwardTarget::Performance; // the performance-view arm
 	}
 	else if (currentUIMode == UI_MODE_NONE && velocity != 0) {
 		// The tail: the firmware-version item's three diagnostic pads pop up their number and keep the menu open;

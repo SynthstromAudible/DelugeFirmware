@@ -142,7 +142,7 @@ describe listing("the async listing seam", $ {
 		expect(outcome_of(browser_seam.request(open_request()))).to_equal(kAccepted);
 
 		// A freshly constructed second seam is `Idle` by its own reckoning and is refused anyway:
-		// the guard is on the resource (legacy's *static* `listingInProgress_`, `browser.h:170`),
+		// the guard is on the resource (legacy's *static* `listingInProgress_`, `browser.h`),
 		// not on the object.
 		expect(state_of(marker_seam)).to_equal(kIdle);
 		expect(outcome_of(marker_seam.request(open_request("SETTINGS")))).to_equal(kBusy);
@@ -192,8 +192,8 @@ describe listing("the async listing seam", $ {
 		Deferred::accept = false;
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kDropped);
-		// Nothing is in flight and nothing is owed: legacy clears its own flag on this return
-		// (`browser.cpp:113-117`), so the next event may simply retry.
+		// Nothing is in flight and nothing is owed: `Listing::request`'s dropped-dispatch branch
+		// (`scenes/browser/listing.cpp`) clears the in-flight state, so the next event may simply retry.
 		expect(state_of(listing)).to_equal(kIdle);
 		expect(listing.has_result()).to_be_false();
 
@@ -216,8 +216,8 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
-		// Legacy shows its loading animation here (`browser.cpp:111
-		// displayLoadingAnimationText("Working")`); the port raises the notice `Notices::drain`
+		// Legacy shows its loading animation here (`Browser::beginListing`'s
+		// `displayLoadingAnimationText("Working")` in `browser.cpp`); the port raises the notice `Notices::drain`
 		// turns into a pushed `SceneKind::Working` (`Notices::drain`).
 		NoticeTally after_request = drain_notices();
 		expect(after_request.working).to_equal(1);
@@ -246,7 +246,7 @@ describe listing("the async listing seam", $ {
 		// it, and its popup says "Folder not found".
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FOLDER_DOESNT_EXIST));
 		// The seam did not hang: it is idle, the animation is down, and the failure was announced
-		// the way `Browser::onListingFailed` announces it (`browser.cpp:166-167`, displayError).
+		// the way `Browser::onListingFailed` announces it (`browser.cpp`, displayError).
 		expect(state_of(listing)).to_equal(kIdle);
 		NoticeTally tally = drain_notices();
 		expect(tally.clear_working).to_equal(1);
@@ -254,14 +254,14 @@ describe listing("the async listing seam", $ {
 		expect(static_cast<int>(tally.last_error_code)).to_equal(static_cast<int>(result->error));
 	});
 
-	it("keeps a failed reload silent, exactly as legacy's reloadImpl does", _ {
+	it("keeps a failed reload silent, exactly as main's Browser::selectEncoderAction does", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
 		Listing listing(&Deferred::dispatch);
 
-		// `reloadImpl` swallows its read failure and returns Error::NONE so the browser neither
-		// pops up nor closes (`browser.cpp:747-753`). The port keeps the silence but still reports
-		// the error in the result, so a caller that wants the popup has the fact.
+		// Main's `Browser::selectEncoderAction` (`origin/main:src/deluge/gui/ui/browser/browser.cpp`) empties the file
+		// items on a failed reload and returns, so the browser neither pops up nor closes. The port keeps the silence
+		// but still reports the error in the result, so a caller that wants the popup has the fact.
 		FileCatalogue::currentDir = "NO_SUCH_FOLDER";
 		ListingRequest req;
 		req.action = ListingAction::Reload;
@@ -302,7 +302,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		// `goUpOneDirectoryLevelImpl` tests for a `/` in `currentDir`, not for emptiness
-		// (`browser.cpp:1382`), so "SETTINGS" is already the top as far as it is concerned.
+		// (`browser.cpp`), so "SETTINGS" is already the top as far as it is concerned.
 		FileCatalogue::currentDir = "SETTINGS";
 		ListingRequest req;
 		req.action = ListingAction::UpLevel;

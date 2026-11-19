@@ -12,21 +12,18 @@
 namespace deluge::scenes::menu {
 
 /// @brief Why a leaf is being focused -- the discriminator legacy spells as
-///        `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
+///        `soundEditor.getCurrentMenuItem() == this` (`origin/main:src/deluge/gui/menu_item/toggle.h`).
 ///
-/// Legacy reaches a bespoke item's work by two routes and treats them differently:
-/// `selectButtonPress()` (a press on the parent's row) *acts*, while `beginSession()` -- which
-/// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:330`,
-/// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
-/// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
-/// for a press fired without one. This enum keeps that distinction.
-/// **The question is "a select press on THIS node's own row?", not "a press at all".**
-/// A **shortcut-pad jump is a real press**, just not one on this node's
-/// row: legacy reaches a shortcut jump through `beginSession`, never
-/// `selectButtonPress`, so the two values name whether the row was pressed rather than
-/// inventing a third cause for a distinction nothing acts on.
-/// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone:
-/// such an item is given `on_focus` for `RowPress` and withheld it for `NoRowPress`.
+/// Legacy reaches a bespoke item's work by two routes and treats them differently: `selectButtonPress()` (a press on
+/// the parent's row) *acts*, while `beginSession()` -- which `focusRegained` -> `beginScreen` also runs on every
+/// re-entry, `origin/main:src/deluge/gui/ui/sound_editor.cpp` -- only (re-)initialises. `CustomItem::on_focus` is
+/// `beginSession`, so a port that ran it on every focus transition ran *both* meanings, and an item whose `on_focus`
+/// stands in for a press fired without one. This enum keeps that distinction. **The question is "a select press on THIS
+/// node's own row?", not "a press at all".** A **shortcut-pad jump is a real press**, just not one on this node's row:
+/// legacy reaches a shortcut jump through `beginSession`, never `selectButtonPress`, so the two values name whether the
+/// row was pressed rather than inventing a third cause for a distinction nothing acts on.
+/// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone: such an item is given
+/// `on_focus` for `RowPress` and withheld it for `NoRowPress`.
 enum class FocusCause : uint8_t {
 	/// A select press on this node's own row in its parent's list: `enter_child` ->
 	/// `descend_to`, the one path with a press behind it. Legacy's `selectButtonPress` path.
@@ -44,7 +41,7 @@ enum class FocusCause : uint8_t {
 class ValueSession {
 public:
 	/// @brief Begin @p value's session: `Direction::checkPermissionToBeginSession`'s latch
-	/// (`sequence/direction.h:117-119`)
+	/// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`)
 	///        -- when @p value is Play Direction on a non-kit clip, `MenuContext::selected_note_row` takes whether a
 	///        row is auditioning.
 	///

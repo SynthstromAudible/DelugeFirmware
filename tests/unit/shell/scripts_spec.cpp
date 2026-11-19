@@ -162,7 +162,7 @@ private:
 /// @brief The scene table both scripts run against: `DemoScene` in the one application slot.
 ///
 /// Declared in construction order (the scene before the table that points at it, the table before
-/// the registry that views it) for the same reason `tick_spec.cpp`'s `Rig` is.
+/// the registry that views it) for the same reason `tests/unit/shell/tick_spec.cpp`'s `Rig` is.
 struct DemoRegistry {
 	DemoScene demo;
 	std::array<Scene*, 18> table{};
@@ -178,7 +178,7 @@ struct DemoRegistry {
 
 /// @brief A board with a pad grid big enough (30 main + `deluge_profile()`'s 2 sidebar columns =
 ///        32, by 10 rows = 320 cells) to overflow `StateLines`'s 256-line capacity on pads alone,
-///        for `"errors ... when a .state would need more than 256 lines"` below (I-1). 32 columns
+///        for `"errors ... when a .state would need more than 256 lines"` below. 32 columns
 ///        is `gfx::grid::kMaxGridCols`'s own limit, so this is as wide as `FillScene` can paint;
 ///        320 > 256 with headroom to spare.
 constexpr DelugeDisplayDesc kFillDisplays[] = {{128, 48, 5}};
@@ -222,9 +222,8 @@ struct FillRegistry {
 	FillRegistry& operator=(const FillRegistry&) = delete;
 };
 
-/// @brief A `DemoScene` twin that draws one extra OLED pixel -- used only to prove the migration
-///        double-run (`RunOptions::second_registry`) catches a real divergence between
-///        two scene tables. Everything else is identical to `DemoScene`.
+/// @brief A `DemoScene` twin that draws one extra OLED pixel -- it shows that two scene
+///        tables that diverge produce different snapshots. Everything else is identical to `DemoScene`.
 class DemoSceneExtraPixel final : public DemoScene {
 public:
 	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {
@@ -354,7 +353,7 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		std::filesystem::remove_all(out, ec);
 
 		// A name the *parser* accepts (it has no board profile to check it against) and the runner
-		// rejects, on line 3 -- the comment and the blank line above it are not steps.
+		// rejects, on the script's third line -- the comment and the blank line above it are not steps.
 		const uitest::RunResult result = uitest::run_script("# a comment\n\n0 button Frobnicate down\n", r.reg,
 		                                                    Services{}, out);
 
@@ -406,8 +405,8 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(dims).to_equal(std::string("128 32"));
 	});
 
-	it("migration hook: the same registry run twice produces identical trees", _ {
-		// The migration double-run's "nothing changed" side: two independent
+	it("two-registry run: the same registry run twice produces identical trees", _ {
+		// The two-registry run's "nothing changed" side: two independent
 		// DemoRegistry instances (so the second run is not literally the same objects), same
 		// script, same scene table shape -- the double-run diff must find no disagreement.
 		DemoRegistry r1;
@@ -419,14 +418,14 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(result.snapshots).to_equal(uint32_t(4));
 	});
 
-	it("migration hook: a registry that draws one extra pixel is caught, naming the .pbm", _ {
+	it("two-registry run: a registry that draws one extra pixel is caught, naming the .pbm", _ {
 		// The other side: two registries that visibly disagree. Run both by hand (bypassing
 		// expect_script_goldens, which would fail this very `it` block on the mismatch it exists
 		// to detect) and assert on the diff helper directly.
 		DemoRegistry good;
 		DemoRegistryExtraPixel bad;
-		const std::string out_good = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-good";
-		const std::string out_bad = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-bad";
+		const std::string out_good = std::string(UI_GOT_DIR) + "/shell/two-registry-mismatch-good";
+		const std::string out_bad = std::string(UI_GOT_DIR) + "/shell/two-registry-mismatch-bad";
 		std::error_code ec;
 		std::filesystem::remove_all(out_good, ec);
 		std::filesystem::remove_all(out_bad, ec);
@@ -449,11 +448,11 @@ describe shell_scripts("shell script harness (level 2)", $ {
 	});
 
 	it("errors, naming the snapshot, when a .state would need more than 256 lines (I-1)", _ {
-		// Reproduces the review's repro (300 lines added directly to a StateLines silently
-		// truncated to 256) through the real product code path: a board wide enough that
+		// 300 lines added directly to a StateLines would be silently truncated to 256; this
+		// goes through the real product code path: a board wide enough that
 		// FillScene's pad-only paint alone produces 320 `pad` lines, well past the 256-line
-		// capacity. Before I-1, this would have written a truncated golden with no diagnostic;
-		// now it must be a run error that names the snapshot.
+		// capacity. Writing a truncated golden with no diagnostic would be wrong;
+		// it must be a run error that names the snapshot.
 		FillRegistry r;
 		const std::string out = std::string(UI_GOT_DIR) + "/shell/state-overflow";
 		std::error_code ec;

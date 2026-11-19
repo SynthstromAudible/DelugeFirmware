@@ -10,7 +10,7 @@ std::string_view text_lookup(uint16_t string_id) {
 }
 
 // A transcription of deluge::hid::display::getErrorMessage's switch
-// (src/deluge/hid/display/display.cpp:7-85): same cases, same fallthroughs, same default. Kept in
+// (`src/deluge/hid/display/display.cpp`): same cases, same fallthroughs, same default. Kept in
 // lockstep by hand -- the scenes layer may not include hid/, so this cannot call the original.
 std::string_view error_lookup(int16_t error_code) {
 	using enum l10n::String;

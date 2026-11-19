@@ -63,7 +63,7 @@ void set_polyphony(::Sound& sound, const char* word) {
 	deluge::edits::settingFor(sound, "polyphonic", Value::makeScalar(word));
 }
 
-/// A kit row with no note row: its sound has a slot, but legacy's menu refuses to open on it.
+/// A kit row with no note row: its sound has a slot, but main's menu refuses to open on it.
 SoundDrum* add_drum_without_note_row(spec::SongFixture& f) {
 	auto* kit = static_cast<Kit*>(f.instrument);
 	auto* drum = spec::detail::place<SoundDrum>();
@@ -253,7 +253,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		ArpReturnInstruction instruction;
 		const int16_t mpe[kNumExpressionDimensions]{};
 		kit->arpeggiator.noteOn(&f.clip->arpSettings, index, 64, &instruction, MIDI_CHANNEL_NONE, mpe);
-		// Legacy sends the note-off from inside its loop over the kit's sound drums (`sample/repeat.h:58-64`).
+		// Main sends the note-off from inside its loop over the kit's sound drums (`Repeat::writeCurrentValue` in
+		// `origin/main:src/deluge/gui/menu_item/sample/repeat.h`).
 		menu::host_write_sink().write(
 		    {.target = menu::nodes::sample0_repeat.bind.target,
 		     .where = bind::Addresses{.kit_output = kit->id(), .affect_entire = true},

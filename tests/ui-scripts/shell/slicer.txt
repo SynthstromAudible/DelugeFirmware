@@ -1,33 +1,34 @@
 # Level-2 acceptance: `slicing::SlicerScene`, both of its modes.
 #
 # **How the scene gets on the stack:** `RunOptions::initial_scene`, after the fixture calls
-# `slicer_scene().open(sample)`. That is the order legacy has too -- `SampleBrowser` sets
-# `waveformBasicNavigator` up and *then* opens the UI (`sample_browser.cpp:692-693`, which
-# `SlicerScene::open` ports) -- so the push is the second half of a real door, not a shortcut around
-# one. The scene is `is_root() == false`, so nothing else on the stack is implied by it.
+# `slicer_scene().open(sample)`. That is the order main has too -- `SampleBrowser` sets `waveformBasicNavigator` up (in
+# `previewIfPossible`) and *then* opens the UI (`SampleBrowser::enterKeyPress` in
+# `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`; `SlicerScene::open` is the counterpart) -- so the push is
+# the second half of a real door, not a shortcut around one. The scene is `is_root() == false`, so nothing else on the
+# stack is implied by it.
 #
 # The fixture seeds three manual slices before the run (`SlicerScene::add_slice_at`, the port of
-# `slicer.cpp`), because the gesture that *adds* one is behind legacy's voice walk, which a
-# spec process has no `AudioEngine` to run -- `slicer_scene_spec.cpp`'s file docstring records that
-# as uncovered and seeds the table the same way, through the port's own front door.
+# `origin/main:src/deluge/gui/ui/slicer.cpp`), because the gesture that *adds* one is behind main's voice walk, which
+# a spec process has no `AudioEngine` to run -- `slicer_scene_spec.cpp`'s file docstring records that as uncovered and
+# seeds the table the same way, through the port's own front door.
 0     snapshot region_idle       # REGION mode: "NUM SLICES: 16" on the OLED, the full-height
                                  # waveform on the pads
 100   encoder Select +4
-200   snapshot region_20         # `slicer.cpp:250-256`: REGION's select turn moves the count and
-                                 # files an OLED-only repaint -- so this frame differs from the one
-                                 # above on the panel and NOT on the pads, which is the point of it
+200   snapshot region_20         # `Slicer::selectEncoderAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`): REGION's
+                                 # select turn moves the count and files an OLED-only repaint -- so this frame differs
+                                 # from the one above on the panel and NOT on the pads, which is the point of it
 300   button XEnc down
 320   button XEnc up
-400   snapshot manual            # `:284-294`: X_ENC toggles the mode. The pads become the squashed
+400   snapshot manual            # `Slicer::buttonAction`'s X_ENC arm: it toggles the mode. The pads become the squashed
                                  # waveform in rows 4-7 with the slice marks on row 4, and the 64
                                  # slot buttons in rows 0-3; the OLED count is the manual one
 500   pad 1 0 down 64
 520   pad 1 0 up
-600   snapshot slice_selected    # `:488-504`: slot (1,0) is manual slice 1. It becomes
+600   snapshot slice_selected    # `Slicer::padAction`: slot (1,0) is manual slice 1. It becomes
                                  # `currentSlice`, which brightens BOTH its slot and its mark on
-                                 # row 4 (`:124-128`'s `(i == currentSlice) ? 200 : 16`)
+                                 # row 4 (`Slicer::renderMainPads`' `(i == currentSlice) ? 200 : 16`)
 700   encoder Horizontal +30
-800   snapshot start_popup       # `:208-227`: 30 detents x 100 samples moves slice 1's start by
+800   snapshot start_popup       # `Slicer::horizontalEncoderAction`: 30 detents x 100 samples moves slice 1's start by
                                  # 3000 samples and pops up "Start: <n>". 3000 samples is a tenth of
                                  # one mark column (32768), so the MARK does not move -- that is the
                                  # device's own resolution at this zoom, and the popup is the frame's

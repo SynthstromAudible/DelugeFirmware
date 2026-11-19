@@ -7,7 +7,8 @@ namespace deluge::scenes::menu::dx {
 
 namespace {
 
-// `upper_limit_op_param` and `upper_limit_global_param` (`param.cpp:73-93`), inclusive.
+// `upper_limit_op_param` and `upper_limit_global_param` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`),
+// inclusive.
 constexpr std::array<uint8_t, kOperatorParams> kOperatorLimits{
     99, 99, 99, 99, 99, 99, 99, 99, // 0-7: envelope rates and levels
     99, 99, 99, 3,  3,              // 8-12: breakpoint, depths, curves
@@ -45,7 +46,7 @@ struct Row {
 	int16_t index;
 };
 
-// `global_params.cpp:46-51`: a param index, or -N for operator N.
+// `items` (`origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`): a param index, or -N for operator N.
 constexpr std::array<Row, kGlobalRows> kGlobalRowTable{{
     {"algorithm", 134},
     {"feedback", 135},
@@ -60,7 +61,7 @@ constexpr std::array<Row, kGlobalRows> kGlobalRowTable{{
     {"lfo", 137},
 }};
 
-// `operator_params.cpp:45-53`: the param within the operator.
+// `items` (`origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`): the param within the operator.
 constexpr std::array<Row, kOperatorRows> kOperatorRowTable{{
     {"pitch", 18},
     {"level", 16},

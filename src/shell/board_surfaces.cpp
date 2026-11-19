@@ -48,7 +48,7 @@ void BoardSurfaceSet::flash_pad(uint8_t x, uint8_t y, ui::grid::FlashColour colo
 	if (x >= d.main_cols || y >= d.rows) {
 		return;
 	}
-	// Column-major, `y + x * rows` (`hid/led/pad_leds.h:128-135`). Within the main grid this is at
+	// Column-major, `y + x * rows` (`flashMainPad` in `hid/led/pad_leds.h`). Within the main grid this is at
 	// most 127 on the Deluge's 16x8, so it fits the boundary's `uint8_t` index.
 	const auto idx = static_cast<uint8_t>(y + x * d.rows);
 	if (colour == ui::grid::FlashColour::Default) {

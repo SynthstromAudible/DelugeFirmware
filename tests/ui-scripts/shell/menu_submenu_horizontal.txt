@@ -1,11 +1,10 @@
 # Level-2 acceptance: a horizontal Submenu
 # (nodes::lpf), opened directly.
 #
-# Legacy's select turn edits the focused column and never moves focus
-# (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`); focus moves only by
-# instrument button (`buttonAction`'s `select_map`, `:97`), and the gold knobs never touch a
-# horizontal page at all -- they fall through to `services::ModKnobs`, exactly as they do over any
-# other view.
+# Main's select turn edits the focused column and never moves focus (`HorizontalMenu::selectEncoderAction`,
+# `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`); focus moves only by instrument button (`buttonAction`'s
+# `select_map`), and the gold knobs never touch a horizontal page at all -- they fall through to
+# `services::ModKnobs`, exactly as they do over any other view.
 0     snapshot idle                  # MODE focused (column 0), an Enum
 100   encoder Select +1
 120   snapshot after_select_turn     # the select turn edits MODE in place -- the option text steps
@@ -13,8 +12,9 @@
                                      # (`state().columns[0].focused == 0`)
 200   button Kit down
 220   button Kit up
-240   snapshot after_kit_press       # KIT names column 1 directly (`select_map`, `:97`): focus moves
-                                     # to FREQ, one press, not a walk
+240   snapshot after_kit_press       # KIT names column 1 directly (`select_map` in `HorizontalMenu::buttonAction`,
+                                     # `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): focus moves to FREQ,
+                                     # one press, not a walk
 300   encoder GoldUpper +2
 # No snapshot for this step: unclaimed by the menu now, it reaches the real (unseeded) `ModKnobs`,
 # which has no target -- the frame is byte-identical to `after_kit_press`, and a golden that

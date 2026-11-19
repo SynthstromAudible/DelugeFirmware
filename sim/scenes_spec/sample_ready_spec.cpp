@@ -87,7 +87,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		expect(r.fake.blits.size()).to_be_greater_than(settled);
 		expect(bindings::relevant(menu::nodes::sample0_repeat, ctx)).to_be_true();
 
-		holder->audioFile = nullptr; // a fake file no project references: unload it as descriptor_legacy_spec does
+		holder->audioFile = nullptr; // a fake file no project references: unload it as descriptor_oracle_spec does
 	});
 
 });

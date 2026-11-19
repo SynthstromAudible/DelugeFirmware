@@ -3,7 +3,7 @@
 ///        (its own sentinel, public: `PlaybackHandler::currentVisualCountForCountIn`) and quiet-ticking the scene's own
 ///        poll, exactly the way a real count-in tick would leave it (`PlaybackHandler::actionSwungTick`'s count-in
 ///        branch). Compared against the real legacy it ports -- `gui/ui/notify_drain.cpp`'s count-in block
-///        (`:92-113`) -- reached end to end through a real `deluge::hid::display::OLED` and a real
+///        (`drain_notifications`) -- reached end to end through a real `deluge::hid::display::OLED` and a real
 ///        `Shell`, so the comparison is the assembled scene's own pixels, not the widget in
 ///        isolation.
 ///
@@ -11,12 +11,12 @@
 ///
 /// Both sides read the same sentinel: `playbackHandler.currentVisualCountForCountIn`, set directly
 /// here exactly as a real count-in tick would leave it. Legacy is driven through
-/// `display->displayPopup(buffer, 0, true, 255, 2)` -- `notify_drain.cpp:100`'s own call, with
-/// `buffer` formatted from the same sentinel via `intToString` (`:98-99`) -- and the port through
+/// `display->displayPopup(buffer, 0, true, 255, 2)` -- `drain_notifications` (`notify_drain.cpp`)'s own call, with
+/// `buffer` formatted from the same sentinel via `intToString` -- and the port through
 /// its own `tick()`, which reads `playbackHandler.count_in_visual()` itself; neither side is
 /// computed from the other's state.
 ///
-/// The one gap: `notify_drain.cpp:104-111`'s masked `UI_MODE_RECORD_COUNT_IN` clear has no port to
+/// The one gap: `drain_notifications` (`notify_drain.cpp`)'s masked `UI_MODE_RECORD_COUNT_IN` clear has no port to
 /// compare against at all -- `currentUIMode` lives in `gui/ui/ui.h`, which `src/scenes` may never
 /// include (Global Constraint 3; see `count_in_scene.h`'s class doc). Counted here as uncovered,
 /// not silently assumed.
@@ -122,7 +122,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 
 	/// @brief Tear the stack down, so `CountInScene::on_exit` always runs (this scene is a process
-	///        singleton, like every other scene in this tree, so a leftover would leak into the
+	///        singleton, like every other scene, so a leftover would leak into the
 	///        next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -146,7 +146,7 @@ std::string legacy_popup_pbm() {
 	return page_major_to_pbm(deluge::hid::display::OLED::popup.bytes().data(), 128, 48);
 }
 
-/// @brief Drive the real legacy call site, `notify_drain.cpp:97-100`, from @p count.
+/// @brief Drive the real legacy call site, `drain_notifications` (`notify_drain.cpp`), from @p count.
 /// @param count The sentinel value (mirrors `playbackHandler.count_in_visual()`).
 void legacy_show_count_in(int32_t count) {
 	char buffer[12];
@@ -203,7 +203,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 			expect(r.fake.pbm(0)).to_equal(legacy_popup_pbm());
 		}
 
-		// The clear at 0: `notify_drain.cpp:102-103`.
+		// The clear at 0: `drain_notifications` (`notify_drain.cpp`).
 		playbackHandler.currentVisualCountForCountIn = 0;
 		display->cancelPopup();
 		now += kCountInPollMs;
@@ -227,7 +227,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 		// A fresh scene singleton read on a fresh Rig: `playbackHandler`'s sentinel is already 4
 		// (left there by the example above), which differs from `count_in_scene()`'s own
 		// `shown_count_` -- still 0 at process start, and `Rig`'s destructor does not reset it --
-		// so the very next poll redraws it, exactly the edge-detector `notify_drain.cpp:96` has.
+		// so the very next poll redraws it, exactly the edge-detector `drain_notifications` (`notify_drain.cpp`) has.
 		r64.tick(2 * kCountInPollMs);
 
 		// A single-line digit's box is `{9 + kPopupMargin} = 21` rows regardless of panel height;

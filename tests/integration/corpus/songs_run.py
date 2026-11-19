@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Song serialization round-trip regression harness (project-model extraction, Phase 0).
+"""Song serialization round-trip regression harness.
 
 For every song, run the `song_roundtrip` driver:
 

@@ -22,12 +22,12 @@
 #include "gui/ui/shell_note_mode.h"
 
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
-#include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
 #include "gui/ui/ui.h"                    // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/note_editor_open.h"
+#include "util/sound_menu_open.h" // menuCurrent
 
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
@@ -103,7 +103,7 @@ const NoteModeLegacyCalls* installed = &kRealCalls;
 
 /// @brief The mode a menu root names -- `inNoteEditor()` / `inNoteRowEditor()`'s comparison of
 ///        `menuItemNavigationRecord[0]` against the two root items (`SoundEditor::inNoteEditor` in
-///        `gui/ui/sound_editor.cpp`), in the port's representation of "which root is open".
+///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`), in the port's representation of "which root is open".
 NoteModeKind modeForRoot(MenuContext::Root root) {
 	switch (root) {
 	case MenuContext::Root::NoteEditor:
@@ -118,13 +118,13 @@ NoteModeKind modeForRoot(MenuContext::Root root) {
 } // namespace
 
 NoteModeKind activeNoteMode() {
-	// **On the guest's stack, not frontmost.** `menuIsFrontmost` (`gui/ui/shell_guest_services.cpp`)
+	// **On the guest's stack, not frontmost.** `menuCurrent` (`gui/ui/shell_guest_services.cpp`)
 	// asks `input_top()`, which is the port of `getCurrentUI() == &soundEditor`. The note mode is not
 	// that question: `inNoteEditor()` reads the navigation record, not the current UI, so it stays true
 	// while a popup or another UI sits over the sound editor. So this walks every stacked scene, and a
 	// scene over the menu -- input-taking or not -- leaves the answer alone.
 	//
-	// Identity against `menu_scene()`, for `menuIsFrontmost`'s own reason: the registry maps several
+	// Identity against `menu_scene()`, for `menuCurrent`'s own reason: the registry maps several
 	// application kinds, and only one object is the menu.
 	const deluge::ui::shell::Scene* const menu = &deluge::scenes::menu_scene();
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
@@ -138,6 +138,14 @@ NoteModeKind activeNoteMode() {
 	return NoteModeKind::None;
 }
 
+bool noteEditorOpen() {
+	return activeNoteMode() == NoteModeKind::NoteEditor;
+}
+
+bool noteRowEditorOpen() {
+	return activeNoteMode() == NoteModeKind::NoteRowEditor;
+}
+
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
@@ -147,44 +155,42 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 		return std::nullopt;
 	}
 
-	// **The six buttons legacy's chain takes before it reaches the note arms.** Each is an outer
-	// `else if` on the button alone, so it consumes the press whether or not its inner test holds, and
-	// none of them is the note handler's. Under the guest each is the ported menu's, fed.
-	if (b == SELECT_ENC      // `:385`
-	    || b == BACK         // `:456`
-	    || b == SAVE         // `:488`
-	    || b == LEARN        // `:505`
-	    || b == KEYBOARD     // `:564`
-	    || b == SESSION_VIEW // `:605`
-	) {
+	// **The six buttons main's chain takes before it reaches the note arms** (`SoundEditor::buttonAction`,
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`: its select-encoder, back, save, learn, keyboard and
+	// session-view arms). Each is an outer `else if` on the button alone, so it consumes the press whether or not
+	// its inner test holds, and none of them is the note handler's. Under the guest each is the menu's, fed.
+	if (b == SELECT_ENC || b == BACK || b == SAVE || b == LEARN || b == KEYBOARD || b == SESSION_VIEW) {
 		return std::nullopt;
 	}
 
-	// **SYNTH, KIT, MIDI and CV: the column focus, which is the ported menu's.** Both handlers send
-	// these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-	// (`InstrumentClipView::handleNoteEditorButtonAction`, `handleNoteRowEditorButtonAction`), whose target is the
-	// horizontal menu's column focus, which `MenuScene` carries. Forwarding them would also dereference that navigation
-	// record, which no guest path writes.
+	// **SYNTH, KIT, MIDI and CV: the column focus, which is the menu's.** Main's two
+	// handlers send these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
+	// (`InstrumentClipView::handleNoteEditorButtonAction`, `handleNoteRowEditorButtonAction`,
+	// `origin/main:src/deluge/gui/views/instrument_clip_view.cpp`, `util::one_of(b, {SYNTH, KIT, MIDI, CV})`), whose
+	// target is the horizontal menu's column focus, which `MenuScene` carries. The handlers here have no such arm
+	// (`gui/views/instrument_clip_view.cpp`), so forwarding these buttons would swallow them as `DEALT_WITH`; the
+	// menu takes them instead.
 	if (b == SYNTH || b == KIT || b == MIDI || b == CV) {
 		return std::nullopt;
 	}
 
-	// **PLAY, SHIFT and the two gold-knob pushes: `NOT_DEALT_WITH`** in both handlers
-	// (`:3727-3729`, `:3975-3977`), which is exactly what the guest's fed path already returns -- so
-	// feeding them keeps legacy's answer and also keeps the shell's own shift latch fed. (The gold-knob
+	// **PLAY, SHIFT and the two gold-knob pushes: `NOT_DEALT_WITH`** in both handlers (the `NOT_DEALT_WITH` returns of
+	// `InstrumentClipView::handleNoteEditorButtonAction` and `handleNoteRowEditorButtonAction`,
+	// `gui/views/instrument_clip_view.cpp`), which is exactly what the guest's fed path already
+	// returns -- so feeding them keeps that answer and also keeps the shell's own shift latch fed. (The gold-knob
 	// pushes never get here: `ShellHostUI::buttonAction` returns for them first.)
 	if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return std::nullopt;
 	}
 
-	// **Everything else is the handler's, and its answer is the guest's answer.** AFFECT_ENTIRE gets
-	// here at all because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() &&
-	// !inNoteRowEditor()` (`SoundEditor::buttonAction`). In the handlers,
-	// X_ENC and SYNC_SCALING reach `InstrumentClipView::buttonAction` through their `return
-	// buttonAction(...)` arms (`gui/views/instrument_clip_view.cpp:3775-3777`, `:4062-4064`);
-	// AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor (`:4043-4049`) and is
-	// swallowed in the note editor; every other button, CROSS_SCREEN and SCALE included, is swallowed
-	// as `DEALT_WITH` (`:3762`, `:4057`).
+	// **Everything else is the handler's, and its answer is the guest's answer.** AFFECT_ENTIRE gets here at all
+	// because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() && !inNoteRowEditor()` (main's
+	// `SoundEditor::buttonAction`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`). In the handlers, X_ENC and
+	// SYNC_SCALING reach `InstrumentClipView::buttonAction` through their `return buttonAction(...)` arms
+	// (`InstrumentClipView::handleNoteEditorButtonAction` and `InstrumentClipView::handleNoteRowEditorButtonAction` in
+	// `gui/views/instrument_clip_view.cpp`); AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor
+	// and is swallowed in the note editor; every other button, CROSS_SCREEN and SCALE included, is swallowed as
+	// `DEALT_WITH` (the final `return` of each handler).
 	const NoteModeLegacyCalls& calls = noteModeLegacyCalls();
 	if (mode == NoteModeKind::NoteEditor) {
 		return calls.noteEditorButton(b, on); // `SoundEditor::buttonAction`
@@ -195,9 +201,11 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
 	switch (activeNoteMode()) {
 	case NoteModeKind::NoteEditor:
-		return noteModeLegacyCalls().noteEditorHorizontal(offset); // `gui/ui/sound_editor.cpp:1047-1049`
+		// `SoundEditor::horizontalEncoderAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+		return noteModeLegacyCalls().noteEditorHorizontal(offset);
 	case NoteModeKind::NoteRowEditor:
-		return noteModeLegacyCalls().noteRowEditorHorizontal(offset); // `:1050-1052`
+		// `SoundEditor::horizontalEncoderAction`'s note-row-editor arm
+		return noteModeLegacyCalls().noteRowEditorHorizontal(offset);
 	case NoteModeKind::None:
 		break;
 	}
@@ -207,8 +215,8 @@ std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
 std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 	switch (activeNoteMode()) {
 	case NoteModeKind::NoteEditor:
-		// `SoundEditor::verticalEncoderAction` (`gui/ui/sound_editor.cpp`): its `inNoteEditor()` arm calls
-		// `handleNoteEditorVerticalEncoderAction`.
+		// `SoundEditor::verticalEncoderAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): its `inNoteEditor()`
+		// arm calls `handleNoteEditorVerticalEncoderAction`.
 		return noteModeLegacyCalls().noteEditorVertical(offset);
 	case NoteModeKind::NoteRowEditor:
 		// `SoundEditor::verticalEncoderAction`'s `inNoteRowEditor()` arm.
@@ -225,8 +233,8 @@ void exitNoteModeBeforeClose() {
 	// answer `None` on every real close. `menu_context().root` outlives the stack, so what matters is
 	// every writer that could replace it between this session's open and its close. There are three:
 	//
-	//   * `openShellMenu`, the guest's one open site, runs `menu_scene().open(...)` before
-	//     `openUI(&shellHostUI)` (`openGuest` in `gui/ui/shell_menu_entry.cpp`), so every session begins by
+	//   * `openMenu`, the guest's one open site, runs `menu_scene().open(...)` before
+	//     `openUI(&shellHostUI)` (`openGuest` in `gui/ui/menu_entry.cpp`), so every session begins by
 	//     writing its own root.
 	//   * `GlobalControls::handle_settings_menu`, the port
 	//     of Shift+Select, re-opens the menu at `Root::Settings`, and the guest's shell does
@@ -242,7 +250,8 @@ void exitNoteModeBeforeClose() {
 	//   * A song swap resets the root to `Settings` (`MenuScene::on_model_changed`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
-		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`
+		// `SoundEditor::exitCompletely`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`
+		noteModeLegacyCalls().exitNoteEditor();
 		// `exitCompletely`'s "refresh grid to potentially unhighlight edited notes" step is `uiNeedsRendering(this,
 		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- this guest.
 		// `uiNeedsRendering` queues every main row against the guest's place in the hierarchy,
@@ -279,9 +288,8 @@ bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
 } // namespace
 
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
-	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
-	// (`SoundEditor::getCurrentMenuItem` in `gui/ui/sound_editor.cpp`); `MenuScene::focused()` is `path[depth]`, its
-	// port.
+	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]` (`SoundEditor::getCurrentMenuItem` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`); `MenuScene::focused()` is `path[depth]`, its port.
 	const Node* const focused = deluge::scenes::menu_scene().focused();
 	switch (item) {
 	case NoteModeMenuItem::NoteEditorRoot:
@@ -302,7 +310,7 @@ void noteModeReadValueAgain() {
 
 bool noteModeVelocityShown() {
 	// Main's rule: the note's velocity item, or the note editor's root drawn horizontally.
-	if (!shellMenuFrontmost()) {
+	if (!menuCurrent()) {
 		return false;
 	}
 	const deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
@@ -324,33 +332,35 @@ bool portedMenuOnAuditionedRowDirection() {
 
 void noteModeGoUpOneLevel() {
 	if (!deluge::scenes::menu_scene().go_up_one_level()) {
-		// `SoundEditor::buttonAction`'s BACK arm's `exitCompletely()`, ported as `shell_pad_forward.cpp`
-		// ports `:1545`'s: remove the menu, and let the guest close itself (`closePortedMenu`'s own
-		// docblock). The note arm of that exit runs from `closeGuest` (`exitNoteModeBeforeClose`).
+		// `SoundEditor::buttonAction`'s BACK arm's `exitCompletely()`, ported as `shell_pad_forward.cpp` ports
+		// `SoundEditor::padAction`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): remove the menu, and let the
+		// guest close itself (`closePortedMenu`'s own docblock). The note arm of that exit runs from `closeGuest`
+		// (`exitNoteModeBeforeClose`).
 		closePortedMenu();
 	}
 }
 
 void noteModeToggleNoteEditorParamMenu(int32_t on) {
 	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
-	const Node* const currentMenuItem = menu.focused(); // `SoundEditor::toggleNoteEditorParamMenu`
-	const Node* newMenuItem = nullptr;                  // `:1927`
-	const bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus); // `:1928`
+	// Main's `SoundEditor::toggleNoteEditorParamMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), arm for arm.
+	const Node* const currentMenuItem = menu.focused();
+	const Node* newMenuItem = nullptr;
+	const bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus);
 
 	// if you're holding down a note
 	// see if you're currently editing a row param
 	// if so, enter the note editor menu for that param
 	if (on) {
-		if (currentMenuItem == &nodes::note_row_probability) { // `:1934-1936`
+		if (currentMenuItem == &nodes::note_row_probability) {
 			newMenuItem = &nodes::note_editor_probability;
 		}
-		else if (currentMenuItem == &nodes::note_row_iterance) { // `:1937-1939`
+		else if (currentMenuItem == &nodes::note_row_iterance) {
 			newMenuItem = &nodes::note_iterance;
 		}
-		else if (currentMenuItem == &nodes::note_row_fill) { // `:1940-1942`
+		else if (currentMenuItem == &nodes::note_row_fill) {
 			newMenuItem = &nodes::note_fill;
 		}
-		else if (currentMenuItem == &nodes::note_row_editor_root && inHorizontalMenu) { // `:1943-1945`
+		else if (currentMenuItem == &nodes::note_row_editor_root && inHorizontalMenu) {
 			newMenuItem = &nodes::note_editor_root;
 		}
 	}
@@ -358,31 +368,31 @@ void noteModeToggleNoteEditorParamMenu(int32_t on) {
 	// see if you're currently editing a note param
 	// if so, enter the note row editor menu for that param
 	else {
-		if (currentMenuItem == &nodes::note_editor_probability) { // `:1951-1953`
+		if (currentMenuItem == &nodes::note_editor_probability) {
 			newMenuItem = &nodes::note_row_probability;
 		}
-		else if (currentMenuItem == &nodes::note_iterance) { // `:1954-1956`
+		else if (currentMenuItem == &nodes::note_iterance) {
 			newMenuItem = &nodes::note_row_iterance;
 		}
-		else if (currentMenuItem == &nodes::note_fill) { // `:1957-1959`
+		else if (currentMenuItem == &nodes::note_fill) {
 			newMenuItem = &nodes::note_row_fill;
 		}
-		else if (currentMenuItem == &nodes::note_editor_root && inHorizontalMenu) { // `:1960-1962`
+		else if (currentMenuItem == &nodes::note_editor_root && inHorizontalMenu) {
 			newMenuItem = &nodes::note_row_editor_root;
 		}
 	}
 
-	if (newMenuItem != nullptr && shouldEnterSubmenu(*newMenuItem, menu.menu_context())) { // `:1965`
+	if (newMenuItem != nullptr && shouldEnterSubmenu(*newMenuItem, menu.menu_context())) {
 		// holding down note pad, enter note param menu
 		if (on) {
-			// `:1968`'s `enterSubmenu`. **Not `MenuScene::open()`**, which would replace the context and
+			// Main's `enterSubmenu`. **Not `MenuScene::open()`**, which would replace the context and
 			// with it the root `activeNoteMode()` answers from: legacy's `inNoteRowEditor()` stays true
 			// through the hold because `enterSubmenu` leaves `menuItemNavigationRecord[0]` alone.
 			menu.enter_submenu(*newMenuItem);
 		}
 		// release note pad, go back to previous row menu
 		else {
-			noteModeGoUpOneLevel(); // `:1972`
+			noteModeGoUpOneLevel();
 		}
 	}
 }

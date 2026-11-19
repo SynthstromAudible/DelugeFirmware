@@ -113,7 +113,7 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/lookuptables/preset_tables.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 #include "util/try.h"
 #include <new>
@@ -492,16 +492,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 			if (getCurrentOutputType() == OutputType::SYNTH) {
 				cancelAllAuditioning();
 
-				// Site 8 of `gui/ui/shell_menu_entry.cpp`'s table, the only one that names a node rather than a root.
+				// Site 8 of `gui/ui/menu_entry.cpp`'s table, the only one that names a node rather than a root.
 				// `file0SelectorMenu`'s port is `nodes::file0_selector`
 				// (`scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
 				// context is a SYNTH instrument clip under a clip-minder root, i.e.
 				// `Root::Sound`, which is the root that node lives under.
-				(void)deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
-				                                     /*performanceView=*/false,
-				                                     /*sessionOrArrangerRoot=*/false,
-				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
-				                                     deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+				(void)deluge::gui::ui::openMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
+				                                /*performanceView=*/false,
+				                                /*sessionOrArrangerRoot=*/false,
+				                                /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
+				                                deluge::gui::ui::MenuNode::Osc0FileSelector);
 			}
 		}
 	}
@@ -3542,13 +3542,13 @@ bool InstrumentClipView::enterNoteEditor() {
 	if (numEditPadPresses > 0 && getLeftMostNotePressed()) {
 		dontDeleteNotesOnDepress();
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		// Site 12 of `gui/ui/shell_menu_entry.cpp`'s table. The open names the note editor as `NoteMode::NoteEditor`
+		// Site 12 of `gui/ui/menu_entry.cpp`'s table. The open names the note editor as `NoteMode::NoteEditor`
 		// (the root `setup()` picks under `UI_MODE_NOTES_PRESSED`, a UI mode `src/scenes` may not read), and
-		// `openShellMenu` does the kit `affectEntire` clear itself. What follows is what follows legacy's open.
-		if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-		                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-		                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
-		                                   deluge::gui::ui::NoteMode::NoteEditor)) {
+		// `openMenu` does the kit `affectEntire` clear itself. What follows is what follows legacy's open.
+		if (deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+		                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+		                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::ContextRoot,
+		                              deluge::gui::ui::NoteMode::NoteEditor)) {
 			// entering the note editor while holding notes: there are no selections to "remember" yet
 			remembered_note_count = 0;
 			stopSelectedNotePulsing();
@@ -3722,7 +3722,7 @@ bool InstrumentClipView::enterNoteRowEditor(bool onPlayDirection) {
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			// Site 13 of `gui/ui/shell_menu_entry.cpp`'s table. The open names the note row editor as
+			// Site 13 of `gui/ui/menu_entry.cpp`'s table. The open names the note row editor as
 			// `NoteMode::NoteRowEditor` (the root `setup()` picks under `UI_MODE_AUDITIONING`). With the guest open it
 			// re-roots the open menu (`openShellNoteRowEditor`). What follows is what follows legacy's open.
 			if (deluge::gui::ui::openShellNoteRowEditor(clip, onPlayDirection)) {
@@ -5556,9 +5556,9 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	// This operation targets the new drum, even if a previous grid-pad action left
 	// the editor configured for kit-global FX while Affect Entire was enabled.
-	deluge::gui::ui::clearShellKitGlobalFx();
+	deluge::gui::ui::clearMenuKitGlobalFx();
 
-	// Site 14 of `gui/ui/shell_menu_entry.cpp`'s table. The ported browser, or for a take the ported recorder, opens on
+	// Site 14 of `gui/ui/menu_entry.cpp`'s table. The ported browser, or for a take the ported recorder, opens on
 	// the new drum (`gui/ui/shell_drum_creator.h`). A guest that refuses to open says `setup()`'s refusal, and the new
 	// drum stays in the kit as an ordinary empty drum.
 	InstrumentClip* clip = getCurrentInstrumentClip();

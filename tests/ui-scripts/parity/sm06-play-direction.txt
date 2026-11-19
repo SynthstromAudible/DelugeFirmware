@@ -1,4 +1,4 @@
-# ShellMenu: Play Direction follows the auditioned row. With no audition, SHIFT + the PLAY DIRECTION shortcut opens it
+# Play Direction follows the auditioned row. With no audition, SHIFT + the PLAY DIRECTION shortcut opens it
 # on the clip's direction; BACK closes it. Holding row 3's audition pad, the same shortcut opens the row editor on that
 # row, and a turn edits the row; with row 3 released, row 5's audition re-reads it for row 5, and a turn edits row 5.
 # Then from the sound menu: down its list to PLAY DIRECTION, entered while row 2 is auditioning (the row's), turned; row

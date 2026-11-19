@@ -63,7 +63,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
-#include "gui/ui/shell_host_ui.h"       // shellHostUI, the ported menu the DX stage drives
+#include "gui/ui/shell_host_ui.h"       // shellHostUI, the menu the DX stage drives
 #include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
 #include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
 #include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
@@ -92,8 +92,8 @@
 #include "storage/file_item.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"        // getInstrumentFolder, to pin kAcqDir against drift
-#include "util/shell_menu_entry.h" // openShellMenu, the DX stage's door to the ported menu
+#include "util/functions.h"  // getInstrumentFolder, to pin kAcqDir against drift
+#include "util/menu_entry.h" // openMenu, the DX stage's door to the menu
 #include "util/string.h"
 
 #include <algorithm>
@@ -546,8 +546,8 @@ constexpr const char* kCorpusDir = "SONGS/CORPUS";
 
 /// How many corpus songs the packer staged, written by it and read by this side.
 ///
-/// The count is READ, not discovered, and that is the whole point of the file. The first version
-/// probed `File::open` per index and stopped at the first miss, which is a coverage check that can
+/// The count is READ, not discovered, and that is the whole point of the file. Probing
+/// `File::open` per index and stopping at the first miss would be a coverage check that can
 /// quietly cover nothing: one failed probe -- for any reason, on either leg -- silently drops every
 /// real song, `MIN_CASES` in the gate script counts only the six synthetic cases, and the
 /// "did anything render?" check below is itself gated on at least one corpus case having run. The
@@ -1535,7 +1535,7 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 	}
 	// Prove the fixture is what the case needs rather than assuming it. A directory that came back
 	// short would make the big-folder case stop exercising the arena threshold while still reporting
-	// a green run -- the "gate that covers nothing" shape this branch has hit twice.
+	// a green run -- the "gate that covers nothing" shape.
 	auto opened = deluge::io::Directory::open(dir);
 	if (!opened.has_value()) {
 		g_report.fail("LISTING could not open fixture %s", dir);
@@ -1956,10 +1956,10 @@ bool writeBlankSynthPresetFile(const char* path) {
 	return error == Error::NONE;
 }
 
-/// Create a directory of `count` real synth presets named `namePrefix00.XML`, `namePrefix01.XML`,
-/// etc. Mirrors buildFixtureDir(), which writes SONG xml -- a synth preset's root tag is "sound"
-/// (storage_manager.cpp:300), and a file whose root tag is wrong fails to load, which would make
-/// every acquisition here fail identically on both legs and the comparison pass while covering
+/// Create a directory of `count` real synth presets named `namePrefix00.XML`, `namePrefix01.XML`, etc. Mirrors
+/// buildFixtureDir(), which writes SONG xml -- a synth preset's root tag is "sound"
+/// (`StorageManager::instrumentDocumentTags` (`storage_manager.cpp`)), and a file whose root tag is wrong fails to
+/// load, which would make every acquisition here fail identically on both legs and the comparison pass while covering
 /// nothing.
 ///
 /// `namePrefix` must differ between the top-level directory and any subfolder placed under it:
@@ -2011,14 +2011,15 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 // state after it -- reading in the SAME tick as the gesture would see the state before it, not a race
 // so much as a guarantee that the walk has not run yet.
 //
-// The recursive descent (load_instrument_preset_ui.cpp:1291-1296 vs :1317) is only reached once the
-// TOP LEVEL is exhausted -- a preset sitting at the top level is always returned first, however many
-// subfolders sit alongside it. So the fixture keeps exactly ONE top-level preset: Reference acquires
-// and releases it (still top-level), Converted acquires it again and keeps it (top-level now
-// permanently empty), and every acquisition from AcquireStep::Nested onward MUST descend into
-// SYNTHS/NESTED to find anything at all. `AcquireStep::NestedCheck` asserts the acquired name is a
-// nested one, which is the only way to prove the walk actually descended rather than merely that
-// some acquisition happened to succeed.
+// The recursive descent (`PresetWalk::stepScanFiles`, then `PresetWalk::stepDescend` in `gui/ui/load/preset_walk.cpp`;
+// main's `LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders` in
+// `origin/main:src/deluge/gui/ui/load/load_instrument_preset_ui.cpp`) is only reached once the TOP LEVEL is exhausted
+// -- a preset sitting at the top level is always returned first, however many subfolders sit alongside it. So the
+// fixture keeps exactly ONE top-level preset: Reference acquires and releases it (still top-level), Converted acquires
+// it again and keeps it (top-level now permanently empty), and every acquisition from AcquireStep::Nested onward MUST
+// descend into SYNTHS/NESTED to find anything at all. `AcquireStep::NestedCheck` asserts the acquired name is a nested
+// one, which is the only way to prove the walk actually descended rather than merely that some acquisition happened to
+// succeed.
 enum class AcquireStep : uint8_t {
 	Fixture,
 	Reference,
@@ -3368,7 +3369,7 @@ bool buildDxFixture() {
 	return size.has_value() && *size == kSysexSize;
 }
 
-/// End the stage, leaving no ported menu or browser on the UI stack.
+/// End the stage, leaving no menu or browser on the UI stack.
 void finishDxStage() {
 	deluge::harness::guestClose();
 	g_dxStep = DxStep::Finished;
@@ -3416,8 +3417,7 @@ void runDxTick() {
 		g_dxListingWait.restart();
 		Clip* clip = makeDxClip();
 		if (clip == nullptr
-		    || !deluge::gui::ui::openShellMenu(clip, 0, false, false, false, false,
-		                                       deluge::gui::ui::ShellMenuNode::Dx)) {
+		    || !deluge::gui::ui::openMenu(clip, 0, false, false, false, false, deluge::gui::ui::MenuNode::Dx)) {
 			g_report.fail("DX the DX7 menu did not open on a DX7 synth clip");
 			finishDxStage();
 			return;

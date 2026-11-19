@@ -1,5 +1,5 @@
 /// @file
-/// @brief The DX7 menu pages' members and chain hooks. See `dx.h`.
+/// @brief The DX7 menu pages' members and chain hooks. See `nodes/dx.h`.
 
 #include "scenes/menu/nodes/dx.h"
 
@@ -72,8 +72,9 @@ void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState&
 	}
 }
 
-/// @brief Draw @p names as a list on the focused level's cursor, as `MenuItem::drawItemsForOled` does for the three
-///        DX7 lists, and publish the render's response.
+/// @brief Draw @p names as a list on the focused level's cursor, as `MenuItem::drawItemsForOled`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) does for the three DX7 lists, and publish the render's
+///        response.
 deluge::ui::Response draw_list(deluge::ui::oled::OledFrame& f, MenuState& state,
                                std::span<const std::string_view> names) {
 	constexpr size_t kMaxRows = 32;
@@ -100,8 +101,8 @@ void focus_list(MenuState& state, int16_t cursor) {
 
 using PatchBytes = std::array<uint8_t, 156>;
 
-/// @brief `param.cpp`'s `show`: @p text on one of the page's two rows at a character column, inverted when
-///        it is the param shown.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `show`: @p text on one of the page's two rows at a
+///        character column, inverted when it is the param shown.
 void show(deluge::ui::oled::OledFrame& p, std::string_view text, int32_t row, int32_t column, bool inverted = false) {
 	using namespace deluge::gfx::oled;
 	const int32_t y = 7 + (2 + row) * (kTextSizeYUpdated + 2);
@@ -119,7 +120,8 @@ void show(deluge::ui::oled::OledFrame& p, int32_t value, int32_t row, int32_t co
 	show(p, digits, row, column, inverted);
 }
 
-/// @brief `param.cpp`'s `renderEnvelope`: rates over levels; `op` 6 is the pitch envelope.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderEnvelope`: rates over levels; `op` 6 is the
+/// pitch envelope.
 void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate", 0, 0);
 	show(p, "levl", 1, 0);
@@ -129,7 +131,8 @@ void draw_envelope(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int
 	}
 }
 
-/// @brief `param.cpp`'s `renderScaling`: the two depths over the two curves, the breakpoint between them.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderScaling`: the two depths over the two curves,
+/// the breakpoint between them.
 void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	using namespace deluge::gfx::oled;
 	for (int32_t i = 0; i < 2; i++) {
@@ -146,7 +149,7 @@ void draw_scaling(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int3
 	}
 }
 
-/// @brief `param.cpp`'s `renderSensParams`.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderSensParams`.
 void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, "rate scale", 0, 1);
 	show(p, params[op * 21 + 13], 0, 12, idx == 13);
@@ -156,7 +159,8 @@ void draw_sensitivity(deluge::ui::oled::OledFrame& p, const PatchBytes& params, 
 	show(p, params[op * 21 + 15], 1, 16, idx == 15);
 }
 
-/// @brief `param.cpp`'s `renderTuning`: the mode, coarse, fine and detune (shown from -7), then the level.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderTuning`: the mode, coarse, fine and detune
+/// (shown from -7), then the level.
 void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t op, int32_t idx) {
 	show(p, params[op * 21 + 17] != 0 ? "fixed" : "ratio", 0, 1, idx == 17);
 	for (int32_t i = 0; i < 3; i++) {
@@ -170,7 +174,7 @@ void draw_tuning(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32
 	show(p, params[op * 21 + 16], 1, 7, idx == 16);
 }
 
-/// @brief `param.cpp`'s `renderLFO`.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderLFO`.
 void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t param) {
 	for (int32_t i = 0; i < 2; i++) {
 		show(p, params[137 + i], 0, 1 + i * 3, 137 + i == param);
@@ -186,7 +190,8 @@ void draw_lfo(deluge::ui::oled::OledFrame& p, const PatchBytes& params, int32_t 
 	show(p, digits, 1, 10, param == 143);
 }
 
-/// @brief `param.cpp`'s `renderAlgorithm`: a "#NN" badge inverted at the title's right, and the diagram.
+/// @brief `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderAlgorithm`: a "#NN" badge inverted at the
+/// title's right, and the diagram.
 void draw_algorithm(deluge::ui::oled::OledFrame& p, int32_t top, const PatchBytes& params) {
 	using namespace deluge::gfx::oled;
 	const int32_t algorithm = std::min<int32_t>(params[134], deluge::dx7::kNumAlgorithms - 1);
@@ -246,11 +251,11 @@ bool source_is_dx(const MenuContext& ctx, size_t source) {
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
-// `DxBrowseMenu` (`gui/menu_item/dx/browse.cpp`)
+// `DxBrowseMenu` (`origin/main:src/deluge/gui/menu_item/dx/browse.cpp`)
 
 void DxBrowseItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `beginSession` (`browse.cpp:27-37`): `shouldGoUpOneLevelOnBegin`, then `openUI(&dxBrowser)`. The menu sets the
-	// go-up when it pushes the browser.
+	// `beginSession` (`origin/main:src/deluge/gui/menu_item/dx/browse.cpp`): `shouldGoUpOneLevelOnBegin`, then
+	// `openUI(&dxBrowser)`. The menu sets the go-up when it pushes the browser.
 	browser::browser_scene().open(ctx);
 	state.walk.pending_scene =
 	    deluge::ui::shell::SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::DxSyx)};
@@ -267,7 +272,7 @@ deluge::ui::shell::Result DxBrowseItem::handle(const deluge::ui::shell::UiEvent&
 }
 
 // ---------------------------------------------------------------------------------------------
-// `DxCartridge` (`gui/menu_item/dx/cartridge.cpp`)
+// `DxCartridge` (`origin/main:src/deluge/gui/menu_item/dx/cartridge.cpp`)
 
 namespace {
 
@@ -327,7 +332,7 @@ deluge::ui::shell::Result DxCartridgeItem::handle(const deluge::ui::shell::UiEve
 }
 
 // ---------------------------------------------------------------------------------------------
-// `DxEngineSelect` (`gui/menu_item/dx/engine_select.cpp`)
+// `DxEngineSelect` (`origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`)
 
 namespace {
 
@@ -356,8 +361,8 @@ void DxEngineSelectItem::on_reread(const MenuContext& ctx, MenuState& state) con
 void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	deluge::ui::ListState& list = state.list[depth_of(state)];
-	// `selectEncoderAction` (`engine_select.cpp:51-65`): a turn that would leave the three modes does nothing at all,
-	// rather than stopping at the end.
+	// `selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`): a turn that would leave the
+	// three modes does nothing at all, rather than stopping at the end.
 	list.freeze_cursor = true;
 	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
 		const int32_t next = list.cursor + t;
@@ -384,7 +389,7 @@ deluge::ui::shell::Result DxEngineSelectItem::handle(const deluge::ui::shell::Ui
 }
 
 // ---------------------------------------------------------------------------------------------
-// `DxGlobalParams` (`gui/menu_item/dx/global_params.cpp`)
+// `DxGlobalParams` (`origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`)
 
 void DxGlobalParamsItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_list(state, state.dx.global_cursor);
@@ -400,7 +405,8 @@ void DxGlobalParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const int16_t cursor = state.list[depth_of(state)].cursor;
 	state.dx.global_cursor = cursor;
 	if (resp.entered) {
-		// `selectButtonPress` (`global_params.cpp:78-90`): the param, or the operator `6 - N` for "operator N".
+		// `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`): the param, or the operator
+		// `6 - N` for "operator N".
 		if (const int16_t param = dx::global_row_param(cursor); param >= 0) {
 			state.dx.param = param;
 		}
@@ -425,7 +431,7 @@ const Node* dx_global_params_chain(const MenuContext& /*ctx*/, const MenuState& 
 }
 
 // ---------------------------------------------------------------------------------------------
-// `DxOperatorParams` (`gui/menu_item/dx/operator_params.cpp`)
+// `DxOperatorParams` (`origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`)
 
 void DxOperatorParamsItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_list(state, state.dx.operator_cursor);
@@ -450,7 +456,8 @@ void DxOperatorParamsItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	const int16_t cursor = state.list[depth_of(state)].cursor;
 	state.dx.operator_cursor = cursor;
 	if (resp.entered) {
-		state.dx.param = dx::operator_row_param(state.dx.op, cursor); // `operator_params.cpp:80-84`
+		// `DxOperatorParams::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`)
+		state.dx.param = dx::operator_row_param(state.dx.op, cursor);
 	}
 }
 
@@ -470,7 +477,7 @@ const Node* dx_operator_params_chain(const MenuContext& /*ctx*/, const MenuState
 }
 
 // ---------------------------------------------------------------------------------------------
-// `DxParam` (`gui/menu_item/dx/param.cpp`)
+// `DxParam` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`)
 
 void DxParamItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
@@ -541,8 +548,9 @@ void DxParamItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const 
 }
 
 std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const MenuState& state) const {
-	// `param.cpp`'s `renderScaling` sets the breakpoint note's pad blinking on every draw of a keyboard scaling
-	// param over the isomorphic keyboard, after `readValueAgain` and `beginScreen` have unset it.
+	// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`'s `renderScaling` sets the breakpoint note's pad blinking on
+	// every draw of a keyboard scaling param over the isomorphic keyboard, after `readValueAgain` and `beginScreen`
+	// have unset it.
 	const int16_t param = state.dx.param;
 	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12
 	    && ctx.facts != nullptr) {
@@ -584,7 +592,7 @@ deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& 
 }
 
 // ---------------------------------------------------------------------------------------------
-// `osc::Type::selectButtonPress` (`gui/menu_item/osc/type.h:103-108`)
+// `osc::Type::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`)
 
 const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& /*state*/) {
 	return source_is_dx(ctx, 0) ? &dx_menu : nullptr;

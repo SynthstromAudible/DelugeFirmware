@@ -54,7 +54,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 
 extern "C" {}
@@ -400,14 +400,14 @@ dontDeactivateMarker:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 5 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// Site 5 of `gui/ui/menu_entry.cpp`'s table.
 			// An `AudioClip` under a clip-minder root: `setup()` lands on `soundEditorRootMenuAudioClip` and
-			// `context_for` on `Root::AudioClip`. `openShellMenu` returning false stands in for `setup()`
+			// `context_for` on `Root::AudioClip`. `openMenu` returning false stands in for `setup()`
 			// returning false.
-			if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
-			                                    /*performanceView=*/false,
-			                                    /*sessionOrArrangerRoot=*/false,
-			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
+			if (!deluge::gui::ui::openMenu(getCurrentClip(), /*sourceIndex=*/0,
+			                               /*performanceView=*/false,
+			                               /*sessionOrArrangerRoot=*/false,
+			                               /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
 				return ActionResult::DEALT_WITH;
 			}
 

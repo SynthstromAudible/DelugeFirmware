@@ -3,26 +3,26 @@
 /// @brief The unison subtree as data: `unison` and its three columns.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s unison block, from `numUnisonMenu`:
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s unison block, from `numUnisonMenu`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `unison_count` | `numUnisonMenu` | `unison::CountToStereoSpread` (`unison/count.h`) |
-/// | `unison_detune` | `unisonDetuneMenu` | `unison::Detune` (`unison/detune.h`) |
-/// | `unison_spread` | `unison::stereoSpreadMenu` | `unison::StereoSpread` (`unison/stereoSpread.h`) |
+/// | `unison_count` | `numUnisonMenu` | `unison::CountToStereoSpread` (`origin/main:src/deluge/gui/menu_item/unison/count.h`) |
+/// | `unison_detune` | `unisonDetuneMenu` | `unison::Detune` (`origin/main:src/deluge/gui/menu_item/unison/detune.h`) |
+/// | `unison_spread` | `unison::stereoSpreadMenu` | `unison::StereoSpread` (`origin/main:src/deluge/gui/menu_item/unison/stereoSpread.h`) |
 /// | `unison` | `unisonMenu` | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
-/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`unisonMenu` in `menus.cpp`):
+/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`origin/main:src/deluge/gui/ui/menus.cpp`):
 /// `with_fixed_columns`.
 ///
-/// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
-///       big centred integer with no label (`unison/count.h:60-67`, `unison_count`'s
-///       `unison_count_art` and `without_column_label`) and three splayed lines (`unison/detune.h:57-98`,
-///       not carried: its column draws the number) -- neither of which is a `ui::oled::Hint`, so they
-///       take `Hint::None`. `StereoSpread` does not override it and so keeps `Number`'s default knob
-///       (`gui/menu_item/number.h:48`).
+/// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a big centred
+///       integer with no label (`origin/main:src/deluge/gui/menu_item/unison/count.h`, `unison_count`'s
+///       `unison_count_art` and `without_column_label`) and three splayed lines
+///       (`origin/main:src/deluge/gui/menu_item/unison/detune.h`, not carried: its column draws the number) -- neither
+///       of which is a `ui::oled::Hint`, so they take `Hint::None`. `StereoSpread` does not override it and so keeps
+///       `Number`'s default knob (`Number::getRenderingStyle` in `origin/main:src/deluge/gui/menu_item/number.h`).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -42,9 +42,10 @@ namespace deluge::scenes::menu::nodes {
 /// @{
 /// @}
 
-// Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
-// (`unison/detune.h`), `StereoSpread::getMaxValue` (`stereoSpread.h`), each over `Number`'s
-// default minimum of 0 where no minimum is overridden.
+// Ranges: `Count::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/unison/count.h`),
+// `Detune::getMaxValue` (`origin/main:src/deluge/gui/menu_item/unison/detune.h`), `StereoSpread::getMaxValue`
+// (`origin/main:src/deluge/gui/menu_item/unison/stereoSpread.h`), each over `Number`'s default minimum of 0 where no
+// minimum is overridden.
 inline constexpr Node unison_detune = with_affect_entire(with_column_draw(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/detune"}),
@@ -53,7 +54,7 @@ inline constexpr Node unison_detune = with_affect_entire(with_column_draw(
 // Declared before `unison_count`, which chains to it: `with_select_chain` needs its address.
 //
 // `kUnisonChildren` below still fixes the **on-screen** order (count, detune, spread) -- declaration
-// order in this file never mattered for that. It no longer fixes the **node-id** order, though:
+// order in this file never mattered for that. It does not fix the **node-id** order, though:
 // `assign_node_ids` visits a node's `chain_targets` while visiting the node itself, before the
 // parent moves on to its next child, so `unison_spread` is numbered as `unison_count`'s chain target
 // and lands *ahead* of `unison_detune` (221 vs 222 in the shipped dump). That is a consequence of
@@ -63,11 +64,11 @@ inline constexpr Node unison_spread = with_affect_entire(
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/spread"}, Hint::Knob),
                sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE)));
 
-/// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h`): a select press on the
-///        count opens the stereo spread, unconditionally.
+/// @brief `CountToStereoSpread::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/unison/count.h`): a select
+///        press on the count opens the stereo spread, unconditionally.
 ///
-/// The one ported chain whose target is already a static child of the same page, so nothing new is
-/// declared for it -- `unison_spread` is `unisonMenu`'s third column either way (`menus.cpp:305-311`).
+/// The one chain whose target is already a static child of the same page, so nothing new is declared for it --
+/// `unison_spread` is `unisonMenu`'s third column either way (`origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr const Node* kUnisonCountChain[] = {&unison_spread};
 inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
 	return &unison_spread;

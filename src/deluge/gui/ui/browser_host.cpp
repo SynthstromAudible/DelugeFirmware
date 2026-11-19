@@ -16,10 +16,10 @@
  */
 
 /// @file
-/// @brief The choice seam's consumer. See `shell_choice_dispatch.h` for why it lives here, why its
-///        caller may not gate it, and what the split between the choosing and acting halves is for.
+/// @brief The browser scene's host. See `browser_host.h` for why it lives here and how its answers reach the
+///        browser.
 
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/shell_slice_ops.h"
 
 #include "gui/l10n/strings.h"
@@ -50,14 +50,17 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "storage/byte_channel.h"
+#include "util/menu_entry.h"
 #include "util/notify.h"
-#include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 
 #include <atomic>
 #include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace deluge::gui::ui {
 
@@ -67,6 +70,61 @@ using deluge::scenes::browser::BrowserId;
 using deluge::scenes::browser::PreviewRequest;
 
 namespace {
+
+/// @brief How one of the browser host's requests ended: what the browser scene, and the menu beneath it, are told.
+struct BrowserAnswer {
+	/// @brief Which completion this is.
+	enum class Kind : uint8_t {
+		SampleClaimDone,     ///< A chosen file's claim ended: `deliverSampleClaimDone`.
+		LongPressClaimDone,  ///< A folder menu's claim ended: `BrowserScene::long_press_done`, then as a claim.
+		LongPressImportDone, ///< A folder menu's import ended: `BrowserScene::long_press_done`.
+		FileDeleteDone,      ///< The card answered a deletion: `deliverFileDeleteDone`.
+		DeferredLoadDone,    ///< A load the browser waits on ended: `BrowserScene::deferred_load_done`.
+		DxReadSettled,       ///< The `.syx` read ended or could not start: `deliverDxCartridgeRead`.
+		SliceReady,          ///< The slicer's open ended: `BrowserScene::slice_ready`.
+		PreviewSettled,      ///< A preview's load ended, or the preview stopped: `BrowserScene::preview_settled`.
+	};
+	Kind kind = Kind::DxReadSettled;
+	/// Claimed, imported, loaded or opened; for a preview, a sample to draw.
+	bool success = false;
+	/// The file a deletion named.
+	std::string path{};
+	/// How a deletion ended.
+	FileDeleteOutcome deleted = FileDeleteOutcome::Failed;
+	/// Where the `.syx` read stands.
+	DxCartridgeRead::Status dx = DxCartridgeRead::Status::Idle;
+};
+
+/// @brief The answers produced while a request was being performed, in the order they came.
+std::vector<BrowserAnswer>& heldAnswers() {
+	static std::vector<BrowserAnswer> answers;
+	return answers;
+}
+
+/// @brief How many of the browser's requests the host is inside now.
+int32_t performingDepth = 0;
+
+/// @brief Marks the host as inside one of the browser's requests for its lifetime: an answer produced meanwhile is
+/// held.
+class Performing {
+public:
+	Performing() { performingDepth++; }
+	~Performing() { performingDepth--; }
+	Performing(const Performing&) = delete;
+	Performing& operator=(const Performing&) = delete;
+};
+
+void deliverAnswer(const BrowserAnswer& answer);
+
+/// @brief Tell the browser how a request ended: held when the request that produced the answer is still being
+///        performed (the scene that asked is inside its hook), delivered at once otherwise.
+void answerBrowser(BrowserAnswer answer) {
+	if (performingDepth > 0) {
+		heldAnswers().push_back(std::move(answer));
+		return;
+	}
+	deliverAnswer(answer);
+}
 
 /// @brief The shipped claim dispatcher: what a browser choice's claim asks unless a spec installs another.
 void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
@@ -195,10 +253,10 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
-/// The request names the sound the menu edits (`shellMenuTarget`); the claim reads nothing else for it.
+/// The request names the sound the menu edits (`menuTarget`); the claim reads nothing else for it.
 ///
-/// Only a claim reaches here: Shift+Select on a file in a kit is decided by `BrowserScene` with the press, which parks
-/// a slice or refuses, so the shift state never has to be read a tick later.
+/// Only a claim reaches here: `BrowserScene` decides Shift+Select on a file in a kit with the press, asking its host
+/// for a slice or refusing.
 ///
 /// @param path   The chosen file's full path.
 /// @param target @p path split; its filename names the entered text.
@@ -216,19 +274,18 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	    .mayDoWaveTable = args.mayDoWaveTable,
 	    .origin = origin,
 	    .completion = completion,
-	    .target = shellMenuTarget(),
+	    .target = menuTarget(),
 	});
 }
 
-/// @brief `FolderImportRequest::rangeChosen` for an import the ported browser asked for: the range the import makes
+/// @brief `FolderImportRequest::rangeChosen` for an import the browser scene asked for: the range the import makes
 ///        current goes to the menu beneath, as `SoundEditor::setCurrentMultiRange` makes it the legacy editor's.
 void shellImportRangeChosen(int32_t index) {
 	deluge::scenes::menu_scene().import_chose_range(index);
 }
 
-/// @brief `SampleBrowser::requestFolderImport` for a folder menu's choice: the item's
-///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
-///        not.
+/// @brief The folder import for a folder menu's choice: the item's own folder, or the folder it is in, starting
+///        from it. The browser scene closes itself, so the import does not.
 void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {
 	if (deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()) {
 		return; // the gate refuses the presses that would ask; nothing that does is left to answer
@@ -237,7 +294,7 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	claimCancel();
 	deluge::gui::FolderImportRequest request{.kind = kind,
 	                                         .completion = &shellLongPressImportDone,
-	                                         .target = shellMenuTarget(),
+	                                         .target = menuTarget(),
 	                                         .rangeChosen = &shellImportRangeChosen};
 	if (choice.is_folder) {
 		request.folder = choice.path;
@@ -254,11 +311,11 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 void midiDefinitionLoaded(Error error) {
 	if (error != Error::NONE) {
 		deluge::notify::notice(error);
-		browser_scene().deferred_load_done(false);
+		answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = false});
 		return;
 	}
 	deluge::notify::notice(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED, deluge::notify::Notice::Kind::Console);
-	browser_scene().deferred_load_done(true);
+	answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = true});
 }
 
 /// @brief Load the chosen MIDI device definition into the current MIDI output, as
@@ -267,7 +324,8 @@ void midiDefinitionLoaded(Error error) {
 void requestMidiDefinitionLoad(std::string_view path) {
 	Output* output = getCurrentOutput();
 	if (output == nullptr || output->type != OutputType::MIDI_OUT) {
-		browser_scene().deferred_load_done(false); // nothing started: the browser must not wait for it
+		// Nothing started: the browser must not wait for it.
+		answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = false});
 		return;
 	}
 	const deluge::gui::LoadTicket ticket = deluge::gui::instrumentLoad.request(
@@ -276,7 +334,8 @@ void requestMidiDefinitionLoad(std::string_view path) {
 	     .kind = deluge::gui::InstrumentLoadRequest::Kind::MidiDefinition,
 	     .definition = {.path = std::string{path}, .instrument = static_cast<MIDIInstrument*>(output)}});
 	if (ticket.generation == 0) {
-		browser_scene().deferred_load_done(false); // refused: no completion will answer
+		// Refused: no completion will answer.
+		answerBrowser({.kind = BrowserAnswer::Kind::DeferredLoadDone, .success = false});
 	}
 }
 
@@ -304,33 +363,21 @@ PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	};
 }
 
-/// @brief Act on the ported browser's preview request, and tick the preview in hand: a file is previewed as the legacy
-///        browser's `previewFile` does, an empty path stops previewing as its `cancelPreview` and `stopAnyPreviewing`
-///        do; a load that ends, or a stop, is answered through `BrowserScene::preview_settled`.
-void dispatchPreview() {
+/// @brief Tick the preview in hand, for the auto-load of main's `SampleBrowser::previewIfPossible`
+///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a load that ends is answered through
+///        `BrowserScene::preview_settled`.
+void tickPreview() {
 	SamplePreviewer& previewer = shellPreviewer();
-	if (const std::optional<PreviewRequest> request = browser_scene().take_preview()) {
-		// A move supersedes an auto-load claim of the file it has left (`previewFile`, `cancelPreview`).
-		claimCancel();
-		if (request->path.empty()) {
-			previewer.cancel();
-			AudioEngine::stopAnyPreviewing();
-			browser_scene().preview_settled(false);
-		}
-		else {
-			previewer.request(request->path, request->direction);
-		}
-	}
 	if (!previewer.pending()) {
 		return;
 	}
 	if (const std::optional<SamplePreviewer::Landed> landed =
 	        previewer.tick(previewSoundFor(deluge::scenes::menu_scene().menu_context()))) {
-		browser_scene().preview_settled(landed->hasSample);
+		answerBrowser({.kind = BrowserAnswer::Kind::PreviewSettled, .success = landed->hasSample});
 	}
 }
 
-/// @brief Start legacy's horizontal scroll for the ported browser, as `SampleBrowser` does where it calls
+/// @brief Start legacy's horizontal scroll for the browser scene, as `SampleBrowser` does where it calls
 ///        `PadLEDs::horizontal::setupScroll`: the root view, or the browser's main pads off the guest's grid, into the
 ///        image store (or nothing, for the scroll out), and the guest's main columns left to the animation until
 ///        `ShellHostUI::scrollFinished`.
@@ -375,29 +422,19 @@ void dispatchScroll() {
 } // namespace
 
 void shellSampleClaimDone(bool success) {
-	// The browser waits for its claim, as `claimCurrentFile` runs with it up: a success closes it, a failure leaves it
-	// up for another file. Ignored by a browser that is not waiting (a folder menu's claim).
-	browser_scene().deferred_load_done(success);
-	if (!success) {
-		return;
-	}
-	uiNeedsRendering(&audioClipView);
-	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
-	// opened the ported browser, so a claim with no recorded opener came from elsewhere.
-	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
-		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
-		// write to `setupKitGlobalFXMenu` the latch takes.
-		latchShellKitGlobalFxOnReentry();
-	}
+	answerBrowser({.kind = BrowserAnswer::Kind::SampleClaimDone, .success = success});
 }
 
 void shellLongPressClaimDone(bool success) {
-	browser_scene().long_press_done(success);
-	shellSampleClaimDone(success);
+	answerBrowser({.kind = BrowserAnswer::Kind::LongPressClaimDone, .success = success});
 }
 
 void shellLongPressImportDone(bool success) {
-	browser_scene().long_press_done(success);
+	answerBrowser({.kind = BrowserAnswer::Kind::LongPressImportDone, .success = success});
+}
+
+void shellSliceReady(bool opened) {
+	answerBrowser({.kind = BrowserAnswer::Kind::SliceReady, .success = opened});
 }
 
 void setFolderImportDispatch(FolderImportDispatch dispatch) {
@@ -409,18 +446,7 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch) {
 }
 
 void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome) {
-	switch (outcome) {
-	case FileDeleteOutcome::Removed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
-		browser_scene().file_deleted(path);
-		break;
-	case FileDeleteOutcome::Missing:
-		// Not on the card: a sample's list entry has no instrument to drop, so nothing changes.
-		break;
-	case FileDeleteOutcome::Failed:
-		deluge::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
-		break;
-	}
+	answerBrowser({.kind = BrowserAnswer::Kind::FileDeleteDone, .path = std::string{path}, .deleted = outcome});
 }
 
 void setFileDeleteDispatch(FileDeleteDispatch dispatch) {
@@ -458,34 +484,35 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 }
 
 namespace {
-/// What `publishShellMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
+/// What `publishMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
 std::atomic<ModControllable*> publishedMod{nullptr};
 std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
 } // namespace
 
-void publishShellMenuTarget() {
-	const deluge::gui::SoundTarget target = shellMenuTarget();
+void publishMenuTarget() {
+	const deluge::gui::SoundTarget target = menuTarget();
 	publishedMod.store(target.mod, std::memory_order_relaxed);
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
 
-ModControllable* shellMenuModControllable() {
+ModControllable* soundMenuModControllable() {
 	return publishedMod.load(std::memory_order_relaxed);
 }
 
-ParamManagerForTimeline* shellMenuParamManager() {
+ParamManagerForTimeline* soundMenuParamManager() {
 	return publishedParams.load(std::memory_order_relaxed);
 }
 
-deluge::gui::SoundTarget shellMenuTarget() {
+deluge::gui::SoundTarget menuTarget() {
 	return resolvedFor(deluge::scenes::menu_scene().menu_context());
 }
 
 namespace {
 
-/// @brief Act on where the `.syx` read stands: a bank read lands the menu on the cartridge page and closes the browser
-///        (`DxSyxBrowser`'s `enterLoadedCartridge`); a failure leaves the browser up for another file.
-void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
+/// @brief What the `.syx` read's standing means for the browser: a bank read lands the menu on the cartridge page and
+///        closes the browser (`DxSyxBrowser`'s `enterLoadedCartridge`); a failure leaves the browser up for another
+///        file.
+void deliverDxCartridgeRead(DxCartridgeRead::Status status) {
 	switch (status) {
 	case DxCartridgeRead::Status::Loaded:
 		deluge::scenes::menu_scene().land_dx_cartridge();
@@ -500,8 +527,15 @@ void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
 	}
 }
 
-/// @brief Collect the ported `.syx` browser's read on the guest's tick, as `DxSyxBrowser::browserGraphicsRoutine`
-///        does on the browser's; a browser that has gone takes its read with it (`DxSyxBrowser::close`).
+/// @brief Answer the browser with where the `.syx` read stands, once it has ended or could not start.
+void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
+	if (status != DxCartridgeRead::Status::Pending) {
+		answerBrowser({.kind = BrowserAnswer::Kind::DxReadSettled, .dx = status});
+	}
+}
+
+/// @brief Collect the `.syx` browser scene's read on the guest's tick; a browser that has gone takes its read with
+///        it.
 void pollDxCartridgeRead() {
 	DxCartridgeRead& read = dxCartridgeRead();
 	if (!read.busy()) {
@@ -514,7 +548,8 @@ void pollDxCartridgeRead() {
 	dxCartridgeReadSettled(read.poll());
 }
 
-/// @brief Perform a choice the ported browser parked: the claim, import, slice or MIDI definition load it names.
+/// @brief Perform what the browser scene asks its host for: the claim, import, slice, deletion, MIDI definition load
+///        or `.syx` read it names.
 void dispatchChoice(const BrowserChoice& choice) {
 	switch (choice.id) {
 	case BrowserId::Sample:
@@ -579,19 +614,131 @@ void dispatchChoice(const BrowserChoice& choice) {
 	}
 }
 
+/// @brief A chosen file's claim ended: the waiting browser hears first (a success closes it, a failure leaves it up
+///        for another file, as `claimCurrentFile`'s error arm leaves `main`'s), then a success re-roots the menu
+///        beneath over the claimed source.
+void deliverSampleClaimDone(bool success) {
+	// Ignored by a browser that is not waiting (a folder menu's claim).
+	browser_scene().deferred_load_done(success);
+	if (!success) {
+		return;
+	}
+	uiNeedsRendering(&audioClipView);
+	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
+	// opened the browser scene, so a claim with no recorded opener came from elsewhere.
+	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
+		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
+		// write to `setupKitGlobalFXMenu` the latch takes.
+		latchMenuKitGlobalFxOnReentry();
+	}
+}
+
+/// @brief The card answered a deletion: `main`'s popup, and the file leaves the browser's list once it is gone.
+void deliverFileDeleteDone(std::string_view path, FileDeleteOutcome outcome) {
+	switch (outcome) {
+	case FileDeleteOutcome::Removed:
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_FILE_DELETED);
+		browser_scene().file_deleted(path);
+		break;
+	case FileDeleteOutcome::Missing:
+		// Not on the card: a sample's list entry has no instrument to drop, so nothing changes.
+		break;
+	case FileDeleteOutcome::Failed:
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_ERROR_DELETING_FILE);
+		break;
+	}
+}
+
+/// @brief Tell the browser, and the menu beneath it, how a request ended.
+void deliverAnswer(const BrowserAnswer& answer) {
+	switch (answer.kind) {
+	case BrowserAnswer::Kind::SampleClaimDone:
+		deliverSampleClaimDone(answer.success);
+		break;
+	case BrowserAnswer::Kind::LongPressClaimDone:
+		browser_scene().long_press_done(answer.success);
+		deliverSampleClaimDone(answer.success);
+		break;
+	case BrowserAnswer::Kind::LongPressImportDone:
+		browser_scene().long_press_done(answer.success);
+		break;
+	case BrowserAnswer::Kind::FileDeleteDone:
+		deliverFileDeleteDone(answer.path, answer.deleted);
+		break;
+	case BrowserAnswer::Kind::DeferredLoadDone:
+		browser_scene().deferred_load_done(answer.success);
+		break;
+	case BrowserAnswer::Kind::DxReadSettled:
+		deliverDxCartridgeRead(answer.dx);
+		break;
+	case BrowserAnswer::Kind::SliceReady:
+		browser_scene().slice_ready(answer.success);
+		break;
+	case BrowserAnswer::Kind::PreviewSettled:
+		browser_scene().preview_settled(answer.success);
+		break;
+	}
+}
+
+/// @brief The browser scene's host: each request is performed when the browser makes it, and an answer it produces
+///        before returning is held (`Performing`).
+class ShellBrowserHost final : public deluge::scenes::browser::BrowserHost {
+public:
+	void perform(const BrowserChoice& choice) override {
+		const Performing performing;
+		dispatchChoice(choice);
+	}
+	/// A file is previewed as main's `SampleBrowser::previewIfPossible`
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) does; an empty path stops previewing as
+	/// `AudioEngine::stopAnyPreviewing` does.
+	void preview(const PreviewRequest& request) override {
+		const Performing performing;
+		// A new preview supersedes an older one's held answer: delivered now, it would end this preview's wait.
+		std::erase_if(heldAnswers(),
+		              [](const BrowserAnswer& answer) { return answer.kind == BrowserAnswer::Kind::PreviewSettled; });
+		// A move supersedes an auto-load claim of the file it has left.
+		claimCancel();
+		SamplePreviewer& previewer = shellPreviewer();
+		if (request.path.empty()) {
+			previewer.cancel();
+			AudioEngine::stopAnyPreviewing();
+			answerBrowser({.kind = BrowserAnswer::Kind::PreviewSettled, .success = false});
+			return;
+		}
+		previewer.request(request.path, request.direction);
+	}
+};
+
+/// @brief The one host, made on first use.
+ShellBrowserHost& shellBrowserHost() {
+	static ShellBrowserHost host;
+	return host;
+}
+
 } // namespace
 
-void dispatchShellChoices() {
-	// One read of each outbox, unconditionally, and the read is what empties the slot -- `take_choice()` and
-	// `take_preview()` move the request out and reset the member in the same call. So an early return above either
-	// read would not be "nothing to do", it would be "the request stays in the outbox until something else asks",
-	// which is the stale delivery the header describes.
-	if (const std::optional<BrowserChoice> choice = browser_scene().take_choice()) {
-		dispatchChoice(*choice);
-	}
+void pollShellBrowserHost() {
+	// The held answers first: a scroll one asks for is started below, before the next tick renders the pads.
+	deliverShellBrowserAnswers();
 	pollDxCartridgeRead();
-	dispatchPreview();
+	tickPreview();
 	dispatchScroll();
+}
+
+void deliverShellBrowserAnswers() {
+	// The batch held so far. An answer a delivery's own request produces is held for the next delivery.
+	const std::vector<BrowserAnswer> batch = std::exchange(heldAnswers(), {});
+	for (const BrowserAnswer& answer : batch) {
+		deliverAnswer(answer);
+	}
+}
+
+bool shellBrowserAnswersHeld() {
+	return !heldAnswers().empty();
+}
+
+void wireShellBrowserHost() {
+	browser_scene().set_host(&shellBrowserHost());
 }
 
 bool shellVisitFellBackToEditor() {

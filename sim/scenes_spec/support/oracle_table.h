@@ -2,7 +2,7 @@
 
 /// @file
 /// @brief The menu reference tables under `tests/golden/ui/menu_oracle/`: upstream `main`'s menu answers, one row
-///        per answer, which the ported menu's specs are checked against.
+///        per answer, which the menu's specs are checked against.
 ///
 /// A table is a text file of rows. A row is one line: a path, a column and zero or more values, separated by tabs. The
 /// path names what answered (a node by its child positions under its root, a setting case, a shortcut cell), the

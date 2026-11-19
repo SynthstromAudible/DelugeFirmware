@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief `MultiRangeItem`'s members and the picker's chain hook. See `multi_range.h`.
+/// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
 #include "deluge-project/song.h"
@@ -118,23 +118,23 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
                                  deluge::ui::shell::TextScratch& scratch) {
 	const int32_t count = range_count(ctx);
 	size_t len = 0;
-	if (index == 0) { // `:290-295`
+	if (index == 0) { // the first range's lower end
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
-	else { // `:296-299`
+	else { // the previous range's top, plus one
 		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
 	}
-	// `:301-306` -- pad the lower end out to column 7, so the two halves line up down the list.
+	// Pad the lower end out to column 7, so the two halves line up down the list.
 	// Reproduced rather than replaced by a single separator, because it is what makes this function
 	// byte-for-byte comparable against `MultiRange::getText` in `tables_1_spec`.
 	while (len < 7 && len + 1 < cap) {
 		buf[len++] = ' ';
 	}
 	append(buf, len, cap, "- ");
-	if (index == count - 1) { // `:309-319`
+	if (index == count - 1) { // the last range's upper end
 		append(buf, len, cap, "top");
 	}
-	else { // `:320-331`
+	else { // any other range's upper end
 		append_note_name(buf, len, cap, range_top_note(ctx, index));
 	}
 	return {buf, len};
@@ -143,8 +143,8 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 namespace {
 
 size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<char> out) {
-	// `sample::Transpose::getNotificationValue` (`sample/transpose.h:158-191`): only for the chosen range of a sample
-	// source with several.
+	// `sample::Transpose::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`): only for
+	// the chosen range of a sample source with several.
 	const int32_t count = range_count(ctx);
 	const int32_t index = ctx.range_index;
 	if (ctx.source_index != source || index < 0 || count <= 1 || index >= count) {
@@ -195,7 +195,7 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	if (ctx.addresses.slot) {
 		const auto source = static_cast<uint8_t>(ctx.source_index);
 		std::optional<int32_t> remembered;
-		if (ctx.range_index >= 0) { // `:43-45` -- a range is already selected, so it is the default
+		if (ctx.range_index >= 0) { // a range is already selected, so it is the default
 			remembered = ctx.range_index;
 			if (ctx.sink != nullptr) {
 				ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
@@ -208,26 +208,28 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 		}
 		const bool valid = remembered && *remembered >= 0 && *remembered < count;
 		cursor = valid ? *remembered : count >> 1;
-		if (!valid && count > 0 && ctx.sink != nullptr) { // `:48-51`: an invalid default is worked out afresh
+		if (!valid && count > 0 && ctx.sink != nullptr) { // an invalid default is worked out afresh
 			ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
 		}
 	}
 
 	state.list[depth_of(state)] = deluge::ui::ListState{};
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(cursor);
-	// `:58-65`: the window opens with the range on its last row; it keeps its own scroll from then on.
+	// The window opens with the range on its last row; it keeps its own scroll from then on.
 	state.list[depth_of(state)].keep_scroll = true;
 	state.list[depth_of(state)].scroll = -1;
-	state.edit_edge = deluge::ui::oled::RangeEdge::Off; // `:66`, `Range::beginSession`
+	state.edit_edge = deluge::ui::oled::RangeEdge::Off; // as `Range::beginSession` does
+	                                                    // (`origin/main:src/deluge/gui/menu_item/range.cpp`)
 	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
 
-	// `:56` -- `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
+	// `MultiRange::beginSession` calls `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it
 	// through `menu::select_range` (see `MenuWalkState::range_choice`).
 	//
-	// `:54`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
+	// `MultiRange::beginSession`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
 	// runs it for every range-dependent descent, which is where legacy runs it too
-	// (`checkPermissionToBeginSessionForRangeSpecificParam:1938`, ahead of every arm).
+	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), ahead of every arm).
 	state.walk.range_choice = static_cast<int16_t>(cursor);
 }
 
@@ -240,7 +242,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	deluge::ui::ListState& list_state = state.list[depth_of(state)];
 	const int32_t index = list_state.cursor;
 	// `SoundEditor::buttonAction`'s BACK arm asks a range item to cancel its edge first (`Range::cancelEditingIfItsOn`,
-	// `range.cpp:87-95`), and goes up only when there was none.
+	// `origin/main:src/deluge/gui/menu_item/range.cpp`), and goes up only when there was none.
 	// At the root the menu leaves BACK to its own handling (closing the editor) unless an item claims it, so the press
 	// is read here as well as from the menu's own read below the root. A BACK the host's UI mode refuses is not read.
 	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off && state.tick.back_acts
@@ -248,7 +250,8 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
 		state.tick.back_claimed = false;
 	}
-	// `Range::horizontalEncoderAction` (`range.cpp:35-84`): every turn is the item's, and with Shift it does nothing.
+	// `Range::horizontalEncoderAction` (`origin/main:src/deluge/gui/menu_item/range.cpp`): every turn is the item's,
+	// and with Shift it does nothing.
 	if (const int8_t h = f.horizontal(); h != 0 && !f.shift()) {
 		state.edit_edge = next_range_edge(ctx, index, state.edit_edge, h);
 	}
@@ -260,7 +263,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			list_state.freeze_cursor = true;
 		}
 		else if (state.edit_edge != deluge::ui::oled::RangeEdge::Off) {
-			// The edge arm (`:76-124`): one note per turn, issued as one ranges write.
+			// The edge arm of `MultiRange::selectEncoderAction`: one note per turn, issued as one ranges write.
 			std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
 			if (index >= 0 && index < std::ssize(ranges)) {
 				step_range_edge(ranges, index, state.edit_edge, t);
@@ -271,7 +274,8 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			f.gate().request_repaint();
 		}
 		else if (f.shift()) {
-			// The Shift arm (`:130-201`): a range inserted beside the current one, which the cursor moves to.
+			// The Shift arm of `MultiRange::selectEncoderAction`: a range inserted beside the current one, which the
+			// cursor moves to.
 			list_state.freeze_cursor = true;
 			const std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
 			if (const std::optional<RangeInsert> plan = plan_range_insert(ranges, index, t); !plan) {
@@ -282,7 +286,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			                                   static_cast<uint16_t>(plan->at), plan->top_note, plan->previous_top)) {
 				list_state.cursor = static_cast<int16_t>(plan->at);
 				if (!plan->previous_top) {
-					list_state.scroll++; // `:188`: inserted before, the window moves with the old range
+					list_state.scroll++; // inserted before, the window moves with the old range
 				}
 				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_INSERTED),
 				                              deluge::notify::Notice::Kind::Console);
@@ -291,7 +295,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		}
 	}
 
-	// `drawPixelsForOled` (`:364-408`) builds `kOLEDMenuNumOptionsVisible` labels around its own
+	// `drawPixelsForOled` builds `kOLEDMenuNumOptionsVisible` labels around its own
 	// `currentScroll` and calls `drawItemsForOled`. This builds every row and lets `ui::oled::list` pick the
 	// slice; `ListState::keep_scroll` gives the widget legacy's window, which keeps its scroll rather than
 	// re-centring on the cursor.
@@ -306,8 +310,9 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		rows[row].label = range_row_label(ctx, i, bufs[row], kRowChars, scratch[row]);
 		rows[row].selectable = true;
 	}
-	// `:383-406`: while an edge is edited no row is selected, and the edited half of the range's row is inverted --
-	// the left end's six characters from x = kTextSpacingX, or the right end from x = 10 * kTextSpacingX to the edge.
+	// As `MultiRange::drawPixelsForOled` does: while an edge is edited no row is selected, and the edited half of the
+	// range's row is inverted -- the left end's six characters from x = kTextSpacingX, or the right end from x = 10 *
+	// kTextSpacingX to the edge.
 	const deluge::ui::oled::RangeEdge edge = state.edit_edge;
 	list_state.hide_cursor = edge != deluge::ui::oled::RangeEdge::Off;
 	if (list_state.hide_cursor && list_state.cursor >= 0 && list_state.cursor < count) {
@@ -326,13 +331,13 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	    f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
 	    std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(count)}, state.scroll[depth_of(state)]);
 
-	// `selectEncoderAction`'s "normal thing of just flicking through existing ranges" arm
-	// (`:203-219`): the cursor IS the selection, and `setCurrentMultiRange` follows it. Republished
+	// `selectEncoderAction`'s "normal thing of just flicking through existing ranges" arm: the
+	// cursor IS the selection, and `setCurrentMultiRange` follows it. Republished
 	// every frame rather than only on a move, for the same reason `SourceSelectionItem` does.
 	const int32_t cursor = state.list[depth_of(state)].cursor;
 	if (count > 0 && cursor >= 0 && cursor < count) {
 		state.walk.range_choice = static_cast<int16_t>(cursor);
-		// `:212`: a flick is remembered. A voice that starts without a pad or key (MIDI) moves the memory through
+		// A flick is remembered. A voice that starts without a pad or key (MIDI) moves the memory through
 		// `Source::getRange` and not the cursor; a pad or key goes through `range_note_press`.
 		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.sink != nullptr) {
 			ctx.sink->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
@@ -364,31 +369,31 @@ std::optional<RangeInsert> plan_range_insert(std::span<const deluge::instrument:
 		return std::nullopt;
 	}
 	const auto top_of = [&](int32_t i) { return static_cast<int32_t>(ranges[static_cast<size_t>(i)].top_note); };
-	// `:132-141`
+	// The lower bound, as `MultiRange::selectEncoderAction`'s Shift arm works it out.
 	const int32_t bottom = index == 0 ? std::min<int32_t>(top_of(index) - 1, 0) : top_of(index - 1) + 1;
-	// `:143-152`
+	// The upper bound.
 	const int32_t top = index == count - 1 ? std::max<int32_t>(bottom + 1, 127) : top_of(index);
-	if (top == bottom) { // `:154-157`
+	if (top == bottom) { // no room for a second range
 		return std::nullopt;
 	}
 	const auto mid = static_cast<int16_t>((top + bottom) >> 1);
-	if (offset >= 0) { // inserted after, which takes the old range's top (`:177-182`)
+	if (offset >= 0) { // inserted after, which takes the old range's top
 		return RangeInsert{.at = index + 1, .top_note = static_cast<int16_t>(top), .previous_top = mid};
 	}
-	return RangeInsert{.at = index, .top_note = mid, .previous_top = std::nullopt}; // before (`:184-189`)
+	return RangeInsert{.at = index, .top_note = mid, .previous_top = std::nullopt}; // before
 }
 
 std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument::RangeState> ranges, int32_t index) {
 	const auto count = static_cast<int32_t>(ranges.size());
-	if (count <= 1 || index < 0 || index >= count) { // `:245-249`
+	if (count <= 1 || index < 0 || index >= count) { // nothing to delete
 		return std::nullopt;
 	}
-	if (index == 0) { // `:257-260`
+	if (index == 0) { // the first range goes: the next one becomes the first
 		return RangeDelete{.cursor = 0, .lower_top = std::nullopt};
 	}
 	const auto lower = static_cast<int32_t>(ranges[static_cast<size_t>(index - 1)].top_note);
 	const auto deleted = static_cast<int32_t>(ranges[static_cast<size_t>(index)].top_note);
-	// `:270-278`: under a deleted top range the one below becomes the top; else it takes the mean of the two tops.
+	// Under a deleted top range the one below becomes the top; else it takes the mean of the two tops.
 	const int32_t top = index == count - 1 ? 32767 : (lower + deleted) >> 1;
 	return RangeDelete{.cursor = index - 1, .lower_top = static_cast<int16_t>(top)};
 }

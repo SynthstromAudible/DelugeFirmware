@@ -15,11 +15,11 @@
 ///
 /// @par Two things legacy does here that are dead, and are transcribed anyway
 ///
-///   * `horizontalEncoderAction`'s `&& delayHorizontalZoomUntil == 0` (`:183`) can never be false:
-///     the block above it (`:171-180`) either returns through `goto getOut` or leaves the field
+///   * `horizontalEncoderAction`'s `&& delayHorizontalZoomUntil == 0` (`timeline_view.cpp`) can never be false:
+///     the block above it either returns early or leaves the field
 ///     zero, and if that block was skipped the field was already zero. Kept as-is so the two sides
 ///     read the same.
-///   * `displayNumberOfBarsAndBeats` (`:241-265`) declares `quantization` and `tooLongText` and
+///   * `displayNumberOfBarsAndBeats` (`timeline_view.cpp`) declares `quantization` and `tooLongText` and
 ///     **reads neither** -- the body uses `Song::getBarLength()` for the quantum and never mentions
 ///     the "too long" text. Every one of its five call sites passes both
 ///     (in `timeline_view.cpp`, `clip_view.cpp`, `audio_clip_view.cpp` (two)
@@ -30,7 +30,7 @@
 ///
 /// `ClipView::getTickSquare`'s "stop following and go back" arm compares the *scroll* it is about
 /// to restore against the *zoom*: `if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP])`
-/// (`clip_view.cpp:382`). Every neighbouring line reads `xScroll[NAVIGATION_CLIP]`; this one reads
+/// (`clip_view.cpp`). Every neighbouring line reads `xScroll[NAVIGATION_CLIP]`; this one reads
 /// `xZoom`. The effect is that the restore is skipped exactly when the remembered scroll happens to
 /// equal the current zoom, and performed when it equals the current scroll (where legacy plainly
 /// meant to skip it). `tick_square` reproduces it, because a port whose job is to agree with legacy
@@ -64,12 +64,12 @@ void TimelineState::publish(Song& song) const {
 // --- pure arithmetic --------------------------------------------------------------------------
 
 bool TimelineState::in_triplets_view() const {
-	// `TimelineView::inTripletsView` (`timeline_view.cpp:507-509`).
+	// `TimelineView::inTripletsView` (`timeline_view.cpp`).
 	return supports_triplets && triplets_on;
 }
 
 int32_t TimelineState::pos_from_square(int32_t square, int32_t scroll, uint32_t zoom) const {
-	// `TimelineView::getPosFromSquare(square, xScroll, xZoom)` (`timeline_view.cpp:369-398`).
+	// `TimelineView::getPosFromSquare(square, xScroll, xZoom)` (`timeline_view.cpp`).
 	if (in_triplets_view()) {
 		// If zoomed in just a normal amount...
 		if (zoom < triplets_level) {
@@ -101,13 +101,13 @@ int32_t TimelineState::pos_from_square(int32_t square, int32_t scroll, uint32_t 
 }
 
 int32_t TimelineState::pos_from_square(int32_t square) const {
-	// `TimelineView::getPosFromSquare(square, localScroll)` (`timeline_view.cpp:400-411`), whose
+	// `TimelineView::getPosFromSquare(square, localScroll)` (`timeline_view.cpp`), whose
 	// `localScroll == -1` default and `getNavSysId()` lookup both resolve to this state's own pair.
 	return pos_from_square(square, x_scroll, x_zoom);
 }
 
 int32_t TimelineState::square_from_pos(int32_t pos, bool* right_on_square, int32_t scroll, uint32_t zoom) const {
-	// `TimelineView::getSquareFromPos(pos, rightOnSquare, xScroll, xZoom)` (`timeline_view.cpp:413-460`).
+	// `TimelineView::getSquareFromPos(pos, rightOnSquare, xScroll, xZoom)` (`timeline_view.cpp`).
 	int32_t posRelativeToScroll = pos - scroll;
 
 	if (in_triplets_view()) {
@@ -151,12 +151,12 @@ int32_t TimelineState::square_from_pos(int32_t pos, bool* right_on_square, int32
 }
 
 int32_t TimelineState::square_from_pos(int32_t pos, bool* right_on_square) const {
-	// `TimelineView::getSquareFromPos(pos, rightOnSquare, localScroll)` (`timeline_view.cpp:462-473`).
+	// `TimelineView::getSquareFromPos(pos, rightOnSquare, localScroll)` (`timeline_view.cpp`).
 	return square_from_pos(pos, right_on_square, x_scroll, x_zoom);
 }
 
 int32_t TimelineState::square_end_from_pos(int32_t pos) const {
-	// `TimelineView::getSquareEndFromPos` (`timeline_view.cpp:475-482`).
+	// `TimelineView::getSquareEndFromPos` (`timeline_view.cpp`).
 	bool rightOnSquare = false;
 	int32_t square = square_from_pos(pos, &rightOnSquare);
 	if (!rightOnSquare) {
@@ -166,7 +166,7 @@ int32_t TimelineState::square_end_from_pos(int32_t pos) const {
 }
 
 bool TimelineState::square_defined(int32_t square, int32_t scroll, uint32_t zoom) const {
-	// `TimelineView::isSquareDefined(square, xScroll, xZoom)` (`timeline_view.cpp:484-492`).
+	// `TimelineView::isSquareDefined(square, xScroll, xZoom)` (`timeline_view.cpp`).
 	if (!in_triplets_view()) {
 		return true;
 	}
@@ -177,7 +177,7 @@ bool TimelineState::square_defined(int32_t square, int32_t scroll, uint32_t zoom
 }
 
 bool TimelineState::square_defined(int32_t square) const {
-	// `TimelineView::isSquareDefined(square, xScroll)` (`timeline_view.cpp:495-505`), the one
+	// `TimelineView::isSquareDefined(square, xScroll)` (`timeline_view.cpp`), the one
 	// legacy's own comment marks "Deprecate this". It differs from the overload above only in
 	// where it gets the zoom, which here is the same field either way.
 	return square_defined(square, x_scroll, x_zoom);
@@ -220,7 +220,7 @@ int32_t TimelineState::length_extend_amount(int32_t square) const {
 }
 
 BarsBeats TimelineState::bars_and_beats(uint32_t number, uint32_t one_bar, bool count_from_one) {
-	// `TimelineView::displayNumberOfBarsAndBeats` (`timeline_view.cpp:244-260`), minus its `sprintf`
+	// `TimelineView::displayNumberOfBarsAndBeats` (`timeline_view.cpp`), minus its `sprintf`
 	// and its popup.
 	uint32_t whichBar = number / one_bar;
 	uint32_t posWithinBar = number - whichBar * one_bar;
@@ -241,25 +241,26 @@ BarsBeats TimelineState::bars_and_beats(uint32_t number, uint32_t one_bar, bool 
 
 void TimelineState::stop_following() {
 	// `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement
-	// (`clip_navigation_timeline_view.cpp:32`), which runs on every horizontal turn before the
-	// delegate at `:33`.
+	// (`clip_navigation_timeline_view.cpp`), which runs on every horizontal turn before the
+	// delegate to `TimelineView::horizontalEncoderAction`.
 	scroll_before_following = kNotFollowing;
 }
 
 void TimelineState::focus_regained() {
-	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp:26-28`), whose
-	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp`) is a straight
-	// delegation to it.
+	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp`), whose
+	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp`) calls it first, then
+	// clears its shortcut-overview latch and asks for a redraw, which this state does not hold.
 	scroll_before_following = kNotFollowing;
 }
 
 ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_ms) {
-	// `TimelineView::horizontalEncoderAction`'s zoom arm (`timeline_view.cpp:165-198`). The two
-	// enclosing gates -- `isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` (`:161`) and
-	// `isUIModeActiveExclusively(...) || inNoteRowEditor` (`:164`) -- are the scene's, as is the
-	// `currentlyScrollableAndZoomable()` refusal one level up (`clip_view.cpp:256-258`).
+	// `TimelineView::horizontalEncoderAction`'s zoom arm (`timeline_view.cpp`). The two
+	// enclosing gates -- `isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` and
+	// `isUIModeActiveExclusively(...) || inNoteRowEditor` -- are the scene's, as is the
+	// `currentlyScrollableAndZoomable()` refusal one level up (`clip_view.cpp`).
 	//
-	// `:32` runs before all of that, on every horizontal turn, and is unconditional.
+	// `ClipNavigationTimelineView::horizontalEncoderAction` resets the follow state as its first statement,
+	// before all of that, on every horizontal turn, and unconditionally.
 	stop_following();
 
 	int32_t oldXZoom = x_zoom;
@@ -288,27 +289,28 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 		delay_zoom_magnitude = static_cast<int8_t>(zoomMagnitude);
 	}
 
-	// Constrain to zoom limits. Note that the delay above was armed BEFORE this refusal, and legacy
-	// arms it the same way round (`:183-186` then `:189-192`).
+	// Constrain to zoom limits. Note that the delay above was armed BEFORE this refusal, and the zoom arm of
+	// legacy's `TimelineView::horizontalEncoderAction` arms it the same way round.
 	if ((zoomMagnitude == -1 && oldXZoom <= 3)
 	    || (zoomMagnitude == 1 && oldXZoom >= std::min<uint32_t>(clipLengthMaxZoom * 16, kMaxZoom))) {
 		return ZoomOutcome::Refused;
 	}
 
 	x_zoom = newZoom;
-	// `:195` computes the new scroll and `initiateXZoom` (`:312`) is what actually stores it. The
-	// division is unsigned -- see the transcription note at the top of this file.
+	// `newScroll`'s initializer in `TimelineView::horizontalEncoderAction` computes the new scroll and `initiateXZoom`
+	// is what actually stores it. The division is unsigned -- see the transcription note at the top of this file.
 	int32_t newScroll = x_scroll / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
 	x_scroll = newScroll;
 	return ZoomOutcome::Zoomed;
 }
 
 bool TimelineState::scroll(int32_t offset, uint32_t max_length) {
-	// `TimelineView::horizontalEncoderAction`'s scroll arm (`timeline_view.cpp:206-222`). The gates
-	// at `:203` and `:206` are the scene's, and so is `displayScrollPos()` at `:221` -- which sits
-	// outside the `if` at `:216`, so legacy shows the position even when nothing moved.
+	// `TimelineView::horizontalEncoderAction`'s scroll arm (`timeline_view.cpp`). The gates (the UI-mode `else if` and
+	// the shift `if`) are the scene's, and so is `displayScrollPos()` -- which sits outside the
+	// `if (newXScroll < getMaxLength() || offset < 0)`, so legacy shows the position even when nothing moved.
 	//
-	// `:32` runs before all of that, on every horizontal turn, and is unconditional.
+	// `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement runs before all of that, on every
+	// horizontal turn, and is unconditional.
 	stop_following();
 
 	int32_t newXScroll = x_scroll + offset * x_zoom * kDisplayWidth;
@@ -321,7 +323,7 @@ bool TimelineState::scroll(int32_t offset, uint32_t max_length) {
 	// Make sure we don't scroll too far right
 	if (newXScroll < max_length || offset < 0) {
 		if (newXScroll != x_scroll) {
-			// `initiateXScroll` (`:268-283`), state half.
+			// The state half of `TimelineView::initiateXScroll`.
 			x_scroll = newXScroll;
 			return true;
 		}
@@ -365,10 +367,10 @@ bool TimelineState::scroll_left_if_too_far_right(int32_t max_length) {
 
 bool TimelineState::scroll_for_linear_recording(int32_t new_scroll, uint32_t max_length) {
 	// `ClipNavigationTimelineView::horizontalScrollForLinearRecording`
-	// (`clip_navigation_timeline_view.cpp:36-51`). Both of legacy's arms (`:41` and `:44-45`) store
+	// (`clip_navigation_timeline_view.cpp`). Both of legacy's arms (the `initiateXScroll` one and the `else`) store
 	// the same scroll; only the animation and the redraw request differ, and neither is this
-	// layer's. The `displayScrollPos()` at `:48` is inside the length guard and outside the arm
-	// choice -- but it is ALSO inside `if (!display->hasPopup())` (`:47`), so a true return means
+	// layer's. The `displayScrollPos()` is inside the length guard and outside the arm
+	// choice -- but it is ALSO inside `if (!display->hasPopup())`, so a true return means
 	// "legacy would have CONSIDERED showing the scroll position", not "legacy showed it". A caller
 	// that shows one unconditionally will show a popup legacy suppresses.
 	if (new_scroll < max_length) {
@@ -414,8 +416,8 @@ TimelineState::TickSquare TimelineState::tick_square(int32_t live_pos, const Tic
 			int32_t newXScroll = scroll_before_following;
 			scroll_before_following = kNotFollowing;
 
-			// `:382` compares the restored SCROLL against the ZOOM. That is legacy's line, not a
-			// transcription slip -- see the note at the top of this file.
+			// `ClipView::getTickSquare` compares the restored SCROLL against the ZOOM. That is legacy's
+			// comparison, not a transcription slip -- see the note at the top of this file.
 			if (newXScroll != static_cast<int32_t>(x_zoom)) {
 				out.scrolled = scroll_for_linear_recording(newXScroll, gates.max_length);
 			}

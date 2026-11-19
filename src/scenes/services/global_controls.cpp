@@ -53,10 +53,10 @@
 /// side has. (`nodes/settings.cpp`'s `extern uint32_t jcong;` is the same pattern, and
 /// `scripts/check_layer_rules.py`'s `scenes-no-root-ui` comment names it as the expected shape.)
 ///
-/// @warning The second one is declared `extern GlobalMIDICommand` in `view.cpp` and **defined
+/// @warning The second one is declared `extern GlobalMIDICommand` in `gui/views/view.cpp` and **defined
 ///          `int32_t`** in `playback_handler.cpp` -- a type mismatch across translation units.
 ///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
-///          `definitions_cxx.hpp:584`) and so takes `int` as its underlying type, making the two
+///          `definitions_cxx.hpp`) and so takes `int` as its underlying type, making the two
 ///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
 ///          == 0, by `View::buttonAction`'s BACK arm) the same bits as the `0` its dead-code undo
 ///          and redo arm writes.
@@ -93,7 +93,7 @@ void write_sync_scaling(::Song* song, int32_t clip_id) {
 }
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every
-///        other scene in this tree spells it.
+///        other scene in `src/scenes` spells it.
 /// @param s The string.
 /// @return Its id.
 constexpr uint16_t sid(String s) {
@@ -144,7 +144,7 @@ uint32_t GlobalControls::unported_opens_total() const {
 GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	// Legacy has one `currentUIMode`; this reassembles it from its three owners. `MidiLearn` first
 	// because that is the value `View::buttonAction`'s own arms test first, and
-	// because `View::startMIDILearn` (`:473`) only enters the mode from `UI_MODE_NONE` or from
+	// because `View::startMIDILearn` only enters the mode from `UI_MODE_NONE` or from
 	// itself -- so a learn-active mode can never be one of the others.
 	if (learn_.active()) {
 		return UiMode::MidiLearn;
@@ -168,7 +168,7 @@ bool GlobalControls::load_save_allowed(const UiContext& ctx) const {
 	    || ctx.held.has(ButtonId::Cv)) {
 		return false;
 	}
-	// `:236` / `:281`: KEYBOARD only blocks it in performance view.
+	// KEYBOARD blocks it only in performance view.
 	return !(view_.root_is_performance && ctx.held.has(ButtonId::Keyboard));
 }
 
@@ -177,34 +177,33 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 		return;
 	}
 	if (on) {
-		// `:238-244`. Press down: only from a clean mode, and never with shift (which is the
+		// Press down: only from a clean mode, and never with shift (which is the
 		// SAVE-as-a-modifier gesture other UIs read).
 		if (effective_ui_mode() == UiMode::None && !ctx.shift) {
-			holding_save_ = true;          // `:240` `currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON`
-			save_pressed_ms_ = ctx.now_ms; // `:241`
-			// `:242` `indicator_leds::setLedState(IndicatorLED::SAVE, true)` -- `leds()` recomputes
+			holding_save_ = true; // `currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON`
+			save_pressed_ms_ = ctx.now_ms;
+			// `indicator_leds::setLedState(IndicatorLED::SAVE, true)` -- `leds()` recomputes
 			// it from `holding_save_`.
 		}
 		return;
 	}
 
-	// `:246-271`. Press release.
+	// Press release.
 	if (effective_ui_mode() != UiMode::HoldingSave) {
-		// `:268-270`: from `UI_MODE_NONE` the SAVE LED is turned off, which `leds()` already does
+		// From `UI_MODE_NONE` the SAVE LED is turned off, which `leds()` already does
 		// every tick. Nothing else happens.
 		return;
 	}
-	holding_save_ = false; // `:253` `currentUIMode = UI_MODE_NONE`
+	holding_save_ = false; // `currentUIMode = UI_MODE_NONE`
 	if (static_cast<uint32_t>(ctx.now_ms - save_pressed_ms_) >= kShortPressMs) {
-		// `:264-266`: a long press just drops the LED, which `leds()` now does.
+		// A long press just drops the LED, which `leds()` now does.
 		return;
 	}
 	if (song_ != nullptr && song_->hasAnyPendingNextOverdubs()) {
-		// `:256-259`.
 		popup(result, String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING);
 		return;
 	}
-	// `:261` `openUI(&saveSongUI)`.
+	// `openUI(&saveSongUI)`.
 	//
 	// @warning **Not ported.** The load/save browser family is not ported and
 	//          `saveSongUI` is on `scenes-no-root-ui`'s forbidden list. Everything above this line
@@ -220,41 +219,41 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 		return;
 	}
 	if (on) {
-		// `:282-302`. Press down.
+		// Press down.
 		if (effective_ui_mode() != UiMode::None) {
-			return; // `:284`
+			return;
 		}
 		if (ctx.shift) {
-			// `:286-294` `context_menu::clearSong.setupAndCheckAvailability()` then
+			// `context_menu::clearSong.setupAndCheckAvailability()` then
 			// `openUI(&context_menu::clearSong)`.
 			//
 			// @warning **Not ported.** `ContextMenuScene` exists, but the clear-song menu is not
-			//          among the ported context menus and its availability check is a
+			//          among the context menu scenes and its availability check is a
 			//          `gui/` call. Decision ported (shift+LOAD from a clean mode), open missing.
 			count_unported(UnportedOpen::ClearSong);
 			return;
 		}
-		holding_load_ = true;          // `:297` `currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON`
-		save_pressed_ms_ = ctx.now_ms; // `:298` -- legacy really does reuse `timeSaveButtonPressed`
-		// `:299` sets the LOAD LED; `leds()` recomputes it from `holding_load_`.
+		holding_load_ = true;          // `currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON`
+		save_pressed_ms_ = ctx.now_ms; // Legacy really does reuse `timeSaveButtonPressed`
+		// Sets the LOAD LED; `leds()` recomputes it from `holding_load_`.
 		return;
 	}
 
-	// `:304-329`. Press release.
+	// Press release.
 	if (effective_ui_mode() != UiMode::HoldingLoad) {
-		// `:326-328`: from `UI_MODE_NONE` or `UI_MODE_AUDITIONING` the LOAD LED goes off, which
+		// From `UI_MODE_NONE` or `UI_MODE_AUDITIONING` the LOAD LED goes off, which
 		// `leds()` already does. Note the asymmetry with SAVE, which lists only `UI_MODE_NONE`
-		// (`:268`) -- legacy's, not a transcription slip.
+		// -- legacy's, not a transcription slip.
 		return;
 	}
-	holding_load_ = false; // `:310`
+	holding_load_ = false;
 	if (static_cast<uint32_t>(ctx.now_ms - save_pressed_ms_) >= kShortPressMs) {
-		return; // `:322-324`, LED off
+		return; // LED off
 	}
-	// `:313` `openUI(&loadSongUI)`.
+	// `openUI(&loadSongUI)`.
 	//
 	// @warning **Not ported**, for the same reason as `openUI(&saveSongUI)` above. Legacy's
-	//          `if (!success)` tail at `:317-320` is an empty block with two commented-out lines,
+	//          `if (!success)` tail after the open is an empty block with two commented-out lines,
 	//          so there is nothing behind the open to port either.
 	count_unported(UnportedOpen::LoadSong);
 }
@@ -264,50 +263,50 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		return;
 	}
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-	    == RuntimeFeatureStateSyncScalingAction::Fill) { // `:335-336`
-		// `gui/views/view.cpp:341-344` (the note editor / note-row editor test) needs no port here: in a
-		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`)
-		// and gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test.
-		// The fill adjustments (`gui/views/view.cpp:346-355`) name `instrumentClipView`, whose scene is unported.
+	    == RuntimeFeatureStateSyncScalingAction::Fill) {
+		// `View::buttonAction` (`gui/views/view.cpp`) (the note editor / note-row editor test) needs no port here: in a
+		// note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`) and
+		// gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test. The fill adjustments
+		// (`View::buttonAction` in `gui/views/view.cpp`) name `instrumentClipView`, whose scene is unported.
 		//
 		// @warning **Not ported.** In this port the arm always takes legacy's "otherwise" branch,
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases
 		//          legacy redirects it to a note-fill adjustment.
-		song_->changeFillMode(on); // `:357`
+		song_->changeFillMode(on);
 		return;
 	}
 
 	if (!on || effective_ui_mode() != UiMode::None) {
-		return; // `:359`
+		return;
 	}
 
-	// `:361-365` -- legacy's `cant:` label, reached from here and from `:380`/`:385` below.
+	// Legacy's `cant:` label, reached from here and from the arrangement-only and linear-recording refusals below.
 	const auto refuse = [&result]() { popup(result, String::STRING_FOR_RECORDING_TO_ARRANGEMENT); };
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		refuse();
 		return;
 	}
 
-	if (!song_->project.transport.sync_scaling_clip_id) { // `:372`
+	if (!song_->project.transport.sync_scaling_clip_id) {
 		if (!view_.current_ui_is_clip_minder) {
-			// `:373-376` `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)`, which is
-			// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`). Here that is a deadline
+			// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)`, which is
+			// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp`). Here that is a deadline
 			// `leds()` declares a fast blink until; see `kAlertMs`.
 			clip_view_alert_until_ms_ = ctx.now_ms + kAlertMs;
 			return;
 		}
-		// The clip the view has open: legacy dereferences `getCurrentClip()` unguarded at `:379` (a clip minder always
+		// The clip the view has open: legacy dereferences `getCurrentClip()` unguarded (a clip minder always
 		// has one); with none, or a song the app does not play, nothing is done.
 		const std::optional<project::ClipAddress> clip = services::view_state().current_view().clip;
 		if (!clip || !menu::host_binds(*song_)) {
 			return;
 		}
 		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-		if (facts.clip_arrangement_only(*clip)) { // `:379-381`
+		if (facts.clip_arrangement_only(*clip)) {
 			refuse();
 			return;
 		}
-		if (facts.clip_recording_linearly(*clip)) { // `:384-386`
+		if (facts.clip_recording_linearly(*clip)) {
 			refuse();
 			return;
 		}
@@ -323,25 +322,25 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 }
 
 void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) {
-	// `:450` -- press only, and only from a clean mode.
+	// Press only, and only from a clean mode.
 	if (effective_ui_mode() != UiMode::None) {
 		return;
 	}
-	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) { // `:452-455`
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		popup(result, String::STRING_FOR_RECORDING_TO_ARRANGEMENT);
 		return;
 	}
 	if (song_ == nullptr) {
 		return;
 	}
-	// `:461-462` `soundEditor.setup(); openUI(&soundEditor);`.
+	// `soundEditor.setup(); openUI(&soundEditor);`.
 	//
-	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h`), so
+	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`origin/main:src/deluge/gui/ui/sound_editor.h`), so
 	// this call always takes the `else` in `SoundEditor::setup`, and both of that branch's
-	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
+	// view tests are `&& !Buttons::isShiftButtonPressed()` (the performance-view and song-view ones) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
 	// Buttons::isShiftButtonPressed()` (`View::buttonAction`). So the root is `settingsRootMenu`
-	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
+	// (its final `else`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
 	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
 	                                               /*performance_view=*/false,
@@ -362,21 +361,21 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	const UiMode mode = effective_ui_mode();
 
 	switch (button) {
-	case ButtonId::TapTempo: { // `view.cpp:148-184`
+	case ButtonId::TapTempo: { // the TAP_TEMPO arm of `View::buttonAction` (`gui/views/view.cpp`)
 		if (mode == UiMode::MidiLearn) {
-			// `:148-166` is learn work end to end -- `deleteMidiCommandOnRelease`,
+			// The learn branch is learn work end to end -- `deleteMidiCommandOnRelease`,
 			// `endMidiLearnPressSession`, `learnedThing`. `MidiLearn`'s; see the class doc's
 			// boundary note and `LearnMode`. Left unhandled deliberately -- but NOT passed to the
-			// tail, because legacy's arm reaches `:469`'s `DEALT_WITH` and so suppresses it.
+			// tail, because legacy's arm reaches the closing `DEALT_WITH` return and so suppresses it.
 			return ViewArm::LearnOwns;
 		}
-		if (mode == UiMode::None || mode == UiMode::RecordCountIn) { // `:167`
+		if (mode == UiMode::None || mode == UiMode::RecordCountIn) {
 			if (on) {
 				if (ctx.shift) {
-					playbackHandler.toggleMetronomeStatus(); // `:170-172`
+					playbackHandler.toggleMetronomeStatus();
 				}
 				else if (mode == UiMode::None) {
-					// `:174-179` -- tap tempo, but not during a record count-in.
+					// Tap tempo, but not during a record count-in.
 					const bool use_normal_tap_tempo_behaviour =
 					    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour)
 					    == RuntimeFeatureStateToggle::Off;
@@ -384,64 +383,64 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 				}
 			}
 		}
-		return ViewArm::Handled; // `:469`
+		return ViewArm::Handled;
 	}
 
-	case ButtonId::Learn: // `:185-196`
+	case ButtonId::Learn:
 		// `startMIDILearn`/`endMIDILearn` -- the mode itself, so all of it is `MidiLearn`'s. Legacy claims
-		// LEARN unconditionally (`:185`), so the tail is suppressed here too.
+		// LEARN unconditionally, so the tail is suppressed here too.
 		return ViewArm::LearnOwns;
 
 	case ButtonId::Play:
 	case ButtonId::Record:
 		if (mode == UiMode::MidiLearn) {
-			// `:199-212` and `:215-228`: under learn these two buttons ARE learn targets and
+			// The PLAY and RECORD arms: under learn these two buttons ARE learn targets and
 			// nothing else. `MidiLearn`'s. Unhandled -- and note that legacy's arms are guarded by
 			// `&& currentUIMode == UI_MODE_MIDI_LEARN`, so outside learn the chain falls to
-			// `:465-467`'s `NOT_DEALT_WITH` and `Buttons::buttonAction`'s tail runs. That is the
+			// the final `NOT_DEALT_WITH` return and `Buttons::buttonAction`'s tail runs. That is the
 			// `break` below.
 			return ViewArm::LearnOwns;
 		}
 		break; // not a `View::buttonAction` arm outside learn -- the tail has them
 
-	case ButtonId::Save: // `:231-273`
+	case ButtonId::Save:
 		handle_save(on, ctx, r);
-		return ViewArm::Handled; // `:469` -- reached whether or not the four-button guard ran the body
+		return ViewArm::Handled; // Reached whether or not the four-button guard ran the body
 
-	case ButtonId::Load: // `:276-331`
+	case ButtonId::Load:
 		handle_load(on, ctx);
 		return ViewArm::Handled;
 
-	case ButtonId::SyncScaling: // `:334-401`
+	case ButtonId::SyncScaling:
 		handle_sync_scaling(on, ctx, r);
 		return ViewArm::Handled;
 
-	case ButtonId::Back: // `:404-421`
+	case ButtonId::Back:
 		if (on) {
 #ifndef undoButtonX
-			// `:407`'s `#ifndef undoButtonX`, and `undoButtonX` is defined nowhere in this tree --
-			// see the class doc. This is the live undo/redo; `view.cpp:425-448`'s dedicated undo
+			// the `#ifndef undoButtonX` of the BACK arm, and `undoButtonX` is defined nowhere in this repository --
+			// see the class doc. This is the live undo/redo; the `#ifdef undoButtonX` branches' dedicated undo
 			// and redo buttons are dead code.
-			if (actionLogger.allowedToDoReversion()) { // `:409`
-				// `:411-417` -- legacy pends the command rather than performing it, reusing the
+			if (actionLogger.allowedToDoReversion()) {
+				// Legacy pends the command rather than performing it, reusing the
 				// machinery the MIDI-triggered case needs anyway, then runs `slowRoutine()` to
 				// perform it immediately if the card is not being read.
-				pendingGlobalMIDICommand = ctx.shift ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO; // `:414-415`
-				// `:416` writes `GlobalMIDICommand::PLAYBACK_RESTART` (== 0) into a variable
+				pendingGlobalMIDICommand = ctx.shift ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO;
+				// Writes `GlobalMIDICommand::PLAYBACK_RESTART` (== 0) into a variable
 				// `playback_handler.cpp` defines as `int32_t`, through a mismatched `extern
-				// GlobalMIDICommand` declaration in `view.cpp`. The value is 0 either way (and
-				// `:435`, the dead-code twin, simply writes `0`), so this writes 0 rather than reproducing the type
+				// GlobalMIDICommand` declaration in `gui/views/view.cpp`. The value is 0 either way (and
+				// the dead-code twin simply writes `0`), so this writes 0 rather than reproducing the type
 				// pun.
 				pendingGlobalMIDICommandNumClustersWritten = 0;
-				playbackHandler.slowRoutine(); // `:417`
+				playbackHandler.slowRoutine();
 			}
 #endif
 		}
-		return ViewArm::Handled; // `:469` -- BACK is dealt with by `View` on press AND on release
+		return ViewArm::Handled; // BACK is dealt with by `View` on press AND on release
 
-	case ButtonId::SelectEnc: // `:449-464`
+	case ButtonId::SelectEnc:
 		if (!ctx.shift) {
-			// `:449`'s second conjunct fails, so the whole chain falls to `:465-467`'s
+			// The SELECT_ENC arm's shift conjunct fails, so the whole chain falls to the final
 			// `NOT_DEALT_WITH`. The tail has no SELECT_ENC arm, so nothing happens there either.
 			return ViewArm::NotAnArm;
 		}
@@ -453,16 +452,16 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	default:
 		break;
 	}
-	return ViewArm::NotAnArm; // `:465-467` `return ActionResult::NOT_DEALT_WITH`
+	return ViewArm::NotAnArm; // `return ActionResult::NOT_DEALT_WITH`
 }
 
-// -- `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`) ----------------------------------
+// -- `Buttons::buttonAction`'s tail (`hid/buttons.cpp`) ----------------------------------
 
 Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiContext& ctx) {
 	Result r;
 
 	switch (button) {
-	case ButtonId::Play: { // `hid/buttons.cpp:144-167`
+	case ButtonId::Play: { // `Buttons::buttonAction` (`hid/buttons.cpp`)
 		if (!on) {
 			r.handled = true; // the arm is `if (on)`-only, and the tail always ends `dealtWith`
 			return r;
@@ -472,23 +471,21 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		// legacy's PLAY arm makes on the same storage (see `scenes/recorder/recorder_scene.h`).
 		const bool output_recording = AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE;
 		if (output_recording && record_held) {
-			// `:149-151` -- stop output-recording at end of loop.
+			// Stop output-recording at end of loop.
 			if (!lowering_.press_used_up(ButtonId::Record) && playbackHandler.isEitherClockActive()
 			    && currentPlaybackMode != nullptr) {
-				currentPlaybackMode->stopOutputRecordingAtLoopEnd(); // `:150`
+				currentPlaybackMode->stopOutputRecordingAtLoopEnd();
 			}
 		}
 		else {
-			playbackHandler.playButtonPressed(kInternalButtonPressLatency); // `:157`
-			if (record_held && playbackHandler.playbackState != 0
-			    && !lowering_.press_used_up(ButtonId::Record)) { // `:160`
+			playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+			if (record_held && playbackHandler.playbackState != 0 && !lowering_.press_used_up(ButtonId::Record)) {
 				// Begin output-recording simultaneously with playback.
 				(void)deluge::recording::beginOutputRecording();
 			}
 		}
-		// `:165` `recordButtonPressUsedUp = true`, INSIDE `if (on)` and OUTSIDE the if/else above
-		// (braces read: `:145` opens `if (on)`, `:152`/`:163` close the two branches, `:165` is the
-		// statement, `:166` closes `if (on)`). The bit belongs to the button whose *release* it
+		// `recordButtonPressUsedUp = true` sits INSIDE `if (on)` and OUTSIDE the if/else above (by the braces of
+		// `Buttons::buttonAction`'s PLAY arm in `hid/buttons.cpp`). The bit belongs to the button whose *release* it
 		// suppresses, which is RECORD, not PLAY -- exactly as `InputLowering::mark_press_used_up`'s
 		// own note says.
 		lowering_.mark_press_used_up(ButtonId::Record);
@@ -496,8 +493,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		return r;
 	}
 
-	case ButtonId::Shift: // `:169-171`
-		// `commandToggleShift(on)` (`:170`) is already `InputLowering::toggle_shift`
+	case ButtonId::Shift:
+		// `commandToggleShift(on)` is already `InputLowering::toggle_shift`
 		// (`shell/input_lowering.cpp`), which `on_button` calls *before* this event was
 		// ever emitted. Reported handled because legacy's tail deals with it; nothing to do.
 		r.handled = true;
@@ -510,15 +507,15 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `recordButtonPressUsedUp = false` are both
 			// already done by `InputLowering::on_button`, which stamps the press clock and clears the used-up bit for
 			// every button on its own press.
-			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
-				if (ctx.shift) {                                                       // `:181`
+			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
+				if (ctx.shift) {
 					(void)deluge::recording::beginOutputRecording();
-					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
+					lowering_.mark_press_used_up(ButtonId::Record);
 				}
 			}
 		}
 		else {
-			// `:190-192` `display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)` ->
+			// `display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)` ->
 			// `cancelPopup()`.
 			//
 			// @warning **Not ported, and this one changes behaviour.** That popup is raised by
@@ -543,17 +540,17 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		r.handled = true;
 		return r;
 
-	case ButtonId::TempoEnc: // `:206-223`
+	case ButtonId::TempoEnc:
 		if (on) {
 			if (ctx.shift) {
-				playbackHandler.commandClearTempoAutomation(); // `:208-209`
+				playbackHandler.commandClearTempoAutomation();
 			}
 			else if (ctx.held.has(ButtonId::TapTempo)) {
-				playbackHandler.commandDisplaySwingInterval(); // `:211-212`
+				playbackHandler.commandDisplaySwingInterval();
 			}
 			else if (!view_.loading_song && !view_.current_ui_is_song_or_arranger) {
-				// `:215-220`. Legacy's `isOLEDSessionView` is `currentUI == &sessionView ||
-				// currentUI == &arrangerView` (`:216`), injected here because `src/scenes` may not
+				// Legacy's `isOLEDSessionView` is `currentUI == &sessionView ||
+				// currentUI == &arrangerView`, injected here because `src/scenes` may not
 				// read the root UI.
 				playbackHandler.commandDisplayTempo();
 			}
@@ -563,16 +560,16 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 
 	case ButtonId::ModEnc0:
 	case ButtonId::ModEnc1:
-		// `:226-231` `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this
-		// service: `Router::route`'s `is_mod_or_gold` sends them to `services.mod_knobs` one step
-		// earlier (`shell/router.cpp`), which is where
-		// `View::modEncoderButtonAction` is ported. Listed so the tail's arm census is complete.
+		// `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this service: `Router::route`'s
+		// `is_mod_or_gold` sends them to `services.mod_knobs` one step earlier (`shell/router.cpp`), which is where
+		// `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`) is ported. Listed so the tail's
+		// arm census is complete.
 		return r;
 
 	default:
 		break;
 	}
-	// `:232` `dealtWith:` -- every button reaches it, but only the arms above do anything, and a
+	// `dealtWith:` -- every button reaches it, but only the arms above do anything, and a
 	// button nothing claimed is more useful reported unhandled here (`Router::dropped_events`).
 	return r;
 }
@@ -583,14 +580,14 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// `View::buttonAction` first, because `Buttons::buttonAction` calls it first (at
-	// `hid/buttons.cpp:134`) and skips the tail when it dealt with the event (`:139-141`).
+	// `hid/buttons.cpp`) and skips the tail when it dealt with the event.
 	//
 	// **Gated on the input-taking scene being a ROOT scene**, because `View::buttonAction` is the
 	// root view's fallback and only the root view's -- see `Scene::is_root`'s doc for the two-line
 	// proof (`grep "public RootUI"` finds exactly `TimelineView` and `KeyboardScreen`, and both
 	// forward). A non-root current UI returns `NOT_DEALT_WITH` from its own `buttonAction` and
 	// legacy goes straight to the tail, which is what `ViewArm::NotAnArm` means here. The tail
-	// itself is deliberately **not** gated: `hid/buttons.cpp:139-141` runs it for any current UI
+	// itself is deliberately **not** gated: `Buttons::buttonAction` (`hid/buttons.cpp`) runs it for any current UI
 	// that declined, root or not.
 	Result r;
 	const ViewArm arm =
@@ -617,24 +614,23 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 
 void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// `PlaybackHandler::setLedStates` (`playback/playback_handler.cpp`).
-	(void)frame.set(led(ButtonId::Play), playbackHandler.playbackState != 0 ? kOn : kOff); // `:2501`
+	(void)frame.set(led(ButtonId::Play), playbackHandler.playbackState != 0 ? kOn : kOff);
 
-	// `:2503-2506`. The guard is legacy's: while an internal (resample/output) recording is live,
+	// The guard is legacy's: while an internal (resample/output) recording is live,
 	// or while recording to the arrangement, the RECORD LED is owned by whoever set it -- so
 	// legacy declares nothing and neither does this.
 	if (AudioEngine::foregroundRecordingSource() < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
 	    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
-		(void)frame.set(led(ButtonId::Record),
-		                playbackHandler.recording == RecordingMode::NORMAL ? kOn : kOff); // `:2505`
+		(void)frame.set(led(ButtonId::Record), playbackHandler.recording == RecordingMode::NORMAL ? kOn : kOff);
 	}
-	// `:2508-2509`'s `deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)` has no `LedId`; see the
+	// The tail's `deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)` has no `LedId`; see the
 	// class doc.
-	(void)frame.set(led(ButtonId::TapTempo), playbackHandler.metronomeOn ? kOn : kOff); // `:2511`
+	(void)frame.set(led(ButtonId::TapTempo), playbackHandler.metronomeOn ? kOn : kOff);
 
 	// `View::setTimeBaseScaleLedState`, which is the whole of
 	// `View::setLedStates`.
 	if (blinking_sync_scaling()) {
-		// `:504-506` `indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING)` -- the defaults are
+		// `indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING)` -- the defaults are
 		// `numBlinks` 255 (forever) on the normal blink every `blinkingType` 0 LED shares.
 		//
 		// A sync-scaling clip must exist: legacy's `getCurrentClip() == getSyncScalingClip()` is also true when both
@@ -643,21 +639,21 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	}
 	else {
 		(void)frame.set(led(ButtonId::SyncScaling),
-		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff); // `:510`
+		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff);
 	}
 
 	// `View::buttonAction`'s own two LEDs: SAVE on while held, off otherwise
-	// (`:265`, `:269`); LOAD the same (`:299`, `:323`, `:327`).
+	// (set when the hold starts, cleared on release); LOAD the same.
 	(void)frame.set(led(ButtonId::Save), holding_save_ ? kOn : kOff);
 	(void)frame.set(led(ButtonId::Load), holding_load_ ? kOn : kOff);
 
 	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`View::buttonAction`) =
-	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): FIVE half-periods of
+	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp`): FIVE half-periods of
 	// `kFastFlashTime` -- see `kAlertMs`, and the spec pins it against legacy's own countdown --
-	// then `setLedState(led, returnToState)` (`:128`), the state the LED had when the alert began.
+	// then `setLedState(led, returnToState)`, the state the LED had when the alert began.
 	// Declared only while alerting: once nothing declares it the shell hands the LED back
 	// (`SurfaceSet::release_led`), which under the guest restores legacy's state from before the
-	// alert -- lit over a clip view, as `SoundEditor::setLedStates` (`gui/ui/sound_editor.cpp:531-552`)
+	// alert -- lit over a clip view, as `SoundEditor::setLedStates` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
 	// never touches it.
 	const bool alerting =
 	    clip_view_alert_until_ms_.has_value() && static_cast<int32_t>(now_ms_ - *clip_view_alert_until_ms_) < 0;

@@ -1,13 +1,13 @@
 /// @file
 /// @brief `gui::ui::forwardGridPad` -- `SoundEditor::padAction`'s root switch
-///        (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`), ported.
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) and its tail, ported.
 ///
 /// What this pins: the six-way decision `forwardGridPad` makes over the real legacy root-UI
 /// singletons (`keyboardScreen`, `instrumentClipView`, `automationView`, `performanceView`, and the
 /// tail's fallback), through a recording `perform` installed by `setPadForwardPerform` -- so an
 /// example can assert the decision, and the coordinates the target would have been handed, without
 /// running a legacy view's own pad handler. Two exceptions run for real instead of through the
-/// recorder: "really removes the ported menu when the tail fires" restores the real `perform` and
+/// recorder: "really removes the menu when the tail fires" restores the real `perform` and
 /// runs the real tail arm (`closePortedMenu`) against a real `MenuScene` on the real guest's scene
 /// stack -- that call names no legacy view, so it is safe to run for real here, and it is what covers
 /// the tail firing `closePortedMenu` outside the recorder; the `automationView` examples open a real
@@ -16,13 +16,13 @@
 /// (`open_menu_node`); a horizontal page focused on a column, a cable's page and the pad-claim examples
 /// open through the shortcut entry (`open_shortcut_over`), on the guest's own stack.
 ///
-/// The two note-mode arms (`sound_editor.cpp:1481-1498`) are asked of a real
-/// `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack,
-/// because `activeNoteMode()` reads exactly that. Their performer is pinned without running either
-/// legacy handler: `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with
-/// recorders. (Both handlers' `soundEditor` navigation calls -- `readValueAgain`, `goUpOneLevel` and
-/// `toggleNoteEditorParamMenu` in `gui/views/instrument_clip_view.cpp` -- are gated on the ported
-/// note mode, and `note_mode_reads_spec.cpp` runs them.)
+/// The two note-mode arms (`SoundEditor::padAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) are asked of a
+/// real `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack, because
+/// `activeNoteMode()` reads exactly that. Their performer is pinned without running either legacy handler:
+/// `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with recorders. (Both handlers' `soundEditor`
+/// navigation calls -- `readValueAgain`, `goUpOneLevel` and `toggleNoteEditorParamMenu` in
+/// `gui/views/instrument_clip_view.cpp` -- are gated on the note mode, and `note_mode_reads_spec.cpp` runs
+/// them.)
 ///
 /// Nothing here asks
 /// `Scene::grid_pad_claim()`: that question is asked by this function's caller, before `forwardGridPad` is ever
@@ -78,7 +78,7 @@
 
 #include "support/printers/rgb_printer.h"
 #include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
-#include "util/shell_menu_entry.h"  // openShellMenuAtShortcut
+#include "util/menu_entry.h"        // openMenuAtShortcut
 #include "util/sound_menu_open.h"
 
 #include "cppspec.hpp"
@@ -242,7 +242,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	after_each([] { deluge::gui::ui::setPadForwardPerform(nullptr); });
 
 	it("sends every pad to the keyboard screen when that is the root", _ {
-		// `sound_editor.cpp:1474-1477`: the arm has no coordinate test at all.
+		// `SoundEditor::padAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the `keyboardScreen` arm has no
+		// coordinate test at all.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&keyboardScreen);
 		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Keyboard);
@@ -250,7 +251,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends the audition column, and only that column, to the clip view", _ {
-		// `:1499-1502`: `x == kDisplayWidth + 1`, nothing else.
+		// main's `SoundEditor::padAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): `x == kDisplayWidth + 1`,
+		// nothing else.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
@@ -259,7 +261,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("hands the marker's audition column to the clip view on an instrument clip, whatever the root", _ {
-		// `SampleMarkerEditor::padAction` (`sample_marker_editor.cpp:358-364`): no root test, only the clip's type.
+		// main's `SampleMarkerEditor::padAction` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): no root
+		// test, only the clip's type.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		setRootUILowLevel(&keyboardScreen);
@@ -277,13 +280,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("lets a main-grid pad on a clip root fall through to the tail", _ {
-		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
-		// tail at `:1520-1545`. This is NOT the note-editor arms -- no ported menu is on the
-		// global guest's stack here, so `activeNoteMode()` answers `None`, which is the port of
-		// neither `inNoteEditor()` nor `inNoteRowEditor()` holding. (The examples under "the note modes" below cover the
-		// note-editor arms.) This example is ordinary behaviour: `instrumentClipView` matches no coordinate-gated arm
-		// above it for a plain main-grid pad, so both legacy and the port fall to the tail the same
-		// way -- no divergence in this example.
+		// The audition-column `else if` of main's `SoundEditor::padAction` not taken -> its `// fall through below`
+		// comment -> the tail. This is NOT the note-editor arms -- no menu is on the global guest's stack here, so
+		// `activeNoteMode()` answers `None`, which is the port of neither `inNoteEditor()` nor `inNoteRowEditor()`
+		// holding. (The examples under "the note modes" below cover the note-editor arms.) This example is ordinary
+		// behaviour: `instrumentClipView` matches no coordinate-gated arm above it for a plain main-grid pad, so both
+		// legacy and the port fall to the tail the same way -- no divergence in this example.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
@@ -291,15 +293,16 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends everything to the performance view when that is the root", _ {
-		// `:1515-1517`, which returns performanceView's own result and never reaches the tail.
+		// main's `SoundEditor::padAction` returns `performanceView.padAction`'s own result for this root and never
+		// reaches the tail.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&performanceView);
 		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Performance);
 	});
 
 	it("does not exit on a release", _ {
-		// `:1520`'s `&& on`. Load-bearing: a swallowed release leaves legacy's audition state
-		// latched after a forwarded audition-column press.
+		// The tail's `&& on` in main's `SoundEditor::padAction`. Load-bearing: a swallowed release leaves legacy's
+		// audition state latched after a forwarded audition-column press.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&sessionView);
 		currentUIMode = UI_MODE_NONE;
@@ -307,7 +310,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("does not exit while a UI mode is active", _ {
-		// `:1520`'s `currentUIMode == UI_MODE_NONE`.
+		// The tail's `currentUIMode == UI_MODE_NONE` in main's `SoundEditor::padAction`.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&sessionView);
 		currentUIMode = UI_MODE_AUDITIONING;
@@ -375,7 +378,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::Exit);
 	});
 
-	it("really removes the ported menu when the tail fires", _ {
+	it("really removes the menu scene when the tail fires", _ {
 		// The one example that runs the REAL perform: `closePortedMenu()` names no legacy view, so
 		// it is safe here, and this covers the tail firing `closePortedMenu` outside the recorder.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
@@ -391,14 +394,16 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
 	});
 
-	// ---- the note modes (`sound_editor.cpp:1481-1498`) ----------------------------------------------
+	// ---- the note modes (`SoundEditor::padAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+	// ----------------------------------------------
 
 	it("under the note editor over the clip view, sends a main-grid pad to its edit action and a "
 	   "sidebar pad to Exit", _ {
-		// The edit action's own `if (on)` is the handler's (`InstrumentClipView::handleNoteEditorEditPadAction`). The arm
-		// itself, `sound_editor.cpp:1481-1490`, tests neither `on` nor `currentUIMode`, and its exit is
-		// unconditional -- so a release and a UI mode take the same arms, which is what separates this
-		// Exit from the tail's (`:1520`), and the audition column is the note arm's, not `:1499`'s.
+		// The edit action's own `if (on)` is the handler's (`InstrumentClipView::handleNoteEditorEditPadAction`). The
+		// arm itself, in `SoundEditor::padAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), tests neither
+		// `on` nor `currentUIMode`, and its exit is unconditional -- so a release and a UI mode take the same arms,
+		// which is what separates this Exit from the tail's (the `currentUIMode == UI_MODE_NONE && on` arm), and the
+		// audition column is the note arm's, not the `x == kDisplayWidth + 1` arm's.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -422,8 +427,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("under the note-row editor over the clip view, sends every pad to the note-row editor", _ {
-		// `sound_editor.cpp:1492-1497`: no coordinate test, no `on` test, no mode test -- the handler decides, and
-		// the note-row editor normally runs with a row auditioned (`UI_MODE_AUDITIONING`).
+		// the `inNoteRowEditor` arm of `SoundEditor::padAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): no
+		// coordinate test, no `on` test, no mode test -- the handler decides, and the note-row editor normally runs
+		// with a row auditioned (`UI_MODE_AUDITIONING`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -441,7 +447,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("takes the note arms only while the ported menu is on the guest's stack", _ {
+	it("takes the note arms only while the menu is on the guest's stack", _ {
 		// Control for the two examples above, varying one thing: the same menu, same root and same
 		// root UI, with the menu removed from the stack. `menu_context().root` still reads
 		// `NoteEditor`; the arms must not.
@@ -477,8 +483,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("the real performer hands a NoteEditorEdit pad to the note editor's edit action and leaves the "
 	   "menu open", _ {
-		// `SoundEditor::padAction` (`sound_editor.cpp`) returns `DEALT_WITH` -- no exit. The sidebar
-		// half is its `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
+		// `SoundEditor::padAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) returns `DEALT_WITH` -- no exit.
+		// The sidebar half is its `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
 		RecordingNotePads recording;
 		UiStackGuard ui_guard;
@@ -503,9 +509,10 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("the real performer closes the menu when the note-row editor's handler returns false, and "
 	   "only then", _ {
 		// Both answers are the recorder's, because the real handler returns true on every path
-		// (`instrument_clip_view.cpp:3873-3890`) -- but the false arm is legacy's, kept rather than
-		// folded away: `sound_editor.cpp:1493-1496`, `bool handled = ...; if (!handled) {
-		// exitCompletely(); }`.
+		// (`InstrumentClipView::handleNoteRowEditorPadAction` in `instrument_clip_view.cpp`) -- but the false arm is
+		// main's, kept rather than folded away: the `inNoteRowEditor` arm of `SoundEditor::padAction`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), `bool handled = ...;` then
+		// `if (!handled) { exitCompletely(); }`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
 		RecordingNotePads recording;
 		UiStackGuard ui_guard;
@@ -535,8 +542,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends a sidebar pad to automation view regardless of the param", _ {
-		// `:1553-1557`: `(x >= kDisplayWidth) || editingParamInAutomationView` -- the sidebar half
-		// needs no param agreement at all.
+		// main's `SoundEditor::handleAutomationViewPadAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`):
+		// `(x >= kDisplayWidth) || editingParamInAutomationView` -- the sidebar half needs no param agreement at all.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		open_menu_node(*fx.song, fx.clip, no_param_node);
@@ -558,8 +565,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("falls through to the tail when the menu shows a different param", _ {
-		// `handleAutomationViewPadAction` returns NOT_DEALT_WITH (`:1561`), and `:1508-1511` then
-		// does not return -- so legacy reaches the tail.
+		// main's `SoundEditor::handleAutomationViewPadAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+		// returns NOT_DEALT_WITH, and the automation arm of `SoundEditor::padAction` then does not return -- so main
+		// reaches the tail.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
@@ -572,8 +580,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends a main-grid pad to automation view from a horizontal page whose focused column is the view's param", _ {
-		// `SoundEditor::isEditingAutomationViewParam` asks `getCurrentMenuItem()->getParamKind()`, which on a
-		// horizontal page answers for its focused column (`Submenu::getParamKind`).
+		// `SoundEditor::isEditingAutomationViewParam` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) asks
+		// `getCurrentMenuItem()->getParamKind()`, which on a horizontal page answers for its focused column
+		// (`Submenu::getParamKind`).
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -588,7 +597,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("sends a main-grid pad to automation view from the page of the cable the view shows", _ {
 		// A cable's param kind is `PATCH_CABLE` and its id the cable's descriptor word
-		// (`PatchCableStrength::getModelStack`), as the automation view records a selected cable.
+		// (`PatchCableStrength::getModelStack` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)), as
+		// the automation view records a selected cable.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -662,8 +672,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("does not dereference a null clip", _ {
-		// The port guards a null `getCurrentClip()`; legacy's copy (`:1582-1586`) dereferences it
-		// unguarded and is left as it is.
+		// The port guards a null `getCurrentClip()`; main's `SoundEditor::isEditingAutomationViewParam`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) dereferences it unguarded and is left as it is.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
@@ -675,8 +685,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("takes SAVE under the menu as the sound editor's arm: Shift deletes the picker's range, a plain press saves", _ {
-		// `SoundEditor::buttonAction`'s SAVE arm (`sound_editor.cpp:719-730`), through the guest's
-		// `forwardMenuSaveButton`: only with no UI mode up and an instrument clip's view at the root.
+		// `SoundEditor::buttonAction`'s SAVE arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), through the
+		// guest's `forwardMenuSaveButton`: only with no UI mode up and an instrument clip's view at the root.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -932,7 +942,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		(void)shellHostUI.padAction(kDisplayWidth + 1, 4, 0);
 	});
 
-	it("keeps the kit's selected drum while the ported menu is current, as while the sound editor is", _ {
+	it("keeps the kit's selected drum while the menu scene is current, as while the sound editor is", _ {
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -950,7 +960,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(kit->selectedDrum).to_equal(a);
 	});
 
-	it("freezes the selection under exactly the ported scenes of main's three UIs", _ {
+	it("freezes the selection under exactly the scenes that stand in for main's three UIs", _ {
 		// `setSelectedDrum`'s `currentUI != &sampleBrowser && != &sampleMarkerEditor && != &renameDrumUI`.
 		namespace browser = deluge::scenes::browser;
 		namespace rename = deluge::scenes::rename;
@@ -971,7 +981,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(drumSelectionFrozenBy(deluge::ui::shell::SceneKind::FirstApp, 0)).to_be_false();
 	});
 
-	it("keeps the kit's selected drum while the ported drum rename is over the menu, and not under a clip rename", _ {
+	it("keeps the kit's selected drum while the drum rename scene is over the menu, and not under a clip rename", _ {
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -1062,7 +1072,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("selects the played note's range under the picker, highlights the range's notes, and re-renders the root", _ {
 		// `InstrumentClipView::potentiallyUpdateMultiRangeMenu` -> `noteOnToChangeRange`, `drawAuditionSquare`'s
 		// selecting-ranges test (`isUntransposedNoteWithinRange`), and `possibleChangeToCurrentRangeDisplay`, each
-		// asking the guest when the ported menu is up.
+		// asking the guest when the menu is up.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -1104,8 +1114,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			shellHostUI.shell().tick(1);
 			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
 			expect(whichSideRowsNeedRendering).not_().to_equal(0);
-			// `MenuItem::isRangeDependent` is true for the transposes and the loop points only: the file selector
-			// and the recorder check the range on open but do not highlight it.
+			// `MenuItem::isRangeDependent` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) is true for the
+			// transposes and the loop points only: the file selector and the recorder check the range on open but do
+			// not highlight it.
 			for (const Node* item : {&nodes::file0_selector, &nodes::sample0_recorder}) {
 				menu_scene().open(*item, ctx);
 				shellHostUI.shell().tick(1);
@@ -1190,8 +1201,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("selects a keyboard note's range under the picker and highlights the range on the isomorphic keyboard", _ {
-		// `KeyboardScreen::evaluateActiveNote`'s `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
-		// +35, each asking the guest when the ported menu is up over the keyboard.
+		// `KeyboardScreen::updateActiveNotes`' `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
+		// +35, each asking the guest when the menu is up over the keyboard.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();

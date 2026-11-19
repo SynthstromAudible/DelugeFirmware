@@ -671,22 +671,23 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
+	// ---- Boot wiring for the UI (`src/scenes/registry.h`'s boot-wiring note) --------------------
 	//
-	// Settings the ported tree and the guest's `Shell` cannot read for themselves. Each is pushed beside legacy's own
-	// writer, since a boot call alone goes stale the moment the user changes the setting; where the writer is the flash
-	// read itself, the push is also below.
+	// Settings the scenes and the guest's `Shell` cannot read for themselves. Each is pushed beside its writer, since
+	// a boot call alone goes stale the moment the user changes the setting; where the writer is the flash read itself,
+	// the push is also below.
 	//
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
 	//   * **The shortcut layout** (flash byte 60) needs no push: the scenes read `FlashStorage::shortcutsVersion`
 	//     where they select a layout.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
-	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
+	//     settings item, a factory reset, the menu's highlighting setter (`menu::host_highlighting_changed`) and the
+	//     call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
 	//     `RuntimeFacts::flash_cursor` where they draw it.
 
-	// Number the ported menu tree. Idempotent (a function-local static), and normally already done by
+	// Number the menu tree. Idempotent (a function-local static), and normally already done by
 	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is
 	// static-initialisation order rather than a guarantee, and `MenuScene::save_state`,
 	// `restore_state` and the shortcut-pad jump silently do nothing on an unnumbered tree.
@@ -764,7 +765,7 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 	}
 }
 
-// Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
+// Card-detect is pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {

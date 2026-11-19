@@ -15,7 +15,7 @@
 /// capture buffer and returns; the file is created in `cardRoutine()`, which only
 /// `AudioEngine::doRecorderCardRoutines()` calls on the device. The one example that pumps it does
 /// so on an aborted take that never created a file, whose teardown is memory only.
-/// `endSyncedRecording` (`:1195`) is arithmetic over `numSamplesCaptured`, and `abort()` (`:367`) is
+/// `endSyncedRecording` is arithmetic over `numSamplesCaptured`, and `abort()` is
 /// a single status store -- the file deletion that follows an abort is, again, in `cardRoutine()`.
 /// The file runs with no card installed (`NoSdRoot`), and the card is in memory, so a future change
 /// that *did* create a file could reach no committed fixture; `QuietAudio` keeps the audio routine
@@ -49,7 +49,7 @@
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "support/global_guest_menu.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "shell/leds.h"
 #include "shell/profiles/deluge.h"
@@ -359,8 +359,8 @@ struct PublishedOutputRecording {
 
 /// @brief Force input monitoring ON for the scope, and put `inputMonitoringMode` back.
 ///
-/// The exposure the fix-round-2 review named: this was a hand-written save/restore pair inside one
-/// example, which is the one shape that stops being a save/restore the moment an assertion between
+/// A hand-written save/restore pair inside one
+/// example is the one shape that stops being a save/restore the moment an assertion between
 /// them fails.
 struct MonitoringOn {
 	InputMonitoringMode saved = AudioEngine::inputMonitoringMode;
@@ -436,7 +436,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// The ONLY thing left in `before_each`: installing a `Display`, which is a one-time static and
 	// has nothing to leak. Every process global this spec touches is held by `Guards` instead --
 	// see the comment above `spec_bail`. `before_each` cannot `expect`, so a defensive reset here
-	// could only ever repair silently, which is precisely the habit that hid mutant F5.
+	// could only ever repair silently, which would hide a leak from the assertions that should see it.
 	before_each([] {
 		static RecorderDisplay d;
 		if (display == nullptr) {
@@ -461,8 +461,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("refuses to open with nowhere to put the finished sample", _ {
-		// The port's own gate: `process()`'s success arm dereferences the range with no null test
-		// (`:215-217`), and legacy is saved from that by
+		// The port's own gate: `AudioRecorder::process`'s success arm dereferences the range with no null test
+		// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), and main is saved from that by
 		// `checkPermissionToBeginSessionForRangeSpecificParam` refusing first.
 		Guards g;
 		Rig r;
@@ -539,7 +539,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// --- stopping -----------------------------------------------------------------------------
 
 	it("ends the recording on BACK, on SELECT_ENC and on RECORD", _ {
-		// `AudioRecorder::buttonAction` (`:268-274`): the three buttons that mean "stop".
+		// `AudioRecorder::buttonAction` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`): the three buttons that
+		// mean "stop".
 		const ButtonId kStopButtons[] = {ButtonId::Back, ButtonId::SelectEnc, ButtonId::Record};
 		for (ButtonId b : kStopButtons) {
 			Guards g;
@@ -547,7 +548,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 			r.open();
 			r.tick(0);
 			SampleRecorder* rec = recorder_scene().recorder();
-			// A recorder that captured nothing is aborted by `endSyncedRecording` (`:1243-1245`),
+			// A recorder that captured nothing is aborted by `endSyncedRecording`,
 			// which is a different arm; give it something so the ordinary one runs.
 			rec->numSamplesCaptured = 44100;
 			r.press(b, 10);
@@ -592,12 +593,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 		r.tick(10);
 
-		// `process()`'s success arm (`:213-217`), every statement of it.
+		// `AudioRecorder::process`'s success arm, every statement of it.
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
 		AudioFileHolder* holder = r.range->getAudioFileHolder();
 		expect(holder->audioFile).to_equal(static_cast<AudioFile*>(captured));
 		expect(holder->filePath).to_equal(std::string("SAMPLES/RECORD/REC000.WAV"));
-		// `deluge::recording`'s `finishRecording`, and `AudioRecorder::finishInputTake`'s `close()`.
+		// `deluge::recording`'s `finishRecording`, and the `close()` of main's `AudioRecorder::process`
+		// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`).
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
 	});
@@ -858,7 +860,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("ends a take whose guest a UI teardown took down, and frees it once it has settled", _ {
 		// A song load or a clear takes every UI down (`nullifyUIs`) with the recorder on top, and nothing ticks a closed
-		// guest: the teardown itself ends the screen's take, as legacy's recorder did once its UI was gone.
+		// guest: the teardown itself ends the screen's take, as main's recorder does once its UI is gone.
 		Guards g;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
@@ -951,8 +953,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		setRootUILowLevel(&instrumentClipView);
 		{
 			PublishedOutputRecording output;
-			expect(deluge::gui::ui::openShellMenu(k.song.clip, 0, false, false, false, false,
-			                                      deluge::gui::ui::ShellMenuNode::Osc0Recorder))
+			expect(deluge::gui::ui::openMenu(k.song.clip, 0, false, false, false, false,
+			                                      deluge::gui::ui::MenuNode::Osc0Recorder))
 			    .to_be_true();
 			for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
 				(void)shellHostUI.timerCallback();
@@ -991,7 +993,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("attaches nothing when the recording aborted, but still closes", _ {
-		// `process()`'s empty `if (status == ABORTED || hadCardError) {}` arm (`:209`).
+		// `AudioRecorder::process`'s empty `if (status == ABORTED || hadCardError) {}` arm.
 		Guards g;
 		Rig r;
 		r.open();
@@ -1071,7 +1073,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("clears the clipping flag when it reports it, so one clip is one popup", _ {
-		// `process()`'s clipping arm (`:227-233`). The popup itself is a `Notices` matter; what
+		// `AudioRecorder::process`'s clipping arm. The popup itself is a `Notices` matter; what
 		// this scene owns is the flag, which legacy clears before showing anything.
 		Guards g;
 		Rig r;
@@ -1284,7 +1286,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("greys out every column of the grid, exactly as getGreyoutColsAndRows does", _ {
-		// `AudioRecorder::getGreyoutColsAndRows` (`:58-61`): `*cols = 0xFFFFFFFF`, rows untouched.
+		// `AudioRecorder::getGreyoutColsAndRows` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`):
+		// `*cols = 0xFFFFFFFF`, rows untouched.
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().cols)).to_equal(static_cast<int64_t>(0xFFFFFFFF));
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().rows)).to_equal(static_cast<int64_t>(0));
 	});
@@ -1419,7 +1422,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("refuses to open while any foreground recording is already live", _ {
-		// `opened()`'s first refusal (`:69-71`), which is `recordingSource > NONE` -- and which
+		// `AudioRecorder::opened`'s first refusal, which is `recordingSource > NONE` -- and which
 		// covers an OUTPUT recording (resampling, stem export) as well as this UI's own.
 		Guards g;
 		Rig r;
@@ -1552,8 +1555,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("opens REC 2 from that page on oscillator 2's own range, with oscillator 1 multisampled and none picked", _ {
-		// `osc::AudioRecorder::checkPermissionToBeginSession` asks about its own `source_id_`: oscillator 2 gets its
-		// first range and, having one, needs no picker, whatever oscillator 1 holds.
+		// `osc::AudioRecorder::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) asks about its own `source_id_`: oscillator 2
+		// gets its first range and, having one, needs no picker, whatever oscillator 1 holds.
 		Guards g;
 		Rig r;
 		r.source->ranges.insertMultiRange(1);

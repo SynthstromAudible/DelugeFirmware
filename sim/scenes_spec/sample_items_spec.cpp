@@ -16,7 +16,7 @@
 ///     different folder, a different sample length, a range that exists on one source and not the
 ///     other -- so an item wired to the wrong source fails rather than passing on symmetry.
 ///
-/// Plus the relevance half of the task: the file selector, loop start and loop end nodes' relevance
+/// Plus relevance: the file selector, loop start and loop end nodes' relevance
 /// is compared with the reference rows main's `isRelevant()` overrides gave over **eight** oscillator
 /// configurations rather than the single fixture `tables_1_spec.cpp` uses, the port asked through a
 /// `MenuContext` built from the model state the rows were taken in.
@@ -113,7 +113,7 @@ int64_t zoom_max(int32_t num_clusters) {
 }
 
 /// @brief The minimum `Display` the legacy items and the marker scene need. `display` is null in a
-///        spec process (`hid/display/display.cpp:4`).
+///        spec process (`hid/display/display.cpp`).
 struct QuietDisplay final : deluge::hid::Display {
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
@@ -173,7 +173,7 @@ void focus_in(Shell& shell, const MenuContext& ctx, const Node& node) {
 /// from a wiring bug -- and a `before_each` that quietly tidied up hides a real defect.
 /// Each rig's destructor tears its own stack down; this guard's job
 /// is to say so out loud if one did not. `before_each`/`after_each` take a `std::function<void()>`
-/// with no `self` (`cppspec/description.hpp`), so `expect` is unavailable there and a named reason
+/// with no `self` (CppSpec's description header), so `expect` is unavailable there and a named reason
 /// on stderr plus `std::abort()` is what "loudly" means.
 struct CleanScenes {
 	CleanScenes() { check("a scene singleton was still busy when an example started"); }
@@ -377,28 +377,30 @@ std::vector<Wiring> observed_wiring() {
 
 /// @brief What each node must carry, derived from the legacy class each node's item ports.
 ///
-/// `MarkerType::START` is 0 and `MarkerType::END` is 3 (`definitions_cxx.hpp:777-784`); the same
+/// `MarkerType::START` is 0 and `MarkerType::END` is 3 (`definitions_cxx.hpp`); the same
 /// two numbers are `static_assert`ed against the enum in `nodes/sample.cpp`, so this table and the
 /// items cannot drift apart silently.
 std::vector<Wiring> expected_wiring() {
 	return {
-	    // `FileSelector` (`gui/menu_item/file_selector.cpp`): `setCurrentSource(sourceId_)`,
+	    // `FileSelector` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`): `setCurrentSource(sourceId_)`,
 	    // then `openUI(&sampleBrowser)`.
 	    {"file0_selector", 0, 0, -1},
 	    {"file1_selector", 0, 1, -1},
-	    // `sample::Start` (`gui/menu_item/sample/start.h:23`) sets `markerType = START`;
-	    // `LoopPoint::beginSession` (`sample/loop_point.cpp:68-69`) sets the source first.
+	    // `sample::Start` (`origin/main:src/deluge/gui/menu_item/sample/start.h`) sets `markerType = START`;
+	    // `LoopPoint::beginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) sets the source
+	    // first.
 	    {"sample0_start", 1, 0, 0},
 	    {"sample1_start", 1, 1, 0},
-	    // `sample::End` (`gui/menu_item/sample/end.h:23`) sets `markerType = END`.
+	    // `sample::End` (`origin/main:src/deluge/gui/menu_item/sample/end.h`) sets `markerType = END`.
 	    {"sample0_end", 1, 0, 3},
 	    {"sample1_end", 1, 1, 3},
-	    // `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- `MarkerType::END`, and
-	    // **no** `setCurrentSource` (`audio_clip/sample_marker_editor.cpp:43-51`), which is the -1.
+	    // `audioClipSampleMarkerEditorMenuEnd` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `MarkerType::END`, and
+	    // **no** `setCurrentSource` (`audio_clip::SampleMarkerEditor::beginSession` in
+	    // `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`), which is the -1.
 	    {"audio_clip_waveform", 1, -1, 3},
 	    // `audioClipSampleMarkerEditorMenuStart`: the same, on `MarkerType::START`.
 	    {"audio_clip_waveform_start", 1, -1, 0},
-	    // `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:38,50`).
+	    // `osc::AudioRecorder::beginSession` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`).
 	    {"sample0_recorder", 2, 0, -1},
 	    {"sample1_recorder", 2, 1, -1},
 	};
@@ -422,8 +424,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
 		// ... and the comparison is not vacuous. Ten near-identical items over two macro-generated
 		// oscillator pages is precisely the shape where a positional check passes with two of them
-		// crossed over, so a deliberately crossed copy is asserted NOT to match. (The real proof is
-		// the source mutation recorded in the task report; this is the guard that keeps the
+		// crossed over, so a deliberately crossed copy is asserted NOT to match. (This is the guard that keeps the
 		// assertion itself honest if someone later relaxes it.)
 		//
 		// The crossing swaps the *payload* fields only and leaves each row's node name where it is,
@@ -475,9 +476,9 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		expect(ids(found)).to_equal(ids(want));
 	});
 
-	it("retires nine placeholders, none of which came back", _ {
+	it("gives each of the nine sample nodes a real item, none a placeholder", _ {
 		// The count `validate.h` carries, checked from the other end: none of the nine is a
-		// placeholder any more. The tree has no placeholder anywhere (`nodes/output_items.h`
+		// placeholder. The tree has no placeholder anywhere (`nodes/output_items.h`
 		// holds the last two real items), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is
 		// where that is asserted; this only re-checks these nine.
 		for (const Node* n : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
@@ -571,7 +572,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 
 	it("audio_clip_waveform opens the marker editor on the clip's own holder, on END", _ {
-		// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`, `:1193`) is the END-marker
+		// `audioClipSampleMarkerEditorMenuEnd` (`origin/main:src/deluge/gui/ui/menus.cpp`) is the END-marker
 		// spelling, and the audio-clip opener selects no source at all -- the context has no `Sound`
 		// for `select_source` to act on, which is why the item carries -1.
 		spec::QuietAudio quiet;
@@ -645,10 +646,10 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 
 	it("refuses to open the marker editor when the clip has no sample, as legacy refuses", _ {
-		// `audio_clip::SampleMarkerEditor::checkPermissionToBeginSession`
-		// (`audio_clip/sample_marker_editor.cpp:35-38`) as `MarkerScene::can`'s audio-clip arm: the
-		// node has no relevance predicate (legacy overrides none either), so the refusal is the
-		// scene's and it has to actually happen.
+		// `MenuItem::checkPermissionToBeginSession` asks `audio_clip::SampleMarkerEditor::isRelevant`
+		// (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`), which refuses a clip without a
+		// sample. The node has no relevance predicate, so the refusal is `MarkerScene::can`'s audio-clip arm, which has
+		// to actually happen.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		ClipRig r;
@@ -669,7 +670,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 
 	it("sample1_recorder gives source 1 its first range and opens the recorder on it, as main's AudioRecorder does", _ {
-		// `osc::AudioRecorder::checkPermissionToBeginSession` asks
+		// `osc::AudioRecorder::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) asks
 		// `checkPermissionToBeginSessionForRangeSpecificParam` about its own `source_id_`, whose first statement is
 		// `getOrCreateFirstRange()`: a square-wave oscillator 2 with no `MultiRange` gets one and records into it. The
 		// menu's context stays on source 0 (`SoundRig::ctx`), so only an item that asks about source 1 itself makes the
@@ -746,11 +748,11 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 
 	it("does not leave source 0's range behind when it selects source 1", _ {
-		// `menu::select_source` folds in `SoundEditor::setup`'s `:1786-1788`, which nulls a
-		// remembered range whenever the source index moves. Asserted directly, because the two
-		// examples above can only see it through a scene: without it, a context resolved for source
-		// 0 and re-pointed at source 1 would still name source 0's range, and every scene here
-		// opens on the range the context names.
+		// `menu::select_source` folds in main's `SoundEditor::setup`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which nulls a remembered range whenever the source index
+		// moves. Asserted directly, because the two examples above can only see it through a scene: without it, a
+		// context resolved for source 0 and re-pointed at source 1 would still name source 0's range, and every scene
+		// here opens on the range the context names.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/true};
@@ -765,8 +767,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(engine.sample_controls).to_equal(&r.source[1]->sampleControls);
 
 		// Re-selecting the source already named keeps the selected range -- `setCurrentSource`'s own
-		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:247`), which is what stops a
-		// range the picker chose from being thrown away by the item that opens on it.
+		// `currentMultiRange == nullptr` guard (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is what stops
+		// a range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
 		expect(spec::menu_engine(c).range).to_equal(r.range[1]);
 
@@ -781,7 +783,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 describe sample_items_relevance("scenes::menu the sample items: relevance against main", $ {
 
 	it("agrees with FileSelector::isRelevant and isSampleModeSample in every oscillator mode", _ {
-		// `tables_1_spec.cpp` already compares every batch-1 node's relevance with its reference row, but on ONE fixture
+		// `tables_1_spec.cpp` already compares every node's relevance with its reference row, but on ONE fixture
 		// sound -- which for these nodes exercises one of the eight configurations below. The model is written, then the
 		// port is asked through a freshly built `MenuContext`.
 		select_language();

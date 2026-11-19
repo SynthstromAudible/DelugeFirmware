@@ -154,7 +154,7 @@ struct OledFrame : FrameInput {
 	/// nothing else. There is no all-or-nothing case and no leaky edge left.
 	///
 	/// `line`, `rect` and `rect_rounded` stay decomposed here rather than being handed over whole,
-	/// but that is now a *shape* decision, not a clipping one: `hline`/`vline` normalise a
+	/// but that is a *shape* decision, not a clipping one: `hline`/`vline` normalise a
 	/// reversed span where the canvas's own routines drop it, so the decomposition is what these
 	/// three have always drawn, and collapsing them onto the canvas calls would quietly change
 	/// degenerate rectangles.

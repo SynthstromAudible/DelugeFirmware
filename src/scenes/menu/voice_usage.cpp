@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The voice usage page's sampling clock. See `voice_usage.h`.
+/// @brief The voice usage page's sampling clock. See `scenes/menu/voice_usage.h`.
 
 #include "scenes/menu/voice_usage.h"
 
@@ -29,7 +29,7 @@
 namespace deluge::scenes::menu {
 
 namespace {
-/// `cpu::VoiceUsage::kRefreshIntervalMs` (`cpu/voice_usage.h`).
+/// `cpu::VoiceUsage::kRefreshIntervalMs` (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`).
 constexpr uint32_t kVoiceUsageSampleMs = 500;
 } // namespace
 
@@ -60,7 +60,8 @@ bool VoiceUsageClock::tick(const MenuContext& ctx, const MenuState& st, uint32_t
 	const int32_t live = ctx.facts != nullptr ? ctx.facts->live_voice_count() : 0;
 	if (place != was) {
 		// `VoiceUsage::beginSession` resets and samples, on arrival and on the way back from a counter
-		// (`cpu/voice_usage.h:70-76`); `VoiceCount::beginSession` samples without a reset (`:29-33`).
+		// (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`); `VoiceCount::beginSession` samples without a
+		// reset.
 		if (place == Place::Page) {
 			sampler_.reset();
 		}
@@ -75,7 +76,8 @@ bool VoiceUsageClock::tick(const MenuContext& ctx, const MenuState& st, uint32_t
 		elapsed_ms_ = 0;
 		sampler_.sample(live);
 	}
-	// The VERTICAL style re-reads the open counter (`:81-86`); the page's columns read the sampler as they draw.
+	// The VERTICAL style re-reads the open counter (`VoiceUsage::timerCallback`'s vertical arm); the page's columns
+	// read the sampler as they draw.
 	return place == Place::Counter;
 }
 

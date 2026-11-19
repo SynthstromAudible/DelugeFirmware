@@ -22,13 +22,13 @@
 ///        does with a button, an encoder turn and its own exit while `inNoteEditor()` or
 ///        `inNoteRowEditor()` holds, ported onto `ShellHostUI`.
 ///
-/// `SoundEditor` asks "am I in a note mode?" at five sites of its own: the
-/// button chain (`gui/ui/sound_editor.cpp:617-623`), the exit (`:749-755`), the horizontal encoder
-/// (`:1047-1052`), the pad switch (`:1481-1498`) and the vertical encoder (`:1593-1598`). The pad
-/// switch's port is `gui/ui/shell_pad_forward.cpp`'s; the other four are the functions below, one
-/// per `ShellHostUI` hook. Each answers `std::nullopt` for "not the note mode's" -- the hook then
-/// feeds the shell exactly as it did before this file existed -- or the legacy handler's own
-/// `ActionResult`, which the hook returns.
+/// `SoundEditor` asks "am I in a note mode?" at five sites of its own: the button chain (`SoundEditor::buttonAction` in
+/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), the exit (`SoundEditor::exitCompletely`), the horizontal encoder
+/// (`SoundEditor::horizontalEncoderAction`), the pad switch (`SoundEditor::padAction`) and the vertical encoder
+/// (`SoundEditor::verticalEncoderAction`). The pad switch's port is `gui/ui/shell_pad_forward.cpp`'s; the other four
+/// are the functions below, one per `ShellHostUI` hook. Each answers `std::nullopt` for "not the note mode's" -- the
+/// hook then feeds the shell exactly as it did before this file existed -- or the legacy handler's own `ActionResult`,
+/// which the hook returns.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -52,40 +52,41 @@ namespace deluge::gui::ui {
 enum class NoteModeKind : uint8_t {
 	/// Neither: every hook below answers "not mine".
 	None,
-	/// `SoundEditor::inNoteEditor()` (`gui/ui/sound_editor.cpp`).
+	/// `SoundEditor::inNoteEditor()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	NoteEditor,
-	/// `SoundEditor::inNoteRowEditor()` (`gui/ui/sound_editor.cpp`).
+	/// `SoundEditor::inNoteRowEditor()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	NoteRowEditor,
 };
 
-/// @brief The port of `inNoteEditor()` / `inNoteRowEditor()` for input: the ported menu's root, while
-///        the ported menu is on the guest's scene stack.
+/// @brief The port of `inNoteEditor()` / `inNoteRowEditor()` for input: the menu's root, while
+///        the menu is on the guest's scene stack.
 ///
-/// On the stack, not frontmost: legacy reads its navigation record's first entry, not the current
+/// On the stack, not frontmost: main reads its navigation record's first entry, not the current
 /// UI, so a popup or an input-taking scene over the menu leaves the mode on. Off the stack it is
 /// `None`, whatever `menu_context().root` still says.
 NoteModeKind activeNoteMode();
 
-/// @brief Site 2: `SoundEditor::buttonAction`'s two note arms (`gui/ui/sound_editor.cpp:617-623`).
+/// @brief `SoundEditor::buttonAction`'s two note arms (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 /// @return `std::nullopt` for a button that is not the note mode's, else the handler's own result.
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on);
 
-/// @brief Site 6: `SoundEditor::horizontalEncoderAction`'s two note arms (`:1047-1052`).
+/// @brief `SoundEditor::horizontalEncoderAction`'s two note arms (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 /// @return `std::nullopt` outside the note modes, else the handler's own result.
 std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset);
 
-/// @brief Site 7: `SoundEditor::verticalEncoderAction`'s two note arms (`:1593-1598`).
+/// @brief `SoundEditor::verticalEncoderAction`'s two note arms (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 /// @return `std::nullopt` outside the note modes, else the handler's own result.
 std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset);
 
-/// @brief Site 4: `SoundEditor::exitCompletely`'s two note arms (`:749-755`), for `closeGuest`.
+/// @brief `SoundEditor::exitCompletely`'s two note arms (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), for
+/// `closeGuest`.
 ///
 /// Keyed on `menu_context().root` alone, **not** on `activeNoteMode()`, and that is forced: both of
 /// the guest's close paths reach `closeGuest` after the menu has already left the stack --
 /// `exitUI` removes the input top first (`gui/ui/shell_host_ui.cpp`), and `timerCallback` closes once
 /// nothing stacked takes input.
 /// The key holds only while nothing else re-opens the menu mid-session. The `.cpp` names every writer
-/// of the menu's context -- `openShellMenu`, `GlobalControls::handle_settings_menu` (Shift+Select)
+/// of the menu's context -- `openMenu`, `GlobalControls::handle_settings_menu` (Shift+Select)
 /// and a song swap -- and the `Scene::is_root` gate that keeps the second out of a guest session
 /// today, which a future `is_root()` override on a scene the guest hosts would break.
 void exitNoteModeBeforeClose();
@@ -95,50 +96,49 @@ void exitNoteModeBeforeClose();
 /// Several `InstrumentClipView` functions the note mode forwards into talk to `soundEditor`'s
 /// navigation record directly. Under the guest that record is never
 /// written, so each such statement is a gated pair at its call site -- `activeNoteMode() !=
-/// NoteModeKind::None` takes the port, the `else` keeps legacy's statement -- and these are the ports.
-/// The `.cpp` names the ported menu, which is why they are here rather than in `gui/views/`.
+/// NoteModeKind::None` takes the port, the `else` keeps main's statement -- and these are the ports.
+/// The `.cpp` names the menu, which is why they are here rather than in `gui/views/`.
 /// @{
 
-/// @brief The three legacy menu items a note-mode handler compares
+/// @brief The three main menu items a note-mode handler compares
 ///        `soundEditor.getCurrentMenuItem()` against, named without naming `src/scenes`.
 enum class NoteModeMenuItem : uint8_t {
-	/// `noteEditorRootMenu` (`gui/ui/menus.cpp:1880`) -- `nodes::note_editor_root`.
+	/// `noteEditorRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `nodes::note_editor_root`.
 	NoteEditorRoot,
-	/// `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927`) -- `nodes::note_row_editor_root`.
+	/// `noteRowEditorRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `nodes::note_row_editor_root`.
 	NoteRowEditorRoot,
-	/// `sequenceDirectionMenu` (`gui/ui/menus.cpp:935`) -- `nodes::sequence_direction`.
+	/// `sequenceDirectionMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) -- `nodes::sequence_direction`.
 	SequenceDirection,
 };
 
-/// @brief `soundEditor.getCurrentMenuItem() == &item`, asked of the ported menu's focused node.
+/// @brief `soundEditor.getCurrentMenuItem() == &item`, asked of the menu's focused node.
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item);
 
 /// @brief `soundEditor.getCurrentMenuItem()->readValueAgain()`, ported.
 void noteModeReadValueAgain();
 
-/// @brief `adjustVelocity`'s "is the velocity menu displayed" asked of the ported menu: frontmost on the note's
+/// @brief `adjustVelocity`'s "is the velocity menu displayed" asked of the menu: frontmost on the note's
 ///        velocity item, or on the note editor's root drawn as a horizontal page, whose velocity column reads live.
 bool noteModeVelocityShown();
 
-/// @brief `potentiallyRefreshNoteRowMenu`'s test (`gui/views/instrument_clip_view.cpp`), asked of the ported menu
+/// @brief `potentiallyRefreshNoteRowMenu`'s test (`gui/views/instrument_clip_view.cpp`), asked of the menu
 ///        outside the note modes: `getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow` with Play
 ///        Direction the current item.
 bool portedMenuOnAuditionedRowDirection();
 
-/// @brief `soundEditor.goUpOneLevel()` (`gui/ui/sound_editor.cpp:710-729`), ported.
+/// @brief `soundEditor.goUpOneLevel()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), ported.
 void noteModeGoUpOneLevel();
 
-/// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`gui/ui/sound_editor.cpp:1923-1973`), ported.
+/// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), ported.
 void noteModeToggleNoteEditorParamMenu(int32_t on);
 
 /// @}
 
 /// @brief Every legacy call the note mode makes into `instrumentClipView`, as replaceable pointers.
 ///
-/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these
-/// calls are what a spec pins through them. The handlers themselves no longer need standing in for:
-/// each of their navigation-record calls is a gated pair whose port arm is one of the
-/// `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
+/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these calls are what a
+/// spec pins through them. The handlers themselves need no stand-in: each of their navigation-record calls is one of
+/// the `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
 struct NoteModeLegacyCalls {
 	/// `InstrumentClipView::handleNoteEditorButtonAction`.
 	ActionResult (*noteEditorButton)(deluge::hid::Button b, bool on);

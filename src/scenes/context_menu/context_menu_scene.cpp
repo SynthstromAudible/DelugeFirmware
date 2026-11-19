@@ -32,7 +32,7 @@
 #include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 
-// `Deluge::factoryReset` (`deluge.cpp`). `deluge.h` is a ROOT-LEVEL app header, so it is named
+// `Deluge::factoryReset` (`src/deluge/deluge.cpp`). `src/deluge/deluge.h` is a ROOT-LEVEL app header, so it is named
 // explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
 // `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. It is included rather than
 // re-declared locally, and its body is not re-implemented here (a notice plus the other four
@@ -75,7 +75,7 @@ constexpr uint16_t sid(String s) {
 
 // ---------------------------------------------------------------------------------------------
 // The five descriptors. Each is one `ResetSettingsAction` arm of
-// `ResetSettings::acceptCurrentOption` (`gui/context_menu/reset_settings.cpp:43-63`), with the
+// `ResetSettings::acceptCurrentOption` (`origin/main:src/deluge/gui/context_menu/reset_settings.cpp`), with the
 // heading and the option list that class's `getTitle()` / `getOptions()` return for all five.
 
 /// `ResetSettings::getOptions()`: a single `STRING_FOR_OK`. **Not a NO/YES pair** -- legacy's
@@ -117,7 +117,7 @@ bool accept_reset_all(const menu::MenuContext&, uint8_t) {
 // *live* picker whose every turn writes the model, whose cursor opens on the current setting, and
 // which draws a line of its own under the options. All three of those are hooks below.
 
-/// `AudioInputSelector::Value` (`audio_input_selector.cpp:30-40`) -- the option *order*, which is
+/// `AudioInputSelector::Value` (`audio_input_selector.cpp`) -- the option *order*, which is
 /// what makes the cursor a value. Declared here rather than reusing `AudioInputChannel`, because
 /// the two are deliberately different orderings and legacy keeps its own enum for exactly that.
 enum class AudioSourceOption : uint8_t {
@@ -145,7 +145,7 @@ static_assert(std::size(kAudioSourceOptions) == static_cast<size_t>(AudioSourceO
 
 /// @brief The audio track this menu edits -- legacy's `audioInputSelector.audioOutput`, which
 ///        `AudioSourceSelector::selectButtonPress` sets from `getCurrentOutput()`
-///        (`gui/menu_item/audio_clip/audio_source_selector.h:28`); nullopt off an audio clip.
+///        (`origin/main:src/deluge/gui/menu_item/audio_clip/audio_source_selector.h`); nullopt off an audio clip.
 std::optional<project::TrackAddress> audio_track_of(const menu::MenuContext& ctx) {
 	if (!ctx.is_audio_clip || !ctx.addresses.track || ctx.model == nullptr) {
 		return std::nullopt;
@@ -183,7 +183,7 @@ std::optional<uint32_t> recording_from_of(const menu::MenuContext& ctx) {
 	return value >= 0 ? std::optional{static_cast<uint32_t>(value)} : std::nullopt;
 }
 
-/// `getRecordableOutputInSong` (`audio_input_selector.cpp:46-58`): the saved source, but only if it is still both
+/// `getRecordableOutputInSong` (`audio_input_selector.cpp`): the saved source, but only if it is still both
 /// recordable and in the song.
 std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, std::optional<uint32_t> selected) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
@@ -198,7 +198,7 @@ std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, s
 	return std::nullopt;
 }
 
-/// `getFirstRecordableOutput` (`:61-69`).
+/// `getFirstRecordableOutput` (`audio_input_selector.cpp`).
 std::optional<uint32_t> first_recordable_track(const menu::MenuContext& ctx) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
 	if (!track || ctx.facts == nullptr) {
@@ -213,7 +213,7 @@ std::optional<uint32_t> first_recordable_track(const menu::MenuContext& ctx) {
 }
 
 uint8_t initial_audio_source(const menu::MenuContext& ctx) {
-	// `AudioInputSelector::setupAndCheckAvailability` (`:87-127`), switch arm for switch arm. Its
+	// `AudioInputSelector::setupAndCheckAvailability` (`audio_input_selector.cpp`), switch arm for switch arm. Its
 	// `default:` is `Value::OFF`, which also covers no audio track here. The channel words are the
 	// options' own order, from none (OFF) to the specific track (TRACK).
 	if (!audio_track_of(ctx)) {
@@ -223,20 +223,20 @@ uint8_t initial_audio_source(const menu::MenuContext& ctx) {
 }
 
 void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
-	// `AudioInputSelector::selectEncoderAction`'s tail (`:140-195`), after the base class has already
-	// moved the cursor (the scene does that before calling this, exactly as legacy calls
+	// `AudioInputSelector::selectEncoderAction`'s tail (`gui/context_menu/audio_input_selector.cpp`), after the base
+	// class has already moved the cursor (the scene does that before calling this, exactly as legacy calls
 	// `ContextMenu::selectEncoderAction` first).
 	//
-	// Not ported: the `if (currentUIMode != 0u) return;` guard at `:135-137`. `currentUIMode` is a
-	// legacy UI global this layer may not read, and the shell's own input routing is what stands in
-	// for it -- a scene below a modal overlay is not handed the turn at all.
+	// Not ported: the `if (currentUIMode != 0u) return;` guard at the top of `AudioInputSelector::selectEncoderAction`.
+	// `currentUIMode` is a legacy UI global this layer may not read, and the shell's own input routing is what stands
+	// in for it -- a scene below a modal overlay is not handed the turn at all.
 	if (!audio_track_of(ctx) || ctx.sink == nullptr) {
 		return;
 	}
 	const auto option = static_cast<AudioSourceOption>(selection.option);
 
 	if (option == AudioSourceOption::Track) {
-		// `:142-145` -- "Keep Track on the first visible row so the selected track name has room
+		// "Keep Track on the first visible row so the selected track name has room
 		// below it", which is what stops the footer from landing on a drawn option row.
 		selection.scroll = selection.option;
 	}
@@ -247,7 +247,7 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	(void)ctx.sink->write({.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
 
 	if (option == AudioSourceOption::Track) {
-		// `:178-187` -- keep the chosen source if it is still usable, otherwise take the first one
+		// Keep the chosen source if it is still usable, otherwise take the first one
 		// that is; none is the "none available" answer.
 		std::optional<uint32_t> record_from = recordable_track_in_song(ctx, recording_from_of(ctx));
 		if (!record_from) {
@@ -258,12 +258,12 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 		                       .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
 	}
 
-	// `:193` -- the song-wide default follows whatever was last picked here.
+	// The song-wide default follows whatever was last picked here.
 	ctx.sink->set_default_audio_input_channel(input_channel_of(ctx));
 }
 
 std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> scratch) {
-	// `AudioInputSelector::renderOLED`'s tail (`:225-236`): nothing at all unless the channel is
+	// `AudioInputSelector::renderOLED`'s tail: nothing at all unless the channel is
 	// SPECIFIC_OUTPUT, then the source's name, or the literal "No track" when there is none.
 	if (!audio_track_of(ctx) || input_channel_of(ctx) != project::kInputChannelSpecificTrack) {
 		return {};
@@ -276,8 +276,8 @@ std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<cha
 	                                        "name")
 	                : std::nullopt;
 	if (!name) {
-		// Legacy's own literal, not an l10n id: `audio_input_selector.cpp:231` hard-codes "No track", as
-		// it does the two `popupTextTemporary` strings in `padAction`.
+		// Legacy's own literal, not an l10n id: `AudioInputSelector::renderOLED` (`audio_input_selector.cpp`)
+		// hard-codes "No track", as it does the two `popupTextTemporary` strings in `padAction`.
 		return std::string_view{"No track"};
 	}
 	const size_t n = std::min(name->str().size(), scratch.size());
@@ -286,7 +286,7 @@ std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<cha
 }
 
 /// `AudioInputSelector` has no `acceptCurrentOption()` override, so it takes the base's
-/// `return false` (`gui/context_menu/context_menu.h:38`) -- a select press closes the menu, and the
+/// `return false` (`gui/context_menu/context_menu.h`) -- a select press closes the menu, and the
 /// value has already been committed by `on_move`.
 bool accept_audio_source(const menu::MenuContext&, uint8_t) {
 	return false;
@@ -302,11 +302,11 @@ constexpr uint16_t kSampleBrowserSynthOptions[] = {
 };
 
 /// `Kit::acceptCurrentOption`: LOAD ALL imports the folder; SLICE opens the slicer on the file, over this menu. Like
-/// `Synth`'s, it never closes the menu itself: the load it parks for the host closes it once it ends
+/// `Synth`'s, it never closes the menu itself: the load it asks the host for closes it once it ends
 /// (`BrowserScene::long_press_done`).
 bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t option) {
-	browser::browser_scene().park_operation(option == 0 ? browser::BrowserChoice::Op::ImportKit
-	                                                    : browser::BrowserChoice::Op::Slice);
+	browser::browser_scene().request_operation(option == 0 ? browser::BrowserChoice::Op::ImportKit
+	                                                       : browser::BrowserChoice::Op::Slice);
 	return true;
 }
 
@@ -320,23 +320,23 @@ size_t sample_browser_kit_options_now(const menu::MenuContext&, std::span<uint8_
 	return n;
 }
 
-/// `Synth::acceptCurrentOption` (`gui/context_menu/sample_browser/synth.cpp:95-120`): MULTISAMPLES imports the folder;
-/// the other three claim the file with their own detection choices.
+/// `Synth::acceptCurrentOption` (`origin/main:src/deluge/gui/context_menu/sample_browser/synth.cpp`): MULTISAMPLES
+/// imports the folder; the other three claim the file with their own detection choices.
 bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t option) {
 	using Op = browser::BrowserChoice::Op;
 	using Args = browser::BrowserChoice::ClaimArgs;
 	switch (option) {
 	case 0:
-		browser::browser_scene().park_operation(Op::ImportMultisamples);
+		browser::browser_scene().request_operation(Op::ImportMultisamples);
 		break;
 	case 1:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 0, .single_cycle = 0, .wavetable = 0});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 0, .single_cycle = 0, .wavetable = 0});
 		break;
 	case 2:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 2, .single_cycle = 2, .wavetable = 1});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 2, .single_cycle = 2, .wavetable = 1});
 		break;
 	default:
-		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 1, .single_cycle = 1, .wavetable = 2});
+		browser::browser_scene().request_operation(Op::Claim, Args{.pitch = 1, .single_cycle = 1, .wavetable = 2});
 		break;
 	}
 	return true;
@@ -357,8 +357,8 @@ Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
 	return r;
 }
 
-/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:466-469`): a claim or a folder import the
-/// menu started is still running.
+/// The browser's gate (`SampleBrowser::buttonAction`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a
+/// claim or a folder import the menu started is still running.
 bool sample_load_busy(const menu::MenuContext& ctx) {
 	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();
 }
@@ -366,7 +366,7 @@ bool sample_load_busy(const menu::MenuContext& ctx) {
 /// `DeleteFile::acceptCurrentOption`: the browser's file is deleted by the host, which removes it from the browser's
 /// list once the card has. The menu closes at once.
 bool accept_delete_file(const menu::MenuContext&, uint8_t) {
-	browser::browser_scene().park_operation(browser::BrowserChoice::Op::DeleteFile);
+	browser::browser_scene().request_operation(browser::BrowserChoice::Op::DeleteFile);
 	return false;
 }
 
@@ -391,7 +391,7 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
      .for_saving = true},
 }};
 
-// Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
+// `render_oled` materialises `min(options.size(), kMaxOptions)` views while
 // `step()` walks the descriptor's FULL count, so a descriptor with more options than the render
 // arrays hold would let the cursor reach a row that is never drawn -- an invisible selection, and
 // then an accept on it. The ceiling exists because this layer allocates nothing; this is the check
@@ -474,7 +474,7 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 	// `scrollPos` from it, and refuse to open when there is none. With availability expressed by
 	// compaction (see `Descriptor::options`) the walk is "option 0, if there is one" -- unless the
 	// descriptor replaces it outright, which is what `initial_option` is
-	// (`AudioInputSelector::setupAndCheckAvailability`, `audio_input_selector.cpp:123-125`, sets
+	// (`AudioInputSelector::setupAndCheckAvailability`, `audio_input_selector.cpp`, sets
 	// `currentOption` *and* `scrollPos` from the current channel).
 	const Descriptor& d = descriptor(id_);
 	sel_ = Selection{};
@@ -523,7 +523,7 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	}
 
 	// `AudioInputSelector::renderOLED` calls the base and then draws one more line
-	// (`audio_input_selector.cpp:223-250`); `option_window` takes it as a parameter so the drawing
+	// (`audio_input_selector.cpp`); `option_window` takes it as a parameter so the drawing
 	// stays in the toolkit and this scene keeps its no-frame-primitives rule.
 	std::array<char, kFooterScratch> footer_scratch{};
 	const std::string_view footer =
@@ -541,12 +541,11 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	// `ContextMenu::focusRegained`: `indicator_leds::blinkLed(IndicatorLED::BACK)`; a saving menu
 	// (`ContextMenuForSaving::focusRegained`) also blinks SAVE and turns LOAD off.
 	//
-	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a
-	// literal 110: `indicator_leds::blinkLed` runs at exactly that constant
-	// (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`), and `rename_scene.cpp`
-	// imports it the same way.
-	// `blinkLed`'s default blink on the phase every normal blink shares, restarted at the open
-	// (`context_menu.cpp:54`).
+	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a literal 110:
+	// `indicator_leds::blinkLed` runs at exactly that constant (`ledBlinkTimeout` in `hid/led/indicator_leds.cpp`,
+	// `kFlashTime` in `definitions_cxx.hpp`), and `rename_scene.cpp` imports it the same way. `blinkLed`'s default
+	// blink on the phase every normal blink shares, restarted at the open (`ContextMenu::focusRegained` in
+	// `context_menu.cpp`).
 	if (blink_restart_) {
 		blink_restart_ = false;
 		f.restart(deluge::ui::BlinkRate::Normal);
@@ -614,7 +613,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			sel_ = step(sel_, event.delta, available_count_);
 			if (d.on_move != nullptr) {
 				// **Unconditionally, even when `step` refused to move.**
-				// `AudioInputSelector::selectEncoderAction` (`audio_input_selector.cpp:134-196`) calls
+				// `AudioInputSelector::selectEncoderAction` (`audio_input_selector.cpp`) calls
 				// the base and then runs its whole commit block whatever the base did, so a turn off
 				// the end of the list re-commits the option already selected. Harmless (it writes the
 				// same channel back) but it is legacy's shape, and guarding it here would be a

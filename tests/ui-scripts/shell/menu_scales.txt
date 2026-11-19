@@ -2,9 +2,9 @@
 # SONG root the way a user reaches it.
 #
 # `nodes::ActiveScalesItem` is the port of `ActiveScaleMenu`
-# (`gui/menu_item/active_scales.cpp:62-99` drawSubmenuItemsForOled): one row per preset scale, a
+# (`origin/main:src/deluge/gui/menu_item/active_scales.cpp` drawSubmenuItemsForOled): one row per preset scale, a
 # checked/unchecked box where a submenu would draw its arrow, and a select press that flips the row's
-# bit and STAYS PUT (`:108-112` selectButtonPress returns NO_NAVIGATION).
+# bit and STAYS PUT (`ActiveScaleMenu::selectButtonPress` returns NO_NAVIGATION).
 #
 # The staying-put half is why this script descends from the root instead of opening the item
 # directly: at depth 0 an unwanted `ascend()` is a silent no-op, so a golden there could not tell

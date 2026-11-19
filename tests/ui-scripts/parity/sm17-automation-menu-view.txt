@@ -1,4 +1,4 @@
-# ShellMenu: the automation view's "menu view". From the synth clip, SHIFT + the LPF frequency shortcut opens its page;
+# The automation view's "menu view". From the synth clip, SHIFT + the LPF frequency shortcut opens its page;
 # CLIP puts the automation view on that param in menu view and CLIP again returns to the clip view. In menu view a
 # shortcut to another param returns to the clip view, and BACK out of the menu leaves the view in menu view. Entered
 # through the menu instead (which reopens on FILTERS afterwards), BACK from the LPF page to the filters list returns to

@@ -104,8 +104,8 @@
 #include "playback/render_requests.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
+#include "util/menu_entry.h"
 #include "util/misc.h"
-#include "util/shell_menu_entry.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -219,7 +219,7 @@ enum class Stage : uint8_t {
 	Listing,       ///< The load browser lists SONGS, as a song loaded from it leaves it.
 	InertRun,      ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
 	EditorSetup,   ///< retired_song: the loaded song is given a synth clip.
-	EditorRun,     ///< ...the ported menu on top, NEXT_SONG, and the swap watched.
+	EditorRun,     ///< ...the menu on top, NEXT_SONG, and the swap watched.
 	AuditionSetup, ///< held_audition: an audition pad held on the clip view when NEXT_SONG arrives.
 	AuditionRun,   ///< ...the note must end when the UIs are taken down, not at the swap.
 	NoteSetup,     ///< tapped_note: a note pad tapped on the clip view when NEXT_SONG arrives.
@@ -282,7 +282,7 @@ bool g_modButtonReleased = false;
 int32_t g_preSwapSteps = 0;
 int32_t g_postSwapSteps = 0;
 int32_t g_staleEditor = 0;
-/// retired_song: whether the ported menu was still open, editing the outgoing song, once the load was over.
+/// retired_song: whether the menu was still open, editing the outgoing song, once the load was over.
 bool g_guestOnOldSong = false;
 int32_t g_staleView = 0;
 
@@ -587,11 +587,11 @@ void stepEditorSetup() {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
 	}
 	// Site 6's open: the clip view's SELECT on a synth clip, which resolves the sound root over the clip.
-	if (!deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                    /*kitGlobalFx=*/false)
+	if (!deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                               /*kitGlobalFx=*/false)
 	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
-		g_report.fail("RETIRED the ported menu could not be opened on the synth clip");
+		g_report.fail("RETIRED the menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -653,14 +653,13 @@ void stepEditorRun() {
 		g_report.fail("RETIRED no step saw the stack empty on both sides of the swap, so nothing was tested");
 	}
 	if (g_staleEditor != 0) {
-		g_report.fail(
-		    "RETIRED input would have reached the ported menu on the outgoing song while the stack was empty");
+		g_report.fail("RETIRED input would have reached the menu on the outgoing song while the stack was empty");
 	}
 	if (g_staleView != 0) {
 		g_report.fail("RETIRED the view still pointed into the swapped-out song");
 	}
 	if (g_guestOnOldSong) {
-		g_report.fail("RETIRED the ported menu was left open on the song the load freed");
+		g_report.fail("RETIRED the menu was left open on the song the load freed");
 	}
 	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d "

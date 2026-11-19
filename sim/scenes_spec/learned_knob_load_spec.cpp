@@ -300,8 +300,8 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 
 	it("leaves a pitch adjust as it is when its learned knob is unlearned, as next does and main does not", _ {
 		// Accepted difference (tests/ui-scripts/parity/DIFFERENCES.md): main's `ModControllableAudio::unlearnKnobs`
-		// zeroes a pitch adjust no knob turns any more, in the sound's params parked without a clip; the menu's unlearn
-		// here is a table edit alone.
+		// (`origin/main:src/deluge/model/mod_controllable/mod_controllable_audio.cpp`) zeroes a pitch adjust no knob
+		// turns any more, in the sound's params parked without a clip; the menu's unlearn here is a table edit alone.
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);

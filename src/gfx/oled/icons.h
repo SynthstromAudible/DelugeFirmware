@@ -63,7 +63,7 @@ extern const Icon arrowRight;
 /// @name File-browser row icons (`scenes/browser/browser_scene.h`)
 ///
 /// 8 columns wide -- exactly the `iconWidth` `Browser::renderOLED` blits them at
-/// (`gui/ui/browser/browser.cpp:973`) -- except `browserMidiEdge`, which is the MIDI plug's ninth
+/// (`gui/ui/browser/browser.cpp`) -- except `browserMidiEdge`, which is the MIDI plug's ninth
 /// column drawn on its own.
 /// @note Legacy icon `OLED::folderIcon`.
 extern const Icon browserFolder;
@@ -77,10 +77,10 @@ extern const Icon browserMidiEdge;
 
 /// @{
 /// @name Sample-marker editor (`scenes/marker/marker_scene.h`)
-/// @note Legacy icon `OLED::lockIcon` (`hid/display/oled_icons.cpp:120`), 7 columns wide. **It is
+/// @note Legacy icon `OLED::lockIcon` (`hid/display/oled_icons.cpp`), 7 columns wide. **It is
 ///       nine pixels tall and a byte is eight**, so legacy's own comment says "remember to draw a
 ///       rectangle under it so it looks correct" -- `SampleMarkerEditor::renderOLED` does that with
-///       an `invertArea` one row below (`gui/ui/sample_marker_editor.cpp:1131-1132`), and so does
+///       an `invertArea` one row below (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), and so does
 ///       `ui::oled::title_badge`, which is the only intended caller.
 extern const Icon markerLock;
 /// @}

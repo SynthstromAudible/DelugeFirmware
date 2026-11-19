@@ -24,9 +24,9 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 	state.cursor = static_cast<int16_t>(cursor);
 	const bool at_very_end = cursor == length;
 
-	// qwerty_ui.cpp:135-144, verbatim: `scrollPosHorizontal` (here `state.scroll`) is nudged in
-	// only as far as needed to keep the cursor inside the window, never recentred outright.
-	// "Prevent being scrolled too far left."
+	// `QwertyUI::drawTextForOLEDEditing` (`qwerty_ui.cpp`), verbatim: `scrollPosHorizontal` (here `state.scroll`) is
+	// nudged in only as far as needed to keep the cursor inside the window, never recentred outright. "Prevent being
+	// scrolled too far left."
 	int32_t min_scroll =
 	    std::min<int32_t>(cursor + 3 - max_num_chars, length - max_num_chars + static_cast<int32_t>(at_very_end));
 	min_scroll = std::max<int32_t>(min_scroll, 0);
@@ -38,19 +38,18 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 	scroll = std::min<int32_t>(scroll, max_scroll);
 	state.scroll = static_cast<int16_t>(scroll);
 
-	// qwerty_ui.cpp:146: drawString(&displayName[scrollPosHorizontal], xPixel, yPixel,
-	// kTextSpacingX, kTextSpacingY, 0, xPixel + maxNumChars * kTextSpacingX).
+	// `QwertyUI::drawTextForOLEDEditing` (`qwerty_ui.cpp`): drawString(&displayName[scrollPosHorizontal], xPixel,
+	// yPixel, kTextSpacingX, kTextSpacingY, 0, xPixel + maxNumChars * kTextSpacingX).
 	f.glyphs(s.substr(static_cast<size_t>(scroll)), rect.x, rect.y, kTextSpacingX, kTextSpacingY, 0,
 	         rect.x + max_num_chars * kTextSpacingX);
 
 	if (at_very_end) {
-		// qwerty_ui.cpp:149-154: the blinking-underline case (there gated on `atVeryEnd` and
-		// `getCurrentUI() == this`; here the caller's `state.cursor_lit` stands in for both).
-		// `textBottomY - 4 .. textBottomY - 2` is a 3-row band near the bottom of the 9-row text
-		// cell, one kTextSpacingX-wide column at the cursor's screen position. `cursor_lit` gates
-		// only this bar -- legacy's own `setupBlink` call is likewise reached only from this arm,
-		// never from the mid-string one below, which is unconditional in qwerty_ui.cpp and never
-		// flashes off.
+		// `QwertyUI::drawTextForOLEDEditing` (`qwerty_ui.cpp`): the blinking-underline case (there gated on `atVeryEnd`
+		// and `getCurrentUI() == this`; here the caller's `state.cursor_lit` stands in for both).
+		// `textBottomY - 4 .. textBottomY - 2` is a 3-row band near the bottom of the 9-row text cell, one
+		// kTextSpacingX-wide column at the cursor's screen position. `cursor_lit` gates only this bar -- legacy's own
+		// `setupBlink` call is likewise reached only from this arm, never from the mid-string one below, which is
+		// unconditional in qwerty_ui.cpp and never flashes off.
 		if (!state.cursor_lit) {
 			return;
 		}
@@ -60,7 +59,7 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 		return;
 	}
 
-	// qwerty_ui.cpp:156-170: legacy's *only* mid-string cursor presentation -- not a
+	// `QwertyUI::drawTextForOLEDEditing` (`qwerty_ui.cpp`): legacy's *only* mid-string cursor presentation -- not a
 	// predictive-text overlay, `enteredTextEditPos` is plainly the cursor throughout this
 	// routine -- so it is ported, not skipped: invert from the cursor to the rect's right edge,
 	// following `f.style.highlighting != Highlighting::NoInversion` exactly the way

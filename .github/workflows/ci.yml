@@ -94,13 +94,15 @@ jobs:
       - name: The UI layers keep their rules
         run: python3 scripts/check_layer_rules.py
 
-      - name: The UI trees' docs carry no history and their citations resolve
+      # An `origin/main:` citation is read at the main commit scripts/main_citation_ref pins, which the shallow
+      # checkout does not hold.
+      - name: Fetch the pinned main commit for the docs' origin/main citations
+        run: git fetch --no-tags --depth=1 origin "$(cat scripts/main_citation_ref)"
+
+      - name: The UI trees' docs carry no history or line numbers, and their paths resolve
         run: |
           python3 scripts/check_doc_hygiene.py --strict
-          (cd scripts && python3 -m unittest test_check_doc_hygiene test_check_citations)
-          python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec \
-            tests/unit/shell tests/unit/ui tests/unit/deluge/gui tests/unit/scenes tests/unit/harness tests/ui-scripts tests/harness \
-            src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+          (cd scripts && python3 -m unittest test_check_doc_hygiene)
 
       - name: No spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy()
         run: |

@@ -17,15 +17,15 @@ using notify::Dirty;
 
 /// @brief Legacy's full greyout strength, as `ui::grid::greyout`'s `amount` argument.
 ///
-/// The toolkit's `amount` *is* legacy's `greyProportion` (`ui/grid/effects.h`: "Legacy's
-/// `greyProportion`, the argument `RGB::greyOut` takes"), and `greyProportion` is not the 0..1
-/// float the callers pass -- `setGreyoutAmount(float)` scales it: `greyProportion = newAmount *
-/// 6500000` (`hid/led/pad_leds.cpp:786-788`). Every place that greys a whole view outright asks
-/// for the full amount, `setGreyoutAmount(1)` (`PadLEDs::reassessGreyout`'s instant branch, `skipGreyoutFade`,
-/// `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled constant is `1 * 6500000`. (The
-/// fractional values at `pad_leds.cpp:991,1003` are a transition ramping the same scale in and out, which the tween
-/// driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus `totalRGB * (proportion >> 5)` over a
-/// 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather than 0..255.
+/// The toolkit's `amount` *is* legacy's `greyProportion` (`ui/grid/effects.h`: "Legacy's `greyProportion`, the argument
+/// `RGB::greyOut` takes"), and `greyProportion` is not the 0..1 float the callers pass -- `setGreyoutAmount(float)`
+/// scales it: `greyProportion = newAmount * 6500000` (`hid/led/pad_leds.cpp`). Every place that greys a whole view
+/// outright asks for the full amount, `setGreyoutAmount(1)` (`PadLEDs::reassessGreyout`'s instant branch,
+/// `skipGreyoutFade`, `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled constant is
+/// `1 * 6500000`. (The fractional values at `timerRoutine` (`pad_leds.cpp`) are a transition ramping the same scale in
+/// and out, which the tween driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus
+/// `totalRGB * (proportion >> 5)` over a 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather
+/// than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
 
 /// @brief Does \p f name a surface the shell can invalidate on its own?
@@ -55,7 +55,7 @@ bool has_untargeted_fact(const notify::DirtySet& dirty) {
 
 /// @brief Assemble column pair \p pair_index's 16 pad colours from \p grid.
 ///
-/// Legacy order (`PadLEDs::sortLedsForCol`, `hid/led/pad_leds.cpp:260-275`): column
+/// Legacy order (`PadLEDs::sortLedsForCol`, `hid/led/pad_leds.cpp`): column
 /// `pair_index * 2` rows 0..7, then column `pair_index * 2 + 1` rows 0..7 -- `doubleColumn`'s two
 /// back-to-back fills, each over `kDisplayHeight` (8) rows.
 ColumnPair read_column_pair(const gfx::grid::PadGrid& grid, uint8_t pair_index) {
@@ -94,9 +94,9 @@ constexpr uint8_t kIndicatorCount = 2;
 
 /// @brief Legacy's "come back in a little while" retry interval for backpressured pad sends.
 ///
-/// `setTimerForSoon` (`hid/led/pad_leds.cpp:1063-1067`) re-arms `TimerName::MATRIX_DRIVER` at
+/// `setTimerForSoon` (`hid/led/pad_leds.cpp`) re-arms `TimerName::MATRIX_DRIVER` at
 /// 20 ms when `deluge_control_pad_output_space()` was too small to send (the `sendOutMainPadColours`
-/// / `timerRoutine` backpressure paths, `:1019-1023`, `:850`).
+/// / `timerRoutine` backpressure paths).
 constexpr uint32_t kBackpressureRetryMs = 20;
 
 /// @brief The tween's blend parameter, 0..65535, from elapsed time over its duration.
@@ -126,19 +126,19 @@ uint32_t tween_cadence_ms(ActiveTween::Kind kind) {
 	switch (kind) {
 	case ActiveTween::Kind::Fade:
 		// `renderFade` re-arms `TimerName::MATRIX_DRIVER` at `UI_MS_PER_REFRESH`
-		// (`hid/led/pad_leds.cpp:1478`; 50 ms, `board_config.h:55`).
+		// (`hid/led/pad_leds.cpp`; 50 ms, `board_config.h`).
 		return 50;
 	case ActiveTween::Kind::ScrollH:
 		// `horizontal::renderScroll` re-arms at `UI_MS_PER_REFRESH_SCROLLING`
-		// (`hid/led/pad_leds.cpp:1408`; 7 ms, `board_config.h:59`).
+		// (`hid/led/pad_leds.cpp`; 7 ms, `board_config.h`).
 		return 7;
 	case ActiveTween::Kind::ScrollV:
-		// `vertical::renderScroll` (`hid/led/pad_leds.cpp:1430-1455`) re-arms no timer of its own
+		// `vertical::renderScroll` (`hid/led/pad_leds.cpp`) re-arms no timer of its own
 		// at all -- its caller drives each step directly. `UI_MS_PER_REFRESH` (50 ms) is this
 		// port's own choice for "how often to ask", not a legacy value; there is none to cite.
 		return 50;
 	case ActiveTween::Kind::GreyOut:
-		// The greyout ramp re-arms at `UI_MS_PER_REFRESH` too (`pad_leds.cpp:991,1003`; 50 ms).
+		// The greyout ramp re-arms at `UI_MS_PER_REFRESH` too (`timerRoutine` in `pad_leds.cpp`; 50 ms).
 		return 50;
 	}
 	return 50;
@@ -316,7 +316,7 @@ bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
 	//
 	// The screensaver: legacy does not wake it for MIDI either. `Screensaver::noteActivity()`
 	// (`hid/display/screensaver.cpp`) has exactly three callers -- the pad and button arms of
-	// `dispatchInputEvent` in `deluge.cpp` and `interpretEncoders` in `hid/encoder_input.cpp` -- and
+	// `dispatchInputEvent` in `src/deluge/deluge.cpp` and `interpretEncoders` in `hid/encoder_input.cpp` -- and
 	// none of `PlaybackHandler`'s
 	// MIDI dispatchers is one. A MIDI message is not a user touching the box.
 	return router_.route(event, make_context(now_ms));
@@ -734,7 +734,7 @@ size_t Shell::oled_lowest(SurfaceRole role) const {
 	if (scenes.empty()) {
 		return 0;
 	}
-	// The port of `OLED::sendMainImage`'s if-chain (`hid/display/oled.cpp:364-376`), which asked the
+	// The port of `OLED::sendMainImage`'s if-chain (`hid/display/oled.cpp`), which asked the
 	// same question with two hard-coded layers (console over main, popup over that) and a
 	// `copyBackgroundAroundForeground` blit per layer; here it is a property each scene declares.
 	size_t lowest = scenes.size() - 1;
@@ -889,8 +889,8 @@ void Shell::render_grid(uint32_t now_ms) {
 	}
 
 	// A `GreyOut` tween ramps `greyout_`'s own mask in place -- legacy's ramp
-	// (`pad_leds.cpp:983-1005`) is the only thing that ever changes `greyProportion` gradually,
-	// and `prepareColour` (`:293-296`) applies whichever value is current to the same masked pads
+	// (`timerRoutine` in `pad_leds.cpp`) is the only thing that ever changes `greyProportion` gradually,
+	// and `prepareColour` applies whichever value is current to the same masked pads
 	// regardless of whether it is ramping or settled. So while that tween is running, it *replaces*
 	// this static full-strength pass rather than stacking underneath it; running both would grey
 	// the frame twice; the tween block below applies the masked `ui::grid::greyout` itself, at the
@@ -1100,7 +1100,7 @@ void Shell::flush(uint32_t now_ms) {
 		s.blit_pending = false;
 		any_sent = true;
 		// `HIDSysex` mirrors the one main panel, not every OLED a board might have
-		// (`sendMainImage` -> `HIDSysex::sendDisplayIfChanged`, `hid/display/oled.cpp:378`).
+		// (`sendMainImage` -> `HIDSysex::sendDisplayIfChanged`, `hid/display/oled.cpp`).
 		if (s.role == SurfaceRole::Main) {
 			mirror_.after_blit(s, now_ms);
 		}
@@ -1112,7 +1112,7 @@ void Shell::flush(uint32_t now_ms) {
 
 	// Grid: send the column pairs that changed since `last_sent`, budgeted by the control
 	// surface's free pad-output space. Port of `sendOutMainPadColours`'s backpressure check
-	// (`hid/led/pad_leds.cpp:1019-1037`, gated on `kNumBytesInMainPadRedraw`) generalised to a
+	// (`hid/led/pad_leds.cpp`, gated on `kNumBytesInMainPadRedraw`) generalised to a
 	// per-pair budget instead of an all-or-nothing gate, so a large backlog drains over several
 	// ticks instead of stalling until the whole frame fits at once -- the same spirit as
 	// `timerRoutine`'s retry-soon and `doAnyPendingUIRendering`'s *2 headroom, but pin the tick, not

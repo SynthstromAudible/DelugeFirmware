@@ -6,11 +6,11 @@
 ///        rather than behaviour, or a lifecycle hook the `Shell` never calls except across a
 ///        scene push/pop this file has no reason to set up in full (`render_oled`, `on_resume`,
 ///        `after_render` are all public overrides, and this rig's `input` is a plain field a spec
-///        sets directly -- `spec/ui/support/frames.h`'s own doc on `OledRig`).
+///        sets directly -- `unit/ui/support/frames.h`'s own doc on `OledRig`).
 ///
-/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: no
-/// shipped node sets any of these three hooks yet (they arrive with the note family's own leaves
-/// in a later task), so there is nothing in the real tables this file could exercise.
+/// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: the
+/// shipped nodes that set these hooks (`nodes/note.cpp`) sit behind the note bridge, so
+/// this file declares small trees that exercise each hook on its own.
 ///
 /// Each root below is a single-column horizontal page, on purpose: column 0 is already focused the
 /// moment the page opens, so a select turn edits it with no instrument-button focus dance first --
@@ -144,10 +144,10 @@ constexpr menu::Node text_col = menu::with_value_text(
 constexpr const menu::Node* kTextKids[] = {&text_col};
 constexpr menu::Node text_page = menu::submenu(sid(String::STRING_FOR_FILL), kTextKids, menu::Layout::Horizontal);
 
-// --- `Binding::value_text` again, this time for the column: `strikethrough` reaches the rendered
-//     `TextColumn` (the pixel-level check against `note/fill.h:70-79` itself lives in
-//     `columns_spec.cpp`; this only proves `render_horizontal` wires the flag through at all). An
-//     empty `Column`-use string isolates the strike line from any glyph ink. ---
+// --- `Binding::value_text` again, this time for the column: `strikethrough` reaches the rendered `TextColumn` (the
+//     pixel-level check against `Fill::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/note/fill.h`)
+//     itself lives in `unit/ui/columns_spec.cpp`; this only proves `render_horizontal` wires the flag through at all).
+//     An empty `Column`-use string isolates the strike line from any glyph ink. ---
 menu::ValueText value_text_strike_col(const menu::MenuContext&, int32_t, menu::ValueTextUse use, std::span<char>) {
 	return menu::ValueText{.length = 0, .strikethrough = use == menu::ValueTextUse::Column};
 }
@@ -250,19 +250,18 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	it("on_resume() between a staged offset and its commit discards the offset, rather than "
 	   "letting it survive into a later turn's accumulation",
 	   _ {
-		// Fix round 1, Important 1's regression: driven without the `Shell` at all, since
+		// Regression guard: driven without the `Shell` at all, since
 		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
 		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
-		// directly (`spec/ui/support/frames.h`'s own doc on `OledRig`).
+		// directly (`unit/ui/support/frames.h`'s own doc on `OledRig`).
 		//
-		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
-		// apart from `on_resume`'s OTHER four resets (`value_changed`/`value_node` alone already
-		// stop `after_render`'s `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from
-		// committing anything at all, whether or not `edit_offset` itself was cleared) -- confirmed
-		// by mutation below, and recorded in the report rather than shipped as a silently-vacuous
-		// example. Two turns, with `on_resume` run between them, isolates it: if `on_resume` failed
-		// to clear `edit_offset`, the second turn's own accumulation (`st_.tick.edit_offset += detents`)
-		// would add onto the first turn's abandoned offset instead of starting fresh from it.
+		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset apart from `on_resume`'s
+		// OTHER four resets (`value_changed`/`value_node` alone already stop `after_render`'s
+		// `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from committing anything at all,
+		// whether or not `edit_offset` itself was cleared) -- so a single sequence would pass vacuously. Two turns,
+		// with `on_resume` run between them, isolates it: if `on_resume` failed to clear `edit_offset`, the second
+		// turn's own accumulation (`st_.tick.edit_offset += detents`) would add onto the first turn's abandoned offset
+		// instead of starting fresh from it.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -404,7 +403,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.shell.tick(20);
 
 		// Legacy's `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
-		// (`horizontal_menu.cpp:342`): the pair, as one `Notification`.
+		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the pair, as one `Notification`.
 		const deluge::notify::Notice notice = last_raised_notice();
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
@@ -415,11 +414,12 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	});
 
 	it("value_text's Column strikethrough reaches the rendered column", _ {
-		// Not through the `Shell` at all -- a direct `render_oled` call, as
-		// `menu_scene_spec.cpp`'s `firmware_version` example does, because this is the one check in
-		// this file that needs pixels rather than behaviour. The pixel-perfect transcription of
-		// `note/fill.h:70-79` itself is `columns_spec.cpp`'s job (`TextColumn::strikethrough`'s own
-		// example); this only proves `render_horizontal` wires the flag through to begin with.
+		// Not through the `Shell` at all -- a direct `render_oled` call, as `menu_scene_spec.cpp`'s `firmware_version`
+		// example does, because this is the one check in this file that needs pixels rather than behaviour. The
+		// pixel-perfect transcription of `Fill::renderInHorizontalMenu`
+		// (`origin/main:src/deluge/gui/menu_item/note/fill.h`) itself is `unit/ui/columns_spec.cpp`'s job
+		// (`TextColumn::strikethrough`'s own example); this only proves `render_horizontal` wires the flag through to
+		// begin with.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

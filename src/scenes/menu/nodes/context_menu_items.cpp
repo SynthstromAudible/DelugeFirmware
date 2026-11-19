@@ -72,12 +72,12 @@ deluge::ui::shell::Result ContextMenuItem::handle(const deluge::ui::shell::UiEve
 }
 
 void ContextMenuItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`) and
-	// `AudioSourceSelector::selectButtonPress` (`audio_clip/audio_source_selector.h:27-32`) are the
-	// same three statements: point the context menu at what it acts on, `setupAndCheckAvailability()`,
-	// `openUI()`. `open()` is the first -- legacy's `resetSettings.setAction(...)` /
-	// `audioInputSelector.audioOutput = getCurrentOutput()`, generalised: the descriptor reads
-	// whichever member of the context it needs. `on_enter` is the second (the seeding walk, or
+	// `Reset::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`) and
+	// `AudioSourceSelector::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/audio_clip/audio_source_selector.h`) are the same three statements: point
+	// the context menu at what it acts on, `setupAndCheckAvailability()`, `openUI()`. `open()` is the first -- legacy's
+	// `resetSettings.setAction(...)` / `audioInputSelector.audioOutput = getCurrentOutput()`, generalised: the
+	// descriptor reads whichever member of the context it needs. `on_enter` is the second (the seeding walk, or
 	// `initial_option`). The third is the `pending_scene` push.
 	deluge::scenes::context_menu::context_menu_scene().open(ctx);
 	state.walk.pending_scene =

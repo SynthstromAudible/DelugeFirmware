@@ -3,11 +3,12 @@
 /// @file
 /// @brief `ModKnobs` -- the gold knobs, as a `shell::Service`.
 ///
-/// The one implementation of the gold knobs, for the guest's menus and the root views alike, each shown through its
-/// own `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre blink, the
-/// mod region, the automation notification and the MIDI-follow feedback. Recorded from `View::modEncoderAction`,
-/// `modEncoderButtonAction`, `modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`,
-/// `potentiallyMakeItHarderToTurnKnob` and `setModRegion`; no engine object keeps a gold-knob path of its own.
+/// The one implementation of the gold knobs, for the guest's menus and the root views alike, each shown through its own
+/// `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre blink, the mod
+/// region, the automation notification and the MIDI-follow feedback. Recorded from `View::modEncoderAction`
+/// (`origin/main:src/deluge/gui/views/view.cpp`), `modEncoderButtonAction`, `modButtonAction`,
+/// `setKnobIndicatorLevels`, `setModLedStates`, `potentiallyMakeItHarderToTurnKnob` and `setModRegion`; no engine
+/// object keeps a gold-knob path of its own.
 ///
 /// @par What the knobs point at, and how they read and write
 ///
@@ -127,7 +128,7 @@ public:
 	/// @param note_row_id The held note's row id.
 	void set_mod_region(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t note_row_id = 0);
 
-	/// @brief The mod button the knobs follow -- `View::getModKnobMode`.
+	/// @brief The mod button the knobs follow -- `View::getModKnobMode` (`origin/main:src/deluge/gui/views/view.cpp`).
 	/// @return The mode, or -1 with no focus (or a CV track's, which has no modes).
 	int32_t mode() const;
 
@@ -147,24 +148,26 @@ public:
 	/// @name The view context this service cannot read for itself
 	/// @{
 
-	/// @brief The root-UI questions `View::modButtonAction`, `setKnobIndicatorLevels` and `setModLedStates` ask,
-	///        told by whoever knows: `src/scenes` may not include `gui/`. The defaults are a plain root view's.
+	/// @brief The root-UI questions `View::modButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`),
+	///        `setKnobIndicatorLevels` and `setModLedStates` ask, told by whoever knows: `src/scenes` may not include
+	///        `gui/`. The defaults are a plain root view's.
 	struct ViewState {
 		/// The automation editor is up (`View::modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`): mod
 		/// buttons are ignored, the indicators are left as they are, and every mod LED is off.
 		bool in_automation_editor = false;
 		/// The automation editor is on the arranger (`View::modButtonAction`): mod button 0 still toggles the VU meter.
 		bool automation_on_arranger = false;
-		/// The root is performance view (`View::modButtonAction`): a mod button is taken whatever UI mode is active,
-		/// and it leaves a stutter playing.
+		/// The root is performance view (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`): a mod
+		/// button is taken whatever UI mode is active, and it leaves a stutter playing.
 		bool root_is_performance = false;
 		/// The root is a clip minder (`rootUIIsClipMinderScreen`): the VU meter is not offered. Not the same question
 		/// as `is_clip_context`: in session view with a clip pressed the knobs are on the clip and the root is not one.
 		bool root_is_clip_minder = false;
 		/// `View::modButtonUIModeInRange`: true with no UI mode active.
 		bool mod_button_ui_mode_in_range = true;
-		/// The root is a timeline view (`UI::toTimelineView`, `View::modEncoderAction_existentParam`): a turn that
-		/// changes a sound's note tails repaints the root's pads only then.
+		/// The root is a timeline view (`UI::toTimelineView`, `View::modEncoderAction_existentParam`
+		/// (`origin/main:src/deluge/gui/views/view.cpp`)): a turn that changes a sound's note tails repaints the root's
+		/// pads only then.
 		bool root_is_timeline_view = false;
 	};
 
@@ -188,23 +191,24 @@ public:
 		bool mode_held = false; ///< The knobs' mode's mod button is held: its popup is re-shown.
 	};
 
-	/// @brief One gold-knob turn (`View::modEncoderAction`), already accelerated: the turn, then the instrument
-	///        marked edited on a clip.
+	/// @brief One gold-knob turn (`View::modEncoderAction` in `origin/main:src/deluge/gui/views/view.cpp`), already
+	///        accelerated: the turn, then the instrument marked edited on a clip.
 	/// @param knob   0 for the lower knob, 1 for the upper.
 	/// @param offset The accelerated detents.
 	/// @param now_ms The gesture's clock, which the value popup times out from.
 	/// @param out    Where the turn shows.
 	void turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentation& out);
 
-	/// @brief One gold-knob push (`View::modEncoderButtonAction`).
+	/// @brief One gold-knob push (`View::modEncoderButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`).
 	/// @param knob 0 for the lower knob, 1 for the upper.
 	/// @param on   Press or release.
 	/// @param ctx  The buttons held with it.
 	/// @param out  Where the push shows.
 	void push(int32_t knob, bool on, const PushContext& ctx, KnobPresentation& out);
 
-	/// @brief One mod button pressed or released (`View::modButtonAction`): the knobs' mode, the VU-meter toggle,
-	///        the end of a stutter, and the button's popup.
+	/// @brief One mod button pressed or released (`View::modButtonAction` in
+	///        `origin/main:src/deluge/gui/views/view.cpp`): the knobs' mode, the VU-meter toggle, the end of a stutter,
+	///        and the button's popup.
 	/// @param button 0..7.
 	/// @param on     Press or release.
 	/// @param out    Where the button shows.
@@ -263,7 +267,8 @@ public:
 	bool automation_updates_mod_levels() const { return automation_updates_mod_levels_; }
 	/// @}
 
-	/// @brief One knob's indicator level -- the arithmetic half of `View::setKnobIndicatorLevel`.
+	/// @brief One knob's indicator level -- the arithmetic half of `View::setKnobIndicatorLevel`
+	/// (`origin/main:src/deluge/gui/views/view.cpp`).
 	struct IndicatorLevel {
 		/// False where legacy reads an uninitialised position (see `ModIndicatorInfo`).
 		bool declared = false;

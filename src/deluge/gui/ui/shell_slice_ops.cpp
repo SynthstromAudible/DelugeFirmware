@@ -17,7 +17,7 @@
 
 #include "gui/ui/shell_slice_ops.h"
 
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -42,7 +42,7 @@ using deluge::scenes::slicing::PreviewRequest;
 using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
-/// @brief `SlicerScene`'s host: every call names the sound the ported menu edits (`shellMenuTarget`), then does what
+/// @brief `SlicerScene`'s host: every call names the sound the menu edits (`menuTarget`), then does what
 ///        the legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
@@ -91,7 +91,7 @@ public:
 				open_load_.cancel();
 				sample_ = sample;
 				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
-				deluge::scenes::browser::browser_scene().slice_ready(true);
+				shellSliceReady(true);
 				return;
 			}
 		}
@@ -100,7 +100,7 @@ public:
 		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
 		if (range == nullptr) {
 			display->displayError(Error::INSUFFICIENT_RAM);
-			deluge::scenes::browser::browser_scene().slice_ready(false);
+			shellSliceReady(false);
 			return;
 		}
 		range->sampleHolder.filePath.assign(path_);
@@ -118,7 +118,7 @@ public:
 			play_position_.reset();
 			return;
 		}
-		// The audition and the slice act on what the ported menu edits now; one that names no sound leaves them on
+		// The audition and the slice act on what the menu edits now; one that names no sound leaves them on
 		// the one they began on.
 		(void)retargetToMenu();
 		poll_open();
@@ -151,10 +151,10 @@ public:
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
-	/// @brief Aim the slice at the sound the ported menu edits; false, aiming at nothing, when the menu names no sound
+	/// @brief Aim the slice at the sound the menu edits; false, aiming at nothing, when the menu names no sound
 	///        with a source and range (its context forgotten by a teardown), so a commit or an audition is refused.
 	bool retargetToMenu() {
-		const deluge::gui::SoundTarget target = shellMenuTarget();
+		const deluge::gui::SoundTarget target = menuTarget();
 		if (target.sound == nullptr || target.source == nullptr || target.range == nullptr) {
 			return false;
 		}
@@ -186,7 +186,7 @@ private:
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
 			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
-			deluge::scenes::browser::browser_scene().slice_ready(true);
+			shellSliceReady(true);
 			return;
 		}
 		if (outcome->result == Result::Failed) {
@@ -197,7 +197,7 @@ private:
 		else if (outcome->error != Error::NONE) {
 			display->displayError(outcome->error);
 		}
-		deluge::scenes::browser::browser_scene().slice_ready(false);
+		shellSliceReady(false);
 	}
 
 	SliceCore core_{};

@@ -143,7 +143,7 @@ describe effect_targets("an effect target's write reaches the owner its menu nam
 
 	it("edits the master from performance view, entered as production enters it", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		// performance_view.cpp's openShellMenu: no clip, performance view, not a session or arranger root.
+		// performance_view.cpp's openMenu: no clip, performance view, not a session or arranger root.
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
 		expect(ctx.root).to_equal(MenuContext::Root::Performance);
 		expect(deluge::scenes::spec::menu_engine(ctx).mod)

@@ -10,7 +10,8 @@ constexpr bool is_black(RGB c) {
 	return c.r == 0 && c.g == 0 && c.b == 0;
 }
 
-/// Ports legacy `GridCompositor::apply_layer`'s per-cell blend-mode dispatch. The SDK skips a cell
+/// Ports the per-cell blend-mode dispatch of the SDK's `apply_layer` (`deluge-grid-toolkit::layer`; see
+/// `src/gfx/README.md`). The SDK skips a cell
 /// entirely when the overlay's `Option<Color>` is `None`; here every overlay cell is a concrete
 /// `RGB`, so Replace uses `is_black(overlay)` as that same "nothing to draw" test (documented on
 /// the enumerator in composite.h) while Overlay and Tint are the SDK's formulas verbatim.

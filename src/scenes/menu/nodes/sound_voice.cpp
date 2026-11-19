@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The voice page's `get`/`set` hooks and its exported root span. The `Node` literals are in
-///        `sound_voice.h`.
+///        `nodes/sound_voice.h`.
 
 #include "scenes/menu/nodes/sound_voice.h"
 

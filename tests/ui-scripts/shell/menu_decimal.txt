@@ -1,8 +1,8 @@
 # Level-2 acceptance: a Decimal leaf (nodes::source0_transpose), opened directly.
 #
-# `decimal_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), never the gold
-# pair, by `10^edit_pos` per detent -- `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`) and
-# stays there, so each detent below moves the value 1.00.
+# `decimal_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`), never the gold pair, by
+# `10^edit_pos` per detent -- `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`
+# (`origin/main:src/deluge/gui/menu_item/decimal.h`)) and stays there, so each detent below moves the value 1.00.
 0     snapshot idle
 100   encoder Select +1               # 0 -> 1.00: edits
 120   snapshot after_select_turn
@@ -18,7 +18,7 @@
 420   button Back up
 440   snapshot after_back
 # The select press above does not ascend -- `source0_transpose` / `lpf_freq` are `PatchedParam`
-# nodes, whose `selectButtonPress` opens the source picker (`gui/menu_item/patched_param.cpp:32-38`).
+# nodes, whose `selectButtonPress` opens the source picker (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`).
 # The Back above comes back to the leaf; the select turn below is what edits it a second time, and
 # keeps this script's "the value moved" assertion about the leaf's own kind.
 500   encoder Select +2               # 1.00 -> 3.00: `decimal_value` claims the select turn, not the

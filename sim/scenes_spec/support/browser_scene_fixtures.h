@@ -28,6 +28,7 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project headers this
 // drags in.
+#include "support/browser_host_fake.h"
 #include "support/card_access.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -122,24 +123,30 @@ struct BrowserDisplay final : deluge::hid::Display {
 struct CleanBrowser {
 	QuietAudio quiet;
 	deluge::hid::Display* saved_display;
+	/// The host installed before the example, which `reset` replaces with the recording one.
+	deluge::scenes::browser::BrowserHost* saved_host;
 	BrowserDisplay display_impl;
 
-	CleanBrowser() : saved_display(display) {
+	CleanBrowser() : saved_display(display), saved_host(browser_scene().installed_host()) {
 		display = &display_impl;
 		reset();
 	}
 	~CleanBrowser() {
 		reset();
+		browser_scene().set_host(saved_host);
 		display = saved_display;
 	}
 	static void reset() {
+		// The scene's requests go to the recording host; an example reads them there and answers by hand.
+		browser_scene().set_host(&fake_browser_host());
 		while (Deferred::pending()) {
 			Deferred::run();
 		}
 		// Collects an uncollected result (releasing the catalogue claim) and empties the catalogue.
 		browser_scene().on_exit();
-		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
-		(void)browser_scene().take_preview();
+		fake_browser_host().clear();
+		// Answers the stop that exit asked for, and drops the last file an example previewed, which a fresh browser
+		// opens beside.
 		browser_scene().preview_settled(false);
 		deluge::model::lastFilePathLoaded().clear();
 		Deferred::reset();
@@ -234,8 +241,8 @@ struct Rig {
 	/// `BrowserScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -378,7 +385,8 @@ struct BrowserState {
 ///
 /// If a future fixture gave the audio clip a real sample path, main would enter on that file's folder and the rows
 /// would stop describing it. This fails first. Read off the model, not off either side's dissection of it --
-/// `SoundEditor::getCurrentAudioFileHolder` resolves an audio clip to its own `sampleHolder`.
+/// `SoundEditor::getCurrentAudioFileHolder` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) resolves an audio clip
+/// to its own `sampleHolder`.
 inline bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }

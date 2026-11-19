@@ -7,8 +7,8 @@
 // clang-format off
 /// | node | legacy item | legacy context menu | `DescriptorId` |
 /// |---|---|---|---|
-/// | `reset_flash` .. `reset_all` | `reset_settings::Reset` (`gui/menu_item/reset_settings/reset.h:29-33`) | `context_menu::resetSettings` | `ResetFlash` .. `ResetAll` |
-/// | `audio_source_selector` | `audio_clip::AudioSourceSelector` (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`) | `context_menu::audioInputSelector` | `AudioSource` |
+/// | `reset_flash` .. `reset_all` | `reset_settings::Reset` (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`) | `context_menu::resetSettings` | `ResetFlash` .. `ResetAll` |
+/// | `audio_source_selector` | `audio_clip::AudioSourceSelector` (`origin/main:src/deluge/gui/menu_item/audio_clip/audio_source_selector.h`) | `context_menu::audioInputSelector` | `AudioSource` |
 // clang-format on
 ///
 /// Both legacy classes are the same three statements -- point the context menu at what it acts on,
@@ -19,7 +19,7 @@
 /// identical shape for `rename::RenameScene`.
 ///
 /// @note **One class serves the five reset items and the `audio_source_selector` item.** The sixth
-///       descriptor (`audio_source_selector`) is declared in `roots.h`, which `settings.h` includes
+///       descriptor (`audio_source_selector`) is declared in `roots.h`, which `nodes/settings.h` includes
 ///       rather than the other way round, so the class lives where both can see it. One class and
 ///       six instances beats two identical classes in two headers.
 ///

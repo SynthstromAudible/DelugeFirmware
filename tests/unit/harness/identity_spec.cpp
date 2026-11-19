@@ -19,9 +19,9 @@
 /// used by level 3) has no automated cross-check against the C++ original -- only a comment holds
 /// them together ("MUST stay byte-identical"). This spec is that check, made permanent: it feeds
 /// ONE fact set through BOTH writers -- `deluge::harness` (C++) and the C API -- and asserts the
-/// `.pbm` and `.state` bytes are identical. This is the review's own by-hand verification (it fed
-/// the boot golden's fact set through both writers in different insertion order and diffed the
-/// bytes), turned into a test that runs every time either side changes.
+/// `.pbm` and `.state` bytes are identical. The check is feeding
+/// the boot golden's fact set through both writers in different insertion order and diffing the
+/// bytes, as a test that runs every time either side changes.
 ///
 /// The fact set: a 128x48 page-major framebuffer with a known (non-trivial, non-symmetric)
 /// pattern; several pads, including black ones (which both writers must skip identically); two

@@ -119,7 +119,8 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 	default:
 		break;
 	}
-	// The analog and supersaw shapes carry a letter in the region's corner (`osc/type.h:150-155`).
+	// The analog and supersaw shapes carry a letter in the region's corner (`Type::renderInHorizontalMenu` in
+	// `origin/main:src/deluge/gui/menu_item/osc/type.h`).
 	char badge = 0;
 	if (type == OscType::ANALOG_SQUARE || type == OscType::ANALOG_SAW_2) {
 		badge = 'A';
@@ -130,8 +131,10 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 	return ArtColumn{.icon = icon, .dy = 2, .badge = badge};
 }
 
-/// `arpeggiator::Rhythm::renderInHorizontalMenu` and its MIDI/CV twin's (`arpeggiator/rhythm.h:42-62`,
-/// `midi_cv/rhythm.h:48-66`), whose centring differs by @p nudge.
+/// `arpeggiator::Rhythm::renderInHorizontalMenu` and its MIDI/CV twin's
+/// (`origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`,
+/// `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rhythm.h`), whose centring differs by
+/// @p nudge.
 std::optional<ArtColumn> rhythm_art(int32_t value, int8_t nudge) {
 	if (value < 0 || static_cast<size_t>(value) >= arpRhythmPatternNames.size()) {
 		return std::nullopt;
@@ -156,7 +159,8 @@ std::string_view formatted_name(const Node& node, const MenuContext& ctx, NodeTe
 }
 
 ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse use, std::span<char> out) {
-	// The column label is the short name; the name and title the long one (`mod_fx/depth_patched.h:34-37`).
+	// The column label is the short name; the name and title the long one (`Depth_Patched::getColumnLabel` and
+	// `getName` in `origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`).
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
@@ -366,7 +370,7 @@ ValueText on_off_text(const MenuContext&, int32_t value, ValueTextUse use, std::
 
 ValueText reverb_width_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Name || use == ValueTextUse::Title) {
-		// `reverb::Width::getName`/`getTitle` (`reverb/width.h:38-48`).
+		// `reverb::Width::getName`/`getTitle` (`origin/main:src/deluge/gui/menu_item/reverb/width.h`).
 		return plate_reverb(ctx) ? put_string(String::STRING_FOR_DIFFUSION, out) : kValueTextFallback;
 	}
 	if (use != ValueTextUse::Label) {
@@ -376,7 +380,8 @@ ValueText reverb_width_text(const MenuContext& ctx, int32_t, ValueTextUse use, s
 }
 
 ValueText reverb_room_size_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	// The column label, name and title alike (`reverb/room_size.h:39-49`).
+	// The column label, name and title alike (`RoomSize::getName` in
+	// `origin/main:src/deluge/gui/menu_item/reverb/room_size.h`).
 	if ((use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) || !plate_reverb(ctx)) {
 		return kValueTextFallback;
 	}
@@ -447,7 +452,8 @@ ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t, ValueTextUse use, 
 
 namespace {
 
-/// @brief The family of the LPF or HPF whose mode @p mode_node reads (`FilterInfo::getMode`, `filter/info.h:45-62`).
+/// @brief The family of the LPF or HPF whose mode @p mode_node reads (`FilterInfo::getMode`,
+/// `origin/main:src/deluge/gui/menu_item/filter/info.h`).
 model::filter::FilterFamily filter_family(const MenuContext& ctx, bool hpf) {
 	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
 	FilterMode mode = FilterMode::OFF;
@@ -472,7 +478,8 @@ std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, 
 }
 
 ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> out, bool hpf) {
-	// `FilterParam::getName`/`getTitle` are the long morph name, `getColumnLabel` the short (`filter/param.h:40-49`).
+	// `FilterParam::getName`/`getTitle` are the long morph name, `getColumnLabel` the short
+	// (`origin/main:src/deluge/gui/menu_item/filter/param.h`).
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
@@ -505,8 +512,8 @@ std::string_view last_folder(std::string_view path) {
 
 namespace {
 
-/// `FileSelector::getColumnLabel` (`file_selector.cpp:86-112`) for source @p source: the loaded sample's folder,
-/// "Mult" over several ranges, the node's name with nothing loaded.
+/// `FileSelector::getColumnLabel` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) for source @p source: the
+/// loaded sample's folder, "Mult" over several ranges, the node's name with nothing loaded.
 ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, std::span<char> out) {
 	if (use != ValueTextUse::Label) {
 		return kValueTextFallback;
@@ -546,8 +553,9 @@ ValueText file1_label(const MenuContext& ctx, int32_t, ValueTextUse use, std::sp
 }
 
 ValueText end_point_label(const MenuContext&, int32_t, ValueTextUse use, std::span<char> out) {
-	// `LoopPoint::getColumnLabel`'s end arm and `SampleMarkerEditor::getColumnLabel` (`sample/loop_point.cpp:96-99`,
-	// `audio_clip/sample_marker_editor.cpp:54-57`): the name cut to three characters.
+	// `LoopPoint::getColumnLabel`'s end arm and `SampleMarkerEditor::getColumnLabel`
+	// (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`,
+	// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`): the name cut to three characters.
 	if (use != ValueTextUse::Label) {
 		return kValueTextFallback;
 	}

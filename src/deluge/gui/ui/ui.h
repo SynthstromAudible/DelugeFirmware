@@ -280,7 +280,7 @@ void renderUIsForOled();
 bool isUIModeActive(uint32_t uiMode);
 bool isUIModeActiveExclusively(uint32_t uiMode);
 bool isUIModeWithinRange(const uint32_t* modes);
-/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The ported menu's guest gates its
+/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The guest's menu gates its
 ///        select turns on it.
 extern const uint32_t selectEncoderUIModes[];
 bool isNoUIModeActive();

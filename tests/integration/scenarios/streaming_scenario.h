@@ -27,7 +27,7 @@
 /// existing production code.
 ///
 /// @note `DELUGE_HOST`-only (see sim/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
-///       compiled into every x86 build off this tree (the Rust Embassy `host_app` and its
+///       compiled into every x86 host build (the Rust Embassy `host_app` and its
 ///       harnesses), never into the ARM device firmware. Called by the Rust host runtime's streaming scenario
 ///       (`scenario.rs`) and by the `stem_export` scenario (`stem_export_scenario.cpp`).
 ///
@@ -43,8 +43,8 @@
 
 extern "C" {
 
-/// @brief Point `currentSong` at @p full_path and open the load browser (mirrors
-///        `host_render_main.cpp`'s headless load sequence).
+/// @brief Point `currentSong` at @p full_path and open the load browser (the headless
+///        load sequence an offline render uses).
 ///
 /// Only BEGINS the directory listing (`Browser::beginListing`), which runs on the
 /// browser's tick surface — poll deluge_scenario_song_listing_in_progress() before calling
@@ -134,9 +134,9 @@ uint32_t deluge_scenario_debug_ui_mode();
 ///         load screen yet).
 uint32_t deluge_scenario_debug_load_state();
 
-/// @brief Start a full offline `StemExport` run (mirrors `host_render_main.cpp`'s
-///        `deluge_render_driver`: sets `renderOffline`/`exportToSilence`, then
-///        `StemExport::startStemExportProcess`).
+/// @brief Start a full offline `StemExport` run (sets
+///        `renderOffline`/`exportToSilence`, then calls `StemExport::startStemExportProcess`, as an offline render
+///        does).
 ///
 /// Returns immediately — the export's own pump task advances it a step at a time.
 /// Poll deluge_scenario_stem_export_done() for completion.
@@ -159,7 +159,7 @@ bool deluge_scenario_stem_export_done();
 /// The removal keeps the cached, shared card image from filling up across runs, and keeps every render of a
 /// song landing in the same unnumbered folder.
 ///
-/// Mirrors `host_render_main.cpp`'s `copy_stems_out`: reads each stem via the C
+/// Reads each stem via the C
 /// FatFS API (the same one `StemExport`/`AudioRecorder` wrote through) and writes
 /// it out with the host libc file API. Call only after
 /// deluge_scenario_stem_export_done() reports true.

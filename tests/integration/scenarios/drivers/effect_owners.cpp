@@ -242,8 +242,9 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		              kKit);
 	}
 	{
-		// Recorded from main's `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on
-		// the song master.
+		// Recorded from main's `GlobalEffectable::modEncoderActionForNonExistentParam`
+		// (`origin/main:src/deluge/model/global_effectable/global_effectable.cpp`) and `modEncoderButtonAction` on the
+		// song master.
 		constexpr Expected kSong[] = {{83886080, 83886080, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},

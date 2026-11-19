@@ -27,7 +27,8 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		expect(s.oled()[0].style).not_().to_equal(&deluge::ui::kDelugeStyle48); // a copy, which the shell may restyle
 	});
 	it("set_highlighting restyles every surface's copy, not the profile's", _ {
-		// `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read live (`horizontal_menu.cpp:268`).
+		// `FlashStorage::accessibilityMenuHighlighting`, which main's renderers read live
+		// (`HorizontalMenu::renderMenuItems` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
 		s.set_highlighting(deluge::ui::Highlighting::FullInversion);
 		expect(s.oled()[0].style->highlighting).to_equal(deluge::ui::Highlighting::FullInversion);
@@ -95,13 +96,13 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		expect(s.blits[0].byte_count).to_equal(size_t(128 * 48 / 8));
 		expect(s.pbm(0).starts_with("P1\n128 48\n1 0")).to_be_true();
 	});
-	// `IndicatorId`'s *values* are the `which` index `SurfaceSet::set_indicator` takes, and
-	// `BoardSurfaceSet` passes that index straight to `deluge_control_set_indicator`, where it is
-	// legacy's `whichKnob` -- the mod encoder number. Mod encoder 0 is `mod0`, the LOWER gold
-	// encoder (src/deluge/hid/encoders.h's mod0/mod1, via gui/views/view.cpp:1421-1486 ->
-	// hid/led/indicator_leds.cpp:241). So `Lower` must be 0. Numbered the other way, every knob
-	// indicator the shell drives would land on the wrong knob on real hardware -- a swap no other
-	// spec here would notice, because both indices are in range and both accept the same data.
+	// `IndicatorId`'s *values* are the `which` index `SurfaceSet::set_indicator` takes, and `BoardSurfaceSet` passes
+	// that index straight to `deluge_control_set_indicator`, where it is legacy's `whichKnob` -- the mod encoder
+	// number. Mod encoder 0 is `mod0`, the LOWER gold encoder (src/deluge/hid/encoders.h's mod0/mod1, via
+	// `View::setKnobIndicatorLevels` in `gui/views/view.cpp` -> `actuallySetKnobIndicatorLevel` in
+	// `hid/led/indicator_leds.cpp`). So `Lower` must be 0. Numbered the other way, every knob indicator the shell
+	// drives would land on the wrong knob on real hardware -- a swap no other spec here would notice, because both
+	// indices are in range and both accept the same data.
 	it("numbers IndicatorId to match the boundary's whichKnob: Lower is 0", _ {
 		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Lower) == 0);
 		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Upper) == 1);

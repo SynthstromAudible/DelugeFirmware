@@ -1,7 +1,7 @@
 # A range picked on the OSC1 page (MIDI's picker, SELECT, transpose, BACK twice) on c20's multisample, then SHIFT +
 # CROSS SCREEN to the next chained page and SHIFT + SCALE back. The switch begins the page, which drops main's
 # selected range, so MIDI opens the note-range picker again.
-# card: content/sweep-shellmenu.img
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

@@ -1,10 +1,10 @@
 /// @file
-/// @brief The batch-3 menu tables -- the settings root and the nine other roots -- checked against the reference rows
+/// @brief The third menu tables -- the settings root and the nine other roots -- checked against the reference rows
 ///        of upstream `main`'s menu (`tests/golden/ui/menu_oracle/tables_3.tsv`).
 ///
-/// Batch 3 declares everything a menu open can reach beyond the sound-editor root's subtrees: the kit-drum root, the
-/// MIDI/CV root (both of its titles), the MIDI- and gate-drum roots, the audio-clip root, the performance-view root,
-/// the song root, the kit global-FX root, and the settings root with its whole subtree.
+/// These tables declare everything a menu open can reach beyond the sound-editor root's subtrees: the kit-drum root,
+/// the MIDI/CV root (both of its titles), the MIDI- and gate-drum roots, the audio-clip root, the performance-view
+/// root, the song root, the kit global-FX root, and the settings root with its whole subtree.
 ///
 /// The checks are `tables_2_spec`'s, generalised over **ten** roots rather than one -- each with its own fixture and
 /// its own `MenuContext`, because a MIDI clip, an audio clip and the settings root resolve to genuinely different
@@ -23,7 +23,7 @@
 /// plus what only a complete tree can be asked: `MenuScene::roots()` resolves all ten, `validate_tree` over every root
 /// under every context, and the cap on `Kind::Custom` nodes (`kMaxCustomNodes`).
 ///
-/// @note The answers are rows of a reference table, not live calls: the spec includes no legacy menu header, and the
+/// @note The answers are rows of a reference table, not live calls: the spec includes no main-menu header, and the
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
@@ -74,7 +74,7 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "support/fake_note_bridge.h"
 #include "support/host_flash.h"
@@ -209,8 +209,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -382,7 +382,7 @@ bool raises_reverb(const Node& node) {
 } // namespace
 
 // clang-format off
-describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
+describe tables_3_shape("scenes::menu settings and other roots tables: shape", $ {
 	it("lists, under every submenu of every root, the children main's menu lists, and nothing it does not", _ {
 		size_t submenus = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -400,7 +400,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 
 	it("declares the settings root with the legacy child count", _ {
-		// `menus.cpp`'s `settingsRootMenu` literal: fifteen children.
+		// `origin/main:src/deluge/gui/ui/menus.cpp`'s `settingsRootMenu` literal: fifteen children.
 		expect(nodes::root_settings.children.size()).to_equal(size_t(15));
 		expect(std::to_string(nodes::root_settings.children.size())).to_equal(table().value("settings", "kids"));
 	});
@@ -471,8 +471,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 
 	it("carries both of the MIDI/CV root's titles, chosen by output type", _ {
-		// `sound_editor.cpp:1781-1786` rewrites one object's title; the port has two nodes over one
-		// child list, and `midi_or_cv_root` is the branch.
+		// `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) rewrites one object's title; the port
+		// has two nodes over one child list, and `midi_or_cv_root` is the branch.
 		expect(text_of(nodes::root_midi_or_cv.title))
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_MIDI_INST_MENU_TITLE)});
 		expect(text_of(nodes::root_cv.title))
@@ -513,7 +513,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			install(root->ctx, root->song);
 			const std::string title = shown(e.node->title, *e.node, root->ctx);
 			// A placeholder left unfilled is `sample::Repeat`'s, a `FormattedTitle` main gives no argument
-			// (`sample/repeat.h`), so its title is empty until something formats it.
+			// (`origin/main:src/deluge/gui/menu_item/sample/repeat.h`), so its title is empty until something formats
+			// it.
 			if (title.find('*') != std::string::npos) {
 				expect(e.node->title_arg).to_equal(uint8_t{0});
 				(void)table().find(e.path, "title");
@@ -591,7 +592,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 });
 
-describe tables_3_values("scenes::menu batch-3 tables: values", $ {
+describe tables_3_values("scenes::menu settings and other roots tables: values", $ {
 	it("reads what main's menu reads, for every node that holds a value", _ {
 		size_t compared = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -729,12 +730,12 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 
 	it("refuses an unpatched param on a MIDI clip rather than reinterpreting its collection", _ {
 		// `ParamManager::setupMIDI` and `setupUnpatched`
-		// (`modulation/params/param_manager.cpp:60-85`) both leave `expressionParamSetOffset == 1`
+		// (`modulation/params/param_manager.cpp`) both leave `expressionParamSetOffset == 1`
 		// and `summaries[0].paramCollection` non-null, and `getUnpatchedParamSet()` is a bare cast of
 		// that pointer -- so on a MIDI or CV clip an unpatched `ParamRef` read would reinterpret a
-		// `MIDIParamCollection`. Batch 3 made that reachable: the MIDI/CV root carries the
+		// `MIDIParamCollection`. That is reachable: the MIDI/CV root carries the
 		// randomizer's and the arpeggiator's unpatched params so their `midi_cv` twins can be
-		// siblings. `bindings::holds_unpatched_params` is what refuses it.
+		// siblings. `bindings::read` refuses it: the target resolves to no view (`target_view`), and it answers 0.
 		//
 		// `read()`'s "cannot serve" answer is a literal 0, which no *served* param can produce: a
 		// stored 0 scales to `kMidMenuValue` (25) through `computeCurrentValueForStandardMenuItem`,
@@ -761,13 +762,12 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		expect(spec::menu_engine(midi->ctx).params).not_().to_be_null();
 		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
-		// `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
-		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:67-70`), so
-		// `ensureExpressionParamSetExists` puts an `ExpressionParamSet` there (`:289-298`) -- and
-		// `bend_range::Main::writeCurrentValue` calls `getOrCreateExpressionParamSet()`
-		// (`gui/menu_item/bend_range/main.h:30`) from `bendMenu`, which is a child of this very root.
-		// So the scenario is reproduced here rather than assumed away: create the expression set the
-		// way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
+		// `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`: `setupMIDI` leaves
+		// `expressionParamSetOffset == 1` (`param_manager.cpp`), so `ensureExpressionParamSetExists` puts an
+		// `ExpressionParamSet` there -- and `bend_range::Main::writeCurrentValue` calls
+		// `getOrCreateExpressionParamSet()` (`origin/main:src/deluge/gui/menu_item/bend_range/main.h`) from `bendMenu`,
+		// which is a child of this very root. So the scenario is reproduced here rather than assumed away: create the
+		// expression set the way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
 		expect(spec::menu_engine(midi->ctx).params->getOrCreateExpressionParamSet()).not_().to_be_null();
 		expect(spec::menu_engine(midi->ctx).params->summaries[1].paramCollection).not_().to_be_null();
 
@@ -819,7 +819,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	});
 });
 
-describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
+describe tables_3_validation("scenes::menu settings and other roots tables: validation", $ {
 	it("validates every root but settings clean", _ {
 		std::vector<MenuContext> contexts;
 		std::vector<const Node*> without_settings;
@@ -851,8 +851,8 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("validates the settings root clean, its sixteen follow-channel tracks included", _ {
-		// Legacy names the sixteen tracks identically and formats the track number in
-		// (`FollowChannelTrack` in `midi/follow/follow_channel.h`); their `title_arg` tells them apart.
+		// Main names the sixteen tracks identically and formats the track number in (`FollowChannelTrack` in
+		// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`); their `title_arg` tells them apart.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const Node* root[] = {&nodes::root_settings};
@@ -875,9 +875,8 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("uses every declared Kind at least three times", _ {
-		// `node.h`'s `Kind` rule, applied with the whole tree in hand. A kind below three nodes is speculation, and the
-		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
-		// table declares either, were removed from the enum rather than left in.
+		// `node.h`'s `Kind` rule, applied with the whole tree in hand. A kind below three nodes is speculation, so the
+		// enum declares none.
 		// Sized from the enum's own last enumerator and swept in full: a
 		// hand-written list of kinds would let a future enumerator escape the rule silently, and an
 		// oversized array would report a phantom zero-count kind.
@@ -896,7 +895,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 });
-describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
+describe tables_3_writes("scenes::menu settings and other roots tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
 		// Every `set` hook is driven for the values the row names (the range's ends and its middle). Each starts from a
 		// sentinel that is not the value, so a hook that stores nothing shows: the port's read after its own write is
@@ -946,7 +945,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		//
 		// The six `hid/`-side settings nodes are covered here in the only half `src/scenes` owns:
 		// the `FlashStorage` / `runtimeFeatureSettings` write. Their `hid/` halves are legacy's, as
-		// `settings.h` records.
+		// `nodes/settings.h` records.
 		std::set<const Node*> covered;
 
 		// --- What this example perturbs, and puts back ------------------------------------------
@@ -990,10 +989,10 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			const TablesRoot& sound = installed_root("sound");
 			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
 			expect(arp).not_().to_be_null();
-			// The toggle's silencing only fires on a clip that is actually sounding
-			// (legacy `arpeggiator/mode.h`). `song_fixture.h` builds the clip without
-			// making it its output's active one -- nothing in the fixture plays -- so this is the
-			// one bit of state the example has to arrange for itself.
+			// The toggle's silencing only fires on a clip that is actually sounding (main
+			// `origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`). `song_fixture.h` builds the clip without
+			// making it its output's active one -- nothing in the fixture plays -- so this is the one bit of state the
+			// example has to arrange for itself.
 			expect(spec::menu_engine(sound.ctx).clip).not_().to_be_null();
 			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
 			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
@@ -1010,7 +1009,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
 
 			expect(arp->mode).to_equal(ArpMode::ARP);
-			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- so this is false
+			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp`) -- so this is false
 			// unless `updatePresetFromCurrentSettings()` actually ran.
 			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
@@ -1077,7 +1076,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		}
 
 		// --- The four `playbackHandler` / settings-root nodes ------------------------------------
-		// These hooks ignore the context entirely (`settings.cpp`'s signatures take an unnamed
+		// These hooks ignore the context entirely (`nodes/settings.cpp`'s signatures take an unnamed
 		// `const MenuContext&`), so the settings root's own context is the honest one to pass.
 		const TablesRoot& settings = installed_root("settings");
 
@@ -1211,15 +1210,15 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			}
 		}
 		flagged = reverb.size();
-		// `sidechain::Shape` (batch 2) and `sidechain::GlobalVolume` (this batch) -- the only two
-		// `unpatched_param::UpdatingReverbParams` subclasses in the whole legacy tree.
+		// `sidechain::Shape` (`tables_2_spec.cpp`) and `sidechain::GlobalVolume` (this file) -- the only two
+		// `unpatched_param::UpdatingReverbParams` subclasses in the whole of main's menu.
 		expect(flagged).to_equal(size_t(2));
 		expect(reverb.contains(&nodes::sidechain_shape)).to_be_true();
 		expect(reverb.contains(&nodes::global_sidechain_volume)).to_be_true();
 	});
 });
 
-describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chaining", $ {
+describe tables_3_chaining("scenes::menu settings and other roots tables: selectButtonPress chaining", $ {
 	it("answers what cv::Selection and gate::Selection answer, output by output", _ {
 		// Both selectors read the output the cursor names -- the port's `MenuContext::source_index` -- so the sweep is
 		// over every value main distinguishes, the `NUM_GATE_CHANNELS` sentinel included.
@@ -1385,20 +1384,21 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		}
 		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
 		//
-		// **77** = 7 + 53 + 4 + 3 + 1 + 3 + 2 + 4. The seven original chain nodes; 53 `PatchedParam`
-		// nodes (`with_patch_chain`, every node with `bind.param.kind == PATCHED`); the four
-		// patch-cable pages (`source_selection_{regular,range}`,
-		// `patch_cable_strength_{regular,range}`); the three items that open one (`patch_cables`,
-		// `vibrato`, `sidechain_volume`); the range picker; `midi_devices`, which chains to the
-		// per-device page (`midi::Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp`),
-		// with the two MPE selectors under it chaining onward -- `mpe_direction` -> `mpe_zone`
-		// (`mpe/direction_selector.cpp`) -> `mpe_zone_num_member_channels` (`mpe/zone_selector.cpp`),
-		// all three unconditional, so all three are swept here under every context and every one
-		// lands inside its own one-element span; and `nodes::note_iterance` and
-		// `nodes::note_row_iterance`, which each chain to their own custom-iterance root on
-		// `kCustomIterancePreset` (`note/iterance_preset.h`, `note_row/iterance_preset.h`); and the four DX7 chains: the
-		// two oscillator types into "DX7 source" (`osc/type.h`), "DX7 parameters" and "DX7 operator N"
-		// (`nodes/dx.h`).
+		// **77** = 7 + 53 + 4 + 3 + 1 + 3 + 2 + 4. The seven original chain nodes; 53 `PatchedParam` nodes
+		// (`with_patch_chain`, every node with `bind.param.kind == PATCHED`); the four patch-cable pages
+		// (`source_selection_{regular,range}`, `patch_cable_strength_{regular,range}`); the three items that open one
+		// (`patch_cables`, `vibrato`, `sidechain_volume`); the range picker; `midi_devices`, which chains to the
+		// per-device page (`midi::Devices::selectButtonPress`,
+		// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), with the two MPE selectors under it chaining onward
+		// -- `mpe_direction` (`DirectionSelector`, `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`)
+		// -> `mpe_zone` (`ZoneSelector`, `origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`) ->
+		// `mpe_zone_num_member_channels`, all three unconditional, so all three are swept here under every context and
+		// every one lands inside its own one-element span; and `nodes::note_iterance` and `nodes::note_row_iterance`,
+		// which each chain to their own custom-iterance root on `kCustomIterancePreset`
+		// (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
+		// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`); and the four DX7 chains: the two
+		// oscillator types into "DX7 source" (`origin/main:src/deluge/gui/menu_item/osc/type.h`), "DX7 parameters" and
+		// "DX7 operator N" (`nodes/dx.h`).
 		expect(chaining_nodes).to_equal(size_t(77));
 		expect(answers).to_be_greater_than(size_t(0));
 	});
@@ -1408,7 +1408,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// "the JSON changed", which says nothing about why. This names the edge instead.
 		//
 		// A **path-aware** walk, not the seen-set one above: a cycle is a target that is already
-		// open on the current path, which is exactly `menu_dump_main.cpp`'s `g_path` test and
+		// open on the current path, which is exactly `scenarios/menu_dump.cpp`'s `g_path` test and
 		// therefore exactly what makes the dump emit a stub.
 		// A *set* of edges: the same edge closes a cycle on every path that reaches it (the dump
 		// emits a stub at each such occurrence -- 118 of them), and what is being pinned here is
@@ -1444,14 +1444,15 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 			walk(walk, root);
 		}
 
-		// **Both directions of one two-node loop**, and nothing else.
-		// `patch_cable_strength::rangeMenu`'s select press opens `source_selection::rangeMenu`
-		// (`patch_cable_strength.cpp:302-309`) and that page's opens the strength page straight back
-		// (`source_selection/range.cpp:32-34`) -- legacy's own loop, and how a user toggles between
-		// "which source modulates this cable's depth" and "by how much". Which of the two shows up
-		// as the back edge depends on which the walk enters first, and the tree reaches each of them
-		// first from somewhere (`patch_cables` chains straight to the strength page, every
-		// `PatchedParam` reaches the picker first), so both do.
+		// **Both directions of one two-node loop**, and nothing else. `patch_cable_strength::rangeMenu`'s select press
+		// opens `source_selection::rangeMenu` (`PatchCableStrength::selectButtonPress` in
+		// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) and that page's opens the strength page
+		// straight back (`Range::selectButtonPress` in
+		// `origin/main:src/deluge/gui/menu_item/source_selection/range.cpp`) -- main's own loop, and how a user toggles
+		// between "which source modulates this cable's depth" and "by how much". Which of the two shows up as the back
+		// edge depends on which the walk enters first, and the tree reaches each of them first from somewhere
+		// (`patch_cables` chains straight to the strength page, every `PatchedParam` reaches the picker first), so both
+		// do.
 		//
 		// Named by identity, not by `name`: the two share the string "Modulate depth".
 		const auto name_of = [](const Node* n) -> std::string {
@@ -1494,7 +1495,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 	});
 });
 
-describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
+describe tables_3_reset_items("scenes::menu settings and other roots tables: the five reset_* items", $ {
 	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven directly by `DescriptorId`
 	// and checked against main's frozen resets (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does
 	// NOT drive is the settings tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
@@ -1504,7 +1505,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 	namespace context_menu = deluge::scenes::context_menu;
 
 	it("opens the reset context menu on the matching descriptor, rather than resetting on the spot", _ {
-		// Real descent from `reset_settings` (the "Reset Settings" submenu, `settings.h`'s
+		// Real descent from `reset_settings` (the "Reset Settings" submenu, `nodes/settings.h`'s
 		// `kResetSettingsChildren`) -- cursor down to row `i`, then the select-encoder press that
 		// `enter_child` -> `enter_leaf` -> `CustomItem::on_focus` runs on, the same path
 		// `rename_scene_spec.cpp`'s "opens on the drum target" test drives `EditNameItem` through.
@@ -1599,7 +1600,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 	   });
 });
 
-describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_command_* items", $ {
+describe tables_3_midi_commands("scenes::menu settings and other roots tables: the twelve midi_command_* items", $ {
 	// `midi::Command` is a MIDI *learn* item: focus it, send a message, and the message is bound to one
 	// `GlobalMIDICommand`. The port is one `nodes::MidiCommandItem` parameterised by that command, and
 	// `MenuScene::learn_note_on` / `learn_cc` / `learn_program_change` / `unlearn` are the entry points the MIDI routing
@@ -1643,7 +1644,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("from the list, a note-on and a program change learn the row under the cursor as legacy's Submenu does", _ {
-		// `Submenu::learnNoteOn` / `learnProgramChange` forward to the current child when the list is the current item.
+		// `Submenu::learnNoteOn` / `learnProgramChange` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) forward to
+		// the current child when the list is the current item.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const CommandSlots saved = CommandSlots::capture();
@@ -1783,14 +1785,15 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			Rig r;
 			focus_command_row(r, settings.ctx, 0);
 			expect(menu_scene().learn_cc(fake_cable(), 4, 43, 127)).to_be_true();
-			// `MenuScene::unlearn` -> `Command::unlearnAction` (`command.cpp:96-104`): only the
-			// focused item forgets, so RECORD's binding survives PLAY's unlearn.
+			// `MenuScene::unlearn` -> `Command::unlearnAction`
+			// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): only the focused item forgets, so RECORD's
+			// binding survives PLAY's unlearn.
 			menu_scene().unlearn();
 		}
 		expect(CommandSlots::capture().describe()).to_equal(learned);
 
-		// `Command::selectEncoderAction` (`command.cpp:88-91`): a detent in either direction clears
-		// the binding. Driven through the real encoder, not by calling the item.
+		// `Command::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): a detent in either
+		// direction clears the binding. Driven through the real encoder, not by calling the item.
 		{
 			Rig r;
 			focus_command_row(r, settings.ctx, 2);
@@ -1806,8 +1809,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   _ {
 		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (the base returns false), and the editor's
 		   // screen change turns that into `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every
-		   // screen change
-		   // (`sound_editor.cpp:949-954`). Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
+		   // screen change (`SoundEditor::updatePadLightsFor` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
+		   // Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
 		   constexpr uint8_t kLearnBoardLed = 7;
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -1851,10 +1854,11 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("has no param learn target: this is global-command learn, not param learn", _ {
-		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()` -- "which
-		// automatable parameter would a CC bind to". These twelve bind a whole message to a
-		// transport action instead and carry no `ParamRef`, so there is no target. The two
-		// learn paths share a name and nothing else.
+		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()`
+		// (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`,
+		// `origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`) -- "which automatable parameter would a CC bind
+		// to". These twelve bind a whole message to a transport action instead and carry no `ParamRef`, so there is no
+		// target. The two learn paths share a name and nothing else.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		Rig r;
@@ -1863,7 +1867,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	});
 });
 
-describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow learns its channel and kit root note", $ {
+describe tables_3_midi_follow_learn("scenes::menu settings and other roots tables: MIDI follow learns its channel and kit root note", $ {
 	it("each follow channel learns a note-on and a CC as legacy's FollowChannel does, and Shift+LEARN clears it", _ {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -1971,7 +1975,8 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 
 	it("a learn or unlearn on a follow channel's own screen shows the channel it leaves, as setValue does", _ {
 		// `FollowChannel::learnCC`/`learnNoteOn` and `unlearnAction` set the item's value as well as the learned input,
-		// and redraw when the item is the current one; `FollowKitRootNote::learnNoteOn` the same.
+		// and redraw when the item is the current one; `FollowKitRootNote::learnNoteOn`
+		// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`) the same.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const FollowSaved saved;
@@ -2004,21 +2009,23 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 	});
 });
 
-describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors and the MIDI device list", $ {
-	// The last three settings items legacy implements as bespoke `MenuItem` subclasses rather than
-	// as data: `cv::Selection` (`gui/menu_item/cv/selection.h:27-55`), `gate::Selection`
-	// (`gui/menu_item/gate/selection.h:29-72`) and `midi::Devices`
-	// (`gui/menu_item/midi/devices.h:24-39`, `devices.cpp`). The port is three `CustomItem`s
-	// (`menu/nodes/dynamic.h`) plus the `MenuWalkState::source_choice` / `midi_cable_choice`
-	// write-back `settings.h` recorded as owed.
+describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/gate selectors and the MIDI device list", $ {
+	// The last three settings items main implements as bespoke `MenuItem` subclasses rather than as data:
+	// `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
+	// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
+	// (`origin/main:src/deluge/gui/menu_item/midi/devices.h`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
+	// The port is three `CustomItem`s (`menu/nodes/dynamic.h`) plus the `MenuWalkState::source_choice` /
+	// `midi_cable_choice` write-back `nodes/settings.h` recorded as owed.
 	//
-	// **These are NOT `Node::dynamic_children` nodes**, which is what the plan expected them to be.
-	// A submenu row is labelled from `Node::name`, one static `uint16_t` l10n id
-	// (`MenuScene::render_vertical`), and `Devices` labels its rows with
-	// `MIDICable::getDisplayName()` (`devices.cpp:169`) -- a runtime string with no id at all --
-	// while the two selectors' option lists are static in legacy
-	// (`cv/selection.h:47-54`, `gate/selection.h:56-71`) over the compile-time
-	// `NUM_PHYSICAL_CV_CHANNELS` / `NUM_GATE_CHANNELS`. See `nodes/dynamic.h`'s own note.
+	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled by
+	// `display_text` (`MenuView::render_vertical`; `present.cpp`) -- a `Binding::name_text` hook with no row index, or
+	// the `Node::name` l10n id -- and `Devices` labels its rows with
+	// `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
+	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- a runtime string with no id at all -- while the two
+	// selectors' option lists are static in main (`getOptions` in
+	// `origin/main:src/deluge/gui/menu_item/cv/selection.h` and
+	// `origin/main:src/deluge/gui/menu_item/gate/selection.h`) over the compile-time `NUM_PHYSICAL_CV_CHANNELS` /
+	// `NUM_GATE_CHANNELS`. See `nodes/dynamic.h`'s own note.
 
 	it("lists exactly the cables legacy lists, in legacy's order, with DIN first", _ {
 		CableFixture cables;
@@ -2075,9 +2082,9 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("seeds the cursor on the cable the context already holds -- and on DIN when it holds none", _ {
-		// `Devices::beginSession` (`devices.cpp:38-57`): the previously-current cable if it is still
-		// listed, otherwise `lowestDeviceNum` -- "Start on DIN. That's the only one that'll always
-		// be there." (`:52`).
+		// `Devices::beginSession` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): the previously-current
+		// cable if it is still listed, otherwise `lowestDeviceNum` -- "Start on DIN. That's the only one that'll always
+		// be there."
 		CableFixture cables;
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
 		const TablesRoot& settings = roots().back();
@@ -2105,12 +2112,11 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("remembers the cable the user moved onto, through the context, on the next visit", _ {
-		// The write-back half: `Devices::selectEncoderAction` assigns
-		// `soundEditor.currentMIDICable` on every move (`devices.cpp:102`), and the next
-		// `beginSession` reads it back to reselect that device (`:41-49`). The port routes the same
-		// fact through `MenuWalkState::midi_cable_choice` -> `MenuScene::after_render` ->
-		// `MenuContext::midi_cable` -> `MidiDevicesItem::on_focus`, so the round trip is what proves
-		// it: descend, move, leave, come back, and the cursor is where it was left.
+		// The write-back half: `Devices::selectEncoderAction` assigns `soundEditor.currentMIDICable` on every move
+		// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), and the next `beginSession` reads it back to
+		// reselect that device. The port routes the same fact through `MenuWalkState::midi_cable_choice` ->
+		// `MenuScene::after_render` -> `MenuContext::midi_cable` -> `MidiDevicesItem::on_focus`, so the round trip is
+		// what proves it: descend, move, leave, come back, and the cursor is where it was left.
 		CableFixture cables;
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
 		const TablesRoot& settings = roots().back();
@@ -2154,8 +2160,8 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
 
 		// This press does not ascend. `midi_devices` chains to the per-device page
-		// (`Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp`), so the way back
-		// up to the MIDI page is now two BACK presses rather than one select press -- which is a
+		// (`Devices::selectButtonPress`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), so the way back
+		// up to the MIDI page is two BACK presses rather than one select press -- which is a
 		// *stronger* round trip for what this example is about, because `MenuScene::ascend` never
 		// runs `on_focus` and only the re-descent below can put the cursor back.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
@@ -2186,9 +2192,9 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("lands on DIN when nothing at all is connected, rather than leaving a stale cable", _ {
-		// `Devices::beginSession` assigns unconditionally (`devices.cpp:55`),
+		// `Devices::beginSession` assigns unconditionally (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`),
 		// and `getCable(lowestDeviceNum)` is the DIN cable whatever its `connectionFlags` say --
-		// the guard at `:133-136` rejects out-of-range *indices*, not disconnection. So an empty
+		// the guard in `Devices::getCable` rejects out-of-range *indices*, not disconnection. So an empty
 		// row list still resolves to DIN; it must not leave `MenuContext::midi_cable` pointing at
 		// the previous visit's cable.
 		//
@@ -2210,10 +2216,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
-		// Legacy's `beginSession` moves the *item's* value and leaves
-		// `soundEditor.currentSourceIndex` alone; only `selectButtonPress` writes it
-		// (`cv/selection.h:32-34` vs `:42`, `gate/selection.h:34-36` vs `:47`). So `on_focus`
-		// publishes no `source_choice`, and the sentinel is still -1 after the descent that ran it.
+		// Main's `beginSession` moves the *item's* value and leaves `soundEditor.currentSourceIndex` alone; only
+		// `selectButtonPress` writes it (`origin/main:src/deluge/gui/menu_item/cv/selection.h` and
+		// `origin/main:src/deluge/gui/menu_item/gate/selection.h`). So `on_focus` publishes no `source_choice`, and the
+		// sentinel is still -1 after the descent that ran it.
 		//
 		// Read before the first tick, for the same reason as the example above. (The other half of
 		// the same fix -- that *scrolling* publishes nothing either -- has no observable effect
@@ -2327,7 +2333,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		// *above* the `render_resp.entered` arm, because `gate_selection_chain` picks its target
 		// from `ctx_.source_index` and must see the output the user just picked -- legacy assigns
 		// `soundEditor.currentSourceIndex` on the way through `selectButtonPress`
-		// (`gui/menu_item/gate/selection.h:43-54 selectButtonPress`).
+		// (`origin/main:src/deluge/gui/menu_item/gate/selection.h` `selectButtonPress`).
 		//
 		// The example above covers the same write from a context that already holds 0, so its
 		// `which == 0` case passes either way. This one is built so that BOTH directions of the
@@ -2466,7 +2472,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		}
 	});
 
-	it("is not a placeholder any more, and reports nothing under a strict validation", _ {
+	it("is no placeholder, and reports nothing under a strict validation", _ {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		expect(nodes::cv_selection.custom).to_equal(&nodes::kCvSelectionItem);
@@ -2537,7 +2543,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 });
 
-describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
+describe tables_3_pixels("scenes::menu settings and other roots tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in.
 	// `tables_3_writes` above drives every set hook across the whole tree, including params an
@@ -2567,7 +2573,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		expect_golden(self, "ui/menu/menu_settings_tree_48.pbm", r.fake.pbm(0));
 	});
 
-	// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:33-87`) has exactly two
+	// `midi::Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) has exactly two
 	// shapes, and both are recorded here: the one-line "COMMAND UNASSIGNED", and the three-line
 	// device / channel / message-kind readout, stepping by the row pitch. The number columns are
 	// legacy's `kTextSpacingX * 8` (channel) and `* 5` (note).
@@ -2608,10 +2614,10 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	});
 
 	it("renders a MIDI command item learned to an MPE zone", _ {
-		// `command.cpp:54-58`: an MPE zone prints "MPE LOWER ZONE" on the channel row instead of
-		// "CHANNEL n", and -- being below `IS_A_CC` -- still prints "Note" on the third. A golden,
-		// not an inequality: deleting the zone arm falls through to "CHANNEL 17", which is different
-		// from every other frame in this file and so passes any inequality check.
+		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): an MPE zone prints
+		// "MPE LOWER ZONE" on the channel row instead of "CHANNEL n", and -- being below `IS_A_CC` -- still prints
+		// "Note" on the third. A golden, not an inequality: deleting the zone arm falls through to "CHANNEL 17", which
+		// is different from every other frame in this file and so passes any inequality check.
 		const TablesRoot& settings = roots().back();
 		const CommandSlots saved = CommandSlots::capture();
 		CommandSlots::clear_all();
@@ -2682,7 +2688,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 // clang-format on
 
 // clang-format off
-describe tables_4_items("scenes::menu batch-4 items: the last placeholders that were only placeholders", $ {
+describe tables_4_items("scenes::menu settings items: the pad colours, the cursor flash and the shortcuts version", $ {
 	/// The group's eight items. Named once, here, and every example below inserts into `covered`
 	/// so the closing example can assert the set by identity -- a node dropped from a root, or an
 	/// example that quietly stopped driving one, fails rather than shrinking a count with slack in it.
@@ -2827,7 +2833,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		// value comparison cannot see: both the port and legacy read `padColours` correctly, and the
 		// loader between flash and that array was the broken part.
 		//
-		// The host BSP backs the settings region with RAM (`src/bsp/host/host_bsp.c`), so this is a
+		// The host BSP backs the settings region with an in-memory NOR model (`peripherals/flash.rs`), so this is a
 		// real program/erase/read cycle rather than a stub -- and the buffer is process-global,
 		// which is why the guard below is here as well as the save/restore of `padColours`. See
 		// `support/host_flash.h`.

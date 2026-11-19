@@ -26,7 +26,9 @@ struct FillPattern {
 	gfx::oled::Point last{-1, -1};
 };
 
-/// @brief `draw_fill_pattern` (`filter_container.h:91-100`): below each third column of the curve, every third row.
+/// @brief `draw_fill_pattern` (the lambda in `FilterContainer::render`,
+/// `origin/main:src/deluge/gui/menu_item/filter/filter_container.h`): below each third column of the curve, every third
+/// row.
 void fill_pattern(gfx::oled::Point point, void* ctx) {
 	auto* fill = static_cast<FillPattern*>(ctx);
 	if (fill->last.x != point.x && point.x % 3 == 0) {
@@ -109,7 +111,9 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g) {
 
 namespace {
 
-/// @brief `drawTransitionIndicator`/`drawControlIndicator` (`envelope_menu.h:96-125`, `eq_menu.h:162-191`).
+/// @brief `drawTransitionIndicator`/`drawControlIndicator`
+/// (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`,
+/// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
 struct Indicators {
 	gfx::oled::Canvas& canvas;
 	int32_t selected_x = -1;
@@ -221,7 +225,8 @@ void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float
 	const auto treble_y1 = static_cast<uint8_t>(std::lerp(end_y, end_y - height, treble));
 	auto treble_y2 = center_y;
 
-	// The treble band may push into the bass's territory (`eq_menu.h:62-68`).
+	// The treble band may push into the bass's territory (`EqMenu::renderMenuItems` in
+	// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`).
 	if (bass_x2 > treble_x2) {
 		const auto diff = static_cast<uint8_t>(bass_x2 - treble_x2);
 		bass_x2 = static_cast<uint8_t>(bass_x2 - diff);
@@ -272,7 +277,8 @@ void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float
 
 namespace {
 
-/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`), in canvas coordinates with its `uint8_t`s.
+/// `voice::Portamento::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/voice/portamento.h`), in canvas
+/// coordinates with its `uint8_t`s.
 void glide(OledFrame& f, gfx::oled::Rect slot, float norm) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;
@@ -306,7 +312,8 @@ void glide(OledFrame& f, gfx::oled::Rect slot, float norm) {
 	image.draw_horizontal_line(porta_start_y + 1, porta_x1 + note_offset, higher_note_end_x);
 }
 
-/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`): three lines splaying as the detune grows.
+/// `unison::Detune::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/unison/detune.h`): three lines
+/// splaying as the detune grows.
 void detune(OledFrame& f, gfx::oled::Rect slot, float norm) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;
@@ -338,8 +345,8 @@ void detune(OledFrame& f, gfx::oled::Rect slot, float norm) {
 	image.draw_horizontal_line(bottom, x1 - 8, x1);
 }
 
-/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`): one cycle of the wave, its high part
-/// narrowing as the value grows.
+/// `osc::PulseWidth::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`): one cycle of
+/// the wave, its high part narrowing as the value grows.
 void pulse_width(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;
@@ -360,8 +367,9 @@ void pulse_width(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	image.draw_horizontal_line(end_y, pw_x, end_x);
 }
 
-/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`): `Number::drawBar` (`number.cpp:156-173`) over the
-/// value clamped to 0..24, and above 24 a filled box with an inverted "!" across the bar.
+/// `delay::Amount::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/delay/amount.h`): `Number::drawBar`
+/// (`origin/main:src/deluge/gui/menu_item/number.cpp`) over the value clamped to 0..24, and above 24 a filled box with
+/// an inverted "!" across the bar.
 void delay_amount(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;
@@ -398,8 +406,9 @@ void delay_amount(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	image.invert_area(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 8, excl_mark_start_y + 10);
 }
 
-/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`): a filled dot and "rec", the source's
-/// number in the Big face when focused or under full inversion, and a dotted rule after source 1 otherwise.
+/// `osc::AudioRecorder::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`): a filled
+/// dot and "rec", the source's number in the Big face when focused or under full inversion, and a dotted rule after
+/// source 1 otherwise.
 void recorder(OledFrame& f, gfx::oled::Rect slot, int32_t source, bool focused) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;
@@ -429,8 +438,8 @@ void recorder(OledFrame& f, gfx::oled::Rect slot, int32_t source, bool focused) 
 	}
 }
 
-/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`): a dotted marker line, the loop icon
-/// beside it, mirrored for the end.
+/// `sample::LoopPoint::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`): a dotted
+/// marker line, the loop icon beside it, mirrored for the end.
 void loop_point(OledFrame& f, gfx::oled::Rect slot, bool start) {
 	// The end marker's icon starts two pixels left of its region, as legacy draws it.
 	ClipScope scope{f.canvas, panel_frame(f).clip};
@@ -445,7 +454,8 @@ void loop_point(OledFrame& f, gfx::oled::Rect slot, bool start) {
 	image.draw_icon(gfx::oled::icons::loopPoint, icon_x, slot_y + kHorizontalSlotYOffset, !start);
 }
 
-/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
+/// (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`).
 void clip_end(OledFrame& f, gfx::oled::Rect slot) {
 	ClipScope scope{f.canvas, f.clip};
 	gfx::oled::Canvas& image = f.canvas;

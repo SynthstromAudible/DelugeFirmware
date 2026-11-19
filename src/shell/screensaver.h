@@ -10,15 +10,15 @@ namespace deluge::ui::shell {
 /// @brief Pushes and pops the idle-animation scene after a configurable period with no input.
 ///
 /// Ports the *policy* half of legacy's `hid::display::Screensaver`
-/// (`hid/display/screensaver.h:35-106`): when to show and hide the screensaver, not what it
+/// (`hid/display/screensaver.h`): when to show and hide the screensaver, not what it
 /// draws. The real animation is `deluge::scenes::overlay::ScreensaverScene`, which the
 /// application registers under `SceneKind::Screensaver` exactly like any other scene; this service
 /// only knows the kind and pushes/pops it by name, so it neither owns nor constructs one -- a spec
 /// short of the real scene supplies its own stand-in at that slot.
 ///
-/// @note `idle_ms == 0` disables the service outright, the port of legacy's `ScreensaverMode::OFF`
-///       (`screensaver.cpp:94-96,104-106,235-238`): `tick()` never pushes and `note_activity()`
-///       never re-arms the deadline.
+/// @note `idle_ms == 0` disables the service outright, the port of legacy's `ScreensaverMode::OFF` (the OFF early-outs
+///       of `Screensaver::noteActivity`, `Screensaver::timerEvent` and `Screensaver::settingsChanged` in
+///       `hid/display/screensaver.cpp`): `tick()` never pushes and `note_activity()` never re-arms the deadline.
 ///
 /// @note **A refused push disables the service for good.** `SceneStack::push` returns false when
 ///       `SceneKind::Screensaver` names no registered scene, and the idle deadline stays past for
@@ -48,22 +48,22 @@ public:
 	/// @brief Register that a physical control was touched: wake the screensaver if it is
 	///        showing, and re-arm the idle deadline either way.
 	///
-	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp:85-99`): the wake
+	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp`): the wake
 	/// check runs first and unconditionally, exactly as legacy's own comment on that ordering
 	/// warns ("sits on the input hot path... so a mode that somehow reached OFF... can never
 	/// strand the panel"), and the deadline is re-armed afterwards regardless of whether the
 	/// screensaver had been showing -- legacy's unconditional trailing `arm()` call.
 	///
-	/// `Shell::on_board_event`/`on_encoder_edges` call this before lowering the event, never
-	/// instead of it: legacy's `dispatchInputEvent` calls `noteActivity()` first and then
-	/// unconditionally continues into `padAction`/`buttonAction` for the very same event
-	/// (`deluge.cpp:261,270`; the encoder path is the same shape, `hid/encoder_input.cpp`), so
-	/// the press that wakes the screensaver is never swallowed by waking it.
+	/// `Shell::on_board_event`/`on_encoder_edges` call this before lowering the event, never instead of it: legacy's
+	/// `dispatchInputEvent` calls `noteActivity()` first and then unconditionally continues into
+	/// `padAction`/`buttonAction` for the very same event (`dispatchInputEvent` in `src/deluge/deluge.cpp`; the encoder
+	/// path is the same shape, `hid/encoder_input.cpp`), so the press that wakes the screensaver is never swallowed by
+	/// waking it.
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms);
 
 	/// @brief Re-supply the timeout after a settings change -- the port of
-	///        `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:200-241`).
+	///        `Screensaver::settingsChanged` (`hid/display/screensaver.cpp`).
 	///
 	/// Legacy re-reads `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` on every arm
 	/// and every tick, so a settings change takes effect by itself; this service is handed one
@@ -95,7 +95,7 @@ public:
 	uint32_t idle_ms() const { return idle_ms_; }
 
 	/// @brief Push the screensaver once idle and not already showing. The inhibitors are asked where legacy's
-	///        `Screensaver::timerEvent` asks them (`hid/display/screensaver.cpp:113-120`): when the deadline comes,
+	///        `Screensaver::timerEvent` asks them (`hid/display/screensaver.cpp`): when the deadline comes,
 	///        which then re-arms the full timeout from now instead of showing, and at each re-check while showing,
 	///        which takes the screensaver down and re-arms.
 	///
@@ -121,7 +121,7 @@ public:
 	uint32_t push_refused() const { return push_refused_; }
 
 	/// @brief How often a showing screensaver re-checks its inhibitors -- legacy's `kInhibitRecheckMS`
-	///        (`hid/display/screensaver.cpp:183-184`). The scene animates on its own timer.
+	///        (`hid/display/screensaver.cpp`). The scene animates on its own timer.
 	static constexpr uint32_t kInhibitRecheckMs = 1000;
 
 private:

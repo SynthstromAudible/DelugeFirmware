@@ -3,7 +3,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""L0 guardrail for the dsp-next library (synth untangling, Phase 1).
+"""L0 guardrail for the dsp-next library.
 
 src/deluge/dsp-next/ is the clean L0 DSP library: freestanding primitives that
 must not reach upward into the application. This check fails if any dsp-next file
@@ -13,7 +13,7 @@ Unlike the platform-boundary check, there is **no allowlist** — dsp-next is
 greenfield and clean by construction. A primitive that still needs an app header
 is not ready to migrate; finish decoupling it before moving it here. (Primitives
 that legitimately cannot be decoupled yet — the sample path — stay in the legacy
-src/deluge/dsp/ until Phase 3; they do not come here.)
+src/deluge/dsp/ until the sample path is decoupled; they do not come here.)
 
 Forbidden: the application layers (storage/, model/, processing/, gui/,
 playback/, modulation/, hid/, io/), the legacy dsp/ library, and the HAL/BSP

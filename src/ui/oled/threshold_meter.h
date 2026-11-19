@@ -23,8 +23,9 @@ struct ThresholdMeter {
 	bool operator==(const ThresholdMeter&) const = default;
 };
 
-/// @brief A level's x on the meter (`levelPosition` in `gui/ui/audio_recorder.cpp`): levels up to the caution level
-///        fill the space left of the caution line, and levels from there to full scale the space right of it.
+/// @brief A level's x on the meter (`levelPosition` in `origin/main:src/deluge/gui/ui/audio_recorder.cpp`): levels up
+///        to the caution level fill the space left of the caution line, and levels from there to full scale the space
+///        right of it.
 /// @param level The natural log of the mean absolute q31 sample, as `SampleRecorder::getInputLevels` gives it.
 /// @param width The panel's width; the meter ends 14 px short of it.
 /// @return The x.

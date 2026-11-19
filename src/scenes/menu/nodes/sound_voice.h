@@ -4,34 +4,39 @@
 ///        unison page.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `voiceMenu` literal (`:707-710`) and the globals it names (`:702-705`):
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `voiceMenu` literal and the globals it names:
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h`) | Enum |
-/// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h`) | Enum (dynamic) |
-/// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h`) | Int |
-/// | `portamento` | `portaMenu` (`:704`) | `voice::Portamento` (`voice/portamento.h:24`), `UNPATCHED_PORTAMENTO` | Int (param) |
+/// | `voice_priority` | `priorityMenu` | `voice::Priority` (`origin/main:src/deluge/gui/menu_item/voice/priority.h`) | Enum |
+/// | `polyphony` | `polyphonyMenu` | `voice::PolyphonyType` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`) | Enum (dynamic) |
+/// | `voice_count` | `voice::polyphonicVoiceCountMenu` | `voice::VoiceCount` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`) | Int |
+/// | `portamento` | `portaMenu` | `voice::Portamento` (`origin/main:src/deluge/gui/menu_item/voice/portamento.h`), `UNPATCHED_PORTAMENTO` | Int (param) |
 /// | `unison` | `unisonMenu` | `HorizontalMenu` -- `sound_unison.h` | Submenu (Horizontal) |
-/// | `voice` | `voiceMenu` (`:707`) | `HorizontalMenu`, `Layout::FIXED` | Submenu (Horizontal) |
+/// | `voice` | `voiceMenu` | `HorizontalMenu`, `Layout::FIXED` | Submenu (Horizontal) |
 // clang-format on
 ///
-/// @note **`PolyphonyType`'s option list is dynamic**: CHOKE is offered only on a kit
-///       (`voice/polyphony.h:120-123`), so the node uses `dynamic_enumeration` rather than a static
-///       `names` span.
+/// @note **`PolyphonyType`'s option list is dynamic**: CHOKE is offered only on a kit (`PolyphonyType::getOptions` in
+///       `origin/main:src/deluge/gui/menu_item/voice/polyphony.h`), so the node uses `dynamic_enumeration` rather than
+///       a static `names` span.
 ///
-/// @note **Columns.** `VoiceCount`, `PolyphonyType` and `Portamento` label their columns VCNT, MODE
-///       and PRTA (`polyphony.h:85-87`, `:156-158`, `portamento.h:30-32`); `VoiceCount` draws infinity
-///       at zero and its notification reads OFF there (`polyphony.h:89-104`). `Portamento`'s glide
-///       drawing (`portamento.h:34-66`) is not carried: its column draws the number.
+/// @note **Columns.** `VoiceCount`, `PolyphonyType` and `Portamento` label their columns VCNT, MODE and PRTA
+///       (`VoiceCount::getColumnLabel` in `origin/main:src/deluge/gui/menu_item/voice/polyphony.h`,
+///       `PolyphonyType::getColumnLabel`, `Portamento::getColumnLabel`
+///       (`origin/main:src/deluge/gui/menu_item/voice/portamento.h`)); `VoiceCount` draws infinity at zero and its
+///       notification reads OFF there (`VoiceCount::renderInHorizontalMenu` and `VoiceCount::getNotificationValue` in
+///       `origin/main:src/deluge/gui/menu_item/voice/polyphony.h`). `Portamento`'s glide drawing
+///       (`Portamento::renderInHorizontalMenu` in `origin/main:src/deluge/gui/menu_item/voice/portamento.h`) is not
+///       carried: its column draws the number.
 ///
-/// @note `voiceMenu` is built `HorizontalMenu::Layout::FIXED` (`menus.cpp:710`): `with_fixed_columns`.
+/// @note `voiceMenu` is built `HorizontalMenu::Layout::FIXED` (`origin/main:src/deluge/gui/ui/menus.cpp`):
+/// `with_fixed_columns`.
 ///
-/// @note **`Portamento` draws bespoke art** (a glide line between two notes,
-///       `voice/portamento.h:29-66`) with no `getRenderingStyle()` override, so legacy's declared
-///       style is KNOB while what it *draws* is neither. `Hint::None` is the honest answer, the
-///       convention for a column whose legacy style does not match what it draws.
+/// @note **`Portamento` draws bespoke art** (a glide line between two notes, `Portamento::renderInHorizontalMenu` in
+///       `origin/main:src/deluge/gui/menu_item/voice/portamento.h`) with no `getRenderingStyle()` override, so legacy's
+///       declared style is KNOB while what it *draws* is neither. `Hint::None` is the honest answer, the convention for
+///       a column whose legacy style does not match what it draws.
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
@@ -59,15 +64,16 @@ namespace deluge::scenes::menu::nodes {
 inline constexpr Node voice_priority = with_affect_entire(setting_item(
     sid(deluge::l10n::String::STRING_FOR_PRIORITY), Kind::Enum,
     {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"}));
-// `VoiceCount::getMinValue`/`getMaxValue` (`voice/polyphony.h:56-57`), rendered as a plain NUMBER
-// (`:58`). Declared before `polyphony`, which chains to it; `kVoiceChildren` below still fixes the
-// on-screen order.
+// `VoiceCount::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`), rendered as a
+// plain NUMBER (`VoiceCount::getRenderingStyle`). Declared before `polyphony`, which chains to it; `kVoiceChildren`
+// below still fixes the on-screen order.
 //
 // The node-id order happens to be unchanged here too -- but by luck, not by the children span:
 // `assign_node_ids` numbers a chain target while visiting the node that chains to it, so
 // `voice_count` is numbered right after `polyphony` either way, because it is already `polyphony`'s
 // next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
-/// @brief `VoiceCount::renderInHorizontalMenu` (`voice/polyphony.h:98-104`): infinity at 0, else the number.
+/// @brief `VoiceCount::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`): infinity at
+/// 0, else the number.
 inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuContext&, int32_t value) {
 	if (value != 0) {
 		return std::nullopt;
@@ -86,9 +92,10 @@ inline constexpr Node voice_count = with_affect_entire(with_column_name(
         off_at_zero_text),
     sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT)));
 
-/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h`): a select press opens the voice count when the
-///        mode is POLY, and otherwise falls back to `Selection::selectButtonPress()`: from the VOICE page that stays
-///        on the page (`Node::chain_falls_back_to_selection`), and on the item's own screen it goes up.
+/// @brief `PolyphonyType::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`): a select
+///        press opens the voice count when the mode is POLY, and otherwise falls back to
+///        `Selection::selectButtonPress()`: from the VOICE page that stays on the page
+///        (`Node::chain_falls_back_to_selection`), and on the item's own screen it goes up.
 inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
 inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                           .path = "polyphonic"};

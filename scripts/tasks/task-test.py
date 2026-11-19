@@ -301,7 +301,7 @@ def _steps(
 
     tree = root / h.tree
     steps = []
-    # The C++ compiler this tree is configured with, resolved as its environment is (see _environment).
+    # The C++ compiler the build directory is configured with, resolved as its environment is (see _environment).
     cxx = os.environ.get("CXX") or h.env_default.get("CXX") or COMPILER_DEFAULTS["CXX"]
     if tb.needs_configure(tree, root / h.source, Path(cxx).name):
         steps.append(

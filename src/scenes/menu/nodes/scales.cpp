@@ -47,12 +47,11 @@ namespace deluge::scenes::menu::nodes {
 namespace {
 
 /// @brief The number of rows both items draw: `PresetScale` 0 .. `LAST_PRESET_SCALE`
-///        (`model/scale/preset_scales.h`).
+///        (`music-theory/preset_scales.h`).
 ///
-/// `NUM_PRESET_SCALES` is `LAST_PRESET_SCALE + 1`, i.e. the preset scales and nothing after them --
-/// `USER_SCALE` and the rest of `NUM_SCALELIKE` are not offered here, exactly as
-/// `ActiveScaleMenu::selectEncoderAction`'s clamp to `LAST_PRESET_SCALE` (`active_scales.cpp:104`)
-/// says.
+/// `NUM_PRESET_SCALES` is `LAST_PRESET_SCALE + 1`, i.e. the preset scales and nothing after them -- `USER_SCALE` and
+/// the rest of `NUM_SCALELIKE` are not offered here, exactly as `ActiveScaleMenu::selectEncoderAction`'s clamp to
+/// `LAST_PRESET_SCALE` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`) says.
 constexpr size_t kScaleRows = NUM_PRESET_SCALES;
 static_assert(kScaleRows == static_cast<size_t>(LAST_PRESET_SCALE) + 1,
               "the row count must be the closed range legacy's clamp allows, or the last scale is "
@@ -76,7 +75,7 @@ std::string_view disabled_path(size_t index) {
 }
 
 /// @brief The node on screen, so the item can draw its own title and name itself as the write's
-///        target. The helper `dynamic.cpp` and `settings.cpp` keep.
+///        target. The helper `nodes/dynamic.cpp` and `nodes/settings.cpp` keep.
 const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
@@ -93,7 +92,7 @@ size_t preset_scale_names(const MenuContext& /*ctx*/, std::span<std::string_view
 }
 
 bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
-	// `ActiveScaleMenu::isDisabled` (`gui/menu_item/active_scales.cpp:114-124`). The `else` arm's
+	// `ActiveScaleMenu::isDisabled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`). The `else` arm's
 	// `return false` is legacy's answer with no song loaded, and it is reproduced rather than
 	// asserted away: the settings root resolves a context with a song, but the item must not
 	// dereference a null one if it is ever opened without.
@@ -110,9 +109,9 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 }
 
 void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool value) const {
-	// `ActiveScaleMenu::setDisabled` (`active_scales.cpp:126-133`), whose `else if (currentSong)`
-	// makes a null song a silent no-op. `ctx.song` stands in for `currentSong` -- the substitution
-	// `context.h` makes everywhere.
+	// `ActiveScaleMenu::setDisabled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`), whose
+	// `else if (currentSong)` makes a null song a silent no-op. `ctx.song` stands in for `currentSong` -- the
+	// substitution `context.h` makes everywhere.
 	if (index >= kScaleRows) {
 		return;
 	}
@@ -125,18 +124,18 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 }
 
 void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
-	// `MenuItem::renderOLED` (`gui/menu_item/menu_item.cpp:37-41`) draws the screen title and then
-	// calls `drawPixelsForOled`; `ActiveScaleMenu` overrides only the second, so the title is legacy's
-	// too. (`drawName()` is overridden to nothing, `active_scales.cpp`, which is the 7SEG path.)
+	// `MenuItem::renderOLED` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) draws the screen title and then
+	// calls `drawPixelsForOled`; `ActiveScaleMenu` overrides only the second, so the title is legacy's too.
+	// (`drawName()` is overridden to nothing, `origin/main:src/deluge/gui/menu_item/active_scales.cpp`, which is the
+	// 7SEG path.)
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
 	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
 	                                           : std::string_view{});
 
-	// `drawSubmenuItemsForOled` (`active_scales.cpp:62-99`): one row per scale, the name clipped
-	// short of the box, and a checked or unchecked box at the right. `list` owns the window, the
-	// highlight and the focused row's side scroller -- see `scales.h` for why that is the same
-	// renderer and not merely a similar one.
+	// `drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`): one row per scale, the name
+	// clipped short of the box, and a checked or unchecked box at the right. `list` owns the window, the highlight and
+	// the focused row's side scroller -- see `scales.h` for why that is the same renderer and not merely a similar one.
 	deluge::ui::oled::ListRow rows[kScaleRows];
 	for (size_t i = 0; i < kScaleRows; i++) {
 		// `scalelikeNames` holds `char const*` with static storage (`model/scale/preset_scales.h`),
@@ -157,10 +156,10 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 		return;
 	}
 
-	// `selectButtonPress` (`active_scales.cpp:108-112`): flip the bit and return `NO_NAVIGATION`.
-	// The flip itself is `commit()`'s -- a render may not write the model -- and clearing `entered`
-	// is how this item says it consumed the press, so `after_render`'s leaf arm does not ascend out
-	// of a page legacy stays on. Same two moves as `PerformEditorItem` (`nodes/actions.cpp`).
+	// `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`): flip the bit and return
+	// `NO_NAVIGATION`. The flip itself is `commit()`'s -- a render may not write the model -- and clearing `entered` is
+	// how this item says it consumed the press, so `after_render`'s leaf arm does not ascend out of a page legacy stays
+	// on. Same two moves as `PerformEditorItem` (`nodes/actions.cpp`).
 	state.tick.value_changed = true;
 	state.tick.value_node = node;
 	state.tick.render_resp.entered = false;

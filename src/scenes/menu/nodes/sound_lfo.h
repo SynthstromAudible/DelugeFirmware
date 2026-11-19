@@ -3,13 +3,13 @@
 /// @brief The four LFO subtrees as data: `lfo1` .. `lfo4`, each {shape, sync, rate}.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s LFO block, from `lfo1TypeMenu`:
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s LFO block, from `lfo1TypeMenu`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class / param |
 /// |---|---|---|
-/// | `lfo<n>_type` | `lfo<n>TypeMenu` | `lfo::Type` (`gui/menu_item/lfo/type.h`) |
-/// | `lfo<n>_sync` | `lfo<n>SyncMenu` | `lfo::Sync` (`gui/menu_item/lfo/sync.h`) |
+/// | `lfo<n>_type` | `lfo<n>TypeMenu` | `lfo::Type` (`origin/main:src/deluge/gui/menu_item/lfo/type.h`) |
+/// | `lfo<n>_sync` | `lfo<n>SyncMenu` | `lfo::Sync` (`origin/main:src/deluge/gui/menu_item/lfo/sync.h`) |
 /// | `lfo1_rate` | `lfo1RateMenu` | `patched_param::Integer`, `GLOBAL_LFO_FREQ_1` |
 /// | `lfo2_rate` | `lfo2RateMenu` | `patched_param::Integer`, `LOCAL_LFO_LOCAL_FREQ_1` |
 /// | `lfo3_rate` | `lfo3RateMenu` | `patched_param::Integer`, `GLOBAL_LFO_FREQ_2` |
@@ -17,23 +17,23 @@
 /// | `lfo<n>` | `lfo<n>Menu` | `HorizontalMenu` |
 // clang-format on
 ///
-/// The odd/even alternation of global and local rate params is the legacy menu's own
-/// (LFO 1 and 3 take the global rate params, LFO 2 and 4 the local ones), and it matches
-/// `definitions_cxx.hpp:390-393`'s "LFO 1 (global), LFO 2 (local), LFO 3 (global), LFO 4 (local)".
+/// The odd/even alternation of global and local rate params is main's own (LFO 1 and 3 take the global rate params, LFO
+/// 2 and 4 the local ones), and it matches the `LFO_ID` enumerators' comments (`definitions_cxx.hpp`): "LFO 1 (global),
+/// LFO 2 (local), LFO 3 (global), LFO 4 (local)".
 ///
-/// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** The builder is shared by
-///       every `SyncLevel` item: the two LFO syncs, `arpSyncMenu`, `delaySyncMenu`,
-///       `sidechainSyncMenu` and `reverbSidechainSyncMenu`.
+/// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** The builder is shared by every `SyncLevel`
+///       item: the two LFO syncs, `arpSyncMenu`, `delaySyncMenu`, `sidechainSyncMenu` and `reverbSidechainSyncMenu`.
 ///       The value is legacy's own menu option index, `SyncLevel::syncTypeAndLevelToMenuOption`
-///       (`gui/menu_item/sync_level.cpp:79-81`), over `SyncLevel::size() == NUM_SYNC_VALUES`
-///       (`sync_level.h:31`, `model/sync.h:37`). The option *names* are `getNoteLengthName`, which
-///       formats from the song's `insideWorldTickMagnitude` at render time (`sync_level.cpp:83-91`)
-///       -- dynamic text this generation's interpreter does not draw yet, which is why the node
-///       carries no `names`.
+///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), over `SyncLevel::size() == NUM_SYNC_VALUES`
+///       (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`). The option
+///       *names* are `getNoteLengthName`, which formats from the song's `insideWorldTickMagnitude` at render time
+///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`) -- dynamic text this generation's interpreter does not
+///       draw yet, which is why the node carries no `names`.
 ///
-/// @note **`lfo::Type`'s title is a `FormattedTitle`** substituting the LFO number into
-///       `STRING_FOR_LFO_TYPE` (`lfo/type.h:30,33`), as `lfo::Sync`'s is for `STRING_FOR_LFO_SYNC`
-///       (`lfo/sync.h`); both nodes carry that number as their `title_arg`.
+/// @note **`lfo::Type`'s title is a `FormattedTitle`** substituting the LFO number into `STRING_FOR_LFO_TYPE`
+///       (`Type::getTitle` in `origin/main:src/deluge/gui/menu_item/lfo/type.h`), as `lfo::Sync`'s is
+///       (`origin/main:src/deluge/gui/menu_item/lfo/sync.h`) for the `STRING_FOR_LFO_SYNC` its menus pass; both nodes
+///       carry that number as their `title_arg`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -50,8 +50,9 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief The full sync-option range, `SyncLevel::size() == NUM_SYNC_VALUES` (`sync_level.h:31`,
-///        `model/sync.h:37`) -- what every `SyncLevel` item but `sidechain::Sync` uses.
+/// @brief The full sync-option range, `SyncLevel::size() == NUM_SYNC_VALUES`
+///        (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`) -- what every
+///        `SyncLevel` item but `sidechain::Sync` uses.
 inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
 
 /// @brief One LFO page. A macro for the same reason `sound_env.h` uses one -- and because the

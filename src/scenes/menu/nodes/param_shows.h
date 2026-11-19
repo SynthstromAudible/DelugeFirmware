@@ -56,7 +56,8 @@ inline constexpr std::array<int32_t, 4> kSampleOrInput{
     value_of(instrument::OscType::SAMPLE), value_of(instrument::OscType::INPUT_L),
     value_of(instrument::OscType::INPUT_R), value_of(instrument::OscType::INPUT_STEREO)};
 
-/// A source's wave index (`osc/source/wave_index.h`): not FM, and a supersaw (its spread) or a loaded wavetable.
+/// A source's wave index (`origin/main:src/deluge/gui/menu_item/osc/source/wave_index.h`): not FM, and a supersaw (its
+/// spread) or a loaded wavetable.
 inline constexpr std::array<std::array<SettingCondition, 1>, 2> kSupersawOsc{
     {{plugin::setting_is(kOscType[0], kSupersaw)}, {plugin::setting_is(kOscType[1], kSupersaw)}}};
 inline constexpr std::array<std::array<SettingCondition, 2>, 2> kLoadedWavetable{{
@@ -65,8 +66,8 @@ inline constexpr std::array<std::array<SettingCondition, 2>, 2> kLoadedWavetable
 }};
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kWaveIndexAny{
     {{kSupersawOsc[0], kLoadedWavetable[0]}, {kSupersawOsc[1], kLoadedWavetable[1]}}};
-/// An oscillator's pulse width (`osc/pulse_width.h`): not FM, not a sample or an input, and a wavetable only once
-/// loaded.
+/// An oscillator's pulse width (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`): not FM, not a sample or an
+/// input, and a wavetable only once loaded.
 inline constexpr std::array<std::array<SettingCondition, 2>, 2> kPulseWidth{{
     {plugin::setting_is_not("mode", kFm), plugin::setting_is_not(kOscType[0], kSampleOrInput)},
     {plugin::setting_is_not("mode", kFm), plugin::setting_is_not(kOscType[1], kSampleOrInput)},
@@ -77,13 +78,15 @@ inline constexpr std::array<std::array<SettingCondition, 1>, 2> kLoaded{
     {{plugin::source_loaded(0)}, {plugin::source_loaded(1)}}};
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kPulseWidthAny{
     {{kNotWavetable[0], kLoaded[0]}, {kNotWavetable[1], kLoaded[1]}}};
-/// A source's carrier feedback (`osc/source/feedback.h`): FM, or a DX7 oscillator.
+/// A source's carrier feedback (`origin/main:src/deluge/gui/menu_item/osc/source/feedback.h`): FM, or a DX7 oscillator.
 inline constexpr std::array<std::array<SettingCondition, 1>, 2> kDx7Osc{
     {{plugin::setting_is(kOscType[0], kDx7)}, {plugin::setting_is(kOscType[1], kDx7)}}};
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kCarrierFeedbackAny{
     {{kIsFm, kDx7Osc[0]}, {kIsFm, kDx7Osc[1]}}};
 
-// The mod FX type (`mod_fx/{depth,rate,feedback,offset}.h`).
+// The mod FX type, as the `isRelevant` overrides of main's mod FX items gate on it
+// (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/rate.h`,
+// `origin/main:src/deluge/gui/menu_item/mod_fx/feedback.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/offset.h`).
 inline constexpr std::array<int32_t, 1> kModFxNone{effect_choice("modFXType", "none")};
 inline constexpr std::array<int32_t, 6> kModFxWithDepth{
     effect_choice("modFXType", "chorus"),     effect_choice("modFXType", "StereoChorus"),
@@ -102,7 +105,7 @@ inline constexpr std::array kModFxHasFeedback{plugin::setting_is("modFXType", kM
 inline constexpr std::array kModFxHasOffset{plugin::setting_is("modFXType", kModFxWithOffset)};
 
 // The arp's mode, on the arp record the menu's root names (a clip's, or a kit lane's): the randomizer's params show
-// only while it is on (`randomizer/randomizer_unpatched_param.h`).
+// only while it is on (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`).
 inline constexpr std::array<int32_t, 1> kArpOff{static_cast<int32_t>(
     std::ranges::find(plugin::kArpModeWords, std::string_view{"off"}) - plugin::kArpModeWords.begin())};
 inline constexpr std::array kArpOnCondition{plugin::setting_is_not("arpeggiator/arpMode", kArpOff)};

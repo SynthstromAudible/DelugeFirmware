@@ -157,7 +157,8 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 			return false;
 		}
 		if (edits_range) {
-			// `PatchCableStrength::checkPermissionToBeginSession` for a cable's range.
+			// `PatchCableStrength::checkPermissionToBeginSession`
+			// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) for a cable's range.
 			return source < kFirstLocalSource || param < params::FIRST_GLOBAL;
 		}
 		// The volume triple takes the destination the source can reach.

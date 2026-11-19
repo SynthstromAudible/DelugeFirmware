@@ -15,8 +15,8 @@ using namespace deluge::ui::shell;
 
 namespace {
 
-/// The two application kinds the test scenes register under. `FirstApp` is where the scenes plan
-/// starts numbering, so a spec that borrowed a shell kind would collide with a real scene later.
+/// The two application kinds the test scenes register under. `FirstApp` is where the scenes start
+/// numbering, so a spec that borrowed a shell kind would collide with a real scene later.
 constexpr SceneKind kA = SceneKind::FirstApp;
 constexpr SceneKind kB = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
 /// A third opaque kind, so a spec that wants three distinct layers does not have to stack one kind
@@ -278,7 +278,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	//
 	// The four rows below pin a shell hazard: `SceneKind::Popup` is a scene here where legacy's
 	// popup is a display overlay, so `remove`ing one must not fire `on_resume` on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
-	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table.
+	// (`origin/main:src/deluge/gui/ui/slicer.cpp`), which wipes the slice table.
 
 	it("has an input scene only while a non-transparent scene is stacked", _ {
 		Rig r;
@@ -367,7 +367,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	it("a refused replace_top resumes the scene it exited, whatever the input top is", _ {
 		// `replace_top`'s rollback is the one arm that is *not* an input-top question.
 		// `changeUIAtLevel`'s failure path calls `oldUI->focusRegained()` unconditionally
-		// (`gui/ui/ui.cpp:126-131`), and it is right to: the previous scene really was exited, so
+		// (`gui/ui/ui.cpp`), and it is right to: the previous scene really was exited, so
 		// `on_resume` is the paired notification for an `on_exit` that ran, not a claim about the
 		// top. Here the restored scene is the passive layer, and it is still the one told.
 		Rig r;

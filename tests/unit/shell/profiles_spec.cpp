@@ -16,7 +16,8 @@ using namespace deluge::ui;
 describe shell_profiles("shell::board profiles", $ {
 	it("maps every legacy KnownButton coordinate to the expected ButtonId", _ {
 		const BoardProfile& profile = deluge_profile();
-		// Table-driven: every button coordinate from definitions_cxx.hpp:59-84 and button.h:20-21.
+		// Table-driven: every button coordinate from the `*ButtonCoord` constants (`definitions_cxx.hpp`) and
+		// `ZmodButtonX` (`button.h`).
 		const struct {
 			int x, y;
 			ButtonId expected;
@@ -58,39 +59,39 @@ describe shell_profiles("shell::board profiles", $ {
 	});
 	it("LED indices follow x + y*9 and encoder buttons have none", _ {
 		const BoardProfile& profile = deluge_profile();
-		// Table-driven: every LED-bearing button from indicator_leds.h:37-56.
+		// Table-driven: every LED-bearing button from the `LED` enum (`indicator_leds.h`).
 		const struct {
 			ButtonId button;
 			int8_t expected_led;
 		} led_table[] = {
-			{ButtonId::AffectEntire, 3},     // (3, 0) -> indicator_leds.h:37
-			{ButtonId::Session, 12},         // (3, 1) -> indicator_leds.h:38
-			{ButtonId::Clip, 21},            // (3, 2) -> indicator_leds.h:39
-			{ButtonId::Synth, 5},            // (5, 0) -> indicator_leds.h:40
-			{ButtonId::Kit, 14},             // (5, 1) -> indicator_leds.h:41
-			{ButtonId::Midi, 23},            // (5, 2) -> indicator_leds.h:42
-			{ButtonId::Cv, 32},              // (5, 3) -> indicator_leds.h:43
-			{ButtonId::Keyboard, 30},        // (3, 3) -> indicator_leds.h:44
-			{ButtonId::Scale, 6},            // (6, 0) -> indicator_leds.h:45
-			{ButtonId::CrossScreen, 24},     // (6, 2) -> indicator_leds.h:46
-			{ButtonId::Back, 16},            // (7, 1) -> indicator_leds.h:47
-			{ButtonId::Load, 15},            // (6, 1) -> indicator_leds.h:48
-			{ButtonId::Save, 33},            // (6, 3) -> indicator_leds.h:49
-			{ButtonId::Learn, 7},            // (7, 0) -> indicator_leds.h:50
-			{ButtonId::TapTempo, 34},        // (7, 3) -> indicator_leds.h:51
-			{ButtonId::SyncScaling, 25},     // (7, 2) -> indicator_leds.h:52
-			{ButtonId::Triplets, 17},        // (8, 1) -> indicator_leds.h:53
-			{ButtonId::Play, 35},            // (8, 3) -> indicator_leds.h:54
-			{ButtonId::Record, 26},          // (8, 2) -> indicator_leds.h:55
-			{ButtonId::Shift, 8},            // (8, 0) -> indicator_leds.h:56
-			{ButtonId::Mod0, 1},             // (1, 0) -> indicator_leds.h:58
-			{ButtonId::Mod1, 10},            // (1, 1) -> indicator_leds.h:59
-			{ButtonId::Mod2, 19},            // (1, 2) -> indicator_leds.h:60
-			{ButtonId::Mod3, 28},            // (1, 3) -> indicator_leds.h:61
-			{ButtonId::Mod4, 2},             // (2, 0) -> indicator_leds.h:62
-			{ButtonId::Mod5, 11},            // (2, 1) -> indicator_leds.h:63
-			{ButtonId::Mod6, 20},            // (2, 2) -> indicator_leds.h:64
-			{ButtonId::Mod7, 29},            // (2, 3) -> indicator_leds.h:65
+			{ButtonId::AffectEntire, 3},     // (3, 0) -> `LED::AFFECT_ENTIRE` (`indicator_leds.h`)
+			{ButtonId::Session, 12},         // (3, 1) -> `LED::SESSION_VIEW` (`indicator_leds.h`)
+			{ButtonId::Clip, 21},            // (3, 2) -> `LED::CLIP_VIEW` (`indicator_leds.h`)
+			{ButtonId::Synth, 5},            // (5, 0) -> `LED::SYNTH` (`indicator_leds.h`)
+			{ButtonId::Kit, 14},             // (5, 1) -> `LED::KIT` (`indicator_leds.h`)
+			{ButtonId::Midi, 23},            // (5, 2) -> `LED::MIDI` (`indicator_leds.h`)
+			{ButtonId::Cv, 32},              // (5, 3) -> `LED::CV` (`indicator_leds.h`)
+			{ButtonId::Keyboard, 30},        // (3, 3) -> `LED::KEYBOARD` (`indicator_leds.h`)
+			{ButtonId::Scale, 6},            // (6, 0) -> `LED::SCALE_MODE` (`indicator_leds.h`)
+			{ButtonId::CrossScreen, 24},     // (6, 2) -> `LED::CROSS_SCREEN_EDIT` (`indicator_leds.h`)
+			{ButtonId::Back, 16},            // (7, 1) -> `LED::BACK` (`indicator_leds.h`)
+			{ButtonId::Load, 15},            // (6, 1) -> `LED::LOAD` (`indicator_leds.h`)
+			{ButtonId::Save, 33},            // (6, 3) -> `LED::SAVE` (`indicator_leds.h`)
+			{ButtonId::Learn, 7},            // (7, 0) -> `LED::LEARN` (`indicator_leds.h`)
+			{ButtonId::TapTempo, 34},        // (7, 3) -> `LED::TAP_TEMPO` (`indicator_leds.h`)
+			{ButtonId::SyncScaling, 25},     // (7, 2) -> `LED::SYNC_SCALING` (`indicator_leds.h`)
+			{ButtonId::Triplets, 17},        // (8, 1) -> `LED::TRIPLETS` (`indicator_leds.h`)
+			{ButtonId::Play, 35},            // (8, 3) -> `LED::PLAY` (`indicator_leds.h`)
+			{ButtonId::Record, 26},          // (8, 2) -> `LED::RECORD` (`indicator_leds.h`)
+			{ButtonId::Shift, 8},            // (8, 0) -> `LED::SHIFT` (`indicator_leds.h`)
+			{ButtonId::Mod0, 1},             // (1, 0) -> `LED::MOD_0` (`indicator_leds.h`)
+			{ButtonId::Mod1, 10},            // (1, 1) -> `LED::MOD_1` (`indicator_leds.h`)
+			{ButtonId::Mod2, 19},            // (1, 2) -> `LED::MOD_2` (`indicator_leds.h`)
+			{ButtonId::Mod3, 28},            // (1, 3) -> `LED::MOD_3` (`indicator_leds.h`)
+			{ButtonId::Mod4, 2},             // (2, 0) -> `LED::MOD_4` (`indicator_leds.h`)
+			{ButtonId::Mod5, 11},            // (2, 1) -> `LED::MOD_5` (`indicator_leds.h`)
+			{ButtonId::Mod6, 20},            // (2, 2) -> `LED::MOD_6` (`indicator_leds.h`)
+			{ButtonId::Mod7, 29},            // (2, 3) -> `LED::MOD_7` (`indicator_leds.h`)
 		};
 		for (const auto& row : led_table) {
 			expect(profile.led_by_button[static_cast<size_t>(row.button)]).to_equal(row.expected_led);

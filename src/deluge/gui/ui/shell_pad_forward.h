@@ -18,23 +18,23 @@
 #pragma once
 
 /// @file
-/// @brief The **pad** half of the seam `shell_choice_dispatch.h` is the noun half of and
-///        `shell_action_dispatch.h` is the verb half of -- what a grid pad the ported menu did not
+/// @brief The **pad** half of the seam `browser_host.h` is the noun half of and
+///        `shell_action_dispatch.h` is the verb half of -- what a grid pad the menu did not
 ///        claim is forwarded to.
 ///
 /// The producing half is `ShellHostUI::padAction`: it calls `forwardGridPad` below for a pad
 /// `MenuScene::grid_pad_claim()` did not claim. This file is the whole
 /// of the consuming half, ported from `SoundEditor::padAction`'s root switch
-/// (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`) -- the part of that function
-/// that runs only once `potentialShortcutPadAction` (`:1468`) has already said no.
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) and its tail -- the part of that function
+/// that runs only once `potentialShortcutPadAction` has already said no.
 ///
 /// The firmware-version diagnostics inside the tail are `PadForwardTarget::FirmwareDiagnostic`: the
 /// three pads pop up their number through the shell's notices and keep the menu open. The
-/// `automationView` arm (`:1507-1512`) is **not** a gap: it is ported as
+/// `automationView` arm is **not** a gap: it is ported as
 /// `PadForwardTarget::Automation` -- see `menuShowsAutomationParam` in the
-/// `.cpp` for why that arm asks the ported menu rather than calling
+/// `.cpp` for why that arm asks the menu rather than calling
 /// `SoundEditor::handleAutomationViewPadAction` directly. The two note-mode arms inside the
-/// `instrumentClipView` case (`:1481-1498`) are not a gap either: they are keyed on
+/// `instrumentClipView` case are not a gap either: they are keyed on
 /// `SoundEditor::inNoteEditor()` / `inNoteRowEditor()`, which read a `SoundEditor` member no guest
 /// path writes, so they are ported as `PadForwardTarget::NoteEditorEdit`
 /// and `PadForwardTarget::NoteRowEditor`, asked of `activeNoteMode()` (`gui/ui/shell_note_mode.h`)
@@ -43,7 +43,7 @@
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
-/// The same two reasons `shell_choice_dispatch.h` and `shell_action_dispatch.h` give for the same
+/// The same two reasons `browser_host.h` and `shell_action_dispatch.h` give for the same
 /// shape. **In `gui/ui/`** because deciding an arm is exactly the half that gets to name
 /// `keyboardScreen`, `instrumentClipView` and `performanceView` -- the symbols `src/scenes` may not
 /// include (`scenes-includes-outside`, `scripts/check_layer_rules.py`). **Its own translation unit**
@@ -56,45 +56,46 @@
 
 namespace deluge::gui::ui {
 
-/// @brief Where a pad the ported menu did not claim was sent.
+/// @brief Where a pad the menu did not claim was sent.
 ///
-/// One value per arm of `SoundEditor::padAction`'s root switch (`gui/ui/sound_editor.cpp:1474-1517`)
-/// plus its tail (`:1520-1545`). Returned so a caller -- and a spec -- can see the decision the
+/// One value per arm of `SoundEditor::padAction`'s root switch (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+/// plus its tail. Returned so a caller -- and a spec -- can see the decision the
 /// switch made without inspecting what it did.
 enum class PadForwardTarget : uint8_t {
-	/// No arm matched and the tail's conditions did not hold. Legacy returns `DEALT_WITH` here
-	/// too (`:1548`): the pad is swallowed, which is what an open menu should do with it.
+	/// No arm matched and the tail's conditions did not hold. Main returns `DEALT_WITH` here too (the final `return` of
+	/// `SoundEditor::padAction`): the pad is swallowed, which is what an open menu should do with it.
 	None,
-	/// `:1475` -- `keyboardScreen.padAction`, every coordinate.
+	/// The keyboard arm -- `keyboardScreen.padAction`, every coordinate.
 	Keyboard,
-	/// `:1500-1502` -- `instrumentClipView.padAction`, the audition column only.
+	/// The audition-column arm -- `instrumentClipView.padAction`, the audition column only.
 	AuditionColumn,
-	/// `:1516` -- `performanceView.padAction`, every coordinate, never reaching the tail.
+	/// The performance-view arm -- `performanceView.padAction`, every coordinate, never reaching the tail.
 	Performance,
-	/// `:1508` -- `SoundEditor::handleAutomationViewPadAction`'s work, done here: see
-	/// `menuShowsAutomationParam` in the `.cpp` for why it is not a call into that function.
+	/// The automation arm -- main's `SoundEditor::handleAutomationViewPadAction`'s work
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), done here: see `menuShowsAutomationParam` in the `.cpp` for
+	/// why it is not a call into that function.
 	Automation,
-	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three
-	/// firmware-version diagnostic pads, which are `FirmwareDiagnostic`. Also the note editor's sidebar half
-	/// (`:1487-1489`), which is the same `exitCompletely()` with no `on` or UI-mode test in front of it.
+	/// The tail's `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three firmware-version
+	/// diagnostic pads, which are `FirmwareDiagnostic`. Also the note editor's sidebar half (the note-editor arm's
+	/// sidebar branch), which is the same `exitCompletely()` with no `on` or UI-mode test in front of it.
 	Exit,
 	/// The tail's firmware-version arm: on the firmware-version item, a press on (13, 7), (14, 7) or (15, 7) pops up
 	/// the PIC firmware version, the voice count or the internal memory's size, and the menu stays open.
 	FirmwareDiagnostic,
-	/// `:1483-1485` -- `instrumentClipView.handleNoteEditorEditPadAction`, the main grid only, while
+	/// The note-editor arm -- `instrumentClipView.handleNoteEditorEditPadAction`, the main grid only, while
 	/// the note editor is on. Performed through `noteModeLegacyCalls()` (`gui/ui/shell_note_mode.h`).
 	NoteEditorEdit,
-	/// `:1492-1497` -- `instrumentClipView.handleNoteRowEditorPadAction`, every coordinate, while the
-	/// note-row editor is on; `closePortedMenu()` when it answers false (`:1494-1496`).
+	/// The note-row-editor arm -- `instrumentClipView.handleNoteRowEditorPadAction`, every coordinate, while the
+	/// note-row editor is on; `closePortedMenu()` when it answers false.
 	NoteRowEditor,
 };
 
 /// @brief What performs a decided forward. See `setPadForwardPerform`.
 using PadForwardPerform = void (*)(PadForwardTarget target, int32_t x, int32_t y, int32_t velocity);
 
-/// @brief Route one grid pad the ported menu did not claim, exactly as `SoundEditor::padAction` does.
+/// @brief Route one grid pad the menu did not claim, exactly as `SoundEditor::padAction` does.
 /// @param x,y The pad, in `MatrixDriver` coordinates.
-/// @param velocity Legacy's `on`: non-zero is a press.
+/// @param velocity Main's `on`: non-zero is a press.
 /// @return Which arm matched -- already performed when this returns.
 PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity);
 
@@ -110,7 +111,7 @@ bool rootKeepsShortcutPad(int32_t x, int32_t y);
 ///        `SampleBrowser::padAction` hands it to.
 bool rootTakesAuditionPad();
 
-/// @brief What `SoundEditor::potentialShortcutPadAction` does with a main-grid press under the ported menu.
+/// @brief What `SoundEditor::potentialShortcutPadAction` does with a main-grid press under the menu.
 enum class ShortcutPadGate : uint8_t {
 	Forward,  ///< not a shortcut: the press goes on to the root's arms (`forwardGridPad`)
 	Swallow,  ///< a shortcut press with a UI mode outside the two shortcut modes up: taken, and nothing happens
@@ -124,7 +125,7 @@ enum class ShortcutPadGate : uint8_t {
 /// @param shift Whether SHIFT is held (`Buttons::isShiftButtonPressed()`).
 ShortcutPadGate shortcutPadGate(bool shift);
 
-/// @brief `potentialShortcutPadAction`'s note-row editor shortcut under the ported menu: on the sequence-direction
+/// @brief `potentialShortcutPadAction`'s note-row editor shortcut under the menu: on the sequence-direction
 ///        pad, over an instrument clip, with HorizontalMenus on and exactly one row auditioning, the note-row editor
 ///        opens on PLAY DIRECTION (`InstrumentClipView::enterNoteRowEditor`, which re-roots the open menu).
 /// @return Whether the press was this shortcut's (taken, whatever the editor then did).
@@ -133,16 +134,16 @@ bool takeSequenceDirectionShortcut(int32_t x, int32_t y);
 /// @brief `SampleMarkerEditor::padAction`'s audition arm: the audition column to the instrument clip view, press and
 ///        release, when the clip is an instrument clip, whatever the root view; swallowed on an audio clip.
 /// @param x,y The pad, in `MatrixDriver` coordinates.
-/// @param velocity Legacy's `on`.
+/// @param velocity Main's `on`.
 void forwardClipAuditionPad(int32_t x, int32_t y, int32_t velocity);
 
-/// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the ported menu: whether the param the menu edits is
+/// @brief `SoundEditor::isEditingAutomationViewParam`, asked of the menu: whether the param the menu edits is
 ///        the one the automation view has selected.
 bool menuShowsAutomationViewParam();
 
 /// @brief Replace what performs a decided forward; `nullptr` restores the real one.
 ///
-/// `shell_choice_dispatch.h`'s `setSampleClaimDispatch` for the same reason it exists there: the
+/// `browser_host.h`'s `setSampleClaimDispatch` for the same reason it exists there: the
 /// decision is the part worth pinning, and performing it means calling into `keyboardScreen` /
 /// `instrumentClipView` / `performanceView`, whose handlers need model state a spec should not have
 /// to build. `deluge_scenes_spec` links `deluge_app`, so those symbols resolve -- this is about what
@@ -151,9 +152,9 @@ void setPadForwardPerform(PadForwardPerform perform);
 
 /// @brief Draw the sidebar the sample marker editor shows over its own waveform.
 ///
-/// `SampleMarkerEditor::renderSidebar` (`gui/ui/sample_marker_editor.cpp:875-881`), whole: over
+/// `SampleMarkerEditor::renderSidebar` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), whole: over
 /// the keyboard screen it draws `instrumentClipView`'s sidebar, and over any other root it leaves
-/// the sidebar to the UI underneath. The ported marker scene may not read the root UI, so the guest
+/// the sidebar to the UI underneath. The marker scene may not read the root UI, so the guest
 /// asks here on its behalf. Same arguments and answer as `UI::renderSidebar`, query form included.
 /// @param whichRows Bit `y` selects row `y`.
 /// @param image Legacy's pad image, or null to ask without drawing.

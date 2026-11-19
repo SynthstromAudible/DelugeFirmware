@@ -3,19 +3,19 @@
 /// @brief The sidechain page as data: `sidechain` and its six columns, plus the three `SideChain`
 ///        conversions the reverb's own sidechain page reuses.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `sidechainMenu` literal (`:814-823`) and the globals it names (`:806-812`):
+/// `inline constexpr` for the reason `sound_filters.h` explains. From `origin/main:src/deluge/gui/ui/menus.cpp`'s
+/// `sidechainMenu` literal and the globals it names:
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:23`) | **Custom** |
-/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h`) | SyncLevel, 10 options |
-/// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param; its Edit raises the reverb's recompute) |
-/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h`) | Int |
-/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h`) | Int |
-/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h`) | Int |
-/// | `sidechain` | `sidechainMenu` (`:814`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` | `sidechain::VolumeShortcut` (`origin/main:src/deluge/gui/menu_item/sidechain/volume.h`) | **Custom** |
+/// | `sidechain_sync` | `sidechainSyncMenu` | `sidechain::Sync` (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`) | SyncLevel, 10 options |
+/// | `sidechain_shape` | `sidechainShapeMenu` | `sidechain::Shape` (`origin/main:src/deluge/gui/menu_item/sidechain/shape.h`) | Int (param; its Edit raises the reverb's recompute) |
+/// | `sidechain_send` | `sidechainSendMenu` | `sidechain::Send` (`origin/main:src/deluge/gui/menu_item/sidechain/send.h`) | Int |
+/// | `sidechain_attack` | `sidechainAttackMenu` | `sidechain::Attack` (`origin/main:src/deluge/gui/menu_item/sidechain/attack.h`) | Int |
+/// | `sidechain_release` | `sidechainReleaseMenu` | `sidechain::Release` (`origin/main:src/deluge/gui/menu_item/sidechain/release.h`) | Int |
+/// | `sidechain` | `sidechainMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
 /// @note **`sidechainVolumeShortcutMenu` is a custom node.** It derives from
@@ -23,12 +23,13 @@
 ///       `SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND` patch cable, not a parameter -- so it is a
 ///       `custom` node over `kSidechainVolumeItem`. Same treatment as `sound_master.h`'s `vibrato`.
 ///
-/// @note **`sidechain::Sync` overrides `size()` to 10** (`sidechain/sync.h`), not
+/// @note **`sidechain::Sync` overrides `size()` to 10** (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), not
 ///       `NUM_SYNC_VALUES`, which is why `sync_level_item` takes its range as an argument.
 ///
-/// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and
-///       shows the closest index into `attackRateTable` / `releaseRateTable`
-///       (`sidechain/attack.h:34-37`, `release.h:34-37`) -- `attackRateTable` / `releaseRateTable` in
+/// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and shows the closest index
+///       into `attackRateTable` / `releaseRateTable` (`Attack::readCurrentValue` in
+///       `origin/main:src/deluge/gui/menu_item/sidechain/attack.h`, `Release::readCurrentValue` in
+///       `origin/main:src/deluge/gui/menu_item/sidechain/release.h`) -- `attackRateTable` / `releaseRateTable` in
 ///       `util/lookuptables/lookuptables.h`, outside `src/scenes`' include allow-list, so the `.cpp` declares the two
 ///       arrays `extern` and transcribes `getLookupIndexFromValue` (`util/functions.cpp`) locally. The same treatment
 ///       `sound_compressor.cpp` gives `lshiftAndSaturate<24>`.
@@ -63,17 +64,19 @@ int32_t sidechain_release_from_menu(int32_t menu_value);
 int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level);
 /// @}
 
-/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h`).
+/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()`
+/// (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`).
 inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 
-/// @brief `Attack::getMaxValue` / `Release::getMaxValue` (`sidechain/attack.h:63`, `release.h:63`):
-///        an index into a 51-entry rate table.
+/// @brief `Attack::getMaxValue` / `Release::getMaxValue` (`origin/main:src/deluge/gui/menu_item/sidechain/attack.h`,
+///        `origin/main:src/deluge/gui/menu_item/sidechain/release.h`): an index into a 51-entry rate table.
 inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 
-// `sidechainVolumeShortcutMenu` (`gui/ui/menus.cpp:806-807`): a `sidechain::VolumeShortcut`, which
-// is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source.
-// The reverb's recompute its `writeCurrentValue` raises (`sidechain/volume.h:26-29`) is the cable
-// Edit's: SetPatchCable raises it for this cable. Its column is the ducking meter (`SIDECHAIN_DUCKING`).
+// `sidechainVolumeShortcutMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): a `sidechain::VolumeShortcut`, which is a
+// `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source. The reverb's recompute its
+// `writeCurrentValue` raises (`VolumeShortcut::writeCurrentValue` in
+// `origin/main:src/deluge/gui/menu_item/sidechain/volume.h`) is the cable Edit's: SetPatchCable raises it for this
+// cable. Its column is the ducking meter (`SIDECHAIN_DUCKING`).
 inline constexpr Node sidechain_volume = fixed_cable_column(
     with_hint(
         with_value_text(with_column_name(with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING),
@@ -87,9 +90,11 @@ inline constexpr Node sidechain_sync = with_affect_entire(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/syncLevel"}),
                sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC)));
-// `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`, not a plain `UnpatchedParam`
-// (`sidechain/shape.h:6`): the reverb recomputes after a write to it (`updating_reverb_params.h:26-29`), which
-// SetParamValue raises for the param.
+// `sidechain::Shape` (`origin/main:src/deluge/gui/menu_item/sidechain/shape.h`) is an
+// `unpatched_param::UpdatingReverbParams`, not a plain unpatched param: the reverb recomputes after a write to it
+// (`UpdatingReverbParams::writeCurrentValue` in
+// `origin/main:src/deluge/gui/menu_item/unpatched_param/updating_reverb_params.h`), which SetParamValue raises for the
+// param.
 inline constexpr Node sidechain_shape = with_column_name(
     param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},

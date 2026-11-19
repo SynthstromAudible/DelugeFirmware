@@ -1,8 +1,8 @@
 /// @file
 /// @brief `services::MidiLearn` -- driven against the real legacy it ports, `View`'s MIDI-learn
 ///        half (`gui/views/view.cpp`) and the four
-///        `View::buttonAction` arms that belong to it (`:148-166`, `:185-196`, `:199-212`,
-///        `:215-228`), on real `Song`s built by `support/song_fixture.h`.
+///        `View::buttonAction` arms that belong to it
+///        on real `Song`s built by `support/song_fixture.h`.
 ///
 /// @par The oracle, and why it is a MODEL comparison
 ///
@@ -29,9 +29,10 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **`View::clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp`), reached
-///     from the `INSTRUMENT_INPUT` commit (`:728`) and its delete-on-release (`:589`). Not ported
-///     (`midi_learn.h`'s "not ported" list -- it needs `model/model_stack.h`, which
+///   * **`View::clearMelodicInstrumentMonoExpressionIfPossible`** (`views/view.cpp`), reached
+///     from the `INSTRUMENT_INPUT` commit (`View::noteOnReceivedForMidiLearn`) and its delete-on-release
+///     (`View::instrumentMidiLearnPadPressed`). Not ported
+///     (`services/midi_learn.h`'s "not ported" list -- it needs `model/model_stack.h`, which
 ///     `scenes-model-stack-outside-context` confines to two files, and the one seam out of that
 ///     confinement builds a *menu* stack). Legacy really does run it on the legacy side of the
 ///     `INSTRUMENT_INPUT` examples, so those examples compare the `LearnedMIDI` and **not** the
@@ -44,23 +45,23 @@
 ///     process -- so on both sides the call is skipped and the `shouldSaveSettingsAfterMidiLearn`
 ///     decision is what the button examples assert, not the write. (Driving it would put a spec
 ///     process's settings on the fixture card.)
-///   * **The grid repaint** `View::midiLearnFlash` asks for at `:800-802`
+///   * **The grid repaint** `View::midiLearnFlash` asks for
 ///     (`getRootUI()->midiLearnFlash()`). This layer has no `Shell`; what is asserted here is
 ///     `MidiLearn::timer_repaints()`'s claim, and the shell honouring a service's claim is
 ///     `tests/unit/shell/flush_spec.cpp`'s.
 ///
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
-/// Two of the ported functions call `getRootUI()->midiLearnFlash()` (`view.cpp`),
-/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:174-179`).
+/// Two of the ported functions call `getRootUI()->midiLearnFlash()` (`views/view.cpp`),
+/// and `getRootUI()` is a **C-style cast** of `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp`).
 /// `global_controls_spec.cpp`'s `StubUI` derives from `UI` and gets away with it because nothing on
 /// its paths calls a `RootUI` virtual; here that would be a virtual call through a
 /// wrong-type pointer. `StubRootUI` below derives from `RootUI`, whose `midiLearnFlash()` is an
-/// empty virtual (`gui/ui/root_ui.h:38`), so the call is real and does nothing -- which is exactly
+/// empty virtual (`gui/ui/root_ui.h`), so the call is real and does nothing -- which is exactly
 /// what a root view that renders no pads does.
 ///
 /// It also forwards `buttonAction` to `view.buttonAction`, because `UI::buttonAction`'s base
-/// implementation does not (`gui/ui/ui.h:98-100`) -- see `global_controls_spec.cpp`'s account of
+/// implementation does not (`gui/ui/ui.h`) -- see `global_controls_spec.cpp`'s account of
 /// the two callers of `View::buttonAction` and why "the current UI is the root UI" IS the
 /// reachability rule.
 
@@ -133,7 +134,7 @@ using deluge::scenes::services::LearnTarget;
 /// @brief `services::MidiLearn`, the class.
 ///
 /// Aliased rather than `using`-declared because the global `enum class MidiLearn`
-/// (`definitions_cxx.hpp:133-143`) is the SAME NAME, and the port deliberately reuses that enum for
+/// (`definitions_cxx.hpp`) is the SAME NAME, and the port deliberately reuses that enum for
 /// `LearnTarget::kind` rather than mirroring it. A `using` of the class into this file's scope is
 /// silently resolved to the enum by GCC, which turns every `rig.ml.foo()` into "request for member
 /// in a non-class type". So: `LearnService` is the class, `::MidiLearn` is the enum, and neither
@@ -154,8 +155,8 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace indicator_leds {
-/// Legacy's LED shadow array (`hid/led/indicator_leds.cpp:27`), which `setLedState` writes
-/// (`:49`). `indicator_leds.h` declares `ledBlinkState` but not this one, so a bare `extern` is the
+/// Legacy's LED shadow array (`ledStates` in `hid/led/indicator_leds.cpp`), which `setLedState` writes
+/// (in `indicator_leds.cpp`). `indicator_leds.h` declares `ledBlinkState` but not this one, so a bare `extern` is the
 /// only spelling available -- `global_controls_spec.cpp` needs the same one.
 extern bool ledStates[];
 } // namespace indicator_leds
@@ -166,7 +167,7 @@ namespace {
 ///        legacy run and the port run.
 ///
 /// `LearnedMIDI::channelOrZone` is a `uint8_t` whose meaningful range tops out at
-/// `MIDI_CHANNEL_MPE_UPPER_ZONE + IS_A_CC` (`io/midi/learned_midi.h:92-94`), and `MIDI_CHANNEL_NONE`
+/// `MIDI_CHANNEL_MPE_UPPER_ZONE + IS_A_CC` (`io/midi/learned_midi.h`), and `MIDI_CHANNEL_NONE`
 /// is the "nothing learned" value; 0xEE is neither, and no arm of either implementation writes a
 /// constant.
 constexpr uint8_t kPoisonChannel = 0xEE;
@@ -261,8 +262,8 @@ protected:
 };
 
 /// @brief The minimum `Display` legacy needs: `display` is null in a spec process
-///        (`hid/display/display.cpp:4`) and `Buttons::buttonAction` dereferences it on every RECORD
-///        release (`hid/buttons.cpp:190`).
+///        (`hid/display/display.cpp`) and `Buttons::buttonAction` dereferences it on every RECORD
+///        release (`hid/buttons.cpp`).
 struct StubDisplay final : deluge::hid::Display {
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
@@ -397,8 +398,8 @@ UiEvent midi_cc(::MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) 
 /// @brief The full chain a shell builds, minus the shell: a real `Router` over a real
 ///        `SceneStack`, a real `InputLowering`, and BOTH services in their shipped slots.
 ///
-/// The whole rig is a `Router` and not a bare `MidiLearn::handle` call precisely because this
-/// task's routing claim ("`midi_learn` last, after `global_controls`") is a claim about the chain.
+/// The whole rig is a `Router` and not a bare `MidiLearn::handle` call precisely because the
+/// routing claim ("`midi_learn` last, after `global_controls`") is a claim about the chain.
 /// `GlobalControls` is live in its own slot, so an example that presses PLAY under learn is
 /// really proving that `GlobalControls` abstained and `MidiLearn` picked the event up -- not that
 /// a lone service was handed it.
@@ -451,7 +452,7 @@ struct LearnRig {
 ///        took.
 ///
 /// "Assert, then clear" applied to a god object: `View`'s learn state is eight members that outlive
-/// any one example (`gui/views/view.h:108-118`), and an example that started from the previous
+/// any one example (`gui/views/view.h`), and an example that started from the previous
 /// one's held thing would compare the wrong `LearnedMIDI`.
 [[nodiscard]] bool reset_legacy_learn() {
 	currentUIMode = UI_MODE_MIDI_LEARN;
@@ -569,18 +570,18 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		(void)cables();
 	});
 
-	// -- Step 1: the five `*MidiLearnPadPressed` overloads are one question --------------------
+	// -- The five `*MidiLearnPadPressed` overloads are one question --------------------
 	//
 	// One example per overload. Each drives LEGACY's own overload plus its note-on, captures the
 	// `LearnedMIDI`, poisons it, then drives the port from `LearnTarget::<factory>` and compares
-	// the same model object. The five together are the executable form of the report's mapping
+	// the same model object. Together they pin the mapping
 	// table: if any one of them mapped onto the wrong `LearnedMIDI`, its example fails.
 
 	it("SECTION: `sectionMidiLearnPadPressed` maps onto `LearnTarget::section`", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 2};
 
-		// --- Legacy, from its own reset (`view.cpp`) ------------------
+		// --- Legacy, from its own reset (`views/view.cpp`) ------------------
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
@@ -615,7 +616,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		view.clipStatusMidiLearnPadPressed(true, fixture.clip); // `view.cpp`
+		view.clipStatusMidiLearnPadPressed(true, fixture.clip); // `views/view.cpp`
 		view.noteOnReceivedForMidiLearn(cables().b, 5, 70, 100);
 		const Learned legacy = Learned::of(slot);
 		expect(legacy.cable).to_equal(&cables().b);
@@ -646,7 +647,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		view.noteRowMuteMidiLearnPadPressed(true, row); // `view.cpp`
+		view.noteRowMuteMidiLearnPadPressed(true, row); // `views/view.cpp`
 		view.noteOnReceivedForMidiLearn(cables().a, 7, 41, 127);
 		const Learned legacy = Learned::of(slot);
 		expect(legacy.channel_or_zone).to_equal(7);
@@ -666,8 +667,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("DRUM_INPUT: `drumMidiLearnPadPressed` maps onto `LearnTarget::drum_input`", _ {
-		// The one overload that takes TWO model objects (`view.cpp`): the drum and its
-		// kit, the second only so `grabVelocityToLevel…ForDrum` can search faster (`:566-567`).
+		// The one overload that takes TWO model objects (`views/view.cpp`): the drum and its
+		// kit, the second only so `grabVelocityToLevel…ForDrum` can search faster.
 		static spec::SongFixture fixture = spec::make_kit_song();
 		static SoundDrum* drum = spec::add_drum<SoundDrum>(fixture);
 		auto* const kit = static_cast<Kit*>(fixture.instrument);
@@ -677,9 +678,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		view.startMIDILearn();
 		view.drumMidiLearnPadPressed(true, drum, kit);
-		expect(view.drumPressedForMIDILearn).to_equal(drum); // `:565`
-		expect(view.kitPressedForMIDILearn).to_equal(kit);   // `:566`
-		view.noteOnReceivedForMidiLearn(cables().b, 2, 36, 127);   // the `:629-660` arm
+		expect(view.drumPressedForMIDILearn).to_equal(drum);
+		expect(view.kitPressedForMIDILearn).to_equal(kit);
+		view.noteOnReceivedForMidiLearn(cables().b, 2, 36, 127);   // the drum arm
 		const Learned legacy = Learned::of(slot);
 		expect(legacy.note_or_cc).to_equal(36);
 		view.drumMidiLearnPadPressed(false, drum, kit);
@@ -700,9 +701,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("INSTRUMENT_INPUT: `instrumentMidiLearnPadPressed` maps onto `LearnTarget::instrument_input`", _ {
-		// The arm that does NOT jump to the shared write: `:730-732` repeats the three fields
-		// itself, which is why the port runs the shared write for it after the extras rather than
-		// inside them.
+		// The instrument arm of `View::noteOnReceivedForMidiLearn` does NOT jump to the shared write: it repeats the
+		// three fields itself, which is why the port runs the shared write for it after the extras rather than inside
+		// them.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		// Learning an instrument's input reads its param manager
 		// (`View::clearMelodicInstrumentMonoExpressionIfPossible`).
@@ -712,9 +713,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		view.instrumentMidiLearnPadPressed(true, fixture.instrument); // `view.cpp`
+		view.instrumentMidiLearnPadPressed(true, fixture.instrument); // `views/view.cpp`
 		expect(view.instrumentPressedForMIDILearn).to_equal(fixture.instrument);
-		view.noteOnReceivedForMidiLearn(cables().a, 9, 55, 127); // the `:677-740` arm
+		view.noteOnReceivedForMidiLearn(cables().a, 9, 55, 127); // the instrument arm
 		const Learned legacy = Learned::of(slot);
 		expect(legacy.channel_or_zone).to_equal(9);
 		view.instrumentMidiLearnPadPressed(false, fixture.instrument);
@@ -744,7 +745,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		expect(fixture.song).not_().to_be_null();
 
-		// --- Legacy (`view.cpp:187-198`) ----------------------------------------------------
+		// --- Legacy (`View::buttonAction` in `views/view.cpp`) ----------------------------------------------------
 		release_all_legacy_buttons();
 		expect(reset_legacy_learn()).to_be_true();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Learn), true);
@@ -773,7 +774,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("PLAY under learn: the button learns, and the transport tail does NOT run", _ {
-		// The two halves of legacy's `:199-212` in one example. `midiEngine.globalMIDICommands` is
+		// The two halves of legacy's `View::buttonAction` PLAY arm in one example. `midiEngine.globalMIDICommands` is
 		// a process singleton, so the poison step is what makes this a real comparison.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		::LearnedMIDI& slot = midiEngine.globalMIDICommands[static_cast<size_t>(GlobalMIDICommand::PLAY)];
@@ -790,8 +791,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const Learned legacy = Learned::of(slot);
 		const uint8_t legacy_playback = playbackHandler.playbackState;
 		expect(legacy.channel_or_zone).to_equal(1);
-		// The tail was skipped: `View::buttonAction`'s `DEALT_WITH` makes `hid/buttons.cpp:139-141`
-		// jump past `:144-167`, so playback never started.
+		// The tail was skipped: `View::buttonAction`'s `DEALT_WITH` makes `Buttons::buttonAction` (`hid/buttons.cpp`)
+		// jump past its PLAY arm, so playback never started.
 		expect(legacy_playback).to_equal(0);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), false);
 		expect(reset_legacy_learn()).to_be_true();
@@ -804,7 +805,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.gc.set_song(fixture.song);
-		// LEARN is a HOLD, not a toggle: `view.cpp:192-197` starts the mode on the press and ends
+		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
 		// for the next button to be learned under.
@@ -829,7 +830,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		playbackHandler.recording = RecordingMode::OFF;
 		view.startMIDILearn();
-		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true); // `view.cpp:217-230`
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true); // `View::buttonAction`'s RECORD arm
 		expect(view.thingPressedForMidiLearn).to_equal(::MidiLearn::RECORD_BUTTON);
 		view.noteOnReceivedForMidiLearn(cables().b, 4, 62, 127);
 		const Learned legacy = Learned::of(slot);
@@ -844,7 +845,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.gc.set_song(fixture.song);
-		// LEARN is a HOLD, not a toggle: `view.cpp:192-197` starts the mode on the press and ends
+		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
 		// for the next button to be learned under.
@@ -886,7 +887,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		LearnRig rig;
 		rig.ml.set_song(fixture.song);
 		rig.gc.set_song(fixture.song);
-		// LEARN is a HOLD, not a toggle: `view.cpp:192-197` starts the mode on the press and ends
+		// LEARN is a HOLD, not a toggle: `View::buttonAction` (`views/view.cpp`) starts the mode on the press and ends
 		// it on the release, so the gesture legacy's own `startMIDILearn()` stands in for is
 		// "LEARN still down". Releasing it here would call `end()` and there would be no mode left
 		// for the next button to be learned under.
@@ -901,10 +902,10 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(playbackHandler.metronomeOn).to_be_false();
 	});
 
-	// -- Step 5: `endMidiLearnPressSession`'s delete-on-release -----------------------------------
+	// -- `endMidiLearnPressSession`'s delete-on-release -----------------------------------
 
 	it("delete on release: holding a learned thing and letting go CLEARS it, on both sides", _ {
-		// `view.cpp` for the pads. The model is asserted before AND after on each side:
+		// `views/view.cpp` for the pads. The model is asserted before AND after on each side:
 		// a spec that only checked "empty afterwards" would pass against a port that never wrote
 		// anything in the first place.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -920,7 +921,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(slot.containsSomething()).to_be_true(); // learned, and the release did NOT wipe it
 		// Now hold it again with no note-on in between, and let go.
 		view.sectionMidiLearnPadPressed(true, 1);
-		expect(view.deleteMidiCommandOnRelease).to_be_true(); // `:521`
+		expect(view.deleteMidiCommandOnRelease).to_be_true();
 		view.sectionMidiLearnPadPressed(false, 1);
 		const bool legacy_cleared = !slot.containsSomething();
 		expect(legacy_cleared).to_be_true();
@@ -947,7 +948,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("delete on release: a release of a DIFFERENT kind of thing does nothing", _ {
-		// `view.cpp`'s `else if (thingPressedForMidiLearn == MidiLearn::SECTION)`. Legacy has
+		// `views/view.cpp`'s `else if (thingPressedForMidiLearn == MidiLearn::SECTION)`. Legacy has
 		// one held thing, so a release whose kind does not match falls through -- which is what
 		// stops a second finger's release from wiping the first finger's target.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -972,7 +973,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.pressed().section_index).to_equal(section_slot.index);
 	});
 
-	// -- Step 4: the flash -----------------------------------------------------------------------
+	// -- The flash -----------------------------------------------------------------------
 
 	it("the flash is time-driven: the phase moves on a QUIET tick, with no input at all", _ {
 		// `View::midiLearnFlash` re-arms itself at `kFastFlashTime` and is
@@ -982,8 +983,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(rig.ml.next_timer().has_value()).to_be_false(); // nothing armed while learn is off
 
 		rig.ml.begin();
-		// `startMIDILearn` calls `midiLearnFlash()` (`:477`), which toggles the phase ON and arms
-		// the timer (`:797-798`).
+		// `startMIDILearn` calls `midiLearnFlash()`, which toggles the phase ON and arms
+		// the timer.
 		expect(rig.ml.flash_on()).to_be_true();
 		expect(rig.ml.next_timer().has_value()).to_be_true();
 		expect(*rig.ml.next_timer()).to_equal(LearnService::kFlashMs);
@@ -1037,7 +1038,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	// -- LEDs ------------------------------------------------------------------------------------
 
 	it("the flash LEDs follow legacy's own three conditions, and are compared against legacy's shadow", _ {
-		// `view.cpp`: PLAY, RECORD and TAP_TEMPO are written from `midiLearnFlashOn`, but
+		// `views/view.cpp`: PLAY, RECORD and TAP_TEMPO are written from `midiLearnFlashOn`, but
 		// only when the command is already learned OR that button is the held thing. An unlearned,
 		// unheld button is left to whoever set it -- which here is `GlobalControls`.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -1087,7 +1088,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// DECLARE it, which is the declarative spelling of the same fact.
 		expect(record_declared).to_be_false();
 
-		// Hold RECORD, and it starts following the phase without ever being learned (`:809`).
+		// Hold RECORD, and it starts following the phase without ever being learned (`View::midiLearnFlash`'s RECORD
+		// arm).
 		rig.ml.thing_pressed(LearnTarget::global_command(GlobalMIDICommand::RECORD), true);
 		deluge::ui::LedFrame held_frame;
 		rig.ml.leds(held_frame);
@@ -1097,7 +1099,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 		// And the declaration really is the PHASE, not a constant: one quiet half-period later,
 		// both LEDs are declared the other way. This is what ties `leds()` to `flash_on()` --
-		// legacy writes them from the one `midiLearnFlashOn` bit (`:797`, `:806`, `:810`), so a
+		// legacy writes them from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`), so a
 		// port whose LEDs did not move with the phase would be a different UI.
 		rig.ml.tick(1'000 + LearnService::kFlashMs, LearnService::kFlashMs);
 		expect(rig.ml.flash_on()).to_be_false();
@@ -1114,8 +1116,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the LEARN LED blinks at kFastFlashTime while learn is on, and is declared off when it is not", _ {
-		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `view.cpp`) -- forever, at
-		// `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)` (`:499`).
+		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `views/view.cpp`) --
+		// forever, at `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)`
+		// (`View::endMIDILearn`).
 		LearnRig rig;
 		deluge::ui::LedFrame off_frame;
 		rig.ml.leds(off_frame);
@@ -1131,7 +1134,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(on->kind).to_equal(deluge::ui::LedState::Kind::Shared);
 		expect(on->rate).to_equal(deluge::ui::BlinkRate::Fast);
 		// A blink with no deadline: legacy's `numBlinks == 255` never folds back
-		// (`hid/led/indicator_leds.cpp:69-71`, `:117-126`).
+		// (`blinkLed` in `hid/led/indicator_leds.cpp`, `updateBlinkingLedStates`).
 		expect(on->until_ms).to_equal(0);
 		// And it really does change on its own at the fast period, which is what makes the declaration a blink rather
 		// than a name for one.
@@ -1165,9 +1168,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the root gate: with a NON-root scene on top, LEARN does nothing here", _ {
-		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the
-		// header's proof). Legacy's LEARN inside a menu is `SoundEditor::buttonAction`'s own arm
-		// (`gui/ui/sound_editor.cpp:505-537`), which is `MenuScene`'s to port -- so an ungated
+		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the header's proof). Main's
+		// LEARN inside a menu is the `LEARN` arm of `SoundEditor::buttonAction`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is `MenuScene`'s to port -- so an ungated
 		// `MidiLearn` would put a second, wrong owner on the button.
 		LearnRig rig;
 		rig.root.root = false;
@@ -1187,8 +1190,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	// -- `ccReceivedForMIDILearn` ------------------------------------------------------------------
 
 	it("a CC on a non-instrument target is learned as a note-on with the IS_A_CC bias", _ {
-		// `view.cpp`. The bias is what lets one `LearnedMIDI` hold either a note or a CC
-		// (`io/midi/learned_midi.h:90-93`).
+		// `views/view.cpp`. The bias is what lets one `LearnedMIDI` hold either a note or a CC
+		// (`io/midi/learned_midi.h`).
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 0};
 
@@ -1216,7 +1219,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("a CC with value 0 is ignored, on both sides", _ {
-		// `view.cpp`'s `if (value)`. A separate example because it is the one arm of
+		// `views/view.cpp`'s `if (value)`. A separate example because it is the one arm of
 		// `ccReceivedForMIDILearn` whose whole content is a refusal.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 4};
@@ -1227,8 +1230,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		view.sectionMidiLearnPadPressed(true, 4);
 		view.ccReceivedForMIDILearn(cables().a, 2, 74, 0);
 		expect(slot.containsSomething()).to_be_false();
-		// …but `deleteMidiCommandOnRelease` was cleared anyway (`:769`, above the `if`), which is
-		// legacy's own behaviour and worth pinning: a zero-valued CC cancels the delete.
+		// …but `deleteMidiCommandOnRelease` was cleared anyway (`View::ccReceivedForMIDILearn` clears it above the
+		// `if`), which is legacy's own behaviour and worth pinning: a zero-valued CC cancels the delete.
 		expect(view.deleteMidiCommandOnRelease).to_be_false();
 		view.sectionMidiLearnPadPressed(false, 4);
 		expect(reset_legacy_learn()).to_be_true();
@@ -1248,7 +1251,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("a CC on a MIDI-out instrument learns the input CHANNEL, not a note", _ {
-		// `view.cpp`, the arm with three conjuncts: the held thing is an instrument, the
+		// `views/view.cpp`, the arm with three conjuncts: the held thing is an instrument, the
 		// CURRENT output is a MIDI instrument, and nothing has been learned into the slot yet.
 		static spec::SongFixture fixture = spec::make_midi_song();
 		expect(fixture.instrument->type).to_equal(OutputType::MIDI_OUT);
@@ -1268,7 +1271,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 
 		expect(poison(slot)).to_be_true();
-		// The arm's third conjunct: it only fires on an EMPTY slot (`:778`), which the song's mapping table holds.
+		// The arm's third conjunct: it only fires on an EMPTY slot (`View::ccReceivedForMIDILearn`), which the song's
+		// mapping table holds.
 		(void)deluge::edits::learnedMappingIn(*fixture.song,
 		                                      deluge::project::TrackInputTarget{*fixture.instrument->id()},
 		                                      ::LearnedMIDI{});
@@ -1306,13 +1310,13 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 5};
 
-		// --- Legacy, from `PlaybackHandler::noteMessageReceived` (`:2960-2973`) --------------
+		// --- Legacy, from `PlaybackHandler::noteMessageReceived` --------------
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		// `:2963`'s gate, which `View::startMIDILearn` is what sets. Asserted rather
-		// than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings`
-		// and this example would compare two untouched slots.
+		// `PlaybackHandler::noteMessageReceived`'s learn gate, which `View::startMIDILearn` is what sets. Asserted
+		// rather than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings` and this
+		// example would compare two untouched slots.
 		expect(currentUIMode).to_equal(UI_MODE_MIDI_LEARN);
 		view.sectionMidiLearnPadPressed(true, 5);
 		bool thru = false;
@@ -1362,7 +1366,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		playbackHandler.midiCCReceived(cables().a, 2, 74, 100, &thru);
 		const Learned legacy = Learned::of(slot);
 		expect(legacy.cable).to_equal(&cables().a);
-		// The `IS_A_CC` bias is applied by `ccReceivedForMIDILearn` itself (`view.cpp`), not
+		// The `IS_A_CC` bias is applied by `ccReceivedForMIDILearn` itself (`views/view.cpp`), not
 		// by the dispatcher -- so it must appear on the port side too, from `cc_received`, and NOT
 		// from the transport. `UiEvent::channel` carries the raw zone.
 		expect(legacy.channel_or_zone).to_equal(zone_of(cables().a, 2) + IS_A_CC);
@@ -1384,11 +1388,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the SCENE gets the message first, so a scene that claims it stops `midi_learn` seeing it", _ {
-		// The port of `:2968`'s first refusal: `getCurrentUI()->noteOnReceivedForMidiLearn(...)`
-		// runs before `view.` and its `true` is what skips `view.` entirely. In the chain that is
-		// `Router::run_chain`'s scene step running before its `midi_learn` step, and this example
-		// is the only thing in the file that would fail if those two were swapped -- every other
-		// one routes through a scene that declines, where the order is unobservable.
+		// The port of `PlaybackHandler::noteMessageReceived`'s first refusal:
+		// `getCurrentUI()->noteOnReceivedForMidiLearn(...)` runs before `view.` and its `true` is what skips `view.`
+		// entirely. In the chain that is `Router::run_chain`'s scene step running before its `midi_learn` step, and
+		// this example is the only thing in the file that would fail if those two were swapped -- every other one
+		// routes through a scene that declines, where the order is unobservable.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 7};
 		expect(poison(slot)).to_be_true();
@@ -1454,7 +1458,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.begin();
 		expect(rig.ml.active()).to_be_false();
 
-		// And re-entering while ALREADY in learn is allowed and resets the held thing (`:474`),
+		// And re-entering while ALREADY in learn is allowed and resets the held thing (`View::startMIDILearn`),
 		// which the guard's second disjunct is there for.
 		rig.ml.set_other_mode_active(false);
 		rig.ml.begin();

@@ -1,9 +1,9 @@
 /// @file
-/// @brief The instrument the ported menu edits counts as edited by the user, as `SoundEditor::selectEncoderAction`
+/// @brief The instrument the menu edits counts as edited by the user, as `SoundEditor::selectEncoderAction`
 ///        marks it: after a select turn on an item that edits the instrument
 ///        (`MenuItem::selectEncoderActionEditsInstrument`), when there is a sound to edit, never in the settings menu.
 ///
-/// The menu is opened on the global guest over the instrument clip view, as `openShellMenu` leaves it, and every turn
+/// The menu is opened on the global guest over the instrument clip view, as `openMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls.
 
 #include "deluge-project/mapping_table.h"
@@ -162,7 +162,7 @@ std::ptrdiff_t edited_marks(const deluge::scenes::bind::RecordingSink& sink) {
 } // namespace
 
 // clang-format off
-describe menu_edited_guest("the ported menu marks the instrument it edits, as SoundEditor::selectEncoderAction does", $ {
+describe menu_edited_guest("the menu scene marks the instrument it edits, as SoundEditor::selectEncoderAction does", $ {
 	it("marks a synth edited after a turn on one of its settings", _ {
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;

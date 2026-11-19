@@ -162,7 +162,7 @@ describe shell_leds("shell::LedCompose", $ {
 
 	it("a blink with a first period starts lit at its origin, as indicator_leds::blinkLed does", _ {
 		// `blinkLed(led)`: `initialState` on for `kInitialFlashTime` (250), then toggling every `kFlashTime` (110)
-		// (`hid/led/indicator_leds.cpp:78-95`, `:98-112`), measured from the call.
+		// (the toggling in `ledBlinkTimeout`, `hid/led/indicator_leds.cpp`), measured from the call.
 		const LedState s{LedState::Kind::Blink, 110, 0, 1000, 250};
 		expect(led_is_on(s, 1000)).to_be_true();
 		expect(led_is_on(s, 1249)).to_be_true();

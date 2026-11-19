@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The ported menu opened over a chosen legacy root UI through the real shortcut entry, and the legacy Shift
+/// @brief The menu opened over a chosen legacy root UI through the real shortcut entry, and the legacy Shift
 ///        state the examples that do so hold for their length.
 ///
 /// Shared by `pad_forward_spec.cpp` and `automation_retarget_spec.cpp`. Pair each with `GlobalGuestGuard` and
@@ -13,7 +13,7 @@
 #include "model/clip/instrument_clip.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
-#include "util/shell_menu_entry.h" // openShellMenuAtShortcut
+#include "util/menu_entry.h" // openMenuAtShortcut
 
 #include <cstdint>
 
@@ -39,7 +39,7 @@ struct ShiftHeld {
 	ShiftHeld& operator=(const ShiftHeld&) = delete;
 };
 
-/// @brief Open the ported menu over @p root at the sound shortcut (@p x, @p y) -- the page that lists the shortcut's
+/// @brief Open the menu over @p root at the sound shortcut (@p x, @p y) -- the page that lists the shortcut's
 ///        param, focused on it, as `SoundEditor::setup` lands one.
 ///
 /// The application's node numbering is put back first: `open_menu_on_global_guest` numbers `root_song` alone, and the
@@ -47,7 +47,7 @@ struct ShiftHeld {
 inline bool open_shortcut_over(RootUI* root, InstrumentClip* clip, int32_t x, int32_t y) {
 	(void)menu::assign_node_ids(menu::nodes::kAllRoots);
 	setRootUILowLevel(root);
-	return deluge::gui::ui::openShellMenuAtShortcut(clip, x, y, false, false, false, false);
+	return deluge::gui::ui::openMenuAtShortcut(clip, x, y, false, false, false, false);
 }
 
 /// @brief `open_shortcut_over` with the automation view as the root.

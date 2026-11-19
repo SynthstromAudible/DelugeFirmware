@@ -116,7 +116,8 @@ public:
 	virtual bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
 	                          std::optional<int16_t> previous_top) = 0;
 	/// @brief Delete range @p index of source @p source of the sound at @p slot, and give the range below it
-	/// @p lower_top when set: `MultiRange::deletePress`, the range's voices unassigned.
+	/// @p lower_top when set: `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), the
+	/// range's voices unassigned.
 	/// @return Whether it was taken.
 	virtual bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                          std::optional<int16_t> lower_top) = 0;

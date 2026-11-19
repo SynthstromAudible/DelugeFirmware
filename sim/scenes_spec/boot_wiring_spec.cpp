@@ -2,7 +2,7 @@
 /// @brief The boot wiring `src/scenes/registry.h`'s note asked for, driven against the real
 ///        application globals.
 ///
-/// Three settings the ported tree and the guest's `Shell` cannot read for themselves, plus the
+/// Three settings the scene library and the guest's `Shell` cannot read for themselves, plus the
 /// three services the wiring installs. This is the spec level they
 /// can be checked at: the host suite (`tests/unit/deluge/gui/shell_host_ui_lifecycle_spec.cpp`) deliberately never
 /// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
@@ -14,6 +14,7 @@
 ///       spec in this binary -- `shortcuts_spec.cpp`'s own `LegacyVersion1` guard exists for the
 ///       same reason -- so each example saves and puts back the setting it drives.
 
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h"
@@ -135,11 +136,11 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 });
 
 describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
-	it("the ported tables select on FlashStorage::shortcutsVersion, which every path writes", _ {
+	it("the scenes' shortcut tables select on FlashStorage::shortcutsVersion, which every path writes", _ {
 		const uint8_t saved = FlashStorage::shortcutsVersion;
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
-		// from the ported reset menu) and the ported settings item
+		// from the reset menu) and the settings item
 		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
 		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
 		// binary.
@@ -404,6 +405,18 @@ describe boot_services("the three services, installed into the guest's own Shell
 		deluge::gui::ui::wireShellGuestServices();
 	});
 });
+
+describe boot_browser_host("the browser's host, installed with the services", $ {
+	it("gives the browser the application's host, not the one that performs nothing", _ {
+		deluge::scenes::browser::BrowserHost* const saved = deluge::scenes::browser::browser_scene().installed_host();
+		deluge::scenes::browser::browser_scene().set_host(nullptr);
+		deluge::gui::ui::wireShellGuestServices();
+		const deluge::scenes::browser::BrowserHost* host = deluge::scenes::browser::browser_scene().installed_host();
+		expect(host).not_().to_be_null();
+		expect(host).not_().to_equal(&deluge::scenes::browser::null_browser_host());
+		deluge::scenes::browser::browser_scene().set_host(saved);
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services)
+DELUGE_SPEC(boot_wiring_spec, boot_node_ids, boot_shortcuts_version, boot_screensaver, boot_services, boot_browser_host)

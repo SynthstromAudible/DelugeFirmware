@@ -4,7 +4,7 @@ The drivers here (song_roundtrip, param_record_diff, ...) were once executables 
 golden_vt_render, on the booted app, as stepped scenarios (tests/integration/scenarios/drivers/driver.h): the
 scenario takes the driver's command line from DRV_ARGS, writes its stdout and stderr to the files DRV_OUT and DRV_ERR
 name, and prints `DRV-EXIT code=<n>` with the value its main returned. `run()` turns that back into the exit status,
-stdout and stderr the driver's process used to have, which is what the runners in this directory compare.
+stdout and stderr of the driver's own process, which is what the runners in this directory compare.
 
 A run that ends with no DRV-EXIT line -- the harness aborted, froze or timed out -- comes back with a negative
 returncode and the harness's own stderr.

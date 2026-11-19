@@ -28,14 +28,14 @@ using deluge::ui::shell::SurfaceRole;
 namespace {
 
 /// Legacy's `View::MIN_DISPLAY_OWNERSHIP_TIME`/`DISPLAY_TIMEOUT`/`MIN_UPDATE_INTERVAL`
-/// (`view.h:180-182`), in `AudioEngine::audioSampleTimer` units at `kSampleRate` (44100Hz),
+/// (`gui/views/view.h`), in `AudioEngine::audioSampleTimer` units at `kSampleRate` (44100Hz),
 /// converted to the millisecond units this port's `now_ms` is in.
 inline constexpr uint32_t kMinDisplayOwnershipMs = 1000; // kSampleRate -> 1s
 inline constexpr uint32_t kDisplayTimeoutMs = 250;       // kSampleRate / 4
 inline constexpr uint32_t kMinUpdateIntervalMs = 45;     // kSampleRate / 22, ~45ms
 
 /// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` -- `View::displayModEncoderValuePopup`'s
-/// refresh-only arm (`view.cpp`) and `OLED::displayNotification`'s own arm (`oled.cpp:793`,
+/// refresh-only arm (`gui/views/view.cpp`) and `OLED::displayNotification`'s own arm (`oled.cpp`,
 /// reached whenever this scene's arbitration actually commits a redraw).
 inline constexpr uint32_t kPopupLifetimeMs = 2000;
 
@@ -82,12 +82,11 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
-/// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp`).
+/// @brief The parameter-name half of `displayModEncoderValuePopup` (`gui/views/view.cpp`).
 ///
-/// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the
-/// patch-cable form (`:1114-1121`), the MIDI-clip CC/expression form (`:1122-1147`) and the plain
-/// form (`:1148-1155`). A default `PopupContext` selects the plain form's context-free overload
-/// and skips the MIDI arm entirely, which is exactly what a context-free caller gets.
+/// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the patch-cable form, the
+/// MIDI-clip CC/expression form and the plain form. A default `PopupContext` selects the plain form's context-free
+/// overload and skips the MIDI arm entirely, which is exactly what a context-free caller gets.
 /// @param kind     The param's kind.
 /// @param param_id The param id within @p kind.
 /// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
@@ -109,8 +108,9 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		                          : deluge::modulation::params::getPatchedParamShortName(type));
 	}
 	else if (context.midi_clip) {
-		// `:1122-1147`. The caller has already resolved `knobsOnClipContext() && getCurrentOutputType()
-		// == OutputType::MIDI_OUT`; a non-null instrument *is* that test having passed.
+		// The MIDI-clip CC/expression form. The caller has already resolved
+		// `knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`; a non-null instrument *is* that
+		// test having passed.
 		if (kind == Kind::EXPRESSION) {
 			if (param_id == X_PITCH_BEND) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
@@ -143,7 +143,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 	}
 }
 
-/// @brief The value half of `displayModEncoderValuePopup` (`view.cpp`).
+/// @brief The value half of `displayModEncoderValuePopup` (`gui/views/view.cpp`).
 ///
 /// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
 /// @param kind          The param's kind.
@@ -222,7 +222,7 @@ bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchS
 
 bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
                                       PatchSource source2, uint32_t now_ms, PopupContext context) {
-	// `displayModEncoderValuePopup`'s formatting half (view.cpp:1126-1214): always recomputed,
+	// `displayModEncoderValuePopup`'s formatting half (`gui/views/view.cpp`): always recomputed,
 	// whether or not the arbitration below ends up using it -- legacy does the same work on every
 	// call, including the flushed replay.
 	char name_buf[kTextCap + 1];
@@ -233,7 +233,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	FixedAppend value{value_buf, kTextCap};
 	const int32_t display_value = format_value(kind, param_id, knob_pos, context, value);
 
-	// `displayModEncoderValuePopup`'s arbitration half (view.cpp:1215-1305), against this scene's
+	// `displayModEncoderValuePopup`'s arbitration half (`gui/views/view.cpp`), against this scene's
 	// own `remaining_ms_ > 0` standing in for `display->hasPopupOfType(PopupType::NOTIFICATION)`.
 	const bool notification_active = remaining_ms_ > 0;
 
@@ -292,8 +292,8 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		last_actual_display_ms_ = now_ms;
 		has_pending_ = false;
 		pending_flush_remaining_ms_ = 0;
-		// `:1245`'s `display->displayNotification(...)` is a write AND a blit. This scene can only
-		// do the write, so it reports the blit back to its caller -- see `show()`'s `@return`.
+		// `display->displayNotification(...)` in `View::displayModEncoderValuePopup` is a write AND a blit. This scene
+		// can only do the write, so it reports the blit back to its caller -- see `show()`'s `@return`.
 		return true;
 	}
 	else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {

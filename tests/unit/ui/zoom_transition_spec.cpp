@@ -16,7 +16,7 @@ using deluge::gfx::grid::PadGrid;
 using deluge::gfx::grid::ZoomParams;
 namespace uitest = deluge::ui::test;
 
-// The slide `PadLEDs::renderZoom` draws from `imageStore` (`pad_leds.cpp:1195`), as a component. The blend itself is
+// The slide `PadLEDs::renderZoom` draws from `imageStore` (`pad_leds.cpp`), as a component. The blend itself is
 // `gfx::grid::zoom`'s, pinned in tests/unit/gfx/tween_spec.cpp; what is pinned here is the clock around it.
 
 namespace {

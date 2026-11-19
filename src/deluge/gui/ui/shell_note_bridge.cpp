@@ -56,13 +56,13 @@ namespace menu = deluge::scenes::menu;
 // -----------------------------------------------------------------------------------------------
 
 /// @brief `SelectedNote::shouldEnterSubmenu`'s test, without its popup
-///        (`gui/menu_item/note/selected_note.h`): a held note pad, or a remembered one.
+///        (`origin/main:src/deluge/gui/menu_item/note/selected_note.h`): a held note pad, or a remembered one.
 bool note_selected() {
 	return instrumentClipView.getLeftMostNotePressed() != nullptr;
 }
 
-/// @brief `note::Velocity::readCurrentValue` (`gui/menu_item/note/velocity.h`): the leftmost held
-///        pad's average velocity, else the leftmost remembered edit target's intended velocity.
+/// @brief `note::Velocity::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/note/velocity.h`): the leftmost
+///        held pad's average velocity, else the leftmost remembered edit target's intended velocity.
 int32_t note_velocity() {
 	const EditPadPress* selected_press = nullptr;
 	for (const auto& press : instrumentClipView.editPadPresses) {
@@ -86,13 +86,14 @@ int32_t note_velocity() {
 }
 
 /// @brief `Velocity::selectEncoderAction`'s write, `instrumentClipView.adjustVelocity(offset, false)`
-///        (`gui/menu_item/note/velocity.h:85-88`): the menu shows the value itself, so no velocity popup.
+///        (`origin/main:src/deluge/gui/menu_item/note/velocity.h`): the menu shows the value itself, so no velocity
+///        popup.
 void adjust_note_velocity(int32_t offset) {
 	instrumentClipView.adjustVelocity(offset, false);
 }
 
-/// @brief Leftmost pressed note's `getProbability()` (`gui/menu_item/note/probability.h:44-50`);
-///        a null leftmost note returns 0.
+/// @brief Leftmost pressed note's `getProbability()` (`Probability::readCurrentValue` in
+///        `origin/main:src/deluge/gui/menu_item/note/probability.h`); a null leftmost note returns 0.
 int32_t note_probability() {
 	Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 	if (leftMostNote != nullptr) {
@@ -102,15 +103,15 @@ int32_t note_probability() {
 }
 
 /// @brief `Probability::selectEncoderAction`'s write, `adjustNoteProbabilityWithOffset`
-///        (`gui/menu_item/note/probability.h:52-55`).
+///        (`origin/main:src/deluge/gui/menu_item/note/probability.h`).
 void adjust_note_probability(int32_t offset) {
 	instrumentClipView.adjustNoteProbabilityWithOffset(offset);
 }
 
-/// @brief Leftmost pressed note's `getIterance().toInt()` (`gui/menu_item/note/iterance_preset.h:44-52`
-///        reads the same note's iterance, as a raw int rather than a preset index -- the scenes' leaf
-///        converts with `Iterance::toPresetIndex()` itself, since `model/iterance/` is includable
-///        from `src/scenes`); a null leftmost note returns 0.
+/// @brief Leftmost pressed note's `getIterance().toInt()` (`IterancePreset::readCurrentValue` in
+///        `origin/main:src/deluge/gui/menu_item/note/iterance_preset.h` reads the same note's iterance, as a raw int
+///        rather than a preset index -- the scenes' leaf converts with `Iterance::toPresetIndex()` itself, since
+///        `model/iterance/` is includable from `src/scenes`); a null leftmost note returns 0.
 int32_t note_iterance() {
 	Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 	if (leftMostNote != nullptr) {
@@ -121,22 +122,22 @@ int32_t note_iterance() {
 }
 
 /// @brief `IterancePreset::selectEncoderAction`'s write, `adjustNoteIteranceWithOffset`
-///        (`gui/menu_item/note/iterance_preset.h:54-57`).
+///        (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`).
 void adjust_note_iterance(int32_t offset) {
 	instrumentClipView.adjustNoteIteranceWithOffset(offset);
 }
 
 /// @brief `adjustNoteIteranceWithFinalValue(Iterance::fromInt(...))` -- the CUSTOM iterance
 ///        editor's commit, called by `note::IteranceDivisor::writeCurrentValue`
-///        (`gui/menu_item/note/iterance_divisor.h:67`) and
+///        (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`) and
 ///        `note::IteranceStepToggle::writeCurrentValue`
-///        (`gui/menu_item/note/iterance_step_toggle.h:65`).
+///        (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`).
 void set_note_iterance(int32_t iterance) {
 	instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance::fromInt(iterance));
 }
 
-/// @brief Leftmost pressed note's `getFill()` (`gui/menu_item/note/fill.h:44-50`); a null leftmost
-///        note returns 0.
+/// @brief Leftmost pressed note's `getFill()` (`Fill::readCurrentValue` in
+///        `origin/main:src/deluge/gui/menu_item/note/fill.h`); a null leftmost note returns 0.
 int32_t note_fill() {
 	Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 	if (leftMostNote != nullptr) {
@@ -146,7 +147,7 @@ int32_t note_fill() {
 }
 
 /// @brief `Fill::selectEncoderAction`'s write, `adjustNoteFillWithOffset`
-///        (`gui/menu_item/note/fill.h:52-55`).
+///        (`origin/main:src/deluge/gui/menu_item/note/fill.h`).
 void adjust_note_fill(int32_t offset) {
 	instrumentClipView.adjustNoteFillWithOffset(offset);
 }
@@ -156,13 +157,13 @@ void adjust_note_fill(int32_t offset) {
 // -----------------------------------------------------------------------------------------------
 
 /// @brief `SelectedNoteRow::shouldEnterSubmenu`'s test, without its popup
-///        (`gui/menu_item/note_row/selected_note_row.h:34-40`).
+///        (`origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`).
 bool row_auditioning() {
 	return isUIModeActive(UI_MODE_AUDITIONING);
 }
 
 /// @brief `SelectedNoteRow::getIndividualNoteRow`, transcribed exactly
-///        (`gui/menu_item/note_row/selected_note_row.h:45-61`) -- including that it creates the
+///        (`origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`) -- including that it creates the
 ///        row on a non-kit clip when none exists yet.
 ModelStackWithNoteRow* individualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
@@ -182,7 +183,7 @@ ModelStackWithNoteRow* individualNoteRow(ModelStackWithTimelineCounter* modelSta
 }
 
 /// @brief `Probability::readCurrentValue`'s read, `noteRow->probabilityValue`
-///        (`gui/menu_item/note_row/probability.h:43-53`); no row answers 0.
+///        (`origin/main:src/deluge/gui/menu_item/note_row/probability.h`); no row answers 0.
 int32_t row_probability() {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -194,13 +195,13 @@ int32_t row_probability() {
 }
 
 /// @brief `Probability::selectEncoderAction`'s write, `setNoteRowProbabilityWithOffset`
-///        (`gui/menu_item/note_row/probability.h:55-61`).
+///        (`origin/main:src/deluge/gui/menu_item/note_row/probability.h`).
 void adjust_row_probability(int32_t offset) {
 	(void)instrumentClipView.setNoteRowProbabilityWithOffset(offset);
 }
 
 /// @brief `IterancePreset::readCurrentValue`'s read, `noteRow->iteranceValue.toInt()`, as a raw int
-///        rather than a preset index (`gui/menu_item/note_row/iterance_preset.h:48-60`, whose
+///        rather than a preset index (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`, whose
 ///        `toPresetIndex()` conversion the scenes' leaf performs itself); no row answers 0.
 int32_t row_iterance() {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -214,22 +215,22 @@ int32_t row_iterance() {
 }
 
 /// @brief `IterancePreset::selectEncoderAction`'s write, `setNoteRowIteranceWithOffset`
-///        (`gui/menu_item/note_row/iterance_preset.h:62-70`).
+///        (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`).
 void adjust_row_iterance(int32_t offset) {
 	(void)instrumentClipView.setNoteRowIteranceWithOffset(offset);
 }
 
 /// @brief `setNoteRowIteranceWithFinalValue` -- the CUSTOM iterance editor's commit, called by
 ///        `note_row::IteranceDivisor::writeCurrentValue`
-///        (`gui/menu_item/note_row/iterance_divisor.h:76`) and
+///        (`origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`) and
 ///        `note_row::IteranceStepToggle::writeCurrentValue`
-///        (`gui/menu_item/note_row/iterance_step_toggle.h:92`).
+///        (`origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`).
 void set_row_iterance(int32_t iterance) {
 	(void)instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance::fromInt(iterance));
 }
 
 /// @brief `Fill::readCurrentValue`'s read, `noteRow->fillValue`
-///        (`gui/menu_item/note_row/fill.h:44-54`); no row answers 0.
+///        (`origin/main:src/deluge/gui/menu_item/note_row/fill.h`); no row answers 0.
 int32_t row_fill() {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -241,7 +242,7 @@ int32_t row_fill() {
 }
 
 /// @brief `Fill::selectEncoderAction`'s write, `setNoteRowFillWithOffset` plus its fill-mode
-///        repaint (`gui/menu_item/note_row/fill.h:56-65`).
+///        repaint (`origin/main:src/deluge/gui/menu_item/note_row/fill.h`).
 void adjust_row_fill(int32_t offset) {
 	int32_t newValue = instrumentClipView.setNoteRowFillWithOffset(offset);
 	if (newValue != -1) {
@@ -252,16 +253,17 @@ void adjust_row_fill(int32_t offset) {
 }
 
 /// @brief The non-kit auditioned-row arm of `sequence::Direction::getIndividualNoteRow`
-///        (`gui/menu_item/sequence/direction.h:50-60`), with two of its three statements dropped on
+///        (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), with two of its three statements dropped on
 ///        purpose:
-///          * `:50`'s own test, `clip->output->type != OutputType::KIT`, IS transcribed below --
+///          * Its `else if` test, `clip->output->type != OutputType::KIT`, IS transcribed below --
 ///            without it a kit clip would fall into this arm and read/create whatever DRUM's row
 ///            happens to be displayed at `lastAuditionedYDisplay`, which is not what legacy's kit
-///            arm (`:44-49`, keyed on `kit->selectedDrum`) or its final fallback (`:62`) do. Both of
-///            those are `bindings.h`'s `read_sequence_direction`/`write_sequence_direction`'s
-///            concern, not this bridge's -- a kit clip here answers "no row".
-///          * `:51`'s outer gate, `soundEditor.selectedNoteRow`, is NOT transcribed: it is latched
-///            from `isUIModeActive(UI_MODE_AUDITIONING)` at legacy's session begin (`:118`), which
+///            arm (keyed on `kit->selectedDrum`) or its final fallback (`return modelStack->addNoteRow(0, nullptr)`)
+///            do. Both of those are `bindings.h`'s `read_sequence_direction`/`write_sequence_direction`'s concern, not
+///            this bridge's -- a kit clip here answers "no row".
+///          * The outer gate of main's `Direction::getIndividualNoteRow`, `soundEditor.selectedNoteRow`, is NOT
+///            transcribed: it is latched from `isUIModeActive(UI_MODE_AUDITIONING)` at the session begin
+///            (main's `Direction::checkPermissionToBeginSession`), which
 ///            the port never calls, so the equivalent condition is gated at the call site
 ///            instead (both these entries are called only under `Root::NoteRowEditor`).
 ModelStackWithNoteRow* noteRowForSequenceDirection(ModelStackWithTimelineCounter* modelStack) {
@@ -279,7 +281,7 @@ ModelStackWithNoteRow* noteRowForSequenceDirection(ModelStackWithTimelineCounter
 }
 
 /// @brief `Direction::readCurrentValue`'s row arm, `noteRow->sequenceDirectionMode`
-///        (`gui/menu_item/sequence/direction.h:65-76`); false when there is still no row.
+///        (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`); false when there is still no row.
 bool row_sequence_direction(int32_t* out) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -293,7 +295,7 @@ bool row_sequence_direction(int32_t* out) {
 }
 
 /// @brief `Direction::writeCurrentValue`'s row arm, `NoteRow::setSequenceDirectionMode`
-///        (`gui/menu_item/sequence/direction.h:78-90`).
+///        (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
 void set_row_sequence_direction(int32_t value) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -310,10 +312,10 @@ void set_row_sequence_direction(int32_t value) {
 // Shared.
 // -----------------------------------------------------------------------------------------------
 
-/// @brief The iterance preset leaf's label (`gui/menu_item/note/iterance_preset.h`), restricted to
-///        presets `1..kNumIterancePresets` -- OFF and CUSTOM are the leaf's own literals, not table
-///        lookups, so they are not this function's concern. `compact` chooses the horizontal menu's
-///        short `"%d:%d"` form over the full-screen and notification `"%d of %d"` form.
+/// @brief The iterance preset leaf's label (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`), restricted
+///        to presets `1..kNumIterancePresets` -- OFF and CUSTOM are the leaf's own literals, not table lookups, so they
+///        are not this function's concern. `compact` chooses the horizontal menu's short `"%d:%d"` form over the
+///        full-screen and notification `"%d of %d"` form.
 size_t iterance_preset_label(int32_t preset, bool compact, std::span<char> out) {
 	if (preset < 1 || preset > kNumIterancePresets) {
 		return 0;

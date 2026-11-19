@@ -1,4 +1,4 @@
-# ShellMenu: SHIFT under a sound menu shows main's shortcut colour overlay over a greyed grid -- every shortcut pad
+# SHIFT under a sound menu shows main's shortcut colour overlay over a greyed grid -- every shortcut pad
 # coloured by what it edits, the patching-source column blue where a source may patch to the focused param, the range
 # rule while a source pad is held on a cable page -- and hands the pads back on release, on BACK, and not at all in the
 # settings menu.

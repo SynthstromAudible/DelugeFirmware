@@ -11,8 +11,9 @@
 ///       anywhere under `src/scenes` (`scenes-model-stack-outside-context` and `scenes-model-stack`,
 ///       `scripts/check_layer_rules.py`); `bindings.cpp` reads and writes through `bind::Target` and the write sink.
 ///
-/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends)
-///       is the plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which legacy's menu items use too.
+/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends) is the
+///       plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which main's menu items
+///       (`origin/main:src/deluge/gui/menu_item/`) use too.
 
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
@@ -159,8 +160,8 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
              std::span<deluge::ui::shell::TextScratch> scratch, NameForm form = NameForm::Full);
 
 /// @brief What a MIDI knob learned on @p node turns: the param, on the controls of the owner @p ctx edits --
-///        `PatchedParam`/`UnpatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`,
-///        `unpatched_param.cpp:88-92`), by address.
+///        `PatchedParam`/`UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`,
+///        `origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`), by address.
 /// @param node The item to learn.
 /// @param ctx  What is being edited.
 /// @return The target, or none for a node with no learnable param or a context that edits no owner.
@@ -178,26 +179,26 @@ void write_song(const MenuContext& ctx, std::string_view path, int32_t value);
 
 /// @brief Would a write from @p ctx sweep every `SoundDrum` in the kit?
 ///
-/// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR &&
-/// soundEditor.editingKitRow()` (`UnpatchedParam::writeCurrentValue`): the request a hook makes then names the
-/// whole kit (`Addresses::affect_entire`). Exposed because a couple of legacy items take a *different code
-/// path* rather than a filtered one when it is false -- `sample::PitchSpeed` and
-/// `sample::Interpolation` write `getCurrentSampleControls()` (which is the audio clip's, on an
-/// audio clip) instead of a source's (`sample/pitch_speed.h:44-63`, `sample/interpolation.h:37-59`).
+/// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`
+/// (`UnpatchedParam::writeCurrentValue`): the request a hook makes then names the whole kit
+/// (`Addresses::affect_entire`). Exposed because a couple of legacy items take a *different code path* rather than a
+/// filtered one when it is false -- `sample::PitchSpeed` and `sample::Interpolation` write `getCurrentSampleControls()`
+/// (which is the audio clip's, on an audio clip) instead of a source's (`PitchSpeed::writeCurrentValue` in
+/// `origin/main:src/deluge/gui/menu_item/sample/pitch_speed.h`, `Interpolation::writeCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/sample/interpolation.h`)).
 /// @param ctx The menu's context.
 /// @return Whether a write names the whole kit.
 bool writes_whole_kit(const MenuContext& ctx);
 
 /// @name Value scaling for `get`/`set` items that hold a full-range integer of their own
 ///
-/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But a
-/// dozen batch-2 items are `get`/`set` items that nonetheless store the same INT32-range value a
-/// param would (the MIDI/CV arpeggiator and randomizer settings live on `ArpeggiatorSettings`, not
-/// in a param set) and call the same `value_scaling.cpp` helpers themselves
-/// (`arpeggiator/midi_cv/rate.h:28-33`, `randomizer/midi_cv/spread_gate.h:27-32`, ...). Rather than
-/// re-transcribing the arithmetic in each table file, the transcription this file already owns is
-/// exposed. The `unsigned` pair is new -- batch 1 needed only the standard, half-precision and pan
-/// ones.
+/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But some items are
+/// `get`/`set` items that nonetheless store the same INT32-range value a param would (the MIDI/CV arpeggiator and
+/// randomizer settings live on `ArpeggiatorSettings`, not in a param set) and call the same `util/value_scaling.cpp`
+/// helpers themselves (`Rate` in `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rate.h`, `SpreadGate` in
+/// `origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_gate.h`, ...). Rather than re-transcribing the
+/// arithmetic in each table file, the transcription this file already owns is exposed, including the `unsigned` pair
+/// that only these items use.
 /// @{
 
 /// @brief A STANDARD param's menu value (`plugin::to_menu`): INT32 range -> 0..50.
@@ -208,38 +209,39 @@ int32_t menu_to_standard(int32_t menu_value);
 int32_t pan_to_menu(int32_t stored);
 /// @brief A PAN param's word (`plugin::from_menu`): -25..25 -> INT32 range.
 int32_t menu_to_pan(int32_t menu_value);
-/// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..UINT32_MAX ->
+/// @brief `computeCurrentValueForUnsignedMenuItem` (`util/value_scaling.cpp`): 0..UINT32_MAX ->
 ///        0..50.
 /// @param stored The stored value, 0..UINT32_MAX.
 /// @return The menu value, 0..50.
 int32_t unsigned_to_menu(uint32_t stored);
-/// @brief `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..50 ->
+/// @brief `computeFinalValueForUnsignedMenuItem` (`util/value_scaling.cpp`): 0..50 ->
 ///        0..UINT32_MAX. Note it has no `kMaxMenuValue` special case, unlike its signed sibling.
 /// @param menu_value The menu value, 0..50.
 /// @return The stored value, 0..UINT32_MAX.
 uint32_t menu_to_unsigned(int32_t menu_value);
 /// @}
 
-/// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:65-76`).
+/// @brief Read the play direction `sequence::Direction` would show
+/// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
 ///
 /// The direction is a kit row's note row's, where a kit row the clip is not on affect-entire for has one, else the
 /// clip's: read from that record.
 ///
 /// @param ctx           What is being edited.
-/// @param from_note_row Optional out-parameter: true when an individual note row supplied the
-///                      value, which is also the condition under which legacy offers the fourth
-///                      option, NONE (`direction.h:103-105`).
+/// @param from_note_row Optional out-parameter: true when an individual note row supplied the value, which is also the
+///                      condition under which legacy offers the fourth option, NONE (`Direction::getOptions` in
+///                      `origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
 /// @return The `SequenceDirection` as an `int32_t`.
 ///
 /// @note On a non-kit clip with `MenuContext::selected_note_row` latched (always so under `Root::NoteRowEditor`),
-///       the value is the auditioned row's -- `getIndividualNoteRow`'s third arm (`direction.h:50-60`), which reads
+///       the value is the auditioned row's -- `getIndividualNoteRow`'s third arm, which reads
 ///       the row at `instrumentClipView.lastAuditionedYDisplay` through `note_bridge()` and creates it if none
 ///       exists. Otherwise, or with no bridge answer, the kit-row arm and then the clip's own mode.
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
 
 /// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,
-///        `sequence/direction.h:78-90`): a request to the sink on the record legacy chooses -- the kit row's note row,
-///        or the clip.
+///        `origin/main:src/deluge/gui/menu_item/sequence/direction.h`): a request to the sink on the record legacy
+///        chooses -- the kit row's note row, or the clip.
 ///
 /// @param ctx   What is being edited.
 /// @param value The new `SequenceDirection`.

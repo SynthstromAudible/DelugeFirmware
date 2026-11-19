@@ -6,19 +6,19 @@
 /// **Why direct construction and not the loadcheck shape** the legacy bring-up
 /// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp`), is almost entirely device
 /// bring-up -- OLED probe, control surface, CV DAC, USB host/peripheral, PIC boot info -- and it
-/// ends by calling `setupBlankSong()` (`:748`), whose song is built out of `Song`'s own members
+/// ends by calling `setupBlankSong()`, whose song is built out of `Song`'s own members
 /// plus `Song::ensureAtLeastOneSessionClip()`. Only two things in that
 /// path are actually load-bearing for owning a `Song`:
 ///
-///   * the general-memory allocator, which self-initialises on first use
-///     (`GeneralMemoryAllocator::get()` -> `deluge::memory::init_heaps()`,
-///     `memory/general_memory_allocator.cpp:131`), so nothing has to call it first; and
+///   * the general-memory allocator, which self-initialises on first use (`GeneralMemoryAllocator::get()` ->
+///     `deluge::memory::init_heaps()`, `GeneralMemoryAllocator::GeneralMemoryAllocator`
+///     (`memory/general_memory_allocator.cpp`)), so nothing has to call it first; and
 ///   * `currentSong`, which the model's own stack helpers read.
 ///
-/// and `ensureAtLeastOneSessionClip`'s own fallback branch (`song.cpp:370-395`, the `couldntLoad`
-/// label taken whenever the card has no preset to load) is a pure-model recipe for a synth clip:
+/// and `Song::ensureAtLeastOneSessionClip` (`song/song.cpp`) builds its default synth with no card read, a
+/// pure-model recipe for a synth clip:
 /// `StorageManager::createNewInstrument` + `setupAsDefaultSynth` + `setAudioInstrument` +
-/// `addOutput`. This header replays exactly that branch, so no `startupConditionalTask` hook and
+/// `addOutput`. This header replays exactly that recipe, so no `startupConditionalTask` hook and
 /// no change to `deluge_scenes_spec`'s generated `main()` is needed.
 ///
 /// Determinism: the `scenes_spec` ctest row runs with `DELUGE_HOST_DETERMINISTIC=1` and
@@ -88,15 +88,15 @@ inline Song* make_bare_song() {
 	// `setupBlankSong()`'s `currentSong = preLoadedSong`. The scenes layer itself never reads this global
 	// (`context.cpp` takes a `Song&`), but the model does, unguarded, in places a spec's writes can reach --
 	// `isParamQuantizedStutter` (`modulation/params/param.cpp`), the `getCurrent*()`
-	// helpers at `model/song/song.cpp:91-137`. Leaving it null would make those a latent crash for
+	// helpers in `model/song/song.cpp`. Leaving it null would make those a latent crash for
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec
 	// working with one song at a time wants.
 	make_current(song); // as the app does: no state kept for the song before it is this one's
 	return song;
 }
 
-/// @brief Attach `instrument` to `clip` and to `song` -- `ensureAtLeastOneSessionClip`'s tail
-///        (`song.cpp:389-393`), without the playback re-sync a spec has no clock for.
+/// @brief Attach `instrument` to `clip` and to `song` -- `Song::ensureAtLeastOneSessionClip`'s tail
+///        (`song/song.cpp`), without the playback re-sync a spec has no clock for.
 inline void attach(Song* song, InstrumentClip* clip, Instrument* instrument, ParamManagerForTimeline& params) {
 	clip->setAudioInstrument(instrument, song, true, &params);
 	song->addOutput(instrument);
@@ -113,7 +113,7 @@ inline InstrumentClip* make_session_clip(Song* song) {
 } // namespace detail
 
 /// @brief A song whose one session clip drives a default `SoundInstrument` --
-///        `ensureAtLeastOneSessionClip`'s `couldntLoad` branch (`song.cpp:370-395`) verbatim.
+///        `Song::ensureAtLeastOneSessionClip`'s card-less default synth (`song/song.cpp`).
 inline SongFixture make_synth_song() {
 	SongFixture f;
 	f.song = detail::make_bare_song();
@@ -157,10 +157,11 @@ inline SongFixture make_cv_song() {
 	ParamManagerForTimeline params;
 	params.setupMIDI();
 	// `createNewInstrument` has no CV arm at all -- it falls through to `Kit`
-	// (`storage/storage_manager.cpp:559-562`); `createNewNonAudioInstrument` is the CV/MIDI one
-	// (`:603`), and is what `Song`'s own CV path uses.
+	// (`storage/storage_manager.cpp`); `createNewNonAudioInstrument` is the CV/MIDI one
+	// and is what `Song`'s own CV path uses.
 	auto* cv = static_cast<CVInstrument*>(StorageManager::createNewNonAudioInstrument(OutputType::CV, 0, 0));
-	cv->setChannel(both); // `cv_instrument.h:71-82` -- the dual-channel mode `cv2SourceMenu` needs
+	// The dual-channel mode `cv2SourceMenu` needs (`CVInstrument::setChannel` in `model/instrument/cv_instrument.h`).
+	cv->setChannel(both);
 
 	detail::attach(f.song, f.clip, cv, params);
 	f.instrument = cv;

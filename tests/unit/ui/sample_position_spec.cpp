@@ -18,7 +18,7 @@ using namespace deluge::ui::oled;
 using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
-// `SampleMarkerEditor::renderOLED`'s body (gui/ui/sample_marker_editor.cpp:1135-1222) as a
+// `SampleMarkerEditor::renderOLED`'s body (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) as a
 // component. Every geometry assertion is compared against a transcription of legacy's own body,
 // drawn into the rig's second canvas -- so a port that merely agrees with itself fails.
 
@@ -27,7 +27,7 @@ namespace {
 constexpr int32_t kSpacingX = deluge::gfx::oled::kTextSpacingX; // legacy's smallTextSpacingX
 constexpr int32_t kSpacingY = deluge::gfx::oled::kTextSpacingY; // legacy's smallTextSizeY
 
-// `intToString(number, buffer, minNumDigits)` (foundation/string_format.c:35), for the reference
+// `intToString(number, buffer, minNumDigits)` (foundation/string_format.c), for the reference
 // render only.
 void int_to_string(uint32_t number, char* buffer, int32_t min_digits) {
 	int32_t digits = 1;
@@ -46,10 +46,11 @@ void int_to_string(uint32_t number, char* buffer, int32_t min_digits) {
 
 // --- SampleMarkerEditor::renderOLED's body, transcribed with its gotos unrolled -----------------
 //
-// `fix_unit_letter_x` selects between legacy's literal behaviour and the port's. Legacy passes
-// `smallTextSpacingX` where the x coordinate belongs (:1158, :1167); the port passes the running
-// cursor. Both are reproduced here so the divergence is pinned by a passing comparison on each
-// side, rather than asserted in prose.
+// `fix_unit_letter_x` selects between main's literal behaviour and the port's. Main passes `smallTextSpacingX` where
+// the x coordinate belongs (the `drawChar('h', ...)` and `drawChar('m', ...)` unit-letter calls in main's
+// `SampleMarkerEditor::renderOLED`, `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`); the port passes the
+// running cursor. Both are reproduced here so the divergence is pinned by a passing comparison on each side, rather
+// than asserted in prose.
 template <typename Canvas>
 void legacy_render_body(Canvas& canvas, int32_t y_first, uint32_t markerPosSamples, uint32_t sampleRate,
                         bool fix_unit_letter_x) {
@@ -251,7 +252,8 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		title_badge(r.frame, deluge::gfx::oled::icons::markerLock);
 
 		r.reference.draw_screen_title("LOOP START");
-		// `sample_marker_editor.cpp:1131-1132`, with OLED_MAIN_TOPMOST_PIXEL = 5 on this geometry.
+		// `SampleMarkerEditor::renderOLED`'s lock icon (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), with
+		// OLED_MAIN_TOPMOST_PIXEL = 5 on this geometry.
 		r.reference.draw_icon(deluge::gfx::oled::icons::markerLock, 128 - 10, 5 + 1);
 		r.reference.invert_area(128 - 10, 7, 5 + 9, 5 + 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());

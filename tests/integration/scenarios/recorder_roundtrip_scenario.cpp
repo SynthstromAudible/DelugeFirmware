@@ -425,7 +425,7 @@ struct TickedCase {
 	/// Whether the stall case has slowed the channel down yet.
 	bool stallArmed = false;
 	/// Whether the stall case saw the card error while the stalled write was still outstanding: the "fail now"
-	/// half of the ruling, which a take that failed only once the answer came would not show.
+	/// half of the contract, which a take that failed only once the answer came would not show.
 	bool failedWhilePending = false;
 	/// Process-wide counters at the start of the case, so its line reports its own share.
 	int32_t servedBefore = 0;

@@ -18,7 +18,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "hid/display/display.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
@@ -26,6 +26,7 @@
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 
+#include "support/browser_host_fake.h"
 #include "support/card_access.h"
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
@@ -167,10 +168,10 @@ void settle(MenuRig& r) {
 	}
 }
 
-/// @brief Run the host's choice dispatch on @p r's ticks until the `.syx` read the browser parked has ended.
+/// @brief Run the browser host's poll on @p r's ticks until the `.syx` read the browser asked for has ended.
 void read_bank(MenuRig& r) {
 	for (int32_t i = 0; i < 2000 && (browser_scene().awaiting_deferred_load() || i < 4); i++) {
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		r.tick();
 	}
 	settle(r);
@@ -438,9 +439,10 @@ describe dx_cartridge("the DX7 cartridge", ${
 		const int32_t trashed = browser_scene().file_index();
 		shift_save(r);
 		expect(delete_menu_up(r)).to_be_true();
-		r.select(); // OK
-		for (int32_t i = 0; i < 400 && card_has(TrashFile::kPath); i++) {
-			deluge::gui::ui::dispatchShellChoices();
+		r.select(); // OK: the host deletes the file; an answer the request produced waits for the poll
+		for (int32_t i = 0; i < 400 && (card_has(TrashFile::kPath) || deluge::gui::ui::shellBrowserAnswersHeld());
+		     i++) {
+			deluge::gui::ui::pollShellBrowserHost();
 			r.tick();
 		}
 		settle(r);
@@ -535,13 +537,12 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		settle(r);
 		select_file(r, "BANK1");
-		r.select();
-		deluge::gui::ui::dispatchShellChoices(); // the read starts
+		r.select(); // the read starts with the press
 		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_true();
 		r.back();
 		settle(r);
 		expect(browser_up(r)).to_be_false();
-		deluge::gui::ui::dispatchShellChoices(); // no browser waits for it: cancelled
+		deluge::gui::ui::pollShellBrowserHost(); // no browser waits for it: cancelled
 		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_false();
 		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
@@ -550,6 +551,8 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxCard card;
 		select_language();
 		MenuRig r;
+		const deluge::scenes::spec::UseBrowserHost use{deluge::scenes::spec::fake_browser_host()};
+		deluge::scenes::spec::fake_browser_host().clear();
 		r.open(nodes::dx_menu);
 		r.select();
 		settle(r);
@@ -557,16 +560,17 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		select_file(r, "BROKEN");
 		r.select();
-		const std::optional<deluge::scenes::browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value()).to_be_true();
-		expect(choice->path).to_equal(std::string{"DX7/BANK1.SYX"});
+		const std::vector<deluge::scenes::browser::BrowserChoice>& asked =
+		    deluge::scenes::spec::fake_browser_host().performed();
+		expect(asked.size()).to_equal(size_t(1));
+		expect(asked.empty() ? std::string{} : asked[0].path).to_equal(std::string{"DX7/BANK1.SYX"});
 		browser_scene().deferred_load_done(false);
 		r.tick();
 		r.back();
 		settle(r);
 	});
 
-	it("leaves the browser up for another file when the read cannot start", _ {
+	it("leaves the browser up for another file when the read cannot start, answering after the tick that asked", _ {
 		DxCard card;
 		select_language();
 		PendingSharedRead pending;
@@ -579,11 +583,37 @@ describe dx_cartridge("the DX7 cartridge", ${
 		select_file(r, "BANK1");
 		r.select();
 		expect(read.start("DX7/BANK1.SYX")).to_equal(DxCartridgeRead::Status::Idle);
-		deluge::gui::ui::dispatchShellChoices(); // `start` answers Idle: the browser must not wait for it
+		// The host's `start` answered Idle inside the press. That answer is held, so the browser still waits until the
+		// guest's poll delivers it: answered inside the press, it would re-enter the browser from its own `handle`.
+		expect(browser_scene().awaiting_deferred_load()).to_be_true();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
+		deluge::gui::ui::pollShellBrowserHost();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_false();
 		r.tick();
 		expect(browser_up(r)).to_be_true();
 		expect(browser_scene().awaiting_deferred_load()).to_be_false();
 		read.cancel();
+		r.back();
+		settle(r);
+	});
+
+	it("delivers a held answer before it collects the read, so the read no browser waits for is cancelled", _ {
+		// `pollShellBrowserHost` delivers first: the held Idle clears the browser's wait, and the same poll's
+		// `pollDxCartridgeRead` then cancels the read already out, as main's browser drops a read it no longer waits for.
+		DxCard card;
+		select_language();
+		PendingSharedRead pending;
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		DxCartridgeRead& read = deluge::gui::ui::dxCartridgeRead();
+		(void)read.start("DX7/BROKEN.SYX"); // a read already out
+		select_file(r, "BANK1");
+		r.select(); // answered Idle inside the press, and held
+		expect(read.busy()).to_be_true();
+		deluge::gui::ui::pollShellBrowserHost();
+		expect(read.busy()).to_be_false();
 		r.back();
 		settle(r);
 	});

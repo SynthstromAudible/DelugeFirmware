@@ -9,7 +9,7 @@ and compiled directly into the host BSP. **This directory must not include anyth
   (`ui_script_load` / `ui_script_next_due`) for the host BSP.
 - `snapshot.{h,cpp}` -- the `.state` formatter (`StateLines`), an `oled_pbm` PBM writer, and
   `write_file`.
-- `fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
+- `tests/harness/fixed_vector.h` -- a standalone copy of `src/shell/fixed_vector.h`'s shape (see above for why
   it isn't shared).
 
 ## Script format
@@ -122,8 +122,7 @@ Level 3 runs on `golden_vt_render`'s `ui_script` scenario, through the `ui-scrip
 (`tests/integration/checks/ui_scripts.py`).
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
-on top of level 0. A migrated scene's script is meant to run, unmodified, at level 2
-against both the legacy adapter and the new scene -- see "Migration hook" below.
+on top of level 0. A script that passes at level 2 is meant to run, unmodified, at level 3.
 
 ## Adding a script
 
@@ -143,15 +142,15 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
    failure is the point: it proves the run itself succeeds (no parse/run error, the right
    number of snapshots) *before* any golden exists to hide behind.
 4. Asserting `snapshots == N` and diffing against the golden pins the *count*, but not what the
-   golden actually says (M-10): a golden that was recorded wrong the first time then passes
+   golden actually says: a golden that was recorded wrong the first time then passes
    forever against itself. Where practical, also read a fact back out of the run's own `.state`/
    `.pbm` output (`tests/unit/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
    case is the pattern to follow -- it checks the pressed pad's colour, the two LEDs' declared
    states, and that each counter step actually redrew the OLED) rather than trusting the golden
    diff alone the way `"boots to the splash..."`/`"navigates, shows a popup..."` do.
 
-**A `snapshot` step at the same `at_ms` as an input step orders differently at the two levels**
-(M-4): level 3 applies every due step and then writes pending snapshots in the same pump call
+**A `snapshot` step at the same `at_ms` as an input step orders differently at the two levels**:
+level 3 applies every due step and then writes pending snapshots in the same pump call
 (`host_script.c`'s `host_script_pump`), so a `snapshot` that shares the input's own `at_ms` sees
 the *pre*-input screen -- the app has not yet consumed the event it just queued. Level 2 ticks the
 shell (which consumes the input) before writing the snapshot, so the same script sees the
@@ -180,6 +179,18 @@ level 3): a `.state` mismatch is two texts, directly comparable; a `.pbm` mismat
 PBMs -- pipe either side through `scripts/pbm2png.py` to view it as an image, or diff them as
 text (a P1 PBM's ASCII rows already read as a coarse picture, one character per pixel).
 
+## Two-registry run
+
+`RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
+table. When set, the same script is run twice -- once against the call's own `registry`
+argument, once against `*second_registry` -- into sibling `got/<name>/` and
+`got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
+a recorded golden (there is nothing to record ahead of time when the point is that two
+independent scene tables must agree). A failure names the first file, in sorted order, that
+differs or is missing on either side. It asserts that two scene tables produce identical
+snapshots for one script; `tests/unit/shell/scripts_spec.cpp` runs two identical registries
+to pin the mechanism.
+
 ## Level 3 limitations
 
 The headless app has no shell-level channels and no way to report what it cannot see, so its
@@ -201,22 +212,8 @@ header):
   (`which == 0` is the mod-encoder-0 = **lower** gold knob); level 2's `IndicatorId` is ordered
   `{Lower = 0, Upper = 1}` to agree, so both levels name the same physical knob the same way.
 
-None of this is a gap to close -- it is what the BSP can physically observe. A migrated
-scene's script should still pass at level 2 against both the legacy adapter and the new scene
-(the migration hook below); level 3 exists to prove the *legacy* boundary continues to work
-exactly as scripted while that migration is in flight.
-
-## Migration hook
-
-`RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
-table. When set, the same script is run twice -- once against the call's own `registry`
-argument, once against `*second_registry` -- into sibling `got/<name>/` and
-`got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
-a recorded golden (there is nothing to record ahead of time when the whole point is that two
-independent sources must agree). A failure names the first file, in sorted order, that
-differs or is missing on either side. This is the acceptance test for a migrated scene:
-the same script against `LegacySceneAdapter` and the new scene must produce identical
-snapshots.
+None of this is a gap to close -- it is what the BSP can physically observe. Level 3 exists to
+prove the boundary between the app and the board continues to work exactly as scripted.
 
 ## Deadline (level 3 only)
 

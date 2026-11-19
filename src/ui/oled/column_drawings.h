@@ -11,7 +11,8 @@
 
 namespace deluge::ui::oled {
 
-/// @brief A filter's state as `FilterContainer::getFilterValues` reads it (`filter/filter_container.h:122-146`).
+/// @brief A filter's state as `FilterContainer::getFilterValues` reads it
+/// (`origin/main:src/deluge/gui/menu_item/filter/filter_container.h`).
 struct FilterGraph {
 	int32_t freq_raw = 0;  ///< The frequency column's value, 0..50.
 	int32_t reso_raw = 0;  ///< The resonance column's value, 0..50.
@@ -27,23 +28,28 @@ struct DrawColumn {
 		FilterGraph,
 		/// `Number::drawSlider` at @ref norm.
 		Slider,
-		/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`) at @ref norm.
+		/// `voice::Portamento::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/voice/portamento.h`) at
+		/// @ref norm.
 		Glide,
-		/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`) at @ref norm.
+		/// `unison::Detune::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/unison/detune.h`) at @ref
+		/// norm.
 		Detune,
-		/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`) at @ref raw, 0..50.
+		/// `osc::PulseWidth::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`) at @ref
+		/// raw, 0..50.
 		PulseWidth,
-		/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`) at @ref raw: the bar clamped to 0..24, and
-		/// an inverted "!" above it.
+		/// `delay::Amount::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/delay/amount.h`) at @ref raw:
+		/// the bar clamped to 0..24, and an inverted "!" above it.
 		DelayAmount,
-		/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`) for source @ref raw (0 or 1):
-		/// its look follows the focus and `Style::highlighting`.
+		/// `osc::AudioRecorder::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`)
+		/// for source @ref raw (0 or 1): its look follows the focus and `Style::highlighting`.
 		Recorder,
-		/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`) for the start marker.
+		/// `sample::LoopPoint::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`)
+		/// for the start marker.
 		LoopStart,
 		/// The same for the end marker.
 		LoopEnd,
-		/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+		/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu`
+		/// (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`).
 		ClipEnd,
 	};
 	Shape shape = Shape::Slider;
@@ -61,16 +67,16 @@ struct DrawColumn {
 /// @param ctx        Must point at a `DrawColumn`.
 void draw_column(OledFrame& slot_frame, bool focused, void* ctx);
 
-/// @brief `filter::FilterContainer::render` (`filter/filter_container.h:35-117`): the filter's response, a rounded
-///        outline round a dotted-fill curve whose knee follows the frequency, whose peak follows the resonance, and
-///        which a morphable filter shifts; HPF is drawn as a fully morphed LPF.
+/// @brief `filter::FilterContainer::render` (`origin/main:src/deluge/gui/menu_item/filter/filter_container.h`): the
+///        filter's response, a rounded outline round a dotted-fill curve whose knee follows the frequency, whose peak
+///        follows the resonance, and which a morphable filter shifts; HPF is drawn as a fully morphed LPF.
 /// @param f    The frame.
 /// @param slot The container's slot (`SlotPosition`: start, width, height), frame-local.
 /// @param g    The filter's state.
 void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g);
 
-/// @brief `envelope::EnvelopeMenu::renderMenuItems` (`envelope/envelope_menu.h:34-91`): the ADSR shape with dotted
-///        stage lines and a square on each stage, the focused one inverted.
+/// @brief `envelope::EnvelopeMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`):
+///        the ADSR shape with dotted stage lines and a square on each stage, the focused one inverted.
 /// @param panel    A whole-panel frame (`panel_frame`): legacy draws in canvas coordinates.
 /// @param attack   The four segments' values, 0..50.
 /// @param decay
@@ -80,8 +86,9 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g);
 void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sustain, int32_t release,
                     int32_t selected);
 
-/// @brief `eq::EqMenu::renderMenuItems` (`eq/eq_menu.h:32-111`): the shelving curve with reference lines and a
-///        handle on each of bass, bass frequency, treble frequency and treble, the focused one inverted.
+/// @brief `eq::EqMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): the shelving curve with
+///        reference lines and a handle on each of bass, bass frequency, treble frequency and treble, the focused one
+///        inverted.
 /// @param panel       A whole-panel frame (`panel_frame`).
 /// @param bass        Bass gain, 0..1 (value / 50).
 /// @param treble      Treble gain, 0..1.

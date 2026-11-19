@@ -2,10 +2,10 @@
 
 /// @brief `MultiRangeItem` -- the note-range picker, and the one node it backs.
 ///
-/// The port of `deluge::gui::menu_item::MultiRange` (`gui/menu_item/multi_range.{h,cpp}`, 435
-/// lines): the page legacy substitutes for a range-dependent item when the source has more than one
-/// `MultiRange` and none is selected yet (`SoundEditor::setup`:
-/// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`).
+/// Mirrors main's `deluge::gui::menu_item::MultiRange` (`origin/main:src/deluge/gui/menu_item/multi_range.h`): the page
+/// main's `SoundEditor` substitutes for a range-dependent item when the source has more than one `MultiRange` and none
+/// is selected yet (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`:
+/// `multiRangeMenu.menuItemHeadingTo = horizontal_menu_child; newItem = &multiRangeMenu;`).
 ///
 /// ## How it is reached
 ///
@@ -14,7 +14,7 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::selectButtonPress`).
+/// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
 ///
 /// `Node::chain_targets` is therefore `nodes::kRangeSpecificNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
@@ -30,7 +30,7 @@
 /// answer `MustSelectRange` and `enter_child` descend into the picker from the picker, forever, so
 /// `nodes::kRangeSpecificArray` holds ten nodes, not eleven. Legacy's `MultiRange::isRangeDependent()` does return
 /// true (`origin/main:src/deluge/gui/menu_item/multi_range.h`); the two places that read it name the picker
-/// themselves (`menu::begin_submenu_range`, `shellRangeDependentOpen`).
+/// themselves (`menu::begin_submenu_range`, `gui::ui::rangeDependentMenuOpen`).
 ///
 /// ## Editing a range edge
 ///
@@ -90,11 +90,11 @@ public:
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
 };
 
-/// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp`).
+/// @brief The single instance -- `multiRangeMenu` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
 inline const MultiRangeItem kMultiRangeItem{};
 
-/// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp`) with
-///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:375`).
+/// @brief One picker row's label -- `MultiRange::getText` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) with
+///        `mayShowJustOne = false`, which is what `MultiRange::drawPixelsForOled` passes.
 ///
 /// The lower end is "BOTTOM" for range 0 and the previous range's `topNote + 1` otherwise, padded
 /// out to column 7; the upper end is "- top" for the last range and "- " plus this range's
@@ -114,14 +114,15 @@ inline const MultiRangeItem kMultiRangeItem{};
 std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* buf, size_t cap,
                                  deluge::ui::shell::TextScratch& scratch);
 
-/// @brief `MultiRange::mayEditRangeEdge` (`multi_range.cpp`): the left edge of any range but the first, the right
-///        edge of any but the last.
+/// @brief `MultiRange::mayEditRangeEdge` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the left edge of any
+///        range but the first, the right edge of any but the last.
 /// @param ctx   What is being edited.
 /// @param index The range whose edge.
 /// @param edge  Which edge; `Off` is never editable.
 bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge edge);
 
-/// @brief `Range::horizontalEncoderAction` (`gui/menu_item/range.cpp`): the edge a horizontal turn leaves edited.
+/// @brief `Range::horizontalEncoderAction` (`origin/main:src/deluge/gui/menu_item/range.cpp`): the edge a horizontal
+/// turn leaves edited.
 ///
 /// A left turn takes the left edge where it may, else turns the right one off; a right turn the mirror; a turn
 /// towards the edge already edited turns it off.
@@ -133,7 +134,8 @@ bool may_edit_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled
 deluge::ui::oled::RangeEdge next_range_edge(const MenuContext& ctx, int32_t index, deluge::ui::oled::RangeEdge current,
                                             int32_t offset);
 
-/// @brief `MultiRange::selectEncoderAction`'s edge arm (`multi_range.cpp`): move the edited edge one note.
+/// @brief `MultiRange::selectEncoderAction`'s edge arm (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): move
+/// the edited edge one note.
 ///
 /// The left edge is the range below's `topNote`, the right edge this range's; each moves by one and stops one note
 /// short of its neighbours, at 0 and 127 for the left edge and 1 and 126 for the right.
@@ -151,8 +153,8 @@ struct RangeInsert {
 	std::optional<int16_t> previous_top; ///< the range below's new top note, when the new one goes after it
 };
 
-/// @brief `MultiRange::selectEncoderAction`'s Shift arm (`multi_range.cpp`): split @p index's range at the
-///        midpoint of its bottom and top, after it for a turn up and before it for a turn down.
+/// @brief `MultiRange::selectEncoderAction`'s Shift arm (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): split
+///        @p index's range at the midpoint of its bottom and top, after it for a turn up and before it for a turn down.
 ///
 /// The bottom is the range below's top plus one (the first range's: its top minus one, at most 0); the top is the
 /// range's own (the last range's: its bottom plus one, at least 127). A range whose bottom and top meet cannot split.
@@ -170,13 +172,14 @@ struct RangeDelete {
 	    lower_top; ///< the range below's new top note: 32767 under a deleted top range, else the mean
 };
 
-/// @brief `MultiRange::deletePress` (`multi_range.cpp`): what deleting @p index's range does to the one below.
+/// @brief `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): what deleting @p index's
+/// range does to the one below.
 /// @return The delete, or nullopt for "LAST RANGE CAN'T DELETE".
 std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument::RangeState> ranges, int32_t index);
 
-/// @brief `MultiRange::deletePress` (`multi_range.cpp`) on the picker: nothing while an edge is edited or a popup is
-///        up; "LAST RANGE CAN'T DELETE" for the last; else the range is deleted, the cursor goes to the one below, and
-///        "RANGE DELETED" shows.
+/// @brief `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) on the picker: nothing
+///        while an edge is edited or a popup is up; "LAST RANGE CAN'T DELETE" for the last; else the range is deleted,
+///        the cursor goes to the one below, and "RANGE DELETED" shows.
 /// @param ctx   What is being edited.
 /// @param state The menu's state, whose picker list and range choice follow.
 void range_delete_press(const MenuContext& ctx, MenuState& state);
@@ -185,13 +188,13 @@ void range_delete_press(const MenuContext& ctx, MenuState& state);
 /// last.
 int32_t range_for_note(std::span<const deluge::instrument::RangeState> ranges, int32_t note);
 
-/// @brief `MultiRange::noteOnToChangeRange` (`multi_range.cpp`) on the picker: with no edge edited, the cursor moves to
-///        the range @p note falls in, and the range is selected.
+/// @brief `MultiRange::noteOnToChangeRange` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`) on the picker:
+///        with no edge edited, the cursor moves to the range @p note falls in, and the range is selected.
 /// @return Whether the picker took the note.
 bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note);
 
-/// @brief `MultiRange::selectButtonPress` (`multi_range.cpp`): whatever the picker was
-///        substituted for.
+/// @brief `MultiRange::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): whatever the picker
+///        was substituted for.
 ///
 /// Null when nothing is pending, which `MenuScene` reads as "ascend" -- the same answer a leaf with
 /// no chain gives, and the only thing it could mean with no item to head to.

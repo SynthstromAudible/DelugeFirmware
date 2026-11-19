@@ -26,13 +26,11 @@
 /// half (`host_script_push_event`, the shadows); see `host_script.h`. The clock must be the one
 /// the app's own timers run on, or a script's timeline and the app's drift apart.
 ///
-/// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++, so the P1
-/// and `.state` writers are a hand port of it into C -- `host_snapshot.{h,c}`, split out (final
-/// review I-3) exactly as `host_script_tables.c` splits out the name tables, so BOTH this runner and
-/// `deluge_spec` can compile them and `tests/unit/harness/identity_spec.cpp` can cross-check the
-/// two writers against one fact set instead of leaning on a comment. This file only ever calls
-/// into that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format
-/// itself.
+/// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++, so the P1 and `.state` writers
+/// are a hand port of it into C -- `host_snapshot.{h,c}`, split out exactly as `host_script_tables.c` splits out the
+/// name tables, so BOTH this runner and `deluge_spec` can compile them and `tests/unit/harness/identity_spec.cpp` can
+/// cross-check the two writers against one fact set instead of leaning on a comment. This file only ever calls into
+/// that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format itself.
 ///
 /// LEVEL-3 DEVIATIONS from the level-2 `.state` (all forced by what the BSP can see):
 ///   - no `scene` lines: the legacy UI has no scene names.
@@ -40,7 +38,7 @@
 ///     `deluge_control_set_led` on a timer, so the BSP sees a resolved boolean and cannot tell a
 ///     lit LED from a blinking one caught in its on phase.
 ///   - `indicator lower|upper …` uses the meaning of `which` at the boundary: 0 = mod encoder 0 =
-///     the lower gold knob (`gui/views/view.cpp` -> `indicator_leds.cpp:241`, with
+///     the lower gold knob (`gui/views/view.cpp` -> `actuallySetKnobIndicatorLevel` (`indicator_leds.cpp`), with
 ///     `hid/encoders.h`'s `mod0`/`mod1` for which knob `mod0` is). The new shell's `IndicatorId` is numbered
 ///     `{Lower = 0, Upper = 1}` to match, so both levels name the same physical knob the same way.
 ///   - no `lock` / `notice` lines: neither fact reaches the BSP.
@@ -135,7 +133,7 @@ static FILE* open_snapshot_file(const char* name, const char* suffix) {
 
 /// The name of the indicator LED at legacy index \p led (`x + y*9`), or NULL when no button --
 /// and so no LED -- sits there. Derived from the button matrix rather than a second table:
-/// `indicator_leds.h:30-64` builds every `LED` value from its button's own coordinates, so the
+/// the `LED` enum in `indicator_leds.h` builds every value from its button's own coordinates, so the
 /// matrix already is the LED table. `ui_script_button_name_at` is `host_script_tables.c`'s reverse
 /// of `ui_script_button_xy`, over that same table.
 static const char* led_name(uint8_t led) {

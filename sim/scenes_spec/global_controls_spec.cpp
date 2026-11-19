@@ -1,6 +1,6 @@
 /// @file
 /// @brief `services::GlobalControls` -- driven against the real legacy it ports,
-///        `Buttons::buttonAction` (`hid/buttons.cpp:75-235`) and `View::buttonAction`,
+///        `Buttons::buttonAction` (`hid/buttons.cpp`) and `View::buttonAction`,
 ///        on a real `Song` built by `support/song_fixture.h`.
 ///
 /// @par The oracle, and what "each side from its own sentinel" can mean here
@@ -19,8 +19,7 @@
 ///     the transport, `false` for the metronome legacy just turned on, `0x5EED` for the BACK arm's
 ///     cluster counter. If the port wrote nothing, the comparison sees the poison, not legacy's
 ///     leftovers. That is the same device `mod_knobs_spec.cpp`'s `poke_legacy_indicator` uses, for
-///     the same reason -- E2's "the port stores nothing and the comparison silently passes"
-///     blindness.
+///     the same reason -- the blindness of "the port stores nothing and the comparison silently passes".
 ///   * **Both sides are asserted to have MOVED**, so a run where neither did cannot pass on
 ///     equality alone.
 ///
@@ -30,16 +29,17 @@
 ///     (`View::buttonAction`'s SAVE and LOAD arms). Not ported (see `global_controls.h`): the arm's decision is
 ///     compared, and the open is counted through `GlobalControls::unported_opens(UnportedOpen)`, a tally per SITE so an
 ///     assertion about one arm cannot be satisfied by another.
-///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`). Not ported, and
+///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`buttonAction` in `hid/buttons.cpp`). Not ported, and
 ///     it is a behaviour difference rather than a missing call; there is no port-side state that
 ///     could be driven into it.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:341-355`). The note-editor test
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`views/view.cpp`). The note-editor test
 ///     needs no port (`global_controls.h`); the fill adjustments name `instrumentClipView`, unported.
-///   * **`View::buttonAction`'s four MIDI-learn arms** (`:148-166`, `:185-196`, `:199-212`,
-///     `:215-228`). `MidiLearn`'s; this spec asserts only that they are declined here, and that the
-///     transport arms they share a button with are correctly suppressed while learn is active.
+///   * **`View::buttonAction`'s four MIDI-learn arms** (the `TAP_TEMPO` arm's learn half, the `LEARN` arm, and the
+///     `PLAY` and `RECORD` arms gated on `UI_MODE_MIDI_LEARN`, in `views/view.cpp`). `MidiLearn`'s; this spec asserts
+///     only that they are declined here, and that the transport arms they share a button with are correctly suppressed
+///     while learn is active.
 ///   * **The dedicated undo/redo buttons** (`View::buttonAction`'s `undo` and `redo` arms). Dead code: they are inside
-///     `#ifdef undoButtonX` and `undoButtonX` is defined nowhere in this tree, so there is nothing
+///     `#ifdef undoButtonX` and `undoButtonX` is defined nowhere, so there is nothing
 ///     to drive on either side.
 ///   * **The UNDO-vs-REDO choice** in `View::buttonAction`'s BACK arm. `playbackHandler.slowRoutine()`
 ///     there consumes the pending command inside the same call
@@ -49,16 +49,17 @@
 ///
 /// @par Why a stub ROOT view, and not just any stub UI
 ///
-/// `Buttons::buttonAction` dereferences `getCurrentUI()` unconditionally at `hid/buttons.cpp:104`
-/// and `:134`, and `getCurrentUI()` in a spec process returns `lastUIBeforeNullifying`, which is
-/// null (`gui/ui/ui.cpp:97`, `:166-170`). `setRootUILowLevel` is the one door into that array that
+/// `Buttons::buttonAction` dereferences `getCurrentUI()` unconditionally (`hid/buttons.cpp`), and
+/// `getCurrentUI()` (`gui/ui/ui.cpp`) in a spec process with an empty stack returns `emptyStackUI`, a UI that
+/// acts on nothing; main's returns `lastUIBeforeNullifying`, which is null
+/// (`origin/main:src/deluge/gui/ui/ui.cpp`). `setRootUILowLevel` is the one door into the UI stack that
 /// runs no view's `opened()` -- `tables_3_spec.cpp` already drives it for the same reason.
 ///
 /// The stub must also **forward to `view.buttonAction`**, because `UI::buttonAction`'s base
-/// implementation does not (`gui/ui/ui.h:98-100`, `return ActionResult::NOT_DEALT_WITH`). See
+/// implementation does not (`gui/ui/ui.h`, `return ActionResult::NOT_DEALT_WITH`). See
 /// `StubUI`'s own @warning: `View::buttonAction` has exactly two callers in the tree, and the one
 /// that matters is `TimelineView::buttonAction`'s final `else`
-/// (`gui/views/timeline_view.cpp:119-121`), which every root view inherits.
+/// (`gui/views/timeline_view.cpp`), which every root view inherits.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/menu_scene.h"
@@ -115,16 +116,16 @@ using deluge::ui::shell::SceneStack;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// `playback/playback_handler.cpp` defines this with no declaration in the header, exactly as
-/// `View::buttonAction` itself has to declare it (`gui/views/view.cpp:101`).
+/// `playback/playback_handler.cpp` defines this with no declaration in the header, as
+/// `gui/views/view.cpp` declares it.
 extern GlobalMIDICommand pendingGlobalMIDICommand;
-/// The `int32_t` twin beside it in `playback/playback_handler.cpp`, which `view.cpp` mis-declares as a
+/// The `int32_t` twin beside it in `playback/playback_handler.cpp`, which `views/view.cpp` mis-declares as a
 /// `GlobalMIDICommand`. Declared with the defining type here; see `global_controls.cpp`'s note.
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 namespace indicator_leds {
-/// Legacy's LED shadow array (`hid/led/indicator_leds.cpp:27`), which `setLedState` writes
-/// (`:49`). `indicator_leds.h` declares `ledBlinkState` but not this one, so a bare `extern` is the
+/// Legacy's LED shadow array (`ledStates` in `hid/led/indicator_leds.cpp`), which `setLedState` writes
+/// (its store into the array). `indicator_leds.h` declares `ledBlinkState` but not this one, so a bare `extern` is the
 /// only spelling available -- the same shape `pendingGlobalMIDICommand` needs above.
 extern bool ledStates[];
 } // namespace indicator_leds
@@ -140,8 +141,8 @@ int32_t& pending_global_midi_clusters() {
 }
 
 /// @brief The minimum `Display` legacy needs here: `display` is null in a spec process
-///        (`hid/display/display.cpp:4`) and `Buttons::buttonAction` dereferences it on every
-///        RECORD release (`hid/buttons.cpp:190`).
+///        (`hid/display/display.cpp`) and `Buttons::buttonAction` dereferences it on every
+///        RECORD release (`hid/buttons.cpp`).
 ///
 /// `hasPopupOfType` answers false, which is the "no threshold-recording popup is up" case -- the
 /// only one the port can reproduce, since that popup is raised straight to the legacy display by
@@ -187,16 +188,16 @@ StubDisplay& stub_display() {
 ///        `View::buttonAction`, which is the one thing that makes those arms reachable.
 ///
 /// @warning `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
-///          (`gui/ui/ui.h:98-100`) -- it does **not** forward to `view`. `View::buttonAction` has
+///          (`gui/ui/ui.h`) -- it does **not** forward to `view`. `View::buttonAction` has
 ///          exactly two callers in the whole tree: `TimelineView::buttonAction`'s final `else`
-///          (`gui/views/timeline_view.cpp:119-121`) and `KeyboardScreen::buttonAction`
+///          (`gui/views/timeline_view.cpp`) and `KeyboardScreen::buttonAction`
 ///          (`gui/ui/keyboard/keyboard_screen.cpp`) -- and `grep "public RootUI"` finds exactly
-///          those two classes (`gui/views/timeline_view.h:27`,
-///          `gui/ui/keyboard/keyboard_screen.h:35`), so "the current UI is the root UI" IS the
+///          those two classes (`gui/views/timeline_view.h`,
+///          `gui/ui/keyboard/keyboard_screen.h`), so "the current UI is the root UI" IS the
 ///          reachability rule rather than an approximation of it. With a menu open,
-///          `SoundEditor::buttonAction` ends by delegating to
-///          `currentMenuItem->buttonAction` (`:595-628`), whose base
-///          (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path
+///          main's `SoundEditor::buttonAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ends by delegating to
+///          `currentMenuItem->buttonAction`, whose base
+///          (`origin/main:src/deluge/gui/menu_item/menu_item.h`) returns `NOT_DEALT_WITH`, and nothing on that path
 ///          names `view` -- so legacy runs the tail and skips every `View::buttonAction` arm. The
 ///          port gates the same way, on `Scene::is_root()`; `RootScene` below is the spec-local
 ///          scene that declares it.
@@ -365,12 +366,12 @@ struct GcRig {
 	Buttons::recordButtonPressUsedUp = false;
 	AudioEngine::audioSampleTimer = sample_timer;
 	preLoadedSong = nullptr;
-	// Legacy's own record combo really does start an output recording -- `hid/buttons.cpp:161`,
+	// Legacy's own record combo really does start an output recording -- `buttonAction` (`hid/buttons.cpp`),
 	// reached when PLAY goes down with RECORD held and playback running -- and nothing in a spec
 	// process ever reaps it (`deluge::recording::slowRoutine` is not driven here). Left standing, it
 	// makes `AudioEngine::foregroundRecordingSource()` report `OUTPUT` for every later example,
 	// which suppresses the RECORD LED (`PlaybackHandler::setLedStates`) and flips the PLAY arm's
-	// first test (`:147`). Cleared through the published seam, which is the same storage
+	// first test (`buttonAction`). Cleared through the published seam, which is the same storage
 	// (`processing/engines/audio_engine.h`).
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	return playbackHandler.recording == RecordingMode::OFF && playbackHandler.playbackState == 0
@@ -461,8 +462,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: suppresses the RECORD release after a PLAY press -- the record combo, both sides", _ {
-		// `hid/buttons.cpp:165`'s `recordButtonPressUsedUp = true` on a PLAY press, read by
-		// `:193` on the RECORD release. A single-press example cannot see it: it is only
+		// `hid/buttons.cpp`'s `recordButtonPressUsedUp = true` on a PLAY press, read by
+		// the RECORD release arm. A single-press example cannot see it: it is only
 		// observable across two buttons.
 		static spec::SongFixture fixture = spec::make_synth_song();
 
@@ -471,7 +472,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(reset_transport(100'000)).to_be_true();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true);
-		expect(Buttons::recordButtonPressUsedUp).to_be_true(); // `:165`
+		expect(Buttons::recordButtonPressUsedUp).to_be_true(); // set by the PLAY press (`Buttons::buttonAction`)
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
 		const RecordingMode legacy_result = playbackHandler.recording;
 		// The whole point: the release did NOT toggle recording on.
@@ -488,7 +489,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Play, true, 2'005);
 		// `InputLowering::press_used_up` is the port's `recordButtonPressUsedUp`
 		// (`InputLowering::press_used_up`), and `GlobalControls` marks it for RECORD, not for
-		// PLAY (`hid/buttons.cpp:165`'s bit suppresses the RECORD release).
+		// PLAY (`hid/buttons.cpp`'s bit suppresses the RECORD release).
 		expect(rig.lowering.press_used_up(ButtonId::Record)).to_be_true();
 		rig.press(ButtonId::Record, false, 2'010);
 		const RecordingMode port_result = playbackHandler.recording;
@@ -591,9 +592,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: does not toggle recording on a LONG press, both sides", _ {
-		// `hid/buttons.cpp:193-194`'s `< kShortPressTime`. Legacy measures
+		// `hid/buttons.cpp`'s `< kShortPressTime`. Legacy measures
 		// `AudioEngine::audioSampleTimer` (`kSampleRate / 2` samples,
-		// `definitions_cxx.hpp:1028`); the port measures milliseconds through
+		// `definitions_cxx.hpp`); the port measures milliseconds through
 		// `InputLowering::was_short_press` (500 ms, `InputLowering`'s short-press threshold). The two
 		// constants are the same duration, which is the mapping under test.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -667,10 +668,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: declines PLAY and RECORD while MIDI learn is active, and claims them otherwise", _ {
-		// `View::buttonAction`'s PLAY arm (`view.cpp`) and the RECORD arm after it -- both arms are `&& currentUIMode
-		// == UI_MODE_MIDI_LEARN`, so under learn `View` claims the button and `hid/buttons.cpp:139-141` skips the
-		// transport tail entirely. `MidiLearn` owns those arms; this service
-		// declines rather than swallowing them, so a future routed `MidiLearn` still gets them.
+		// `View::buttonAction`'s PLAY arm (`views/view.cpp`) and the RECORD arm after it -- both arms are
+		// `&& currentUIMode == UI_MODE_MIDI_LEARN`, so under learn `View` claims the button and `hid/buttons.cpp` skips
+		// the transport tail entirely. `MidiLearn` owns those arms; this service declines rather than swallowing them,
+		// so a future routed `MidiLearn` still gets them.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -695,7 +696,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("transport tail: reports SHIFT handled without re-porting commandToggleShift", _ {
-		// `hid/buttons.cpp:169-171`. `Buttons::commandToggleShift` is already
+		// `hid/buttons.cpp`'s SHIFT arm. `Buttons::commandToggleShift` is already
 		// `InputLowering::toggle_shift`, called from
 		// `on_button` before the event is emitted -- so by the time `handle` sees it, shift is
 		// already down. Re-porting it here would toggle it twice.
@@ -711,10 +712,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	it("the root gate: View's arms need a root scene, and the Buttons tail never does", _ {
 		// The two fallbacks have two reachability rules, and the service holds both --
 		// `Scene::is_root()`'s doc has the proof. `View::buttonAction` is reached only from a
-		// `RootUI` (`gui/views/timeline_view.cpp:119-121`,
+		// `RootUI` (`TimelineView::buttonAction` in `gui/views/timeline_view.cpp`,
 		// `KeyboardScreen::buttonAction`, and those two classes are the entire result of
 		// `grep "public RootUI"`); `Buttons::buttonAction`'s tail runs for any current UI that
-		// returned `NOT_DEALT_WITH` (`hid/buttons.cpp:139-141`), root or not.
+		// returned `NOT_DEALT_WITH` (`Buttons::buttonAction` in `hid/buttons.cpp`), root or not.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -739,9 +740,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 41'010);
 
-		// And BACK, which is the arm that made the pre-gate divergence live: it is claimed
-		// unconditionally by `view.cpp:406-423`, so an ungated service would fire undo/redo from
-		// inside any non-root scene that does not claim BACK for itself.
+		// And BACK, which is the arm that made the pre-gate divergence live: it is claimed unconditionally by
+		// `View::buttonAction`'s BACK arm (`views/view.cpp`), so an ungated service would fire undo/redo from inside
+		// any non-root scene that does not claim BACK for itself.
 		//
 		// @warning The only thing that masked that before the gate was
 		//          `ActionLogger::allowedToDoReversion`
@@ -759,7 +760,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Back, false, 42'010);
 
 		// The tail is NOT gated: a RECORD tap from the same non-root scene still toggles recording,
-		// exactly as `hid/buttons.cpp:173-203` does under a menu.
+		// exactly as `hid/buttons.cpp` does under a menu.
 		expect(playbackHandler.recording).to_equal(RecordingMode::OFF);
 		const Result record_off_root = rig.press(ButtonId::Record, true, 43'000);
 		expect(record_off_root.handled).to_be_true();
@@ -768,7 +769,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("tap tempo / tempo encoder: toggles the metronome on shift+TAP_TEMPO, both sides", _ {
-		// `view.cpp:172-174`.
+		// `View::buttonAction`'s `TAP_TEMPO` arm (`views/view.cpp`): shift toggles the metronome.
 		static spec::SongFixture fixture = spec::make_synth_song();
 
 		release_all_legacy_buttons();
@@ -778,12 +779,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::TapTempo), true);
 		const bool legacy_result = playbackHandler.metronomeOn;
 		// The LED half of the same comparison, read out of legacy's own shadow array.
-		// `PlaybackHandler::toggleMetronomeStatus` calls
-		// `setLedStates()`, whose last line is
-		// `indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn)` (`:2511`), and that
-		// writes `indicator_leds::ledStates` (`hid/led/indicator_leds.cpp:49`). This is the ONE
-		// LED in this service that legacy sets through a path a spec can drive end to end, so it
-		// is the one the LED mapping is proved on.
+		// `PlaybackHandler::toggleMetronomeStatus` calls `setLedStates()`, whose last line is
+		// `indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn)` (`PlaybackHandler::setLedStates` in
+		// `playback/playback_handler.cpp`), and that writes `indicator_leds::ledStates` (`hid/led/indicator_leds.cpp`).
+		// This is the ONE LED in this service that legacy sets through a path a spec can drive end to end, so it is the
+		// one the LED mapping is proved on.
 		const bool legacy_led = indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::TAP_TEMPO)];
 		Buttons::commandToggleShift(false);
 		Buttons::clearShiftSticky();
@@ -817,9 +817,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("tap tempo / tempo encoder: does not tap tempo during a record count-in, but does toggle the metronome", _ {
-		// `View::buttonAction`'s tap-tempo arm admits both `UI_MODE_NONE` and `UI_MODE_RECORD_COUNT_IN`; `:175`
-		// admits only `UI_MODE_NONE`. Reading the braces: the shift test at `:170` is inside
-		// `if (on)` at `:168`, which is inside the `:167` mode test -- so during a count-in the
+		// `View::buttonAction`'s tap-tempo arm admits both `UI_MODE_NONE` and `UI_MODE_RECORD_COUNT_IN`; the tap
+		// itself admits only `UI_MODE_NONE`. Reading the braces: the shift test is inside the
+		// `if (on)`, which is inside the mode test -- so during a count-in the
 		// metronome toggle still runs and the tap does not.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
@@ -849,7 +849,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("tap tempo / tempo encoder: suppresses the tempo popup in song/arranger view and while a song is loading", _ {
-		// `hid/buttons.cpp:215-220`. Both reads are root-UI facts injected through
+		// `hid/buttons.cpp`. Both reads are root-UI facts injected through
 		// `ViewState`; what is asserted is the decision, since `commandDisplayTempo` itself
 		// only draws.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -858,12 +858,12 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_song(fixture.song);
 		expect(reset_transport(100'000)).to_be_true();
 
-		// Shift wins over everything (`:208-209`).
+		// Shift wins over everything (`Buttons::buttonAction`'s `TEMPO_ENC` arm in `hid/buttons.cpp`).
 		rig.press(ButtonId::Shift, true, 9'000);
 		expect(rig.press(ButtonId::TempoEnc, true, 9'005).handled).to_be_true();
 		rig.press(ButtonId::Shift, false, 9'010);
 
-		// TAP_TEMPO held picks the swing-interval arm (`:211-212`).
+		// TAP_TEMPO held picks the swing-interval arm (the `TEMPO_ENC` arm's `TAP_TEMPO` test).
 		rig.press(ButtonId::TapTempo, true, 9'020);
 		expect(rig.ctx().held.has(ButtonId::TapTempo)).to_be_true();
 		expect(rig.press(ButtonId::TempoEnc, true, 9'025).handled).to_be_true();
@@ -881,7 +881,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("SAVE/LOAD decision: holds, then reaches the unported open on a short press", _ {
-		// `view.cpp:240-265`. The open itself is not ported; what is compared is
+		// `View::buttonAction`'s `SAVE` arm (`views/view.cpp`). The open itself is not ported; what is compared is
 		// every decision above it.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
@@ -891,13 +891,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		expect(rig.gc.holding_save()).to_be_false();
 		expect(rig.press(ButtonId::Save, true, 10'000).handled).to_be_true();
-		expect(rig.gc.holding_save()).to_be_true(); // `:240`
+		expect(rig.gc.holding_save()).to_be_true(); // the press enters the hold
 		expect(rig.gc.effective_ui_mode()).to_equal(GlobalControls::UiMode::HoldingSave);
 		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
 		rig.press(ButtonId::Save, false, 10'000 + GlobalControls::kShortPressMs - 1);
-		expect(rig.gc.holding_save()).to_be_false(); // `:253`
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1)); // `:261`
+		expect(rig.gc.holding_save()).to_be_false(); // the short release leaves it
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong)).to_equal(uint32_t(1)); // `openUI(&saveSongUI)`
 		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(1));
 	});
 
@@ -908,13 +908,13 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_song(fixture.song);
 		expect(reset_transport(100'000)).to_be_true();
 
-		// Long press: `:255`'s window elapses, so `:265` just drops the LED.
+		// Long press: the `kShortPressTime` window elapses, so the release just drops the LED.
 		rig.press(ButtonId::Save, true, 11'000);
 		rig.press(ButtonId::Save, false, 11'000 + GlobalControls::kShortPressMs);
 		expect(rig.gc.holding_save()).to_be_false();
 		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
-		// Shift: `:239`'s `&& !Buttons::isShiftButtonPressed()`.
+		// Shift: the press arm's `&& !Buttons::isShiftButtonPressed()`.
 		rig.press(ButtonId::Shift, true, 12'000);
 		rig.press(ButtonId::Save, true, 12'005);
 		expect(rig.gc.holding_save()).to_be_false();
@@ -922,8 +922,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, false, 12'015);
 		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(0));
 
-		// SYNTH held: `:233`'s four-button guard suppresses the whole body -- but the arm is
-		// still reported handled, because legacy still falls through to `:469`.
+		// SYNTH held: the arm's four-button guard suppresses the whole body -- but the arm is still reported handled,
+		// because legacy still reaches the `DEALT_WITH` return at the end of `View::buttonAction`.
 		rig.press(ButtonId::Synth, true, 13'000);
 		expect(rig.press(ButtonId::Save, true, 13'005).handled).to_be_true();
 		expect(rig.gc.holding_save()).to_be_false();
@@ -933,7 +933,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("SAVE/LOAD decision: refuses to save while overdubs are pending, with legacy's own popup string", _ {
-		// `:256-259`.
+		// The `SAVE` arm's `hasAnyPendingNextOverdubs()` popup.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -949,7 +949,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("SAVE/LOAD decision: takes the clear-song branch on shift+LOAD and the hold branch otherwise", _ {
-		// `:286-300`.
+		// The `LOAD` arm's press: `isShiftButtonPressed()` picks the clear-song branch, otherwise the hold branch.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		release_all_legacy_buttons();
 		GcRig rig;
@@ -958,22 +958,22 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		rig.press(ButtonId::Shift, true, 15'000);
 		expect(rig.press(ButtonId::Load, true, 15'005).handled).to_be_true();
-		expect(rig.gc.holding_load()).to_be_false();                // `:286` took the other branch
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong)).to_equal(uint32_t(1)); // `:292`
+		expect(rig.gc.holding_load()).to_be_false();                // the clear-song branch was taken instead
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong)).to_equal(uint32_t(1)); // `clearSong` opens
 		rig.press(ButtonId::Load, false, 15'010);
 		rig.press(ButtonId::Shift, false, 15'015);
 
 		rig.press(ButtonId::Load, true, 16'000);
-		expect(rig.gc.holding_load()).to_be_true(); // `:297`
+		expect(rig.gc.holding_load()).to_be_true(); // the hold branch is entered
 		rig.press(ButtonId::Load, false, 16'010);
-		expect(rig.gc.holding_load()).to_be_false();                // `:310`
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong)).to_equal(uint32_t(1)); // `:313`
+		expect(rig.gc.holding_load()).to_be_false();                // the short release leaves it
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong)).to_equal(uint32_t(1)); // `openUI(&loadSongUI)`
 		expect(rig.gc.unported_opens_total()).to_equal(uint32_t(2));
 	});
 
 	it("sync scaling: sets and clears the song's sync-scaling clip exactly as legacy does", _ {
-		// `view.cpp:374-396`. The model write is `Song::setInputTickScaleClip`, and it is what
-		// both sides are compared on.
+		// `View::buttonAction`'s `SYNC_SCALING` arm (`views/view.cpp`). The model write is
+		// `Song::setInputTickScaleClip`, and it is what both sides are compared on.
 		static spec::SongFixture legacy_fixture = spec::make_synth_song();
 		currentSong = legacy_fixture.song;
 		release_all_legacy_buttons();
@@ -983,9 +983,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		legacy_fixture.song->setInputTickScaleClip(nullptr);
 		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null();
 
-		// Legacy needs a clip-minder current UI for `:373`; `StubUI::toClipMinder()` is null,
+		// Legacy needs a clip-minder current UI for the `toClipMinder()` test; `StubUI::toClipMinder()` is null,
 		// so legacy takes the alert arm instead. That arm IS the comparison here: it is the
-		// one `:373-376` decision this spec can drive on both sides, and the two model writes
+		// one `toClipMinder()` decision this spec can drive on both sides, and the two model writes
 		// below are driven on the port alone with `Song` asserted directly.
 		(void)Buttons::buttonAction(legacy_button(ButtonId::SyncScaling), true);
 		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null(); // refused
@@ -1000,8 +1000,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(legacy_fixture.song->getSyncScalingClip()).to_be_null();
 		rig.press(ButtonId::SyncScaling, false, 17'005);
 
-		// Now with a clip minder on screen, the arm sets the clip (`:388`) and a second press
-		// clears it (`:393`).
+		// Now with a clip minder on screen, the arm sets the clip and a second press
+		// clears it.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
@@ -1017,7 +1017,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("sync scaling: refuses while recording to the arrangement, with legacy's own popup string", _ {
-		// `:361-365`, legacy's `cant:` label.
+		// The arm's `cant:` label.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1041,8 +1041,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("sync scaling: toggles fill mode when the community setting repurposes the button, both sides", _ {
-		// `:335-336` and `:356`. The two note-fill halves (`:339-353`) are not ported; this is
-		// the arm's "otherwise", which is.
+		// The `Fill` branch's note-editor test and its final fill toggle. The two note-fill halves are not ported; this
+		// is the arm's "otherwise", which is.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1073,19 +1073,19 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("BACK undo/redo: runs the reversion arm exactly where legacy's live one does", _ {
-		// `view.cpp:406-423`. The dedicated undo/redo arms at `:427-447` are inside
-		// `#ifdef undoButtonX`, which is defined nowhere in this tree, so `BACK` is the only live
+		// `View::buttonAction`'s BACK arm (`views/view.cpp`). The dedicated undo/redo arms are inside
+		// `#ifdef undoButtonX`, which is defined nowhere, so `BACK` is the only live
 		// spelling and this is the whole of the port's undo/redo.
 		//
-		// **What is observable, and what is not.** `:417` calls `playbackHandler.slowRoutine()`
-		// in the same statement sequence, and that function *consumes* the command it was just
-		// handed -- `pendingGlobalMIDICommand = GlobalMIDICommand::NONE`
-		// (`PlaybackHandler::slowRoutine`) -- unless `deluge::sync::sd_busy()` is true,
-		// which a spec cannot make true (`sync/sd_access.cpp:23-25` reads the host BSP). So the
-		// UNDO-vs-REDO *choice* at `:414-415` is **uncovered here**: by the time control returns,
-		// both spellings read NONE. What IS observable is `:416`, the second assignment, which
-		// nothing consumes -- so poisoning it and watching it come back 0 proves the arm's body ran
-		// on each side, and leaving it poisoned proves the `:409` guard held.
+		// **What is observable, and what is not.** The arm calls `playbackHandler.slowRoutine()` in the same statement
+		// sequence, and that function *consumes* the command it was just handed --
+		// `pendingGlobalMIDICommand = GlobalMIDICommand::NONE` (`PlaybackHandler::slowRoutine`) -- unless
+		// `deluge::sync::sd_busy()` (`sync/sd_access.cpp`) is true, which a spec cannot make true: it reads the host
+		// BSP. So the UNDO-vs-REDO *choice* (the `isShiftButtonPressed()` ternary) is **uncovered here**: by the time
+		// control returns, both spellings read NONE. What IS observable is the
+		// `pendingGlobalMIDICommandNumClustersWritten` assignment, which nothing consumes -- so poisoning it and
+		// watching it come back 0 proves the arm's body ran on each side, and leaving it poisoned proves the
+		// `allowedToDoReversion()` guard held.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1117,8 +1117,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(pending_global_midi_clusters()).to_equal(legacy_result);
 		rig.press(ButtonId::Back, false, 22'005);
 
-		// And the `:409` guard: with no song, `allowedToDoReversion()` is false and the body is
-		// skipped, while the arm is still claimed (legacy reaches `:469` either way).
+		// And the `allowedToDoReversion()` guard: with no song it is false and the body is
+		// skipped, while the arm is still claimed (legacy reaches the `DEALT_WITH` return either way).
 		pending_global_midi_clusters() = kPoison;
 		Song* const saved = currentSong;
 		currentSong = nullptr;
@@ -1131,9 +1131,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("shift+SELECT_ENC: pushes the menu scene at the settings root", _ {
-		// `view.cpp:451-482`. `soundEditor.setup()`'s default `clip` is null
-		// (`SoundEditor::setup`) and shift is held by this arm's own condition, so
-		// legacy always lands on `settingsRootMenu` (`SoundEditor::setup`'s `else` arm).
+		// `View::buttonAction`'s `SELECT_ENC` arm (`views/view.cpp`). `soundEditor.setup()`'s default `clip` is null
+		// (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and shift is held by this arm's
+		// own condition, so main always lands on `settingsRootMenu` (`SoundEditor::setup`'s `else` arm).
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1141,7 +1141,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_song(fixture.song);
 		expect(reset_transport(100'000)).to_be_true();
 
-		// Without shift the arm's condition fails outright (`:449`), and nothing in the tail
+		// Without shift the arm's condition fails outright, and nothing in the tail
 		// names SELECT_ENC either.
 		const Result no_shift = rig.press(ButtonId::SelectEnc, true, 23'000);
 		expect(no_shift.handled).to_be_false();
@@ -1181,7 +1181,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("shift+SELECT_ENC: refuses while recording to the arrangement", _ {
-		// `:452-455`.
+		// The arm's `RecordingMode::ARRANGEMENT` popup.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();
@@ -1261,7 +1261,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.leds(f3);
 		expect(led_is(f3, ButtonId::SyncScaling, deluge::ui::LedState::Kind::On)).to_be_true();
 
-		// `view.cpp`: blinking once the clip minder showing it IS that clip.
+		// `View::setTimeBaseScaleLedState` (`views/view.cpp`): blinking once the clip minder showing it IS that clip.
 		GlobalControls::ViewState vs;
 		vs.current_ui_is_clip_minder = true;
 		rig.gc.set_view_state(vs);
@@ -1274,13 +1274,12 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("LEDs: blinks the CLIP_VIEW LED for the sync-scaling alert, then hands it back", _ {
-		// `view.cpp:375-378`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)`
-		// (`hid/led/indicator_leds.cpp:160-162`).
+		// `View::buttonAction`'s `SYNC_SCALING` arm (`views/view.cpp`) calls `indicateAlertOnLed`, which is
+		// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp`).
 		//
-		// **The duration is pinned against legacy's own countdown, not derived on paper** (fix
-		// round 1, minor 3: it was 360 ms, and nothing checked it). `blinkLed` sets
-		// `blinksLeft = numBlinks * 2` == 6 (`:75`) and then runs `updateBlinkingLedStates` once at
-		// arm time (`:79`), which decrements it (`:123`) -- so the fold-back at `:126-129` comes
+		// **The duration is pinned against legacy's own countdown, not derived on paper.** `blinkLed` sets
+		// `blinksLeft = numBlinks * 2` == 6 and then runs `updateBlinkingLedStates` once at
+		// arm time, which decrements it -- so the fold-back when `blinksLeft` reaches 0 comes
 		// after FIVE further `kFastFlashTime` timeouts, not six. Driven here by stepping legacy's
 		// `ledBlinkTimeout` until the blinker deactivates and counting the steps.
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
@@ -1295,8 +1294,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(legacy_timeouts).to_equal(5);
 		expect(GlobalControls::kAlertMs)
 		    .to_equal(static_cast<uint32_t>(legacy_timeouts) * GlobalControls::kClipArmFlashMs);
-		// And it really did fold back to the state it was armed from (`:128`), which is the state the
-		// shell's hand-back restores once nothing declares the LED (`SurfaceSet::release_led`).
+		// And it really did fold back to the state it was armed from (`updateBlinkingLedStates`' fold-back), which is
+		// the state the shell's hand-back restores once nothing declares the LED (`SurfaceSet::release_led`).
 		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::CLIP_VIEW)]).to_be_false();
 
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -1325,7 +1324,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 	it("time: flips the clip-arm phase on a QUIET tick, with no input at all", _ {
 		// `View::flashPlayEnable` arms `kFastFlashTime`;
-		// `View::flashPlayRoutine` (`:2754-2764`) toggles `clipArmFlashOn` when it fires. The
+		// `View::flashPlayRoutine` toggles `clipArmFlashOn` when it fires. The
 		// port's `next_timer()`/`tick()` pair is that timer, and nothing below touches a
 		// button.
 		//
@@ -1354,7 +1353,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.tick(30'160, 60);
 		expect(rig.gc.clip_arm_flash_on()).to_be_false();
 
-		// `View::flashPlayDisable` (`:2770-2783`) clears both.
+		// `View::flashPlayDisable` clears both.
 		rig.gc.flash_play_enable(30'200);
 		rig.gc.flash_play_disable();
 		expect(rig.gc.clip_arm_flash_on()).to_be_false();

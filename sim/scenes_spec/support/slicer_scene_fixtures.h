@@ -274,8 +274,8 @@ struct FakeOps final : deluge::scenes::slicing::SliceOps {
 	/// @brief Element @p i of a recorded vector, or a zeroed value if it was never recorded.
 	///
 	/// cppspec's `expect` does not stop the example, so a bare `auditions[0]` on a mutant that
-	/// recorded nothing aborts the whole process inside libstdc++ and hides every other result --
-	/// found while mutation-testing, and this is the fix. A mutant now fails loudly on the value.
+	/// recorded nothing aborts the whole process inside libstdc++ and hides every other result.
+	/// This accessor makes such a mutant fail loudly on the value.
 	/// @{
 	deluge::scenes::slicing::PreviewRequest audition_at(size_t i) const {
 		return i < auditions.size() ? auditions[i] : deluge::scenes::slicing::PreviewRequest{};

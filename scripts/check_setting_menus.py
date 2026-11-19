@@ -463,7 +463,7 @@ def scene_follow_ups(root: Path) -> list[str]:
 
 #: A scene marking its instrument edited: SetSetting marks it for the settings that count as an edit.
 SCENES_EDITED_MARK = re.compile(r"\beditedByUser\s*=(?!=)")
-#: The legacy setting helpers a converted node no longer calls: its target writes its row through the menu's sink. The
+#: The legacy setting helpers a node's target does not call: it writes its row through the menu's sink. The
 #: path is the call's first string argument, after the receiver a clip's, track's or lane's helper takes.
 SCENES_LEGACY_HELPER = re.compile(
     r"\b(clipSettingFor|clipValueSettingFor|clipArpSettingFor|laneArpSettingFor|arpSettingFor|laneSettingFor"

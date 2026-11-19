@@ -1,7 +1,7 @@
 # MULTISAMPLES imported from the OSC1 page's file column, then the transpose column's button (MIDI). The browser closes
 # onto the page, whose begin drops main's selected range, so with several ranges now the button opens the note-range
 # picker first.
-# card: content/sweep-shellmenu.img
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 2 2 down

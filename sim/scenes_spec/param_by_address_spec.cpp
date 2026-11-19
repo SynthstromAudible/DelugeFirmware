@@ -90,7 +90,7 @@ bool lands(Song& song, const ParamAddress& address) {
 }
 
 /// The stack naming the cable from @p source to @p destination on @p owner, found (or, with @p create, made) the way
-/// legacy's menu reaches it.
+/// main's menu reaches it.
 ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, ModControllable* owner, ParamManagerForTimeline* manager,
                                       int32_t note_row_index, NoteRow* row, PatchSource source, int32_t destination,
                                       bool create, void* memory) {

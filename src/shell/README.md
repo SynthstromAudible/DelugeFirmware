@@ -21,7 +21,7 @@ path, no mutable globals, `snake_case` members, `PascalCase` types, `k` constant
 By convention `board_surfaces.cpp` is the only `.cpp` that includes `libdeluge/display.h` or
 `libdeluge/control_surface.h`; the ratchet does not check that.
 
-## Board profile (`profile.h`, `profiles/`)
+## Board profile (`shell/profile.h`, `profiles/`)
 
 `BoardProfile` is a view over board-owned tables: button matrix, `led_by_button`, encoder roles and
 kinds (indexed by `ui::EncoderRole`), OLED roles and per-surface `Style` (indexed by `ui::Style`),
@@ -131,7 +131,7 @@ bytes per `SceneKind`, keyed by kind not `arg`, unversioned); `remove` saves but
 `pop` and `replace_top` do neither. `changed_since_last_query()` is set by any operation that ran a
 lifecycle hook, and by none that touched nothing.
 
-## Services (`service.h`, `notices.h`, `screensaver.h`)
+## Services (`service.h`, `notices.h`, `shell/screensaver.h`)
 
 A `Service` is scene-shaped but never pushed and has no surface: `handle`, `leds`, `tick`,
 `next_timer`, `timer_repaints`, all defaulting to nothing. `Services` holds the three routed slots
@@ -258,7 +258,10 @@ LED starts blinking on it.
 ## The firmware host
 
 `gui::ui::ShellHostUI` (`gui/ui/shell_host_ui.h`) is a legacy `UI` holding one `Shell` over a
-`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`).
+`GuestSurfaceSet`, opened by `openMenu` (`util/menu_entry.h`). It is the seam between the
+shell and the legacy UI stack while the root views are legacy `UI`s: every scene opens over one of
+them, and the host forwards to it whatever no scene claims. It lasts until the root views are scenes
+and the shell is the root (the root-view program, `docs/dev/roadmap.md`); then it is deleted.
 
 | shell | guest |
 |---|---|
@@ -271,16 +274,26 @@ LED starts blinking on it.
 | greyout | `greys_in_send_path`: legacy's `prepareColour` greys each pad once by the guest's mask |
 | `occludes_grid()` | `canSeeViewUnderneath`, so the root view keeps animating under the menu |
 
-**Host-side mailboxes.** A request that is not a scene -- open a legacy view, start a stem export,
+**Host-side requests.** A request that is not a scene -- open a legacy view, start a stem export,
 claim a sample -- is not an `Action::Kind`, which would put legacy root-UI concepts into the shell.
-It is a scene-owned one-slot outbox: `MenuScene::take_action()`, drained by `dispatchShellActions`,
-and `BrowserScene::take_choice()`, drained by `dispatchShellChoices`. Neither announces it is full
-and both overwrite, so the host polls every tick:
+It reaches the host one of three ways:
 
-1. **after `Shell::tick`** -- actions are filed in step 7, choices while step 3 routes;
-2. **before any early return** (the close on an empty stack), or the closing tick's request strands;
-3. **actions, then choices** -- both can fill on one tick, since a deferred choice closes the
-   browser and the menu beneath gets that tick's `after_render`.
+1. **A synchronous call**, when the host acts before the scene goes on: a setting's side effect is
+   one of the `host_*` calls in `scenes/menu/bind_host.h` (`host_screensaver_settings_changed`,
+   `host_pad_brightness_changed`, `host_clear_tick_squares` and their siblings), made by its setter
+   at the write.
+2. **A service**, when the work ends later: the browser hands its claims, imports, slices, deletes,
+   loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
+   `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced
+   while its request is still being performed is held and delivered by `pollShellBrowserHost`
+   after the tick, so a refusal cannot re-enter a scene from inside the hook that asked; any
+   other answer is delivered when it arrives.
+3. **A scene-owned one-slot outbox**, when the host acts after the frame: `MenuScene::take_action()`
+   (drained by `dispatchShellActions`), `MenuScene::take_transition()` (`dispatchMenuTransitions`)
+   and `BrowserScene::take_scroll()` (taken by `pollShellBrowserHost`, after the held answers). An
+   outbox announces nothing and overwrites, so the host drains each **after `Shell::tick`** (actions
+   are filed in step 7) and **before any early return** (the close on an empty stack), or the
+   closing tick's request strands.
 
 ## How to add
 
@@ -295,7 +308,8 @@ and both overwrite, so the host polls every tick:
   `timer_repaints()` at `{false, false}` unless a surface changes on its timer.
 - **A board.** A `BoardProfile` under `profiles/`, with a `Style` for every rendered OLED surface,
   and a `SurfaceSet` backend if the sinks differ.
-- **A host request.** A scene-owned outbox drained after the tick, as above -- not an `Action::Kind`.
+- **A host request.** A `host_*` call when the host answers at once, a service when the work
+  completes later, or a scene-owned outbox drained after the tick, as above -- never an `Action::Kind`.
 
 ## Testing
 
@@ -305,7 +319,7 @@ overlay's composition. `Shell::state_lines()` is the shell's half of the UI scri
 snapshot. At firmware level,
 `tests/ui-scripts/app/a02-menu.txt` drives the menu through the whole app (`tests/golden/ui/app/a02-menu`).
 
-## Not yet ported
+## Known gaps
 
 - **Hardware grid scroll.** `SurfaceSet` has no sink for a board's column-shift opcodes, so
   `ScrollH`/`ScrollV` tweens redraw every pair every step.

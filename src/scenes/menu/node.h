@@ -63,18 +63,18 @@ namespace deluge::scenes::menu {
 /// declared, `sim/scenes_spec/tables_3_spec.cpp` counts the nodes of each kind across
 /// `nodes::kAllRoots` and fails below three.
 ///
-/// Four kinds that were considered are absent, and one is present on exactly the threshold:
+/// Four shapes have no kind, and one kind is present on exactly the threshold:
 ///
-///   * `Bipolar`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The legacy items
-///     that would want them (`menu_item::Bipolar`, `multi_range.h`, `menu_item::Colour`) are
-///     bespoke, and every one of those is a `Kind::Custom` because its state lives behind the
-///     `gui/` wall. (The six pad colours are ordinary `Kind::Enum` nodes.)
-///   * `Range` is present, with exactly three nodes: `default_tempo`, `default_swing_amount`
-///     (`IntegerRange`, `gui/ui/menus.cpp:1645-1648`) and `default_key` (`KeyRange`, `:1650`).
-///     Three is the threshold, so the kind is warranted and no more nodes were invented to pad it
-///     out: `MultiRange`'s picker is a different editor (`nodes/multi_range.h`, a `CustomItem`) and
-///     is deliberately not counted here.
-///   * `Action` -- zero nodes. Every legacy `MenuItem` whose select press *does* something rather
+///   * No `Bipolar`, `MultiRange` or `Colour` kind, and no interpreter for one. Main's multi-range and colour items
+///     (`origin/main:src/deluge/gui/menu_item/multi_range.h`, `origin/main:src/deluge/gui/menu_item/colour.h`) are
+///     bespoke, and each is a `Kind::Custom` here because its state lives behind the `gui/` wall. (The six pad colours
+///     are ordinary `Kind::Enum` nodes.)
+///   * `Range` is present, with exactly three nodes: `default_tempo`, `default_swing_amount` (`IntegerRange`,
+///     `defaultTempoMenu` and `defaultSwingAmountMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`) and `default_key`
+///     (`KeyRange`, `defaultKeyMenu`). Three is the threshold, so the kind is warranted with no nodes added to pad it
+///     out: `MultiRange`'s picker is a different editor (`nodes/multi_range.h`, a `CustomItem`) and is
+///     deliberately not counted here.
+///   * No `Action` kind. Every main `MenuItem` whose select press *does* something rather
 ///     than editing a value reaches a UI this layer may not touch, so what they need is not a
 ///     `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
 ///     `MenuWalkState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
@@ -91,8 +91,10 @@ enum class Kind : uint8_t {
 	Int,
 	Decimal,
 	SyncLevel,
-	/// @brief A two-ended `{lower, upper}` editor -- `menu_item::Range` and its two subclasses
-	///        (`gui/menu_item/range.h:30`, `integer_range.h:25`, `key_range.h:24`).
+	/// @brief A two-ended `{lower, upper}` editor -- `menu_item::Range` and its two subclasses (`Range` in
+	///        `origin/main:src/deluge/gui/menu_item/range.h`, `IntegerRange` in
+	///        `origin/main:src/deluge/gui/menu_item/integer_range.h`, `KeyRange` in
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`).
 	///
 	/// `Binding::get`/`set` are the **lower** edge; `Binding::range_spec` carries the upper edge's
 	/// hooks and the two per-item rules (how the ends spell themselves, and what happens when they
@@ -121,14 +123,16 @@ using IntRange = deluge::ui::oled::Range;
 /// `Binding`. Only a `ParamRef` binding is scaled at all -- a `get`/`set` hook owns its own units --
 /// so only `param()` takes one.
 ///
-///   * `Standard` -- INT32 range <-> 0..50. `patched_param::Integer` (`patched_param/integer.cpp`),
-///     `menu_item::UnpatchedParam` (`unpatched_param.cpp`); the overwhelming majority.
-///   * `HalfPrecision` -- 0..INT32_MAX <-> 0..50, for params that "aren't set up for negative
-///     inputs" (`value_scaling.cpp`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
-///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h`).
-///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
-///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `origin/main:src/deluge/gui/menu_item/patched_param/pan.h`
-///     `Pan::getMaxValue`) and `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`,
+///   * `Standard` -- INT32 range <-> 0..50. `patched_param::Integer`
+///     (`origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`), `menu_item::UnpatchedParam`
+///     (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`); the overwhelming majority.
+///   * `HalfPrecision` -- 0..INT32_MAX <-> 0..50, for params that "aren't set up for negative inputs"
+///     (`util/value_scaling.cpp`): `osc::PulseWidth` (`origin/main:src/deluge/gui/menu_item/osc/pulse_width.h`) and
+///     `audio_compressor::CompParam` (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_params.h`).
+///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50: `patched_param::Pan`
+///     (`origin/main:src/deluge/gui/menu_item/patched_param/pan.cpp`,
+///     `origin/main:src/deluge/gui/menu_item/patched_param/pan.h` `Pan::getMaxValue`) and `unpatched_param::Pan`
+///     (`origin/main:src/deluge/gui/menu_item/unpatched_param/pan.cpp`,
 ///     `origin/main:src/deluge/gui/menu_item/unpatched_param/pan.h` `Pan::getMaxValue`).
 enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 
@@ -157,7 +161,8 @@ enum class SourceTarget : uint8_t {
 	Range,     ///< A cable's range.
 };
 
-/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s three.
+/// @brief An item's answer to SHIFT and a patching-source pad -- the three answers of
+/// `MenuItem::patchingSourceShortcutPress` (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 enum class SourcePress : uint8_t {
 	/// Nothing happens (`nullptr`): the press stops at this item.
 	Unhandled,
@@ -214,9 +219,10 @@ enum class ValueTextUse : uint8_t { Column, Notification, Label, Name, Title };
 struct ValueText {
 	/// @brief How many bytes of the hook's `out` argument, from its start, are the text.
 	size_t length = 0;
-	/// @brief Fill's strike-through (`gui/menu_item/note/fill.h:70-79`): draw the column's text
-	///        with a line through it. Meaningful only for `ValueTextUse::Column` -- legacy's
-	///        notification text is never struck, only the column glyph is.
+	/// @brief Fill's strike-through (`Fill::renderInHorizontalMenu` in
+	///        `origin/main:src/deluge/gui/menu_item/note/fill.h`): draw the column's text with a line through it.
+	///        Meaningful only for `ValueTextUse::Column` -- legacy's notification text is never struck, only the column
+	///        glyph is.
 	bool strikethrough = false;
 	/// @brief The hook does not answer this use: the caller draws, notifies or labels as the node's
 	///        kind does. Legacy items override `getNotificationValue`, `renderInHorizontalMenu` and
@@ -232,7 +238,7 @@ inline constexpr ValueText kValueTextFallback{.fallback = true};
 /// The port of `getNotificationValue`/`renderInHorizontalMenu`'s own text arm, for the handful of
 /// items whose column and notification are not a plain formatted number: `35%`/`35% ltch` for
 /// probability, `3:4`/`OFF`/`CUSTOM` for iterance, `OFF`/`FILL` (struck through for `NOT_FILL`) for
-/// fill. `MenuScene::render_horizontal`'s column and `MenuScene::notify_column`'s banner both call
+/// fill. `MenuView::render_horizontal`'s column and `MenuScene::notify_column`'s banner both call
 /// this in place of `format_int`/`format_decimal` when it is set.
 ///
 /// @param ctx   What is being edited.
@@ -292,7 +298,8 @@ using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& c
 
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
-	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
+	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`
+	/// (`origin/main:src/deluge/gui/menu_item/decimal.cpp`)).
 	int16_t coarse = 0;
 	/// The step with SELECT or SHIFT held; 0 for the kind's own (1).
 	int16_t fine = 0;
@@ -303,14 +310,14 @@ struct HorizontalStep {
 /// @brief Refuse an edit with legacy's own popup -- `Binding::permitted`.
 ///
 /// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
-/// (`gui/menu_item/note/selected_note.h:29-39`), which pops "Select Note" and refuses when no note
-/// is selected, and `note_row::SelectedNoteRow`'s twin (`note_row/selected_note_row.h:34-40`),
-/// which pops "Select Row" unless auditioning. Both are also
-/// `MenuItem::selectEncoderActionIsPermitted()`, which `HorizontalMenu::selectEncoderAction`
-/// consults *before* editing and *before* notifying (`horizontal_menu.cpp:321-324`, ahead of the
-/// edit and the notification at `:326-328`) -- so a turn with nothing selected shows the popup and
-/// changes nothing. The hook raises the notice itself, as legacy's side effect does: the
-/// interpreter that calls this stages no value and raises no notification on a `false` answer.
+/// (`SelectedNote::shouldEnterSubmenu` in `origin/main:src/deluge/gui/menu_item/note/selected_note.h`), which pops
+/// "Select Note" and refuses when no note is selected, and `note_row::SelectedNoteRow`'s twin
+/// (`origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`), which pops "Select Row" unless auditioning.
+/// Both are also `MenuItem::selectEncoderActionIsPermitted()`, which `HorizontalMenu::selectEncoderAction` consults
+/// *before* editing and *before* notifying (the permission check in `HorizontalMenu::selectEncoderAction`,
+/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, ahead of the edit and the notification at its end) -- so
+/// a turn with nothing selected shows the popup and changes nothing. The hook raises the notice itself, as legacy's
+/// side effect does: the interpreter that calls this stages no value and raises no notification on a `false` answer.
 ///
 /// @param ctx What is being edited.
 /// @return Whether the edit may proceed.
@@ -333,18 +340,18 @@ inline constexpr size_t kMaxNodes = 1024;
 /// names, they are the words its page draws for its values (`with_value_names`), for the menu dump
 /// that the website's menu reference is built from.
 ///
-/// @note **Precedence when both are set: `get`/`set` wins, and `param` is then a *learn* target
-///       only.** Legacy has four items that are simultaneously a `Decimal` with their own
-///       read/write and a `PatchedParam` with a real parameter id -- `menu_item::Transpose`
-///       (`gui/menu_item/transpose.h:26`), which the two oscillator and two FM-modulator transpose
-///       menus derive from. Their value does not live in the param (it is
-///       `sampleHolder.transpose`/`cents`, or `Sound::modulatorTranspose`/`Cents`), so
-///       `bindings::read`/`write` must take the hooks; but `getParamIndex()` (`transpose.h:37`) and
-///       `getLearningThing()` -> `setToHaveParamOnly(getP())` (`source/transpose.h:28-32`) are real,
-///       so MIDI/CC learn must still bind to `LOCAL_OSC_A/B_PITCH_ADJUST` and
-///       `LOCAL_MODULATOR_0/1_PITCH_ADJUST`. Declaring both on the `Binding` is how that survives:
-///       `bindings::read`/`write` test `get`/`set` first, `bindings::learn_target` reads `param`,
-///       and `bindings::range` already prefers `fixed_range` over the param's default.
+/// @note **Precedence when both are set: `get`/`set` wins, and `param` is then a *learn* target only.** Legacy has four
+///       items that are simultaneously a `Decimal` with their own read/write and a `PatchedParam` with a real parameter
+///       id -- `menu_item::Transpose` (`origin/main:src/deluge/gui/menu_item/transpose.h`), which the two oscillator
+///       and two FM-modulator transpose menus derive from. Their value does not live in the param (it is
+///       `sampleHolder.transpose`/`cents`, or `Sound::modulatorTranspose`/`Cents`), so `bindings::read`/`write` must
+///       take the hooks; but `getParamIndex()` (`Transpose::getParamIndex` in
+///       `origin/main:src/deluge/gui/menu_item/transpose.h`) and `getLearningThing()` -> `setToHaveParamOnly(getP())`
+///       (`Transpose::getLearningThing` in `origin/main:src/deluge/gui/menu_item/source/transpose.h`) are real, so
+///       MIDI/CC learn must still bind to `LOCAL_OSC_A/B_PITCH_ADJUST` and `LOCAL_MODULATOR_0/1_PITCH_ADJUST`.
+///       Declaring both on the `Binding` is how that survives: `bindings::read`/`write` test `get`/`set` first,
+///       `bindings::learn_target` reads `param`, and `bindings::range` already prefers `fixed_range` over the param's
+///       default.
 ///
 /// @note **`range` vs `fixed_range`.** `range` is a function of `MenuContext` --
 ///       genuinely dynamic bounds (e.g. a rate whose ceiling depends on sync mode) -- optional,
@@ -367,13 +374,16 @@ inline constexpr size_t kMaxNodes = 1024;
 /// `validate_tree`'s "a value node has something to read" rule keep working on a range node without
 /// a special case.
 struct RangeSpec {
-	/// @brief The upper edge. `IntegerRange::upper` / `KeyRange::upper`, which are now references
-	///        onto `FlashStorage::defaultRanges` (`storage/flash_storage.h`).
+	/// @brief The upper edge: main's `IntegerRange::upper` / `KeyRange::upper`
+	///        (`origin/main:src/deluge/gui/menu_item/integer_range.h`,
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), held in `FlashStorage::defaultRanges`
+	///        (`storage/flash_storage.h`).
 	GetFn get_upper = nullptr;
 	SetFn set_upper = nullptr;
 
-	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half
-	///        (`integer_range.cpp:70-95`, `key_range.cpp:60-100`).
+	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half (`IntegerRange::getText` in
+	///        `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::getText`
+	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)).
 	deluge::ui::oled::RangeFormatFn format = nullptr;
 
 	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
@@ -382,10 +392,10 @@ struct RangeSpec {
 
 	/// @brief Does opening the item land on the LEFT edge when the two ends differ?
 	///
-	/// `IntegerRange::beginSession` (`integer_range.cpp:26-31`) does exactly that;
+	/// `IntegerRange::beginSession` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`) does exactly that;
 	/// `KeyRange` has no `beginSession` override at all, so it takes `Range::beginSession`'s bare
-	/// `editingRangeEdge = RangeEdit::OFF` (`range.cpp:30-33`). One `bool` rather than a second
-	/// hook, because that is the whole of the difference.
+	/// `editingRangeEdge = RangeEdit::OFF` (`origin/main:src/deluge/gui/menu_item/range.cpp`). One `bool` rather than a
+	/// second hook, because that is the whole of the difference.
 	bool focus_left_when_split = false;
 };
 
@@ -415,17 +425,16 @@ struct Binding {
 	///        parameters before the next render?
 	///
 	/// The port of `unpatched_param::UpdatingReverbParams::writeCurrentValue`
-	/// (`gui/menu_item/unpatched_param/updating_reverb_params.h:26-29`): an ordinary
-	/// `UnpatchedParam` write, then `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`.
-	/// It is a flag on the `Binding` rather than a `set` hook because a `set` hook would *replace*
-	/// the param write (`bindings::write` prefers hooks), and because two legacy items share the
-	/// behaviour and neither can express it any other way: `sidechain::Shape`
-	/// (`gui/menu_item/sidechain/shape.h:6`, this batch's `sidechain_shape`) and
-	/// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`, the song and global-FX roots task
-	/// 8 declares). Meaningful only for a `ParamRef` binding -- a `get`/`set` item that needs the
-	/// flag sets it in its own hook, as the sidechain attack/release/sync ones do.
-	/// A target write also repaints the pad grid, which shows what the value changes (an audio clip's reverse, whose
-	/// waveform the grid draws); every target write repaints the OLED.
+	/// (`origin/main:src/deluge/gui/menu_item/unpatched_param/updating_reverb_params.h`): an ordinary `UnpatchedParam`
+	/// write, then `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`. It is a flag on the `Binding` rather
+	/// than a `set` hook because a `set` hook would *replace* the param write (`bindings::write` prefers hooks), and
+	/// because two legacy items share the behaviour and neither can express it any other way: `sidechain::Shape`
+	/// (`origin/main:src/deluge/gui/menu_item/sidechain/shape.h`, ported as `sidechain_shape`) and
+	/// `sidechain::GlobalVolume` (`origin/main:src/deluge/gui/menu_item/sidechain/volume_global.h`, the song and
+	/// global-FX roots declare). Meaningful only for a `ParamRef` binding -- a `get`/`set` item that needs the
+	/// flag sets it in its own hook, as the sidechain attack/release/sync ones do. A target write also repaints the pad
+	/// grid, which shows what the value changes (an audio clip's reverse, whose waveform the grid draws); every target
+	/// write repaints the OLED.
 	bool repaints_grid = false;
 
 	/// @brief Write by offset rather than by value (see `AdjustFn`'s own doc).
@@ -483,8 +492,9 @@ struct Binding {
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
-	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`:
-	///        2 (the units of a two-place value) unless the item overrides it. A detent moves the value `10^place`.
+	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`
+	///        (`origin/main:src/deluge/gui/menu_item/decimal.h`): 2 (the units of a two-place value) unless the item
+	///        overrides it. A detent moves the value `10^place`.
 	int8_t default_edit_pos = 2;
 
 	/// @brief Legacy's `getNoteLengthName` override (`defaults::SwingInterval`, `sync_level::RelativeToSong`): the tick
@@ -493,7 +503,8 @@ struct Binding {
 	TickMagnitudeFn sync_name_magnitude = nullptr;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
-	///        (`MenuItem::wrapAround` answering true on a horizontal page).
+	///        (main's `osc::Type::wrapAround`, the `Enumeration::wrapAround` override answering
+	///        `parent->renderingStyle() == HORIZONTAL`, `origin/main:src/deluge/gui/menu_item/osc/type.h`).
 	bool wrap_in_horizontal = false;
 
 	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
@@ -506,18 +517,19 @@ struct Binding {
 struct MenuState;
 
 /// @brief Which menu a select press on this node opens *instead of* going up a level -- the port of
-///        legacy's `MenuItem* MenuItem::selectButtonPress()` (`gui/menu_item/menu_item.h`).
+///        legacy's `MenuItem* MenuItem::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 ///
 /// Returning `nullptr` means "ascend", which is exactly the base class's `return nullptr` arm and
 /// exactly what `SoundEditor` reads as `goUpOneLevel()` (`SoundEditor::buttonAction`'s SELECT arm).
 ///
-/// It takes the context and the interpreter's state because the answer is value-dependent for two
-/// of the ported overrides: `arpeggiator::PresetMode` opens the custom octave-mode page only on
-/// `ArpPreset::CUSTOM`, and on the drum twin of it when a kit row is being edited
-/// (`arpeggiator/preset_mode.h:109-118`); `voice::PolyphonyType` opens the voice count only in
-/// `PolyphonyMode::POLY` (`voice/polyphony.h:139-143`). The hook reads the *committed* value
-/// through `bindings::read`, not `MenuState`'s in-flight edit copy, because legacy's own overrides
-/// call `getValue()` after `writeCurrentValue()` has already run.
+/// It takes the context and the interpreter's state because the answer is value-dependent for two of the ported
+/// overrides: `arpeggiator::PresetMode` opens the custom octave-mode page only on `ArpPreset::CUSTOM`, and on the drum
+/// twin of it when a kit row is being edited (`PresetMode::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/arpeggiator/preset_mode.h`); `voice::PolyphonyType` opens the voice count only
+/// in `PolyphonyMode::POLY` (`PolyphonyType::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/voice/polyphony.h`). The hook reads the *committed* value through
+/// `bindings::read`, not `MenuState`'s in-flight edit copy, because legacy's own overrides call `getValue()` after
+/// `writeCurrentValue()` has already run.
 ///
 /// Every `*_chain` hook in `nodes/` has this signature.
 /// @param ctx   The menu's context.
@@ -590,17 +602,16 @@ struct CustomItem {
 	/// Rule of thumb: override a hook when the item **does something different**; consult the cause
 	/// when the scene must decide whether the item should act **at all**.
 
-	/// @brief Called when this item becomes the focused node (`ValueSession::enter_leaf`, on `open()`,
-	///        descending into a child, and restoring saved state into a leaf) -- mirroring legacy's
-	///        `MenuItem::beginSession` (`gui/menu_item/menu_item.h`), which every stateful bespoke
-	///        item overrides to (re-)initialise itself before its first render of a visit.
+	/// @brief Called when this item becomes the focused node (`ValueSession::enter_leaf`, on `open()`, descending into
+	///        a child, and restoring saved state into a leaf) -- mirroring legacy's `MenuItem::beginSession`
+	///        (`origin/main:src/deluge/gui/menu_item/menu_item.h`), which every stateful bespoke item overrides to
+	///        (re-)initialise itself before its first render of a visit.
 	///
-	/// Do-nothing default: most items have no state to initialise (`render`'s own arguments are
-	/// enough). Fires once per focus transition, not once per render -- `render_oled`'s `Kind::Custom`
-	/// arm calls only `render`, every tick; this is the one hook a `CustomItem` gets for "I just
-	/// became the screen", the same distinction `beginSession` draws from `drawPixelsForOled` in
-	/// legacy. Examples: `battery::Level::beginSession`
-	/// resets its charging-heuristic baseline (`battery/level.h:43-51`, and see
+	/// Do-nothing default: most items have no state to initialise (`render`'s own arguments are enough). Fires once per
+	/// focus transition, not once per render -- `render_oled`'s `Kind::Custom` arm calls only `render`, every tick;
+	/// this is the one hook a `CustomItem` gets for "I just became the screen", the same distinction `beginSession`
+	/// draws from `drawPixelsForOled` in legacy. Examples: `battery::Level::beginSession` resets its charging-heuristic
+	/// baseline (`Level::beginSession` in `origin/main:src/deluge/gui/menu_item/battery/level.h`, and see
 	/// `nodes::BatteryLevelItem::on_focus`); `midi::Command::beginSession` (twelve items) and
 	/// `midi::Devices::beginSession` (which seeds the initially-selected device) are the same case.
 	virtual void on_focus(const MenuContext&, MenuState&) const {}
@@ -611,26 +622,25 @@ struct CustomItem {
 	/// `on_focus` above is the **forward** arm only: `MenuScene::ascend` runs this instead of it, so
 	/// the two never both fire for one transition. That is legacy's own shape --
 	/// `SoundEditor::goUpOneLevel` ends in `beginScreen(oldItem)` with a non-null `oldItem`
-	/// (`gui/ui/sound_editor.cpp:710-728`), where every other entry passes `nullptr`
-	/// (`:263`, `:292`) -- expressed as two hooks rather than one hook and a discriminator, because
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), where every other entry passes `nullptr`
+	/// -- expressed as two hooks rather than one hook and a discriminator, because
 	/// the two arms of every legacy override that has both share no code at all.
 	///
-	/// Do-nothing default, and that is the *right* answer for almost every item: an item whose
-	/// legacy backward arm restores a cursor gets it for free, because the cursor lives in
-	/// `MenuState::list[depth]` and `ascend` deliberately leaves that alone. `PatchCablesItem`
-	/// (legacy's `currentValue = savedVal`, `origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
-	/// `PatchCables::beginSession`) and `SourceSelectionItem` (legacy's "walk back to the source `s`",
-	/// `source_selection.cpp:110-116`) are both exactly that case and both stay on the default; each says so at its own
-	/// `on_focus`.
+	/// Do-nothing default, and that is the *right* answer for almost every item: an item whose legacy backward arm
+	/// restores a cursor gets it for free, because the cursor lives in `MenuState::list[depth]` and `ascend`
+	/// deliberately leaves that alone. `PatchCablesItem` (legacy's `currentValue = savedVal`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cables.cpp` `PatchCables::beginSession`) and `SourceSelectionItem`
+	/// (legacy's "walk back to the source `s`", `SourceSelection::beginSession`
+	/// (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`)) are both exactly that case and both stay on the
+	/// default; each says so at its own `on_focus`.
 	///
-	/// **This hook exists because "leave `MenuState` alone" is not always the backward
-	/// arm.** Skipping `Kind::Custom` on the way back would be sound only while every chain-source
-	/// custom item's backward behaviour is "keep what `MenuState` already holds", and it is not:
-	/// `gate::Selection`'s backward arm is `setValue(soundEditor.currentSourceIndex)`
-	/// (`gui/menu_item/gate/selection.h:33-41`) and its `selectButtonPress` does **not** write
-	/// `currentSourceIndex` on the minimum-off-time row (`:45-47`), so legacy puts the cursor back on
-	/// the last *output* the user chose and "keep the cursor" puts it back on MINIMUM OFF TIME. See
-	/// `nodes::GateSelectionItem::on_focus_backward`.
+	/// **This hook exists because "leave `MenuState` alone" is not always the backward arm.** Skipping `Kind::Custom`
+	/// on the way back would be sound only while every chain-source custom item's backward behaviour is "keep what
+	/// `MenuState` already holds", and it is not: `gate::Selection`'s backward arm is
+	/// `setValue(soundEditor.currentSourceIndex)` (`Selection::beginSession` in
+	/// `origin/main:src/deluge/gui/menu_item/gate/selection.h`) and its `selectButtonPress` does **not** write
+	/// `currentSourceIndex` on the minimum-off-time row, so legacy puts the cursor back on the last *output* the user
+	/// chose and "keep the cursor" puts it back on MINIMUM OFF TIME. See `nodes::GateSelectionItem::on_focus_backward`.
 	virtual void on_focus_backward(const MenuContext&, MenuState&) const {}
 
 	/// @brief The focused item's value read again from the model -- legacy's `MenuItem::readValueAgain` /
@@ -657,33 +667,37 @@ struct CustomItem {
 	virtual void commit(const MenuContext&, MenuState&) const {}
 
 	/// @brief The icon this item's row draws in its **parent's** list -- legacy's
-	///        `MenuItem::renderSubmenuItemTypeForOled` (`gui/menu_item/menu_item.cpp:69-75`), which
+	///        `MenuItem::renderSubmenuItemTypeForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), which
 	///        `Submenu::drawSubmenuItemsForOled` calls once per visible row
-	///        (`gui/menu_item/submenu.cpp:117`).
+	///        (`Submenu::drawSubmenuItemsForOled` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`).
 	///
 	/// **The submenu arrow is the default because it is legacy's default**: the base
-	/// `MenuItem::renderSubmenuItemTypeForOled` blits `submenuArrowIcon` unconditionally, and only
-	/// **four** overrides in the tree replace it -- `Toggle` and `Selection::isToggle()` with a
-	/// checkbox (`gui/menu_item/toggle.h:22`, `gui/menu_item/selection.h:41`; bodies at
-	/// `toggle.cpp:50-57`, `selection.cpp:38-56`), and `midi::device_definition::Linked` and
-	/// `HideUnlabeled` with a checkbox of their own
-	/// (`gui/menu_item/midi/device_definition/linked.h`, `hide_unlabeled.h`). A bespoke item
-	/// whose legacy class overrides none of those therefore draws the arrow, whatever it is.
+	/// `MenuItem::renderSubmenuItemTypeForOled` blits `submenuArrowIcon` unconditionally, and only **four** overrides
+	/// in the tree replace it -- `Toggle` and `Selection::isToggle()` with a checkbox
+	/// (`Toggle::renderSubmenuItemTypeForOled` in `origin/main:src/deluge/gui/menu_item/toggle.h`,
+	/// `Selection::renderSubmenuItemTypeForOled` (`origin/main:src/deluge/gui/menu_item/selection.h`); bodies at
+	/// `Toggle::renderSubmenuItemTypeForOled` (`origin/main:src/deluge/gui/menu_item/toggle.cpp`),
+	/// `Selection::renderSubmenuItemTypeForOled` (`origin/main:src/deluge/gui/menu_item/selection.cpp`)), and
+	/// `midi::device_definition::Linked` and `HideUnlabeled` with a checkbox of their own
+	/// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`,
+	/// `origin/main:src/deluge/gui/menu_item/midi/device_definition/hide_unlabeled.h`). A bespoke item whose legacy
+	/// class overrides none of those therefore draws the arrow, whatever it is.
 	///
-	/// Counted, not asserted:
-	/// `grep -rn renderSubmenuItemTypeForOled src/deluge/` is seven hits -- the base declaration
-	/// (`menu_item.h:282`) and its definition (`menu_item.cpp:69`), the `Submenu` call site
-	/// (`submenu.cpp:117`), and the four overrides above.
+	/// Counted, not asserted: `grep -rn renderSubmenuItemTypeForOled src/deluge/` is seven hits -- the base declaration
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`) and its definition
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), the `Submenu` call site
+	/// (`Submenu::drawSubmenuItemsForOled` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`), and the four
+	/// overrides above.
 	///
 	/// The free function `row_icon` (`menu/present.cpp`) asks this hook for every `Kind::Custom` node,
 	/// so a bespoke node draws the same row icon its legacy class does.
 	///
 	/// @param ctx The menu context, for an item whose icon is value-dependent (the checkbox arms
 	///            above are: `MidiDeviceLinkedItem` reads whether a definition file is linked).
-	/// @return The icon, or `nullptr` for a row that draws none. Returning `nullptr` also gives the
-	///         label the full row width, exactly as legacy's `endX` does
-	///         (`gui/menu_item/submenu.cpp:109`: `OLED_MAIN_WIDTH_PIXELS -
-	///         getSubmenuItemTypeRenderLength()`), so it is not merely "the icon is hidden".
+	/// @return The icon, or `nullptr` for a row that draws none. Returning `nullptr` also gives the label the full row
+	///         width, exactly as legacy's `endX` does (`Submenu::drawSubmenuItemsForOled` in
+	///         `origin/main:src/deluge/gui/menu_item/submenu.cpp`:
+	///         `OLED_MAIN_WIDTH_PIXELS - getSubmenuItemTypeRenderLength()`), so it is not merely "the icon is hidden".
 	virtual const deluge::gfx::oled::Icon* row_icon(const MenuContext&) const {
 		return &deluge::gfx::oled::icons::submenuArrow;
 	}
@@ -716,20 +730,20 @@ struct CustomItem {
 	/// `on_focus` is `beginSession`, and `MenuScene` runs it on every focus transition -- a descent
 	/// from the parent list, a `SceneId` deep link, the shortcut-pad jump, and `restore_state`
 	/// rebuilding a saved path. Legacy runs `beginSession` on all of those too
-	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp`), so
+	/// (`SoundEditor::focusRegained` -> `beginScreen`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so
 	/// for an item that *initialises* itself there the port matches and this stays false.
 	///
-	/// **It must be true for an item whose `on_focus` is really `selectButtonPress`.** Legacy has
-	/// items whose entire body is a press handler and which `SoundEditor` therefore never navigates
-	/// into (`shouldEnterSubmenu() == false`, `gui/ui/sound_editor.cpp:420-423`); the port has no
-	/// equivalent of that flag, so it descends for one tick and acts from `on_focus`
-	/// (`nodes/actions.h`). That works for a press on this item's own row and is wrong for every
-	/// other way in: a restore, a deep link **or a shortcut-pad jump** would run the press with no
-	/// press on that row behind it -- the jump is a press, but on a grid pad. Legacy guards the same
-	/// case explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is
-	/// already the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here
-	/// without a press on our row". With this true, `ValueSession::enter_leaf` runs `on_focus` only for
-	/// `FocusCause::RowPress`, whose two values are named for exactly this question.
+	/// **It must be true for an item whose `on_focus` is really `selectButtonPress`.** Legacy has items whose entire
+	/// body is a press handler and which `SoundEditor` therefore never navigates into (`shouldEnterSubmenu() == false`,
+	/// the `else` of that test in `SoundEditor::buttonAction`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`); the
+	/// port has no equivalent of that flag, so it descends for one tick and acts from `on_focus` (`nodes/actions.h`).
+	/// That works for a press on this item's own row and is wrong for every other way in: a restore, a deep link **or a
+	/// shortcut-pad jump** would run the press with no press on that row behind it -- the jump is a press, but on a
+	/// grid pad. Legacy guards the same case explicitly -- `Toggle::selectButtonPress` returns without toggling when
+	/// the item is already the current one (`Toggle::selectButtonPress` in
+	/// `origin/main:src/deluge/gui/menu_item/toggle.h`), which is precisely "we got here without a press on our row".
+	/// With this true, `ValueSession::enter_leaf` runs `on_focus` only for `FocusCause::RowPress`, whose two values are
+	/// named for exactly this question.
 	///
 	/// @note The line is **"does it act without a press"**, not "does it do anything". The items
 	///       that open a scene -- `EditNameItem`, `ContextMenuItem`, the nine in `nodes/sample.h` --
@@ -742,7 +756,7 @@ struct CustomItem {
 
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
 	///
-	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:
+	/// Legacy declares these on `MenuItem` itself (`origin/main:src/deluge/gui/menu_item/menu_item.h`:
 	/// `allowsLearnMode`, `shouldBlinkLearnLed`, `learnNoteOn`, `learnProgramChange`, `learnCC`,
 	/// `unlearnAction`), all with do-nothing/false defaults, and `SoundEditor` calls them on
 	/// `getCurrentMenuItem()` without asking what class it is. The port puts them on `CustomItem` for bespoke items
@@ -778,7 +792,8 @@ struct CustomItem {
 	virtual bool wants_learn_blink() const { return false; }
 
 	/// @brief The patched param whose shortcut pad blinks while this item is focused and has no pad of its own --
-	///        `MenuItem::getIndexOfPatchedParamToBlink` (`sound_editor.cpp:1171-1183`).
+	///        `MenuItem::getIndexOfPatchedParamToBlink` (`SoundEditor::updatePadLightsFor` in
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @return The param, or 255 for none.
 	virtual uint8_t patched_param_to_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/) const { return 255; }
 
@@ -798,11 +813,13 @@ struct CustomItem {
 	}
 
 	/// @brief How the patching-source pad for @p source blinks while this item is focused --
-	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:1034-1064`).
+	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`SoundEditor::updateSourceBlinks` in
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @param colour Set to the flash colour when it is not the default.
 	/// @return The frequency mask (0 every cycle, 3 every fourth), or 255 for no blink.
 	/// @brief SHIFT and the patching-source pad for @p source while this item is focused --
-	///        `MenuItem::patchingSourceShortcutPress` (`sound_editor.cpp:1532-1609`).
+	///        `MenuItem::patchingSourceShortcutPress` (`SoundEditor::potentialShortcutPadAction` in
+	///        `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @param previous_held Another patching-source pad is held (`isOtherModSourcePadPressed`).
 	/// @param open          Set to the node to open when the answer is `SourcePress::Open`.
 	virtual SourcePress source_press(const MenuContext& /*ctx*/, MenuState& /*state*/, PatchSource /*source*/,
@@ -811,12 +828,14 @@ struct CustomItem {
 	}
 
 	/// @brief What a patching-source pad patches to while this item is focused --
-	///        `MenuItem::getPatchingSourceShortcutTarget`. Read by the SHIFT overlay's source column.
+	///        `MenuItem::getPatchingSourceShortcutTarget` (`origin/main:src/deluge/gui/menu_item/menu_item.h`). Read by
+	///        the SHIFT overlay's source column.
 	/// @param previous_held Another patching-source pad is held.
 	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
 
-	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves --
-	///        `PatchCables::blinkShortcutsSoon`'s throttle, so scrolling a list is not a storm of flashes.
+	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves -- the throttle
+	///        in `PatchCables::blinkShortcutsSoon` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`), so
+	///        scrolling a list is not a storm of flashes.
 	/// @return Milliseconds; 0 for none.
 	virtual uint16_t blink_delay_ms() const { return 0; }
 
@@ -831,20 +850,20 @@ struct CustomItem {
 	}
 
 	/// @brief Does the legacy item derive from `Value`, whose select turn uses a held Select press up
-	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`)? A list item derived from `MenuItem` or
-	///        `Submenu` moves its cursor without using the press up.
+	///        (`Value::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/value.h`)? A list item derived from
+	///        `MenuItem` or `Submenu` moves its cursor without using the press up.
 	virtual bool is_value() const { return false; }
 
 	/// @brief Which automatable parameter a CC would bind to on this item -- `getLearningThing()`
 	///        for a bespoke item whose answer is not a `Binding::param`.
 	///
 	/// The *other* learn path (see `MenuScene::learn_target`'s note): `bindings::learn_target` reads
-	/// `Node::bind.param`, which is enough for every `PatchedParam`/`UnpatchedParam` node, but the
-	/// three patch-cable-strength pages have no `ParamRef` at all -- their descriptor is assembled
-	/// at read time from `MenuState`'s `patching_param` / `patch_source` / `patch_range_source`
-	/// (`patch_cable_strength/regular.cpp:30-34`, `range.cpp:25-30`). Hence the two arguments:
-	/// unlike every other hook here, the answer is a function of where the user navigated, not of
-	/// the item alone.
+	/// `Node::bind.param`, which is enough for every `PatchedParam`/`UnpatchedParam` node, but the three
+	/// patch-cable-strength pages have no `ParamRef` at all -- their descriptor is assembled at read time from
+	/// `MenuState`'s `patching_param` / `patch_source` / `patch_range_source` (`Regular::getLearningThing` in
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`, `Range::getLearningThing` in
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/range.cpp`). Hence the two arguments: unlike every
+	/// other hook here, the answer is a function of where the user navigated, not of the item alone.
 	///
 	/// A null descriptor (the default) means "this item has nothing to learn", which is what
 	/// `MenuScene::learn_target` falls back from to `bindings::learn_target`.
@@ -854,7 +873,7 @@ struct CustomItem {
 	/// @name Automation
 	/// @{
 	/// @brief Whether shift + select on this item deletes its param's automation, as on legacy's `Automation` items
-	/// (`gui/menu_item/automation/automation.cpp:38-58`).
+	/// (`Automation::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/automation/automation.cpp`).
 	virtual bool is_automation_item() const { return false; }
 	/// @brief The address of the param whose automation shift + select deletes; nullopt where the menu edits none.
 	virtual std::optional<deluge::project::ParamAddress> automation_address(const MenuContext& /*ctx*/,
@@ -896,7 +915,7 @@ struct Node {
 	/// *is* walked ahead of time, three times: `assign_node_ids` numbers it, `validate_tree` checks
 	/// it, and the menu dump prints it. Legacy has four pages that no submenu literal names at
 	/// all and that a chain is the *only* way to reach (`arpOctaveModeToNoteModeMenu` and its three
-	/// relatives, `menus.cpp:511-521`), plus three more under the settings root (`cvSubmenu`,
+	/// relatives, `origin/main:src/deluge/gui/ui/menus.cpp`), plus three more under the settings root (`cvSubmenu`,
 	/// `gateModeMenu`, `gateOffTimeMenu`). Without a static spelling of "these are the possible
 	/// answers" every one of those would be an unnumbered, unvalidated, undumped node -- so
 	/// `SceneId::arg` could not name a chained page and `MenuScene::on_enter` could not restore one.
@@ -909,10 +928,12 @@ struct Node {
 
 	uint8_t slots = 1;
 
-	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`.
+	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
-	/// The legacy items that override it to true are `sample::Transpose` and `LoopPoint`
-	/// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`, `.../sample/loop_point.h`) and the picker itself
+	/// The legacy items that override it to true are `sample::Transpose`
+	/// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`) and `LoopPoint`
+	/// (`origin/main:src/deluge/gui/menu_item/sample/loop_point.h`) and the picker itself
 	/// (`origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent`, not set on
 	/// `nodes::multi_range`, whose own answers are spelled where they are read). It decides whether the selected range
 	/// survives a horizontal page's session (`menu::begin_submenu_range`) and whether the root highlights the range's
@@ -921,7 +942,8 @@ struct Node {
 
 	/// @brief Does this item's permission check go through the range rule? The port of the overrides of
 	///        `checkPermissionToBeginSession` that end in
-	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
+	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	///
 	/// This, not "has a `bind.param`", is what makes the menu's permission rule fire
 	/// (`menu::permission_for`), and what allocates a source's first range on open. The distinction matters: an
@@ -934,58 +956,60 @@ struct Node {
 	bool range_specific = false;
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
-	///        range-picker gate and column-press notification? The port of
-	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()`
-	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
+	///        range-picker gate and column-press notification? Main's
+	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()` (default false,
+	///        `origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
 	/// Six legacy classes override it to true: five scene openers -- `FileSelector`
-	/// (`gui/menu_item/file_selector.h`), `osc::AudioRecorder` (`osc/audio_recorder.h`), `sample::Start` /
-	/// `sample::End` (`sample/start.h`, `sample/end.h`) and `audio_clip::SampleMarkerEditor`
-	/// (`audio_clip/sample_marker_editor.h`), the nodes `nodes/sample.h` builds from
-	/// `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` -- and `PatchCableStrength`
-	/// (`patch_cable_strength.h`), whose two fixed columns are `nodes::vibrato` and `nodes::sidechain_volume`
-	/// (`nodes::fixed_cable_column`).
+	/// (`origin/main:src/deluge/gui/menu_item/file_selector.h`), `osc::AudioRecorder`
+	/// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), `sample::Start` / `sample::End`
+	/// (`origin/main:src/deluge/gui/menu_item/sample/start.h`, `origin/main:src/deluge/gui/menu_item/sample/end.h`) and
+	/// `audio_clip::SampleMarkerEditor` (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`), the
+	/// nodes `nodes/sample.h` builds from `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` -- and
+	/// `PatchCableStrength` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`), whose two fixed columns
+	/// are `nodes::vibrato` and `nodes::sidechain_volume` (`nodes::fixed_cable_column`).
 	///
 	/// Two legacy call sites read it, both on a `Layout::Horizontal` page's *button* paths, and
 	/// answer two different questions with it:
 	///
-	///   - `HorizontalMenu::handleInstrumentButtonPress`'s new-focus tail (`horizontal_menu.cpp:
-	///     427-428`): `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()` opens the
-	///     range picker. When this is true the picker is skipped entirely -- the column is simply
-	///     focused and notified, exactly as `Permission::Yes`/`No` are -- because the item is about
-	///     to open *itself*, not the value the picker would have been for.
-	///   - `HorizontalMenu::handleItemAction`'s already-focused press (`:663-677`): a plain value
+	///   - `HorizontalMenu::handleInstrumentButtonPress`'s new-focus tail
+	///     (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
+	///     `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()` opens the range picker. When this is true
+	///     the picker is skipped entirely -- the column is simply focused and notified, exactly as
+	///     `Permission::Yes`/`No` are -- because the item is about to open *itself*, not the value the picker would
+	///     have been for.
+	///   - `HorizontalMenu::handleItemAction`'s already-focused press: a plain value
 	///     column (this bit false, not a submenu) has its own `selectButtonPress()` called and
 	///     stays; a submenu OR a column with this bit true is instead entered -- permission,
 	///     `MUST_SELECT_RANGE` (unconditionally here; the bit does not suppress *this* range check,
 	///     only the new-focus one above), then `enterSubmenu`.
 	///
-	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp`, #4854)
-	/// returns the focused column itself when this is true, and the select arm enters it the general way, which is
-	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`.
+	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward
+	/// (`origin/main:src/deluge/gui/menu_item/submenu.cpp`, #4854) returns the focused column itself when this is true,
+	/// and the select arm enters it the general way, which is `MenuScene::after_render_navigation`'s `column_press` arm
+	/// calling `enter_child`.
 	bool allow_session_from_horizontal = false;
 
-	/// @brief Does a select press or an already-focused button press flip this column's value in
-	///        place and stay, rather than chaining or ascending? The port of `Selection::isToggle()`
-	///        (`gui/menu_item/selection.h:36`, default false) for the subclasses that override it to
-	///        true.
+	/// @brief Does a select press or an already-focused button press flip this column's value in place and stay, rather
+	///        than chaining or ascending? The port of `Selection::isToggle()`
+	///        (`origin/main:src/deluge/gui/menu_item/selection.h`, default false) for the subclasses that override it
+	///        to true.
 	///
-	/// `Selection::selectButtonPress()` (`gui/menu_item/selection.h:54-63`) has the same shape as `Toggle::
-	/// selectButtonPress` (`toggle.h:38-42`): when the page, not the item, is current, it calls
-	/// `toggleValue()` (`:44-50`, a no-op unless `isToggle()`) and returns `NO_NAVIGATION`. Six
-	/// legacy classes override `isToggle()` to true: `arpeggiator::Mode`
-	/// (`arpeggiator/mode.h`), `arpeggiator::IncludeInKitArp` (`arpeggiator/
-	/// include_in_kit_arp.h:88`) and `runtime_feature::SettingToggle` (`runtime_feature/setting.h:
-	/// 40-49`, the `isToggle()` override at `:45`) sit
-	/// only on vertical pages in the shipped tree and are never reached as a horizontal column; the
-	/// three that do are `delay::PingPong` (`delay/ping_pong.h:30`, ported `delay_ping_pong`,
-	/// on `delay`/`global_delay`), `randomizer::RandomizerLock` (`randomizer/randomizer_lock.h`,
-	/// ported `randomizer_lock`, on `randomizer`) and `sample::PitchSpeed`
-	/// (`sample/pitch_speed.h:80`, ported `sample<i>_pitch_speed`, on `source<i>`/
-	/// `audio_clip_sample`) -- all three `Kind::Enum`, which is why this cannot simply be folded
-	/// into `Kind::Toggle`'s own existing check: the flip itself is identical (write the bound
-	/// value's logical negation), but the `Kind` these three carry is `Enum`, for their two-option
-	/// text (an off/on choice list), not `Toggle`'s dedicated switch glyph.
+	/// `Selection::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/selection.h`) has the same shape as
+	/// `Toggle:: selectButtonPress` (`origin/main:src/deluge/gui/menu_item/toggle.h`): when the page, not the item, is
+	/// current, it calls `toggleValue()` (a no-op unless `isToggle()`) and returns `NO_NAVIGATION`. Six legacy classes
+	/// override `isToggle()` to true: `arpeggiator::Mode` (`origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`),
+	/// `arpeggiator::IncludeInKitArp` (`origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`) and
+	/// `runtime_feature::SettingToggle` (`origin/main:src/deluge/gui/menu_item/runtime_feature/setting.h`, its
+	/// `isToggle()` override) sit only on vertical pages in the shipped tree and are never reached as a horizontal
+	/// column; the three that do are `delay::PingPong` (`origin/main:src/deluge/gui/menu_item/delay/ping_pong.h`,
+	/// ported `delay_ping_pong`, on `delay`/`global_delay`), `randomizer::RandomizerLock`
+	/// (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_lock.h`, ported `randomizer_lock`, on `randomizer`)
+	/// and `sample::PitchSpeed` (`origin/main:src/deluge/gui/menu_item/sample/pitch_speed.h`, ported
+	/// `sample<i>_pitch_speed`, on `source<i>`/ `audio_clip_sample`) -- all three `Kind::Enum`, which is why this
+	/// cannot simply be folded into `Kind::Toggle`'s own existing check: the flip itself is identical (write the bound
+	/// value's logical negation), but the `Kind` these three carry is `Enum`, for their two-option text (an off/on
+	/// choice list), not `Toggle`'s dedicated switch glyph.
 	///
 	/// Consulted in exactly the same two places `Kind::Toggle` already was: the `column_press` arm
 	/// (a select press) and `handle()`'s already-focused button press, both alongside `column->kind
@@ -997,10 +1021,10 @@ struct Node {
 	///        `arpeggiator::IncludeInKitArp` and `randomizer::RandomizerLock`.
 	///
 	/// `SoundEditor::buttonAction`'s SELECT arm never enters such an item: it calls its `selectButtonPress`, which
-	/// flips it (`Selection::toggleValue`) and answers `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this
-	/// flag
-	/// (`Toggle::shouldEnterSubmenu`); `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default,
-	/// so their rows open their page. Set beside `selection_is_toggle`, never instead of it.
+	/// flips it (`Selection::toggleValue` (`origin/main:src/deluge/gui/menu_item/selection.h`)) and answers
+	/// `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this flag (`Toggle::shouldEnterSubmenu`);
+	/// `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default, so their rows open their page.
+	/// Set beside `selection_is_toggle`, never instead of it.
 	bool flips_in_list = false;
 
 	/// @brief Does a select press on this horizontal column stay on the page when its `select_chain` answers null?
@@ -1011,9 +1035,10 @@ struct Node {
 	/// `voice::PolyphonyType` falls back to `Selection::selectButtonPress()` (the page stays), which this flag says.
 	bool chain_falls_back_to_selection = false;
 
-	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
-	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
-	///        unpatched param answers true without it (`node_uses_affect_entire`).
+	/// @brief Legacy's `MenuItem::usesAffectEntire()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) for an item
+	///        whose binding does not say so: AFFECT ENTIRE held on it in a kit row's menu is the hold mode that writes
+	///        every drum, not the clip's own toggle. A PATCHED or unpatched param answers true without it
+	///        (`node_uses_affect_entire`).
 	bool uses_affect_entire = false;
 
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
@@ -1029,12 +1054,13 @@ struct Node {
 	///        the name.
 	uint16_t column_name = 0;
 	/// @brief On a horizontal page, irrelevant columns keep their place and draw a dash: legacy's
-	///        `HorizontalMenu::Layout::FIXED` (`horizontal_menu.cpp:494`, `:253-257`). A vertical list still drops
-	///        them.
+	///        `HorizontalMenu::Layout::FIXED` (`HorizontalMenu::preparePaging` in
+	///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, `HorizontalMenu::renderMenuItems`). A
+	///        vertical list still drops them.
 	bool fixed_columns = false;
-	/// @brief A horizontal page whose children are member pages, listed as one run of columns: legacy's
-	///        `HorizontalMenuGroup` (`horizontal_menu_group.{h,cpp}`). Each member's first column starts a page, and
-	///        the page title is the focused column's member's.
+	/// @brief A horizontal page whose children are member pages, listed as one run of columns: main's
+	///        `HorizontalMenuGroup` (`origin/main:src/deluge/gui/menu_item/horizontal_menu_group.h`). Each member's
+	///        first column starts a page, and the page title is the focused column's member's.
 	bool is_group = false;
 	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
 	bool show_column_label = true;
@@ -1049,11 +1075,11 @@ struct Node {
 	UnlearnFn unlearn = nullptr;
 
 	/// @brief The number that fills the `*` placeholder in this node's name and title: legacy's
-	///        `FormattedTitle` argument (`gui/menu_item/formatted_title.h`).
+	///        `FormattedTitle` argument (`origin/main:src/deluge/gui/menu_item/formatted_title.h`).
 	///
 	/// 0 for none, which leaves the text as looked up; `kTitleArgSourceIndex` for the menu
 	/// context's `source_index` plus one, the output a CV or gate selector chose. See `node_text`
-	/// (`menu_scene.h`) for the substitution.
+	/// (`present.h`) for the substitution.
 	uint8_t title_arg = 0;
 	/// @brief The page's title by visible page (`PageTitleFn`'s own doc). Null: the static title on every page.
 	PageTitleFn page_title = nullptr;
@@ -1090,8 +1116,9 @@ constexpr Node with_range_specific(Node n) {
 	return n;
 }
 
-/// @brief `n` with `allow_session_from_horizontal` set -- the port of
-///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`, a post-hoc
+/// @brief `n` with `allow_session_from_horizontal` set -- the counterpart of an override of main's
+///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.h`), a post-hoc
 ///        modifier for the same reason `with_range_dependent` is one: a handful of nodes in the whole
 ///        tree set it, so the other builders keep their signatures.
 constexpr Node with_allow_session_from_horizontal(Node n) {
@@ -1551,17 +1578,19 @@ constexpr Node dynamic_submenu(uint16_t name, DynamicChildrenFn children, Releva
 	return n;
 }
 
-/// @brief A `Kind::SyncLevel` leaf -- legacy's `menu_item::SyncLevel` (`gui/menu_item/sync_level.h:27`).
+/// @brief A `Kind::SyncLevel` leaf -- legacy's `menu_item::SyncLevel`
+/// (`origin/main:src/deluge/gui/menu_item/sync_level.h`).
 ///
 /// The value is legacy's own menu-option index, `SyncLevel::syncTypeAndLevelToMenuOption`
-/// (`gui/menu_item/sync_level.cpp:79-81`), so a hook pair is always what reads and writes it -- no
+/// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), so a hook pair is always what reads and writes it -- no
 /// `ParamRef` spelling exists for a `{syncType, syncLevel}` pair.
 ///
-/// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`sync_level.h:31` over
-///          `model/sync.h:37`), but `sidechain::Sync` overrides `size()` to 10
-///          (`gui/menu_item/sidechain/sync.h:28`), so the bounds are an argument rather than baked
-///          in -- and baking them in would drag `model/sync.h` into this deliberately model-light
-///          header.
+/// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`SyncLevel::size` in
+///          `origin/main:src/deluge/gui/menu_item/sync_level.h` over `NUM_SYNC_VALUES` in
+///          `origin/main:src/deluge/model/sync.h`), but `sidechain::Sync` overrides `size()` to 10
+///          (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), so the bounds are an argument rather than baked
+///          in -- and baking them in would drag `origin/main:src/deluge/model/sync.h` into this deliberately
+///          model-light header.
 constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn set, IntRange r,
                                RelevantFn rel = nullptr) {
 	Node n{};
@@ -1575,15 +1604,15 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 	return n;
 }
 
-/// @brief A `Kind::Range` leaf -- `menu_item::Range` (`gui/menu_item/range.h:30`).
+/// @brief A `Kind::Range` leaf -- `menu_item::Range` (`origin/main:src/deluge/gui/menu_item/range.h`).
 ///
 /// @param get_lower/@param set_lower The lower edge, which is also what `bindings::read`/`write`
 ///                                   see (`RangeSpec`).
 /// @param spec  The upper edge and the two per-item rules. Required: a null one is a
 ///              `validate_tree` issue, not a defaulted-to-something.
-/// @param r     The bounds both ends live inside, and the select detent's step --
-///              `IntegerRange::minValue`/`maxValue`, or `KeyRange`'s own
-///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:29-30`).
+/// @param r The bounds both ends live inside, and the select detent's step -- `IntegerRange::minValue`/`maxValue`, or
+///              `KeyRange`'s own `KEY_MIN`/`KEY_MAX` locals (`KeyRange::selectEncoderAction` in
+///              `origin/main:src/deluge/gui/menu_item/key_range.cpp`).
 constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
                           IntRange r, RelevantFn rel = nullptr) {
 	Node n{};

@@ -166,7 +166,7 @@ describe menu_contract_drain("scenes::MenuScene::after_render -- the drain order
 		st.tick.value_changed = true;
 		st.tick.value_node = &nodes::lpf_freq;
 		st.tick.render_resp.entered = true;
-		st.walk.pending_action = menu::MenuActionRequest{.action = menu::MenuAction::PadBrightnessChanged};
+		st.walk.pending_action = menu::MenuActionRequest{.action = menu::MenuAction::OpenPerformanceView};
 		st.walk.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
 		(void)menu_scene().after_render();
 
@@ -174,6 +174,7 @@ describe menu_contract_drain("scenes::MenuScene::after_render -- the drain order
 		                             Band::PendingAction, Band::Repaint,     Band::PendingScene};
 		const std::span<const Band> got = menu_scene().drain_trace();
 		expect(std::vector<Band>(got.begin(), got.end())).to_equal(want);
+		(void)menu_scene().take_action(); // the drained request is not left for a later group to perform
 	});
 });
 

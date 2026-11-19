@@ -7,7 +7,7 @@ namespace deluge::scenes {
 /// @brief The scenes layer's l10n bridge: resolve a string id to display text.
 ///
 /// `l10n::getView(static_cast<l10n::String>(string_id))`. Matches `ui::shell::TextLookup`, so this
-/// is what `deluge_profile()` (`profile.h`) fills the shell's `BoardProfile::text` hook with.
+/// is what `deluge_profile()` (`scenes/profile.h`) fills the shell's `BoardProfile::text` hook with.
 /// @param string_id The `l10n::String` id, as stored on disk or baked into a menu node.
 /// @return The resolved text.
 std::string_view text_lookup(uint16_t string_id);

@@ -6,8 +6,8 @@
 // clang-format off
 /// | node | legacy global | legacy class | what it is |
 /// |---|---|---|---|
-/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`) | `midi::device_definition::Linked` (`midi/device_definition/linked.h`) | a **toggle**: on opens the definition browser, off clears the linked file |
-/// | `specific_output_selector` | `specificOutputSelectorMenu` (`gui/ui/menus.cpp`) | `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h`) | an **output picker**: which track an audio track records from |
+/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `midi::device_definition::Linked` (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) | a **toggle**: on opens the definition browser, off clears the linked file |
+/// | `specific_output_selector` | `specificOutputSelectorMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `audio_clip::SpecificSourceOutputSelector` (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) | an **output picker**: which track an audio track records from |
 // clang-format on
 ///
 /// Grouped in one file because they are one subject: both read and write the track the context
@@ -20,22 +20,20 @@
 ///       value on it: `SpecificSourceOutputSelector` overrides `drawPixelsForOled` and
 ///       `selectEncoderAction` and walks the song's output list, skipping every output the audio
 ///       track cannot record from (`AudioOutput::canRecordFrom`,
-///       `processing/audio_output.h:109-111`, which excludes itself, MIDI and CV).
+///       `processing/audio_output.h`, which excludes itself, MIDI and CV).
 ///
-/// @note **`midi_device_linked` is a `Toggle`.**
-///       `midi::device_definition::Linked` derives from `menu_item::Toggle`
-///       (`midi/device_definition/linked.h`): its value is "is a definition file linked"
-///       (`readCurrentValue`, `:33-36`, i.e. `!deviceDefinitionFileName.empty()`) and its
-///       `writeCurrentValue` (`:37-49`) has **two** arms -- turning it *on* opens
-///       `loadMidiDeviceDefinitionUI` (`:42`), turning it *off* clears the file name (`:46-47`).
-///       Porting only the browser half would have shipped an item that can link a definition and
+/// @note **`midi_device_linked` is a `Toggle`.** `midi::device_definition::Linked` derives from `menu_item::Toggle`
+///       (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`): its value is "is a definition file
+///       linked" (`readCurrentValue`, i.e. `!deviceDefinitionFileName.empty()`) and its `writeCurrentValue`
+///       has **two** arms -- turning it *on* opens `loadMidiDeviceDefinitionUI`, turning it *off* clears the
+///       file name. Porting only the browser half would have shipped an item that can link a definition and
 ///       never unlink one, so both arms are here.
 ///
 /// ## Two shapes, again, and they are the two `nodes/actions.h` already names
 ///
 /// **`MidiDeviceLinkedItem` is the "legacy never enters this item" shape.** `Toggle` overrides
-/// `shouldEnterSubmenu()` to `false` (`gui/menu_item/toggle.h:19`), so a select press on the row
-/// runs `Toggle::selectButtonPress` -> `toggleValue()` (`:25-29`, `:33-44`) and leaves the user on
+/// `shouldEnterSubmenu()` to `false` (`origin/main:src/deluge/gui/menu_item/toggle.h`), so a select press on the row
+/// runs `Toggle::selectButtonPress` -> `toggleValue()` and leaves the user on
 /// the parent list. The port has no equivalent of that flag (`nodes/actions.h`): it descends for one
 /// tick, `on_focus` -- which **is** `beginSession` (`node.h`) -- does the toggle, and the item leaves
 /// again. On the *link* arm that is `MenuWalkState::pending_scene` plus `go_up_on_resume`, exactly as
@@ -45,41 +43,39 @@
 ///
 /// **`SpecificOutputItem` is the "a page the user enters, turns and presses" shape.**
 /// `SpecificSourceOutputSelector::shouldEnterSubmenu()` really is `true`
-/// (`specific_output_source_selector.h:107`), so legacy navigates into it and the user turns the
-/// select encoder there. Its cursor lives in `MenuState::list[depth]` for `SourceSelectionItem`'s
-/// reason (`nodes/patch_cables.h`) -- the item is `const` and shared -- and the model write it
-/// implies goes through `CustomItem::commit`, because a render may not write the model
-/// (`menu_scene.h`).
+/// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`), so legacy navigates into it
+/// and the user turns the select encoder there. Its cursor lives in `MenuState::list[depth]` for
+/// `SourceSelectionItem`'s reason (`nodes/patch_cables.h`) -- the item is `const` and shared -- and the model write it
+/// implies goes through `CustomItem::commit`, because a render may not write the model (`menu_scene.h`).
 ///
 /// ## Divergences, stated here rather than absorbed
 ///
-///   * **The parent row draws the checkbox but not the file name.** `Linked` overrides
-///     `renderSubmenuItemTypeForOled` (`linked.h:56-78`) to draw a checked/unchecked box on its row
-///     in the parent list and, when checked, the linked file's base name under it. The
-///     `CustomItem::row_icon` hook (`scenes/menu/node.h`) carries the box and
-///     `MidiDeviceLinkedItem::row_icon` below answers it, so the row shows the item's state. The node
-///     stays `Kind::Custom`, because the committed menu-dump JSON carries the node's type. **The second text row is
-///     still owed**: `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`), and a second line of text
-///     under a row is a `list` change rather than an item's.
-///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs
-///     `enter_leaf` on the leaf a saved menu was parked on, which reaches `on_focus`
-///     (`menu_scene.cpp`'s note there, which argues that this is right for an item that opens a
-///     scene). Legacy's `Toggle::beginSession` does **not** toggle -- only `selectButtonPress`
-///     does, and it has a guard for exactly the other way in (`toggle.h:35-37`: opened by grid
-///     shortcut -> go up, do not toggle). The port cannot tell the two apart: `retarget` and
-///     `descend_to` both end with this node focused. The same hazard is already shipped by the four
-///     `ActionItem`s and by `EditNameItem`; it is worse here only because the unlink arm changes
-///     model state, so it is written down rather than left to be discovered. `ascend()` deliberately
-///     does *not* re-run `on_focus` for `Kind::Custom` (`menu_scene.cpp`), so backing out of the
-///     browser does not re-toggle -- that is the path a user actually takes.
-///   * **`renderUIsForOled()`** (`specific_output_source_selector.h:46`, `:57`) has no port: the
-///     shell renders every tick, and `after_render`'s own repaint arm covers the frames a
-///     navigation or a commit invalidates.
-///   * **The long-name side-scroller** (`:96-98`) is not ported, for `ui::oled::output_name`'s
-///     reason (`ui/oled/misc.h`): `OLED::setupSideScroller` registers a scroller composited after
-///     the renderer has returned, and `ui::oled::scroll_text` is the widget that would replace it.
-///     A name too wide for the panel is left-aligned and clipped, which is what legacy draws on the
-///     first frame anyway.
+///   * **The parent row draws the checkbox but not the file name.** `Linked` overrides `renderSubmenuItemTypeForOled`
+///     (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) to draw a checked/unchecked box on its
+///     row in the parent list and, when checked, the linked file's base name under it. The `CustomItem::row_icon` hook
+///     (`scenes/menu/node.h`) carries the box and `MidiDeviceLinkedItem::row_icon` below answers it, so the row shows
+///     the item's state. The node stays `Kind::Custom`, because the committed menu-dump JSON carries the node's type.
+///     **The second text row is still owed**: `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`),
+///     and a second line of text under a row is a `list` change rather than an item's.
+///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs `enter_leaf` on the leaf
+///     a saved menu was parked on, which reaches `on_focus` (`menu_scene.cpp`'s note there, which argues that this is
+///     right for an item that opens a scene). Legacy's `Toggle::beginSession` does **not** toggle -- only
+///     `selectButtonPress` does, and it has a guard for exactly the other way in
+///     (`origin/main:src/deluge/gui/menu_item/toggle.h`: opened by grid shortcut -> go up, do not toggle). The port
+///     cannot tell the two apart: `retarget` and `descend_to` both end with this node focused. The same hazard is
+///     already shipped by the four `ActionItem`s and by `EditNameItem`; it is worse here only because the unlink arm
+///     changes model state, so it is written down rather than left to be discovered. `ascend()` deliberately does *not*
+///     re-run `on_focus` for `Kind::Custom` (`menu_scene.cpp`), so backing out of the browser does not re-toggle --
+///     that is the path a user actually takes.
+///   * **`renderUIsForOled()`** (`SpecificSourceOutputSelector::beginSession` and
+///     `SpecificSourceOutputSelector::selectEncoderAction` in
+///     `origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) has no port: the shell
+///     renders every tick, and `after_render`'s own repaint arm covers the frames a navigation or a commit invalidates.
+///   * **The long-name side-scroller** (the `else` arm of main's `SpecificSourceOutputSelector::drawPixelsForOled`) is
+///     not ported, for `ui::oled::output_name`'s reason (`ui/oled/misc.h`): `OLED::setupSideScroller` registers a
+///     scroller composited after the renderer has returned, and `ui::oled::scroll_text` is the widget that would
+///     replace it. A name too wide for the panel is left-aligned and clipped, which is what legacy draws on the first
+///     frame anyway.
 
 #include "scenes/menu/node.h"
 
@@ -113,31 +109,31 @@ public:
 	///        rather than only by driving it.
 	uint16_t browser_arg() const { return browser_arg_; }
 
-	/// @brief `Linked::readCurrentValue` (`midi/device_definition/linked.h:33-36`): is a definition
-	///        file linked to whatever @p ctx names?
+	/// @brief `Linked::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`): is a
+	///        definition file linked to whatever @p ctx names?
 	///
 	/// False for a context whose output is not a `MIDIInstrument` -- legacy's unguarded cast is
-	/// safe only because `isRelevant` (`:51-54`) has already refused, which is
+	/// safe only because `isRelevant` has already refused, which is
 	/// `relevance::is_midi_out` on the node.
 	/// @brief The MIDI track's stored definition path, as `readCurrentValue` reads it; nullopt off a MIDI track.
 	static std::optional<serialization::Value> definition_file(const MenuContext& ctx);
 	static bool linked(const MenuContext& ctx);
 
 	/// @brief Yes -- `on_focus` here is `Toggle::selectButtonPress` -> `toggleValue()`
-	///        (`gui/menu_item/toggle.h:33-44`), not `beginSession`.
+	///        (`origin/main:src/deluge/gui/menu_item/toggle.h`), not `beginSession`.
 	///
-	/// Without this, a focus with no press behind it -- `MenuScene::restore_state` rebuilding a
-	/// saved path onto this leaf (which `SceneStack::replace_root` produces whenever the browser
-	/// this item opened is sitting above the menu), or a `SceneId` deep link -- ran the toggle, and
-	/// on the linked arm **cleared the user's definition file with no user action**. Legacy guards
-	/// exactly this case and no other: `Toggle::selectButtonPress` returns without toggling when
-	/// `soundEditor.getCurrentMenuItem() == this` (`toggle.h:35-37`), i.e. when the item was
-	/// reached without a press on its row. `ValueSession::enter_leaf`'s `FocusCause` is the port of
+	/// Without this, a focus with no press behind it -- `MenuScene::restore_state` rebuilding a saved path onto this
+	/// leaf (which `SceneStack::replace_root` produces whenever the browser this item opened is sitting above the
+	/// menu), or a `SceneId` deep link -- ran the toggle, and on the linked arm **cleared the user's definition file
+	/// with no user action**. Legacy guards exactly this case and no other: `Toggle::selectButtonPress` returns without
+	/// toggling when `soundEditor.getCurrentMenuItem() == this` (`origin/main:src/deluge/gui/menu_item/toggle.h`), i.e.
+	/// when the item was reached without a press on its row. `ValueSession::enter_leaf`'s `FocusCause` is the port of
 	/// that test.
 	bool on_focus_is_press() const override { return true; }
 
-	/// @brief `Linked::renderSubmenuItemTypeForOled`'s icon half (`linked.h:56-78`): a checked box
-	///        when a definition file is linked, an unchecked one when not.
+	/// @brief `Linked::renderSubmenuItemTypeForOled`'s icon half
+	///        (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`): a checked box when a definition
+	///        file is linked, an unchecked one when not.
 	///
 	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
 	/// is one of the three that override the base blit. The text half is `row_note`.

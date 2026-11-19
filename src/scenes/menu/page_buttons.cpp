@@ -39,8 +39,8 @@ using namespace detail;
 
 namespace {
 
-/// @brief Which horizontal-page column button @p b is -- legacy's `select_map`
-///        (`gui/menu_item/horizontal_menu.cpp:97`), or -1 for every other button.
+/// @brief Which horizontal-page column button @p b is -- legacy's `select_map` (`HorizontalMenu::buttonAction` in
+///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), or -1 for every other button.
 int32_t instrument_button_index(ButtonId b) {
 	switch (b) {
 	case ButtonId::Synth:
@@ -63,7 +63,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page -- `HorizontalMenu::buttonAction`
-	// (`gui/menu_item/horizontal_menu.cpp:70-107`). Checked before the shortcut-pad jump: these six
+	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). Checked before the shortcut-pad jump: these six
 	// are never shortcut-pad buttons, but placing this ahead keeps every button arm together and
 	// matches legacy's own precedence (`buttonAction` is `MenuItem`'s override, reached before
 	// `SoundEditor::buttonAction`'s own switch ever sees SELECT/BACK/etc).
@@ -71,8 +71,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 		const int32_t button = instrument_button_index(event.button); // Synth 0, Kit 1, Midi 2, Cv 3, else -1
 		const int32_t page_dir = event.button == ButtonId::CrossScreen ? 1 : event.button == ButtonId::Scale ? -1 : 0;
 		if (button >= 0 || page_dir != 0) {
-			// `:77-82`: one 140 ms debounce shared by all six buttons, one shared timestamp updated
-			// only on a press this arm accepts (`:102`).
+			// One 140 ms debounce shared by all six buttons, one shared timestamp updated
+			// only on a press this arm accepts (`HorizontalMenu::buttonAction`).
 			if (ui.now_ms - st.nav_press_ms <= kNavButtonDebounceMs) {
 				Result r;
 				r.handled = true;
@@ -95,8 +95,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 			bool repaint = false;
 
 			if (page_dir != 0) {
-				// `:85-94`: SHIFT + CROSS_SCREEN/SCALE at depth 0 switches the chained menu (`switchHorizontalMenu`,
-				// `:364-394`); otherwise, and at depth > 0 where there is no chain, `switchVisiblePage` (`:341-362`).
+				// SHIFT + CROSS_SCREEN/SCALE at depth 0 switches the chained menu (`switchHorizontalMenu`);
+				// otherwise, and at depth > 0 where there is no chain, `switchVisiblePage`.
 				if (st.depth == 0 && ui.shift) {
 					repaint = walk.switch_chained_page(core, session, page_dir, chain_root);
 				}
@@ -106,12 +106,12 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 					if (target != focused_col) {
 						st.columns[st.depth].focused = static_cast<int8_t>(target);
 						// `switchVisiblePage` runs `initializeItem(*current_item_)` on the newly
-						// landed item and discards the result entirely (`:359`) -- not even
+						// landed item and discards the result entirely -- not even
 						// `MUST_SELECT_RANGE` is acted on here, only the allocation side effect a
 						// range-specific item's permission check performs matters.
 						(void)ensure_item_first_range(*kids[target], ctx);
 						// `switchVisiblePage` cancels the notification unconditionally once past its
-						// own `totalPages <= 1` guard (`:363-365`) -- `page_switch` returning a
+						// own `totalPages <= 1` guard -- `page_switch` returning a
 						// different column already implies that guard passed.
 						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 						repaint = true;
@@ -121,11 +121,11 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 			else if (n > 0) {
 				const int32_t target = deluge::ui::oled::column_under_button(
 				    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, button);
-				// `layout == FIXED && !isItemRelevant(item)` (`:411-414`): a disabled column under
-				// the button does nothing at all, not even a focus change.
+				// `layout == FIXED && !isItemRelevant(item)` (`HorizontalMenu::handleInstrumentButtonPress`): a
+				// disabled column under the button does nothing at all, not even a focus change.
 				if (target >= 0 && cols[target].relevant) {
 					if (target == focused_col) {
-						// `handleItemAction` (`:663-677`): the already-focused column's own press.
+						// `HorizontalMenu::handleItemAction`: the already-focused column's own press.
 						const Node& col_node = *kids[target];
 						if (col_node.kind == Kind::Submenu || col_node.allow_session_from_horizontal) {
 							// Both answer true to `!isSubmenu() && !allowToBeginSessionFromHorizontalMenu()`'s
@@ -134,13 +134,12 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 							walk.enter_horizontal_item(core, session, col_node);
 						}
 						else {
-							// `MenuItem::selectButtonPress`'s overrides any other ported column kind
-							// reaches are `Toggle`'s flip (`gui/menu_item/toggle.h:38-42`) and
-							// `Selection`'s (`gui/menu_item/selection.h:54-63`, when `isToggle()`) -- see
-							// `Node::selection_is_toggle`'s own doc for the three live examples;
-							// every other kind's base is a no-op. No `select_chain` here -- legacy's
-							// `handleItemAction` calls `selectButtonPress()` directly, never
-							// `enterSubmenu`, for this arm.
+							// `MenuItem::selectButtonPress`'s overrides any other ported column kind reaches are
+							// `Toggle`'s flip (`origin/main:src/deluge/gui/menu_item/toggle.h`) and `Selection`'s
+							// (`origin/main:src/deluge/gui/menu_item/selection.h`, when `isToggle()`) -- see
+							// `Node::selection_is_toggle`'s own doc for the three live examples; every other kind's
+							// base is a no-op. No `select_chain` here -- legacy's `handleItemAction` calls
+							// `selectButtonPress()` directly, never `enterSubmenu`, for this arm.
 							if (col_node.kind == Kind::Toggle || col_node.selection_is_toggle) {
 								bindings::write(col_node, ctx, bindings::read(col_node, ctx) == 0 ? 1 : 0);
 							}
@@ -149,7 +148,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						repaint = true;
 					}
 					else {
-						// `handleInstrumentButtonPress`'s new-focus tail (`:424-437`): `current_item_`
+						// `handleInstrumentButtonPress`'s new-focus tail: `current_item_`
 						// is assigned before the range check, so the focus below happens whether or
 						// not the picker ends up opening over it.
 						st.columns[st.depth].focused = static_cast<int8_t>(target);
@@ -176,11 +175,11 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::LedFrame& f) {
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// SYNTH/KIT/MIDI/CV: `HorizontalMenu::updateSelectedMenuItemLED`.
-	// CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED update (`:118-119`). Both fresh every
-	// tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time, the same
-	// as LEARN below. Off on a vertical page or with nothing focused, matching legacy's own
-	// `endSession` extinguishing all six when a horizontal page is left (`:576-585`).
+	// SYNTH/KIT/MIDI/CV: `HorizontalMenu::updateSelectedMenuItemLED`
+	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED
+	// update. Both fresh every tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time,
+	// the same as LEARN below. Off on a vertical page or with nothing focused, matching legacy's own `endSession`
+	// extinguishing all six when a horizontal page is left (`HorizontalMenu::endSession`).
 	bool synth = false;
 	bool kit = false;
 	bool midi = false;

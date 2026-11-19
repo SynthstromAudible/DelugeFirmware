@@ -90,8 +90,8 @@
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include "util/menu_entry.h"
 #include "util/note_editor_open.h"
-#include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 #include <iterator>
 #include <optional>
@@ -426,14 +426,14 @@ possiblyRevert:
 				return ActionResult::DEALT_WITH;
 			}
 
-			// Site 1 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// Site 1 of `gui/ui/menu_entry.cpp`'s table.
 			// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
 			// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
 			// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
-			(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-			                                     /*performanceView=*/false,
-			                                     /*sessionOrArrangerRoot=*/false,
-			                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+			(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+			                                /*performanceView=*/false,
+			                                /*sessionOrArrangerRoot=*/false,
+			                                /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 		}
 	}
 	else {

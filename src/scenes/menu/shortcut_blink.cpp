@@ -50,7 +50,8 @@ FlashColour layer_colour(bool second_layer) {
 	return second_layer ? FlashColour::Yellow : FlashColour::Default;
 }
 
-/// @brief The sound arm's search for @p item's own pad (`updatePadLightsFor`, `sound_editor.cpp:1150-1168`).
+/// @brief The sound arm's search for @p item's own pad (`updatePadLightsFor`,
+/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// Cell by cell, column-major: a second-layer cell ends the search at once; a first-layer cell takes the pad, except
 /// that an odd column after an earlier pad ends the search while source 1 is not the one edited -- the two
@@ -83,8 +84,9 @@ bool is_patched_param(const Node* node, uint8_t p) {
 	       && node->bind.param.index == p;
 }
 
-/// @brief The pad of patched param @p p, every fourth cycle -- `SoundEditor::findPatchedParam` (`sound_editor.cpp:
-///        1011-1032`): cell by cell, column-major, the first layer before the second at each cell.
+/// @brief The pad of patched param @p p, every fourth cycle -- `SoundEditor::findPatchedParam`
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): cell by cell, column-major, the first layer before the
+///        second at each cell.
 ParamBlink patched_param_pad(MenuContext::Root root, uint8_t p) {
 	if (p == kNoBlink) {
 		return {};
@@ -105,7 +107,8 @@ ParamBlink patched_param_pad(MenuContext::Root root, uint8_t p) {
 }
 
 /// @brief How @p item blinks @p source's pad: its own answer for a bespoke item, and for a patched param every fourth
-///        cycle when the source is patched to it (`PatchedParam::shouldBlinkPatchingSourceShortcut`).
+///        cycle when the source is patched to it (`PatchedParam::shouldBlinkPatchingSourceShortcut`
+///        (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`)).
 uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node& item, PatchSource source,
                       FlashColour& colour) {
 	if (item.custom != nullptr) {
@@ -119,9 +122,9 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	return kNoBlink;
 }
 
-/// @brief `SoundEditor::updateSourceBlinks`: each source pad's first-layer source, then
-///        its second-layer one; the lower frequency wins, a second-layer win flashes yellow, and an equal frequency
-///        alternates.
+/// @brief `SoundEditor::updateSourceBlinks` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): each source pad's
+///        first-layer source, then its second-layer one; the lower frequency wins, a second-layer win flashes yellow,
+///        and an equal frequency alternates.
 void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& item, BlinkPlan& plan) {
 	for (uint8_t sx = 0; sx < 2; sx++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -169,7 +172,7 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 	}
 	BlinkPlan plan;
 	// `updatePadLightsFor` returns at once under the note and note-row editors and sets nothing up
-	// in the settings menu (`sound_editor.cpp:1029-1036`).
+	// in the settings menu (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	if (ctx.root == MenuContext::Root::Settings || ctx.root == MenuContext::Root::NoteEditor
 	    || ctx.root == MenuContext::Root::NoteRowEditor || !blinks_shortcut(focused)) {
 		return plan;
@@ -195,11 +198,13 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 	}
 	plan.param = own_pad(ctx, *item);
 	if (!plan.param.valid) {
-		// Failing that, the patched param the item is patching (`:1171-1183`).
+		// Failing that, the patched param the item is patching (the `getIndexOfPatchedParamToBlink` arm of
+		// `SoundEditor::updatePadLightsFor`).
 		const uint8_t p = item->custom != nullptr ? item->custom->patched_param_to_blink(ctx, state) : kNoBlink;
 		plan.param = patched_param_pad(ctx.root, p);
 	}
-	// A source never blinks without a param pad (`:1185-1195`).
+	// A source never blinks without a param pad (`SoundEditor::updateSourceBlinks`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) runs only after a param pad is found).
 	if (plan.param.valid) {
 		plan_sources(ctx, state, *item, plan);
 	}

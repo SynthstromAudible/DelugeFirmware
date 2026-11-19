@@ -9,16 +9,16 @@
 /// here: the data is `node.h`'s, the model access is `bindings.h`'s, and this file is the
 /// interpreter between them.
 ///
-/// **Ports.** `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:47`),
-/// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`gui/menu_item/submenu.cpp:99`, `:21`),
+/// **Ports.** `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`),
+/// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`),
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
-/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp`) -- all four already
+/// `preparePaging` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
-/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp`), `buttonAction` (back ->
+/// `SoundEditor::selectEncoderAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), `buttonAction` (back ->
 /// `goUpOneLevel`, which exits at depth 0 via `exitCompletely`),
-/// `horizontalEncoderAction` (`:1046`), `padAction` (`:1460`) with `potentialShortcutPadAction`
-/// (`:1166`), `enterSubmenu` (`:362`), `setupShortcutBlink` (`:997`) / `blinkShortcut`
-/// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect
+/// `horizontalEncoderAction`, `padAction` with `potentialShortcutPadAction`
+///, `enterSubmenu`, `setupShortcutBlink` / `blinkShortcut`
+///, `getGreyoutColsAndRows`, and the `MultiRange` redirect
 /// (`Permission::MustSelectRange`).
 ///
 /// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
@@ -65,7 +65,8 @@ namespace deluge::scenes::menu {
 
 /// @brief The param an automation item edits, as the automation view names its selection: `Clip::lastSelectedParamKind`
 ///        and `lastSelectedParamID` (`MenuItem::getParamKind` and `getParamIndex` on legacy's item). A cable's kind is
-///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack` addresses it.
+///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack`
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) addresses it.
 struct AutomationParam {
 	deluge::modulation::params::Kind kind;
 	int32_t id;
@@ -85,12 +86,13 @@ public:
 	/// (`context_for`) and names the root. `on_enter` re-targets afterwards from `SceneId::arg`,
 	/// so a push whose argument names a deeper node lands there instead.
 	///
-	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`, and both
-	///          of this tree's callers do.** `on_enter` re-roots unconditionally: from
+	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`.**
+	///          `GlobalControls::handle_settings_menu` always does, and `openGuest` (`gui/ui/menu_entry.cpp`)
+	///          does when it is given no `arg` and arms no landing. `on_enter` re-roots unconditionally: from
 	///          `node_by_id(arg)` when `arg != 0`, and otherwise from `ctx_.root` -- the copy this
 	///          function just installed -- so whichever node was passed here is overwritten one
 	///          call later. Measured, not reasoned: mutating
-	///          `gui/ui/shell_menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
+	///          `gui/ui/menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
 	///          root left **nothing in the suite noticing**. The parameter is kept because this is
 	///          the only entry point that installs a `MenuContext` at all, and because a scene left
 	///          pointing at the wrong root between this call and `on_enter` is a real (if brief)
@@ -104,8 +106,9 @@ public:
 	void open(const Node& root, const MenuContext& ctx);
 
 	/// @brief Forget what the menu was open on, for its host's teardown of every UI: the song may go next, and the
-	///        next `open()` installs a fresh context anyway.
-	void forget_context() { ctx_ = MenuContext{}; }
+	///        next `open()` installs a fresh context anyway. What the host published from the context goes with it
+	///        (`install_context`).
+	void forget_context() { install_context(MenuContext{}); }
 
 	/// @brief Back to what a boot leaves: every submenu's remembered row forgotten (each legacy `Submenu` keeps its
 	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
@@ -126,7 +129,8 @@ public:
 	bool owns(const deluge::ui::shell::UiEvent& event) const override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_resume() override;
-	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
+	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	/// @return True.
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True where `SoundEditor::buttonAction`'s Select arm does not act: learn mode, and any UI mode the host
@@ -146,7 +150,7 @@ public:
 	}
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
-	/// @brief `SoundEditor::padAction`'s gate in `gui/ui/sound_editor.cpp`, as a declaration.
+	/// @brief `SoundEditor::padAction`'s gate in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, as a declaration.
 	///
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
 	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --
@@ -174,7 +178,8 @@ public:
 	///        focused node had shortcut or source pads. See `Scene::timer_repaints()`'s own doc.
 	/// On the voice usage page the timer is also its 500 ms sample, which the panel shows.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override;
-	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`, `cpu/voice_usage.h:77-87`).
+	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`,
+	/// `origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`).
 	void tick(uint32_t dt_ms) override;
 	/// @brief The voice usage page's counters.
 	const VoiceUsageSampler& voice_usage() const { return voice_usage_.sampler(); }
@@ -184,11 +189,11 @@ public:
 
 	/// @brief The value node the select/gold encoders would actually edit right now.
 	///
-	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not
-	/// itself a submenu -- `Submenu::shouldForwardButtons`: legacy's same-param popup test
-	/// (`View::modEncoderAction_existentParam`'s guard) forwards through a horizontal page to
-	/// whichever item the buttons would actually reach, not the page itself. On any other leaf this is `focused()`
-	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
+	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not itself a submenu --
+	/// `Submenu::shouldForwardButtons` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): legacy's same-param popup
+	/// test (the guard in `View::modEncoderAction_existentParam`, `origin/main:src/deluge/gui/views/view.cpp`) forwards
+	/// through a horizontal page to whichever item the buttons would actually reach, not the page itself. On any other
+	/// leaf this is `focused()` unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
 	///
 	/// Exists for `services::GuestKnobPresentation::suppress_value_popup`'s
@@ -199,7 +204,7 @@ public:
 	/// @brief Replace the facts about the root UI under the menu that the opener set: its greyout arm, and
 	///        whether it is the keyboard screen or the automation view. The host calls it whenever the root, or
 	///        the automation view's editor, changes while the menu is open; legacy re-reads them on every
-	///        greyout (`sound_editor.cpp:497-500`).
+	///        greyout (`SoundEditor::getGreyoutColsAndRows` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	void set_root_facts(MenuContext::RootGreyout greyout, bool root_is_keyboard, bool root_is_automation);
 	/// @brief Re-root the open menu at @p root on @p ctx, landed on @p column, which @p root lists: `setup()` and
 	///        `beginScreen` under the open sound editor (`enterNoteRowEditor` from inside it). The move is a `Replace`
@@ -243,13 +248,16 @@ public:
 	using KitGlobalShortcutFn = std::optional<MenuContext> (*)(const MenuContext& open);
 	/// @brief Install the host's `KitGlobalShortcutFn`; null answers `nullopt` always.
 	void set_kit_global_shortcut_source(KitGlobalShortcutFn source) { kit_global_shortcut_source_ = source; }
-	/// @brief Run @p hook when a shortcut press moves the menu onto the kit's own effects, before anything else of the
-	///        tick reads the editor's context: legacy's `setup()` re-points its editor there at once.
+	/// @brief Run @p hook whenever the menu's context changes (`install_context`): every `open` and re-root, a shortcut
+	///        press moving the menu onto the kit's own effects, `forget_context` and a song swap. The host republishes
+	///        what the menu edits from it, before anything else of the tick reads the editor's context, as legacy's
+	///        `setup()` re-points its editor at once.
 	/// @param hook The host's adopt, or null for none.
 	void set_context_adopted_hook(void (*hook)()) { context_adopted_hook_ = hook; }
 	/// @brief Run @p hook after a shortcut jump from a scene over the menu (`shortcut_jump`, the marker editor's):
-	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`, whose write to
-	///        `setupKitGlobalFXMenu` is the host's to make.
+	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), whose write to `setupKitGlobalFXMenu` is the host's
+	///        to make.
 	/// @param hook The host's write, or null for none.
 	void set_reentry_hook(void (*hook)()) { reentry_hook_ = hook; }
 
@@ -306,10 +314,11 @@ public:
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
 	///          `getCurrentMenuItem()->allowsLearnMode()` (`SoundEditor::buttonAction`'s LEARN arm), ported as
-	///          `MenuLearn::allows_mode`, and only then asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`).
-	///          They are different predicates over different sets: `allowsLearnMode` is true on every
-	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items, the MIDI-follow
-	///          items -- every one of which blinks *false*.
+	///          `MenuLearn::allows_mode`, and only then asks `shouldBlinkLearnLed()` for the LED
+	///          (`SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`). They are different predicates over
+	///          different sets: `allowsLearnMode` is true on every `MenuItemWithCCLearning` -- all the
+	///          patched/unpatched params, the transpose items, the MIDI-follow items -- every one of which blinks
+	///          *false*.
 	/// @{
 	/// @brief Offer a note-on to the learn node's item.
 	/// @param cable   The cable it arrived on.
@@ -332,7 +341,8 @@ public:
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
 	/// @brief Ask the learn node's item to forget what it learned.
 	void unlearn();
-	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
+	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
 	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail (`SoundEditor::updatePadLightsFor`,
 	/// reached from it). Public because the LED is also legacy's own answer in `SoundEditor::buttonAction`,
@@ -378,16 +388,16 @@ public:
 	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
 	///
 	/// This exists for a real gap rather than convenience: the application's
-	/// entry points resolve this context themselves (`gui/ui/shell_menu_entry.cpp`), and two of its
+	/// entry points resolve this context themselves (`gui/ui/menu_entry.cpp`), and two of its
 	/// fields -- `is_session_view` and `is_performance` -- change nothing about which root is opened
 	/// and everything about which items are relevant inside it. Without this accessor a caller
 	/// passing the wrong one is invisible from outside the scene, so "the session and the arranger
 	/// open the same root" could not be told apart from "the session and the arranger are the same
 	/// thing". Read-only, like `state()`.
 	///
-	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's `cppspec.hpp`
+	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's header
 	///       defines `context` as a macro (`#define context self.context`), so a member of that
-	///       name is unusable from every spec in this tree -- which is precisely where this
+	///       name is unusable from every spec in `sim/scenes_spec` -- which is precisely where this
 	///       accessor is meant to be read.
 	const MenuContext& menu_context() const { return ctx_; }
 
@@ -400,40 +410,20 @@ public:
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
 	/// @note **Every one of these actions is performed.** The consumer polls once per guest tick and
-	///       has a body for each: `OpenPerformanceView`, `StartStemExport`, the three one-line verbs
-	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`) and the settings
-	///       writes from `ScreensaverSettingsChanged` on. What each
-	///       arm still owes is a named residue per arm, recorded at the arms themselves
-	///       (`gui/ui/shell_action_dispatch.h`) rather than here.
+	///       has a body for each: `OpenPerformanceView`, `StartStemExport` and the three one-line verbs
+	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`). A settings write's
+	///       side effect is no action: its setter calls the host (`scenes/menu/bind_host.h`).
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for
 	///          is delivered whenever someone finally does -- arbitrarily later, against whatever
 	///          state exists then. `after_render` returns no `Action` announcing that one is
 	///          waiting, so nothing enforces the polling: **poll after every tick, or requests are
-	///          dropped or stale.**
-	///
-	///          That is deliberate. Making it exactly-once would mean either a queue (this layer
-	///          allocates nothing, so a fixed ring with its own overflow policy -- the same problem
-	///          one level down) or a new `Action` kind for the router to carry, which would put a
-	///          concept the shell has no business knowing about (a legacy root-UI call) into
-	///          `shell/scene.h`. An honest mailbox plus this warning is better than a
-	///          guarantee that only half holds. **No shipped item can lose a request today, but the
-	///          reason is narrow and the arithmetic does not carry it.** "One tick delivers at most
-	///          one select press" would be a complete argument only if a select press were the sole
-	///          route in. There are two routes: a `CustomItem` writing `pending_action` from `on_focus`/`render`, and
-	///          `request_action` below, reached from a `Binding::set` hook by way of `commit_value`.
-	///          Each fires at most once per `after_render`, so the ceiling is **two**, not one --
-	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
-	///          rule it out.
-	///
-	///          What rules it out is which items exist. The callers of `request_action` are the
-	///          settings setters in `menu/nodes/settings.cpp`, and each one's node is an
-	///          ordinary leaf with no `select_chain` and no `CustomItem` under it --
-	///          so the `after_render` that commits its value has nothing to descend into, and
-	///          cannot also reach an `on_focus` that files. **That is a fact about today's tables,
-	///          not an invariant**: an item that filed from both routes in one tick would silently
-	///          lose the first, and nothing here would say so.
+	///          dropped or stale.** One route fills it, a `CustomItem` writing `pending_action` from
+	///          `on_focus` or `render`; each runs at most once per `after_render`, and no shipped item
+	///          files from both, so no shipped item can lose a request. A queue would need an overflow
+	///          policy of its own, or an `Action` kind that carries a root-UI call into `shell/scene.h`;
+	///          the mailbox and this warning are the smaller answer.
 	///
 	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading
 	///         clears the slot.
@@ -465,46 +455,21 @@ public:
 	/// @return The row, or nothing when no row is white.
 	std::optional<int32_t> dx_column_flash(uint32_t now_ms) const;
 
-	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
-	///
-	/// **The one route into `pending_action` that is not an item writing the field itself**, and it
-	/// exists because `Binding::set` is `void (*)(const MenuContext&, int32_t)` (`SetFn`, `node.h`):
-	/// a value-write hook gets the context and the value and nothing else. Every other filer is a
-	/// `CustomItem`, whose `on_focus`/`render` are handed `MenuState&` and write the field directly
-	/// (`nodes/actions.cpp`).
-	///
-	/// Its callers are the settings setters in `nodes/settings.cpp` (`nodes::set_screensaver_mode` and its
-	/// siblings) -- see `scenes/menu/action.h`'s "settings writes" for why an item's write, rather than its press,
-	/// is what crosses the wall.
-	///
-	/// @par The timing, which is what makes this safe rather than merely convenient
-	///
-	/// A hook reaches this through the `menu_scene()` singleton (`scenes/registry.h`) -- the same
-	/// route `nodes/context_menu_items.cpp` already takes to `context_menu_scene()`. The only path
-	/// that calls a `Binding::set` hook is `commit_value` (`bindings::write`), and `commit_value`'s
-	/// one call site is inside `after_render`, **above** the `pending_action` drain. So a request
-	/// filed here is drained on the same tick it was filed, by the same `after_render` call, and
-	/// never sits in the field across a tick boundary where `retarget` could drop it.
-	///
-	/// @warning This overwrites whatever is in the field, exactly as an item's own assignment does.
-	///          The one-slot mailbox's warning above applies unchanged.
-	void request_action(MenuActionRequest request) { st_.walk.pending_action = request; }
-
 	/// @brief Re-root the menu onto the horizontal page or group that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
-	///        (`gui/ui/browser/sample_browser.cpp:974-976`).
+	///        (`SampleBrowser::claimCurrentFile` in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	///
-	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and
-	/// it exists because legacy's answer to "where does accepting a file land you" is spelled in
-	/// two `MenuItem*`s no port carries. Legacy's three statements, in order, and what each becomes:
+	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and it exists because
+	/// legacy's answer to "where does accepting a file land you" is spelled in two `MenuItem*`s no port carries.
+	/// Legacy's three statements in `SoundEditor::setup`, in order, and what each becomes:
 	///
-	///   * `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`) -> `columns[0].focused`
+	///   * `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` -> `columns[0].focused`
 	///     set to the item's index among the page's visible children. Legacy's `focusChild` writes
-	///     `Submenu::current_item_`, a member of the page object (`gui/menu_item/submenu.cpp:21`);
+	///     `Submenu::current_item_`, a member of the page object (`origin/main:src/deluge/gui/menu_item/submenu.h`);
 	///     the port's focus is per *depth* (`MenuState::columns`), so moving the page to depth 0
 	///     is what makes this a separate statement rather than something the move carries along.
-	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) -> `path[0]`.
-	///   * `soundEditor.navigationDepth = 0` (`:1118`) -> `depth = 0`. This is the whole of the
+	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` -> `path[0]`.
+	///   * `soundEditor.navigationDepth = 0` -> `depth = 0`. This is the whole of the
 	///     "one extra BACK press" it would otherwise cost: without it the user is left on the file
 	///     selector at whatever depth it was opened from, one level further in than legacy leaves
 	///     them -- and, on the shortcut-pad route, out of the menu altogether.
@@ -512,9 +477,9 @@ public:
 	/// @par Why the page is resolved here rather than carried in
 	///
 	/// Legacy writes `parentMenuHeadingTo` on the way in because `SoundEditor::maybeGetParentMenu`
-	/// (`gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
-	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` (`:2084`) over
-	/// `getCurrentHorizontalMenusChain(false)` (`:2079`, dispatched on the root at `:2108-2130`).
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
+	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` over
+	/// `getCurrentHorizontalMenusChain(false)` (which dispatches on the root).
 	/// This scene has the root (`MenuContext::root`) and the chains (`chain_for`), so it answers the
 	/// same question: the first chain entry that lists the item, which for an oscillator's file
 	/// selector is the whole `source_group` (`sourceMenuGroup`), paged across its five members. A
@@ -522,13 +487,11 @@ public:
 	/// does (`horizontal_page_listing`). Carrying a resolved page in would have meant paying that
 	/// search on every scene push, including the four that have no return affordance at all.
 	///
-	/// @par Why an immediate mutator, and not `request_action`'s mailbox
+	/// @par Why an immediate mutator
 	///
-	/// `request_action` above is a mailbox because its caller is a `Binding::set` hook running
-	/// *inside* `after_render`, where the drain it files into is two statements below. This one's
-	/// caller is the application, between ticks (`gui::ui::shellSampleClaimDone`), and the shape
+	/// Its caller is the application, between ticks (`gui::ui::shellSampleClaimDone`), and the shape
 	/// for that is `open()` -- which already installs a `MenuContext` and re-roots `path`/`depth`
-	/// from `gui/ui/shell_menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
+	/// from `gui/ui/menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
 	/// rather than merely heavier: a pending re-root would sit in the field until the next
 	/// `after_render`, one frame later, and `retarget` clears the mailboxes (see its body), so any
 	/// re-root filed across a re-root would be silently dropped.
@@ -624,7 +587,8 @@ private:
 	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while
 	///        `kit_global_shortcut_context` answers, else the menu's.
 	MenuContext::Root shortcut_root() const;
-	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`).
+	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`). Every write of the
+	///        context goes through here.
 	void install_context(const MenuContext& ctx);
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
@@ -642,14 +606,16 @@ private:
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
 
-	/// @brief `SoundEditor::markInstrumentAsEdited` after a select turn: the sound's instrument (a synth, a kit row's
-	///        kit) when the menu edits a sound, outside the settings menu, and the focused item edits the instrument
-	///        (`select_turn_edits_instrument`).
+	/// @brief `SoundEditor::markInstrumentAsEdited` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) after a select
+	///        turn: the sound's instrument (a synth, a kit row's kit) when the menu edits a sound, outside the settings
+	///        menu, and the focused item edits the instrument (`select_turn_edits_instrument`).
 	void mark_edited_after_turn();
 
 	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
 	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
-	///        and `FollowKitRootNote::learnNoteOn` call `setValue` as well as storing the input, and redraw.
+	///        and `FollowKitRootNote::learnNoteOn`
+	///        (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`) call `setValue` as well as
+	///        storing the input, and redraw.
 	void read_learned_value_again();
 
 	MenuState st_{};
@@ -672,7 +638,7 @@ private:
 	MenuContext ctx_{};
 	/// @brief The host's live kit-global answer (`set_kit_global_shortcut_source`).
 	KitGlobalShortcutFn kit_global_shortcut_source_ = nullptr;
-	/// @brief The host's adopt after a press moves the menu (`set_context_adopted_hook`).
+	/// @brief The host's hook, run on every change of the context (`set_context_adopted_hook`).
 	void (*context_adopted_hook_)() = nullptr;
 	/// @brief The host's write after a jump from a scene over the menu (`set_reentry_hook`).
 	void (*reentry_hook_)() = nullptr;
@@ -720,8 +686,8 @@ private:
 	///        `beginScreen` -- a new screen.
 	struct Visit {
 		/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
-		///        `focusRegained` (`sound_editor.cpp`), so the release of a press that opened or
-		///        returned to the menu does not act.
+		///        `focusRegained` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the release of a press that
+		///        opened or returned to the menu does not act.
 		bool use_up_select = true;
 		/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen
 		/// the render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
@@ -729,7 +695,7 @@ private:
 		/// Learn mode and its LED.
 		MenuLearn learn;
 		/// @brief Select was held during the last render: a value edited under it uses the press up
-		///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
+		///        (`Value::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/value.h`).
 		bool select_held = false;
 		const Node* blink_screen = nullptr;
 		/// The value being edited.
@@ -779,17 +745,15 @@ public:
 	/// is `descend_to`, which asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike
 	/// `open()`, this never replaces `ctx_`.
 	///
-	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
-	///       begins the entered item's session (`SoundEditor::beginScreen`), and the toggle names no
-	///       item to navigate back from (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is
-	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
-	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
-	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
-	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
-	///       `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`), so this always lands on the
-	///       first. The port keeps focus per depth for a
-	///       session, not per menu object for the process, and meets it by a descend rather than a
-	///       re-open.
+	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen` begins the entered
+	///       item's session (`SoundEditor::beginScreen`), and the toggle names no item to navigate back from
+	///       (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is `HorizontalMenu::beginSession`
+	///       (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -> `Submenu::beginSession`
+	///       (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) -> `focusChild(nullptr)`, which keeps the
+	///       process-lifetime object's `current_item_`: a second toggle hold lands on the column last focused.
+	///       `descend_to` resets `st_.list[depth]` and `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`),
+	///       so this always lands on the first. The port keeps focus per depth for a session, not per menu object for
+	///       the process, and meets it by a descend rather than a re-open.
 	/// @param node The submenu to enter.
 	void enter_submenu(const Node& node);
 	/// @}

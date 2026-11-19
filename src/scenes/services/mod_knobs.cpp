@@ -168,7 +168,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 }
 
 int32_t ModKnobs::mode() const {
-	// `View::getModKnobMode`.
+	// `View::getModKnobMode` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (song_ == nullptr || bind::has_no_knobs(*focus_)) {
 		return -1;
 	}
@@ -265,7 +265,7 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 }
 
 void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
-	// `View::modEncoderAction`.
+	// `View::modEncoderAction` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (!bound() || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return;
 	}
@@ -299,8 +299,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 		return;
 	}
 
-	// `View::modEncoderAction_existentParam`. A knob on a param its owner does not hold yet reads 0: the write
-	// makes it.
+	// `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`). A knob on a param its owner
+	// does not hold yet reads 0: the write makes it.
 	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
 	const bool at_region = focus_->region.pos != 0xFFFFFFFF;
 	const std::optional<int32_t> value = facts.param_value_at(*address, focus_->region.pos);
@@ -401,7 +401,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 // -- The buttons -------------------------------------------------------------------------------
 
 void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& out) {
-	// `View::modButtonAction`.
+	// `View::modButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`).
 
 	// The automation editor ignores a mod button, except mod button 0 on the arranger's, which keeps
 	// the VU meter toggleable there.
@@ -424,8 +424,9 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 		return;
 	}
 
-	// The button's rules (`View::modButtonAction`, `ModControllable::modButtonAction`): the VU meter's toggle and the
-	// mode change come before the stutter's end, which the popup reads, and a press the rules ignore does nothing.
+	// The button's rules (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`,
+	// `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's end,
+	// which the popup reads, and a press the rules ignore does nothing.
 	const controls::SectionResult section = controls::resolve_section(
 	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
 	    {.root_is_performance = view_.root_is_performance,
@@ -460,13 +461,15 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 }
 
 void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, KnobPresentation& out) {
-	// `View::modEncoderButtonAction`. Legacy's tail always reaches `dealtWith`.
+	// `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`). Legacy's tail always reaches
+	// `dealtWith`.
 	if (ctx.learn || bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
 	controls::Sink& sink = menu::host_controls_sink();
 
-	if (ctx.shift && on) { // `View::modEncoderButtonAction_deleteAutomation`
+	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
+	if (ctx.shift && on) {
 		const std::optional<ParamAddress> address = knob_address(which_encoder);
 		if (address && menu::host_runtime_facts().param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {
@@ -475,7 +478,8 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 		return;
 	}
 
-	// `View::modEncoderButtonAction_changeModControllable`: the push's table, sent to the sink.
+	// `View::modEncoderButtonAction_changeModControllable` (`origin/main:src/deluge/gui/views/view.cpp`): the push's
+	// table, sent to the sink.
 	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, push_inputs(ctx.mode_held));
 	if (push.midi_cc_select) {
 		// The instrument takes it from a clip minder with no UI mode active; a release ends it.
@@ -515,7 +519,7 @@ std::optional<ParamAddress> ModKnobs::knob_address(int32_t which_encoder) const 
 // -- The LEDs and the indicators -----------------------------------------------------------------
 
 ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info, bool stuttering) {
-	// `View::setKnobIndicatorLevel`'s arithmetic, over reads
+	// `View::setKnobIndicatorLevel`'s arithmetic (`origin/main:src/deluge/gui/views/view.cpp`), over reads
 	// the reads `indicator_info` made.
 	IndicatorLevel out{};
 
@@ -551,15 +555,14 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 			knob_pos = controls::fold_cable(knob_pos);
 		}
 		out.declared = true;
-		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the E4 final
-		// review asked for the argument at the code rather than only on `IndicatorLevel::level`.
-		// `View::setKnobIndicatorLevel` carries `int32_t knobPos` right to its last line and hands
-		// it to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`
-		// (`View::setKnobIndicatorLevel` calling `indicator_leds::setKnobIndicatorLevel`), so the value is
-		// truncated by an implicit conversion at exactly this point. The `>> 5` and `& 31` the
-		// review cites (`indicator_leds::actuallySetKnobIndicatorLevel`) run on that already-truncated
-		// parameter, not on the `int32_t` -- there is no wider legacy arithmetic to be faithful to.
-		// An explicit cast where legacy has an implicit one is the same value and a visible one.
+		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the argument is made here at the
+		// code rather than only on `IndicatorLevel::level`. `View::setKnobIndicatorLevel`
+		// (`origin/main:src/deluge/gui/views/view.cpp`) carries `int32_t knobPos` right to its last line and hands it
+		// to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`, so the value is truncated
+		// by an implicit conversion at exactly this point. The `>> 5` and `& 31` of
+		// `indicator_leds::actuallySetKnobIndicatorLevel` run on that already-truncated parameter, not on the `int32_t`
+		// -- there is no wider legacy arithmetic to be faithful to. An explicit cast where legacy has an implicit one
+		// is the same value and a visible one.
 		out.level = static_cast<uint8_t>(knob_pos);
 		out.bipolar = info.bipolar;
 		return out;
@@ -581,16 +584,16 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 
 	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param.
 	//
-	// @warning **Legacy defect (the fifth entry), recorded in `src/scenes/README.md`'s "Defects this port
-	//          found in shipping firmware".** `View::setKnobIndicatorLevel` declares
-	//          `int32_t knobPos;` with no initialiser (`View::setKnobIndicatorLevel`) and assigns it on three of
-	//          its four paths -- an `autoParam`'s, a non-existent param's and a patch cable's default -- leaving it
+	// @warning **Legacy defect (the fifth entry), recorded in `src/scenes/README.md`'s "Defects this port found in
+	//          shipping firmware".** `View::setKnobIndicatorLevel` (`origin/main:src/deluge/gui/views/view.cpp`)
+	//          declares `int32_t knobPos;` with no initialiser (`View::setKnobIndicatorLevel`) and assigns it on three
+	//          of its four paths -- an `autoParam`'s, a non-existent param's and a patch cable's default -- leaving it
 	//          **uninitialised** on this one. It is then passed to `indicator_leds::setKnobIndicatorLevel`, which
-	//          truncates it to `uint8_t` and lights the gold knob's four-segment column from it:
-	//          undefined behaviour with a visible symptom. There is no behaviour to preserve, so
-	//          nothing is declared here and the knob keeps whatever it was last showing -- the
-	//          shell's own rule for an undeclared indicator (`Shell::flush`) and the only defined
-	//          thing to do. Not annotated in `view.cpp` itself; see the sibling @warning above.
+	//          truncates it to `uint8_t` and lights the gold knob's four-segment column from it: undefined behaviour
+	//          with a visible symptom. There is no behaviour to preserve, so nothing is declared here and the knob
+	//          keeps whatever it was last showing -- the shell's own rule for an undeclared indicator (`Shell::flush`)
+	//          and the only defined thing to do. Not annotated in `gui/views/view.cpp` itself; see the sibling @warning
+	//          above.
 	return out;
 }
 
@@ -602,7 +605,8 @@ bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
 }
 
 ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
-	// The reads `View::setKnobIndicatorLevel` makes, from the records and the facts.
+	// The reads `View::setKnobIndicatorLevel` (`origin/main:src/deluge/gui/views/view.cpp`) makes, from the records and
+	// the facts.
 	ModIndicatorInfo out{};
 	if (song_ == nullptr) {
 		return out; // no song: nothing to read, so nothing is declared
@@ -690,7 +694,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp`): `numBlinks` 255 (i.e. forever) on
+	// `indicator_leds::blinkLed(led)`'s defaults (`hid/led/indicator_leds.h`): `numBlinks` 255 (i.e. forever) on
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 

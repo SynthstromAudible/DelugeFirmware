@@ -43,7 +43,9 @@ int clip_audition_forwards = 0;
 PadCall last_clip_audition{};
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
-int choice_dispatches = 0;
+int browser_host_polls = 0;
+int browser_answer_deliveries = 0;
+std::function<void()> on_browser_answer_delivery{};
 int pad_forwards = 0;
 PadCall last_pad_forward{};
 int marker_sidebar_requests = 0;
@@ -118,7 +120,9 @@ void reset() {
 	last_clip_audition = {};
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
-	choice_dispatches = 0;
+	browser_host_polls = 0;
+	browser_answer_deliveries = 0;
+	on_browser_answer_delivery = nullptr;
 	pad_forwards = 0;
 	last_pad_forward = PadCall{};
 	marker_sidebar_requests = 0;
@@ -171,7 +175,7 @@ void reset() {
 // is recorded with its duration and that `isTimerSet` answers honestly.
 //
 // `routine()` is deliberately a no-op rather than a reimplementation of
-// `gui/ui_timer_manager.cpp:53-250`: dispatching would need `getCurrentUI()`,
+// `gui/ui_timer_manager.cpp`: dispatching would need `getCurrentUI()`,
 // which needs the whole `uiNavigationHierarchy` this suite does not build. A
 // spec that wants the tick chain calls `timerCallback()` itself, at the moment
 // the recorded arm says the manager would have.
@@ -193,7 +197,7 @@ void UITimerManager::setTimer(TimerName which, int32_t ms) {
 
 void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	// The real conversion, run backwards, so a spec reads one unit: `setTimer` is
-	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:252-254`).
+	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp`).
 	fakelegacyui::timer_arms.push_back(fakelegacyui::TimerArm{which, samples / 44});
 	getTimer(which).active = true;
 }
@@ -211,9 +215,10 @@ void UITimerManager::workOutNextEventTime() {
 }
 
 // ---------------------------------------------------------------------------
-// OSLikeStuff/scheduler_api.h's share: the two answers the guest's input hooks
-// ask the scheduler for. `extern "C"` because that header declares them inside
-// its own `extern "C"` block.
+// The scheduler's share: the two answers the
+// scheduler gives (`getSystemTime()`, declared in `libdeluge/scheduler.h`, and the card-routine answer
+// `isSDRoutineActive()`, which stands for main's `sdRoutineLock`, `origin/main:src/deluge/extern.h`; nothing in the
+// tree declares or calls it). `extern "C"` as the scheduler's own declarations are.
 // ---------------------------------------------------------------------------
 
 extern "C" double getSystemTime() {
@@ -229,16 +234,17 @@ extern "C" bool isSDRoutineActive(void) {
 // and `renderUIsForOled`, which two of them call.
 // ---------------------------------------------------------------------------
 
-// `UI::UI` (`gui/ui/ui.cpp:31-33`) sets exactly one thing, and it is the field legacy's OLED
+// `UI::UI` (`gui/ui/ui.cpp`) sets exactly one thing, and it is the field legacy's OLED
 // transparency actually lives in -- the one `canSeeViewUnderneath()` is NOT (see
 // `ShellHostUI::canSeeViewUnderneath`). Reproduced rather than approximated so a spec can read it.
 UI::UI() {
 	oledShowsUIUnderneath = false;
 }
 
-// The three mod hooks forward to `view` in legacy (`gui/ui/ui.cpp:35-45`). `view` is the legacy
-// `View` global; here they only record, which is enough for the one thing a guest spec asks of
-// them -- that they still exist and that `ShellHostUI` does not override them.
+// The three mod hooks forward to `view` in legacy (`UI::modEncoderAction`, `UI::modButtonAction` and
+// `UI::modEncoderButtonAction` in `gui/ui/ui.cpp`). `view` is the legacy `View` global; here they only record, which is
+// enough for the one thing a guest spec asks of them -- that they still exist and that `ShellHostUI` does not override
+// them.
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	(void)whichModEncoder;
 	(void)offset;
@@ -257,7 +263,7 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	fakelegacyui::mod_encoder_button_actions++;
 }
 
-// `UI::graphicsRoutine` (`gui/ui/ui.cpp:76-80`) runs the ROOT view's per-frame animation when
+// `UI::graphicsRoutine` (`gui/ui/ui.cpp`) runs the ROOT view's per-frame animation when
 // `canSeeViewUnderneath()` says the root is still visible. There is no root UI in this suite, so
 // the fake records the call and evaluates the predicate the real one gates on -- which is the half
 // a guest spec cares about.
@@ -366,7 +372,7 @@ RuntimeFeatureSettings runtimeFeatureSettings;
 RuntimeFeatureSettings::RuntimeFeatureSettings() = default;
 
 // Its two `deluge::vector` members pull in `external_allocator`, whose deallocate calls
-// `deluge::memory::dealloc` (`memory/external_allocator.h:35`) -- named by the vectors' destructors
+// `deluge::memory::dealloc` (`memory/external_allocator.h`) -- named by the vectors' destructors
 // whether or not they ever hold anything. The real pair is the GMA. Forwarding to the host
 // allocator keeps them honest rather than aborting: an empty vector frees nothing, and a spec that
 // somehow made one grow would still be correct instead of leaking.
@@ -386,7 +392,7 @@ void dealloc(void* ptr) {
 // the real translation unit is the whole settings reader and writer, which this
 // suite does not build. `fakelegacyui::reset()` puts it back to legacy's own
 // default -- `defaultHoldTime (2) * kSampleRate / 20`
-// (`storage/flash_storage.cpp:354-355`), i.e. 4410 samples and 100 ms.
+// (`resetSettings` in `storage/flash_storage.cpp`), i.e. 4410 samples and 100 ms.
 // ---------------------------------------------------------------------------
 namespace FlashStorage {
 int32_t holdTime = (2 * kSampleRate) / 20;
@@ -402,7 +408,7 @@ namespace indicator_leds {
 void clearKnobIndicatorLevels() {
 	fakelegacyui::knob_indicator_clears++;
 	// The **order** matters and is what this records: `closeUI` hands focus to the UI beneath on the
-	// same call (`gui/ui/ui.cpp:230`) and that is what re-fills the rings, so a clear made after the
+	// same call (`gui/ui/ui.cpp`) and that is what re-fills the rings, so a clear made after the
 	// close blanks rings nothing then refreshes. True here means the close had already happened.
 	fakelegacyui::knob_clear_saw_close = !fakelegacyui::closed.empty();
 }
@@ -429,7 +435,7 @@ void wireShellGuestServices() {
 void refreshMenuModeGates() {
 }
 
-bool shellMenuLearnMode() {
+bool menuLearnMode() {
 	return false;
 }
 
@@ -438,7 +444,7 @@ bool shellMenuLearnMode() {
 // `stemExport`, two `gui/context_menu/` singletons, `soundEditor` and
 // `hid::display::Screensaver` -- the `deluge_scenes` and legacy-view closures this suite never
 // builds. The counter and the callback are what let
-// `shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
+// `tests/unit/deluge/gui/shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
 // whether `ShellHostUI::timerCallback` polls at all, how often, on which paths, and after what.
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button, bool) {
 	return std::nullopt;
@@ -522,7 +528,7 @@ void refreshShellDxColumn() {
 void refreshShellSamplePreviewSounds() {
 }
 
-void forgetShellMenuContext() {
+void forgetMenuContext() {
 }
 
 void endShellRecorderTakeForTeardown() {
@@ -535,16 +541,22 @@ void dispatchShellActions() {
 	}
 }
 
-void dispatchShellActionsAtClose() {
+void discardShellActionsBeforeClose() {
 }
 
-// `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
-// `deluge::scenes::browser::browser_scene()` and its Sample arm performs a load that names
-// `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. No callback hook here
-// because nothing in this suite asks an ordering question about it yet -- add one beside
-// `on_action_dispatch` when something does.
-void dispatchShellChoices() {
-	fakelegacyui::choice_dispatches++;
+// `gui/ui/browser_host.cpp`'s poll: the real one reads `deluge::scenes::browser::browser_scene()` and performs
+// loads that name `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`.
+void pollShellBrowserHost() {
+	fakelegacyui::browser_host_polls++;
+}
+
+// The held-answer half of the same file, on the same terms; the callback lets an example record what the guest had
+// done when it delivered.
+void deliverShellBrowserAnswers() {
+	fakelegacyui::browser_answer_deliveries++;
+	if (fakelegacyui::on_browser_answer_delivery) {
+		fakelegacyui::on_browser_answer_delivery();
+	}
 }
 
 // `gui/ui/shell_slice_ops.cpp`'s share: the real one drives `SliceCore` over the current kit. This suite has no
@@ -620,7 +632,7 @@ bool renderClipViewSidebarUnderMarker(uint32_t, RGB[][kDisplayWidth + kSideBarWi
 
 // `gui/ui/shell_note_mode.cpp`'s share, on the same terms as `forwardGridPad` above except for the
 // answer: the guest acts on what these return, so each answers the settable value
-// `fake_legacy_ui.h` names rather than a fixed one. The real ones read
+// `tests/unit/deluge/gui/support/fake_legacy_ui.h` names rather than a fixed one. The real ones read
 // `deluge::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
 // `sim/scenes_spec/note_mode_spec.cpp`'s.
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
@@ -644,13 +656,13 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset) {
 void exitNoteModeBeforeClose() {
 	fakelegacyui::note_mode_exits++;
 	// The order, recorded the way `clearKnobIndicatorLevels` records its own: legacy's note arms run
-	// before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`), and `closeGuest` puts
+	// before `exitCompletely`'s `close()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), and `closeGuest` puts
 	// the call below the indicator clear.
 	fakelegacyui::note_exit_saw_close = !fakelegacyui::closed.empty();
 	fakelegacyui::note_exit_saw_knob_clear = fakelegacyui::knob_indicator_clears > 0;
 }
 
-bool legacyInhibitsScreensaver() {
+bool hostInhibitsScreensaver() {
 	return false;
 }
 

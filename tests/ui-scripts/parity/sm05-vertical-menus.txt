@@ -1,4 +1,4 @@
-# ShellMenu with HorizontalMenus off: every horizontal page is a vertical list. Open the sound menu, enter the LPF page
+# With HorizontalMenus off: every horizontal page is a vertical list. Open the sound menu, enter the LPF page
 # from FILTERS, move and enter a row; then the instrument and page buttons on that list; then a shortcut-pad jump, which
 # opens the item alone.
 # card: tests/fixtures/card-shell-menu-vertical.card

@@ -27,7 +27,7 @@ namespace deluge::scenes::spec {
 /// @brief The three real services, built over the run's own `Shell` from `after_construct` and
 ///        installed into it with `Shell::set_services`.
 ///
-/// Example-scoped: the services themselves are ordinary objects (unlike every *scene* in this tree,
+/// Example-scoped: the services themselves are ordinary objects (unlike every *scene*,
 /// which is a process singleton), so nothing here leaks into the next block. The `Shell` is
 /// constructed and destroyed inside `expect_script_goldens`, which this outlives, so nothing here
 /// is ever reached through a shell that has gone away.

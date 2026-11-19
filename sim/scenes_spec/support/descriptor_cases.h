@@ -2,7 +2,7 @@
 
 /// @file
 /// @brief The setting rows a menu shows, the named skips, and the checks that compare each row with the reference
-///        rows of `tests/golden/ui/menu_oracle/descriptors.tsv`: what `descriptor_legacy_spec.cpp`,
+///        rows of `tests/golden/ui/menu_oracle/descriptors.tsv`: what `descriptor_oracle_spec.cpp`,
 ///        `setting_names_spec.cpp` and `descriptor_coherence_spec.cpp` all walk.
 ///
 /// @warning Include this BEFORE `<cppspec.hpp>` (see `card_access.h`); it does so itself, in that order.
@@ -1478,7 +1478,7 @@ inline bool reverb_volume_differs() {
 }
 
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
-/// (`descriptor_legacy_spec.cpp`), so a row that comes to agree leaves the list.
+/// (`descriptor_oracle_spec.cpp`), so a row that comes to agree leaves the list.
 inline const Exception kExceptions[] = {
     {plugin::kDelugeInstrument, "midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "

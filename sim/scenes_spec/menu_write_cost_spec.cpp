@@ -1,5 +1,5 @@
 // The cost of a menu write through the app's sink, per target and scope: evidence for the one-frame budget a write on
-// every encoder detent must meet on the device (step 2's decision 5; a param write's 400 µs host p95). Prints
+// every encoder detent must meet on the device (a param write's 400 µs host p95). Prints
 // MENU-WRITE-COST lines; the budget is judged from them (a wall-clock assertion would be as flaky as the machine
 // running it).
 

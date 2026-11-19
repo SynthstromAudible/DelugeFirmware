@@ -19,8 +19,8 @@ using deluge::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
-// The marker overlay, ported from SampleMarkerEditor::renderMarkerInCol (sample_marker_editor.cpp:1058)
-// and ::renderColumn (:1268).
+// The marker overlay, ported from `SampleMarkerEditor::renderMarkerInCol` and `SampleMarkerEditor::renderColumn`
+// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 //
 // **The legacy comparison is NOT here.** A transcription of those two bodies compared against the
 // port would be satisfied on both sides by one misreading written once. The comparison lives in
@@ -39,9 +39,9 @@ constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kNumMarkerTypes = 4;
 
-// Legacy's four marker colours, in MarkerType order (sample_marker_editor.cpp:1071-1082). Spelled
-// out here rather than reached through `gui/colour/colour.h` so the spec pins the values as well as
-// the arithmetic.
+// Main's four marker colours, in MarkerType order (`SampleMarkerEditor::renderMarkerInCol`,
+// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`). Spelled out here rather than reached through
+// `gui/colour/colour.h` so the spec pins the values as well as the arithmetic.
 const std::array<RGB, kNumMarkerTypes> kMarkerColours{
     RGB{0, 255, 0},   // START -- colours::green
     RGB{0, 255, 255}, // LOOP_START -- colours::cyan

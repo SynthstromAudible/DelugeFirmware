@@ -6,8 +6,8 @@
 ///        parameter.
 ///
 /// The port of `View::displayModEncoderValuePopup` (`gui/views/view.cpp`),
-/// `View::flushPendingModEncoderValuePopup` (`:1290-1301`) and `View::calculateKnobPosForDisplay`
-/// (`:1302-1325`). `ModKnobs` shows it on a gold-knob turn.
+/// `View::flushPendingModEncoderValuePopup` and `View::calculateKnobPosForDisplay`
+///. `ModKnobs` shows it on a gold-knob turn.
 ///
 /// @par The context `show()` carries
 ///
@@ -20,9 +20,8 @@
 ///   * **7SEG.** Legacy's function has no "7SEG/OLED split".
 ///     `Display::displayNotification` (`hid/display/display.h`) is pure virtual
 ///     with exactly one override, `OLED::displayNotification` (`hid/display/oled.cpp`) --
-///     7SEG support was removed from legacy itself (there is a
-///     `seven_segment_tombstone.cpp` in `hid/display/` and nothing else there answers to the
-///     name), so `displayModEncoderValuePopup` has no 7SEG arm to drop.
+///     `hid/display/` has no 7SEG display (only a `seven_segment_tombstone.cpp`, and nothing
+///     else there answers to the name), so `displayModEncoderValuePopup` has no 7SEG arm to drop.
 ///
 /// @par The arbitration ("juggling ball") system
 ///
@@ -42,7 +41,7 @@
 ///   * `calculateKnobPosForDisplay` is `format_value`'s plain-integer arm, transcribed unchanged
 ///     (`isParamPan`/`isParamPitch`, no context needed).
 ///
-/// Legacy's timing constants are `AudioEngine::audioSampleTimer` units (`view.h:180-182`); this
+/// Legacy's timing constants are `AudioEngine::audioSampleTimer` units (`gui/views/view.h`); this
 /// port uses the millisecond equivalents (`kSampleRate` divided out): `MIN_DISPLAY_OWNERSHIP_TIME`
 /// = 1000ms, `DISPLAY_TIMEOUT` = 250ms, `MIN_UPDATE_INTERVAL` ~= 45ms.
 ///
@@ -124,7 +123,7 @@ struct ShownPopup {
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
 class ParamPopupScene final : public deluge::ui::shell::Scene {
 public:
-	/// @brief `View::displayModEncoderValuePopup` (`view.cpp`): format @p kind/@p
+	/// @brief `View::displayModEncoderValuePopup` (`gui/views/view.cpp`): format @p kind/@p
 	///        param_id/@p knob_pos/@p source1/@p source2 and run the display-ownership
 	///        arbitration, updating the shown text (and re-arming the popup's lifetime) only when
 	///        the arbitration says this call may.
@@ -139,7 +138,7 @@ public:
 	///                 context-free naming and value paths exactly.
 	///
 	/// @return **True when this call actually changed what is on the panel** -- i.e. the arbitration
-	///         took its commit arm (`view.cpp`, whose body is
+	///         took its commit arm (`gui/views/view.cpp`, whose body is
 	///         `display->displayNotification(...)`, a write AND a blit). False on the throttled arm
 	///         (which arms its own flush timer and therefore repaints itself), on the
 	///         same-param-refresh arm, and on legacy's implicit fourth arm, all of which leave the
@@ -206,7 +205,7 @@ public:
 
 private:
 	/// @brief The arbitration core: `displayModEncoderValuePopup`'s "Check if we need to update the
-	///        notification" block (`view.cpp`), shared by `show()` and the flush path in
+	///        notification" block (`gui/views/view.cpp`), shared by `show()` and the flush path in
 	///        `tick()`.
 	/// @return True when the commit arm ran; see `show()`.
 	bool attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
@@ -224,7 +223,8 @@ private:
 	bool was_showing_ = false;      // Set true whenever remaining_ms_ becomes nonzero; after_render's
 	                                // "just expired" edge.
 
-	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (view.cpp:1106-1110).
+	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (`View::displayModEncoderValuePopup` in
+	// `gui/views/view.cpp`).
 	deluge::modulation::params::Kind last_param_kind_ = deluge::modulation::params::Kind::NONE;
 	int32_t last_param_id_ = -1;
 	int32_t last_display_value_ = INT32_MIN;
@@ -232,7 +232,7 @@ private:
 	PatchSource last_source2_ = PatchSource::NONE;
 
 	// `display_owner_*`/`display_ownership_start_time`/`last_display_update_time`/
-	// `last_actual_display_time`: the arbitration ("juggling ball") statics (view.cpp:1113-1119).
+	// `last_actual_display_time`: the arbitration ("juggling ball") statics (`View::displayModEncoderValuePopup`).
 	deluge::modulation::params::Kind display_owner_kind_ = deluge::modulation::params::Kind::NONE;
 	int32_t display_owner_param_id_ = -1;
 	PatchSource display_owner_source1_ = PatchSource::NONE;
@@ -241,7 +241,7 @@ private:
 	uint32_t last_display_update_ms_ = 0;
 	uint32_t last_actual_display_ms_ = 0;
 
-	// `hasPendingModEncoderValuePopup`/`pendingPopup*` (view.h:184-189).
+	// `hasPendingModEncoderValuePopup`/`pendingPopup*` (`gui/views/view.h`).
 	bool has_pending_ = false;
 	deluge::modulation::params::Kind pending_kind_ = deluge::modulation::params::Kind::NONE;
 	int32_t pending_param_id_ = 0;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render P1 (plain-text) PBM snapshots as PNG, for PR viewing (spec G §3, §7).
+"""Render P1 (plain-text) PBM snapshots as PNG, for PR viewing.
 
   python3 scripts/pbm2png.py in.pbm -o out.png [--scale 4]
   python3 scripts/pbm2png.py golden.pbm got.pbm -o diff.png [--scale 4]

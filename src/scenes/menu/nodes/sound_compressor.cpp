@@ -42,7 +42,8 @@ const std::span<const Node* const> kSoundCompressorChildren{kRoots};
 namespace {
 
 /// The record's value behind knob position @p value: the stored q31 when it is at that position, else what
-/// `writeCurrentValue` stores there (`compressor_values.h:31-36`; Blend's own at `:121-126`).
+/// `writeCurrentValue` stores there (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_values.h`;
+/// Blend's own is `Blend::setCompressorValue`).
 int32_t shown_q31(const Node& node, const MenuContext& ctx, int32_t value, bool blend) {
 	if (const std::optional<int32_t> stored = bindings::stored(node.bind.target, ctx);
 	    stored && (*stored >> 24) == value) {
@@ -102,7 +103,8 @@ ValueText compressor_banner(const MenuContext& ctx, int32_t value, ValueTextUse 
 
 template <CompressorShown kWhich>
 ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse, std::span<char> out) {
-	// `drawDecimal` keeps four characters of the unit (`decimal.cpp:213`); every unit here is at most four.
+	// `drawDecimal` keeps four characters of the unit (`origin/main:src/deluge/gui/menu_item/decimal.cpp`); every unit
+	// here is at most four.
 	return compressor_text(kWhich, ctx, value, out);
 }
 

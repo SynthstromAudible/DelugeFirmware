@@ -18,7 +18,7 @@ namespace {
 /// The kind the one test scene registers under.
 constexpr SceneKind kBase = SceneKind::FirstApp;
 
-/// `Mod0`'s seat in `uitest::test_profile_input`'s button matrix (`fake_surfaces.h`'s `/*y0*/`
+/// `Mod0`'s seat in `uitest::test_profile_input`'s button matrix (`tests/support/mocks/fake_surfaces.h`'s `/*y0*/`
 /// row, second column) -- the one event shape that reaches the `mod_knobs` step at all
 /// (`Router::route`, `router.h`'s "only consulted when \p event is a mod button ..." note).
 constexpr uint8_t kMod0X = 1;
@@ -30,9 +30,9 @@ constexpr uint8_t kPlayY = 3;
 
 /// @brief The board `test_profile_input`'s matrix is paired with here: `kBoard2`'s two OLEDs.
 ///
-/// Same construction as `tick_spec.cpp`'s `tick_profile` and `flush_spec.cpp`'s `flush_profile`;
-/// the surfaces are incidental to this file (nothing here asserts on a pixel), but `Shell::tick`
-/// runs its whole render pass every tick and needs somewhere to draw.
+/// Same construction as `tests/unit/shell/tick_spec.cpp`'s `tick_profile` and `tests/unit/shell/flush_spec.cpp`'s
+/// `flush_profile`; the surfaces are incidental to this file (nothing here asserts on a pixel), but `Shell::tick` runs
+/// its whole render pass every tick and needs somewhere to draw.
 BoardProfile services_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
 	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
@@ -105,7 +105,7 @@ public:
 	}
 };
 
-/// A `DELUGE_EVENT_BUTTON` at matrix (x, y), the same shorthand `router_spec.cpp` uses.
+/// A `DELUGE_EVENT_BUTTON` at matrix (x, y), the same shorthand `tests/unit/shell/router_spec.cpp` uses.
 DelugeInputEvent board_button(uint8_t x, uint8_t y, bool on) {
 	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
 }

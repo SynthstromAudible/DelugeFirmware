@@ -2,16 +2,15 @@
 /// @brief `deluge::ui::shell::Scene::grid_pad_claim` and `MenuScene`'s override of it -- the
 ///        declaration and its answers.
 ///
-/// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and
-/// `None` on a settings root -- the port of `SoundEditor::padAction`'s gate at
-/// `gui/ui/sound_editor.cpp` (`SoundEditor::padAction`) -- and that a scene which never overrides the virtual (the
-/// context menu, stood in for every scene that does not override it) answers the safe default, `All`.
+/// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and `None` on a settings
+/// root -- the port of `SoundEditor::padAction`'s gate (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) -- and that a
+/// scene which never overrides the virtual (the context menu, stood in for every scene that does not override it)
+/// answers the safe default, `All`.
 ///
-/// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
-/// path, no `ShellHostUI::claimsGridPad`, and no grid-pad test through a `Shell` -- those are later
-/// tasks. This file only opens a real `MenuScene` on a real root (`MenuScene::open` writes `ctx_`
-/// and resets `st_` without needing a `Shell` at all, `MenuScene::open`, `scenes/menu/menu_scene.cpp`) and
-/// reads the new virtual straight off it.
+/// What it deliberately cannot see: the forwarding path (`ShellHostUI::claimsGridPad` in `gui/ui/shell_host_ui.cpp`,
+/// which reads `grid_pad_claim()`) and any grid-pad test through a `Shell`. This file only opens a real `MenuScene` on
+/// a real root (`MenuScene::open` writes `ctx_` and resets `st_` without needing a `Shell` at all, in
+/// `scenes/menu/menu_scene.cpp`) and reads the new virtual straight off it.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"
@@ -59,8 +58,8 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	});
 
 	it("answers None on a settings root", _ {
-		// `SoundEditor::inSettingsMenu()` is one of `padAction`'s three predicates, so
-		// legacy skips the shortcut arm entirely here and every pad falls through.
+		// `SoundEditor::inSettingsMenu()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is one of `padAction`'s
+		// three predicates, so legacy skips the shortcut arm entirely here and every pad falls through.
 		spec::SongFixture fx = spec::make_synth_song();
 		auto& scene = menu_scene();
 		MenuContext ctx = sound_context(fx);

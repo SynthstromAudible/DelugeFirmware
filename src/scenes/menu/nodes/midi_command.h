@@ -2,16 +2,16 @@
 
 /// @brief `MidiCommandItem` -- the `CustomItem` behind the twelve global-MIDI-command learn items.
 ///
-/// The port of `deluge::gui::menu_item::midi::Command` (`gui/menu_item/midi/command.{h,cpp}`): a
+/// Mirrors main's `deluge::gui::menu_item::midi::Command` (`origin/main:src/deluge/gui/menu_item/midi/command.h`): a
 /// `MenuItem` parameterised by one `GlobalMIDICommand`, whose whole job is to bind the next MIDI
 /// message the user sends to `midiEngine.globalMIDICommands[that command]`.
 ///
-/// Legacy's twelve instances are the `midi::Command` globals at `gui/ui/menus.cpp:1416-1428`, and
-/// this file declares the twelve that replace them one for one. `settings.h` hangs them off
-/// `nodes::midi_command_play` .. `nodes::midi_command_shift`, in `midiCommandsMenu`'s own order
-/// (`menus.cpp:1430-1436`).
+/// Legacy's twelve instances are the `midi::Command` globals (`playbackRestartMidiCommand` .. `shiftMidiCommand` in
+/// `origin/main:src/deluge/gui/ui/menus.cpp`), and this file declares the twelve that replace them one for one.
+/// `nodes/settings.h` hangs them off `nodes::midi_command_play` .. `nodes::midi_command_shift`, in `midiCommandsMenu`'s
+/// own order (`origin/main:src/deluge/gui/ui/menus.cpp`).
 ///
-/// **What is ported, member by member** (`command.cpp`):
+/// **What is ported, member by member** (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`):
 ///
 ///   * `learnNoteOn` -> `learn_note_on`: writes `cable`/`channelOrZone`/`noteOrCC` into the slot.
 ///   * `learnCC` -> `learn_cc`: `learnNoteOn(cable, channel + IS_A_CC, cc)`, and only when
@@ -23,11 +23,11 @@
 ///     the slot. (Legacy really does clear on either direction; the item has no value to walk.)
 ///   * `drawPixelsForOled` -> `render`.
 ///   * `shouldBlinkLearnLed` -> `wants_learn_blink`, which is `true` on all twelve.
-///   * `allowsLearnMode` has no port: it gates legacy's `UI_MODE_MIDI_LEARN` bookkeeping
-///     (`sound_editor.cpp:512-535`), which is UI-mode state this layer does not own. The routing
-///     that eventually calls `MenuScene::learn_*` is where the equivalent gate belongs.
-///   * `beginSession` is empty in legacy (`command.cpp:30-31`), so `on_focus` keeps its
-///     do-nothing default rather than being overridden to an empty body.
+///   * `allowsLearnMode` has no port: it gates legacy's `UI_MODE_MIDI_LEARN` bookkeeping (`SoundEditor::buttonAction`
+///     in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is UI-mode state this layer does not own. The
+///     routing that eventually calls `MenuScene::learn_*` is where the equivalent gate belongs.
+///   * `beginSession` is empty in legacy (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), so `on_focus` keeps
+///     its do-nothing default rather than being overridden to an empty body.
 ///
 /// @note **The popup is the menu's.** Legacy pops "LEARNED"/"UNLEARNED" only when the item is *not* the
 ///       current menu item -- a learn reached through its list -- and redraws otherwise. Here the item raises
@@ -49,9 +49,9 @@ namespace deluge::scenes::menu::nodes {
 class MidiCommandItem final : public CustomItem {
 public:
 	/// @param command Which slot of `midiEngine.globalMIDICommands` this item binds -- legacy's
-	///                `Command::commandNumber` (`midi/command.h:30`), spelled as the real enum
-	///                rather than as a number so a swapped pair is a type-checked mistake rather
-	///                than a silent one.
+	///                `Command::commandNumber` (`origin/main:src/deluge/gui/menu_item/midi/command.h`), spelled as the
+	///                real enum rather than as a number so a swapped pair is a type-checked mistake rather than a
+	///                silent one.
 	explicit constexpr MidiCommandItem(GlobalMIDICommand command) : command_{command} {}
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -66,7 +66,9 @@ public:
 	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const override;
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) const override;
 	bool unlearn() const override;
-	bool wants_learn_blink() const override { return true; } ///< `command.h:34`, true on all twelve.
+	bool wants_learn_blink() const override {
+		return true;
+	} ///< `Command::shouldBlinkLearnLed` (`origin/main:src/deluge/gui/menu_item/midi/command.h`), true on all twelve.
 
 	/// @brief Which command this item binds. For specs, and for the twelve-way mapping check.
 	constexpr GlobalMIDICommand command() const { return command_; }
@@ -81,8 +83,8 @@ private:
 /// instances are: the type has a vtable, and only the *addresses* need to be constant expressions,
 /// which is all `custom()` asks for.
 ///
-/// Named after the node each backs (`settings.h`), and paired with the legacy global it replaces
-/// (`gui/ui/menus.cpp:1416-1428`).
+/// Named after the node each backs (`nodes/settings.h`), and paired with the legacy global it replaces
+/// (`origin/main:src/deluge/gui/ui/menus.cpp`).
 /// @{
 inline const MidiCommandItem kMidiCommandPlayItem{GlobalMIDICommand::PLAY}; ///< `playMidiCommand`
 inline const MidiCommandItem kMidiCommandRestartItem{

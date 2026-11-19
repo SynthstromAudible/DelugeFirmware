@@ -175,7 +175,7 @@ struct ValidateOptions {
 	/// @brief Skip the `ShortcutToNothing` sweep entirely.
 	///
 	/// That rule is quantified over *every* `MenuContext::Root`'s shortcut table, so it only means
-	/// anything when @p roots is the whole tree: pointed at a subtree (batch 1's seventeen roots,
+	/// anything when @p roots is the whole tree: pointed at a subtree (a few roots,
 	/// the sound root on its own, the settings root minus one page) it reports every shortcut cell
 	/// in every *other* root's table, which says nothing about the subtree under test. A caller
 	/// validating part of the tree sets this; `sim/scenes_spec/shortcuts_spec.cpp` runs the sweep

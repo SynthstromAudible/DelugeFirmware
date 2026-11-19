@@ -18,11 +18,11 @@
 /// @file
 /// @brief The offline stem export of the corpus fixture's song, as a stepped scenario on its own clock.
 ///
-/// Loads the fixture's song (two-phase: the begin dispatches the async directory listing), runs an offline
-/// StemExport, and copies the stems out to GOLDEN_STEM_OUT (default `golden_stems`). GOLDEN_FIXTURE picks the song
-/// (default cordae) unless GOLDEN_STEM_SONG names one; GOLDEN_STEM_MODE picks the export (CLIP, TRACK, DRUM, MIXDOWN;
-/// default TRACK). StemExport::renderWait waits pass by pass for the async fill task to drain the loader queue, so a
-/// sample-backed fixture exports real audio.
+/// Loads the fixture's song (two-phase: the begin dispatches the async directory listing), runs an offline StemExport,
+/// and copies the stems out to GOLDEN_STEM_OUT (default `golden_stems`). GOLDEN_FIXTURE picks the song (default cordae)
+/// unless GOLDEN_STEM_SONG names one; GOLDEN_STEM_MODE picks the export (CLIP, TRACK, DRUM, MIXDOWN; default TRACK).
+/// StemExport::driveElement parks at its drain point, pass by pass, for the async fill task to drain the loader queue,
+/// so a sample-backed fixture exports real audio.
 ///
 /// Its row is OwnClock: a slot each virtual millisecond, and each condition polled at once and then every 5 ms. The
 /// cadence only bounds how often a condition is polled (each phase's poll budget derives from it); the exported audio

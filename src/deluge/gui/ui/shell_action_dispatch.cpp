@@ -20,7 +20,6 @@
 ///        its caller may not gate it.
 
 #include "gui/ui/shell_action_dispatch.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
 
 #include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
 #include "gui/context_menu/configure_song_macros.h"
@@ -34,12 +33,10 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
-#include "hid/buttons.h" // Buttons::clearShiftSticky
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"
-#include "hid/display/screensaver.h" // Screensaver::settingsChanged -- the ScreensaverSettingsChanged arm
-#include "hid/led/pad_leds.h"
+#include "hid/display/screensaver.h" // Screensaver::settingsChanged, for reapplyLiveSettingsAfterReset
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "model/model_stack.h"
@@ -64,7 +61,7 @@ using deluge::ui::shell::SceneKind;
 namespace {
 
 /// @brief `EditingMode::selectButtonPress`
-///        (`gui/menu_item/performance_session_view/editing_mode.h:50-97`), performed on the real
+///        (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`), performed on the real
 ///        `performanceView`.
 ///
 /// @param mode What `MenuActionRequest::arg` carried: a `PerformanceEditingMode`
@@ -72,11 +69,12 @@ namespace {
 ///
 /// @par What `DISABLED` does here, and why it is not an assert
 ///
-/// **It returns, doing nothing** -- and the reason is that legacy's `DISABLED` arm has no meaning on
-/// this side of the seam. `editing_mode.h:51-53` answers it with `return nullptr`, which is
-/// `SelectChainFn`'s "go up a level" (`scenes/menu/node.h`): a *navigation* answer to the select
-/// press. The dispatcher runs after `MenuScene::after_render` has finished with that press, so there
-/// is no navigation left for it to ask for.
+/// **It returns, doing nothing** -- and the reason is that legacy's `DISABLED` arm has no meaning on this side of the
+/// seam. `EditingMode::selectButtonPress`
+/// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) answers it with `return nullptr`,
+/// which is `SelectChainFn`'s "go up a level" (`scenes/menu/node.h`): a *navigation* answer to the select press. The
+/// dispatcher runs after `MenuScene::after_render` has finished with that press, so there is no navigation left for it
+/// to ask for.
 ///
 /// It has also already happened. The port reproduces the whole of legacy's `DISABLED` arm on the
 /// **producing** side: `PerformEditorItem::render` leaves `MenuTick::render_resp.entered` set so
@@ -86,7 +84,7 @@ namespace {
 /// So this branch is unreachable through every real path, and is defence in depth rather than behaviour -- and, being
 /// unreachable, it is the one line here no example can redden.
 ///
-/// Ignoring rather than asserting, deliberately: the only assert this tree has on the device is
+/// Ignoring rather than asserting, deliberately: the only assert on the device is
 /// `FREEZE_WITH_ERROR`, a hard hang, and hanging the instrument over a menu press would be a worse
 /// answer than a press that does nothing. What must not happen is falling through -- the branch
 /// below is an `if`/`else` exactly as legacy's is, so a `DISABLED` reaching it would take the `else`
@@ -96,9 +94,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		return;
 	}
 
-	// `editing_mode.h:55-62`, transcribed branch for branch rather than collapsed into one
-	// assignment, so the two writes stay legible against their source. What is owed here begins
-	// one line INSIDE this `else if`, because `editing_mode.h:51-53` is the `DISABLED` arm handled
+	// `EditingMode::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`), transcribed branch for branch
+	// rather than collapsed into one assignment, so the two writes stay legible against their source. What is owed here
+	// begins one line INSIDE this `else if`, because the first arm of that same function is the `DISABLED` arm handled
 	// above.
 	if (mode == PerformanceEditingMode::VALUE) {
 		performanceView.defaultEditingMode = true;
@@ -109,8 +108,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		performanceView.editingParam = true;
 	}
 
-	// `editing_mode.h:86-93`, guard and reason included: reset the view when the mode changes, but
-	// not in param-editing mode, "cause that would reset param assignments to FX columns" (`:88`).
+	// The reset block of `EditingMode::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`), guard and reason included:
+	// reset the view when the mode changes, but not in param-editing mode, "cause that would reset param assignments to
+	// FX columns".
 	if (!performanceView.editingParam) {
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
@@ -118,81 +119,74 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		performanceView.resetPerformanceView(modelStack);
 	}
 
-	// The `openUI` call. `editing_mode.h`'s `return NO_NAVIGATION` -- stay on the menu page while the view
-	// opens over it -- is the producer's half and is already ported: `PerformEditorItem::render`
-	// clears `render_resp.entered`.
+	// The `openUI` call. `origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`'s
+	// `return NO_NAVIGATION` -- stay on the menu page while the view opens over it -- is the producer's half and is
+	// already ported: `PerformEditorItem::render` clears `render_resp.entered`.
 	openUI(&performanceView);
 }
 
 } // namespace
 
-/// @brief `soundEditor.exitCompletely()` (`gui/menu_item/stem_export/start.h:32`), ported.
+/// @brief `soundEditor.exitCompletely()` (`Start::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/stem_export/start.h`), ported.
 ///
-/// @par What legacy's first statement is, and why it cannot be transcribed
+/// @par What main's first statement is, and why it cannot be transcribed
 ///
-/// `SoundEditor::exitCompletely` ends the menu item's session
-/// (`endScreen()`, `:759`) and closes the menu UI (`close()`, `:761`, which is `closeUI(this)`,
-/// `gui/ui/ui.cpp:87-89`). Under the guest **the thing that is open is `ShellHostUI`, not
-/// `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s place
-/// (`openShellMenu`) and nothing on that path opens `soundEditor` at all.
+/// `SoundEditor::exitCompletely` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ends the menu item's session
+/// (`endScreen()`) and closes the menu UI (`close()`, which is `closeUI(this)`, `gui/ui/ui.cpp`). Under the guest
+/// **the thing that is open is `ShellHostUI`, not `soundEditor`** -- `openMenu` opens this UI in `SoundEditor`'s
+/// place and nothing on that path opens `soundEditor` at all.
 ///
-/// So calling `soundEditor.exitCompletely()` here would not be a harmless no-op. `closeUI`'s search
-/// loop stops at `u >= 1` (`gui/ui/ui.cpp:213`); given a UI that is not on the stack it falls out
-/// with `u == 0`, reads `uiNavigationHierarchy[u - 1]` -- index **-1** -- at `:194` and sets
-/// `numUIsOpen = 0` at `:195`. After that `getRootUI()` answers `nullptr` for the whole application
-/// (`:145-150`) and `getCurrentUI()` answers the `lastUIBeforeNullifying` residue (`:136-140`).
-/// Its own header says "If UI not found, chaos" (`:176`).
+/// So calling `soundEditor.exitCompletely()` here would not close the menu. `closeUI`'s search loop stops at `u >= 1`
+/// (`gui/ui/ui.cpp`); given a UI that is not on the stack it falls out with `u == 0`. `closeUI` (`gui/ui/ui.cpp`)
+/// returns there, so the guest would stay open over a menu whose session `endScreen()` had just ended. Main's `closeUI`
+/// (`origin/main:src/deluge/gui/ui/ui.cpp`, "If UI not found, chaos") has no such return: it reads
+/// `uiNavigationHierarchy[u - 1]` -- index **-1** -- and sets `numUIsOpen = 0`, after which `getRootUI()` answers
+/// `nullptr` for the whole application.
 ///
-/// @par What this does instead, and why it is not a new idea
+/// @par What this does instead
 ///
-/// **Take the menu scene off the guest's stack, and let `ShellHostUI::timerCallback` perform the one
-/// close it already owns.** The port already has an `exitCompletely()`: a short Back at the menu's
-/// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
-/// (its call to `exitCompletely()`), and `MenuScene::handle` ports it as
-/// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`MenuScene::handle_event`'s Back arm). `SceneStack::remove` and not `pop`, for the
-/// reason recorded there: `pop` would take a `Working` animation or a `Popup` sitting over the menu down with it, and
-/// "close the editor" should not mean that. This is that same statement, reached by a different press, so the two exits
-/// of the ported menu agree by construction.
+/// **Take the menu scene off the guest's stack, and let `ShellHostUI::timerCallback` perform the one close it already
+/// owns.** The menu already has an `exitCompletely()`: a short Back at its root is main's
+/// `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`, and `MenuScene::handle_event`'s Back arm
+/// answers it with `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`. `SceneStack::remove` and
+/// not `pop`, for the reason recorded there: `pop` would take a `Working` animation or a `Popup` sitting over the
+/// menu down with it, and "close the editor" should not mean that. This is that same statement, reached by a
+/// different press, so the menu's two exits agree by construction.
 ///
-/// Taking the menu off is the whole of it, because `ShellHostUI::timerCallback` closes the guest
-/// itself once nothing stacked takes input (`gui/ui/shell_host_ui.cpp`), the only close path the
-/// guest has besides `exitUI`'s. The two alternatives were both tried on paper and both are broken:
+/// Taking the menu off is the whole of it, because `ShellHostUI::timerCallback` closes the guest itself once nothing
+/// stacked takes input (`gui/ui/shell_host_ui.cpp`), the only close path the guest has besides `exitUI`'s. Both
+/// alternatives are broken:
 ///
-///   * **`closeGuest()` from here, leaving the menu stacked.** The menu still takes input, so the
-///     tick's close does not fire and `rearmTimer` runs. **The timer half of this is now
-///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:630`) --
-///     but read the rest, because the guard was added for a sibling of this exact mistake and the
-///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
-///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
-///     (`gui/ui_timer_manager.cpp:143-149`), i.e. to the root view underneath -- the hazard
-///     `ShellHostUI::closeGuest`'s own comment names (`:1110-1114`). What survives the guard and
-///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
-///     on the shell stack, so the next open would resume a menu session this one was supposed to
-///     have ended. That is not `exitCompletely()`.
-///   * **Take the menu off *and* `closeGuest()` from here.** Then the tick's close fires too and
-///     closes a second time, and the second `closeUI(&shellHostUI)` is the index `-1` read above.
+///   * **`closeGuest()` from here, leaving the menu stacked.** The menu still takes input, so the tick's close does
+///     not fire and `rearmTimer` runs. `rearmTimer` refuses when this guest is not the current UI, but that guard
+///     was written for a sibling of this mistake and does not rescue it: unguarded, it armed `TimerName::UI_SPECIFIC`
+///     for a UI that is no longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
+///     (`gui/ui_timer_manager.cpp`), i.e. to the root view underneath -- the hazard `ShellHostUI::closeGuest`'s own
+///     comment names. What still rules this alternative out is simpler: it closes the UI while leaving the menu on
+///     the shell stack, so the next open would resume a menu session this one was supposed to have ended. That is not
+///     `exitCompletely()`.
+///   * **Take the menu off *and* `closeGuest()` from here.** Then the tick's close fires too and closes a second
+///     time; the second `closeUI(&shellHostUI)` finds nothing to close.
 ///
 /// @par The `shellHostUI` global, deliberately
 ///
-/// The guest is a singleton -- one object, one open site (`openShellMenu`) -- and
-/// this seam's sibling reaches for it the same way for the same kind of question: `menuIsFrontmost`
-/// (`gui/ui/shell_guest_services.cpp`) reads `shellHostUI.shell().stack()` and calls itself
-/// "the port of `getCurrentUI() == &soundEditor`". `SceneStack::remove` is a documented no-op when
-/// no scene of that kind is on the stack -- it returns false having touched nothing and flagged
-/// nothing (`SceneStack::remove`) -- so if this is ever reached with no ported menu up,
-/// it does nothing rather than corrupting a stack it does not own.
+/// The guest is a singleton -- one object, one open site (`openMenu`) -- and this seam's sibling reaches for it
+/// the same way for the same kind of question: `menuCurrent` (`gui/ui/shell_guest_services.cpp`) reads
+/// `shellHostUI.shell().stack()` and answers the guest's `getCurrentUI() == &soundEditor`. `SceneStack::remove` is a
+/// documented no-op when no scene of that kind is on the stack -- it returns false having touched nothing and
+/// flagged nothing -- so if this is ever reached with no menu up, it does nothing rather than corrupting a stack it
+/// does not own.
 ///
 /// @par Why this sits between two anonymous-namespace blocks instead of inside one
 ///
-/// It did, until the pad-forwarding seam (`gui/ui/shell_pad_forward.cpp`) needed to call it too --
-/// `SoundEditor::padAction`'s tail is the same `exitCompletely()`
-/// statement this ports, reached by a pad press rather than a stem-export selection. Internal
-/// linkage inside `namespace {` made that impossible from another translation unit, so this
-/// function alone was pulled out and declared in `shell_action_dispatch.h`, the same move
-/// `stemExportTypeForRootUI` below already made for the same reason. `startStemExport`'s call to
-/// this function, in the anonymous-namespace block that follows, still resolves unqualified: this
-/// file includes its own header (`:22`) before either anonymous-namespace block opens.
+/// The pad-forwarding seam (`gui/ui/shell_pad_forward.cpp`) calls it too -- main's `SoundEditor::padAction` tail
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the same `exitCompletely()` statement this ports, reached by a
+/// pad press rather than a stem-export selection. Internal linkage inside `namespace {` would make that impossible from
+/// another translation unit, so this function alone is outside the anonymous namespace and declared in
+/// `shell_action_dispatch.h`, the same move `stemExportTypeForRootUI` below makes for the same reason.
+/// `startStemExport`'s call to this function, in the anonymous-namespace block that follows, still resolves
+/// unqualified: this file includes its own header before either anonymous-namespace block opens.
 void closePortedMenu() {
 	(void)shellHostUI.shell().stack().remove(SceneKind::FirstApp);
 }
@@ -200,59 +194,58 @@ void closePortedMenu() {
 namespace {
 
 /// @brief `stem_export::Start::selectButtonPress`'s second and third statements
-///        (`gui/menu_item/stem_export/start.h:33-47`), performed on the real root UI.
+///        (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`), performed on the real root UI.
 ///
-/// Transcribed branch for branch rather than collapsed into a lookup, so the four arms stay legible
-/// against their source -- the same treatment `openPerformanceView` above gives `editing_mode.h`.
+/// Transcribed branch for branch rather than collapsed into a lookup, so the four arms stay legible against their
+/// source -- the same treatment `openPerformanceView` above gives
+/// `origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`.
 ///
 /// @par What `getRootUI()` answers here, which is the question the close order raises
 ///
 /// `getRootUI()` reads `uiNavigationHierarchy[0]` and answers `nullptr` only when `numUIsOpen == 0`
-/// (`gui/ui/ui.cpp:175-180`). **Neither menu is at index 0 -- given a root view is open**, which is
+/// (`gui/ui/ui.cpp`). **Neither menu is at index 0 -- given a root view is open**, which is
 /// the precondition this whole argument stands on and is worth saying out loud: `openUI` writes
-/// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so with `numUIsOpen == 0` the
-/// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openShellMenu`
-/// cannot get there -- it refuses on `currentSong == nullptr` (`openShellMenu`)
+/// `uiNavigationHierarchy[numUIsOpen]` and increments, so with `numUIsOpen == 0` the
+/// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openMenu`
+/// cannot get there -- it refuses on `currentSong == nullptr`
 /// and every path that opens it runs from a root view -- but an argument whose precondition
-/// is unstated is one nobody can re-check. With a root view open, both legacy's `soundEditor` and
+/// is unstated is one nobody can re-check. With a root view open, both main's `soundEditor` and
 /// this guest sit *above* it, never at it.
 ///
-/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`gui/ui/ui.cpp:213`) and it
-/// assigns `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched
-/// and `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
-/// `focusRegained` override reaches `changeRootUI`: of the 56 call sites in `src/`, every one is a
-/// `buttonAction`/`padAction`, an explicit `goTo…`/`transitionTo…`/`gridTransitionTo…` helper,
-/// `SessionView::finishedTransitioningHere`, a `PadLEDs` transition-completion routine,
-/// `ActionLogger::revertAction`, or the harness -- and none of the eight files holding one has a
-/// brace-matched `::focusRegained` body containing any of them.
+/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`gui/ui/ui.cpp`) and it
+/// assigns `numUIsOpen = u`, so closing a UI it finds above the root leaves `[0]` untouched
+/// and `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()`, and no
+/// `focusRegained` override reaches `changeRootUI`: its callers are `buttonAction`/`padAction` handlers, explicit
+/// `goTo…`/`transitionTo…`/`gridTransitionTo…` helpers, `SessionView::finishedTransitioningHere`, `PadLEDs`
+/// transition-completion routines, `ActionLogger::revertAction`, and the harness.
 ///
-/// **So the answer is the same before the close and after it, in legacy and under the guest**, and
-/// legacy's close-then-read order is not what picks the arm. What the order decides is only whether
+/// **So the answer is the same before the close and after it, in main and under the guest**, and
+/// main's close-then-read order is not what picks the arm. What the order decides is only whether
 /// there is a `[0]` left to read at all, which is why `closePortedMenu` above does not call
 /// `closeUI` on anything.
 ///
 /// @par The one ordering divergence, named rather than absorbed
 ///
-/// Legacy closes and *then* exports. Here the removal is filed first but the guest is popped by
-/// `ShellHostUI::timerCallback`, after this function has returned, so on a
-/// BSP where `deluge::storage::Owner::run` is inline the export body runs *between* the two
-/// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). On the shipping Embassy BSP
-/// `startStemExportProcess` only queues (`processing/stem_export/stem_export.cpp:87-96`,
-/// `storage/owner.h:28-31`), so on the device both orders are the same sequence: stack emptied,
-/// export queued, guest closed, export runs. The divergence is real only on the cooperative BSPs,
-/// where no stem export is driven from a ported menu.
+/// Main closes and *then* exports. Here the removal is filed first but the guest is popped by
+/// `ShellHostUI::timerCallback`, after this function has returned, so the UI closes after the export is started
+/// rather than before. That is harmless: `StemExport::startStemExportProcess`
+/// (`processing/stem_export/stem_export.cpp`) returns at once, having stopped playback, entered
+/// `UI_MODE_STEM_EXPORT` and requested the app loop, and the export then runs a step at a time from
+/// `StemExport::exportRoutine`, after the guest has closed.
 ///
 /// `exitCompletely`'s last statement, `currentUIMode = UI_MODE_NONE`, is the guest's close's
 /// (`ShellHostUI::closeGuest`), which runs after this arm has started the export. The close keeps the export's own
-/// `UI_MODE_STEM_EXPORT` and drops every other bit, which is the value legacy's order (reset, then
+/// `UI_MODE_STEM_EXPORT` and drops every other bit, which is the value main's order (reset, then
 /// `enterUIMode(UI_MODE_STEM_EXPORT)`, which keeps only the non-exclusive bits the reset already cleared) leaves.
 void startStemExport() {
-	// `start.h:32` -- first, exactly as legacy has it.
+	// The first statement of `Start::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) --
+	// first, exactly as main has it.
 	closePortedMenu();
 
-	// `start.h:33-47`. `startStemExportProcess` is `start.h`'s `:36`/`:39`/`:43`/`:46`, one call
-	// rather than four because the fan-out has already chosen; the `std::nullopt` return is
-	// `start.h`'s own fall-through, where the chain matches nothing and legacy starts nothing.
+	// The `getRootUI()` chain of `Start::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`). `startStemExportProcess` is one call rather than
+	// four because the fan-out has already chosen; the `std::nullopt` return is that chain's own fall-through, where it
+	// matches nothing and main starts nothing.
 	if (const std::optional<StemExportType> type = stemExportTypeForRootUI()) {
 		stemExport.startStemExportProcess(*type);
 	}
@@ -261,12 +254,13 @@ void startStemExport() {
 } // namespace
 
 std::optional<StemExportType> stemExportTypeForRootUI() {
-	// `start.h:33-47`, statement for statement. `getRootUI()` may be null (`gui/ui/ui.cpp:175-180`)
-	// and legacy never dereferences it either -- the three tests below are pointer comparisons, so a
+	// The `getRootUI()` chain of `Start::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`), statement for statement. `getRootUI()` may be null
+	// (`gui/ui/ui.cpp`) and main never dereferences it either -- the three tests below are pointer comparisons, so a
 	// null root falls through to the same `std::nullopt` every other unnamed root does.
 	RootUI* rootUI = getRootUI();
 	if (rootUI == &arrangerView) {
-		// `start.h:35-40`. Left as legacy's `if`/`else` rather than a conditional expression: the
+		// The arranger arm. Left as main's `if`/`else` rather than a conditional expression: the
 		// two arms are different exports, not two values of one.
 		if (stemExport.exportMixdown) {
 			return StemExportType::MIXDOWN;
@@ -276,53 +270,27 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 		}
 	}
 	else if (rootUI == &sessionView) {
-		// `start.h:42-44`.
+		// The session arm.
 		return StemExportType::CLIP;
 	}
 	else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
-		// `start.h:45-47`. The `&&` order is legacy's and is load-bearing rather than stylistic:
+		// The kit arm. The `&&` order is main's and is load-bearing rather than stylistic:
 		// `getCurrentOutputType()` dereferences `currentSong->getCurrentClip()->output`
-		// (`model/song/song.cpp:136-138`), so it is only ever asked once the root is known to be a
+		// (`model/song/song.cpp`), so it is only ever asked once the root is known to be a
 		// clip view.
 		return StemExportType::DRUM;
 	}
-	// `start.h:48` -- the chain matched nothing, legacy returns `NO_NAVIGATION` having started no
-	// export. There is no `else` in legacy and there is none here.
+	// The chain matched nothing: main returns `NO_NAVIGATION` having started no
+	// export. There is no `else` in main and there is none here.
 	return std::nullopt;
 }
 
 namespace {
 void performMenuAction(const MenuActionRequest& req);
-
-/// @brief Whether @p action opens a UI or moves the menu, rather than applying a setting a value write left half done.
-bool opensOrMoves(MenuAction action) {
-	switch (action) {
-	case MenuAction::None:
-	case MenuAction::OpenPerformanceView:
-	case MenuAction::StartStemExport:
-	case MenuAction::SetClipLengthToSampleLength:
-	case MenuAction::OpenSongMidiLearn:
-	case MenuAction::OpenSongMacros:
-	case MenuAction::FileSelectorOpened:
-		return true;
-	case MenuAction::ScreensaverSettingsChanged:
-	case MenuAction::PadBrightnessChanged:
-	case MenuAction::HighlightingChanged:
-	case MenuAction::RoundedCornersChanged:
-	case MenuAction::ShiftStickyChanged:
-	case MenuAction::FlashStatusLeftSlow:
-	case MenuAction::PadColoursChanged:
-		return false;
-	}
-	return true;
-}
 } // namespace
 
-void dispatchShellActionsAtClose() {
-	const MenuActionRequest req = menu_scene().take_action();
-	if (req.engaged() && !opensOrMoves(req.action)) {
-		performMenuAction(req);
-	}
+void discardShellActionsBeforeClose() {
+	(void)menu_scene().take_action();
 }
 
 void dispatchShellActions() {
@@ -355,40 +323,38 @@ void performMenuAction(const MenuActionRequest& req) {
 		break;
 
 	case MenuAction::StartStemExport:
-		// All of `stem_export/start.h:31-49`, which `MenuAction::StartStemExport` says this arm
-		// performs whole: the `soundEditor.exitCompletely()` that comes first AND the
-		// `getRootUI()` fan-out that picks between the four `StemExportType`s. The helpers say what
-		// each of those two means under the guest, where the open UI is `ShellHostUI` rather than
-		// `soundEditor` -- the first is performed in equivalent form rather than verbatim, and that
-		// is this arm's one divergence.
+		// All of `Start::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`), which
+		// `MenuAction::StartStemExport` says this arm performs whole: the `soundEditor.exitCompletely()` that comes
+		// first AND the `getRootUI()` fan-out that picks between the four `StemExportType`s. The helpers say what each
+		// of those two means under the guest, where the open UI is `ShellHostUI` rather than `soundEditor` -- the first
+		// is performed in equivalent form rather than verbatim, and that is this arm's one divergence.
 		startStemExport();
 		break;
 
 	case MenuAction::SetClipLengthToSampleLength:
 		// `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`'s one statement
-		// (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`, the call at
-		// `:27`), on the real view. No helper: there is no argument to choose and no branch to
-		// transcribe.
+		// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`, the call to
+		// `audioClipView.setClipLengthEqualToSampleLength()`), on the real view. No helper: there is no argument to
+		// choose and no branch to transcribe.
 		//
 		// **What the callee assumes, and why no null test is added here.**
-		// `AudioClipView::setClipLengthEqualToSampleLength` (`gui/views/audio_clip_view.h:50`,
-		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
-		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
-		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` through it.
-		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
-		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
-		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
-		// relies on the item being reachable only under the audio-clip root, which
-		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp`'s
-		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip`).
+		// `AudioClipView::setClipLengthEqualToSampleLength` (`gui/views/audio_clip_view.h`, defined
+		// `gui/views/audio_clip_view.cpp`) opens with `AudioClip& audioClip = *getCurrentAudioClip();` (its first
+		// statement), and `getCurrentAudioClip()` answers `nullptr` whenever `currentSong->getCurrentClip()` is not an
+		// `AudioClip` (`getCurrentAudioClip` in `model/song/song.cpp`); the next line reads `audioClip.guide` through
+		// it. Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s X_ENC + Y_ENC chord
+		// (`audio_clip_view.cpp`, the call under its `Y_ENC` held test) relies on `audioClipView` being the open view;
+		// `SetClipLengthEqualToSampleLength::selectButtonPress` relies on the item being reachable only under the
+		// audio-clip root, which `SoundEditor::setup` picks from its `clip` argument's type
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `if`, the `else` that assigns
+		// `soundEditorRootMenuAudioClip`).
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`root_audio_clip` in
 		// `scenes/menu/nodes/roots.h`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
 		// (`scenes/menu/context.cpp`, reached because `ClipType` has
-		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp:1095-1098`); and `openShellMenu` is the
-		// one opener (`openShellMenu`). The gap both
+		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp`); and `openMenu` is the
+		// one opener (`openMenu`). The gap both
 		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
 		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
 		// clip from the song. Closing that here -- with a null test, or by reading the argument --
@@ -398,101 +364,36 @@ void performMenuAction(const MenuActionRequest& req) {
 		break;
 
 	case MenuAction::OpenSongMidiLearn:
-		// `song::MidiLearn::selectButtonPress`'s two statements (`gui/menu_item/song/midi_learn.h:27-31`,
-		// the calls at `:28` and `:29`), in legacy's order. **The `bool` is discarded here because it
-		// is discarded there**, and this is the one of the two whose answer can be false -- what that
-		// means, and what it costs, is the header's "@par The two context menus open even when
-		// setupAndCheckAvailability() says no".
+		// `song::MidiLearn::selectButtonPress`'s two statements
+		// (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`), in legacy's order.
+		// **The `bool` is discarded here because it is discarded there**, and this is the one of the two whose answer
+		// can be false -- what that means, and what it costs, is the header's "@par The two context menus open even
+		// when setupAndCheckAvailability() says no".
 		(void)gui::context_menu::midiLearnMode.setupAndCheckAvailability();
 		openUI(&gui::context_menu::midiLearnMode);
 		break;
 
 	case MenuAction::OpenSongMacros:
 		// `song::ConfigureMacros::selectButtonPress`'s two statements
-		// (`gui/menu_item/song/configure_macros.h:27-31`, the calls at `:28` and `:29`), in legacy's
-		// order. The discarded `bool` here can only ever be `true`
-		// (`gui/context_menu/configure_song_macros.cpp:48-51`, the `return true` at `:50`), so the
-		// discard costs nothing at this site -- see the header for the site where it does.
+		// (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`), in legacy's order. The discarded `bool`
+		// here can only ever be `true` (`ConfigureSongMacros::setupAndCheckAvailability` in
+		// `gui/context_menu/configure_song_macros.cpp`, its `return true`), so the discard costs nothing at this site
+		// -- see the header for the site where it does.
 		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
 		openUI(&gui::context_menu::configureSongMacros);
-		break;
-
-	case MenuAction::ScreensaverSettingsChanged:
-		// The second statement of `ScreensaverModeMenu::writeCurrentValue` and of
-		// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`,
-		// `:62`), which is the same statement in both. No helper and no payload: legacy's notify is
-		// a zero-parameter static that re-reads `FlashStorage::screensaverMode` and
-		// `screensaverTimeoutMinutes` for itself, and the ported hooks have already written both
-		// (`scenes/menu/nodes/settings.cpp`'s two setters).
-		//
-		// **This arm is why the two screensavers agree.** `Screensaver::settingsChanged()`
-		// (`hid/display/screensaver.cpp:200-241`) is a *pair* of reconfigurations: it recomputes the
-		// idle period and pushes it into the guest's `shell::Screensaver` through
-		// `shellHostUI.shell().set_screensaver_idle_ms(...)` (`:225-228`), then wakes the legacy
-		// screensaver if it is showing (`:230-233`) and either cancels its timer for
-		// `ScreensaverMode::OFF` (`:235-238`) or re-arms it from now (`:240`). One call, both
-		// halves -- which is why this is one enumerator rather than two arms and a
-		// duplicated formula.
-		//
-		// **The `shellHostUI` it names is the global guest**, not "whichever shell asked". That is
-		// correct here for the same reason it is correct at every other caller: there is exactly one
-		// guest in the firmware, and this dispatcher runs from that guest's own
-		// `ShellHostUI::timerCallback`. It is only worth stating because it makes the write
-		// unconditional on the guest being open -- see the header's note on why nothing here is
-		// gated.
-		deluge::hid::display::Screensaver::settingsChanged();
-		break;
-
-	case MenuAction::PadBrightnessChanged:
-		// `PadBrightness::writeCurrentValue`'s second statement (`defaults/pad_brightness.h:35`).
-		PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-		break;
-
-	case MenuAction::HighlightingChanged:
-		pushShellHighlighting();
-		break;
-	case MenuAction::RoundedCornersChanged:
-		pushShellRoundedCorners();
-		break;
-
-	case MenuAction::ShiftStickyChanged: {
-		// `ShiftIsSticky::writeCurrentValue`'s live half: the guest's shift machine takes the setting (`opened()` seeds
-		// it only on the way in), and off, legacy's latch goes with the guest's.
-		const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
-		shellHostUI.shell().lowering().set_shift_is_sticky(on);
-		if (!on) {
-			Buttons::clearShiftSticky();
-		}
-		break;
-	}
-
-	case MenuAction::FlashStatusLeftSlow:
-		// `flash::Status::writeCurrentValue`'s first statement (`flash/status.h:28-30`).
-		PadLEDs::clearTickSquares();
-		break;
-
-	case MenuAction::PadColoursChanged:
-		// `Colour::writeCurrentValue`'s second statement.
-		renderingNeededRegardlessOfUI();
-		break;
-
-	case MenuAction::FileSelectorOpened:
-		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`).
-		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
-			keyboardScreen.exitAuditionMode();
-		}
 		break;
 	}
 }
 } // namespace
 
-bool legacyInhibitsScreensaver() {
+bool hostInhibitsScreensaver() {
 	return deluge::hid::display::OLED::isPermanentPopupPresent() || stemExport.processStarted;
 }
 
 void saveSettingsBeforeClose() {
-	// `inSettingsMenu()` is the navigation record's root; the ported menu's is its context's, which outlives the stack
-	// on both close paths (`exitNoteModeBeforeClose`'s note).
+	// main's `SoundEditor::inSettingsMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) reads the navigation
+	// record's root; the menu's is its context's, which outlives the stack on both close paths
+	// (`exitNoteModeBeforeClose`'s note).
 	if (deluge::scenes::menu_scene().menu_context().root != deluge::scenes::menu::MenuContext::Root::Settings) {
 		return;
 	}

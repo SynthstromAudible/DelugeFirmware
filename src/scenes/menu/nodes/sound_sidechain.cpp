@@ -58,24 +58,26 @@ int32_t lookup_index(int32_t value, const int32_t* table, int32_t max_index) {
 // The shared sidechain conversions
 
 int32_t sidechain_attack_to_menu(int32_t attack) {
-	// `sidechain::Attack::readCurrentValue` (`sidechain/attack.h`).
+	// `sidechain::Attack::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/sidechain/attack.h`).
 	return lookup_index(attack >> 2, deluge::plugin::kSidechainAttackRates, 50);
 }
 int32_t sidechain_attack_from_menu(int32_t menu_value) {
-	return deluge::plugin::kSidechainAttackRates[std::clamp<int32_t>(menu_value, 0, 50)] << 2; // `attack.h`'s write
+	// `sidechain::Attack::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sidechain/attack.h`).
+	return deluge::plugin::kSidechainAttackRates[std::clamp<int32_t>(menu_value, 0, 50)] << 2;
 }
 
 int32_t sidechain_release_to_menu(int32_t release) {
-	// `sidechain::Release::readCurrentValue` (`sidechain/release.h`).
+	// `sidechain::Release::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/sidechain/release.h`).
 	return lookup_index(release >> 3, deluge::plugin::kSidechainReleaseRates, 50);
 }
 int32_t sidechain_release_from_menu(int32_t menu_value) {
-	return deluge::plugin::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)] << 3; // `release.h`'s write
+	return deluge::plugin::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)]
+	       << 3; // `origin/main:src/deluge/gui/menu_item/sidechain/release.h`'s write
 }
 
 int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level) {
-	// `sidechain::Sync::readCurrentValue` (`sidechain/sync.h`) via
-	// `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp`).
+	// `sidechain::Sync::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`) via
+	// `SyncLevel::syncTypeAndLevelToMenuOption` (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`).
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
 

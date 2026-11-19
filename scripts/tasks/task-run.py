@@ -23,8 +23,8 @@ DELUGE_VID = 0x16D0
 DELUGE_PID = 0x0EDA
 UPLOAD_PRODUCT = "Dev Upload"
 
-# The loader stages the whole ELF in a scratch window before parsing it and
-# rejects anything larger (devupload::SCRATCH_LEN). Catch oversize locally so we
+# The loader rejects an upload longer than its SDRAM app region (devupload::MAX_UPLOAD in the
+# deluge-sdk's firmwares/app-loader). Catch oversize locally so we
 # don't ship megabytes only for the device to drop it.
 MAX_UPLOAD_BYTES = 0x00C0_0000  # 12 MiB
 

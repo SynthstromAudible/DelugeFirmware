@@ -253,7 +253,7 @@ void runTick() {
 
 	case Stage::Snapshot: {
 		countResidents(g_samplesBefore, g_referencedBefore);
-		// CR-RESIDENTS is not ceremony. Three gates in this branch have been green because the thing
+		// CR-RESIDENTS is not ceremony. A gate can stay green because the thing
 		// under test never ran; this line is what makes that visible here.
 		AudioFile* survivorBefore = residentAt(kSurvivePath);
 		const int32_t survivorUnloadableBefore =

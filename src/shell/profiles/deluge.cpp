@@ -7,7 +7,7 @@
 namespace deluge::ui::shell {
 
 // Button matrix: 4 rows × 9 columns, row-major order (y * 9 + x).
-// Coordinates from definitions_cxx.hpp:59-84 and button.h:20-21.
+// Coordinates from the `*ButtonCoord` constants (`definitions_cxx.hpp`) and `ZmodButtonX`/`ZmodButtonY` (`button.h`).
 // clang-format off
 static constexpr ButtonId kMatrix[] = {
     // x:  0                  1               2               3                       4                    5                6                      7                      8
@@ -19,38 +19,38 @@ static constexpr ButtonId kMatrix[] = {
 // clang-format on
 static_assert(sizeof(kMatrix) / sizeof(kMatrix[0]) == 9 * 4);
 
-// LED indices by ButtonId: x + y*9 for buttons with LEDs (from indicator_leds.h:37-56), -1 for encoder buttons.
-// All values from legacy LED enum: indicator_leds.h:36-66.
+// LED indices by ButtonId: x + y*9 for buttons with LEDs (from `LED::AFFECT_ENTIRE` through `LED::SHIFT` in
+// `indicator_leds.h`), -1 for encoder buttons. All values from legacy LED enum: `indicator_leds.h`.
 static constexpr int8_t kLedByButton[] = {
     -1, // None
-    3,  // AffectEntire (3, 0) -> 3; indicator_leds.h:37
-    12, // Session (3, 1) -> 12; indicator_leds.h:38
-    21, // Clip (3, 2) -> 21; indicator_leds.h:39
-    5,  // Synth (5, 0) -> 5; indicator_leds.h:40
-    14, // Kit (5, 1) -> 14; indicator_leds.h:41
-    23, // Midi (5, 2) -> 23; indicator_leds.h:42
-    32, // Cv (5, 3) -> 32; indicator_leds.h:43
-    30, // Keyboard (3, 3) -> 30; indicator_leds.h:44
-    6,  // Scale (6, 0) -> 6; indicator_leds.h:45
-    24, // CrossScreen (6, 2) -> 24; indicator_leds.h:46
-    16, // Back (7, 1) -> 16; indicator_leds.h:47
-    15, // Load (6, 1) -> 15; indicator_leds.h:48
-    33, // Save (6, 3) -> 33; indicator_leds.h:49
-    7,  // Learn (7, 0) -> 7; indicator_leds.h:50
-    34, // TapTempo (7, 3) -> 34; indicator_leds.h:51
-    25, // SyncScaling (7, 2) -> 25; indicator_leds.h:52
-    17, // Triplets (8, 1) -> 17; indicator_leds.h:53
-    35, // Play (8, 3) -> 35; indicator_leds.h:54
-    26, // Record (8, 2) -> 26; indicator_leds.h:55
-    8,  // Shift (8, 0) -> 8; indicator_leds.h:56
-    1,  // Mod0 (1, 0) -> 1; indicator_leds.h:58
-    10, // Mod1 (1, 1) -> 10; indicator_leds.h:59
-    19, // Mod2 (1, 2) -> 19; indicator_leds.h:60
-    28, // Mod3 (1, 3) -> 28; indicator_leds.h:61
-    2,  // Mod4 (2, 0) -> 2; indicator_leds.h:62
-    11, // Mod5 (2, 1) -> 11; indicator_leds.h:63
-    20, // Mod6 (2, 2) -> 20; indicator_leds.h:64
-    29, // Mod7 (2, 3) -> 29; indicator_leds.h:65
+    3,  // AffectEntire (3, 0) -> 3; `LED::AFFECT_ENTIRE` (`indicator_leds.h`)
+    12, // Session (3, 1) -> 12; `LED::SESSION_VIEW` (`indicator_leds.h`)
+    21, // Clip (3, 2) -> 21; `LED::CLIP_VIEW` (`indicator_leds.h`)
+    5,  // Synth (5, 0) -> 5; `LED::SYNTH` (`indicator_leds.h`)
+    14, // Kit (5, 1) -> 14; `LED::KIT` (`indicator_leds.h`)
+    23, // Midi (5, 2) -> 23; `LED::MIDI` (`indicator_leds.h`)
+    32, // Cv (5, 3) -> 32; `LED::CV` (`indicator_leds.h`)
+    30, // Keyboard (3, 3) -> 30; `LED::KEYBOARD` (`indicator_leds.h`)
+    6,  // Scale (6, 0) -> 6; `LED::SCALE_MODE` (`indicator_leds.h`)
+    24, // CrossScreen (6, 2) -> 24; `LED::CROSS_SCREEN_EDIT` (`indicator_leds.h`)
+    16, // Back (7, 1) -> 16; `LED::BACK` (`indicator_leds.h`)
+    15, // Load (6, 1) -> 15; `LED::LOAD` (`indicator_leds.h`)
+    33, // Save (6, 3) -> 33; `LED::SAVE` (`indicator_leds.h`)
+    7,  // Learn (7, 0) -> 7; `LED::LEARN` (`indicator_leds.h`)
+    34, // TapTempo (7, 3) -> 34; `LED::TAP_TEMPO` (`indicator_leds.h`)
+    25, // SyncScaling (7, 2) -> 25; `LED::SYNC_SCALING` (`indicator_leds.h`)
+    17, // Triplets (8, 1) -> 17; `LED::TRIPLETS` (`indicator_leds.h`)
+    35, // Play (8, 3) -> 35; `LED::PLAY` (`indicator_leds.h`)
+    26, // Record (8, 2) -> 26; `LED::RECORD` (`indicator_leds.h`)
+    8,  // Shift (8, 0) -> 8; `LED::SHIFT` (`indicator_leds.h`)
+    1,  // Mod0 (1, 0) -> 1; `LED::MOD_0` (`indicator_leds.h`)
+    10, // Mod1 (1, 1) -> 10; `LED::MOD_1` (`indicator_leds.h`)
+    19, // Mod2 (1, 2) -> 19; `LED::MOD_2` (`indicator_leds.h`)
+    28, // Mod3 (1, 3) -> 28; `LED::MOD_3` (`indicator_leds.h`)
+    2,  // Mod4 (2, 0) -> 2; `LED::MOD_4` (`indicator_leds.h`)
+    11, // Mod5 (2, 1) -> 11; `LED::MOD_5` (`indicator_leds.h`)
+    20, // Mod6 (2, 2) -> 20; `LED::MOD_6` (`indicator_leds.h`)
+    29, // Mod7 (2, 3) -> 29; `LED::MOD_7` (`indicator_leds.h`)
     -1, // SelectEnc
     -1, // TempoEnc
     -1, // XEnc

@@ -17,7 +17,7 @@ namespace deluge::ui::shell {
 
 /// @name Legacy PopupType, mirrored numerically
 ///
-/// `src/deluge/hid/display/display.h:13-36` (the `enum class PopupType`, no explicit values):
+/// `src/deluge/hid/display/display.h` (the `enum class PopupType`, no explicit values):
 /// `NONE=0, GENERAL=1, LOADING=2, PROBABILITY=3, ITERANCE=4, FILL=5, SWING=6, TEMPO=7,
 /// QUANTIZE=8, THRESHOLD_RECORDING_MODE=9, NOTIFICATION=10`.
 ///
@@ -25,7 +25,7 @@ namespace deluge::ui::shell {
 /// only exempts `board_surfaces.cpp` for libdeluge headers, and this is not that file), so the
 /// numbers are reproduced here rather than named from the real enum -- exactly as
 /// `shell::Action::popup_type` already documents doing for the same reason. `Notice::popup_type`
-/// (`notify/notice_queue.h:22`) is a bare `uint8_t` for the same boundary reason, and
+/// (`notify/notice_queue.h`) is a bare `uint8_t` for the same boundary reason, and
 /// `notify_drain.cpp`'s `popup_type_of()` folds 0 ("unspecified") to `GENERAL`, never to `NONE` --
 /// `Notices::popup_type_of` below does the same.
 /// @{
@@ -89,13 +89,13 @@ public:
 
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Transparent on every surface: legacy draws a popup onto the image the UI beneath left
-	///        (`OLED::sendMainImage`, `hid/display/oled.cpp:364-376`), so around its window the screen
+	///        (`OLED::sendMainImage`, `hid/display/oled.cpp`), so around its window the screen
 	///        still shows that UI, and the shell has to draw the scene below first.
 	bool oled_transparent(SurfaceRole role) const override;
 	/// @brief A grid overlay that paints nothing.
 	///
 	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
-	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// composites them into the display image (`hid/display/oled.cpp`) and the pads carry
 	/// on rendering whatever view is underneath. This is how the shell says the same thing --
 	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
@@ -113,7 +113,7 @@ public:
 
 private:
 	/// @brief `Framed` for every legacy `PopupType` except `NOTIFICATION` -- exactly
-	///        `OLED::setupPopup`'s own branch (`oled.cpp:134`: draws the rounded border unless
+	///        `OLED::setupPopup`'s own branch (`oled.cpp`: draws the rounded border unless
 	///        `type == PopupType::NOTIFICATION`). `PopupStyle::Permanent` is never selected here:
 	///        it is `drawPermanentPopupLookingText`'s own, separate call path (`session_view.cpp`,
 	///        `automation_view.cpp`, `stem_export.cpp`), never reached through `Notice`/
@@ -179,7 +179,7 @@ public:
 	/// @brief A grid overlay that paints nothing.
 	///
 	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
-	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// composites them into the display image (`hid/display/oled.cpp`) and the pads carry
 	/// on rendering whatever view is underneath. This is how the shell says the same thing --
 	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
@@ -234,7 +234,7 @@ public:
 	/// @brief A grid overlay that paints nothing.
 	///
 	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
-	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// composites them into the display image (`hid/display/oled.cpp`) and the pads carry
 	/// on rendering whatever view is underneath. This is how the shell says the same thing --
 	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
@@ -259,13 +259,12 @@ private:
 /// @brief Where a `Notice::Kind::Notification` goes when the application owns a legacy display, and how
 ///        the cancels reach that display: plain function pointers, installed once at boot.
 ///
-/// Legacy draws the horizontal-menu notification in its display's single popup slot, typed
-/// `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`), and other legacy code keys on that slot
-/// being occupied -- `View::displayModEncoderValuePopup` only re-reads its change cache while a
-/// `NOTIFICATION` popup is up (`gui/views/view.cpp`). In the application two consumers pop
-/// the one notice queue, legacy's `drain_notifications` and `Notices::drain`, so a notification
-/// either of them draws differently lands differently. With a sink installed, `Notices::drain`
-/// hands the notice to legacy's own slot instead of drawing it, which is exactly what the other
+/// Legacy draws the horizontal-menu notification in its display's single popup slot, typed `PopupType::NOTIFICATION`
+/// (`OLED::displayNotification` in `hid/display/oled.cpp`), and other legacy code keys on that slot being occupied --
+/// `View::displayModEncoderValuePopup` only re-reads its change cache while a `NOTIFICATION` popup is up
+/// (`gui/views/view.cpp`). In the application two consumers pop the one notice queue, legacy's `drain_notifications`
+/// and `Notices::drain`, so a notification either of them draws differently lands differently. With a sink installed,
+/// `Notices::drain` hands the notice to legacy's own slot instead of drawing it, which is exactly what the other
 /// consumer does, so whichever pops it the result is the same legacy call.
 ///
 /// `src/shell` may not include legacy, so the sink is inverted into pointers the application
@@ -300,18 +299,17 @@ const NotificationSink* notification_sink();
 /// statement:
 ///   * **Position and pixels.** `render_oled` is `ui::oled::notification`,
 ///     that function's own transcription: the band from `OLED_MAIN_TOPMOST_PIXEL` to
-///     `+ kTextSpacingY + 1` (`oled.cpp:750-751`), inverted (`:788`).
+///     `+ kTextSpacingY + 1`, inverted (`OLED::displayNotification` in `oled.cpp`).
 ///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (in `OLED::displayNotification`), whose
-///     expiry runs `OLED::timerRoutine` (`gui/ui_timer_manager.cpp:92-94`) and, with no working
+///     expiry runs `OLED::timerRoutine` (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`) and, with no working
 ///     animation, `removePopup()`. `kNotificationMs`; `Notices::tick` removes the
 ///     scene once `expired()` **and** the working animation is not armed -- while one runs,
 ///     `timerRoutine` animates instead, and the banner stays until `removeWorkingAnimation` takes it
-///     down (`oled.cpp:735-736`), which is `Notices::drain`'s `ClearWorking` case.
-///   * **Replacement.** `setupPopup` overwrites the one slot's `oledPopupWidth`/`popupType` and
-///     clears the area (`oled.cpp:122-132`), and `setTimer` re-arms `DISPLAY`: a second
-///     notification rewrites the banner and restarts the 2000 ms, and `Notices::drain` removes the
-///     scene and pushes it again so the shell repaints (`markChanged()`, `oled.cpp:793`). See
-///     `Notices::drain` for the slot it shares with `PopupScene`.
+///     down (`oled.cpp`), which is `Notices::drain`'s `ClearWorking` case.
+///   * **Replacement.** `setupPopup` overwrites the one slot's `oledPopupWidth`/`popupType` and clears the area
+///     (`oled.cpp`), and `setTimer` re-arms `DISPLAY`: a second notification rewrites the banner and restarts the 2000
+///     ms, and `Notices::drain` removes the scene and pushes it again so the shell repaints (`markChanged()` in
+///     `OLED::displayNotification`, `oled.cpp`). See `Notices::drain` for the slot it shares with `PopupScene`.
 class NotificationScene final : public Scene {
 public:
 	/// Legacy's `TimerName::DISPLAY` duration for a notification (`OLED::displayNotification`).
@@ -343,7 +341,7 @@ public:
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: it draws its eleven-row top band on `Main` and nothing on any
 	///        other surface, so every surface still needs the scene beneath. Legacy composites
-	///        the popup over the running UI's image (`OLED::sendMainImage`, `oled.cpp:364-376`).
+	///        the popup over the running UI's image (`OLED::sendMainImage`, `oled.cpp`).
 	bool oled_transparent(SurfaceRole) const override { return true; }
 	/// @brief A grid overlay that paints nothing -- see `PopupScene::is_grid_overlay`.
 	/// @return Always true.
@@ -383,43 +381,38 @@ public:
 
 	/// @brief Pop every notice off \p queue and apply it.
 	///
-	/// `Notice::Kind::Error` resolves to a popup through `show_popup()`, always at `General`,
-	/// ignoring \p n.popup_type -- legacy's `displayError` reaches `displayPopup` with its default
-	/// `type = GENERAL` (`display.h:48-49`) -- *unless* \p n.error_code is legacy's `Error::NONE`
-	/// or `Error::ABORTED_BY_USER`, which `OLED::displayError` suppresses
-	/// entirely (`return;` before ever reaching `displayPopup`); this drops the notice the same
-	/// way, showing nothing. `Kind::Text` also resolves to a popup, but not always through the
-	/// plain `show_popup()` path: legacy's `notify_drain.cpp:137` computes
-	/// `flashes = (severity == Warn) ? 0 : 3`, and `OLED::displayPopup`'s inline body
-	/// (in `oled.h`) turns that into `persistent = !numFlashes`, so a `Severity::Warn` text notice
-	/// is persistent (`oled.cpp:642`, `unsetTimer(TimerName::DISPLAY)`) while every other severity
-	/// gets the ordinary `timeout_for()` duration (`oled.cpp:637`) -- this drains that distinction
-	/// through to `PopupScene::show`'s own `timeout_ms == 0` persistence, via the private helper
-	/// `show_popup_with_timeout()` both this case and the public `show_popup()` below share.
-	/// `Kind::Console` appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear
-	/// the working scene (and push it, on the way up, the first time it is armed);
-	/// `Kind::CancelPopup` excises the popup scene by kind, wherever it sits -- including a
-	/// still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
-	/// (`oled.cpp:253-260`) does not consult the timer state either. This is `SceneStack::remove`,
-	/// not `pop`: a popup is `input_transparent()`, so an application `Push` can legitimately land
-	/// above a live one, and cancelling the popup must not take that scene down with it -- it excises
-	/// just the popup and closes the gap, leaving whatever else is on the stack exactly where it was.
-	/// A no-op when no popup is stacked at all.
+	/// `Notice::Kind::Error` resolves to a popup through `show_popup()`, always at `General`, ignoring \p n.popup_type
+	/// -- legacy's `displayError` reaches `displayPopup` with its default `type = GENERAL` (`Display::displayPopup`'s
+	/// default in `hid/display/display.h`) -- *unless* \p n.error_code is legacy's `Error::NONE` or
+	/// `Error::ABORTED_BY_USER`, which `OLED::displayError` suppresses entirely (`return;` before ever reaching
+	/// `displayPopup`); this drops the notice the same way, showing nothing. `Kind::Text` also resolves to a popup, but
+	/// not always through the plain `show_popup()` path: legacy's `drain_notifications` (`notify_drain.cpp`) computes
+	/// `flashes = (severity == Warn) ? 0 : 3`, and `OLED::displayPopup`'s inline body (in `oled.h`) turns that into
+	/// `persistent = !numFlashes`, so a `Severity::Warn` text notice is persistent (`OLED::popupText` in `oled.cpp`,
+	/// `unsetTimer(TimerName::DISPLAY)`) while every other severity gets the ordinary `timeout_for()` duration
+	/// (`oled.cpp`) -- this drains that distinction through to `PopupScene::show`'s own `timeout_ms == 0` persistence,
+	/// via the private helper `show_popup_with_timeout()` both this case and the public `show_popup()` below share.
+	/// `Kind::Console` appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear the working scene
+	/// (and push it, on the way up, the first time it is armed); `Kind::CancelPopup` excises the popup scene by kind,
+	/// wherever it sits -- including a still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
+	/// (`oled.cpp`) does not consult the timer state either. This is `SceneStack::remove`, not `pop`: a popup is
+	/// `input_transparent()`, so an application `Push` can legitimately land above a live one, and cancelling the popup
+	/// must not take that scene down with it -- it excises just the popup and closes the gap, leaving whatever else is
+	/// on the stack exactly where it was. A no-op when no popup is stacked at all.
 	///
-	/// `Kind::Notification` is legacy's `display->displayNotification(title, value)`. With a
-	/// `NotificationSink` installed it calls `sink->show(title, value)` and pushes nothing -- the
-	/// application's sink is that legacy call, which legacy's own `drain_notifications` makes for the
-	/// same kind, so the result does not depend on which consumer popped the notice. With none, it
-	/// shows `NotificationScene` (rewritten, lifetime re-armed, and removed and pushed again when
-	/// already up, so the rewrite reaches the panel on a tick with no input). Legacy has
-	/// one popup slot shared by `displayPopup` and `displayNotification` (`OLED::setupPopup`,
-	/// `oled.cpp:122-132`), so without a sink the banner and `PopupScene` displace each other: a
-	/// notification removes a live popup, and `Error`/`Text` (through `show_popup_with_timeout`)
-	/// remove a live banner. `CancelPopup` removes the banner too (`removePopup` has no type test,
-	/// `oled.cpp:253-258`), and so does `ClearWorking` (`removeWorkingAnimation`, `oled.cpp:733-737`).
-	/// `Kind::CancelNotification` is the guarded cancel (`horizontal_menu.cpp:363-365`, `:587-589`):
-	/// `sink->cancel()` with a sink, `stack_.remove(SceneKind::Notification)` without -- which can
-	/// only ever take down a notification, the guard's own meaning.
+	/// `Kind::Notification` is legacy's `display->displayNotification(title, value)`. With a `NotificationSink`
+	/// installed it calls `sink->show(title, value)` and pushes nothing -- the application's sink is that legacy call,
+	/// which legacy's own `drain_notifications` makes for the same kind, so the result does not depend on which
+	/// consumer popped the notice. With none, it shows `NotificationScene` (rewritten, lifetime re-armed, and removed
+	/// and pushed again when already up, so the rewrite reaches the panel on a tick with no input). Legacy has one
+	/// popup slot shared by `displayPopup` and `displayNotification` (`OLED::setupPopup`, `oled.cpp`), so without a
+	/// sink the banner and `PopupScene` displace each other: a notification removes a live popup, and `Error`/`Text`
+	/// (through `show_popup_with_timeout`) remove a live banner. `CancelPopup` removes the banner too (`removePopup`
+	/// has no type test, `oled.cpp`), and so does `ClearWorking` (`removeWorkingAnimation`, `oled.cpp`).
+	/// `Kind::CancelNotification` is the guarded cancel (`HorizontalMenu::switchHorizontalMenu` and `::endSession` in
+	/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): `sink->cancel()` with a sink,
+	/// `stack_.remove(SceneKind::Notification)` without -- which can only ever take down a notification, the guard's
+	/// own meaning.
 	///
 	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
 	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than
@@ -487,10 +480,10 @@ public:
 	///
 	/// Ported from `OLED::popupText`: every non-persistent popup gets the
 	/// same `TimerName::DISPLAY` timeout, 800ms, regardless of `PopupType`
-	/// (`oled.cpp:637`; unset entirely for a persistent popup, `oled.cpp:642`). Every
+	/// (`oled.cpp`; unset entirely for a persistent popup). Every
 	/// `Notice`-reachable popup call -- `displayPopup` (used by `Notice::Kind::Error` and
-	/// `Kind::Text` alike, `notify_drain.cpp:130,139,142`), `popupText`, `popupTextTemporary` --
-	/// funnels through this one routine (`oled.h:154-162`), so there is no per-`PopupType`
+	/// `Kind::Text` alike, `drain_notifications` (`notify_drain.cpp`)), `popupText`, `popupTextTemporary` --
+	/// funnels through this one routine (`oled.cpp`), so there is no per-`PopupType`
 	/// duration to port: this table is flat by construction, not by omission. (The one *other*
 	/// `DISPLAY`-timer setter tied to a specific type, in `OLED::displayNotification`,
 	/// sets 2000ms for `PopupType::NOTIFICATION` -- that call path is `Notice::Kind::Notification`'s,

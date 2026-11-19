@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief Whether the ported slicer has a slice out, for the layers that may not include `gui/`.
+/// @brief Whether the slicer scene has a slice out, for the layers that may not include `gui/`.
 ///
 /// `util/notify.h`'s shape: the declaration here, the definition in `gui/ui/shell_slice_ops.cpp`. A song load may not
 /// start while a slice is out (`PlaybackHandler`'s MIDI next-song holds it back): the slice lands its drums in the kit

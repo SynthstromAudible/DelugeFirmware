@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief The automation view under the ported menu: what the view does when the menu moves, and the buttons it takes
+/// @brief The automation view under the menu: what the view does when the menu moves, and the buttons it takes
 ///        from under the menu.
 ///
 /// `MenuScene` files one record per tick of a change of its value node and its cause (`MenuScene::take_transition`,
@@ -49,7 +49,7 @@ void dispatchMenuTransitions();
 /// @return What legacy's handler answers when one of these takes the button; nullopt when none does, for the menu.
 std::optional<ActionResult> forwardAutomationButton(deluge::hid::Button b, bool on);
 
-/// @brief `SoundEditor::buttonAction`'s KEYBOARD, SESSION_VIEW and Fill arms under the ported menu, which none of
+/// @brief `SoundEditor::buttonAction`'s KEYBOARD, SESSION_VIEW and Fill arms under the menu, which none of
 ///        them gates on the menu's root.
 ///
 /// KEYBOARD, on a press with no UI mode over an instrument clip: the clip view and the keyboard screen swap, the
@@ -99,7 +99,7 @@ std::optional<ActionResult> forwardMenuVertical(int32_t offset);
 /// @return The clip view's answer, or `DEALT_WITH`; nullopt to feed the turn to the browser.
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset);
 
-/// @brief `SampleMarkerEditor::verticalEncoderAction` for the ported marker editor: with it frontmost, SHIFT, X_ENC
+/// @brief `SampleMarkerEditor::verticalEncoderAction` for the marker scene: with it frontmost, SHIFT, X_ENC
 ///        held or an audio clip keep the turn; otherwise the instrument clip view takes it, whatever the root, and the
 ///        sidebar is redrawn over the keyboard screen.
 /// @param offset The turn's detents.
@@ -114,14 +114,14 @@ bool browserTakesRecord();
 /// @brief `AudioRecorder::buttonAction`'s RECORD arm, which ends the take on the press and answers `DEALT_WITH`, so
 ///        `Buttons`' RECORD tail stamps nothing and the release toggles no recording. The release is not taken.
 /// @param on Whether this is the press.
-/// @return Whether the press is the ported recorder's: it is the input top with a take armed.
+/// @return Whether the press is the recorder scene's: it is the input top with a take armed.
 bool recorderTakesRecord(bool on);
 
 /// @brief `AudioRecorder::buttonAction`'s SYNC_SCALING arm: a release while fill mode is on goes to the root view,
 ///        which ends it.
 /// @param b The button.
 /// @param on Whether this is the press.
-/// @return Whether the ported recorder is the input top and the release is one the root view is to see.
+/// @return Whether the recorder scene is the input top and the release is one the root view is to see.
 bool recorderPassesFillRelease(deluge::hid::Button b, bool on);
 
 /// @brief The root view's answer to a button the guest passes on to it.
