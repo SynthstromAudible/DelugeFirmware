@@ -63,15 +63,6 @@ struct RangesCause {
 	bool operator==(const RangesCause&) const = default;
 };
 
-/// @brief How an audio clip's length gesture resizes it.
-enum class ResizeKind : uint8_t {
-	END,              ///< the sample's end marker dragged to a new clip length
-	START,            ///< the sample's start marker dragged to a new start tick
-	STRETCH,          ///< the clip's length changed, the sample timestretched to fill it
-	NO_STRETCH,       ///< the clip's length changed with the sample's end marker, keeping its speed
-	TO_SAMPLE_LENGTH, ///< the clip's length set to the sample's
-};
-
 /// @brief Whose effect settings a write names: a sound's slot, or a chain.
 using controls::EffectOwner;
 
@@ -93,16 +84,6 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
 	                          RangesCause cause = {}) = 0;
-	/// @brief Move @p clip's colour by @p offset. Not undoable, as legacy's recolour is not.
-	/// @return Whether it was taken.
-	virtual bool recolour_clip(project::ClipAddress clip, int32_t offset) = 0;
-	/// @brief Clear @p clip, as one undo step.
-	/// @return Whether it was taken.
-	virtual bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) = 0;
-	/// @brief Move an audio clip's marker (its AUDIO_CLIP row @p path) to @p value, a playing voice reseated on the
-	/// moved sample.
-	/// @return Whether it was taken.
-	virtual bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) = 0;
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
@@ -135,18 +116,6 @@ public:
 	/// @return Whether it was taken: false where no bank is loaded, @p program is not one of its programs, the address
 	/// does not resolve or the source is not a DX7 one.
 	virtual bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) = 0;
-	/// @brief Resize the audio clip @p clip, as one undo step: its length, and the sample's marker where @p kind moves
-	/// one. A lengthen right after a shorten of the same clip undoes the shorten.
-	/// @param clip       The clip.
-	/// @param kind       What the gesture moves.
-	/// @param new_length The new length in ticks (START: the new start tick; TO_SAMPLE_LENGTH: not read).
-	/// @param old_length The length the gesture started from, in ticks.
-	/// @return Whether it was taken: false where the clip does not resolve or has no sample to measure.
-	virtual bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
-	                               int32_t old_length) = 0;
-	/// @brief Record @p x_scroll as the view a redo of @p clip's last length change returns to: the view scrolls after
-	/// the change, so the step learns it after.
-	virtual void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) = 0;
 	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt. Any
 	/// unlearn marks the current instrument edited, as `learn_knob`'s learn does; the menu is the only caller and
 	/// unlearns only a param's knob.
@@ -181,15 +150,11 @@ struct GestureRequest {
 	enum class Kind : uint8_t {
 		TEXT,
 		RANGES,
-		RECOLOUR,
-		CLEAR,
-		MARKER,
 		DEFAULT_INPUT_CHANNEL,
 		DEFAULT_RANGE,
 		INSERT_RANGE,
 		DELETE_RANGE,
 		ATTACH,
-		RESIZE,
 		LEARN,
 		LEARN_KNOB,
 		TRANSPOSE,
@@ -215,15 +180,10 @@ struct GestureRequest {
 	std::optional<uint16_t> range; ///< the range an ATTACH or TRANSPOSE names; none for a source's own transpose
 	std::vector<instrument::RangeState> ranges;
 	RangesCause cause{};
-	project::ClipAddress clip{};
 	int64_t value{0};
-	ResizeKind resize{ResizeKind::END};
-	int32_t old_length{0};
 	std::optional<project::MappingTarget> mapping;
 	std::optional<project::MidiCommand> command;
 	std::optional<LearnInput> input;
-	bool clear_automation{false};
-	bool clear_sequence_and_mpe{false};
 	std::optional<project::KnobModeOwner> knob_owner; ///< a KNOB_MODE's owner; its mode is @ref value
 	project::ChainAddress chain{};                    ///< a CHAIN_VIEW's chain; its key, and its word in @ref text
 	std::string key;
@@ -263,9 +223,6 @@ public:
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
 	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
 	                  RangesCause cause = {}) override;
-	bool recolour_clip(project::ClipAddress clip, int32_t offset) override;
-	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
-	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override;
 	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;
 	bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
@@ -275,8 +232,6 @@ public:
 	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
 	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
-	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
-	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
 	bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
@@ -302,7 +257,6 @@ public:
 	std::vector<project::ParamAddress> made;                                ///< each param make_param was asked for
 	std::vector<std::pair<project::OwnerParamTarget, project::MidiCommand>> absolutes; ///< each knob_absolute
 	std::optional<uint32_t> take_answer;                                               ///< what take_for answers
-	std::vector<std::pair<project::ClipAddress, int32_t>> undo_scrolls; ///< each set_undo_scroll_after, in order
 };
 
 } // namespace deluge::scenes::bind

@@ -77,6 +77,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "fakes.h"
 #include "integration/scenarios/slot_coherence.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
@@ -435,22 +436,22 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
 	});
 
-	it("hands an audio clip's moved marker to the menu's sink by the clip's address", _ {
+	it("hands an audio clip's moved marker to the clip port by the clip's address", _ {
 		AudioRig r;
-		bind::RecordingSink recording;
-		r.open(MarkerType::END, &recording);
+		bind::test::RecordingClipWrites clip_writes;
+		r.open(MarkerType::END, nullptr, &clip_writes);
 		r.tick(0);
 		r.turn_select(-1, 10);
 		r.tick(10);
-		expect(recording.gestures.size()).to_equal(size_t{1});
-		if (recording.gestures.empty()) {
+		expect(clip_writes.calls.size()).to_equal(size_t{1});
+		if (clip_writes.calls.empty()) {
 			return;
 		}
-		const bind::GestureRequest& g = recording.gestures[0];
-		expect(g.kind).to_equal(bind::GestureRequest::Kind::MARKER);
+		const bind::test::RecordingClipWrites::Call& g = clip_writes.calls[0];
+		expect(g.kind).to_equal(bind::test::RecordingClipWrites::Call::Kind::MARKER);
 		expect(g.clip).to_equal(deluge::project::ClipAddress{r.f.clip->id()});
-		expect(g.text).to_equal(std::string{"endSamplePos"});
-		expect(static_cast<int64_t>(g.value)).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
+		expect(g.path).to_equal(std::string{"endSamplePos"});
+		expect(g.value).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
 		expect(r.played().second).to_equal(kSampleLength);
 	});
 

@@ -32,7 +32,7 @@ Addresses at(deluge::project::SlotAddress slot) {
 }
 
 /// The names choice_names gives, as their ids, an unavailable one written negative.
-std::vector<int64_t> names_of(const ModelFixture& fixture, std::string_view path, deluge::project::SlotAddress slot) {
+std::vector<int64_t> names_of(ModelFixture& fixture, std::string_view path, deluge::project::SlotAddress slot) {
 	std::array<ChoiceName, 32> out{};
 	const size_t count = choice_names(sound(path), fixture.song, at(slot), fixture.ports(), out);
 	std::vector<int64_t> ids;
@@ -47,7 +47,7 @@ std::vector<int64_t> names_of(const ModelFixture& fixture, std::string_view path
 // clang-format off
 describe bind_dispatch("a sound target's value, range, choices, names and applicability", ${
 	it("lists only the choices that apply, by position, with the name table's names", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto shown = view(sound("osc2/type"), fixture.song, at(kSynth), fixture.ports());
 		expect(shown.has_value()).to_be_true();
 		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
@@ -67,7 +67,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 	});
 
 	it("lists a two-way setting a menu shows as a list (the FM modulator's destination) by the name table's names", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto* table = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, "modulator2/toModulator1");
 		std::vector<int64_t> want;
 		for (const String name : table->choices) {
@@ -137,7 +137,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 
 	it("resolves every row the table holds, a row whose mapping clamps (no partner) included", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		std::string unresolved;
 		for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 			if (row.kind == deluge::plugin::SettingKind::STRUCTURED || row.kind == deluge::plugin::SettingKind::TEXT) {
@@ -151,7 +151,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 	});
 
 	it("shows nothing for a target whose slot does not resolve", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		expect(view(sound("polyphonic"), fixture.song, Addresses{}, fixture.ports()).has_value()).to_be_false();
 		expect(view(sound("polyphonic"), fixture.song, at({deluge::project::SlotAddress::Kind::DRUM, 77}),
 		            fixture.ports())

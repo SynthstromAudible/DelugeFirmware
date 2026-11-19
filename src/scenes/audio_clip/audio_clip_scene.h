@@ -278,8 +278,9 @@ public:
 	/// @param song The song it belongs to, whose view (scroll, zoom, triplets) the scene starts from; null is treated
 	///             as "no clip".
 	/// @param sink Where the scene's writes go; the app's sink when null.
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
 	void open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
-	          deluge::scenes::bind::WriteSink* sink = nullptr);
+	          deluge::scenes::bind::WriteSink* sink = nullptr, deluge::scenes::bind::ClipWrites* clip_writes = nullptr);
 
 	/// @name The two marker latches
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h`). They

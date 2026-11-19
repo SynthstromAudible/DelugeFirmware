@@ -396,17 +396,17 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		which = marker_type_;
 	}
 
-	if (ctx_.sink == nullptr) {
-		return;
-	}
 	if (ctx_.is_audio_clip) {
 		// An audio clip's markers are rows of its record; the app moves one with the clip's voice taken off the
 		// sample, the moved part's clusters claimed and a playing clip resumed.
-		if (which == MarkerType::START || which == MarkerType::END) {
-			(void)ctx_.sink->move_audio_clip_marker(where_.clip,
-			                                        which == MarkerType::START ? "startSamplePos" : "endSamplePos",
-			                                        static_cast<int64_t>(value));
+		if (ctx_.ports.clip_writes != nullptr && (which == MarkerType::START || which == MarkerType::END)) {
+			(void)ctx_.ports.clip_writes->move_audio_clip_marker(
+			    where_.clip, which == MarkerType::START ? "startSamplePos" : "endSamplePos",
+			    static_cast<int64_t>(value));
 		}
+		return;
+	}
+	if (ctx_.sink == nullptr) {
 		return;
 	}
 

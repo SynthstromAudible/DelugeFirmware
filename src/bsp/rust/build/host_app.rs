@@ -191,7 +191,7 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 /// call each other. The host tree's layout differs from the device tree's: the DSP libraries sit
 /// under `app/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 25] = [
+    const DEPS: [(&str, &str); 26] = [
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),
@@ -217,6 +217,7 @@ fn link_closure(build_dir: &Path, archive: &Path) {
         ("scenes/bind", "libdeluge_scenes_bind.a"),
         ("level3", "libdeluge_ui_level3.a"),
         ("scenes_spec", "libdeluge_scenes_spec.a"),
+        ("scenes_spec/scenes_fakes", "libdeluge_scenes_fakes.a"),
     ];
     println!("cargo:rustc-link-arg=-Wl,--start-group");
     println!("cargo:rustc-link-arg={}", archive.display());

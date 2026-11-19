@@ -10,6 +10,8 @@
 #include <map>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -138,24 +140,51 @@ public:
 	}
 };
 
+/// @brief ClipWrites that records every request, in order, and answers each with @ref accept.
+struct RecordingClipWrites final : ClipWrites {
+	/// @brief One recorded request: its kind and its arguments.
+	struct Call {
+		/// @brief Which request it was.
+		enum class Kind : uint8_t { RECOLOUR, CLEAR, MARKER, RESIZE, UNDO_SCROLL };
+		Kind kind{Kind::RECOLOUR};   ///< which request it was
+		project::ClipAddress clip{}; ///< the clip it named
+		int64_t value{0};            ///< RECOLOUR's offset, MARKER's value, RESIZE's new length, UNDO_SCROLL's scroll
+		int32_t old_length{0};       ///< RESIZE's length the gesture started from
+		ResizeKind resize{ResizeKind::END}; ///< RESIZE's kind
+		std::string path;                   ///< MARKER's row
+		bool clear_automation{false};       ///< CLEAR's
+		bool clear_sequence_and_mpe{false}; ///< CLEAR's
+		bool operator==(const Call&) const = default;
+	};
+	std::vector<Call> calls; ///< every request taken, in order
+	bool accept{true};       ///< what each request answers
+	bool recolour_clip(project::ClipAddress clip, int32_t offset) override;
+	bool clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
+	bool move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) override;
+	bool resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length, int32_t old_length) override;
+	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;      ///< the audio port's fake
-	FakeCardFacts card;        ///< the card port's fake
-	FakeUiFacts ui;            ///< the UI port's fake
-	FakeSoundFacts sound;      ///< the sound port's fake
-	FakeClipFacts clips;       ///< the clip port's fake
-	FakeTrackFacts tracks;     ///< the track port's fake
-	FakeControlFacts controls; ///< the knobs' port's fake
+	FakeAudioFacts audio;            ///< the audio port's fake
+	FakeCardFacts card;              ///< the card port's fake
+	FakeUiFacts ui;                  ///< the UI port's fake
+	FakeSoundFacts sound;            ///< the sound port's fake
+	FakeClipFacts clips;             ///< the clip port's fake
+	FakeTrackFacts tracks;           ///< the track port's fake
+	FakeControlFacts controls;       ///< the knobs' port's fake
+	RecordingClipWrites clip_writes; ///< the clip port's recorder
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
-	[[nodiscard]] Ports ports() const {
+	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,
 		        .sound = &sound,
 		        .clips = &clips,
 		        .tracks = &tracks,
-		        .controls = &controls};
+		        .controls = &controls,
+		        .clip_writes = &clip_writes};
 	}
 };
 

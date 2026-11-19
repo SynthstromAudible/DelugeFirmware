@@ -32,7 +32,7 @@ Addresses on_chain(ChainAddress chain, ChainOwner owner) {
 }
 
 /// The names choice_names gives for @p path at @p where, as their ids.
-std::vector<int64_t> names_at(const ModelFixture& fixture, std::string_view path, const Addresses& where) {
+std::vector<int64_t> names_at(ModelFixture& fixture, std::string_view path, const Addresses& where) {
 	std::array<ChoiceName, 32> out{};
 	const size_t count = choice_names(effect(path), fixture.song, where, fixture.ports(), out);
 	std::vector<int64_t> ids;
@@ -145,7 +145,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("does not apply saturation on a kit's chain, nor the sidechain on the master's", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto clipping = view(effect("clippingAmount"), fixture.song, on_chain(kKitChain, ChainOwner::KIT),
 		                           fixture.ports());
 		expect(clipping.has_value()).to_be_true();
@@ -163,7 +163,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("names a chain's choices from the host chains' table and a sound's from the instrument's", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const auto chain = names_at(fixture, "lpfMode", on_chain(kKitChain, ChainOwner::KIT));
 		expect(chain).to_equal(table_names(deluge::plugin::kGlobalEffectable, "lpfMode",
 		                                   setting_context(kKitChain, ChainOwner::KIT)));
@@ -174,7 +174,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("resolves nothing for a chain the song does not hold, or with no address", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const ChainAddress gone{ChainAddress::Kind::OUTPUT, 77};
 		expect(view(effect("lpfMode"), fixture.song, on_chain(gone, ChainOwner::KIT), fixture.ports()).has_value())
 		    .to_be_false();
@@ -183,7 +183,7 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("does not resolve a sound target on a chain", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const Target sound{.kind = Target::Kind::SOUND, .path = "lpfMode"};
 		expect(view(sound, fixture.song, on_chain(kKitChain, ChainOwner::KIT), fixture.ports()).has_value())
 		    .to_be_false();

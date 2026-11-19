@@ -18,7 +18,7 @@ using deluge::scenes::bind::test::ModelFixture;
 namespace {
 /// Every row where what SlotReader gives for @p slot differs from held_setting of the sound's typed state, as
 /// "path=got/want"; empty when every row agrees.
-std::string reads_unlike_state(const ModelFixture& fixture, deluge::project::SlotAddress slot) {
+std::string reads_unlike_state(ModelFixture& fixture, deluge::project::SlotAddress slot) {
 	const SlotReader reader{fixture.song, slot, fixture.host.sound};
 	const deluge::instrument::SoundState& state = fixture.host.sound.states.at(slot.id);
 	std::string unlike;
@@ -40,7 +40,7 @@ std::string reads_unlike_state(const ModelFixture& fixture, deluge::project::Slo
 // clang-format off
 describe bind_reader("a sound's settings read through its slot's address", ${
 	it("reads every row a synth track and a kit row hold, as the sound's typed state holds it", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		expect(reads_unlike_state(fixture, kSynth)).to_equal(std::string{});
 		expect(reads_unlike_state(fixture, kDrum)).to_equal(std::string{});
 	});
@@ -60,7 +60,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 	});
 
 	it("reads every row the table holds: the host contract's reader never answers nothing for one", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		for (const deluge::project::SlotAddress slot : {kSynth, kDrum}) {
 			const SlotReader reader{fixture.song, slot, fixture.host.sound};
 			std::string missing;
@@ -74,7 +74,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 	});
 
 	it("reads nothing for a path the table does not hold", _ {
-		const ModelFixture fixture;
+		ModelFixture fixture;
 		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
 		expect(reader.read("no/such/path").has_value()).to_be_false();
 		expect(reader.reader()("no/such/path").has_value()).to_be_false();

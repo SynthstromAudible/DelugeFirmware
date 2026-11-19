@@ -52,24 +52,6 @@ bool RecordingSink::write_ranges(project::SlotAddress slot, uint8_t source,
 	return true;
 }
 
-bool RecordingSink::recolour_clip(project::ClipAddress clip, int32_t offset) {
-	gestures.push_back({.kind = GestureRequest::Kind::RECOLOUR, .clip = clip, .value = offset});
-	return true;
-}
-
-bool RecordingSink::clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) {
-	gestures.push_back({.kind = GestureRequest::Kind::CLEAR,
-	                    .clip = clip,
-	                    .clear_automation = clear_automation,
-	                    .clear_sequence_and_mpe = clear_sequence_and_mpe});
-	return true;
-}
-
-bool RecordingSink::move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) {
-	gestures.push_back({.kind = GestureRequest::Kind::MARKER, .text = std::string{path}, .clip = clip, .value = value});
-	return true;
-}
-
 void RecordingSink::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
 }
@@ -116,20 +98,6 @@ bool RecordingSink::write_dx_patch(project::SlotAddress slot, uint8_t source, co
 bool RecordingSink::load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) {
 	gestures.push_back({.kind = GestureRequest::Kind::DX_PROGRAM, .slot = slot, .source = source, .value = program});
 	return true;
-}
-
-bool RecordingSink::resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
-                                      int32_t old_length) {
-	gestures.push_back({.kind = GestureRequest::Kind::RESIZE,
-	                    .clip = clip,
-	                    .value = new_length,
-	                    .resize = kind,
-	                    .old_length = old_length});
-	return true;
-}
-
-void RecordingSink::set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) {
-	undo_scrolls.emplace_back(clip, x_scroll);
 }
 
 bool RecordingSink::learn(project::MappingTarget target, std::optional<project::MidiCommand> command,

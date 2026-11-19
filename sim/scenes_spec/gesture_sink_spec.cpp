@@ -98,7 +98,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
-		expect(menu::host_write_sink().clear_clip(deluge::project::ClipAddress{audio.clip->id()},
+		expect(menu::host_ports().clip_writes->clear_clip(deluge::project::ClipAddress{audio.clip->id()},
 		                                          /*clear_automation=*/true, /*clear_sequence_and_mpe=*/false))
 		    .to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
@@ -119,7 +119,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		Song* const saved = currentSong;
 		currentSong = synth.song;
 		const int16_t before = synth.clip->colourOffset();
-		expect(menu::host_write_sink().recolour_clip(deluge::project::ClipAddress{synth.clip->id()}, 5)).to_be_true();
+		expect(menu::host_ports().clip_writes->recolour_clip(deluge::project::ClipAddress{synth.clip->id()}, 5)).to_be_true();
 		const deluge::project::DocClip* doc =
 		    synth.song->project.resolveClip(deluge::project::ClipAddress{synth.clip->id()});
 		expect(synth.clip->colourOffset()).to_equal(static_cast<int16_t>(before + 5));
@@ -134,7 +134,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		Song* const saved = currentSong;
 		currentSong = audio.song;
-		expect(menu::host_write_sink().move_audio_clip_marker(deluge::project::ClipAddress{audio.clip->id()},
+		expect(menu::host_ports().clip_writes->move_audio_clip_marker(deluge::project::ClipAddress{audio.clip->id()},
 		                                                      "endSamplePos", 4321))
 		    .to_be_true();
 		const std::optional<deluge::serialization::Value> end = deluge::project::read_setting(
@@ -229,9 +229,10 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		bind::Addresses lost = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false).addresses;
 		lost.clip = nowhere;
 		expect(sink.write_text(name_of(deluge::project::SettingGroupId::CLIP), lost, "X")).to_be_false();
-		expect(sink.clear_clip(nowhere, true, true)).to_be_false();
-		expect(sink.recolour_clip(nowhere, 1)).to_be_false();
-		expect(sink.move_audio_clip_marker(nowhere, "endSamplePos", 1)).to_be_false();
+		bind::ClipWrites& clip_writes = *menu::host_ports().clip_writes;
+		expect(clip_writes.clear_clip(nowhere, true, true)).to_be_false();
+		expect(clip_writes.recolour_clip(nowhere, 1)).to_be_false();
+		expect(clip_writes.move_audio_clip_marker(nowhere, "endSamplePos", 1)).to_be_false();
 		expect(sink.write_ranges({deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id() + 1000}, 0, {}))
 		    .to_be_false();
 		currentSong = saved;

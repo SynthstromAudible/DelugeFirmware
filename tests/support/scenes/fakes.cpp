@@ -102,4 +102,33 @@ std::optional<int32_t> FakeControlFacts::param_value(const project::ParamAddress
 	return std::nullopt;
 }
 
+bool RecordingClipWrites::recolour_clip(project::ClipAddress clip, int32_t offset) {
+	calls.push_back({.kind = Call::Kind::RECOLOUR, .clip = clip, .value = offset});
+	return accept;
+}
+
+bool RecordingClipWrites::clear_clip(project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) {
+	calls.push_back({.kind = Call::Kind::CLEAR,
+	                 .clip = clip,
+	                 .clear_automation = clear_automation,
+	                 .clear_sequence_and_mpe = clear_sequence_and_mpe});
+	return accept;
+}
+
+bool RecordingClipWrites::move_audio_clip_marker(project::ClipAddress clip, std::string_view path, int64_t value) {
+	calls.push_back({.kind = Call::Kind::MARKER, .clip = clip, .value = value, .path = std::string{path}});
+	return accept;
+}
+
+bool RecordingClipWrites::resize_audio_clip(project::ClipAddress clip, ResizeKind kind, int32_t new_length,
+                                            int32_t old_length) {
+	calls.push_back(
+	    {.kind = Call::Kind::RESIZE, .clip = clip, .value = new_length, .old_length = old_length, .resize = kind});
+	return accept;
+}
+
+void RecordingClipWrites::set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) {
+	calls.push_back({.kind = Call::Kind::UNDO_SCROLL, .clip = clip, .value = x_scroll});
+}
+
 } // namespace deluge::scenes::bind::test

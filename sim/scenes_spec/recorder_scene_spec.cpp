@@ -190,9 +190,6 @@ struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
 	                  bind::RangesCause) override {
 		return false;
 	}
-	bool recolour_clip(deluge::project::ClipAddress, int32_t) override { return false; }
-	bool clear_clip(deluge::project::ClipAddress, bool, bool) override { return false; }
-	bool move_audio_clip_marker(deluge::project::ClipAddress, std::string_view, int64_t) override { return false; }
 	void set_default_audio_input_channel(int32_t) override {}
 	void set_default_range(deluge::project::SlotAddress, uint8_t, uint16_t) override {}
 	bool insert_range(deluge::project::SlotAddress, uint8_t, uint16_t, int16_t, std::optional<int16_t>) override {
@@ -206,8 +203,6 @@ struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
 		return false;
 	}
 	bool load_dx_program(deluge::project::SlotAddress, uint8_t, int32_t) override { return false; }
-	bool resize_audio_clip(deluge::project::ClipAddress, bind::ResizeKind, int32_t, int32_t) override { return false; }
-	void set_undo_scroll_after(deluge::project::ClipAddress, int32_t) override {}
 	bool learn(deluge::project::MappingTarget, std::optional<deluge::project::MidiCommand>,
 	           std::optional<bind::LearnInput>) override {
 		return false;

@@ -55,6 +55,23 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		           *p.tracks, deluge::project::ChainAddress{deluge::project::ChainAddress::Kind::OUTPUT, 999}))
 		    .to_be_true();
 	});
+	it("records each clip edit in order with its arguments, and answers as the spec set", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const deluge::project::ClipAddress clip{.clip_id = 4};
+		expect(p.clip_writes->resize_audio_clip(clip, ResizeKind::STRETCH, 192, 96)).to_be_true();
+		expect(host.clip_writes.calls.size()).to_equal(size_t{1});
+		if (host.clip_writes.calls.size() == 1) {
+			const auto& call = host.clip_writes.calls[0];
+			expect(call.kind).to_equal(test::RecordingClipWrites::Call::Kind::RESIZE);
+			expect(call.clip).to_equal(clip);
+			expect(call.resize).to_equal(ResizeKind::STRETCH);
+			expect(call.value).to_equal(int64_t{192});
+			expect(call.old_length).to_equal(96);
+		}
+		host.clip_writes.accept = false;
+		expect(contract::unknown_clip_is_refused(*p.clip_writes, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

@@ -39,14 +39,11 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/edits/attach_recorded_sample.h"
-#include "model/edits/clear_clip.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
-#include "model/edits/resize_audio_clip.h"
 #include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_chain_view.h"
-#include "model/edits/set_clip_colour.h"
 #include "model/edits/set_controls.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
@@ -201,9 +198,6 @@ public:
 	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source,
 	                  std::span<const deluge::instrument::RangeState> ranges,
 	                  deluge::scenes::bind::RangesCause cause = {}) override;
-	bool recolour_clip(deluge::project::ClipAddress clip, int32_t offset) override;
-	bool clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) override;
-	bool move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) override;
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
@@ -222,9 +216,6 @@ public:
 	                  std::optional<int16_t> previous_top) override;
 	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override;
-	bool resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind, int32_t new_length,
-	                       int32_t old_length) override;
-	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
 	bool learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
@@ -266,9 +257,6 @@ private:
 	bool applied(deluge::edits::Edit& edit);
 
 	uint32_t refusals_{0};
-	/// The undo step the last length change opened, and its clip: what a redo of it scrolls the view back to.
-	::Action* resize_action_{nullptr};
-	deluge::project::ClipAddress resize_clip_{};
 };
 
 /// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
@@ -670,41 +658,6 @@ bool ShellEditSink::attach_recording(deluge::project::SlotAddress slot, uint8_t 
 	return applied(edit);
 }
 
-bool ShellEditSink::resize_audio_clip(deluge::project::ClipAddress clip, deluge::scenes::bind::ResizeKind kind,
-                                      int32_t new_length, int32_t old_length) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	using Kind = deluge::edits::ResizeAudioClip::Kind;
-	using Request = deluge::scenes::bind::ResizeKind;
-	Kind edit_kind = Kind::END;
-	switch (kind) {
-	case Request::END:
-		edit_kind = Kind::END;
-		break;
-	case Request::START:
-		edit_kind = Kind::START;
-		break;
-	case Request::STRETCH:
-		edit_kind = Kind::STRETCH;
-		break;
-	case Request::NO_STRETCH:
-		edit_kind = Kind::NO_STRETCH;
-		break;
-	case Request::TO_SAMPLE_LENGTH:
-		edit_kind = Kind::TO_SAMPLE_LENGTH;
-		break;
-	}
-	deluge::edits::ResizeAudioClip edit{clip, edit_kind, new_length, old_length};
-	resize_action_ = nullptr;
-	if (!applied(edit)) {
-		return false;
-	}
-	resize_action_ = edit.lengthAction();
-	resize_clip_ = clip;
-	return true;
-}
-
 bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
                           std::optional<deluge::scenes::bind::LearnInput> input) {
 	if (currentSong == nullptr) {
@@ -815,58 +768,6 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		return took;
 	}
 	return where.slot && one(*where.slot, range);
-}
-
-void ShellEditSink::set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) {
-	::Action* const step = resize_action_;
-	resize_action_ = nullptr; // one view per length change
-	if (step == nullptr || !(clip == resize_clip_)) {
-		return;
-	}
-	// The step is the log's still, unless something since has replaced the log.
-	for (::Action* action = actionLogger.firstAction[BEFORE]; action != nullptr; action = action->nextAction) {
-		if (action == step) {
-			action->xScrollClip[AFTER] = x_scroll;
-			return;
-		}
-	}
-}
-
-bool ShellEditSink::recolour_clip(deluge::project::ClipAddress clip, int32_t offset) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	deluge::edits::SetClipColour edit{clip, offset};
-	return applied(edit);
-}
-
-bool ShellEditSink::clear_clip(deluge::project::ClipAddress clip, bool clear_automation, bool clear_sequence_and_mpe) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	deluge::edits::ClearClip edit{clip, clear_automation, clear_sequence_and_mpe};
-	return applied(edit);
-}
-
-bool ShellEditSink::move_audio_clip_marker(deluge::project::ClipAddress clip, std::string_view path, int64_t value) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	::Clip* found = currentSong->clipForId(clip.clip_id);
-	if (found == nullptr || found->type != ClipType::AUDIO) {
-		refusals_++;
-		return false;
-	}
-	// The marker editor's move: the record's row written with the voice taken off the sample, the moved part's
-	// clusters claimed and a playing clip resumed. A write of the row by any other gesture does not reseat.
-	bool taken = false;
-	deluge::bridge::withVoiceReseated(*static_cast<::AudioClip*>(found), *currentSong, [&] {
-		deluge::edits::SetSetting edit{
-		    deluge::project::SettingAddress{.group = deluge::project::SettingGroupId::AUDIO_CLIP, .owner = clip},
-		    std::string{path}, deluge::serialization::Value::makeNumber(value)};
-		taken = applied(edit);
-	});
-	return taken;
 }
 
 bool ShellEditSink::write(const WriteRequest& request) {

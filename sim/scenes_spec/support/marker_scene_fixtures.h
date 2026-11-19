@@ -350,11 +350,15 @@ struct AudioRig {
 
 	/// @brief Open the scene on @p marker over the audio clip.
 	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
+	void open(MarkerType marker, bind::WriteSink* sink = nullptr, bind::ClipWrites* clip_writes = nullptr) {
 		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 		                                  /*kit_global_fx=*/false);
 		if (sink != nullptr) {
 			c.sink = sink;
+		}
+		if (clip_writes != nullptr) {
+			c.ports.clip_writes = clip_writes;
 		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});

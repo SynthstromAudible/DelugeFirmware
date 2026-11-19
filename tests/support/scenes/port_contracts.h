@@ -54,4 +54,11 @@ namespace deluge::scenes::bind::contract {
 	return tracks.chain_effects(nowhere) == nullptr;
 }
 
+/// @brief Every clip edit on a clip no song holds is refused. A fake that accepts everything is set to refuse first.
+[[nodiscard]] inline bool unknown_clip_is_refused(ClipWrites& writes, project::ClipAddress nowhere) {
+	return !writes.recolour_clip(nowhere, 1) && !writes.clear_clip(nowhere, true, true)
+	       && !writes.move_audio_clip_marker(nowhere, "endSamplePos", 1)
+	       && !writes.resize_audio_clip(nowhere, ResizeKind::NO_STRETCH, 96, 192);
+}
+
 } // namespace deluge::scenes::bind::contract

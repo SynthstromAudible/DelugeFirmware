@@ -103,13 +103,16 @@ AudioClipScene& audio_clip_scene() {
 // Lifecycle
 
 void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
-                          deluge::scenes::bind::WriteSink* sink) {
+                          deluge::scenes::bind::WriteSink* sink, deluge::scenes::bind::ClipWrites* clip_writes) {
 	clip_ = song != nullptr ? clip : std::nullopt;
 	song_ = song;
 	// The app's sink and ports act on the song it plays; a scene over any other song binds nothing through them.
 	const bool binds = song_ != nullptr && menu::host_binds(*song_);
 	sink_ = sink != nullptr ? sink : (binds ? &menu::host_write_sink() : nullptr);
 	ports_ = binds ? menu::host_ports() : deluge::scenes::bind::Ports{};
+	if (clip_writes != nullptr) {
+		ports_.clip_writes = clip_writes;
+	}
 	render_.xScroll = -1;
 	render_.xZoom = -1;
 	if (song_ != nullptr) {
@@ -373,11 +376,11 @@ uint16_t AudioClipScene::clear_clip() {
 	// `buttonAction`'s `BACK` arm's body (`audio_clip_view.cpp`), minus `main`'s
 	// card-routine defer, which the shell answers with `InputLowering::set_sd_busy` rather than
 	// by asking the scene (`shell/scene.h`'s `Action` warning).
-	if (!clip_ || sink_ == nullptr) {
+	if (!clip_ || ports_.clip_writes == nullptr) {
 		return 0;
 	}
 	// `AudioClipView::buttonAction`'s clear, as one request: the clear and its undo step.
-	(void)sink_->clear_clip(*clip_, !FlashStorage::automationClear, true);
+	(void)ports_.clip_writes->clear_clip(*clip_, !FlashStorage::automationClear, true);
 	// Legacy's two popups, chosen by the same flag that chose the argument above.
 	const uint16_t popup = FlashStorage::automationClear ? sid(deluge::l10n::String::STRING_FOR_SAMPLE_CLEARED)
 	                                                     : sid(deluge::l10n::String::STRING_FOR_CLIP_CLEARED);
@@ -607,10 +610,10 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 			repaint();
 			return r;
 		}
-		if (has_sample() && sink_ != nullptr) {
+		if (has_sample() && ports_.clip_writes != nullptr) {
 			const int32_t new_length = (x + 1) * zoom + timeline_.x_scroll;
 			// The end marker and the length, as one request.
-			(void)sink_->resize_audio_clip(*clip_, ResizeKind::END, new_length, loop_length());
+			(void)ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::END, new_length, loop_length());
 			repaint();
 		}
 		return r;
@@ -623,10 +626,10 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 			repaint();
 			return r;
 		}
-		if (has_sample() && sink_ != nullptr) {
+		if (has_sample() && ports_.clip_writes != nullptr) {
 			const int32_t new_start_ticks = x * zoom + timeline_.x_scroll;
 			// The start marker and the length, as one request.
-			(void)sink_->resize_audio_clip(*clip_, ResizeKind::START, new_start_ticks, loop_length());
+			(void)ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::START, new_start_ticks, loop_length());
 			repaint();
 		}
 		return r;
@@ -696,8 +699,8 @@ Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& 
 	if (no_ui_mode_active() && ctx.shift && !ctx.held.has(ButtonId::YEnc)) {
 		// `main`'s card-routine defer in `AudioClipView::verticalEncoderAction` has no counterpart here (see
 		// `pad_action`).
-		if (clip_ && sink_ != nullptr) {
-			(void)sink_->recolour_clip(*clip_, offset);
+		if (clip_ && ports_.clip_writes != nullptr) {
+			(void)ports_.clip_writes->recolour_clip(*clip_, offset);
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
 		}
 	}
@@ -847,9 +850,9 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 	}
 	// Only a length a clip may have is asked for (`ClipView::changeClipLength`'s two arms).
 	const bool changes = lengthens ? new_length <= static_cast<uint32_t>(kMaxSequenceLength) : new_length > 0;
-	if (changes && sink_ != nullptr) {
-		(void)sink_->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
-		                               static_cast<int32_t>(old_length));
+	if (changes && ports_.clip_writes != nullptr) {
+		(void)ports_.clip_writes->resize_audio_clip(*clip_, kind, static_cast<int32_t>(new_length),
+		                                            static_cast<int32_t>(old_length));
 	}
 	if (changes) {
 		if (lengthens) {
@@ -900,8 +903,8 @@ Result AudioClipScene::edit_clip_length_without_timestretching(int32_t offset) {
 void AudioClipScene::note_undo_scroll() {
 	// `action->xScrollClip[AFTER] = ...` after each length edit: the view scrolled after the change, so the step
 	// learns where a redo returns to now.
-	if (clip_ && sink_ != nullptr) {
-		sink_->set_undo_scroll_after(*clip_, timeline_.x_scroll);
+	if (clip_ && ports_.clip_writes != nullptr) {
+		ports_.clip_writes->set_undo_scroll_after(*clip_, timeline_.x_scroll);
 	}
 }
 
@@ -924,12 +927,12 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	// firmware's clip belongs to. So this method's only caller in this library is still
 	// `button_action`'s X_ENC+Y_ENC chord, and it is the port's own copy of the verb rather than
 	// the one a menu item reaches.
-	if (!clip_ || sink_ == nullptr) {
+	if (!clip_ || ports_.clip_writes == nullptr) {
 		return;
 	}
 	const int32_t old_length = loop_length();
 	// A clip with no sample to measure is refused, which legacy reports as no sample.
-	if (!sink_->resize_audio_clip(*clip_, ResizeKind::TO_SAMPLE_LENGTH, 0, old_length)) {
+	if (!ports_.clip_writes->resize_audio_clip(*clip_, ResizeKind::TO_SAMPLE_LENGTH, 0, old_length)) {
 		deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return;
 	}

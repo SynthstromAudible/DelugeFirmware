@@ -26,7 +26,7 @@ Target model(SettingGroupId group, std::string_view path) {
 }
 
 /// The menu value the record at @p address holds for @p path, as the row converts it.
-int32_t record_menu(const ModelFixture& fixture, const SettingAddress& address, std::string_view path) {
+int32_t record_menu(ModelFixture& fixture, const SettingAddress& address, std::string_view path) {
 	const deluge::plugin::SettingInfo& row =
 	    *deluge::plugin::find_setting(deluge::project::table_of(address.group), path);
 	const auto text = deluge::project::read_setting(fixture.song, address, path);
@@ -34,7 +34,7 @@ int32_t record_menu(const ModelFixture& fixture, const SettingAddress& address, 
 }
 
 /// Whether @p target's row shows at @p where.
-bool applies(const ModelFixture& fixture, const Target& target, const Addresses& where) {
+bool applies(ModelFixture& fixture, const Target& target, const Addresses& where) {
 	const auto shown = view(target, fixture.song, where, fixture.ports());
 	return shown.has_value() && shown->applies;
 }
