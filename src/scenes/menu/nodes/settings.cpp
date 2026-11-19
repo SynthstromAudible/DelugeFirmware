@@ -44,9 +44,9 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h" // polarityToString
-#include "modulation/sync.h"
-#include "notify/notice_queue.h" // the USB enable's "restart to apply"
+#include "notify/notice_queue.h"          // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"   // cvEngine -- the CV/gate output pages
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
@@ -622,7 +622,8 @@ void set_default_magnitude(const MenuContext&, int32_t value) {
 	const int32_t old_magnitude = FlashStorage::defaultMagnitude;
 	FlashStorage::defaultMagnitude = static_cast<int8_t>(value);
 	const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
-	FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
+	FlashStorage::defaultSwingInterval =
+	    deluge::plugin::clamp_swing_interval(FlashStorage::defaultSwingInterval - delta);
 }
 
 int32_t get_default_bend_range(const MenuContext&) {

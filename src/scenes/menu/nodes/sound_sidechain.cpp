@@ -22,7 +22,6 @@
 #include "scenes/menu/nodes/sound_sidechain.h"
 
 #include "definitions_cxx.hpp"
-#include "modulation/sync.h"
 #include "plugin-api/types/rate_tables.h"
 #include "plugin-api/types/sync.h"
 
@@ -73,12 +72,6 @@ int32_t sidechain_release_to_menu(int32_t release) {
 int32_t sidechain_release_from_menu(int32_t menu_value) {
 	return deluge::plugin::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)]
 	       << 3; // `origin/main:src/deluge/gui/menu_item/sidechain/release.h`'s write
-}
-
-int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level) {
-	// `sidechain::Sync::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`) via
-	// `SyncLevel::syncTypeAndLevelToMenuOption` (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`).
-	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
 
 namespace {

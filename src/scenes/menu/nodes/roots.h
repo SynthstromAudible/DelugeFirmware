@@ -121,6 +121,8 @@
 #include "scenes/menu/nodes/sound_voice.h"
 #include "scenes/menu/relevance.h"
 
+#include "plugin-api/types/display_mapping.h"
+
 #include <span>
 
 namespace deluge::scenes::menu {
@@ -566,9 +568,10 @@ inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT
 // ---------------------------------------------------------------------------------------------
 // The song root (`soundEditorRootMenuSongView` in `origin/main:src/deluge/gui/ui/menus.cpp`)
 
-/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`origin/main:src/deluge/gui/menu_item/swing/interval.h`) rather
-/// than `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
-inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
+/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`origin/main:src/deluge/gui/menu_item/swing/interval.h`), here
+/// `plugin::kNumSwingIntervals`, rather than every combined sync value: the same kind of override `sidechain::Sync`
+/// makes.
+inline constexpr IntRange kSwingIntervalRange{0, deluge::plugin::kNumSwingIntervals - 1, 1};
 /// `swing::Interval::selectEncoderAction` (`wrapSwingIntervalSyncLevel`): a turn wraps within the even levels and
 /// never lands on 0, OFF. `defaults::SwingInterval` inherits it.
 std::optional<int32_t> swing_interval_turn(const MenuContext& ctx, int32_t value, int32_t offset);

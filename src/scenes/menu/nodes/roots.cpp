@@ -49,8 +49,8 @@
 #include "model/sample/sample_holder.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
-#include "modulation/sync.h"
 #include "notify/dirty_set.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/stem_export/stem_export.h"
 
 namespace deluge::scenes::menu::nodes {
@@ -76,7 +76,7 @@ int32_t get_swing_interval(const MenuContext& ctx) {
 	return ctx.model != nullptr ? static_cast<int32_t>(ctx.model->groove.swing_interval) : 0;
 }
 std::optional<int32_t> swing_interval_turn(const MenuContext&, int32_t value, int32_t offset) {
-	return wrapSwingIntervalSyncLevel(value + offset);
+	return deluge::plugin::wrap_swing_interval(value + offset);
 }
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
 	bindings::write_song(ctx, "swingInterval", value); // `origin/main:src/deluge/gui/menu_item/swing/interval.h`

@@ -516,7 +516,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|foundation/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

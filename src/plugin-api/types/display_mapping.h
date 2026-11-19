@@ -19,6 +19,7 @@
 
 #include "plugin-api/types/sync.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -80,6 +81,16 @@ inline constexpr int32_t kMaxCombinedSync = std::to_underlying(SyncType::DOTTED)
 /// @brief The sync types in their rows' choice order.
 inline constexpr std::array<SyncType, 3> kSyncTypeChoices{SyncType::EVEN, SyncType::TRIPLET, SyncType::DOTTED};
 
+/// @brief The choice index of sync type @p type among kSyncTypeChoices.
+/// @param type A sync type.
+/// @return 0 (even), 1 (triplet) or 2 (dotted).
+[[nodiscard]] constexpr int32_t sync_type_choice(SyncType type) {
+	if (type == SyncType::TRIPLET) {
+		return 1;
+	}
+	return type == SyncType::DOTTED ? 2 : 0;
+}
+
 /// @brief The combined sync menu value for @p level of the type at choice index @p type_choice.
 /// @param level       The sync level, 0 (off) to kMaxSyncLevel.
 /// @param type_choice The sync type's choice index; one outside 0..2 counts as even.
@@ -89,6 +100,31 @@ inline constexpr std::array<SyncType, 3> kSyncTypeChoices{SyncType::EVEN, SyncTy
 	const bool in_range = type_choice >= 0 && type_choice < static_cast<int32_t>(kSyncTypeChoices.size());
 	const SyncType type = in_range ? kSyncTypeChoices[static_cast<std::size_t>(type_choice)] : SyncType::EVEN;
 	return std::to_underlying(type) + level - (type != SyncType::EVEN ? 1 : 0);
+}
+
+/// @brief How many combined sync values (level and type in one menu number) there are, 0 ("off") included.
+inline constexpr int32_t kNumCombinedSyncValues = kMaxCombinedSync + 1;
+
+/// @brief The lowest sync level a swing interval may take (an index of SyncLevel; 0 would be "off").
+inline constexpr int32_t kMinSwingInterval = 1;
+/// @brief The highest sync level a swing interval may take: an even level (triplet swing is not supported).
+inline constexpr int32_t kMaxSwingInterval = std::to_underlying(SyncType::TRIPLET) - 1;
+/// @brief How many sync levels a swing interval cycles through, "off" included.
+inline constexpr int32_t kNumSwingIntervals = std::to_underlying(SyncType::TRIPLET);
+
+/// @brief @p value wrapped into the swing intervals, skipping 0 ("off"): one past the last wraps to the first.
+/// @param value A sync level, possibly out of range either way.
+/// @return A level from kMinSwingInterval to kMaxSwingInterval.
+[[nodiscard]] constexpr int32_t wrap_swing_interval(int32_t value) {
+	const int32_t span = kNumSwingIntervals - 1;
+	return (((value - 1) % span) + span) % span + 1;
+}
+
+/// @brief @p value clamped into the swing intervals.
+/// @param value A sync level, possibly out of range either way.
+/// @return A level from kMinSwingInterval to kMaxSwingInterval.
+[[nodiscard]] constexpr int32_t clamp_swing_interval(int32_t value) {
+	return std::clamp(value, kMinSwingInterval, kMaxSwingInterval);
 }
 
 /// @brief The sync level and type choice index for combined sync menu value @p menu.

@@ -24,7 +24,7 @@
 /// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** The builder is shared by every `SyncLevel`
 ///       item: the two LFO syncs, `arpSyncMenu`, `delaySyncMenu`, `sidechainSyncMenu` and `reverbSidechainSyncMenu`.
 ///       The value is legacy's own menu option index, `SyncLevel::syncTypeAndLevelToMenuOption`
-///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), over `SyncLevel::size() == NUM_SYNC_VALUES`
+///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), over `SyncLevel::size() == kNumCombinedSyncValues`
 ///       (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`). The option
 ///       *names* are `getNoteLengthName`, which formats from the song's `insideWorldTickMagnitude` at render time
 ///       (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`) -- dynamic text this generation's interpreter does not
@@ -40,7 +40,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 
-#include "modulation/sync.h" // NUM_SYNC_VALUES
+#include "plugin-api/types/display_mapping.h" // kMaxCombinedSync
 
 #include <span>
 
@@ -50,10 +50,10 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief The full sync-option range, `SyncLevel::size() == NUM_SYNC_VALUES`
+/// @brief The full sync-option range, `SyncLevel::size() == kNumCombinedSyncValues`
 ///        (`origin/main:src/deluge/gui/menu_item/sync_level.h`, `origin/main:src/deluge/model/sync.h`) -- what every
 ///        `SyncLevel` item but `sidechain::Sync` uses.
-inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
+inline constexpr IntRange kSyncLevelRange{0, deluge::plugin::kMaxCombinedSync, 1};
 
 /// @brief One LFO page. A macro for the same reason `sound_env.h` uses one -- and because the
 ///        `get`/`set` hooks are plain function pointers, so each LFO needs its own pair. The bodies

@@ -36,7 +36,7 @@
 #include "gfx/oled/icons.h"
 #include "instruments/deluge/state_access.h"
 #include "model/song/song.h"
-#include "modulation/sync.h"
+#include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/bind/write_sink.h"
@@ -121,16 +121,19 @@ int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
 		return 0;
 	}
 	// The sync type is runtime-only for the reverb; the level is the song's.
-	return sidechain_sync_to_menu(AudioEngine::reverbSidechainSettings.sync_type, ctx.model->reverb.sidechain_sync);
+	return deluge::plugin::combined_sync_menu(
+	    deluge::plugin::index_of(ctx.model->reverb.sidechain_sync),
+	    deluge::plugin::sync_type_choice(AudioEngine::reverbSidechainSettings.sync_type));
 }
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	if (ctx.sink == nullptr) {
 		return;
 	}
 	// The sync type is the engine's alone; the level is the song's record.
-	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
-	bindings::write_song(ctx, "reverb/compressor/syncLevel",
-	                     static_cast<int32_t>(deluge::plugin::index_of(syncValueToSyncLevel(value))));
+	const auto [level, type_choice] = deluge::plugin::combined_sync_stored(value);
+	const deluge::plugin::SyncType type = deluge::plugin::kSyncTypeChoices[static_cast<size_t>(type_choice)];
+	AudioEngine::reverbSidechainSettings.sync_type = type;
+	bindings::write_song(ctx, "reverb/compressor/syncLevel", level);
 }
 
 // ---------------------------------------------------------------------------------------------

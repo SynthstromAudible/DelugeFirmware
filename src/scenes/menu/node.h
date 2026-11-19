@@ -1585,7 +1585,7 @@ constexpr Node dynamic_submenu(uint16_t name, DynamicChildrenFn children, Releva
 /// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), so a hook pair is always what reads and writes it -- no
 /// `ParamRef` spelling exists for a `{syncType, syncLevel}` pair.
 ///
-/// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`SyncLevel::size` in
+/// @param r The option range. Normally `{0, kMaxCombinedSync, 1}` (`SyncLevel::size` in
 ///          `origin/main:src/deluge/gui/menu_item/sync_level.h` over `NUM_SYNC_VALUES` in
 ///          `origin/main:src/deluge/model/sync.h`), but `sidechain::Sync` overrides `size()` to 10
 ///          (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), so the bounds are an argument rather than baked

@@ -309,7 +309,7 @@ class SongStateWrites(unittest.TestCase):
             (root / "scenes" / "menu" / "nodes").mkdir(parents=True)
             (root / "scenes" / "menu" / "nodes" / "sound_fx.cpp").write_text(
                 "void hook() {\n"
-                "\tAudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);\n"
+                "\tAudioEngine::reverbSidechainSettings.sync_type = type;\n"
                 "\tAudioEngine::reverbSidechainSettings.sync_type = SYNC_TYPE_EVEN;\n"
                 "}\n"
             )

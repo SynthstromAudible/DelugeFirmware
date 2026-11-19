@@ -98,6 +98,8 @@
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
 
+#include "plugin-api/types/display_mapping.h"
+
 #include <limits>
 #include <span>
 
@@ -1126,11 +1128,11 @@ inline constexpr Node record_count_in = with_value_style(
     with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
                sid(String::STRING_FOR_REC_COUNT_IN)),
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
-/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` -- "can't do triplets/dots for quantize"
+/// `record::Quantize::size()` is `SyncType::TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
 inline constexpr Node record_quantize = with_sync_name_magnitude(
     sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,
-                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1}),
+                    IntRange{0, std::to_underlying(deluge::plugin::SyncType::TRIPLET) - 1, 1}),
     relative_to_song_magnitude);
 inline constexpr Node record_margins =
     toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);

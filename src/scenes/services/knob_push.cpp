@@ -22,6 +22,7 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
+#include "music-theory/note_length.h"
 
 #include <algorithm>
 #include <array>
@@ -671,16 +672,8 @@ bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::Kno
 }
 
 std::string note_length_name(uint32_t note_length, int32_t tick_magnitude) {
-	// The note's magnitude: positive is bars, negative a division of a bar.
-	int32_t magnitude = -5 - tick_magnitude;
-	for (uint32_t level = 3; level < note_length; level <<= 1) {
-		magnitude++;
-	}
-	if (magnitude < 0) {
-		const uint32_t division = uint32_t{1} << -magnitude;
-		return std::to_string(division) + ((division % 10) == 2 ? "nd" : "th") + "-notes";
-	}
-	return std::to_string(uint32_t{1} << magnitude) + "-bar";
+	return std::string{
+	    music::note_length_name(music::note_magnitude(note_length, tick_magnitude), "-notes", false).view()};
 }
 
 } // namespace deluge::scenes::services
