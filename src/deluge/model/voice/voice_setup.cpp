@@ -58,7 +58,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 					}
 					else {
 						guide.audioFileHolder = holder;
-						if (source.oscType == OscType::SAMPLE && source.repeatMode == SampleRepeatMode::STRETCH) {
+						if (source.oscType == OscType::SAMPLE
+						    && sound.config().sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 							guide.sequenceSyncLengthTicks = sampleSyncLength;
 							// lastSwungTickActioned, not getActualSwungTickCount(): ticksLate counts from it
 							guide.sequenceSyncStartedAtTick = playbackHandler.lastSwungTickActioned - ticksLate;
@@ -107,10 +108,10 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		const auto* sampleHolder = source.oscType == OscType::SAMPLE
 		                               ? static_cast<const SampleHolderForVoice*>(voice.guides[s].audioFileHolder)
 		                               : nullptr;
-		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : source.transpose;
-		// The holder's and the source's tuners are set from their cents: the same tune, from the same cents
+		const deluge::synth::SourceConfig& settings = sound.config().sources[s];
+		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : settings.transpose;
 		out.fine_tuner =
-		    deluge::dsp::fixed::FineTune::of_cents(sampleHolder != nullptr ? sampleHolder->cents : source.cents);
+		    sampleHolder != nullptr ? deluge::dsp::fixed::FineTune::of_cents(sampleHolder->cents) : settings.tune;
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
 		if (!forNoteChange && synthMode != SynthMode::FM && source.oscType == OscType::DX7 && out.ever_active) {
 			out.dx_patch = source.ensureDxPatch();

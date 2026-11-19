@@ -18,6 +18,7 @@
 
 #include "definitions_cxx.hpp"                         // LoopType / MarkerType
 #include "synth/sources/sample/sample_playback_port.h" // synth::SamplePlaybackPort
+#include "synth/voice/sound_config.h"                  // synth::SourceConfig
 #include <cstdint>
 
 class Sample;
@@ -39,9 +40,11 @@ class SamplePlaybackAdapter final : public deluge::synth::SamplePlaybackPort {
 public:
 	// --- App-side note lifecycle (called directly by the App, not via the port) ------------------------------
 
-	/// The note's source and playback guide, which the port's note-on and render read: set before each note-on.
-	void bind(::Source* source, VoiceSamplePlaybackGuide* guide) {
+	/// The note's source, its settings and its playback guide, which the port's note-on and render read: set before
+	/// each note-on.
+	void bind(::Source* source, const deluge::synth::SourceConfig* settings, VoiceSamplePlaybackGuide* guide) {
 		source_ = source;
+		settings_ = settings;
 		guide_ = guide;
 	}
 
@@ -97,5 +100,6 @@ private:
 	/// The per-note source config + playback guide, cached at note-on (stable for the note; `sound.sources[s]` /
 	/// `voice.guides[s]` are fixed members). The render queries above read these. Cleared in @ref unassign.
 	::Source* source_ = nullptr;
+	const deluge::synth::SourceConfig* settings_ = nullptr;
 	VoiceSamplePlaybackGuide* guide_ = nullptr;
 };

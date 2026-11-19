@@ -1319,7 +1319,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SampleRepeatMode::ONCE
+		    && (sources[s].oscType != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1339,7 +1339,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
 		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
-		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
+		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
 				return sources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
 			}
@@ -1375,9 +1375,10 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
+		else if (config_.sources[s].repeat_mode == SampleRepeatMode::CUT
+		         || config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
+			if (anyLooping && config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1409,7 +1410,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 		}
 
 		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
-		    || sources[s].repeatMode != SampleRepeatMode::CUT) {
+		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
 	}
@@ -1441,7 +1442,8 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
-			if (sources[s].repeatMode == SampleRepeatMode::ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+			if (config_.sources[s].repeat_mode == SampleRepeatMode::ONCE
+			    || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
 				              // tried to do a late start otherwise?
 			}
@@ -1942,15 +1944,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
 		// What changes this block for each of the sound's voices; their settings are its config.
 		std::array<OscType, kNumSources> oscTypes;
-		std::array<SampleRepeatMode, kNumSources> repeatModes;
-		std::array<InterpolationMode, kNumSources> interpolationModes;
 		std::array<bool, kNumSources> dxPatchChangeds;
 		std::array<bool, kNumSources> sourceEverActives;
 		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
-			repeatModes[s] = sources[s].repeatMode;
-			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
 			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
@@ -1975,8 +1973,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
 		    .osc_type = oscTypes,
-		    .repeat_mode = repeatModes,
-		    .interpolation_mode = interpolationModes,
 		    .dx_patch_changed = dxPatchChangeds,
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
@@ -2460,16 +2456,17 @@ void Sound::doneReadingFromFile() {
 
 void Sound::reseedRecord() {
 	if (state_ == nullptr) {
+		projectSnapshot();
 		return;
 	}
 	seedDocSoundScalars();
 	projectModControllableSnapshot();
-	projectSnapshot();
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].seedDocSourceScalars();
 		sources[s].seedDocDxPatch();
 		sources[s].seedDocRanges();
 	}
+	projectSnapshot(); // after the oscillators are in the record: the config derives their settings too
 }
 
 // Set cents for master transpose
@@ -2619,7 +2616,7 @@ void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFla
 							newVoiceSample.stopUsingCache(
 							    &voice->guides[s], (Sample*)voice->guides[s].audioFileHolder->audioFile,
 							    voice->priority_rating(),
-							    voice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
+							    voice->guides[s].getLoopingType(config_.sources[s].repeat_mode) == LoopType::LOW_LEVEL);
 							// TODO: should really check success of that...
 						}
 					}
@@ -2815,11 +2812,23 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// Unbound sounds (a preview) have no record: their fields are written directly until they are bound.
-	if (state_ == nullptr) {
+	if (state_ != nullptr) {
+		config_ = deluge::instrument::DelugeSynth::derive(*state_);
 		return;
 	}
-	config_ = deluge::instrument::DelugeSynth::derive(*state_);
+	// An unbound sound (a preview) has no record: its sound-wide settings are written into the config directly, and
+	// its oscillators' come from the oscillators themselves
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const ::Source& source = sources[s];
+		config_.sources[s] = {.transpose = source.transpose,
+		                      .cents = source.cents,
+		                      .tune = deluge::dsp::fixed::FineTune::of_cents(source.cents),
+		                      .repeat_mode = source.repeatMode,
+		                      .time_stretch_amount = source.timeStretchAmount,
+		                      .interpolation_mode = source.sampleControls.interpolationMode,
+		                      .pitch_and_speed_independent = source.sampleControls.pitchAndSpeedAreIndependent,
+		                      .reversed = source.sampleControls.reversed};
+	}
 }
 
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison

@@ -49,7 +49,6 @@ public:
 	///        note leaves the transpose alone. @p thatOneNote is the MIDI key a range covering just one note covers.
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool rangeCoversJustOneNote = false,
 	                                        int32_t thatOneNote = 0);
-	uint32_t getMSecLimit(Source* source);
 
 	/// In samples. 0 means not set.
 	uint32_t loopStartPos;

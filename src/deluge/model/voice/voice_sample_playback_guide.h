@@ -31,7 +31,7 @@ public:
 	bool shouldObeyLoopEndPointNow();
 	int32_t getBytePosToStartPlayback(bool justLooped) override;
 	int32_t getBytePosToEndOrLoopPlayback() override;
-	LoopType getLoopingType(const Source& source) const;
+	LoopType getLoopingType(SampleRepeatMode repeatMode) const;
 
 	[[nodiscard]] uint32_t getLoopStartPlaybackAtByte() const override { return loopStartPlaybackAtByte; }
 	[[nodiscard]] uint32_t getLoopEndPlaybackAtByte() const override {

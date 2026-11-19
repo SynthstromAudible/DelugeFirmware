@@ -76,7 +76,7 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
 			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
-				ports(u, s).sample.bind(&sound.sources[s], &guides[s]);
+				ports(u, s).sample.bind(&sound.sources[s], &sound.config().sources[s], &guides[s]);
 			}
 		}
 	}
@@ -230,7 +230,7 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
-	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
+	LoopType loopingType = guides[s].getLoopingType(sound.config().sources[s].repeat_mode);
 
 	// Check we're still within bounds - for each unison part.
 	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into

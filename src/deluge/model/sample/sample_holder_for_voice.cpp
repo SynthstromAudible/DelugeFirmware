@@ -109,20 +109,6 @@ void SampleHolderForVoice::setCents(int32_t newCents) {
 	cents = newCents;
 }
 
-uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
-	if (source->repeatMode == SampleRepeatMode::STRETCH) {
-		return 9999999;
-	}
-	else {
-		if (!audioFile) {
-			return 0;
-		}
-		else {
-			return ((Sample*)audioFile)->getLengthInMSec();
-		}
-	}
-}
-
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool rangeCoversJustOneNote,
                                                               int32_t thatOneNote) {
 	// The note is the detection's: every caller has run it. Nothing is scanned here.

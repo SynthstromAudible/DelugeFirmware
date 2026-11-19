@@ -106,7 +106,8 @@ inline RenderConfig config(SynthMode mode, OscType osc) {
 	RenderConfig cfg{.sound = snapshot(mode), .values = {}};
 	cfg.sound.voicing.unison.level = deluge::dsp::Q<31>::from_raw(134217728);
 	cfg.values.osc_type = {osc, OscType::SQUARE};
-	cfg.values.repeat_mode = {SampleRepeatMode::ONCE, SampleRepeatMode::ONCE};
+	cfg.sound.sources[0].repeat_mode = SampleRepeatMode::ONCE;
+	cfg.sound.sources[1].repeat_mode = SampleRepeatMode::ONCE;
 	cfg.values.note_tails_allowed = true;
 	cfg.values.source_ever_active = {true, false};
 	cfg.values.source_active_currently = {true, false};
