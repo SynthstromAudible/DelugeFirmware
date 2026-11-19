@@ -1,5 +1,6 @@
 #include "instruments/deluge/cables.h"
 #include "support/printers/cable_route_printer.h"
+#include "synth/modulation/cable.h"
 
 #include <cppspec.hpp>
 
@@ -58,6 +59,34 @@ describe cables("the Deluge instrument's patch-cable words and depth ids", ${
 		expect(cable_route(*cable_depth_id(PatchSource::X, kUnknownDestination))->destination.value)
 		    .to_equal(kUnknownDestination.value);
 		expect(cable_depth_id(PatchSource::X, ParamId{300})).not_().to_have_value();
+	});
+
+	it("reads the depth id of a packed cable word, one source byte per level and 0xFF for none", _ {
+		// the word of LFO1 -> pitch (25): 25 | 0 << 8, no further sources
+		expect(cable_depth_of_word(0xFFFF'FF19u).value).to_equal(25u);
+		expect(cable_depth_of_word(0xFFFF'0019u).value).to_equal(0x4000'0119u);
+		// envelope2 (4) onto that depth: 25 | 0 << 8 | 4 << 16
+		expect(cable_depth_of_word(0xFF04'0019u).value).to_equal(0x4001'4119u);
+		// velocity (12) onto that: 25 | 0 << 8 | 4 << 16 | 12 << 24
+		expect(cable_depth_of_word(0x0C04'0019u).value).to_equal(0x40D1'4119u);
+	});
+
+	it("packs a depth id into the runtime's cable word, the inverse of reading it", _ {
+		expect(cable_word_of(ParamId{25})).to_equal(0xFFFF'FF19u);
+		expect(cable_word_of(ParamId{0x4000'0119u})).to_equal(0xFFFF'0019u);
+		expect(cable_word_of(ParamId{0x4001'4119u})).to_equal(0xFF04'0019u);
+		expect(cable_word_of(ParamId{0x40D1'4119u})).to_equal(0x0C04'0019u);
+	});
+
+	it("names the param a mod knob's descriptor word points at, by the instrument's id", _ {
+		using deluge::synth::CableTarget;
+		// a patched param is its own index, an unpatched one is 90 on from its runtime index: the id is the index
+		expect(knob_param_of(CableTarget::param(25)).value).to_equal(25u);
+		expect(knob_param_of(CableTarget::param(91)).value).to_equal(91u);
+		// a cable is its depth id
+		expect(knob_param_of(CableTarget::depth_of(25, PatchSource::LFO_GLOBAL_1)).value).to_equal(0x4000'0119u);
+		expect(knob_param_of(CableTarget::depth_of_depth(25, PatchSource::LFO_GLOBAL_1, PatchSource::ENVELOPE_1)).value)
+		    .to_equal(0x4001'4119u);
 	});
 });
 

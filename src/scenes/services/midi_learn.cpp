@@ -23,7 +23,6 @@
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
 #include "model/output.h"
-#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -85,7 +84,8 @@ bool global_command_learned(GlobalMIDICommand c) {
 LearnTarget LearnTarget::section(::Song& song, uint8_t section) {
 	// `View::sectionMidiLearnPadPressed`: the song's record holds the command, so the learn edits a
 	// scratch copy of it and commits each change back.
-	g_section_scratch = deluge::bridge::learned_of(deluge::bridge::sectionCommand(song.project.mappings, section));
+	const deluge::project::Mapping* entry = song.project.mappings.find(deluge::project::SectionLaunchTarget{section});
+	g_section_scratch = deluge::bridge::learned_of(entry != nullptr ? entry->source : deluge::project::MidiCommand{});
 	return LearnTarget{.kind = ::MidiLearn::SECTION,
 	                   .thing = &g_section_scratch,
 	                   .mapping = deluge::project::SectionLaunchTarget{section},

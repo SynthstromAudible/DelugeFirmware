@@ -18,8 +18,10 @@
 #pragma once
 
 #include "plugin-api/types/param.h"
+#include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -182,6 +184,48 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 	const uint32_t without = depth.value & ~(0x3Fu << detail::kSourceShift[level - 1]);
 	const plugin::ParamId destination{level == 1 ? without & 0xFFu : without};
 	return CableRoute{static_cast<PatchSource>(field - 1), destination};
+}
+
+/// @brief The depth id of the cable the runtime's packed cable word @p word names: the low byte is the destination
+/// param, then one byte per source from the one nearest the param, 0xFF for none (synth::CableTarget's layout).
+/// A source that does not fit the destination (a fourth level, a destination the depth id cannot carry) is left out.
+/// @param word The packed cable word.
+/// @return The cable's depth id.
+[[nodiscard]] constexpr plugin::ParamId cable_depth_of_word(uint32_t word) {
+	plugin::ParamId id{word & 0xFFu};
+	for (uint32_t shift = 8; shift <= 24; shift += 8) {
+		const uint32_t source = (word >> shift) & 0xFFu;
+		if (source == 0xFFu) {
+			break;
+		}
+		id = cable_depth_id(static_cast<PatchSource>(source), id).value_or(id);
+	}
+	return id;
+}
+
+/// @brief The runtime's packed cable word of the depth id @p depth: the inverse of cable_depth_of_word. A param id
+/// that is not a cable's depth packs as a cable to that param with no sources.
+/// @param depth A cable depth id.
+/// @return The packed cable word.
+[[nodiscard]] constexpr uint32_t cable_word_of(plugin::ParamId depth) {
+	std::array<uint32_t, 3> sources{0xFFu, 0xFFu, 0xFFu};
+	size_t n = 0;
+	plugin::ParamId at = depth;
+	while (const std::optional<CableRoute> route = cable_route(at)) {
+		sources[n++] = static_cast<uint32_t>(route->source);
+		at = route->destination;
+	}
+	// The route unwinds from the outermost source in; the word holds the innermost at bits 8-15.
+	std::reverse(sources.begin(), sources.begin() + static_cast<std::ptrdiff_t>(n));
+	return (at.value & 0xFFu) | sources[0] << 8 | sources[1] << 16 | sources[2] << 24;
+}
+
+/// @brief The id of what a mod knob's descriptor word points at: a param by its flat index (a patched param's own id,
+/// an unpatched one 90 on from its runtime index: the instrument's id either way), a cable by its depth id.
+/// @param word The knob's descriptor word, not the null one.
+/// @return The param's or the cable's depth id.
+[[nodiscard]] constexpr plugin::ParamId knob_param_of(synth::CableTarget word) {
+	return word.is_param() ? plugin::ParamId{word.param_index()} : cable_depth_of_word(word.word);
 }
 
 } // namespace deluge::instrument

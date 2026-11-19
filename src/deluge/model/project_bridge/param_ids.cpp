@@ -208,28 +208,11 @@ static_assert(static_cast<int>(instrument::Polarity::UNIPOLAR) == static_cast<in
 static_assert(static_cast<int>(instrument::Polarity::BIPOLAR) == static_cast<int>(::Polarity::BIPOLAR));
 
 deluge::plugin::ParamId cableDepthIdOf(uint32_t word) {
-	deluge::plugin::ParamId id{word & 0xFFu};
-	for (uint32_t shift = 8; shift <= 24; shift += 8) {
-		const uint32_t source = (word >> shift) & 0xFFu;
-		if (source == 0xFFu) {
-			break;
-		}
-		id = instrument::cable_depth_id(static_cast<instrument::PatchSource>(source), id).value_or(id);
-	}
-	return id;
+	return instrument::cable_depth_of_word(word);
 }
 
 uint32_t cableWordOf(deluge::plugin::ParamId depth) {
-	std::array<uint32_t, 3> sources{0xFFu, 0xFFu, 0xFFu};
-	size_t n = 0;
-	deluge::plugin::ParamId at = depth;
-	while (std::optional<instrument::CableRoute> route = instrument::cable_route(at)) {
-		sources[n++] = static_cast<uint32_t>(route->source);
-		at = route->destination;
-	}
-	// The route unwinds from the outermost source in; the word holds the innermost at bits 8-15.
-	std::reverse(sources.begin(), sources.begin() + static_cast<std::ptrdiff_t>(n));
-	return (at.value & 0xFFu) | sources[0] << 8 | sources[1] << 16 | sources[2] << 24;
+	return instrument::cable_word_of(depth);
 }
 
 deluge::plugin::ParamId paramIdOf(params::Kind kind, int32_t index) {

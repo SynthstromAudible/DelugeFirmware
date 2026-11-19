@@ -42,12 +42,13 @@
 #include "instruments/deluge/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
+#include <span>
 
 namespace deluge::scenes::services {
 
@@ -88,7 +89,7 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 		break;
 	}
 	if (deluge::instrument::is_cable_depth(address.id)) {
-		return static_cast<int32_t>(deluge::bridge::cableWordOf(address.id));
+		return static_cast<int32_t>(deluge::instrument::cable_word_of(address.id));
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
 		return deluge::host_chain::find_runtime_index(address.id).value_or(0);
@@ -148,7 +149,7 @@ void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) 
 	selecting_cc_ = false;
 	if (send_midi_feedback) {
 		// `View::setActiveModControllableTimelineCounter`, `View::setActiveModControllableWithoutTimelineCounter`.
-		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false);
+		send_midi_follow_feedback(Kind::NONE, nullptr, kNoSelection, false, false);
 	}
 }
 
@@ -163,7 +164,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	}
 	// Unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
-		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);
+		send_midi_follow_feedback(Kind::NONE, nullptr, kNoSelection, false, true);
 	}
 }
 
@@ -335,7 +336,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	turn.should_indicate_middle_value =
 	    controls::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
 
-	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
+	send_midi_follow_feedback(turn.kind, address, turn.new_knob_pos, true, false);
 	if (turn.note_tails_changed) {
 		out.note_tails_changed();
 	}
@@ -720,8 +721,44 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	declare_indicators(frame);
 }
 
-void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t knob_pos, bool have_param,
-                                         bool is_automation) {
+std::optional<deluge::project::ParamTarget> follow_target(deluge::project::OwnerPlugin owner, Kind kind,
+                                                          const deluge::project::ParamAddress& address) {
+	switch (kind) {
+	case Kind::MIDI:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::MIDI_CC, address.id};
+	case Kind::EXPRESSION:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::EXPRESSION, address.id};
+	case Kind::PATCHED:
+	case Kind::PATCH_CABLE:
+	case Kind::UNPATCHED_SOUND:
+		if (owner != deluge::project::OwnerPlugin::INSTRUMENT) {
+			return std::nullopt;
+		}
+		break;
+	case Kind::UNPATCHED_GLOBAL:
+		if (owner != deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE) {
+			return std::nullopt;
+		}
+		break;
+	case Kind::NONE:
+	case Kind::STATIC:
+		return std::nullopt;
+	}
+	// A cable's depth id is in no params table; every other id must be in its owner's.
+	if (kind != Kind::PATCH_CABLE) {
+		const std::span<const deluge::plugin::ParamInfo> table =
+		    owner == deluge::project::OwnerPlugin::INSTRUMENT
+		        ? std::span<const deluge::plugin::ParamInfo>{deluge::instrument::kParams}
+		        : std::span<const deluge::plugin::ParamInfo>{deluge::host_chain::kParams};
+		if (deluge::plugin::find_param(table, address.id) == nullptr) {
+			return std::nullopt;
+		}
+	}
+	return deluge::project::engine_target(address.id.value);
+}
+
+void ModKnobs::send_midi_follow_feedback(Kind kind, const deluge::project::ParamAddress* address, int32_t knob_pos,
+                                         bool have_param, bool is_automation) {
 	// `View::sendMidiFollowFeedback`.
 	if (!midiFollow.isFeedbackEnabled()) {
 		return;
@@ -731,11 +768,11 @@ void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t kn
 	}
 	if (have_param) {
 		// In a global effectable's context only its own params are followed, elsewhere a sound's.
-		const deluge::bridge::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
-		                                              ? deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE
-		                                              : deluge::bridge::OwnerPlugin::INSTRUMENT;
+		const deluge::project::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
+		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
+		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
 		const std::optional<deluge::project::ParamTarget> target =
-		    kind == Kind::NONE ? std::nullopt : deluge::bridge::targetOf(owner, kind, param_id);
+		    address != nullptr ? follow_target(owner, kind, *address) : std::nullopt;
 		if (const std::optional<uint8_t> cc_number = target ? midiFollow.ccOf(owner, *target) : std::nullopt) {
 			midiFollow.sendCCForMidiFollowFeedback(*cc_number, knob_pos);
 		}
@@ -766,7 +803,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		// ported here -- it is not part of any `View` function this service ports.
 		if (playbackHandler.isEitherClockActive()
 		    && midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
-			send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);
+			send_midi_follow_feedback(Kind::NONE, nullptr, kNoSelection, false, true);
 		}
 	}
 }

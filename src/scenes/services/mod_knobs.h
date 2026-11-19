@@ -51,6 +51,8 @@
 ///          points use the last `now_ms` the service was ticked with.
 
 #include "controls/board.h"
+#include "deluge-project/owner_plugin.h"
+#include "deluge-project/param_address.h"
 #include "effects/state.h"
 #include "foundation/panic.h"
 #include "scenes/bind/knob_focus.h"
@@ -76,13 +78,19 @@ namespace deluge::ui::shell {
 class InputLowering;
 }
 
-namespace deluge::project {
-struct ParamAddress;
-}
-
 namespace deluge::scenes::services {
 
 struct PushInputs;
+
+/// @brief The param MIDI follow's CCs name for the knob's param, in the owner's plugin.
+/// @param owner   Whose param table the context follows: a sound's, or a global effectable's.
+/// @param kind    The kind of the param the knob turned.
+/// @param address The param the knob turned.
+/// @return The followed target, or nullopt when the owner's plugin has no such param (a param of the other owner's
+///         table, a kind with no follow, a param not in its table).
+[[nodiscard]] std::optional<deluge::project::ParamTarget> follow_target(deluge::project::OwnerPlugin owner,
+                                                                        deluge::plugin::ParamKind kind,
+                                                                        const deluge::project::ParamAddress& address);
 
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
@@ -293,8 +301,13 @@ private:
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
 	bool indicator_blinking(int32_t which_encoder) const;
 	/// @brief `View::sendMidiFollowFeedback`.
-	void send_midi_follow_feedback(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, bool have_param,
-	                               bool is_automation);
+	/// @param kind          The kind of the param the knob turned.
+	/// @param address       The param, or null for none.
+	/// @param knob_pos      The knob's new position.
+	/// @param have_param    Whether a param was turned (else the feedback is the no-param form).
+	/// @param is_automation Whether the feedback reports automation.
+	void send_midi_follow_feedback(deluge::plugin::ParamKind kind, const deluge::project::ParamAddress* address,
+	                               int32_t knob_pos, bool have_param, bool is_automation);
 	/// @brief Whether the app's facts and sink act on the song the knobs read.
 	bool bound() const;
 	/// @brief The focus's owner's effect settings: a sound's own, or its chain's; null for none.

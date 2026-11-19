@@ -23,11 +23,11 @@
 
 #include "scenes/menu/learn.h"
 
-#include "model/project_bridge/controls_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_core.h"
 
 #include "deluge-project/song.h"
+#include "instruments/deluge/cables.h"
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
@@ -125,10 +125,7 @@ std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuCon
 		if (!from_item.is_null() && owner) {
 			return deluge::project::OwnerParamTarget{
 			    .owner = *owner,
-			    .param = deluge::project::engine_target(
-			        deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
-			                                        deluge::plugin::ParamKind::UNPATCHED_SOUND)
-			            .value)};
+			    .param = deluge::project::engine_target(deluge::instrument::knob_param_of(from_item).value)};
 		}
 	}
 	return bindings::learn_target(*node, ctx);
