@@ -11,18 +11,25 @@ for routing edges and summing buffers.
 |---|---|---|---|
 | `Output` | `Track`, plus the instrument device it holds | P5 topology | today one object is a track and its instrument |
 | `SoundInstrument` | a `Track` whose instrument is the Deluge synth | P5 | |
-| `Kit` | a `Track` whose instrument is a rack of lanes | P5 | its channel is already a `TrackChannel` |
+| `Kit` | a `Track` whose instrument is a `Kit` of `KitRow`s | P5 | a kit routes each note to one row (the Drum Rack kind); its channel is already a `TrackChannel`. `Rack` stays free for parallel chains that share an input |
 | `Instrument`, `MelodicInstrument` | the instrument device | P5 | |
-| `Drum`, `SoundDrum` | a kit lane, a full nested chain | P5 | |
+| `Drum`, `SoundDrum` | a `KitRow`: a trigger and its own full chain | P5 | |
 | `NonAudioInstrument`, `MIDIInstrument`, `CVInstrument` | MIDI-out and CV-out instrument devices | P5 | |
-| `GlobalEffectable`, `GlobalEffectableForClip`, `GlobalEffectableForSong` | deleted | P3d-1c step 4 | the render side lives in `TrackChannel` / `MasterChannel` |
-| `ModControllableAudio` | deleted | P3d-1c step 4 | the settings binding is `EffectsBinding`; an owner's effects are `model::EffectsOwner` |
-| `ModControllable` | stays | — | the knob plumbing MIDI and CV use |
-| `SongLive::global_effectable` | deleted with `GlobalEffectableForSong` | P3d-1c step 4 | the master is `SongLive::master_channel` |
+| `GlobalEffectable`, `GlobalEffectableForClip`, `GlobalEffectableForSong` | deleted | done | the render side lives in `TrackChannel` / `MasterChannel` |
+| `ModControllableAudio` | deleted | done | the settings binding is `EffectsBinding`; an owner's effects are `model::EffectsOwner` |
+| `ModControllable` | deleted | Track A 1b-ii (with ModelStack stage 1) | today only the `effectsOwner()` bridge |
+| `SongLive::global_effectable` | deleted with `GlobalEffectableForSong` | done | the master is `SongLive::master_channel` |
 | `effects::ClipChain`, `ClipChainInputs`, `ClipBlock`, `Home::CLIP`, `ChainHome::CLIP` | `TrackChain`, `TrackChainInputs`, `TrackBlock`, `Home::TRACK`, `ChainHome::TRACK` | done | a track's insert chain |
 | `GlobalEffectableForClip::renderOutput` | `TrackChannel::render` | done | |
 | `Kit::renderGlobalEffectableForClip`, `AudioOutput::renderGlobalEffectableForClip` | `renderContent` | done | the content a track's channel renders around |
 | `getThingWithMostReverb` | `Output::reverbCandidate` | done | |
+| `synth::SoundSnapshot` | `synth::SoundConfig` (`Voicing`, `EngineSettings`, `lfos`) | done | derived by `DelugeSynth::derive` |
+| `instrument::DelugeInstrument` | `instrument::DelugeSynth` | done | the plugin id `kDelugeInstrument` is a file word and stays |
+| `PhaseIncrementFineTuner` | `dsp::fixed::FineTune` | the synth library: done; the app's sample holders: DelugeSynth state plan D | |
+| `instrument::SoundState` | `DelugeSynth::State`, composed of its components' states | DelugeSynth state plan E | |
+| app `Source` (`processing/source.h`) | dissolved into the state, the config and `Resources` | DelugeSynth state plan D | `synth::Source` keeps its name |
+| `effects::SoundChain` | `effects::FxSection` | DelugeSynth state plan E | "chain" means a host list of devices |
+| `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
 
 ## Slot
 
@@ -38,4 +45,4 @@ In DSP code a **lane** is one element of a SIMD vector. A name may say "lane" on
 the lanes (`detail::F32Lanes`), a mask over them (`Poly::LaneMask`), the per-lane pointers a loop steps
 (`Poly::LanePointers`), the lane an index picks (`set_lane`, `get_lane`). An adaptor or a component is named for how
 its copies relate (`Mono`, `Linked`, `Stereo`, `Poly`, `Bank`, `Taps`, `Copies`), never "lanes". Outside DSP, a lane is
-an automation or param lane (`LaneSnapshot`, `PublishedLane`, `LaneView`) or a kit's row in the song topology.
+an automation or param lane (`LaneSnapshot`, `PublishedLane`, `LaneView`); a kit's row is a `KitRow`.

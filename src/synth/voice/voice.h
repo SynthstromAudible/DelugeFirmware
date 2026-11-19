@@ -31,7 +31,7 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patch_routing.h" // GLOBALITY_*
-#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/sound_config.h"
 #include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
@@ -47,7 +47,7 @@ struct StereoSample;
 namespace deluge::synth {
 
 /// @brief One voice of a synth sound: its sources in each unison part, envelopes, local LFOs, modulation and filters,
-/// played from what it is handed — the sound's snapshot and per-block config, a NoteSetup at each note, and the
+/// played from what it is handed — the sound's config and per-block config, a NoteSetup at each note, and the
 /// sources' ports. The app's SoundVoice owns one, with the ports and the playback guides.
 class Voice final {
 public:
@@ -86,19 +86,19 @@ public:
 
 	/// Starts @p event's note. @p num_active_voices is the sound's voice count, which the cull order ranks by.
 	/// @return false if the note cannot play and the voice must be unassigned again.
-	bool note_on(const NoteSetup& setup, const SoundSnapshot& snapshot, const NoteOnEvent& event, VoiceClock clock,
+	bool note_on(const NoteSetup& setup, const SoundConfig& config, const NoteOnEvent& event, VoiceClock clock,
 	             size_t num_active_voices, dsp::fixed::Cong& noise);
 	/// Moves the playing note to another, gliding when @p setup says to.
-	void change_note(const NoteSetup& setup, const SoundSnapshot& snapshot, int32_t note_before_arpeggiation,
+	void change_note(const NoteSetup& setup, const SoundConfig& config, int32_t note_before_arpeggiation,
 	                 int32_t note_after_arpeggiation, int32_t midi_channel,
 	                 std::span<const int16_t, kNumExpressionDimensions> mpe);
 	/// Each source's phase increment for the playing note, in each unison part; a source too high to render is made
 	/// inactive.
-	void calculate_phase_increments(const NoteSetup& setup, const SoundSnapshot& snapshot);
+	void calculate_phase_increments(const NoteSetup& setup, const SoundConfig& config);
 	/// Releases the note: each envelope from its sustain where it has one, or at once when there is no release stage.
 	/// With note tails not allowed, the note-off is only remembered.
 	void note_off(const ReleaseInfo& release, bool allow_release_stage, VoiceClock clock);
-	void randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise);
+	void randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise);
 	void expression_event_immediate(int32_t monophonic_value, int32_t voice_level_value, int32_t s);
 	bool has_release_stage();
 	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the

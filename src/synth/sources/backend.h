@@ -34,7 +34,7 @@ struct SourceLevels;
 struct VoiceConfig;
 struct VoiceBlock;
 struct NoteSetup;
-struct SoundSnapshot;
+struct SoundConfig;
 struct ReleaseInfo;
 
 /// @brief The numeric backend of the q31 Deluge instrument: what @ref BasicSource and @ref BasicEngine are built over.
@@ -60,7 +60,7 @@ struct Fixed {
 	using Config = synth::VoiceConfig;
 	using VoiceInputs = synth::VoiceBlock;
 	using Setup = synth::NoteSetup;
-	using Snapshot = synth::SoundSnapshot;
+	using SoundConfig = synth::SoundConfig;
 	using Release = synth::ReleaseInfo;
 	using DualSourceControls = synth::DualSourceControls;
 	using FmControls = synth::FmControls;

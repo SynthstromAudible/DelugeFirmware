@@ -1,7 +1,7 @@
 // clang-format off
 #include "instruments/deluge/pages.h"
 #include "effects/setting_params.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "support/printers/knob_pair_printer.h"
 #include "support/printers/param_id_printer.h"
 #include "support/printers/plugin_id_printer.h"
@@ -224,8 +224,8 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		const auto& record = instrument::kRemoteControls;
 		instrument::SoundState fm_state;
 		fm_state.synth_mode = instrument::SynthMode::FM;
-		const auto fm = plugin::StateHandle::of<instrument::DelugeInstrument>(fm_state);
-		const auto subtractive = plugin::StateHandle::of<instrument::DelugeInstrument>({});
+		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(fm_state);
+		const auto subtractive = plugin::StateHandle::of<instrument::DelugeSynth>({});
 		const auto lfo_pitch = *instrument::cable_depth_id(instrument::PatchSource::LFO_GLOBAL_1, ip::kPitch);
 		const auto sidechain = *instrument::cable_depth_id(instrument::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);
 		const plugin::ParamId params[] = {ip::kPan,           ip::kLpfFrequency,  ip::kHpfFrequency,

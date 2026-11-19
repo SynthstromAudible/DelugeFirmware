@@ -67,6 +67,7 @@ src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=6
 src/deluge/dsp-next/fixed/osc/supersaw.cpp raw=0 view=1 boundary=7
 src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=3
+src/deluge/dsp-next/fixed/pitch/fine_tune.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/pitch_shift/hop_scheduler.h raw=0 boundary=17
 src/deluge/dsp-next/fixed/pitch_shift/input_history.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/pitch_shift/percussive_search.h raw=0 boundary=4
@@ -123,7 +124,7 @@ src/deluge/processing/audio_output.cpp raw=0 boundary=5
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=26
 src/deluge/processing/engines/input_monitor.h raw=0 boundary=2
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=2
-src/deluge/processing/sound/sound.cpp raw=0 boundary=10
+src/deluge/processing/sound/sound.cpp raw=0 boundary=9
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
 src/deluge/util/functions.h raw=0 boundary=4
@@ -166,4 +167,5 @@ src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=15
 src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=11
+src/synth/voice/unison.h raw=0 boundary=1
 src/synth/voice/voice.cpp raw=0 boundary=28

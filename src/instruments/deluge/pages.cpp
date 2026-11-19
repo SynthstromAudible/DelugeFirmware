@@ -17,7 +17,7 @@
 
 #include "instruments/deluge/pages.h"
 
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 
 #include <optional>
 #include <span>
@@ -57,7 +57,7 @@ bool find_page(const plugin::PageContext& /*ctx*/, uint32_t section, uint32_t pa
 plugin::RemoteSlot decorate_slot(const plugin::PageContext& ctx, plugin::ParamId param) {
 	bool fm = false;
 	if (ctx.state != nullptr) {
-		if (const SoundState* sound = ctx.state->as<DelugeInstrument>()) {
+		if (const SoundState* sound = ctx.state->as<DelugeSynth>()) {
 			fm = sound->synth_mode == SynthMode::FM;
 		}
 	}

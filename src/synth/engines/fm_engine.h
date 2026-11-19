@@ -30,7 +30,7 @@
 
 namespace deluge::synth {
 
-struct SoundSnapshot;
+struct SoundConfig;
 
 /// @brief The FM engine: a whole-voice generator of two modulators (modulator 1 optionally into modulator 0) and two
 /// carriers, each with feedback, in every unison part. It ignores the slots' sources: the carriers render over each

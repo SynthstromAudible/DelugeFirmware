@@ -19,10 +19,10 @@
 #include "definitions_cxx.hpp" // kNumSources, OscType, kNumExpressionDimensions, kFirstLocalSource
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/noise/cong.h"
+#include "dsp-next/fixed/pitch/fine_tune.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "synth/matrix/matrix_block.h"
 #include "util/misc.h" // util::to_underlying
-#include "util/phase_increment_fine_tuner.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -79,14 +79,14 @@ struct SourceSetup {
 	bool ever_active{};              ///< The source can sound at all at the sound's current settings
 	/// A SAMPLE or WAVETABLE source found a range holding a loaded file for the note. Always true for other sources.
 	bool playable{true};
-	int32_t transpose{};                  ///< Semitones: the playing sample's own, else the source's
-	PhaseIncrementFineTuner fine_tuner{}; ///< Cents: the playing sample's own, else the source's
+	int32_t transpose{};             ///< Semitones: the playing sample's own, else the source's
+	dsp::fixed::FineTune fine_tuner; ///< Cents: the playing sample's own, else the source's
 	/// The phase increment that plays the source at its root pitch: the playing sample's, else unity.
 	int32_t neutral_phase_increment{kMaxSampleValue};
 	void* dx_patch{}; ///< A DX7 source's patch, the handle its port takes
 };
 
-/// @brief What a note-on or a note change needs from its sound, beyond the sound's snapshot.
+/// @brief What a note-on or a note change needs from its sound, beyond the sound's config.
 struct NoteSetup {
 	std::array<SourceSetup, kNumSources> sources{};
 	int32_t last_note_code{kNoLastNote}; ///< The sound's previous note, which portamento glides from

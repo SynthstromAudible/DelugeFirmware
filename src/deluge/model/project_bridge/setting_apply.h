@@ -77,4 +77,24 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 [[nodiscard]] std::optional<deluge::instrument::SoundState>
 stateWithSetting(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
+/// @brief Whether @p sound's runtime takes a setting at @p path in its current engine and oscillator types: not sample
+/// playback where an oscillator plays no samples (or the sound is FM; live input takes its interpolation), not a sample
+/// oscillator's own tuning outside FM (its ranges' tuning is its own), not a modulator outside FM.
+[[nodiscard]] bool runtimeTakes(const ::Sound& sound, std::string_view path);
+
+/// @brief Bring @p sound to @p after, which its record already holds, from @p before, what it held: the sound's own
+/// fields and config follow the record, and each part that changed has the runtime effect its menu always had — voices
+/// stop for a new engine, a type that plays files, input or a DX7 patch, a reversed sample or stretch coming or
+/// going; live voices retune for a new tuning or unison detune; live sample parts follow a new unison count; the
+/// params re-patch for a new engine, square coming or going, or an LFO's sync; the per-sound LFOs resync; the runtime
+/// takes the ranges and DX7 patch it does not hold.
+///
+/// @param sound  The sound, bound to its record.
+/// @param before The state the record held.
+/// @param after  The state the record holds now.
+/// @param song   The song the sound plays in.
+/// @return The first refusal from taking the ranges or a DX7 patch, else Error::NONE.
+Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
+                  const deluge::instrument::SoundState& after, ::Song& song);
+
 } // namespace deluge::bridge

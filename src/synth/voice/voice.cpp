@@ -65,7 +65,7 @@ int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expr
 Voice::Voice() = default;
 
 // Returns false if the note cannot play and the voice must be unassigned again
-bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
+bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundConfig& config,
                     const deluge::synth::NoteOnEvent& event, deluge::synth::VoiceClock clock, size_t num_active_voices,
                     dsp::fixed::Cong& noise) {
 	noise_ = &noise;
@@ -92,13 +92,13 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	}
 
 	// Setup and render local LFO
-	lfo2_.set_local_initial_phase(snapshot.lfo_config[LFO2_ID]);
+	lfo2_.set_local_initial_phase(config.lfos[LFO2_ID]);
 	// The source values are Q31 words
 	params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-	    lfo2_.render(0, snapshot.lfo_config[LFO2_ID], dsp::UQ<32>{}, *noise_).raw();
-	lfo4_.set_local_initial_phase(snapshot.lfo_config[LFO4_ID]);
+	    lfo2_.render(0, config.lfos[LFO2_ID], dsp::UQ<32>{}, *noise_).raw();
+	lfo4_.set_local_initial_phase(config.lfos[LFO4_ID]);
 	params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-	    lfo4_.render(0, snapshot.lfo_config[LFO4_ID], dsp::UQ<32>{}, *noise_).raw();
+	    lfo4_.render(0, config.lfos[LFO4_ID], dsp::UQ<32>{}, *noise_).raw();
 
 	// Setup some sources which won't change for the duration of this note
 	params_.source_values[util::to_underlying(PatchSource::VELOCITY)] =
@@ -162,15 +162,15 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	const EngineNote note{
 	    .parts = unison_parts,
 	    .setup = &setup,
-	    .snapshot = &snapshot,
+	    .config = &config,
 	    .note_code = note_code_after_arpeggiation_,
 	    .velocity = event.velocity,
 	    .samples_late = event.samples_late,
-	    .priority_rating = static_cast<int32_t>(priority_rating(snapshot.voice_priority, num_active_voices)),
+	    .priority_rating = static_cast<int32_t>(priority_rating(config.voicing.priority, num_active_voices)),
 	    .reset = event.reset_envelopes,
 	    .noise = noise_,
 	};
-	if (!engines_.for_mode(snapshot.synth_mode).note_on(note)) {
+	if (!engines_.for_mode(config.engine.mode).note_on(note)) {
 		return false;
 	}
 
@@ -195,7 +195,7 @@ void Voice::expression_event_smooth(int32_t new_value, int32_t s) {
 	expression_sources_currently_smoothing_[expression_dimension] = true;
 }
 
-void Voice::change_note(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
+void Voice::change_note(const deluge::synth::NoteSetup& setup, const SoundConfig& config,
                         int32_t note_before_arpeggiation, int32_t note_after_arpeggiation, int32_t midi_channel,
                         std::span<const int16_t, kNumExpressionDimensions> mpe) {
 	input_characteristics_[util::to_underlying(MIDICharacteristic::NOTE)] = note_before_arpeggiation;
@@ -214,7 +214,7 @@ void Voice::change_note(const deluge::synth::NoteSetup& setup, const SoundSnapsh
 		setup_porta(setup.last_note_code);
 	}
 
-	calculate_phase_increments(setup, snapshot);
+	calculate_phase_increments(setup, config);
 }
 
 void Voice::setup_porta(int32_t last_note_code) {
@@ -238,23 +238,23 @@ void Voice::setup_porta(int32_t last_note_code) {
 	porta_envelope_max_amplitude_ = sub_wrap(Q<24>::from_raw(phase_increment), Q<24>::one());
 }
 
-void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise) {
+void Voice::randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise) {
 	noise_ = &noise;
-	for (int32_t u = 0; u < snapshot.num_unison; u++) {
+	for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unison_parts[u].slots[s].osc_pos = dsp::UQ<32>::from_raw(next_noise()); // a random word, a random phase
 			// TODO: we should do sample play pos, too
 		}
-		engines_.for_mode(snapshot.synth_mode).randomize_part(u, *noise_);
+		engines_.for_mode(config.engine.mode).randomize_part(u, *noise_);
 	}
 }
 
-void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot) {
-	engines_.for_mode(snapshot.synth_mode)
+void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, const SoundConfig& config) {
+	engines_.for_mode(config.engine.mode)
 	    .calculate_phase_increments({
 	        .parts = unison_parts,
 	        .setup = &setup,
-	        .snapshot = &snapshot,
+	        .config = &config,
 	        .note_code = note_code_after_arpeggiation_,
 	    });
 }

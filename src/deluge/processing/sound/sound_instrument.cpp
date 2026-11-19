@@ -469,8 +469,8 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	if (arpSettings != nullptr
-	    && (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
-	        || polyphonic == PolyphonyMode::MONO)) {
+	    && (arpSettings->mode != ArpMode::OFF || config().voicing.polyphony == PolyphonyMode::LEGATO
+	        || config().voicing.polyphony == PolyphonyMode::MONO)) {
 		int32_t n = searchArpNotes(arpeggiator.notes, noteCode);
 		if (n >= static_cast<int32_t>(arpeggiator.notes.size())) {
 			return false;

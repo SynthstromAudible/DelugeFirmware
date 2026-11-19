@@ -19,8 +19,8 @@
 
 #include "effects/host_chain/naming.h"
 #include "instruments/deluge/cables.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/naming.h"
-#include "instruments/deluge/plugin.h"
 #include "io/debug/log.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_controls.h"
@@ -340,7 +340,7 @@ namespace {
 deluge::plugin::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
 	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
 	(void)deluge::instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
-	return deluge::plugin::StateHandle::of<deluge::instrument::DelugeInstrument>(std::move(state));
+	return deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(std::move(state));
 }
 
 void encodeInstrument(const deluge::plugin::StateHandle& state, deluge::serialization::Value& element,
