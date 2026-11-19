@@ -105,7 +105,8 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		const auto index = static_cast<uint32_t>(param_id);
+		// A cable's id packs its depth and sources above the destination, which is the low byte.
+		const auto index = static_cast<uint32_t>(static_cast<uint8_t>(param_id));
 		out.append(context.filter ? deluge::l10n::patched_param_short_name_at(index, context.filter->lpf_mode,
 		                                                                      context.filter->hpf_mode)
 		                          : deluge::l10n::patched_param_short_name_at(index));

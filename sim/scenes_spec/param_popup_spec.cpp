@@ -394,6 +394,23 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		expect(r.fake.pbm(0)).to_equal(legacy_pbm);
 	});
 
+	it("names a cable by the low byte of its packed id, as legacy does", _ {
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::display::OLED::popup.clear();
+		display = &oled_display;
+		set_legacy_time_ms(2'500'000);
+
+		constexpr int32_t packed = GLOBAL_VOLUME_POST_REVERB_SEND | 0x2300;
+		view.displayModEncoderValuePopup(Kind::PATCH_CABLE, packed, 64, PatchSource::SIDECHAIN, PatchSource::NONE);
+		const std::string legacy_pbm = legacy_popup_pbm();
+
+		Rig r;
+		r.open();
+		param_popup_scene().show(Kind::PATCH_CABLE, packed, 64, PatchSource::SIDECHAIN, PatchSource::NONE, 2'500'000);
+		r.tick(2'500'000);
+		expect(r.fake.pbm(0)).to_equal(legacy_pbm);
+	});
+
 	it("ports the arbitration in View::displayModEncoderValuePopup: immediate display, refresh, "
 	   "ownership hold-off, and throttled/pending flush", _ {
 		// A base far past every prior example's own legacy clock reading, so the ownership-timeout
