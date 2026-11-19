@@ -46,7 +46,7 @@ public:
 	/// @param next The new settings.
 	void store(const deluge::effects::EffectStates& next);
 
-	/// @brief Keeps the settings in @p record, which takes the settings held now; nullptr keeps them here again,
+	/// @brief Plays the settings @p record holds, and keeps every later store in it; nullptr keeps them here again,
 	/// copying the record's back. Does not project.
 	/// @param record The record that holds the settings, or nullptr.
 	void bind(deluge::effects::EffectStates* record);

@@ -2740,6 +2740,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
 		deluge::model::changeEffects(*effectsOwner(),
 		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
+		decoded.effects.filter.hpf_mode = FilterMode::OFF;
+		decoded.effects.filter.lpf_mode = FilterMode::OFF;
 	}
 
 	// A sound with params files them with the Song
@@ -2751,8 +2753,9 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	doneReadingFromFile();
 
-	// The sound plays what the file holds, as the decode makes it (the reader above set its runtime to the same); its
-	// effects are the ones the render plays, which binding them copies in
+	// The sound plays what the file holds, as the decode makes it; the reader above set its runtime to the same, but
+	// for a mod FX type the runtime could not allocate, which it plays without
+	decoded.effects.mod_fx.type = effects().mod_fx.type;
 	adoptState(std::move(decoded));
 
 	return Error::NONE;
@@ -2956,7 +2959,8 @@ void Sound::bindState() {
 	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
-	projectSnapshot(); // derive the render read-view from the now-seeded record
+	projectSnapshot();      // derive the render read-view from the now-seeded record
+	d->effects = effects(); // the effects it plays, seeded like the rest
 	bindEffects(&d->effects);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindState(&d->sources[s]);

@@ -50,11 +50,8 @@ void EffectsBinding::store(const deluge::effects::EffectStates& next) {
 }
 
 void EffectsBinding::bind(deluge::effects::EffectStates* record) {
-	if (record != nullptr) {
-		*record = effects();
-	}
-	else if (bound_ != nullptr) {
-		own_ = *bound_;
+	if (record == nullptr && bound_ != nullptr) {
+		own_ = *bound_; // the record goes: its settings stay here
 	}
 	bound_ = record;
 }
