@@ -286,8 +286,8 @@ It reaches the host one of three ways:
    loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
    `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced
    while its request is still being performed is held and delivered by `pollShellBrowserHost`
-   after the tick, so a refusal cannot re-enter a scene from inside its own `handle`; any other
-   answer is delivered when it arrives.
+   after the tick, so a refusal cannot re-enter a scene from inside the hook that asked; any
+   other answer is delivered when it arrives.
 3. **A scene-owned one-slot outbox**, when the host acts after the frame: `MenuScene::take_action()`
    (drained by `dispatchShellActions`), `MenuScene::take_transition()` (`dispatchMenuTransitions`)
    and `BrowserScene::take_scroll()` (taken by `pollShellBrowserHost`, after the held answers). An

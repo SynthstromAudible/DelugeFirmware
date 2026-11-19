@@ -271,7 +271,7 @@ which byte-compares, so a fix changes the port and the oracle together.
   at most one child.
 - **A legacy quirk you keep:** pin it with a spec or golden and add a row to the table above.
 
-## Not yet ported
+## Known gaps
 
 - The OLED `waveform` widget: it needs the model-side `WaveformRenderData`, so it waits for a
   sample-view scene. `WaveformState` in `core/state.h` is reserved for it.
