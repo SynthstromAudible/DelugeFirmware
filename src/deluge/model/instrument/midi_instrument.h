@@ -172,14 +172,21 @@ public:
 	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                uint32_t paramID) override {
 		if (kind == deluge::modulation::params::Kind::EXPRESSION) {
-			if (paramID == X_PITCH_BEND) {
-				// pitch is in 14 bit instead of 7
-				return old_value >> 18 != new_value >> 18;
-			}
-			// aftertouch and mod wheel are positive only and recorded into a smaller range than CCs
-			return old_value >> 24 != new_value >> 24;
+			return expressionChangeMatters(old_value, new_value, static_cast<int32_t>(paramID));
 		}
 		return old_value >> 25 != new_value >> 25;
+	}
+
+	/// @brief An expression change matters when the MIDI it sends moves: pitch bend's 14 bits, or the 7 bits of
+	///        aftertouch and the mod wheel.
+	[[nodiscard]] bool expressionChangeMatters(int32_t oldValue, int32_t newValue,
+	                                           int32_t expressionDimension) const override {
+		if (expressionDimension == X_PITCH_BEND) {
+			// pitch is in 14 bit instead of 7
+			return oldValue >> 18 != newValue >> 18;
+		}
+		// aftertouch and mod wheel are positive only and recorded into a smaller range than CCs
+		return oldValue >> 24 != newValue >> 24;
 	}
 
 protected:
