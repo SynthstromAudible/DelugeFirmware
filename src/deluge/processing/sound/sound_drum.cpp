@@ -101,10 +101,7 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 	// yeah, that's all irrelevant.
 	expressionEvent(newValue, expressionDimension);
 
-	// Let the Sound know about this polyphonic expression event
-	// The Sound class will use it to send MIDI out (if enabled in the sound config)
-	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
-	                                                whichCharacteristic);
+	sendPolyphonicExpressionToMidiOut(newValue, expressionDimension, channelOrNoteNumber, whichCharacteristic);
 }
 
 void SoundDrum::killAllVoices() {

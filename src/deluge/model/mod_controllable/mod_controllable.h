@@ -51,8 +51,4 @@ public:
 	                                        uint32_t paramID) {
 		return old_value != new_value;
 	}
-	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                                      int32_t channelOrNoteNumber,
-	                                                      MIDICharacteristic whichCharacteristic) {}
-	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
 };

@@ -25,7 +25,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/fx/song_stutter.h"
+#include "model/instrument/expression_receiver.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
@@ -645,9 +647,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	// If the Clip is active (or there isn't one)...
 	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
 		int32_t current_value = modelStack->autoParam->getCurrentValue();
-		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
-		    oldValue, current_value, getParamKind(), modelStack->paramId);
-		if (current_value_changed) {
+		if (oldValue != current_value) {
 			((Sound*)modelStack->modControllable)
 			    ->notifyValueChangeViaLPF(modelStack->paramId, true, modelStack, oldValue, current_value, false);
 		}
@@ -713,23 +713,33 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
                                                       bool automationChanged, bool automatedBefore, bool automatedNow) {
 	ParamSet::notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore, automatedNow);
 
-	// If the Clip is active (or there isn't one)...
-	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t current_value = modelStack->autoParam->getCurrentValue();
-		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
-		    oldValue, current_value, getParamKind(), modelStack->paramId);
-		if (current_value_changed) {
-			// TODO: tell it to deal with abrupt change by smoothing
+	if (!modelStack->timelineCounterIsSet()) {
+		// Expression lanes live only in a clip's or a note row's params.
+		FREEZE_WITH_ERROR("E476");
+		return;
+	}
+	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
+	if (!clip->isActiveOnOutput()) {
+		return;
+	}
 
-			NoteRow* noteRow = modelStack->getNoteRowAllowNull();
-
-			if (noteRow) {
-				modelStack->modControllable->polyphonicExpressionEventOnChannelOrNote(
-				    current_value, modelStack->paramId, modelStack->getNoteRow()->y(), MIDICharacteristic::NOTE);
-			}
-			else {
-				modelStack->modControllable->monophonicExpressionEvent(current_value, modelStack->paramId);
-			}
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	int32_t current_value = modelStack->autoParam->getCurrentValue();
+	deluge::model::ExpressionReceiver receiver = deluge::model::expressionReceiverOf(*clip, noteRow);
+	if (receiver.drum != nullptr) {
+		if (oldValue != current_value) {
+			receiver.drum->polyphonicExpressionEventOnChannelOrNote(current_value, modelStack->paramId, noteRow->y(),
+			                                                        MIDICharacteristic::NOTE);
+		}
+	}
+	else if (receiver.melodic != nullptr
+	         && receiver.melodic->expressionChangeMatters(oldValue, current_value, modelStack->paramId)) {
+		if (noteRow != nullptr) {
+			receiver.melodic->polyphonicExpressionEventOnChannelOrNote(current_value, modelStack->paramId, noteRow->y(),
+			                                                           MIDICharacteristic::NOTE);
+		}
+		else {
+			receiver.melodic->monophonicExpressionEvent(current_value, modelStack->paramId);
 		}
 	}
 }
