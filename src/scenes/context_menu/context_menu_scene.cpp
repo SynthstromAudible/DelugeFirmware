@@ -412,7 +412,7 @@ static_assert(
 
 size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out) {
 	const deluge::instrument::SoundState* state =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	const bool ringmod = state != nullptr && deluge::instrument::synth_mode(*state) == SynthMode::RINGMOD;
 	const bool available[] = {!ringmod, !is_folder && !ringmod, !is_folder, !is_folder};
 	size_t n = 0;

@@ -267,10 +267,11 @@ void RecorderScene::attach_sample() {
 	if (ctx_.sink == nullptr) {
 		return;
 	}
-	// `RuntimeFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
+	// `SoundFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
 	// while the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing,
 	// with no popup.
-	const std::optional<uint16_t> range = ctx_.facts != nullptr ? ctx_.facts->take_range(target_) : std::nullopt;
+	const std::optional<uint16_t> range =
+	    ctx_.ports.sound != nullptr ? ctx_.ports.sound->take_range(target_) : std::nullopt;
 	if (!range) {
 		return;
 	}
@@ -288,9 +289,9 @@ bind::TakeTarget RecorderScene::take_target() const {
 	    .clip = ctx_.addresses.clip,
 	    .slot = *ctx_.addresses.slot,
 	    .source = source,
-	    .range = ctx_.facts != nullptr
-	                 ? ctx_.facts->range_identity(*ctx_.addresses.slot, source, static_cast<uint16_t>(ctx_.range_index))
-	                 : std::nullopt,
+	    .range = ctx_.ports.sound != nullptr ? ctx_.ports.sound->range_identity(*ctx_.addresses.slot, source,
+	                                                                            static_cast<uint16_t>(ctx_.range_index))
+	                                         : std::nullopt,
 	};
 }
 

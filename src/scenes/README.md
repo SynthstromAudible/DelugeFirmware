@@ -358,7 +358,7 @@ reach past the page.
   At depth 0 (a shortcut opens it at the root) the menu leaves BACK to `handle()`;
   `menu::owned_input` merges the item's `back` claim so the picker sees it there too.
 * **The range memory is the source's own** (`Source::defaultRangeI`), read through
-  `RuntimeFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
+  `SoundFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
   `beginSession` and flick do. Insert and delete are their own sink verbs, which kill the voices and
   keep the other ranges' samples.
 * **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
@@ -403,7 +403,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   through `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the
   cartridge page (`dx_cartridge`, `MenuScene::land_dx_cartridge`) under the browse row, so BACK reopens the browser,
   as `main`'s `DxSyxBrowser::enterKeyPress` does with `soundEditor.enterSubmenu`
-  (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`). The page lists `RuntimeFacts::dx_cartridge`, loads a
+  (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`). The page lists `SoundFacts::dx_cartridge`, loads a
   program per turn through `WriteSink::load_dx_program`, and closes the menu on SELECT
   (`MenuWalkState::exit_completely`).
 

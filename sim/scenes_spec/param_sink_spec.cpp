@@ -299,8 +299,8 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
 		                                     .where = on_synth(a),
 		                                     .param_value = 0x01000000});
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-		const auto first = facts.cables(synth_lpf(a));
+		const bind::SoundFacts& sound = *menu::host_ports().sound;
+		const auto first = sound.cables(synth_lpf(a));
 		std::vector<deluge::plugin::ParamId> held;
 		for (const bind::CableFact& cable : first) {
 			held.push_back(cable.depth);
@@ -311,7 +311,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),
 		                                     .param_value = 0x01000000});
-		(void)facts.cables(synth_lpf(b));
+		(void)sound.cables(synth_lpf(b));
 		deluge::scenes::spec::make_current(saved);
 		expect(held.empty()).to_be_false();
 		expect(first.size()).to_equal(held.size());

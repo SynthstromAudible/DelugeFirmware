@@ -46,7 +46,7 @@ public:
 };
 
 /// @brief The DX7 cartridge page: the programs of the bank the `.syx` browser read (`DxCartridge`,
-///        `origin/main:src/deluge/gui/menu_item/dx/cartridge.cpp`), from `RuntimeFacts::dx_cartridge`.
+///        `origin/main:src/deluge/gui/menu_item/dx/cartridge.cpp`), from `SoundFacts::dx_cartridge`.
 ///
 /// Entering loads the first program; a turn moves the cursor within the bank and loads the program it lands on, through
 /// `WriteSink::load_dx_program`; SELECT closes the menu.

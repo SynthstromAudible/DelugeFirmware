@@ -370,7 +370,8 @@ bind::Ports SlicerScene::ports() const {
 	const bind::Ports& host = menu::host_ports();
 	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
 	        .card = ports_.card != nullptr ? ports_.card : host.card,
-	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui};
+	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui,
+	        .sound = ports_.sound != nullptr ? ports_.sound : host.sound};
 }
 
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {

@@ -48,7 +48,7 @@
 #include "synth/modulation/patch_source.h"
 
 #include "support/fake_note_bridge.h"
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -397,8 +397,8 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 			cables.items[cables.count++].depth =
 			    deluge::bridge::cable_depth(source, deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ));
 		}
-		const deluge::scenes::spec::ForwardingFacts facts{*r.ctx.facts, {.cables = cables}};
-		r.ctx.facts = &facts;
+		const deluge::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
+		r.ctx.ports.sound = &sound;
 		r.open(nodes::patch_cables);
 		deluge::ui::test::Rig48 rig;
 		rig.input.turn = 1;

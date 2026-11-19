@@ -15,4 +15,7 @@ namespace deluge::gui::shell_host {
 /// @brief The host's UiFacts.
 [[nodiscard]] const scenes::bind::UiFacts& ui_facts();
 
+/// @brief The host's SoundFacts.
+[[nodiscard]] const scenes::bind::SoundFacts& sound_facts();
+
 } // namespace deluge::gui::shell_host

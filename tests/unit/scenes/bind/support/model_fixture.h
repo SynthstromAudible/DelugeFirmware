@@ -49,19 +49,14 @@ inline constexpr project::NoteRowAddress kSoundRow{
 inline constexpr int32_t kDeviceBendRange = 7;
 inline constexpr int32_t kDeviceBendRangeMpe = 30;
 
-/// Runtime facts a spec sets directly: loaded sources and each sound's typed state.
+/// Runtime facts a spec sets directly: each chain's effects, the arp preset and the params' values.
 class FakeFacts final : public RuntimeFacts {
 public:
-	std::map<uint32_t, uint8_t> loaded;                ///< by slot id
-	std::map<uint32_t, instrument::SoundState> states; ///< by slot id
-	mutable std::vector<project::SlotAddress> asked{}; ///< every slot loaded_sources was asked about
-	std::map<uint32_t, effects::EffectStates> chains;  ///< by chain_key
+	std::map<uint32_t, effects::EffectStates> chains; ///< by chain_key
 
 	/// A chain's key in chains: its output id, or UINT32_MAX for the master's.
 	[[nodiscard]] static uint32_t chain_key(project::ChainAddress chain);
 
-	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override;
-	[[nodiscard]] const instrument::SoundState* sound_state(project::SlotAddress slot) const override;
 	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
 	uint8_t preset{0};                   ///< the arp preset every owner's engine holds
@@ -75,8 +70,6 @@ public:
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
-	std::vector<CableFact> cable_list;
-	[[nodiscard]] CableList cables(const project::ParamAddress& owner) const override;
 	std::vector<TrackFact> track_list;
 	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
 	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress /*clip*/) const override {
@@ -119,6 +112,7 @@ public:
 struct ModelFixture {
 	project::Song song;
 	FakeFacts facts;
+	FakeSoundFacts sound; ///< each sound's typed state, loaded sources and cables
 	FakeAudioFacts audio; ///< the plugged inputs the contexts are built with
 	ModelFixture();
 	/// Set @p slot's state and re-encode its slot from it, as a coherent song holds them.

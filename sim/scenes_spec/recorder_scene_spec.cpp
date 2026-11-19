@@ -652,7 +652,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC003.WAV"};
 		rec->status = RecorderStatus::COMPLETE;
 		r.tick(10);
-		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(state->sources[0].osc_type).to_equal(OscType::SAMPLE);
@@ -670,7 +670,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(menu::host_write_sink().attach_recording(r.slot(), 0, 0, "SAMPLES/RECORD/NOWHERE.WAV")).to_be_false();
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
 		expect(r.range->getAudioFileHolder()->audioFile).to_be_null();
-		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(r.slot());
+		const deluge::instrument::SoundState* state = menu::host_ports().sound->sound_state(r.slot());
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(state->sources[0].osc_type).to_equal(OscType::SQUARE);

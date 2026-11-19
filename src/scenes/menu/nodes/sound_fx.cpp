@@ -78,7 +78,8 @@ std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) 
 		return std::nullopt;
 	}
 	if (ctx.addresses.slot) {
-		const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+		const deluge::instrument::SoundState* state =
+		    ctx.ports.sound != nullptr ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
 	}
 	if (ctx.addresses.chain) {

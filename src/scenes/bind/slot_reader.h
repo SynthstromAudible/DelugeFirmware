@@ -6,7 +6,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/song.h"
 #include "plugin-api/types/setting.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/sound_facts.h"
 
 #include <cstdint>
 #include <optional>
@@ -20,8 +20,8 @@ class SlotReader {
 public:
 	/// @param model The song.
 	/// @param slot  The sound's slot.
-	/// @param facts The host's runtime facts, which give the sound's typed state.
-	SlotReader(const project::Song& model, project::SlotAddress slot, const RuntimeFacts& facts);
+	/// @param sound The sound facts, which give the sound's typed state.
+	SlotReader(const project::Song& model, project::SlotAddress slot, const SoundFacts& sound);
 
 	/// @brief Whether the slot exists and its sound has a typed state.
 	[[nodiscard]] bool resolved() const { return state_ != nullptr; }

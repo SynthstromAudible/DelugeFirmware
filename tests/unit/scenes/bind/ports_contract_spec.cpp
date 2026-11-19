@@ -29,6 +29,15 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
 		expect(contract::flash_cursor_is_named(*p.ui)).to_be_true();
 	});
+	it("answers a sound's facts as the spec set them, and an unknown slot as empty", _ {
+		test::FakeHost host;
+		host.sound.loaded[7] = 0b10;
+		host.sound.identities[{7, 0, 2}] = 99;
+		const Ports p = host.ports();
+		expect(p.sound->loaded_sources(deluge::project::SlotAddress{.id = 7})).to_equal(uint8_t{0b10});
+		expect(p.sound->range_identity(deluge::project::SlotAddress{.id = 7}, 0, 2).value_or(0)).to_equal(uint64_t{99});
+		expect(contract::unknown_slot_is_empty(*p.sound, deluge::project::SlotAddress{.id = 12345})).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

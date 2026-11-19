@@ -142,7 +142,7 @@
 ///          scene's to file. `LockInput` would *drop* those presses instead, and could not be
 ///          released from `on_exit()`.
 
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
 #include "ui/grid/effects.h"
@@ -298,7 +298,7 @@ private:
 	bool blink_restart_ = false;
 	/// Whether the last `on_enter` refused; see `last_enter_refused`.
 	bool last_enter_refused_ = false;
-	/// What the take is for: it attaches there or nowhere (`RuntimeFacts::take_range`).
+	/// What the take is for: it attaches there or nowhere (`SoundFacts::take_range`).
 	bind::TakeTarget target_{};
 	/// When the shortcut blink's counter started: the take's first grid pass.
 	std::optional<uint32_t> blink_anchor_ms_{};

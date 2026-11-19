@@ -56,7 +56,7 @@ Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const effects::EffectStates* fx = owner_effects(focus, facts)) {
+	if (const effects::EffectStates* fx = owner_effects(focus, facts, *menu::host_ports().sound)) {
 		out.effects = *fx;
 	}
 	return out;
@@ -474,13 +474,14 @@ std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus) {
 	return std::nullopt;
 }
 
-const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts) {
+const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts,
+                                           const bind::SoundFacts& sound) {
 	const std::optional<EffectOwner> owner = effect_owner(focus);
 	if (!owner) {
 		return nullptr;
 	}
 	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-		const instrument::SoundState* state = facts.sound_state(*slot);
+		const instrument::SoundState* state = sound.sound_state(*slot);
 		return state != nullptr ? &instrument::sound_effects(*state) : nullptr;
 	}
 	return facts.chain_effects(std::get<project::ChainAddress>(*owner));

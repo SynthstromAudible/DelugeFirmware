@@ -9,17 +9,6 @@
 
 namespace deluge::scenes::bind::test {
 
-uint8_t FakeFacts::loaded_sources(project::SlotAddress slot) const {
-	asked.push_back(slot);
-	const auto found = loaded.find(slot.id);
-	return found != loaded.end() ? found->second : 0;
-}
-
-const instrument::SoundState* FakeFacts::sound_state(project::SlotAddress slot) const {
-	const auto found = states.find(slot.id);
-	return found != states.end() ? &found->second : nullptr;
-}
-
 bool FakeFacts::allows_note_tails(project::SlotAddress slot, std::optional<project::ClipAddress> /*clip*/) const {
 	const auto found = note_tails.find(slot.id);
 	return found == note_tails.end() || found->second;
@@ -67,7 +56,7 @@ ModelFixture::ModelFixture() {
 }
 
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
-	facts.states[slot.id] = state;
+	sound.states[slot.id] = state;
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
 	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
 	                             .tick_magnitude = 1};
@@ -77,16 +66,6 @@ void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundS
 	else {
 		song.drum_structure.getOrCreate(slot.id).instrument = std::move(made);
 	}
-}
-
-CableList FakeFacts::cables(const project::ParamAddress& /*owner*/) const {
-	CableList list;
-	for (const CableFact& cable : cable_list) {
-		if (list.count < list.items.size()) {
-			list.items[list.count++] = cable;
-		}
-	}
-	return list;
 }
 
 std::optional<int32_t> FakeFacts::param_value(const project::ParamAddress& address) const {

@@ -14,6 +14,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.audio).not_().to_be_null();
 		expect(p.card).not_().to_be_null();
 		expect(p.ui).not_().to_be_null();
+		expect(p.sound).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
@@ -23,6 +24,11 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.ui != nullptr) {
 			expect(bind::contract::ui_facts_are_stable(*p.ui)).to_be_true();
 			expect(bind::contract::flash_cursor_is_named(*p.ui)).to_be_true();
+		}
+		if (p.sound != nullptr) {
+			// A slot id no song holds.
+			expect(bind::contract::unknown_slot_is_empty(*p.sound, deluge::project::SlotAddress{.id = 0xFFFFFF}))
+			    .to_be_true();
 		}
 	});
 });

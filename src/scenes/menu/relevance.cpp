@@ -58,13 +58,14 @@ using deluge::instrument::SynthMode;
 
 /// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
 const deluge::instrument::SoundState* sound_state(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
 /// @brief Does source @p index hold a loaded audio file? `Source::hasAtLeastOneAudioFileLoaded`: a fact of the card.
 bool loaded(const MenuContext& ctx, uint8_t index) {
-	return ctx.facts != nullptr && ctx.addresses.slot
-	       && ((ctx.facts->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot
+	       && ((ctx.ports.sound->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
 }
 
 /// @brief `isSampleModeSample` (`origin/main:src/deluge/gui/menu_item/sample/utils.cpp`).

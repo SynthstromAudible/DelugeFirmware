@@ -120,10 +120,10 @@ std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::Men
 }
 
 const deluge::instrument::SoundState* MarkerScene::sound_state() const {
-	if (ctx_.is_audio_clip || ctx_.facts == nullptr || where_.source >= kNumSources) {
+	if (ctx_.is_audio_clip || ctx_.ports.sound == nullptr || where_.source >= kNumSources) {
 		return nullptr;
 	}
-	return ctx_.facts->sound_state(where_.slot);
+	return ctx_.ports.sound->sound_state(where_.slot);
 }
 
 deluge::instrument::SourceId MarkerScene::source_id() const {
@@ -181,7 +181,8 @@ std::optional<services::ViewKey> MarkerScene::view_key_of() const {
 		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
 	}
 	const std::optional<uint64_t> range =
-	    ctx_.facts != nullptr ? ctx_.facts->range_identity(where_.slot, where_.source, where_.range) : std::nullopt;
+	    ctx_.ports.sound != nullptr ? ctx_.ports.sound->range_identity(where_.slot, where_.source, where_.range)
+	                                : std::nullopt;
 	if (!range) {
 		return std::nullopt;
 	}

@@ -10,6 +10,8 @@
 
 #include "fakes.h"
 
+#include <optional>
+
 namespace deluge::scenes::spec {
 
 /// @brief The host's ports with `ui` and `card` replaced by fakes that start quiet. Every UI and card fact comes from
@@ -35,6 +37,47 @@ struct HeldPorts {
 	}
 	/// @brief Put these ports into @p ctx.
 	void install(deluge::scenes::menu::MenuContext& ctx) const { ctx.ports = ports(); }
+};
+
+/// @brief The host's sound facts with a sound's patch cables said to be a list the example holds, for a state the host
+///        cannot be put into on demand. Every other fact is the host's.
+class CablesOverSound final : public deluge::scenes::bind::SoundFacts {
+public:
+	/// @param real The sound facts every fact but the cables is read from; it must outlive this.
+	/// @param cables The cables every sound is said to hold.
+	CablesOverSound(const deluge::scenes::bind::SoundFacts& real, deluge::scenes::bind::CableList cables)
+	    : real_(real), cables_(cables) {}
+	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override {
+		return real_.loaded_sources(slot);
+	}
+	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override {
+		return real_.sound_state(slot);
+	}
+	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override {
+		return real_.kit_takes_whole_folder(slot);
+	}
+	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
+	                                                    uint8_t source) const override {
+		return real_.default_range(slot, source);
+	}
+	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
+	                                                     uint16_t range) const override {
+		return real_.range_identity(slot, source, range);
+	}
+	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override {
+		return real_.take_range(target);
+	}
+	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
+		return real_.dx_cartridge();
+	}
+	[[nodiscard]] deluge::scenes::bind::CableList
+	cables(const deluge::project::ParamAddress& /*owner*/) const override {
+		return cables_;
+	}
+
+private:
+	const deluge::scenes::bind::SoundFacts& real_;
+	deluge::scenes::bind::CableList cables_;
 };
 
 } // namespace deluge::scenes::spec

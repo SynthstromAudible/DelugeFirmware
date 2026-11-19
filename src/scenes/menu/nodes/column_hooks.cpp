@@ -529,7 +529,7 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 		return put(last_folder(clip->file_path), out);
 	}
 	const instrument::SoundState* sound =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr) {
 		return ValueText{};
 	}

@@ -73,10 +73,10 @@ namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
 std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
-	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
+	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
 		return {};
 	}
-	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	return state != nullptr
 	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
 	           : std::span<const deluge::instrument::RangeState>{};

@@ -105,7 +105,8 @@ Outcome outcome_of(const Side& side, std::string text) {
 	const deluge::project::Song& model = side.song->project;
 	if (const std::optional<services::EffectOwner> owner = services::effect_owner(side.focus)) {
 		if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&*owner)) {
-			if (const deluge::instrument::SoundState* state = facts.sound_state(*slot)) {
+			if (const deluge::instrument::SoundState* state =
+			        deluge::scenes::menu::host_ports().sound->sound_state(*slot)) {
 				out.effects = state->effects;
 			}
 			if (slot->kind == deluge::project::SlotAddress::Kind::DRUM) {

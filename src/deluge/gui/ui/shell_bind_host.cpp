@@ -273,12 +273,10 @@ private:
 	deluge::project::ClipAddress resize_clip_{};
 };
 
-/// The runtime facts, answered from the running app: the audio engine's inputs, each sound's sources and typed
-/// state, found by its slot in the current song, and each host chain's effects, found by its address.
+/// The runtime facts, answered from the running app: each host chain's effects, found by its address, and the song's
+/// tracks, clips and params.
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
-	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override;
-	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override;
 	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (getRootUI() != &keyboardScreen || clip == nullptr
@@ -288,42 +286,6 @@ public:
 		return deluge::scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
 		                                                .row_interval = clip->keyboardState.isomorphic.rowInterval};
 	}
-	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
-		DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
-		if (bank == nullptr) {
-			return std::nullopt;
-		}
-		deluge::scenes::bind::DxCartridgeNames out;
-		char names[32][11];
-		bank->getProgramNames(names);
-		out.count = bank->numPatches();
-		for (int32_t i = 0; i < out.count; i++) {
-			std::copy_n(names[i], 11, out.names[i].begin());
-		}
-		return out;
-	}
-	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
-	                                                    uint8_t source) const override {
-		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-		if (sound == nullptr || source >= kNumSources) {
-			return std::nullopt;
-		}
-		const int32_t i = sound->sources[source].defaultRangeI;
-		if (i < 0 || i >= std::ssize(sound->sources[source].ranges)) {
-			return std::nullopt;
-		}
-		return static_cast<uint16_t>(i);
-	}
-	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
-	                                                     uint16_t range) const override {
-		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sources[source].ranges)) {
-			return std::nullopt;
-		}
-		return sound->sources[source].ranges.getElement(range)->identity();
-	}
-	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
-	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
 	chain_effects(deluge::project::ChainAddress chain) const override;
 	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
@@ -338,7 +300,6 @@ public:
 	                                                    uint32_t pos) const override {
 		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
 	}
-	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override;
 	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
 	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>
 	audio_clip(deluge::project::ClipAddress clip) const override;
@@ -383,50 +344,6 @@ private:
 ::AudioClip* audioClipAt(deluge::project::ClipAddress clip) {
 	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
-}
-
-/// Whether @p clip plays the sound @p slot names: a synth clip its own track, a kit clip one of its kit's sound rows. A
-/// replaced synth kept hibernating under its id is not one: no clip plays it.
-bool clipPlaysSlot(const ::Clip& clip, deluge::project::SlotAddress slot) {
-	using Kind = deluge::project::SlotAddress::Kind;
-	if (clip.output == nullptr) {
-		return false;
-	}
-	if (slot.kind == Kind::OUTPUT) {
-		return clip.output->type == OutputType::SYNTH && clip.output->id() == slot.id;
-	}
-	if (clip.output->type != OutputType::KIT) {
-		return false;
-	}
-	for (const Drum* drum = static_cast<const Kit*>(clip.output)->firstDrum; drum != nullptr; drum = drum->next) {
-		if (drum->type == DrumType::SOUND && drum->id() == slot.id) {
-			return true;
-		}
-	}
-	return false;
-}
-
-std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind::TakeTarget& target) const {
-	// By identity: the clip and what it plays, then the range wherever it now sits.
-	// Range identities are run-unique and never saved, so a range in another song cannot match.
-	if (currentSong == nullptr || !target.clip || !target.range || target.source >= kNumSources) {
-		return std::nullopt;
-	}
-	::Clip* clip = currentSong->clipForId(target.clip->clip_id);
-	if (clip == nullptr || !clipPlaysSlot(*clip, target.slot)) {
-		return std::nullopt;
-	}
-	const ::Sound* sound = deluge::bridge::soundAt(*currentSong, target.slot);
-	if (sound == nullptr) {
-		return std::nullopt;
-	}
-	const MultiRangeArray& ranges = sound->sources[target.source].ranges;
-	for (int32_t i = 0; i < std::ssize(ranges); i++) {
-		if (ranges.getElement(i)->identity() == *target.range) {
-			return static_cast<uint16_t>(i);
-		}
-	}
-	return std::nullopt;
 }
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
@@ -1183,36 +1100,6 @@ void ShellEditSink::apply(const WriteRequest& request) {
 	          request.target.path.data());
 }
 
-bool ShellRuntimeFacts::kit_takes_whole_folder(deluge::project::SlotAddress slot) const {
-	::Clip* clip = currentSong != nullptr ? currentSong->getCurrentClip() : nullptr;
-	if (slot.kind != deluge::project::SlotAddress::Kind::DRUM || clip == nullptr || clip->type != ClipType::INSTRUMENT
-	    || clip->output == nullptr || clip->output->type != OutputType::KIT) {
-		return false;
-	}
-	const auto& rows = static_cast<::InstrumentClip*>(clip)->noteRows;
-	const ::Drum* drum = currentSong->drumForId(slot.id);
-	const ::Kit* kit = static_cast<const ::Kit*>(clip->output);
-	return drum != nullptr && !rows.empty() && rows[0].drum == drum && kit->firstDrum == drum && drum->next == nullptr;
-}
-
-uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) const {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	uint8_t loaded = 0;
-	if (sound != nullptr) {
-		for (uint8_t s = 0; s < kNumSources; ++s) {
-			if (sound->sources[s].hasAtLeastOneAudioFileLoaded()) {
-				loaded |= static_cast<uint8_t>(1u << s);
-			}
-		}
-	}
-	return loaded;
-}
-
-const deluge::instrument::SoundState* ShellRuntimeFacts::sound_state(deluge::project::SlotAddress slot) const {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	return sound != nullptr ? sound->boundState() : nullptr;
-}
-
 const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {
 	// The effects the chain's record holds, which its owner plays.
 	const deluge::project::FxChain* record =
@@ -1559,24 +1446,6 @@ std::vector<deluge::scenes::bind::TrackFact> ShellRuntimeFacts::tracks() const {
 			break;
 		}
 		list.push_back(fact);
-	}
-	return list;
-}
-
-deluge::scenes::bind::CableList ShellRuntimeFacts::cables(const deluge::project::ParamAddress& owner) const {
-	deluge::scenes::bind::CableList list;
-	if (currentSong == nullptr) {
-		return list;
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	PatchCableSet* set = deluge::bridge::cableSetAt(*currentSong, owner, memory);
-	if (set == nullptr) {
-		return list;
-	}
-	for (int32_t i = 0; i < set->numPatchCables && list.count < list.items.size(); ++i) {
-		const PatchCable& cable = set->patchCables[i];
-		list.items[list.count++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destination),
-		                            .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
 	}
 	return list;
 }

@@ -5,7 +5,7 @@
 // The spec may include `gui/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -247,12 +247,12 @@ void shift_save(MenuRig& r) {
 // clang-format off
 describe dx_cartridge("the DX7 cartridge", ${
 	it("is no bank before a read has loaded one", _ {
-		expect(menu::host_runtime_facts().dx_cartridge().has_value()).to_be_false();
+		expect(menu::host_ports().sound->dx_cartridge().has_value()).to_be_false();
 	});
 
 	it("names the loaded bank's programs as main's cartridge page does", _ {
 		load_bank();
-		const std::optional<bind::DxCartridgeNames> names = menu::host_runtime_facts().dx_cartridge();
+		const std::optional<bind::DxCartridgeNames> names = menu::host_ports().sound->dx_cartridge();
 		expect(names.has_value()).to_be_true();
 		const std::vector<std::string>* want = table().find("bank", "names");
 		expect(want).not_().to_be_null();

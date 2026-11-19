@@ -29,7 +29,7 @@
 /// @par Where the markers come from
 ///
 /// The scene holds addresses, not engine objects: a sound's markers are its range's zone in the
-/// source's record (`RuntimeFacts::sound_state`), an audio clip's are rows of the clip's record.
+/// source's record (`SoundFacts::sound_state`), an audio clip's are rows of the clip's record.
 /// A move goes to the menu's sink: a sound's as its source's ranges with the marker named, an
 /// audio clip's as a marker request. The view (scroll, zoom) and the loop lock are the scene's
 /// own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio clip's

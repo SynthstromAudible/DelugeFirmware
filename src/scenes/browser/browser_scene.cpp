@@ -160,11 +160,11 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 		const auto found = clips.find(ctx.addresses.clip->clip_id);
 		return found != clips.end() ? std::optional{found->second.file_path} : std::nullopt;
 	}
-	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
+	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.range_index < 0 || ctx.source_index < 0
 	    || ctx.source_index >= kNumSources) {
 		return std::nullopt;
 	}
-	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
+	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
 	if (state == nullptr) {
 		return std::nullopt;
 	}
@@ -2177,8 +2177,8 @@ void BrowserScene::file_deleted(std::string_view path) {
 }
 
 bool BrowserScene::fresh_kit() const {
-	return ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
-	       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
+	return ctx_.source_index == 0 && ctx_.ports.sound != nullptr && ctx_.addresses.slot
+	       && ctx_.ports.sound->kit_takes_whole_folder(*ctx_.addresses.slot);
 }
 
 void BrowserScene::deferred_load_done(bool success) {

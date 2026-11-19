@@ -89,7 +89,7 @@ bool transposes_in_range(const deluge::instrument::SoundState& state, deluge::in
 
 int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 	const deluge::instrument::SoundState* state =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (state == nullptr) {
 		return 0;
 	}

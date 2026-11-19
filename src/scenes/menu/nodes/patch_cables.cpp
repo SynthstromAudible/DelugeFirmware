@@ -25,7 +25,7 @@
 #include "scenes/services/source_names.h"
 
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -139,7 +139,7 @@ std::optional<deluge::project::ParamAddress> sound_address(const MenuContext& ct
 /// @brief The cables of the sound @p ctx edits, in the engine's order; empty where it edits none.
 deluge::scenes::bind::CableList cables_of(const MenuContext& ctx) {
 	const std::optional<deluge::project::ParamAddress> owner = sound_address(ctx);
-	return owner && ctx.facts != nullptr ? ctx.facts->cables(*owner) : deluge::scenes::bind::CableList{};
+	return owner && ctx.ports.sound != nullptr ? ctx.ports.sound->cables(*owner) : deluge::scenes::bind::CableList{};
 }
 
 /// @brief A cable's two ends, as legacy's `PatchCable` holds them: its source, and its destination descriptor (the
@@ -186,7 +186,8 @@ std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, del
 
 /// @brief The typed state of the sound @p ctx edits, or null.
 const deluge::instrument::SoundState* sound_state_of(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
 /// @brief The destination's short name (`getPatchedParamShortName`), the morph params named after what the sound's

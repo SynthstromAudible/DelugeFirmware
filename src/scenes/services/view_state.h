@@ -35,7 +35,7 @@ struct MenuView {
 };
 
 /// @brief Whose a remembered view is: a sound's source range, by the range's identity
-///        (`bind::RuntimeFacts::range_identity`), or an audio clip, by its id. A range's view stays with the range
+///        (`bind::SoundFacts::range_identity`), or an audio clip, by its id. A range's view stays with the range
 ///        whatever file is loaded into it and wherever it moves among its source's ranges, as main keeps it on the
 ///        range's sample holder.
 struct ViewKey {

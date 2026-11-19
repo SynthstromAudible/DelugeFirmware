@@ -96,10 +96,11 @@ namespace params = deluge::modulation::params;
 
 /// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
 std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr) {
+	if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr || ctx.ports.sound == nullptr) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio);
+	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio,
+	                                  *ctx.ports.sound);
 }
 
 /// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
@@ -223,19 +224,20 @@ const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t co
 }
 
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.facts == nullptr || !ctx.addresses.slot) {
+	if (ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.facts}.read(target.path);
+	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(target.path);
 }
 
 std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
-	if (!node.bind.target.valid() || ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr) {
+	if (!node.bind.target.valid() || ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr
+	    || ctx.ports.sound == nullptr) {
 		return std::nullopt;
 	}
 	const std::optional<deluge::scenes::bind::WriteRequest> request = deluge::scenes::bind::request_for(
-	    node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio, value);
+	    node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio, *ctx.ports.sound, value);
 	if (!request) {
 		return std::nullopt;
 	}
@@ -268,11 +270,12 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
 	// outside the range and an unresolved target ask for nothing.
 	if (bind.target.valid()) {
-		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr || ctx.sink == nullptr) {
+		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr || ctx.ports.sound == nullptr
+		    || ctx.sink == nullptr) {
 			return;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request = deluge::scenes::bind::request_for(
-		    bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio, value);
+		    bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio, *ctx.ports.sound, value);
 		if (request && ctx.sink->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
@@ -399,13 +402,14 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return text.text_or_digits(id, slot);
 	};
 	if (node.bind.target.valid()) {
-		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr) {
+		if (ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr || ctx.ports.sound == nullptr) {
 			return 0;
 		}
 		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
-		const size_t count = std::min(deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses,
-		                                                                 *ctx.facts, *ctx.ports.audio, listed),
-		                              limit);
+		const size_t count =
+		    std::min(deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts,
+		                                                *ctx.ports.audio, *ctx.ports.sound, listed),
+		             limit);
 		for (size_t i = 0; i < count; ++i) {
 			const std::string_view name =
 			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
@@ -523,7 +527,7 @@ deluge::scenes::bind::Addresses direction_where(const MenuContext& ctx) {
 /// @brief Is @p ctx one this pair of functions can work on at all: an instrument clip of the song the app plays?
 bool has_instrument_clip(const MenuContext& ctx) {
 	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.facts != nullptr
-	       && ctx.ports.audio != nullptr;
+	       && ctx.ports.audio != nullptr && ctx.ports.sound != nullptr;
 }
 
 // `getIndividualNoteRow`'s non-kit auditioned-row arm (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`),
@@ -557,8 +561,8 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 	if (from_note_row != nullptr) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
-	const std::optional<deluge::scenes::bind::View> shown =
-	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), *ctx.facts, *ctx.ports.audio);
+	const std::optional<deluge::scenes::bind::View> shown = deluge::scenes::bind::view(
+	    target, *ctx.model, direction_where(ctx), *ctx.facts, *ctx.ports.audio, *ctx.ports.sound);
 	return shown ? shown->value : 0;
 }
 
@@ -585,7 +589,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
 	// row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request = deluge::scenes::bind::request_for(
-	    direction_target(ctx), *ctx.model, direction_where(ctx), *ctx.facts, *ctx.ports.audio, value);
+	    direction_target(ctx), *ctx.model, direction_where(ctx), *ctx.facts, *ctx.ports.audio, *ctx.ports.sound, value);
 	if (request) {
 		(void)ctx.sink->write(*request);
 	}

@@ -250,20 +250,20 @@ describe model_targets("a model target's write reaches the record its menu names
 	});
 
 	it("answers whether a kit would take a whole folder as main's sample browser asks it", _ {
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+		const bind::SoundFacts& sound = *menu::host_ports().sound;
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* first = spec::add_drum<SoundDrum>(kit);
 		const deluge::project::SlotAddress first_slot{deluge::project::SlotAddress::Kind::DRUM, *first->id()};
-		expect(facts.kit_takes_whole_folder(first_slot)).to_be_true(); // the one drum, on row 0
+		expect(sound.kit_takes_whole_folder(first_slot)).to_be_true(); // the one drum, on row 0
 		auto* second = spec::add_drum<SoundDrum>(kit);
 		const deluge::project::SlotAddress second_slot{deluge::project::SlotAddress::Kind::DRUM, *second->id()};
-		expect(facts.kit_takes_whole_folder(first_slot)).to_be_false(); // two drums
-		expect(facts.kit_takes_whole_folder(second_slot)).to_be_false();
+		expect(sound.kit_takes_whole_folder(first_slot)).to_be_false(); // two drums
+		expect(sound.kit_takes_whole_folder(second_slot)).to_be_false();
 
 		spec::SongFixture synth = spec::make_synth_song();
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::OUTPUT,
 		                                              *synth.instrument->id()};
-		expect(facts.kit_takes_whole_folder(synth_slot)).to_be_false();
+		expect(sound.kit_takes_whole_folder(synth_slot)).to_be_false();
 		expect(menu::host_ports().card->sample_load_in_flight()).to_be_false();
 	});
 });

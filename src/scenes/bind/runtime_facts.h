@@ -10,38 +10,13 @@
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
 #include "effects/state.h"
-#include "instruments/deluge/cables.h"
-#include "instruments/deluge/sound_state.h"
 
-#include <array>
-#include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <span>
 #include <utility>
 #include <vector>
 
 namespace deluge::scenes::bind {
-
-/// @brief One of a sound's patch cables, as the engine holds it.
-struct CableFact {
-	plugin::ParamId depth;           ///< the cable's depth id, which names its source and its destination
-	instrument::Polarity polarity{}; ///< its polarity
-};
-
-/// @brief The most patch cables a sound holds.
-inline constexpr size_t kMaxCables = 32;
-
-/// @brief A sound's patch cables, as the engine holds them, in its order.
-struct CableList {
-	std::array<CableFact, kMaxCables> items{};
-	size_t count{0};
-	[[nodiscard]] const CableFact* begin() const { return items.data(); }
-	[[nodiscard]] const CableFact* end() const { return items.data() + count; }
-	[[nodiscard]] size_t size() const { return count; }
-	[[nodiscard]] bool empty() const { return count == 0; }
-	[[nodiscard]] const CableFact& operator[](size_t i) const { return items[i]; }
-};
 
 /// @brief What kind of track an output is.
 enum class TrackKind : uint8_t { SYNTH, KIT, MIDI_OUT, CV, AUDIO };
@@ -70,27 +45,11 @@ struct AudioClipFact {
 	bool operator==(const AudioClipFact&) const = default;
 };
 
-/// @brief The DX7 bank a `.syx` read loaded: its programs' names, as `DX7Cartridge::getProgramNames` gives them.
-struct DxCartridgeNames {
-	std::array<std::array<char, 11>, 32> names{}; ///< each program's name, NUL-terminated
-	int32_t count = 0;                            ///< how many programs the bank holds
-};
-
 /// @brief The isomorphic keyboard's layout state, as the current clip keeps it (`KeyboardState::isomorphic`).
 struct IsomorphicKeyboard {
 	int32_t scroll_offset = 0; ///< the note on the bottom-left pad
 	int32_t row_interval = 5;  ///< the semitones from one row to the next
 	bool operator==(const IsomorphicKeyboard&) const = default;
-};
-
-/// @brief What a recording is taken for, each part by the identity that names that object alone: the take attaches
-/// there, or nowhere.
-struct TakeTarget {
-	std::optional<project::ClipAddress> clip; ///< the clip the take was begun over
-	project::SlotAddress slot{};              ///< the sound: a synth track's output, or a kit row's drum
-	uint8_t source{0};                        ///< which of the sound's two sources
-	std::optional<uint64_t> range;            ///< the range's identity (`RuntimeFacts::range_identity`)
-	bool operator==(const TakeTarget&) const = default;
 };
 
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
@@ -103,49 +62,9 @@ public:
 	/// and the song's: the rows every Deluge host's owners have.
 	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId plugin,
 	                                                  const project::ParamTarget& target) const override;
-	/// @brief Whether the sound at @p slot is a kit's only drum, on its clip's first note row: the kit a whole folder
-	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit` in
-	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`, which also asks that the menu edits source 0 -- the
-	/// caller's to check).
-	[[nodiscard]] virtual bool kit_takes_whole_folder(project::SlotAddress /*slot*/) const { return false; }
-	/// @brief The range source @p source of the sound at @p slot remembers: `Source::defaultRangeI`, which the
-	/// note-range picker opens on and every note played moves (`Source::getRange`). None when it names no range.
-	[[nodiscard]] virtual std::optional<uint16_t> default_range(project::SlotAddress slot, uint8_t source) const {
-		(void)slot;
-		(void)source;
-		return std::nullopt;
-	}
-	/// @brief The identity of range @p range of source @p source of the sound at @p slot (`MultiRange::identity`). It
-	/// names the range itself: it moves with the range as ranges are inserted or deleted before it, and stays while
-	/// another file is loaded into it. Never 0: identities count from 1, so 0 names no range. None where the address
-	/// names no range.
-	[[nodiscard]] virtual std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
-	                                                             uint16_t range) const {
-		(void)slot;
-		(void)source;
-		(void)range;
-		return std::nullopt;
-	}
-	/// @brief Where the take @p target names may still land: the index its range now has among its source's ranges,
-	/// while the clip is still in the current song, still playing the sound. Range identities are run-unique and never
-	/// saved, so a range in another song never matches. None otherwise, and for a host that records nothing.
-	[[nodiscard]] virtual std::optional<uint16_t> take_range(const TakeTarget& target) const {
-		(void)target;
-		return std::nullopt;
-	}
-	/// @brief The DX7 bank the last `.syx` read loaded, which the cartridge page lists; none before one has loaded or
-	/// for a host that reads none.
-	[[nodiscard]] virtual std::optional<DxCartridgeNames> dx_cartridge() const { return std::nullopt; }
 	/// @brief The keyboard screen's isomorphic layout under the menu: its state when the root UI is the keyboard on
 	/// that layout, else none. None for a host with no keyboard screen.
 	[[nodiscard]] virtual std::optional<IsomorphicKeyboard> isomorphic_keyboard() const { return std::nullopt; }
-	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
-	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
-	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;
-	/// @brief The instrument's typed state for the sound at @p slot, or nullptr when there is no such sound. It is what
-	/// the slot decodes to, kept equal to it by every Edit, plus what no file can hold (an FM sound's oscillator types,
-	/// a non-FM sound's modulators): a read of a row a menu does not show, which a condition may still read, needs it.
-	[[nodiscard]] virtual const instrument::SoundState* sound_state(project::SlotAddress slot) const = 0;
 	/// @brief The effects' typed state of the chain at @p chain, or nullptr when there is no such chain: what its
 	/// record holds, which its owner plays.
 	[[nodiscard]] virtual const effects::EffectStates* chain_effects(project::ChainAddress chain) const = 0;
@@ -158,10 +77,6 @@ public:
 	/// @brief The arp preset the engine holds for the arp @p address names (a CLIP_ARP or LANE_ARP owner), as an index
 	/// of plugin::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
 	[[nodiscard]] virtual uint8_t arp_preset(const project::SettingAddress& address) const = 0;
-	/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not
-	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
-	/// made this session is one before the song is saved.
-	[[nodiscard]] virtual CableList cables(const project::ParamAddress& owner) const = 0;
 	/// @brief The song's tracks, in its order: which outputs exist, and their kinds, which the model's records do not
 	/// hold.
 	[[nodiscard]] virtual std::vector<TrackFact> tracks() const = 0;

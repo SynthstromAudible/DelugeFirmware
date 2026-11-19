@@ -49,12 +49,12 @@ void give_sample_range(::Sound& sound) {
 
 /// @brief The sound's state, by its slot.
 const deluge::instrument::SoundState* state_of(const MenuContext& ctx) {
-	return ctx.addresses.slot ? menu::host_runtime_facts().sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.addresses.slot ? menu::host_ports().sound->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
 /// @brief The sound at @p slot.
 const deluge::instrument::SoundState* state_at(deluge::project::SlotAddress slot) {
-	return menu::host_runtime_facts().sound_state(slot);
+	return menu::host_ports().sound->sound_state(slot);
 }
 
 } // namespace

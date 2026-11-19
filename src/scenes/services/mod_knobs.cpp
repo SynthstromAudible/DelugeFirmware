@@ -125,7 +125,7 @@ bool ModKnobs::bound() const {
 }
 
 const effects::EffectStates* ModKnobs::owner_effects() const {
-	return services::owner_effects(*focus_, menu::host_runtime_facts());
+	return services::owner_effects(*focus_, menu::host_runtime_facts(), *menu::host_ports().sound);
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {

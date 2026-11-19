@@ -152,7 +152,7 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 		return 0;
 	}
 	const instrument::SoundState* sound =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr
 	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != OscType::SAMPLE) {
 		return 0;
@@ -203,8 +203,8 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 				ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
 			}
 		}
-		else if (ctx.facts != nullptr) {
-			if (const std::optional<uint16_t> held = ctx.facts->default_range(*ctx.addresses.slot, source)) {
+		else if (ctx.ports.sound != nullptr) {
+			if (const std::optional<uint16_t> held = ctx.ports.sound->default_range(*ctx.addresses.slot, source)) {
 				remembered = *held;
 			}
 		}

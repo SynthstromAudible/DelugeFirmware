@@ -3,6 +3,7 @@
 
 #include "scenes/menu/nodes/dx.h"
 
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/browser/browser_scene.h" // DxBrowseItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
@@ -52,7 +53,8 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 
 /// @brief The state of the sound the menu edits, if the facts know it.
 const deluge::instrument::SoundState* sound_of(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
 /// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
@@ -294,7 +296,7 @@ void DxCartridgeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 void DxCartridgeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	const std::optional<bind::DxCartridgeNames> bank =
-	    ctx.facts != nullptr ? ctx.facts->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
+	    ctx.ports.sound != nullptr ? ctx.ports.sound->dx_cartridge() : std::optional<bind::DxCartridgeNames>{};
 	if (!bank || bank->count <= 0) {
 		return; // `drawPixelsForOled` draws nothing with no bank
 	}
