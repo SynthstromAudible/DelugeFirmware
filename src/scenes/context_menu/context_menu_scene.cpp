@@ -41,7 +41,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -413,7 +413,7 @@ static_assert(
 size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out) {
 	const deluge::instrument::SoundState* state =
 	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
-	const bool ringmod = state != nullptr && state->synth_mode == SynthMode::RINGMOD;
+	const bool ringmod = state != nullptr && deluge::instrument::synth_mode(*state) == SynthMode::RINGMOD;
 	const bool available[] = {!ringmod, !is_folder && !ringmod, !is_folder, !is_folder};
 	size_t n = 0;
 	for (uint8_t i = 0; i < std::size(available) && n < out.size(); i++) {

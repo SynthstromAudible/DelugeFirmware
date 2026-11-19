@@ -3,6 +3,7 @@
 #include "effects/settings.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
@@ -48,7 +49,10 @@ settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slo
 
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
-	const SynthMode from = sound.boundState()->synth_mode;
+	const SynthMode from = deluge::instrument::synth_mode(*sound.boundState());
+	if (!deluge::bridge::runtimeTakes(sound, path)) {
+		return Error::UNSPECIFIED; // the sound has no such setting in its engine and types
+	}
 	const auto change = settingChange(sound, slot, path, value);
 	if (deluge::bridge::typedWriteAudit().enabled) {
 		const deluge::instrument::SoundState& before = *sound.boundState();
@@ -57,22 +61,17 @@ Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot,
 		    encodedChange(sound, before, path, value, {.input_tick_magnitude = slot.tick_magnitude}), change);
 	}
 	Error error = change ? deluge::bridge::commitState(sound, *change, song) : Error::UNSPECIFIED;
-	const std::optional<deluge::serialization::Value> landed =
-	    deluge::instrument::setting_value(*sound.boundState(), path);
-	if (!landed || landed->str() != value.str()) {
-		if (error == Error::NONE) {
-			// The state does not read this value back (a path that does not apply to this sound): the runtime
-			// takes it as its setter does.
-			error = deluge::bridge::applySetting(sound, path, value, song);
-		}
-	}
-	else {
-		error = Error::NONE; // what else the sound refused is not this Edit's
+	// The state holds the value, whether or not a file of this sound would (an FM sound's oscillator type), and the
+	// runtime has taken it; what else the sound refused is not this Edit's.
+	if (const std::optional<deluge::serialization::Value> landed =
+	        deluge::instrument::setting_value(*sound.boundState(), path);
+	    landed && landed->str() == value.str()) {
+		error = Error::NONE;
 	}
 	if (path == "mode") {
 		// The knobs' own SetControls nests inside this Edit on purpose: the record and the engine take the remap
 		// together, and lane publication counts nesting, so only the outermost Edit publishes.
-		deluge::bridge::remapKnobsForMode(sound, song, from, sound.boundState()->synth_mode);
+		deluge::bridge::remapKnobsForMode(sound, song, from, deluge::instrument::synth_mode(*sound.boundState()));
 	}
 	// After the setters have projected the sound's render copy, which the reverb copies from: a render during the write
 	// would otherwise clear the flag before the new timing is there to read. Whatever landed, the reverb re-reads it.

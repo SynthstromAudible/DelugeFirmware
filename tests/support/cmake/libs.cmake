@@ -20,14 +20,14 @@ if(NOT DEFINED DELUGE_CXX_STANDARD)
 endif()
 
 # The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the plugin
-# API and its types, the effects, the global-effectable table, the Deluge instrument, the model and the controls. Each
+# API and its types, the effects, the host chain's table, the Deluge instrument, the model and the controls. Each
 # is built with only the standalone libraries' include roots, so a hidden dependency on the app fails the tree's build.
 add_subdirectory(${_deluge_src}/serialization ${_deluge_libs}/serialization EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/music-theory ${_deluge_libs}/music-theory EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api/types ${_deluge_libs}/plugin-api-types EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/plugin-api ${_deluge_libs}/plugin-api EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/effects ${_deluge_libs}/effects EXCLUDE_FROM_ALL)
-add_subdirectory(${_deluge_src}/effects/global_effectable ${_deluge_libs}/global-effectable EXCLUDE_FROM_ALL)
+add_subdirectory(${_deluge_src}/effects/host_chain ${_deluge_libs}/host-chain EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/instruments/deluge ${_deluge_libs}/instrument EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/deluge-project ${_deluge_libs}/model EXCLUDE_FROM_ALL)
 add_subdirectory(${_deluge_src}/controls ${_deluge_libs}/controls EXCLUDE_FROM_ALL)
@@ -70,10 +70,9 @@ add_library(deluge_test_dsp_closure STATIC EXCLUDE_FROM_ALL
   ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_panic.cpp)
 target_include_directories(deluge_test_dsp_closure PRIVATE
   ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src ${DELUGE_REPO_ROOT}/tests/support/mocks)
-# The synth library's: the param math and the unison fine tuner, which read dsp-next's table interpolation.
+# The synth library's: the param math, which reads dsp-next's table interpolation.
 add_library(deluge_test_synth_closure STATIC EXCLUDE_FROM_ALL
-  ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp
-  ${DELUGE_REPO_ROOT}/src/deluge/util/phase_increment_fine_tuner.cpp)
+  ${DELUGE_REPO_ROOT}/src/deluge/util/param_functions.cpp)
 target_include_directories(deluge_test_synth_closure PRIVATE ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
 target_link_libraries(deluge_test_synth_closure PRIVATE deluge_dsp_fixed)
 set_target_properties(deluge_test_dsp_closure deluge_test_synth_closure PROPERTIES

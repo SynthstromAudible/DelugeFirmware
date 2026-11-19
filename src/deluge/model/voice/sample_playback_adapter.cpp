@@ -76,6 +76,7 @@ void SamplePlaybackAdapter::unassign(bool deletingSong) {
 		voiceSample_ = nullptr;
 	}
 	source_ = nullptr;
+	settings_ = nullptr;
 	guide_ = nullptr;
 }
 
@@ -144,15 +145,15 @@ int32_t SamplePlaybackAdapter::sample_length_at_system_sample_rate() const {
 }
 
 bool SamplePlaybackAdapter::is_stretch_repeat_mode() const {
-	return source_->repeatMode == SampleRepeatMode::STRETCH;
+	return settings_->repeat_mode == SampleRepeatMode::STRETCH;
 }
 
 bool SamplePlaybackAdapter::pitch_and_speed_independent() const {
-	return source_->sampleControls.pitchAndSpeedAreIndependent;
+	return settings_->pitch_and_speed_independent;
 }
 
 int32_t SamplePlaybackAdapter::time_stretch_amount() const {
-	return source_->timeStretchAmount;
+	return settings_->time_stretch_amount;
 }
 
 uint32_t SamplePlaybackAdapter::sequence_sync_length_ticks() const {
@@ -160,7 +161,7 @@ uint32_t SamplePlaybackAdapter::sequence_sync_length_ticks() const {
 }
 
 LoopType SamplePlaybackAdapter::looping_type() const {
-	return guide_->getLoopingType(*source_);
+	return guide_->getLoopingType(settings_->repeat_mode);
 }
 
 SamplePlaybackAdapter::LoopPoints SamplePlaybackAdapter::loop_points() const {
@@ -226,5 +227,5 @@ bool SamplePlaybackAdapter::render(deluge::dsp::Q<31>* buffer, int32_t numSample
 	// VoiceSample steps its amplitude as raw words
 	return voiceSample_->render(guide_, buffer, numSamples, sample, numChannels, loopingType, phaseIncrement,
 	                            timeStretchRatio, sourceAmplitude.raw(), amplitudeIncrement.raw(),
-	                            interpolationBufferSize, source_->sampleControls.interpolationMode, priorityRating);
+	                            interpolationBufferSize, settings_->interpolation_mode, priorityRating);
 }

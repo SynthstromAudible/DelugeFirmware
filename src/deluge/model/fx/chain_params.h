@@ -25,13 +25,13 @@ class ParamManagerForTimeline;
 namespace deluge::model {
 
 /// @brief Sets the params every effects owner has (EQ, arpeggiator, stutter, mod FX, bitcrush, sidechain shape,
-/// compressor threshold) to their defaults.
+/// compressor threshold) to their defaults: every row of the owner's table in the shared ids.
 /// @param paramManager The param manager to initialise.
 /// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a host chain.
 void initSharedParams(ParamManager* paramManager, modulation::params::Kind defaults);
 
-/// @brief Sets a host chain's params (a kit's, the song's) to their defaults: the shared ones and the global table's
-/// own, and marks its unpatched set global.
+/// @brief Sets a host chain's params (a kit's, the song's) to their defaults: the shared ones and every other row of
+/// the host chain's table but host_chain::kNotInitialised, and marks its unpatched set global.
 /// @param paramManager The param manager to initialise.
 void initGlobalParams(ParamManager* paramManager);
 

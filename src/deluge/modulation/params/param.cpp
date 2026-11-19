@@ -17,7 +17,7 @@
 
 #include "modulation/params/param.h"
 #include "definitions_cxx.hpp"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/params.h"
@@ -53,7 +53,7 @@ const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
 	case Kind::UNPATCHED_SOUND:
 		return rowNear(instrument::kParams, instrument::kParamBlocks[0].count + index, unpatchedId);
 	case Kind::UNPATCHED_GLOBAL:
-		return rowNear(global_effectable::kParams, index, unpatchedId);
+		return rowNear(host_chain::kParams, index, unpatchedId);
 	default:
 		return nullptr;
 	}
@@ -396,7 +396,7 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			// codec's own table
 			return "none";
 		}
-		return tableName(global_effectable::kParams, param);
+		return tableName(host_chain::kParams, param);
 	}
 	// A sound's own unpatched params only for a sound's collection; the shared ones for any
 	if (kind == UNPATCHED_SOUND || param < UNPATCHED_START + UNPATCHED_NUM_SHARED) {

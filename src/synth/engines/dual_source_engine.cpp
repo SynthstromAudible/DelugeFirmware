@@ -37,7 +37,7 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 		// >>1 rather than >>2: noise was too loud with a filter on in V2.0.x, and is kept as loud since
 		using dsp::Q;
 		Q<31> n = halve_floor(c.noise_volume);
-		if (block.cfg->has_filters) {
+		if (block.values->has_filters) {
 			// Times the filters' Q28 gain (2^28 unity), Q27, back at Q31. It cannot wrap: the noise volume is at most
 			// 2147385344 and the gain at most 322500000 (a 12 or 24 dB ladder at full resonance, one unison part), so
 			// the Q27 product peaks at 80621309, 0.60 of the 2^27 its move would wrap at.
@@ -65,7 +65,7 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 
 std::array<dsp::UQ<32>, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const EngineBlock& block) {
 	std::array<dsp::UQ<32>, kMaxNumVoicesUnison> phases{};
-	for (int32_t u = 0; u < block.cfg->num_unison; u++) {
+	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
 		phases[u] = block.parts[u].slots[0].current_osc_phase();
 	}
 	return phases;
@@ -109,7 +109,7 @@ void DualSourceEngine::release(std::span<UnisonPart> parts, const ReleaseInfo& i
 }
 
 bool DualSourceEngine::all_parts_inactive(const EngineBlock& block) {
-	const VoiceConfig& cfg = *block.cfg;
+	const BlockValues& cfg = *block.values;
 	if (cfg.noise_volume_contains_something) {
 		return false; // noise keeps the voice sounding
 	}
@@ -117,7 +117,7 @@ bool DualSourceEngine::all_parts_inactive(const EngineBlock& block) {
 		if (!cfg.source_ever_active[s]) {
 			continue;
 		}
-		for (int32_t u = 0; u < cfg.num_unison; u++) {
+		for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
 			if (block.parts[u].slots[s].active) {
 				return false;
 			}
@@ -135,10 +135,9 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
                                      const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
                                      std::span<dsp::UQ<32>> increments_out, bool advance_only,
                                      int32_t wave_index_increment) {
-	const VoiceConfig& cfg = *block.cfg;
 	bool unison_part_became_inactive = false;
 
-	for (int32_t u = 0; u < cfg.num_unison; u++) {
+	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
 		SourceSlot& slot = block.parts[u].slots[s];
 
 		// Samples may become inactive
@@ -167,9 +166,10 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 			}
 		}
 
-		const bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && stereo_buffer;
+		const bool stereo_unison =
+		    (block.config->voicing.unison_spread != 0u) && block.config->voicing.unison.count > 1 && stereo_buffer;
 		const dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : dsp::Q<31>{});
+		    dsp::fixed::pan_amplitudes(stereo_unison ? block.config->voicing.unison.pans[u] : dsp::Q<31>{});
 
 		const SourceRenderResult result =
 		    render_part(block, u, s, stereo_buffer, source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
@@ -189,11 +189,11 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
                                                  const dsp::UQ<32>* sync_pos, const dsp::UQ<32>* sync_increments,
                                                  int32_t wave_index_increment, bool stereo_unison,
                                                  dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r) {
-	const VoiceConfig& cfg = *block.cfg;
+	const BlockValues& cfg = *block.values;
 	const DualSourceControls& c = block.dual;
 	SourceSlot& slot = block.parts[u].slots[s];
 
-	const uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // needed even without osc sync
+	const uint32_t osc_retrigger_phase = block.config->engine.osc_retrigger_phase[s]; // needed even without osc sync
 	const dsp::UQ<32> sync_pos_this_unison = do_osc_sync ? sync_pos[u] : dsp::UQ<32>{};
 	const dsp::UQ<32> sync_increment_this_unison = do_osc_sync ? sync_increments[u] : dsp::UQ<32>{};
 	const uint32_t pulse_width = pulse_width_from(c.phase_width[s]);
@@ -243,7 +243,8 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	        {
 	            .interpolation_buffer_size = interpolation_buffer_size(
 	                // the buffer size reads the increment's word, as a signed sample step
-	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment.raw()), cfg.cpu_direness),
+	                block.config->sources[s].interpolation_mode, static_cast<int32_t>(phase_increment.raw()),
+	                cfg.cpu_direness),
 	        },
 	};
 

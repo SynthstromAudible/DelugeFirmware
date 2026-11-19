@@ -104,6 +104,46 @@ class ScenesRows(unittest.TestCase):
         self.assertEqual(found, {})
 
 
+class ModControllableBridgeOnly(unittest.TestCase):
+    counts = ScenesRows.counts
+
+    def test_an_instrument_event_on_the_bridge_class_is_counted(self):
+        counts = self.counts(
+            "src/deluge/model/mod_controllable/mod_controllable.h",
+            "class ModControllable {\n"
+            "  virtual bool allowNoteTails(void* s) { return true; }\n"
+            "  virtual void monophonicExpressionEvent(int v, int d) {}\n"
+            "};\n",
+        )
+        self.assertEqual(counts.get("mod-controllable-bridge-only"), 2)
+
+    def test_the_bridge_alone_is_not(self):
+        counts = self.counts(
+            "src/deluge/model/mod_controllable/mod_controllable.h",
+            "class ModControllable {\n  virtual std::optional<EffectsOwner> effectsOwner();\n};\n",
+        )
+        self.assertNotIn("mod-controllable-bridge-only", counts)
+
+    def test_the_instruments_declaring_the_events_are_not(self):
+        counts = self.counts(
+            "src/deluge/model/instrument/melodic_instrument.h",
+            "virtual void monophonicExpressionEvent(int v, int d) = 0;\n",
+        )
+        self.assertNotIn("mod-controllable-bridge-only", counts)
+
+    def test_the_old_comparison_name_is_counted_anywhere(self):
+        for rel in (
+            "src/deluge/model/planted.cpp",
+            "sim/scenes_spec/planted_spec.cpp",
+            "tests/integration/scenarios/planted.cpp",
+        ):
+            with self.subTest(rel=rel):
+                counts = self.counts(
+                    rel, "bool b = o->valueChangedEnoughToMatter(1, 2, k, 3);\n"
+                )
+                self.assertEqual(counts.get("mod-controllable-bridge-only"), 1)
+
+
 class LegacyEffectsOwnerRows(unittest.TestCase):
     counts = ScenesRows.counts
 
@@ -129,10 +169,29 @@ class LegacyEffectsOwnerRows(unittest.TestCase):
 
     def test_the_param_table_library_is_not(self):
         counts = self.counts(
-            "src/effects/global_effectable/planted.cpp",
-            "namespace deluge::global_effectable { int x = plugin::kGlobalEffectable; }\n",
+            "src/effects/host_chain/planted.cpp",
+            "namespace deluge::host_chain { int x = plugin::kGlobalEffectable; }\n",
         )
         self.assertNotIn("no-legacy-effects-owners", counts)
+
+    def test_the_param_table_library_by_its_old_name_is_counted(self):
+        for rel in (
+            "src/deluge/model/fx/planted.cpp",
+            "sim/scenes_spec/planted_spec.cpp",
+            "tests/unit/effects/planted_spec.cpp",
+        ):
+            with self.subTest(rel=rel):
+                # An include of the old path can't build (the directory is gone); a symbol row skips include lines.
+                counts = self.counts(
+                    rel, "auto x = deluge::global_effectable::kParams;\n"
+                )
+                self.assertEqual(counts.get("no-global-effectable-table"), 1)
+
+    def test_a_longer_name_holding_it_is_not(self):
+        counts = self.counts(
+            "src/deluge/bench/planted.h", "void f(int global_effectable_audio);\n"
+        )
+        self.assertNotIn("no-global-effectable-table", counts)
 
     def test_the_trees_hold_none(self):
         found = {

@@ -21,7 +21,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mod_fx/mod_fx_kernel.h"
 #include "dsp-next/fixed/noise/cong.h"
-#include "effects/param_fragment.h"
+#include "effects/params.h"
 #include "effects/words.h"
 
 #include <array>
@@ -117,12 +117,7 @@ public:
 	};
 
 	/// @brief The mod FX's params, in @ref Words order. Neutrals: the rate UQ0.32 per frame, the depth Q31.
-	static constexpr std::array<EffectParam, 4> kParams{{
-	    {.name = "modFXRate", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 121739},
-	    {.name = "modFXDepth", .curve = dsp::fixed::ParamCurve::SQUARE, .neutral = 526133494},
-	    {.name = "modFXOffset"},
-	    {.name = "modFXFeedback"},
-	}};
+	static constexpr std::array<EffectParam, 4> kParams = params::kModFxParams;
 
 	/// @brief The block's param values from the params' words.
 	/// @param words The stored words.

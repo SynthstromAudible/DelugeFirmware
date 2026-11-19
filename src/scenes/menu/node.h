@@ -16,7 +16,7 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
 #include "modulation/params/param.h"
@@ -1411,7 +1411,7 @@ constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 	case Kind::UNPATCHED_SOUND:
 		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::UNPATCHED, p.index});
 	case Kind::UNPATCHED_GLOBAL:
-		return deluge::global_effectable::param_id(p.index);
+		return deluge::host_chain::param_id(p.index);
 	default:
 		return {};
 	}

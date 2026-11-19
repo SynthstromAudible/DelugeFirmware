@@ -20,7 +20,8 @@
 // replaces another. Every legal value of every setting path an Edit maps is set on every bound sound through
 // SetEngineSetting: after each, the slot holds the value, the slot's instrument entries are the encoding of the
 // sound's state (equation 1), and the sound's snapshot is the one its state projects (equation 2); then the old value
-// is restored. A kit's affect-entire leg sets one path on all its sound drums at once. Exit: 0 every check holds; 1 the
+// is restored. Each oscillator keeps its tuning while FM. A kit's affect-entire leg sets one path on all its sound
+// drums at once. Exit: 0 every check holds; 1 the
 // file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
@@ -447,13 +448,17 @@ bool sameHiddenSource(const deluge::instrument::SourceState& a, const deluge::in
 
 /// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
 /// modulators only while FM, and its oscillators afterwards what they were (the types, samples and DX patches no FM
-/// file holds); then its old mode back. 0 when each holds, else 3 after printing the first that does not.
+/// file holds); then its old mode back. While FM, each oscillator's tuning is the one it had: FM's carriers play it.
+/// 0 when each holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address || sound.boundState() == nullptr) {
 		return 0;
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
+	const auto tuningOf = [](const deluge::instrument::SourceState& source) {
+		return std::pair{source.transpose, source.cents};
+	};
 	deluge::edits::Context ctx{song, song.project};
 	const Value old = *leafAt((*deluge::harness::encodedSlot(song, *address)), "mode");
 	for (std::string_view mode : {"subtractive", "fm", "subtractive"}) {
@@ -472,6 +477,15 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		}
 		if (mode != "fm") {
 			continue;
+		}
+		for (size_t s = 0; s < before.sources.size(); s++) {
+			const auto now = tuningOf(sound.boundState()->sources[s]);
+			const auto was = tuningOf(before.sources[s]);
+			if (now != was) {
+				std::fprintf(io.err, "%s mode pair: osc%zu's tuning while FM is %d/%d, it was %d/%d\n", name, s + 1,
+				             now.first, now.second, was.first, was.second);
+				return 3;
+			}
 		}
 		// While FM, each oscillator's own tuning moves and comes back: its entry changes, and what no FM file holds of
 		// it must outlast that.
@@ -740,6 +754,48 @@ int liveUnisonLeg(Song& song) {
 		}
 		synth->killAllVoices();
 		std::fprintf(io.err, "live unison: %zu voices of %s re-tuned\n", sounding, synth->name.c_str());
+		return 0;
+	}
+	return 0;
+}
+
+/// The live-mode leg: a note sounds on the first synth of @p song with a clip, and its engine changes under it
+/// through an Edit; the voice stops, as the mode menu stops every voice before it changes the engine, and the slot
+/// stays coherent. 0 when each holds (or no synth sounds), else 3 after printing the first that does not.
+int liveModeLeg(Song& song) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
+		if (!address) {
+			continue;
+		}
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		if (synth->numActiveVoices() == 0) {
+			continue; // a source with nothing to play: try the next synth
+		}
+		deluge::edits::Context ctx{song, song.project};
+		const std::string_view to = synth->getSynthMode() == SynthMode::FM ? "subtractive" : "fm";
+		const Value value = Value::makeScalar(std::string(to));
+		deluge::edits::SetEngineSetting edit{*address, "mode", value};
+		std::string_view failed =
+		    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(*synth, song, "mode", value);
+		if (failed.empty() && synth->numActiveVoices() != 0) {
+			failed = "a voice kept sounding";
+		}
+		synth->killAllVoices();
+		if (!failed.empty()) {
+			std::fprintf(io.err, "synth %s live mode=%.*s: %.*s\n", synth->name.c_str(), static_cast<int>(to.size()),
+			             to.data(), static_cast<int>(failed.size()), failed.data());
+			return 3;
+		}
+		std::fprintf(io.err, "live mode: the voices of %s stopped\n", synth->name.c_str());
 		return 0;
 	}
 	return 0;
@@ -1060,6 +1116,9 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 			}
 		}
 		if (int r = liveUnisonLeg(*song)) {
+			return r;
+		}
+		if (int r = liveModeLeg(*song)) {
 			return r;
 		}
 		if (int r = liveRangeLeg(*song)) {

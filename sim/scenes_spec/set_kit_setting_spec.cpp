@@ -2,7 +2,7 @@
 // value, record and runtime alike, and its slot still decodes to its typed state.
 
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
 #include "model/edits/edit.h"
@@ -41,8 +41,7 @@ std::vector<int> disagreeing(spec::SongFixture& f, std::string_view path, std::s
 		auto& sound = *static_cast<SoundDrum*>(drum);
 		const auto held = deluge::instrument::setting_value(*sound.boundState(), path);
 		auto* slot = f.song->project.resolveSlot(*deluge::bridge::slotAddressOf(sound));
-		if (!held || held->str() != word
-		    || slot->state.as<deluge::instrument::DelugeInstrument>() != sound.boundState()) {
+		if (!held || held->str() != word || slot->state.as<deluge::instrument::DelugeSynth>() != sound.boundState()) {
 			found.push_back(index);
 		}
 	}

@@ -59,7 +59,7 @@ targetOf(OwnerPlugin owner, deluge::modulation::params::Kind kind, int32_t index
 /// @brief The id the runtime's param at @p index of a @p kind collection has.
 ///
 /// Engine params go through their engine's map (the Deluge instrument's for a sound's patched and unpatched params,
-/// the provisional global-effectable table's for a global effectable's, the instrument's depth ids for a patch cable,
+/// the host chain's table's for a global effectable's, the instrument's depth ids for a patch cable,
 /// whose index is the runtime's packed cable word); a host space's param (MPE expression, a MIDI CC) keeps its index as
 /// its id. An unpatched set not yet named by its owner's init (kind NONE) is numbered as unpatched.
 ///

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "foundation/string_format.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "processing/dx7/algorithm_diagrams.h"
 
 #include <algorithm>
@@ -50,19 +50,17 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	                                           : std::string_view{});
 }
 
-/// @brief Source @p source's state on the sound the menu edits, if the facts know it.
-const deluge::instrument::SourceState* source_of(const MenuContext& ctx, size_t source) {
-	if (ctx.facts == nullptr || !ctx.addresses.slot) {
-		return nullptr;
-	}
-	const deluge::instrument::SoundState* sound = ctx.facts->sound_state(*ctx.addresses.slot);
-	return sound != nullptr ? &sound->sources[source] : nullptr;
+/// @brief The state of the sound the menu edits, if the facts know it.
+const deluge::instrument::SoundState* sound_of(const MenuContext& ctx) {
+	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
 }
 
 /// @brief Oscillator 1's DX7 patch, the one every DX7 page edits (`DxParam::setValue`: "only OSC1 can be DX7").
 std::optional<deluge::instrument::DxPatchState> patch_of(const MenuContext& ctx) {
-	const deluge::instrument::SourceState* source = source_of(ctx, 0);
-	return source != nullptr ? source->dx_patch : std::nullopt;
+	const deluge::instrument::SoundState* sound = sound_of(ctx);
+	const deluge::instrument::DxPatchState* patch =
+	    sound != nullptr ? deluge::instrument::dx_patch(*sound, deluge::instrument::SourceId::A) : nullptr;
+	return patch != nullptr ? std::optional{*patch} : std::nullopt;
 }
 
 /// @brief Write oscillator 1's patch.
@@ -244,8 +242,10 @@ void draw_param(deluge::ui::oled::OledFrame& p, int32_t top, const deluge::instr
 }
 
 bool source_is_dx(const MenuContext& ctx, size_t source) {
-	const deluge::instrument::SourceState* state = source_of(ctx, source);
-	return state != nullptr && state->osc_type == OscType::DX7;
+	const deluge::instrument::SoundState* sound = sound_of(ctx);
+	return sound != nullptr
+	       && deluge::instrument::source_type(*sound, static_cast<deluge::instrument::SourceId>(source))
+	              == OscType::DX7;
 }
 
 } // namespace

@@ -29,8 +29,8 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
+using deluge::synth::BlockValues;
 using deluge::synth::SourceSlot;
-using deluge::synth::VoiceConfig;
 
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
@@ -58,7 +58,7 @@ SoundVoice::SoundVoice(Sound& sound) : sound{sound} {
 }
 
 uint32_t SoundVoice::priority_rating() const {
-	return kernel.priority_rating(sound.snapshot().voice_priority, sound.numActiveVoices());
+	return kernel.priority_rating(sound.config().voicing.priority, sound.numActiveVoices());
 }
 
 // Returns false if fail and we need to unassign again
@@ -75,14 +75,14 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
-			for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
-				ports(u, s).sample.bind(&sound.sources[s], &guides[s]);
+			for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
+				ports(u, s).sample.bind(&sound.sources[s], &sound.config().sources[s], &guides[s]);
 			}
 		}
 	}
 
 	const bool started =
-	    kernel.note_on(setup, sound.snapshot(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
+	    kernel.note_on(setup, sound.config(), event, engineClock(), sound.numActiveVoices(), deluge::synth_noise);
 	deluge::param_dump::note_on(&sound, this);
 	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
 	return started;
@@ -91,14 +91,14 @@ bool SoundVoice::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& eve
 void SoundVoice::change_note(ModelStackWithSoundFlags& flags, int32_t note_before_arp, int32_t note_after_arp,
                              int32_t midi_channel, std::span<const int16_t, kNumExpressionDimensions> mpe) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
-	kernel.change_note(note_setup_for(*this, sound, paramManager, flags, note_after_arp, 0, 0, true), sound.snapshot(),
+	kernel.change_note(note_setup_for(*this, sound, paramManager, flags, note_after_arp, 0, 0, true), sound.config(),
 	                   note_before_arp, note_after_arp, midi_channel, mpe);
 }
 
 void SoundVoice::calculate_phase_increments(ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	kernel.calculate_phase_increments(note_setup_for(*this, sound, paramManager, flags, kernel.note_code(), 0, 0, true),
-	                                  sound.snapshot());
+	                                  sound.config());
 }
 
 void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails_allowed, bool allow_release_stage) {
@@ -117,7 +117,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 }
 
 void SoundVoice::randomize_osc_phases() {
-	kernel.randomize_osc_phases(sound.snapshot(), deluge::synth_noise);
+	kernel.randomize_osc_phases(sound.config(), deluge::synth_noise);
 }
 
 void SoundVoice::expression_event_immediate(int32_t voice_level_value, int32_t s) {
@@ -125,25 +125,26 @@ void SoundVoice::expression_event_immediate(int32_t voice_level_value, int32_t s
 	                                  voice_level_value, s);
 }
 
-bool SoundVoice::render(const deluge::synth::matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+bool SoundVoice::render(const deluge::synth::matrix::MatrixBlock& control_block,
+                        const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
                         const deluge::synth::VoiceRenderArgs& args) {
 	if (!just_created) {
 		just_created = true;
 		return true;
 	}
 	checkStack("SoundVoice::render");
-	const bool keep = kernel.render(control_block, cfg, block(), args);
+	const bool keep = kernel.render(control_block, config, cfg, block(), args);
 	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
-	dump_sources(control_block, cfg);
+	dump_sources(control_block, config, cfg);
 	return keep;
 }
 
 void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
-                              const deluge::synth::VoiceConfig& cfg) const {
+                              const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg) const {
 #if defined(DELUGE_PARAM_DUMP)
 	std::array<deluge::param_dump::SourceState, kMaxNumVoicesUnison * kNumSources> states{};
 	size_t n = 0;
-	for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+	for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			const auto& slot = kernel.unison_parts[u].slots[s];
 			states[n++] = {
@@ -158,6 +159,7 @@ void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_
 	deluge::param_dump::voice_sources(&sound, this, std::span{states}.first(n));
 #else
 	(void)control_block;
+	(void)config;
 	(void)cfg;
 #endif
 }
@@ -175,7 +177,7 @@ deluge::synth::VoiceBlock SoundVoice::block() const {
 		    oscType == OscType::SAMPLE && holder != nullptr
 		    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !guides[s].noteOffReceived);
 		block.source_in_stereo[s] =
-		    Source::renderInStereo(oscType, sound.snapshot().unison_stereo_spread, sound.snapshot().num_unison,
+		    Source::renderInStereo(oscType, sound.config().voicing.unison_spread, sound.config().voicing.unison.count,
 		                           static_cast<SampleHolder*>(holder));
 	}
 	return block;
@@ -205,7 +207,7 @@ void SoundVoice::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deletin
 
 void SoundVoice::unassign_stuff(bool deleting_song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+		for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
 			kernel.unison_parts[u].slots[s].unassign(deleting_song);
 		}
 	}
@@ -228,7 +230,7 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
 
-	LoopType loopingType = guides[s].getLoopingType(sound.sources[s]);
+	LoopType loopingType = guides[s].getLoopingType(sound.config().sources[s].repeat_mode);
 
 	// Check we're still within bounds - for each unison part.
 	// Well, that is, make sure we're not past the new end. Being before the start is ok, because we'll come back into
@@ -236,7 +238,7 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	bool anyStillActive = false;
 
-	for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+	for (int32_t u = 0; u < sound.config().voicing.unison.count; u++) {
 		SourceSlot* voiceUnisonPartSource = &kernel.unison_parts[u].slots[s];
 
 		if (voiceUnisonPartSource->active) {

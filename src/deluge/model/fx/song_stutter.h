@@ -107,11 +107,6 @@ struct StutterInput {
 /// @return True when the middle position is marked.
 [[nodiscard]] bool stutterRateIndicatesMiddle(const deluge::effects::StutterState& owner, bool stuttering);
 
-/// @brief Sets @p paramManager's stutter-rate param to its default, as a new owner's params start.
-/// @param paramManager The param manager to initialise.
-/// @param defaults     Whose table's default: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global effectable.
-void initStutterParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
-
 /// @brief The stutter's rate, 8.24 on the delay's rate scale: the stutter-rate param in @p paramManager, moved by
 /// @p knobDiff knob positions (a quantized stutter's note length), synced to the tempo by @p timePerTickInverse at
 /// the song's input tick @p magnitude.

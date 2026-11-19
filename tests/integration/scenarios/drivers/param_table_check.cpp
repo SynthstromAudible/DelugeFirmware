@@ -22,17 +22,18 @@
 //
 // Gate param-table-check:
 //     the engines' param tables agree with the runtime: every row of the Deluge instrument's table and of the
-//     provisional global-effectable table has the runtime's file name, scope, bipolarity and default (what the engine's
+//     host chain's table has the runtime's file name, scope, bipolarity and default (what the engine's
 //     own init gives a fresh instance) for its runtime index, the boundary map gives that index the row's id, and every
-//     runtime param has a row
+//     runtime param has a row; each chain's init leaves every cursor at its lane's base, its set's kind and store as
+//     recorded
 
 #include "effects/bitcrush.h"
 #include "effects/compressor.h"
 #include "effects/delay.h"
 #include "effects/equalizer.h"
 #include "effects/filter.h"
-#include "effects/global_effectable/naming.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/naming.h"
+#include "effects/host_chain/params.h"
 #include "effects/mod_fx.h"
 #include "effects/reverb.h"
 #include "effects/stutter.h"
@@ -200,7 +201,7 @@ struct Checker {
 		if (!unnamed && name != info.file_name) {
 			fail(table, info, "the runtime names it differently");
 		}
-		if (unnamed && info.id != deluge::global_effectable::param::kTempo) {
+		if (unnamed && info.id != deluge::host_chain::param::kTempo) {
 			fail(table, info, "the runtime has no name for it");
 		}
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
@@ -230,7 +231,7 @@ struct Checker {
 			fail(table, info, "the boundary map gives the id another runtime index");
 		}
 		const deluge::plugin::ParamNaming& naming =
-		    kind == params::Kind::UNPATCHED_GLOBAL ? deluge::global_effectable::kNaming : deluge::instrument::kNaming;
+		    kind == params::Kind::UNPATCHED_GLOBAL ? deluge::host_chain::kNaming : deluge::instrument::kNaming;
 		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
 			fail(table, info, "its naming does not give the runtime's name this id");
 		}
@@ -321,7 +322,8 @@ void checkNames(Checker& check) {
 }
 
 /// Each effect's params against the runtime: a curved param's neutral and curve are the instrument's for the same
-/// param (the patched one a sound's chain uses), and a host chain's row has the fragment's mapping and flags.
+/// param (the patched one a sound's chain uses). The tables' effect rows are built from the effects' params with
+/// effects::row and pinned field for field by the params specs; effects::built_from checks the id lists a table names.
 void checkEffectFragments(Checker& check) {
 	using deluge::effects::EffectParam;
 	struct Curved {
@@ -346,31 +348,11 @@ void checkEffectFragments(Checker& check) {
 			++check.disagreements;
 		}
 	}
-	auto published = [&](const EffectParam& fragment) {
-		const ParamInfo* row = deluge::plugin::find_param(deluge::global_effectable::kParams, fragment.name);
-		if (row == nullptr || row->mapping != fragment.mapping || row->flags != fragment.flags) {
-			std::fprintf(check.io.err, "effect param %.*s: the global-effectable row differs from the effect's\n",
-			             static_cast<int>(fragment.name.size()), fragment.name.data());
-			++check.disagreements;
-		}
-	};
-	for (const EffectParam& p : fx::Filter::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::ModFx::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::Equalizer::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::Bitcrush::kParams) {
-		published(p);
-	}
-	for (const EffectParam* p : {&fx::Compressor::kThreshold, &fx::Delay::kRate, &fx::Delay::kFeedback,
-	                             &fx::Stutter::kRate, &fx::Reverb::kSend}) {
-		published(*p);
-	}
 }
+
+/// The first id of the store a fresh sound's or host chain's unpatched set binds to: bridge::firstParamId of the kind
+/// the set has when its init first reaches a lane.
+constexpr uint32_t kRecordedStoreFirst = 90;
 
 /// The recorded default of param @p id of @p table.
 int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
@@ -404,17 +386,60 @@ void checkDefaults(Checker& check) {
 	ParamManagerForTimeline global;
 	global.setupUnpatched();
 	deluge::model::initGlobalParams(&global);
-	for (const ParamInfo& info : deluge::global_effectable::kParams) {
-		int32_t value = global.getUnpatchedParamSet()
-		                    ->docForParam(*deluge::global_effectable::runtime_index(info.id))
-		                    ->current_value;
-		int32_t recorded = recordedDefault(param_defaults_reference::Table::GLOBAL_EFFECTABLE, info.id);
+	for (const ParamInfo& info : deluge::host_chain::kParams) {
+		int32_t value =
+		    global.getUnpatchedParamSet()->docForParam(*deluge::host_chain::runtime_index(info.id))->current_value;
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::HOST_CHAIN, info.id);
 		if (value != recorded || info.default_value != recorded) {
-			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d, recorded %d\n",
-			             info.id.value, static_cast<int>(info.file_name.size()), info.file_name.data(),
-			             info.default_value, value, recorded);
+			std::fprintf(check.io.err, "default host-chain %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
+			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value,
+			             recorded);
 			++check.disagreements;
 		}
+	}
+}
+
+/// What a chain's init leaves: every unpatched cursor at its lane's base, the set's kind and its store's first id as
+/// recorded, and an audio clip's volume below a host chain's.
+void checkInitState(Checker& check) {
+	auto check_set = [&](const char* owner, UnpatchedParamSet& set, params::Kind kind, uint32_t first) {
+		if (set.kind != kind) {
+			std::fprintf(check.io.err, "init %s: kind %d, recorded %d\n", owner, static_cast<int>(set.kind),
+			             static_cast<int>(kind));
+			++check.disagreements;
+		}
+		if (set.domStore() == nullptr || set.domStore()->first.value != first) {
+			std::fprintf(check.io.err, "init %s: store first id %u, recorded %u\n", owner,
+			             set.domStore() == nullptr ? 0U : set.domStore()->first.value, first);
+			++check.disagreements;
+		}
+		for (int32_t p = 0; p < set.getNumParams(); ++p) {
+			const deluge::project::DocAutoParam* lane = set.findDocParamForId(p);
+			if (lane == nullptr || lane->current_value != set.getValue(p)) {
+				std::fprintf(check.io.err, "init %s %d: cursor %d, lane %d\n", owner, p, set.getValue(p),
+				             lane == nullptr ? 0 : lane->current_value);
+				++check.disagreements;
+			}
+		}
+	};
+	ParamManagerForTimeline sound;
+	sound.setupWithPatching();
+	Sound::initParams(&sound);
+	check_set("sound", *sound.getUnpatchedParamSet(), params::Kind::UNPATCHED_SOUND, kRecordedStoreFirst);
+
+	ParamManagerForTimeline global;
+	global.setupUnpatched();
+	deluge::model::initGlobalParams(&global);
+	check_set("host chain", *global.getUnpatchedParamSet(), params::Kind::UNPATCHED_GLOBAL, kRecordedStoreFirst);
+
+	ParamManagerForTimeline clip;
+	clip.setupUnpatched();
+	deluge::model::initAudioClipParams(&clip);
+	check_set("audio clip", *clip.getUnpatchedParamSet(), params::Kind::UNPATCHED_GLOBAL, kRecordedStoreFirst);
+	if (clip.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME) != -536870912) {
+		std::fprintf(check.io.err, "init audio clip: volume %d, recorded -536870912\n",
+		             clip.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME));
+		++check.disagreements;
 	}
 }
 
@@ -427,9 +452,9 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 		check.row("instrument", info, patched ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND, slot.index,
 		          patched && slot.index < params::FIRST_GLOBAL);
 	}
-	for (const ParamInfo& info : deluge::global_effectable::kParams) {
-		check.row("global-effectable", info, params::Kind::UNPATCHED_GLOBAL,
-		          *deluge::global_effectable::runtime_index(info.id), false);
+	for (const ParamInfo& info : deluge::host_chain::kParams) {
+		check.row("host-chain", info, params::Kind::UNPATCHED_GLOBAL, *deluge::host_chain::runtime_index(info.id),
+		          false);
 	}
 	// Every runtime param has a row.
 	auto cover = [&](const char* table, std::span<const ParamInfo> rows, params::Kind kind, int32_t count) {
@@ -442,12 +467,12 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	};
 	cover("instrument", kParams, params::Kind::PATCHED, params::kNumParams);
 	cover("instrument", kParams, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
-	cover("global-effectable", deluge::global_effectable::kParams, params::Kind::UNPATCHED_GLOBAL,
-	      params::UNPATCHED_GLOBAL_MAX_NUM);
+	cover("host-chain", deluge::host_chain::kParams, params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MAX_NUM);
 	checkCables(check);
 	checkNames(check);
 	checkEffectFragments(check);
 	checkDefaults(check);
+	checkInitState(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

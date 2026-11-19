@@ -1477,7 +1477,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 		{ // --- synth_mode --------------------------------------------------------------------
 			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as main's menu does), so
 			// both sources are saws while the hook is driven.
-			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->sources[0].getOscType(), spec::menu_engine(f.ctx).sound->sources[1].getOscType()};
+			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->sources[0].oscType, spec::menu_engine(f.ctx).sound->sources[1].oscType};
 			spec::menu_engine(f.ctx).sound->sources[0].setOscType(OscType::SAW);
 			spec::menu_engine(f.ctx).sound->sources[1].setOscType(OscType::SAW);
 			const SynthMode before = spec::menu_engine(f.ctx).sound->getSynthMode();

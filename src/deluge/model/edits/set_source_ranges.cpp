@@ -1,12 +1,14 @@
 #include "model/edits/set_source_ranges.h"
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/state_access.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
+#include <algorithm>
 #include <array>
 #include <string_view>
 
@@ -18,8 +20,8 @@ Error SetSourceRanges::apply(Context& ctx) {
 	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr || source_ >= kNumSources) {
 		return Error::UNSPECIFIED;
 	}
-	deluge::instrument::SoundState changed = *sound->boundState();
-	changed.sources[source_].ranges = ranges_;
+	const auto id = static_cast<deluge::instrument::SourceId>(source_);
+	const deluge::instrument::SoundState changed = deluge::instrument::with_ranges(*sound->boundState(), id, ranges_);
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
 	const std::array<std::string_view, 1> keys{source_ == 0 ? "osc1" : "osc2"};
 	const auto change = deluge::instrument::change_to(*sound->boundState(), changed, keys, context);
@@ -28,7 +30,7 @@ Error SetSourceRanges::apply(Context& ctx) {
 		                                change, keys[0]);
 	}
 	Error error = change ? deluge::bridge::commitState(*sound, *change, ctx.song) : Error::UNSPECIFIED;
-	if (sound->boundState()->sources[source_].ranges == ranges_) {
+	if (std::ranges::equal(deluge::instrument::source_ranges(*sound->boundState(), id), ranges_)) {
 		deluge::bridge::retuneVoices(*sound, ctx.song);
 		return Error::NONE; // what else the sound refused is not this Edit's
 	}

@@ -58,7 +58,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 					}
 					else {
 						guide.audioFileHolder = holder;
-						if (source.oscType == OscType::SAMPLE && source.repeatMode == SampleRepeatMode::STRETCH) {
+						if (source.oscType == OscType::SAMPLE
+						    && sound.config().sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 							guide.sequenceSyncLengthTicks = sampleSyncLength;
 							// lastSwungTickActioned, not getActualSwungTickCount(): ticksLate counts from it
 							guide.sequenceSyncStartedAtTick = playbackHandler.lastSwungTickActioned - ticksLate;
@@ -83,7 +84,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 			}
 		}
 
-		setup.porta = sound.polyphonic != PolyphonyMode::LEGATO
+		setup.porta = sound.config().voicing.polyphony != PolyphonyMode::LEGATO
 		              && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
 		              && sound.lastNoteCode != deluge::synth::kNoLastNote;
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -107,8 +108,10 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		const auto* sampleHolder = source.oscType == OscType::SAMPLE
 		                               ? static_cast<const SampleHolderForVoice*>(voice.guides[s].audioFileHolder)
 		                               : nullptr;
-		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : source.transpose;
-		out.fine_tuner = sampleHolder != nullptr ? sampleHolder->fineTuner : source.fineTuner;
+		const deluge::synth::SourceConfig& settings = sound.config().sources[s];
+		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : settings.transpose;
+		out.fine_tuner =
+		    sampleHolder != nullptr ? deluge::dsp::fixed::FineTune::of_cents(sampleHolder->cents) : settings.tune;
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
 		if (!forNoteChange && synthMode != SynthMode::FM && source.oscType == OscType::DX7 && out.ever_active) {
 			out.dx_patch = source.ensureDxPatch();
@@ -130,8 +133,8 @@ ReleaseInfo release_info_for(Sound& sound, ParamManagerForTimeline* paramManager
 	ReleaseInfo release{
 	    .note_tails_allowed = noteTailsAllowed,
 	    .synth_mode = sound.getSynthMode(),
-	    .num_unison = sound.snapshot().num_unison,
-	    .voice_priority = sound.snapshot().voice_priority,
+	    .num_unison = sound.config().voicing.unison.count,
+	    .voice_priority = sound.config().voicing.priority,
 	    .num_active_voices = sound.numActiveVoices(),
 	};
 	if (noteTailsAllowed) {

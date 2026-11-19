@@ -31,10 +31,10 @@ struct DualSourceControls;
 struct FmControls;
 struct UnisonPart;
 struct SourceLevels;
-struct VoiceConfig;
+struct BlockValues;
 struct VoiceBlock;
 struct NoteSetup;
-struct SoundSnapshot;
+struct SoundConfig;
 struct ReleaseInfo;
 
 /// @brief The numeric backend of the q31 Deluge instrument: what @ref BasicSource and @ref BasicEngine are built over.
@@ -57,10 +57,10 @@ struct Fixed {
 	// The voice an engine plays and the controls it derives for each engine family
 	using UnisonPart = synth::UnisonPart;
 	using Levels = synth::SourceLevels;
-	using Config = synth::VoiceConfig;
+	using BlockValues = synth::BlockValues;
 	using VoiceInputs = synth::VoiceBlock;
 	using Setup = synth::NoteSetup;
-	using Snapshot = synth::SoundSnapshot;
+	using SoundConfig = synth::SoundConfig;
 	using Release = synth::ReleaseInfo;
 	using DualSourceControls = synth::DualSourceControls;
 	using FmControls = synth::FmControls;

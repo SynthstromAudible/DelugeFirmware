@@ -18,10 +18,10 @@
 #include "model/sample/sample_holder_for_clip.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/pitch/fine_tune.h"
 #include "model/sample/clip_increment.h"
 #include "model/sample/sample.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/phase_increment_fine_tuner.h"
 
 using deluge::dsp::fixed::kLinearTableInterpolator;
 
@@ -49,7 +49,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 		if (cents) {
 			int32_t multiplier = kLinearTableInterpolator.interpolate(
-			    2147483648u + PhaseIncrementFineTuner::cents_step(cents), 32, centAdjustTableSmall);
+			    2147483648u + deluge::dsp::fixed::FineTune::step_of(cents), 32, centAdjustTableSmall);
 			neutralPhaseIncrement = cents_scaled(neutralPhaseIncrement, multiplier);
 		}
 	}

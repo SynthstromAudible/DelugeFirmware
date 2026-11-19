@@ -1,0 +1,2 @@
+# The source-memory driver's card: the one sample its synth's first oscillator plays.
+sine SAMPLES/SM/TONE.WAV ch=1 frames=88200 hz=440

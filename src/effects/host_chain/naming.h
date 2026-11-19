@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "plugin-api/types/param_naming.h"
 
-namespace deluge::global_effectable {
+namespace deluge::host_chain {
 
 namespace detail {
 /// The name a cable's range had before 3.2: it names no param a knob can turn.
@@ -40,8 +40,8 @@ inline plugin::ParamRef ref_of(plugin::ParamId id) {
 }
 } // namespace detail
 
-/// @brief How files name the provisional global-effectable params: by file name only (they have no cables) and
+/// @brief How files name the host chain's params: by file name only (they have no cables) and
 /// with no mod-knob rule. A cable's pre-3.2 `range` names no param.
 inline constexpr plugin::ParamNaming kNaming{plugin::kGlobalEffectable, &detail::id_of, &detail::ref_of, nullptr};
 
-} // namespace deluge::global_effectable
+} // namespace deluge::host_chain

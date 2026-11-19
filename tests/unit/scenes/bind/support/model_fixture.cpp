@@ -2,7 +2,7 @@
 
 #include "deluge-project/doc_note_row.h"
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "serialization/value.h"
 
 #include <utility>
@@ -69,7 +69,7 @@ ModelFixture::ModelFixture() {
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
 	facts.states[slot.id] = state;
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
-	                             .state = plugin::StateHandle::of<instrument::DelugeInstrument>(state),
+	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
 	                             .tick_magnitude = 1};
 	if (slot.kind == project::SlotAddress::Kind::OUTPUT) {
 		song.output_structure.getOrCreate(slot.id).instrument = std::move(made);

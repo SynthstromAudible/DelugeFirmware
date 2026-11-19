@@ -58,23 +58,28 @@
 
 #include "scenes/menu/node.h"
 
+#include "instruments/deluge/state_access.h"
+
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 
 #include <array>
 #include <iterator>
+#include <span>
 
 namespace deluge::scenes::menu {
 
 namespace {
 
-/// @brief The edited source's record, or null where the context edits no sound.
-const deluge::instrument::SourceState* source_state(const MenuContext& ctx) {
+/// @brief The edited source's ranges, empty where the context edits no sound or no source.
+std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
 	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
-		return nullptr;
+		return {};
 	}
 	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
-	return state != nullptr ? &state->sources[ctx.source_index] : nullptr;
+	return state != nullptr
+	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
+	           : std::span<const deluge::instrument::RangeState>{};
 }
 
 } // namespace
@@ -82,20 +87,19 @@ const deluge::instrument::SourceState* source_state(const MenuContext& ctx) {
 int32_t range_count(const MenuContext& ctx) {
 	// `std::ssize(source->ranges)`, the count main's `SoundEditor::setup` tests
 	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
-	const deluge::instrument::SourceState* source = source_state(ctx);
-	return source != nullptr ? static_cast<int32_t>(source->ranges.size()) : 0;
+	return static_cast<int32_t>(edited_ranges(ctx).size());
 }
 
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
-	const deluge::instrument::SourceState* source = source_state(ctx);
-	return source != nullptr ? source->ranges : std::vector<deluge::instrument::RangeState>{};
+	const std::span<const deluge::instrument::RangeState> ranges = edited_ranges(ctx);
+	return {ranges.begin(), ranges.end()};
 }
 
 int32_t range_top_note(const MenuContext& ctx, int32_t index) {
 	if (index < 0 || index >= range_count(ctx)) {
 		return deluge::instrument::kOpenTopNote; // `Source::getOrCreateFirstRange`'s "top of the keyboard"
 	}
-	return source_state(ctx)->ranges[static_cast<size_t>(index)].top_note;
+	return edited_ranges(ctx)[static_cast<size_t>(index)].top_note;
 }
 
 bool ensure_first_range(MenuContext& ctx) {

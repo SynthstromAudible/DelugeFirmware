@@ -21,6 +21,7 @@
 #include "deluge-project/param_automation.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/pitch/fine_tune.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "effects/codec.h"
 #include "effects/filter_slots.h"
@@ -32,6 +33,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
@@ -78,6 +80,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "processing/sound/param_dump.h"
+#include "processing/sound/param_manager_view.h"
 #include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -92,6 +95,7 @@
 #include "synth/matrix/matrix_fixed.h"
 #include "synth/matrix/param_format.h"
 #include "synth/modulation/envelope.h"
+#include "synth/voice/unison.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -111,8 +115,8 @@
 
 using namespace deluge;
 
+using deluge::synth::BlockValues;
 using deluge::synth::SourceSlot;
-using deluge::synth::VoiceConfig;
 
 namespace params = deluge::modulation::params;
 
@@ -262,7 +266,7 @@ void Sound::initParams(ParamManager* paramManager) {
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
-	polyphonic = PolyphonyMode::AUTO;
+	config_.voicing.polyphony = PolyphonyMode::AUTO;
 	deluge::model::changeEffects(
 	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
@@ -786,12 +790,12 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::GLOBAL_LFO_FREQ_1:
-		return (snapshot_.lfo_config[LFO1_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                                     : PatchCableAcceptance::DISALLOWED;
+		return (config_.lfos[LFO1_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                             : PatchCableAcceptance::DISALLOWED;
 
 	case params::GLOBAL_LFO_FREQ_2:
-		return (snapshot_.lfo_config[LFO3_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                                     : PatchCableAcceptance::DISALLOWED;
+		return (config_.lfos[LFO3_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                             : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
@@ -935,20 +939,20 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	// so that whole path runs with the render excluded (free on the audio tier). A polyphonic note-on builds its new
 	// voice with the render running and only publishes it excluded, below.
 	std::optional<AudioExcludedSection> nonPolyphonic;
-	if (polyphonic != PolyphonyMode::POLY) {
+	if (config_.voicing.polyphony != PolyphonyMode::POLY) {
 		nonPolyphonic.emplace();
 	}
 
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (!voices_.empty() && polyphonic != PolyphonyMode::POLY) [[unlikely]] {
+	if (!voices_.empty() && config_.voicing.polyphony != PolyphonyMode::POLY) [[unlikely]] {
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
-			if (polyphonic != PolyphonyMode::MONO && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE
-			    && allowNoteTails(modelStack, true)) {
+			if (config_.voicing.polyphony != PolyphonyMode::MONO
+			    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE && allowNoteTails(modelStack, true)) {
 				voiceForLegato = &voice;
 				break;
 			}
@@ -978,7 +982,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		}
 	}
 
-	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
+	if (config_.voicing.polyphony == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		(*voiceForLegato)
 		    ->change_note(*modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeSpan(mpeValues));
 	}
@@ -1034,7 +1038,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
 				AudioExcludedSection section;
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
-				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
+				if (std::ranges::count_if(voices_, countsTowardLimit) >= config_.voicing.max_voices) {
 					this->terminateOneActiveVoice(); // a voice for a voice: the block's cost stays
 				}
 				else {
@@ -1076,9 +1080,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 }
 
-void Sound::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-                                                     int32_t channelOrNoteNumber,
-                                                     MIDICharacteristic whichCharacteristic) {
+void Sound::sendPolyphonicExpressionToMidiOut(int32_t newValue, int32_t expressionDimension,
+                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic) {
 	// Send midi if midi output enabled
 	if (outputMidiChannel == MIDI_CHANNEL_NONE) {
 		return;
@@ -1244,16 +1247,16 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 			}
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                 // Arpeggiator will be full of notes which
+			if ((config_.voicing.polyphony == PolyphonyMode::LEGATO || config_.voicing.polyphony == PolyphonyMode::MONO)
+			    && !isDrum() && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
+				                                              // Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
 					ArpNote* arpNote = &arpeggiator->notes.back();
 					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
-					if (polyphonic == PolyphonyMode::LEGATO) {
+					if (config_.voicing.polyphony == PolyphonyMode::LEGATO) {
 						voice->change_note(
 						    *modelStack, newNoteCode, newNoteCode,
 						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
@@ -1316,7 +1319,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 		anyActiveSources = sourceEverActive || anyActiveSources;
 
 		if (sourceEverActive
-		    && (sources[s].oscType != OscType::SAMPLE || sources[s].repeatMode != SampleRepeatMode::ONCE
+		    && (sources[s].oscType != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
 		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
@@ -1336,9 +1339,9 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		bool sourceEverActive = s ? isSourceActiveEver(1, paramManager) : isSourceActiveEver(0, paramManager);
 
 		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
-		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
+		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
-				return sources[s].getLengthInSamplesAtSystemSampleRate(note + snapshot_.transpose, true);
+				return sources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
 			}
 			return 1;
 		}
@@ -1372,9 +1375,10 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
+		else if (config_.sources[s].repeat_mode == SampleRepeatMode::CUT
+		         || config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 
-			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
+			if (anyLooping && config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
@@ -1406,7 +1410,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 		}
 
 		if (sources[s].oscType != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
-		    || sources[s].repeatMode != SampleRepeatMode::CUT) {
+		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
 	}
@@ -1438,7 +1442,8 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
-			if (sources[s].repeatMode == SampleRepeatMode::ONCE || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+			if (config_.sources[s].repeat_mode == SampleRepeatMode::ONCE
+			    || !sources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
 				              // tried to do a late start otherwise?
 			}
@@ -1486,7 +1491,7 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!snapshot_.oscillator_sync) {
+	if (!config_.engine.osc_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1497,7 +1502,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!snapshot_.oscillator_sync) {
+	if (!config_.engine.osc_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1772,9 +1777,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
+	const ParamManagerView paramView{*paramManager};
 
 	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
+	if (paramView.wired(PatchSource::LFO_GLOBAL_1)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
 		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
@@ -1784,13 +1790,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO1
-		        .render(output.size(), snapshot_.lfo_config[LFO1_ID],
+		        .render(output.size(), config_.lfos[LFO1_ID],
 		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_1>(LFO1_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
+	if (paramView.wired(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
 
 		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
@@ -1800,7 +1806,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
 		    globalLFO3
-		        .render(output.size(), snapshot_.lfo_config[LFO3_ID],
+		        .render(output.size(), config_.lfos[LFO3_ID],
 		                getGlobalLFOPhaseIncrement<params::GLOBAL_LFO_FREQ_2>(LFO3_ID), deluge::synth_noise)
 		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
@@ -1814,7 +1820,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Do sidechain
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
+	if (paramView.wired(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
 			core().sidechain().register_hit(sideChainHitPending);
 		}
@@ -1823,7 +1829,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		int32_t old = params.source_values[patchSourceSidechainUnderlying];
 		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
+		    output.size(), paramView.knob(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);
@@ -1921,9 +1927,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (!voices_.empty()) {
 
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
-		bool applyingPanAtVoiceLevel =
-		    (AudioEngine::renderInStereo
-		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN));
+		bool applyingPanAtVoiceLevel = (AudioEngine::renderInStereo && paramView.modulated(params::LOCAL_PAN));
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
@@ -1933,72 +1937,50 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
 		             && (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
-		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
-		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<int32_t>::min()));
+		                 || paramView.modulated(params::LOCAL_LPF_FREQ) || (lpfFreq < 0x7FFFFFD2)
+		                 || (lpfMorph > std::numeric_limits<int32_t>::min()));
 		bool doHPF = thisHasFilters
-		             && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
-		                 || (hpfFreq != std::numeric_limits<int32_t>::min())
+		             && (paramView.modulated(params::LOCAL_HPF_FREQ) || (hpfFreq != std::numeric_limits<int32_t>::min())
 		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
-		// The sound's render config for this block, the same for each of its voices.
+		// What changes this block for each of the sound's voices; their settings are its config.
 		std::array<OscType, kNumSources> oscTypes;
-		std::array<SampleRepeatMode, kNumSources> repeatModes;
-		std::array<InterpolationMode, kNumSources> interpolationModes;
 		std::array<bool, kNumSources> dxPatchChangeds;
 		std::array<bool, kNumSources> sourceEverActives;
 		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			oscTypes[s] = sources[s].oscType;
-			repeatModes[s] = sources[s].repeatMode;
-			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
 			dxPatchChangeds[s] = sources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
-		const VoiceConfig voiceConfig{
+		const deluge::synth::BlockValues blockValues{
 		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot().effects.filter.lpf_mode)
 		                      : deluge::dsp::fixed::LowPassSlot{},
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
-		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
 		    .cpu_direness = AudioEngine::cpuDireness,
-		    .voice_priority = snapshot_.voice_priority,
-		    .synth_mode = getSynthMode(),
-		    .lfo2_config = snapshot_.lfo_config[LFO2_ID],
-		    .lfo4_config = snapshot_.lfo_config[LFO4_ID],
-		    .lfo2_synced_phase_increment = (snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
+		    .lfo2_synced_phase_increment = (config_.lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
-		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID]),
-		    .lfo4_synced_phase_increment = (snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO2_ID]),
+		    .lfo4_synced_phase_increment = (config_.lfos[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
-		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID]),
+		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO4_ID]),
 		    .has_filters = thisHasFilters,
 		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
 		    .clipping_amount = modControllableSnapshot().effects.saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
-		    .num_unison = snapshot_.num_unison,
-		    .unison_stereo_spread = snapshot_.unison_stereo_spread,
-		    .unison_pan = snapshot_.unison_pan,
-		    .osc_retrigger_phase = snapshot_.osc_retrigger_phase,
 		    .osc_type = oscTypes,
-		    .repeat_mode = repeatModes,
-		    .interpolation_mode = interpolationModes,
 		    .dx_patch_changed = dxPatchChangeds,
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
 		    .source_ever_active = sourceEverActives,
-		    .noise_volume_contains_something =
-		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-		            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648),
-		    .local_sources_patched_to_anything =
-		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
-		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
-		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
-		    .modulator1_to_modulator0 = snapshot_.modulator1_to_modulator0,
+		    .noise_volume_contains_something = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
+		    .local_sources_patched_to_anything = paramView.sources_wired(GLOBALITY_LOCAL),
+		    .bend_ranges = paramView.bend_ranges(),
+		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
 		    .source_active_currently = sourceActiveCurrentlys,
 		};
 
@@ -2016,8 +1998,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
 			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previously_ignored_note_off() && voiceConfig.note_tails_allowed) {
-				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
+			if (voice->just_created && voice->kernel.previously_ignored_note_off() && blockValues.note_tails_allowed) {
+				voice->note_off(paramManager, blockValues.note_tails_allowed);
 			}
 			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
 #if defined(DELUGE_STREAM_BENCH)
@@ -2027,7 +2009,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			// the calls after it count toward the voices' cost.
 			const bool renders = voice->just_created;
 			voicesRendered += renders ? 1 : 0;
-			bool stillGoing = voice->render(controlBlock, voiceConfig,
+			bool stillGoing = voice->render(controlBlock, config_, blockValues,
 			                                {
 			                                    .buffer = sound_mono.data(),
 			                                    .num_samples = static_cast<int32_t>(sound_mono.size()),
@@ -2213,7 +2195,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 
 template <deluge::modulation::params::Global P>
 deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId) {
-	const LFOConfig& config = snapshot_.lfo_config[lfoId];
+	const LFOConfig& config = config_.lfos[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
 		return deluge::synth::matrix::global_param_value<P>(params.param_final_values);
 	}
@@ -2244,13 +2226,13 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		return; // no clock, no sync
 	}
 	// TOOD: convert to a guard clause. Now avoiding re-indenting the whole function.
-	if (snapshot_.lfo_config[LFO1_ID].sync_level != SYNC_LEVEL_NONE) {
+	if (config_.lfos[LFO1_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.set_global_initial_phase(snapshot_.lfo_config[LFO1_ID], reset_state);
+		globalLFO1.set_global_initial_phase(config_.lfos[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2258,10 +2240,9 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod =
-			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			          - deluge::plugin::index_of(snapshot_.lfo_config[LFO1_ID].sync_level));
-			switch (snapshot_.lfo_config[LFO1_ID].sync_type) {
+			uint32_t numInternalTicksPerPeriod = 3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			                                           - deluge::plugin::index_of(config_.lfos[LFO1_ID].sync_level));
+			switch (config_.lfos[LFO1_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2285,13 +2266,13 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 			}
 		}
 	}
-	if (snapshot_.lfo_config[LFO3_ID].sync_level != SYNC_LEVEL_NONE) {
+	if (config_.lfos[LFO3_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.set_global_initial_phase(snapshot_.lfo_config[LFO3_ID], reset_state);
+		globalLFO3.set_global_initial_phase(config_.lfos[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2299,10 +2280,9 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod =
-			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			          - deluge::plugin::index_of(snapshot_.lfo_config[LFO3_ID].sync_level));
-			switch (snapshot_.lfo_config[LFO3_ID].sync_type) {
+			uint32_t numInternalTicksPerPeriod = 3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+			                                           - deluge::plugin::index_of(config_.lfos[LFO3_ID].sync_level));
+			switch (config_.lfos[LFO3_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2455,7 +2435,6 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 }
 
 void Sound::doneReadingFromFile() {
-	calculateEffectiveVolume();
 	recalculateFineTuner();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -2463,7 +2442,7 @@ void Sound::doneReadingFromFile() {
 	}
 
 	setupUnisonDetuners(nullptr);
-	setupUnisonStereoSpread();
+	refreshUnison();
 
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
@@ -2477,33 +2456,34 @@ void Sound::doneReadingFromFile() {
 
 void Sound::reseedRecord() {
 	if (state_ == nullptr) {
+		projectSnapshot();
 		return;
 	}
 	seedDocSoundScalars();
 	projectModControllableSnapshot();
-	projectSnapshot();
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].seedDocSourceScalars();
 		sources[s].seedDocDxPatch();
 		sources[s].seedDocRanges();
 	}
+	projectSnapshot(); // after the oscillators are in the record: the config derives their settings too
 }
 
 // Set cents for master transpose
 void Sound::set_cents(int8_t new_cents) {
 	if (state_ != nullptr) {
 		state_->cents = new_cents;
-		snapshot_.cents = state_->cents;
+		config_.voicing.cents = state_->cents;
 	}
 	else {
-		snapshot_.cents = new_cents;
+		config_.voicing.cents = new_cents;
 	}
 	recalculateFineTuner();
 }
 
 // Setup master transpose
 void Sound::recalculateFineTuner() {
-	snapshot_.fine_tuner.setup_cents(snapshot_.cents);
+	config_.voicing.tune = deluge::dsp::fixed::FineTune::of_cents(config_.voicing.cents);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -2514,51 +2494,13 @@ void Sound::voiceUnassigned(ModelStackWithSoundFlags* modelStack) {
 
 // modelStack may be NULL if no voices currently active
 void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
-	computeUnisonDetuners();
+	refreshUnison();
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
-void Sound::computeUnisonDetuners() {
-	if (snapshot_.num_unison != 1) {
-		int32_t detuneScaled = (int32_t)snapshot_.unison_detune * 42949672;
-		int32_t lowestVoice = -(detuneScaled >> 1);
-		int32_t voiceSpacing = detuneScaled / (snapshot_.num_unison - 1);
-
-		for (int32_t u = 0; u < snapshot_.num_unison; u++) {
-
-			// Middle unison part gets no detune
-			if ((snapshot_.num_unison & 1) && u == ((snapshot_.num_unison - 1) >> 1)) {
-				snapshot_.unison_detuners[u].setNoDetune();
-			}
-			else {
-				snapshot_.unison_detuners[u].setup(lowestVoice + voiceSpacing * u);
-			}
-		}
-	}
-}
-
-void Sound::setupUnisonStereoSpread() {
-	if (snapshot_.num_unison != 1) {
-		int32_t spreadScaled = (int32_t)snapshot_.unison_stereo_spread * 42949672;
-		int32_t lowestVoice = -(spreadScaled >> 1);
-		int32_t voiceSpacing = spreadScaled / (snapshot_.num_unison - 1);
-
-		for (int32_t u = 0; u < snapshot_.num_unison; u++) {
-			// alternate the voices like -2 +1 0 -1 +2 for more balanced
-			// interaction with detune
-			bool isOdd = std::min(u, snapshot_.num_unison - 1 - u) & 1;
-			int32_t sign = isOdd ? -1 : 1;
-
-			// Raw: the pans are integer steps of the spread across the stereo field
-			snapshot_.unison_pan[u] = deluge::dsp::Q<31>::from_raw(sign * (lowestVoice + voiceSpacing * u));
-		}
-	}
-}
-
-void Sound::calculateEffectiveVolume() {
-	// The volume's neutral over the square root of the unison count, in float
-	constexpr float kNeutral = deluge::dsp::to_float(deluge::synth::matrix::param_neutral<params::LOCAL_VOLUME>());
-	volumeNeutralValueForUnison = deluge::dsp::from_float<31>(kNeutral / sqrtf(snapshot_.num_unison));
+void Sound::refreshUnison() {
+	config_.voicing.unison = deluge::synth::derive_unison(config_.voicing.unison.count, config_.voicing.unison_detune,
+	                                                      config_.voicing.unison_spread);
 }
 
 // The filters go off into FM and come back on out of it. The knobs a mode change remaps are the caller's
@@ -2610,7 +2552,7 @@ void Sound::setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags
 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack) {
-	snapshot_.modulator_transposers[m].setup_cents(snapshot_.modulator_cents[m]);
+	config_.engine.modulators[m].tune = deluge::dsp::fixed::FineTune::of_cents(config_.engine.modulators[m].cents);
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
@@ -2629,13 +2571,16 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 
 void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
-	int32_t oldNum = snapshot_.num_unison;
+	int32_t oldNum = config_.voicing.unison.count;
 
 	assignNumUnison(static_cast<uint8_t>(newNum));
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
-	setupUnisonStereoSpread();
-	calculateEffectiveVolume();
+	refreshUnison();
+	revoiceUnison(oldNum, newNum, modelStack);
+}
 
+void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack) {
+	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	// Effective volume has changed. Need to pass that change onto Voices
 	for (const ActiveVoice& voice : voices_) {
 		if (getSynthMode() == SynthMode::SUBTRACTIVE) {
@@ -2671,7 +2616,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							newVoiceSample.stopUsingCache(
 							    &voice->guides[s], (Sample*)voice->guides[s].audioFileHolder->audioFile,
 							    voice->priority_rating(),
-							    voice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
+							    voice->guides[s].getLoopingType(config_.sources[s].repeat_mode) == LoopType::LOW_LEVEL);
 							// TODO: should really check success of that...
 						}
 					}
@@ -2693,7 +2638,7 @@ void Sound::setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelSt
 
 void Sound::setUnisonStereoSpread(int32_t newAmount) {
 	assignUnisonStereoSpread(static_cast<uint8_t>(newAmount));
-	setupUnisonStereoSpread();
+	refreshUnison();
 }
 
 bool Sound::anyNoteIsOn() {
@@ -2831,32 +2776,32 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 // Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Run from bindState and re-run at
 // doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run necessary for SoundDrums).
 void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
-	d.voice_priority = snapshot_.voice_priority;
-	d.max_voice_count = maxVoiceCount;
+	d.voice_priority = config_.voicing.priority;
+	d.max_voice_count = config_.voicing.max_voices;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
-	d.oscillator_sync = snapshot_.oscillator_sync;
+	d.oscillator_sync = config_.engine.osc_sync;
 	// Top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind before
 	// parse, so the re-seed at doneReadingFromFile is what captures their loaded values into the record.
-	d.polyphonic = polyphonic;
-	d.synth_mode = snapshot_.synth_mode;
-	d.transpose = snapshot_.transpose;
-	d.cents = snapshot_.cents; // transpose lives on the snapshot; the record seeds from it (bind-time)
-	d.num_unison = snapshot_.num_unison;
-	d.unison_detune = snapshot_.unison_detune;
-	d.unison_stereo_spread = snapshot_.unison_stereo_spread;
-	d.modulator1_to_modulator0 = snapshot_.modulator1_to_modulator0;
+	d.polyphonic = config_.voicing.polyphony;
+	d.synth_mode = config_.engine.mode;
+	d.transpose = config_.voicing.transpose;
+	d.cents = config_.voicing.cents; // transpose lives on the snapshot; the record seeds from it (bind-time)
+	d.num_unison = config_.voicing.unison.count;
+	d.unison_detune = config_.voicing.unison_detune;
+	d.unison_stereo_spread = config_.voicing.unison_spread;
+	d.modulator1_to_modulator0 = config_.engine.modulator1_to_modulator0;
 	for (int32_t i = 0; i < 2; i++) {
-		d.modulator_transpose[i] = snapshot_.modulator_transpose[i];
-		d.modulator_cents[i] = snapshot_.modulator_cents[i];
-		d.osc_retrigger_phase[i] = snapshot_.osc_retrigger_phase[i];
-		d.modulator_retrigger_phase[i] = snapshot_.modulator_retrigger_phase[i];
+		d.modulator_transpose[i] = config_.engine.modulators[i].transpose;
+		d.modulator_cents[i] = config_.engine.modulators[i].cents;
+		d.osc_retrigger_phase[i] = config_.engine.osc_retrigger_phase[i];
+		d.modulator_retrigger_phase[i] = config_.engine.modulators[i].retrigger_phase;
 	}
 	for (int32_t i = 0; i < LFO_COUNT; i++) {
-		d.lfo_wave_type[i] = snapshot_.lfo_config[i].wave_type;
-		d.lfo_sync_type[i] = snapshot_.lfo_config[i].sync_type;
-		d.lfo_sync_level[i] = snapshot_.lfo_config[i].sync_level;
+		d.lfo_wave_type[i] = config_.lfos[i].wave_type;
+		d.lfo_sync_type[i] = config_.lfos[i].sync_type;
+		d.lfo_sync_level[i] = config_.lfos[i].sync_level;
 	}
 }
 
@@ -2867,36 +2812,22 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (a preview
-	// sound): those sounds write snapshot_ directly and have no record to project from.
-	if (state_ == nullptr) {
+	if (state_ != nullptr) {
+		config_ = deluge::instrument::DelugeSynth::derive(*state_);
 		return;
 	}
-	snapshot_.transpose = state_->transpose;
-	snapshot_.cents = state_->cents;
-	recalculateFineTuner();
-	snapshot_.num_unison = state_->num_unison;
-	snapshot_.unison_detune = state_->unison_detune;
-	snapshot_.unison_stereo_spread = state_->unison_stereo_spread;
-	computeUnisonDetuners();
-	setupUnisonStereoSpread();
-	snapshot_.synth_mode = static_cast<SynthMode>(state_->synth_mode);
-	snapshot_.oscillator_sync = state_->oscillator_sync;
-	snapshot_.voice_priority = static_cast<VoicePriority>(state_->voice_priority);
-	snapshot_.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
-	for (int32_t i = 0; i < kNumModulators; i++) {
-		snapshot_.modulator_cents[i] = state_->modulator_cents[i];
-		snapshot_.modulator_transposers[i].setup_cents(snapshot_.modulator_cents[i]);
-		snapshot_.modulator_transpose[i] = state_->modulator_transpose[i];
-		snapshot_.modulator_retrigger_phase[i] = state_->modulator_retrigger_phase[i];
-	}
+	// An unbound sound (a preview) has no record: its sound-wide settings are written into the config directly, and
+	// its oscillators' come from the oscillators themselves
 	for (int32_t s = 0; s < kNumSources; s++) {
-		snapshot_.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
-	}
-	for (int32_t l = 0; l < LFO_COUNT; l++) {
-		snapshot_.lfo_config[l].wave_type = static_cast<LFOType>(state_->lfo_wave_type[l]);
-		snapshot_.lfo_config[l].sync_type = static_cast<SyncType>(state_->lfo_sync_type[l]);
-		snapshot_.lfo_config[l].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[l]);
+		const ::Source& source = sources[s];
+		config_.sources[s] = {.transpose = source.transpose,
+		                      .cents = source.cents,
+		                      .tune = deluge::dsp::fixed::FineTune::of_cents(source.cents),
+		                      .repeat_mode = source.repeatMode,
+		                      .time_stretch_amount = source.timeStretchAmount,
+		                      .interpolation_mode = source.sampleControls.interpolationMode,
+		                      .pitch_and_speed_independent = source.sampleControls.pitchAndSpeedAreIndependent,
+		                      .reversed = source.sampleControls.reversed};
 	}
 }
 
@@ -2905,8 +2836,8 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
               && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
 
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
-	polyphonic = state.polyphonic;
-	maxVoiceCount = state.max_voice_count;
+	config_.voicing.polyphony = state.polyphonic;
+	config_.voicing.max_voices = state.max_voice_count;
 	sideChainSendLevel = state.side_chain_send_level;
 	outputMidiChannel = state.output_midi_channel;
 	outputMidiNoteForDrum = state.output_midi_note_for_drum;
@@ -2961,11 +2892,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 				return Error::INSUFFICIENT_RAM;
 			}
 			std::ranges::copy(from.dx_patch->params, patch->params.begin());
-			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
-			// patch keeps the engine its new patch was given.
-			if (from.dx_patch->engine_mode != 0) {
-				patch->setEngineMode(from.dx_patch->engine_mode);
-			}
+			// The engine follows the bytes: an auto patch on algorithm 4 or 6 with feedback renders in MkI
+			patch->setEngineMode(from.dx_patch->engine_mode);
 			patch->random_detune = from.dx_patch->random_detune;
 		}
 
@@ -3068,14 +2996,14 @@ void Sound::unbindState() {
 void Sound::setVoicePriority(VoicePriority value) {
 	if (state_ != nullptr) {
 		state_->voice_priority = value;
-		snapshot_.voice_priority = static_cast<VoicePriority>(state_->voice_priority);
+		config_.voicing.priority = static_cast<VoicePriority>(state_->voice_priority);
 	}
 	else {
-		snapshot_.voice_priority = value;
+		config_.voicing.priority = value;
 	}
 }
 void Sound::setMaxVoiceCount(uint8_t value) {
-	maxVoiceCount = value;
+	config_.voicing.max_voices = value;
 	if (state_ != nullptr) {
 		state_->max_voice_count = value;
 	}
@@ -3101,14 +3029,14 @@ void Sound::setOutputMidiNoteForDrum(uint8_t value) {
 void Sound::setOscillatorSync(bool value) {
 	if (state_ != nullptr) {
 		state_->oscillator_sync = value;
-		snapshot_.oscillator_sync = state_->oscillator_sync;
+		config_.engine.osc_sync = state_->oscillator_sync;
 	}
 	else {
-		snapshot_.oscillator_sync = value;
+		config_.engine.osc_sync = value;
 	}
 }
 void Sound::setPolyphonic(PolyphonyMode value) {
-	polyphonic = value;
+	config_.voicing.polyphony = value;
 	if (state_ != nullptr) {
 		state_->polyphonic = value;
 	}
@@ -3116,10 +3044,10 @@ void Sound::setPolyphonic(PolyphonyMode value) {
 void Sound::assignSynthMode(SynthMode value) {
 	if (state_ != nullptr) {
 		state_->synth_mode = value;
-		snapshot_.synth_mode = static_cast<SynthMode>(state_->synth_mode);
+		config_.engine.mode = static_cast<SynthMode>(state_->synth_mode);
 	}
 	else {
-		snapshot_.synth_mode = value;
+		config_.engine.mode = value;
 	}
 }
 
@@ -3128,103 +3056,103 @@ void Sound::setTranspose(int16_t value) {
 	// unbound (a preview sound) → write the snapshot directly (no record).
 	if (state_ != nullptr) {
 		state_->transpose = value;
-		snapshot_.transpose = state_->transpose;
+		config_.voicing.transpose = state_->transpose;
 	}
 	else {
-		snapshot_.transpose = value;
+		config_.voicing.transpose = value;
 	}
 }
 void Sound::setModulator1ToModulator0(bool value) {
 	if (state_ != nullptr) {
 		state_->modulator1_to_modulator0 = value;
-		snapshot_.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
+		config_.engine.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
 	}
 	else {
-		snapshot_.modulator1_to_modulator0 = value;
+		config_.engine.modulator1_to_modulator0 = value;
 	}
 }
 void Sound::setOscRetriggerPhase(int32_t s, uint32_t value) {
 	if (state_ != nullptr) {
 		state_->osc_retrigger_phase[s] = value;
-		snapshot_.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
+		config_.engine.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
 	}
 	else {
-		snapshot_.osc_retrigger_phase[s] = value;
+		config_.engine.osc_retrigger_phase[s] = value;
 	}
 }
 void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_retrigger_phase[m] = value;
-		snapshot_.modulator_retrigger_phase[m] = state_->modulator_retrigger_phase[m];
+		config_.engine.modulators[m].retrigger_phase = state_->modulator_retrigger_phase[m];
 	}
 	else {
-		snapshot_.modulator_retrigger_phase[m] = value;
+		config_.engine.modulators[m].retrigger_phase = value;
 	}
 }
 void Sound::assignNumUnison(uint8_t value) {
 	if (state_ != nullptr) {
 		state_->num_unison = value;
-		snapshot_.num_unison = state_->num_unison;
+		config_.voicing.unison.count = state_->num_unison;
 	}
 	else {
-		snapshot_.num_unison = value;
+		config_.voicing.unison.count = value;
 	}
 }
 void Sound::assignUnisonDetune(int8_t value) {
 	if (state_ != nullptr) {
 		state_->unison_detune = value;
-		snapshot_.unison_detune = state_->unison_detune;
+		config_.voicing.unison_detune = state_->unison_detune;
 	}
 	else {
-		snapshot_.unison_detune = value;
+		config_.voicing.unison_detune = value;
 	}
 }
 void Sound::assignUnisonStereoSpread(uint8_t value) {
 	if (state_ != nullptr) {
 		state_->unison_stereo_spread = value;
-		snapshot_.unison_stereo_spread = state_->unison_stereo_spread;
+		config_.voicing.unison_spread = state_->unison_stereo_spread;
 	}
 	else {
-		snapshot_.unison_stereo_spread = value;
+		config_.voicing.unison_spread = value;
 	}
 }
 void Sound::assignModulatorCents(int32_t m, int8_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_cents[m] = value;
-		snapshot_.modulator_cents[m] = state_->modulator_cents[m];
+		config_.engine.modulators[m].cents = state_->modulator_cents[m];
 	}
 	else {
-		snapshot_.modulator_cents[m] = value;
+		config_.engine.modulators[m].cents = value;
 	}
 }
 void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_transpose[m] = value;
-		snapshot_.modulator_transpose[m] = state_->modulator_transpose[m];
+		config_.engine.modulators[m].transpose = state_->modulator_transpose[m];
 	}
 	else {
-		snapshot_.modulator_transpose[m] = value;
+		config_.engine.modulators[m].transpose = value;
 	}
 }
 void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
 	if (state_ != nullptr) {
 		state_->lfo_wave_type[lfoId] = value;
-		snapshot_.lfo_config[lfoId].wave_type = static_cast<LFOType>(state_->lfo_wave_type[lfoId]);
+		config_.lfos[lfoId].wave_type = static_cast<LFOType>(state_->lfo_wave_type[lfoId]);
 	}
 	else {
-		snapshot_.lfo_config[lfoId].wave_type = value;
+		config_.lfos[lfoId].wave_type = value;
 	}
 }
 void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 	if (state_ != nullptr) {
 		state_->lfo_sync_type[lfoId] = syncType;
 		state_->lfo_sync_level[lfoId] = syncLevel;
-		snapshot_.lfo_config[lfoId].sync_type = static_cast<SyncType>(state_->lfo_sync_type[lfoId]);
-		snapshot_.lfo_config[lfoId].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[lfoId]);
+		config_.lfos[lfoId].sync_type = static_cast<SyncType>(state_->lfo_sync_type[lfoId]);
+		config_.lfos[lfoId].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[lfoId]);
 	}
 	else {
-		snapshot_.lfo_config[lfoId].sync_type = syncType;
-		snapshot_.lfo_config[lfoId].sync_level = syncLevel;
+		config_.lfos[lfoId].sync_type = syncType;
+		config_.lfos[lfoId].sync_level = syncLevel;
 	}
 }
 
@@ -3304,8 +3232,8 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulator_transpose[0]);
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulator_transpose[1]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)config_.engine.modulators[0].transpose);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)config_.engine.modulators[1].transpose);
 	}
 
 	if (maxRawOscTranspose == -32768) {
@@ -3318,7 +3246,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
-	return maxRawOscTranspose + snapshot_.transpose;
+	return maxRawOscTranspose + config_.voicing.transpose;
 }
 
 int16_t Sound::getMinOscTranspose() {
@@ -3331,15 +3259,15 @@ int16_t Sound::getMinOscTranspose() {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulator_transpose[0]);
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulator_transpose[1]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)config_.engine.modulators[0].transpose);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)config_.engine.modulators[1].transpose);
 	}
 
 	if (minRawOscTranspose == 32767) {
 		minRawOscTranspose = 0;
 	}
 
-	return minRawOscTranspose + snapshot_.transpose;
+	return minRawOscTranspose + config_.voicing.transpose;
 }
 
 deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor) {
@@ -3480,7 +3408,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return true;
 	}
 
-	if (snapshot_.unison_stereo_spread && snapshot_.num_unison > 1) {
+	if (config_.voicing.unison_spread && config_.voicing.unison.count > 1) {
 		return true;
 	}
 

@@ -5,7 +5,7 @@
 ///        inputs, the held step region, a param that does not exist yet).
 
 #include "deluge-project/mapping_table.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
@@ -596,8 +596,8 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			expect(sound->id).to_equal(lpf.id, "the sound's LPF info");
 		}
 		const deluge::plugin::ParamInfo* chain = facts.param_info(
-		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::global_effectable::kParams[0].id});
-		expect(chain).to_equal(&deluge::global_effectable::kParams[0], "the chain's first param info");
+		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::host_chain::kParams[0].id});
+		expect(chain).to_equal(&deluge::host_chain::kParams[0], "the chain's first param info");
 		expect(facts.param_info(deluge::plugin::kDelugeInstrument, depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1)))
 		    .to_be_null("a cable depth's info");
 		expect(facts.param_info(deluge::plugin::kDelugeEffects, lpf)).to_be_null("the effects' LPF info");

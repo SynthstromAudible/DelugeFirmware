@@ -821,14 +821,14 @@ bool setupLeg() {
 		if (second == nullptr) {
 			return false;
 		}
-		static_cast<SoundDrum*>(g_kit->firstDrum)->polyphonic = PolyphonyMode::CHOKE;
-		second->polyphonic = PolyphonyMode::CHOKE;
+		static_cast<SoundDrum*>(g_kit->firstDrum)->setPolyphonic(PolyphonyMode::CHOKE);
+		second->setPolyphonic(PolyphonyMode::CHOKE);
 		g_drum = second;
 		return true;
 	}
 	case Leg::VoiceMono:
 		// MONO: a second note re-triggers the voice the render is already playing.
-		static_cast<SoundInstrument*>(g_clip->output)->polyphonic = PolyphonyMode::MONO;
+		static_cast<SoundInstrument*>(g_clip->output)->setPolyphonic(PolyphonyMode::MONO);
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceKill:
@@ -1304,7 +1304,7 @@ void editLeg() {
 		g_step = "noteOn";
 		// More notes than the synth's voice limit: the limit is enforced as each one is published.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
-		for (int32_t n = 0; n < synth->maxVoiceCount + 2; n++) {
+		for (int32_t n = 0; n < synth->config().voicing.max_voices + 2; n++) {
 			auditionSynth(kRowNote + n);
 		}
 		break;

@@ -35,7 +35,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -52,6 +52,7 @@
 #include <array>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string>
 
 namespace deluge::scenes::browser {
@@ -167,7 +168,8 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 	if (state == nullptr) {
 		return std::nullopt;
 	}
-	const auto& ranges = state->sources[ctx.source_index].ranges;
+	const std::span<const deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index));
 	return static_cast<size_t>(ctx.range_index) < ranges.size()
 	           ? std::optional{ranges[static_cast<size_t>(ctx.range_index)].file_path}
 	           : std::nullopt;

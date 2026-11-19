@@ -104,7 +104,8 @@
 
 namespace deluge::instrument {
 struct RangeState;
-struct SourceState;
+struct SoundState;
+enum class SourceId : uint8_t;
 } // namespace deluge::instrument
 
 namespace deluge::scenes::marker {
@@ -267,8 +268,11 @@ private:
 	/// @param ctx The context to resolve.
 	/// @return The address, or nullopt when the context names neither.
 	static std::optional<services::WaveformAddress> address_of(const menu::MenuContext& ctx);
-	/// @brief The edited source's record, or null on an audio clip or where the facts hold no sound.
-	const deluge::instrument::SourceState* source_state() const;
+	/// @brief The edited sound's state, or null on an audio clip, where the facts hold no sound, or where the edited
+	///        source is not one of the sound's two.
+	const deluge::instrument::SoundState* sound_state() const;
+	/// @brief The edited source's slot; meaningful where sound_state() is not null.
+	deluge::instrument::SourceId source_id() const;
 	/// @brief The edited range's record, or null.
 	const deluge::instrument::RangeState* range_state() const;
 	/// @brief An integer row of the audio clip's record, or 0 where it has none.

@@ -31,9 +31,9 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patch_routing.h" // GLOBALITY_*
-#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/block_values.h"
+#include "synth/voice/sound_config.h"
 #include "synth/voice/unison_part.h"
-#include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
 #include <bitset>
 #include <compare>
@@ -47,7 +47,7 @@ struct StereoSample;
 namespace deluge::synth {
 
 /// @brief One voice of a synth sound: its sources in each unison part, envelopes, local LFOs, modulation and filters,
-/// played from what it is handed — the sound's snapshot and per-block config, a NoteSetup at each note, and the
+/// played from what it is handed — the sound's config and per-block config, a NoteSetup at each note, and the
 /// sources' ports. The app's SoundVoice owns one, with the ports and the playback guides.
 class Voice final {
 public:
@@ -81,24 +81,24 @@ public:
 	dsp::UQ<32> get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
 	                                          dsp::UQ<32> synced_phase_increment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
-	bool render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
-	            const VoiceRenderArgs& args);
+	bool render(const matrix::MatrixBlock& control_block, const SoundConfig& config, const BlockValues& cfg,
+	            const VoiceBlock& block, const VoiceRenderArgs& args);
 
 	/// Starts @p event's note. @p num_active_voices is the sound's voice count, which the cull order ranks by.
 	/// @return false if the note cannot play and the voice must be unassigned again.
-	bool note_on(const NoteSetup& setup, const SoundSnapshot& snapshot, const NoteOnEvent& event, VoiceClock clock,
+	bool note_on(const NoteSetup& setup, const SoundConfig& config, const NoteOnEvent& event, VoiceClock clock,
 	             size_t num_active_voices, dsp::fixed::Cong& noise);
 	/// Moves the playing note to another, gliding when @p setup says to.
-	void change_note(const NoteSetup& setup, const SoundSnapshot& snapshot, int32_t note_before_arpeggiation,
+	void change_note(const NoteSetup& setup, const SoundConfig& config, int32_t note_before_arpeggiation,
 	                 int32_t note_after_arpeggiation, int32_t midi_channel,
 	                 std::span<const int16_t, kNumExpressionDimensions> mpe);
 	/// Each source's phase increment for the playing note, in each unison part; a source too high to render is made
 	/// inactive.
-	void calculate_phase_increments(const NoteSetup& setup, const SoundSnapshot& snapshot);
+	void calculate_phase_increments(const NoteSetup& setup, const SoundConfig& config);
 	/// Releases the note: each envelope from its sustain where it has one, or at once when there is no release stage.
 	/// With note tails not allowed, the note-off is only remembered.
 	void note_off(const ReleaseInfo& release, bool allow_release_stage, VoiceClock clock);
-	void randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise);
+	void randomize_osc_phases(const SoundConfig& config, dsp::fixed::Cong& noise);
 	void expression_event_immediate(int32_t monophonic_value, int32_t voice_level_value, int32_t s);
 	bool has_release_stage();
 	/// The cull order's rating: higher is culled sooner. Ranks by @p voice_priority, then by @p num_active_voices (the
@@ -136,7 +136,7 @@ public:
 		return params_.param_final_values;
 	}
 	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
-	[[nodiscard]] bool pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+	[[nodiscard]] bool pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const BlockValues& cfg,
 	                                             int32_t s) const;
 
 private:
@@ -198,9 +198,10 @@ private:
 
 	/// The controls a dual-source engine renders this block from, derived from the voice's params.
 	[[nodiscard]] DualSourceControls dual_source_controls(const matrix::MatrixBlock& control_block,
-	                                                      const VoiceConfig& cfg, const VoiceBlock& block,
-	                                                      dsp::Q<28> filter_gain, dsp::Q<24> overall_pitch_adjust,
-	                                                      bool first_render, bool stereo_unison) const;
+	                                                      const SoundConfig& config, const BlockValues& cfg,
+	                                                      const VoiceBlock& block, dsp::Q<28> filter_gain,
+	                                                      dsp::Q<24> overall_pitch_adjust, bool first_render,
+	                                                      bool stereo_unison) const;
 	/// The controls FM renders this block from, derived from the voice's params.
 	[[nodiscard]] FmControls fm_controls(dsp::Q<31> overall_osc_amplitude, dsp::Q<28> filter_gain,
 	                                     dsp::Q<24> overall_pitch_adjust, bool first_render, bool stereo_unison) const;
@@ -225,18 +226,19 @@ private:
 
 	/// The envelopes, local LFOs, MPE smoothing and patching for this block. @return whether the amplitude envelope
 	/// has ended, so the voice is done after this block.
-	bool render_modulation(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
-	                       int32_t num_samples, uint32_t sources_changed);
+	bool render_modulation(const matrix::MatrixBlock& control_block, const SoundConfig& config, const BlockValues& cfg,
+	                       const VoiceBlock& block, int32_t num_samples, uint32_t sources_changed);
 	/// Moves the MPE sources that are smoothing towards their targets for this block.
-	void smooth_expression(const VoiceConfig& cfg, int32_t num_samples);
+	void smooth_expression(const BlockValues& cfg, int32_t num_samples);
 	/// The sources a play-once sample's auto-release would follow: each active one, when every active one is a
 	/// play-once sample that may release itself; else none.
-	[[nodiscard]] static uint32_t play_once_sample_sources(const VoiceConfig& cfg, const VoiceBlock& block);
+	[[nodiscard]] static uint32_t play_once_sample_sources(const SoundConfig& config, const BlockValues& cfg,
+	                                                       const VoiceBlock& block);
 	/// Every unison part's sources ended. @return true to unassign at once; with filters on, it fast-releases instead.
 	[[nodiscard]] bool end_with_parts();
 	/// The voice's pitch adjust this block: the patched one, the kit's, bend and MPE, and portamento (which advances).
-	dsp::Q<24> pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, dsp::Q<24> external_pitch_adjust);
-	[[nodiscard]] VoicePan voice_pan(const VoiceConfig& cfg, bool applying_pan_at_voice_level) const;
+	dsp::Q<24> pitch_adjust(const BlockValues& cfg, int32_t num_samples, dsp::Q<24> external_pitch_adjust);
+	[[nodiscard]] VoicePan voice_pan(const BlockValues& cfg, bool applying_pan_at_voice_level) const;
 	/// Adds the voice's stereo buffer into the sound's, with the overall amplitude, saturation and pan.
 	template <bool kClipping>
 	void write_stereo(const VoiceOutput& output);
@@ -250,7 +252,8 @@ private:
 	}
 	void setup_porta(int32_t last_note_code);
 	/// Starts the release of a voice of play-once samples so that it ends with them.
-	void auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, dsp::Q<24> overall_pitch_adjust);
+	void auto_release_if_due(const SoundConfig& config, const BlockValues& cfg, const VoiceBlock& block,
+	                         dsp::Q<24> overall_pitch_adjust);
 	[[nodiscard]] int32_t combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const;
 };
 

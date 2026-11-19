@@ -6,7 +6,7 @@ q31 instrument and any later instrument publish through the same model; only the
 ## Identity
 
 A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/deluge/params.h`) for a
-sound, `global_effectable::kParams` (`src/effects/global_effectable/params.h`) for the song, a kit's affect-entire and
+sound, `host_chain::kParams` (`src/effects/host_chain/params.h`) for the song, a kit's affect-entire and
 an audio track. Ids are pinned forever by the tables' specs. The runtime's own numbering (the `params::` enums, a
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
@@ -30,7 +30,7 @@ What names params by target:
 
 - the pad-grid shortcuts and the automation view's param orders (`modulation/params/param_targets.h`);
 - MIDI follow's maps (`controls::FollowTables`), with `MidiFollow::ccOf(owner, target)` for the CC that follows a
-  param, and the performance view's params, layout and shortcuts (global-effectable `ParamId`s);
+  param, and the performance view's params, layout and shortcuts (the host chain's `ParamId`s);
 - mod knobs (`ModKnob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
   the descriptor word the files and the model stack use), learned MIDI knobs (an `OwnerParamTarget` in the song's
   mapping table), the global effectable's default knob layout, and what a learning menu teaches a knob
@@ -285,16 +285,29 @@ later instrument; CLAP's double values come at the L3 boundary through the same 
 
 ## Effects
 
-Each effect in `src/effects` declares its params as `EffectParam` fragments (`effects/param_fragment.h`): the curve
-its word goes through around a neutral value (or none, for a word used as stored), the mapping and the flags. An effect
-with curved params computes them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(fragment, word)`
-(`Delay::kRate`, `Delay::kFeedback`, `Stutter::kRate`, `Reverb::kSend`). The app's adapters
-(`model/fx/chain_inputs.cpp` and the delay and stutter code) fill the words from the runtime's sets and know nothing of
-the curves. The curves are dsp-next's (`dsp-next/fixed/curves/param_curve.h`); the kernels themselves take final values
-and stay param-free.
+Every effect param is declared once, in `effects/params.h`, as an `EffectParam` (`effects/param_fragment.h`): its
+name, the curve its word goes through around a neutral value (or none, for a word used as stored), the mapping and the
+flags. The effect classes hold copies (`Filter::kParams`, `Delay::kRate`, …). An effect with curved params computes
+them with a pure `params_from(words)` (`Filter`, `ModFx`) or `final_value(param, word)` (`Delay::kRate`,
+`Delay::kFeedback`, `Stutter::kRate`, `Reverb::kSend`). The curves are dsp-next's
+(`dsp-next/fixed/curves/param_curve.h`); the kernels themselves take final values and stay param-free.
 
-param_table_check holds the fragments to the runtime: a curved fragment's neutral and curve are the instrument's for
-the same param, and a global-effectable row's mapping and flags are its fragment's.
+An owner's table gives each effect param its id, default and scope: `effects::row(id, param, {default, scope,
+extra_flags})` (`effects/param_row.h`) makes the row, taking the name, mapping and flags from the effect. The host
+chain's table (`effects/host_chain/params.h`, ids 90–132) and the Deluge instrument's effect rows (its shared
+unpatched prefix and its patched filter, mod FX, delay and reverb rows) are built this way; the arpeggiator's rows and
+the channel's (pan, volume, pitch adjust, tempo) are the tables' own. Where a reader gathers several params of one
+effect, the table names their ids in the effect's order (`host_chain::kFilterIds`, `kModFxIds`, `kEqIds`,
+`kBitcrushIds`; `instrument::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
+params at compile time.
+
+The app's adapters (`model/fx/chain_inputs.cpp`, `processing/sound/sound_chain_inputs.cpp`) read by those ids through
+`model/fx/effect_reads.h` and know nothing of the curves. A chain's init (`model/fx/chain_params.cpp`) sets every row
+of its owner's table: the shared ids 90–115 for a sound and a host chain, then a host chain's own rows, except those in
+`host_chain::kNotInitialised` (the tempo, which the song writes).
+
+param_table_check holds the effect params to the runtime: a curved param's neutral and curve are the instrument's for
+the same param. It also checks each chain's init state: every cursor at its lane's base, the set's kind and its store.
 
 ## Controls
 
@@ -398,5 +411,5 @@ combine.
 ## Not yet descriptor-driven
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
-by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and composing the
-global-effectable rows from the fragments (its library may include only `plugin-api/types/`).
+by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and the
+arpeggiator's rows (params in sounds and kits, `ArpeggiatorSettings` fields for MIDI and CV tracks).

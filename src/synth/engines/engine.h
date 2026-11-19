@@ -20,9 +20,9 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "synth/engines/engine_controls.h"
 #include "synth/engines/source_levels.h"
-#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/block_values.h"
+#include "synth/voice/sound_config.h"
 #include "synth/voice/unison_part.h"
-#include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
 #include <array>
 #include <cstdint>
@@ -35,7 +35,7 @@ template <class B>
 struct BasicEngineNote {
 	std::span<typename B::UnisonPart> parts; ///< The voice's unison parts, lent for the call
 	const B::Setup* setup{};                 ///< Each source's setup, the modulators' audibility
-	const B::Snapshot* snapshot{};           ///< The sound's synth mode, unison layout, transposes and retrigger phases
+	const B::SoundConfig* config{};          ///< The sound's synth mode, unison layout, transposes and retrigger phases
 	int32_t note_code{};                     ///< The note after arpeggiation
 	uint8_t velocity{};
 	uint32_t samples_late{};   ///< How far into the note playback starts
@@ -53,7 +53,8 @@ struct BasicEngineBlock {
 	int32_t num_samples{};
 	std::span<typename B::UnisonPart> parts;
 	B::Levels* levels{};
-	const B::Config* cfg{};
+	const B::SoundConfig* config{};
+	const B::BlockValues* values{};
 	const B::VoiceInputs* voice_block{};
 	std::array<typename B::Sample*, 4> spare_buffers{}; ///< The render's work buffers; [0] is @ref osc_buffer
 	std::span<typename B::Sample> sync_scratch;         ///< A synced oscillator's work buffer

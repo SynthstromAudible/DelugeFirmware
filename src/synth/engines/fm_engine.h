@@ -21,8 +21,8 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "synth/engines/slot_engine.h"
 #include "synth/engines/source_levels.h"
+#include "synth/voice/block_values.h"
 #include "synth/voice/unison_part.h"
-#include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
 #include <array>
 #include <cstdint>
@@ -30,7 +30,7 @@
 
 namespace deluge::synth {
 
-struct SoundSnapshot;
+struct SoundConfig;
 
 /// @brief The FM engine: a whole-voice generator of two modulators (modulator 1 optionally into modulator 0) and two
 /// carriers, each with feedback, in every unison part. It ignores the slots' sources: the carriers render over each

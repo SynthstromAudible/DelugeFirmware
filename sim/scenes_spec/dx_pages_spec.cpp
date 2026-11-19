@@ -190,15 +190,17 @@ describe dx_pages("the DX7 menu pages", ${
 		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 	});
 
-	it("leaves the engine the auto mode chose, as main's page does, where the new algorithm would choose another", _ {
+	// main's page leaves the engine an auto patch had when its algorithm changes, so an auto patch on algorithm 4 or 6
+	// with feedback renders without the feedback loop only MkI implements; here the engine follows the bytes.
+	it("chooses the engine again for an auto patch whose new algorithm needs MkI", _ {
 		DxRig r;
 		deluge::instrument::DxPatchState want = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
 		expect(static_cast<int32_t>(want.engine_mode)).to_equal(0);
-		const auto before = r.patch().engine;
-		want.params[134] = 3; // algorithm 4 with feedback: `updateEngineMode` would choose MkI
-		want.params[135] = 5;
+		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MODERN);
+		want.params[134] = 3; // algorithm 4
+		want.params[135] = 5; // with feedback
 		expect(menu::host_write_sink().write_dx_patch(r.slot(), 0, want)).to_be_true();
-		expect(r.patch().engine).to_equal(before);
+		expect(r.patch().engine).to_equal(deluge::dsp::fixed::dx7::Engine::MKI);
 	});
 
 	it("refuses a source that is not a DX7 one", _ {

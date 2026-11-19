@@ -3,12 +3,12 @@
 #include "controls/pages.h"
 #include "controls/resolve.h"
 #include "deluge-project/song.h"
-#include "effects/global_effectable/pages.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/pages.h"
+#include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "support/printers/controls_printer.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
@@ -23,7 +23,7 @@
 
 using namespace deluge;
 namespace ip = deluge::instrument::param;
-namespace ge = deluge::global_effectable::param;
+namespace ge = deluge::host_chain::param;
 using deluge::instrument::SynthMode;
 
 namespace {
@@ -44,7 +44,7 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
-const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls};
+const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, host_chain::kRemoteControls};
 /// What the stand-in view reading last saw.
 struct ViewCall {
 	const project::FxChain* chain{nullptr};
@@ -73,7 +73,7 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	instrument::SoundState sound{};
 	sound.synth_mode = synth_mode;
 	output.instrument = project::InstrumentSlot{
-	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeInstrument>(sound)};
+	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(sound)};
 	return song;
 }
 const controls::KnobFocus kSynth{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 3}}};

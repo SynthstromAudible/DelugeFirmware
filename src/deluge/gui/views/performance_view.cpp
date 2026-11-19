@@ -17,7 +17,7 @@
 
 #include "gui/views/performance_view.h"
 #include "definitions_cxx.hpp"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
@@ -118,8 +118,7 @@ params::Kind kindOf(const std::optional<deluge::plugin::ParamId>& param) {
 
 /// The runtime index of a performance param in a global effectable's unpatched set, or kNoParamID.
 int32_t indexOf(const std::optional<deluge::plugin::ParamId>& param) {
-	return param ? static_cast<int32_t>(*deluge::global_effectable::runtime_index(*param))
-	             : static_cast<int32_t>(kNoParamID);
+	return param ? static_cast<int32_t>(*deluge::host_chain::runtime_index(*param)) : static_cast<int32_t>(kNoParamID);
 }
 
 /// The performance param a runtime (kind, index) names, if it is a global effectable's.
@@ -132,7 +131,7 @@ std::optional<deluge::plugin::ParamId> paramOf(params::Kind kind, int32_t index)
 } // namespace
 
 // list of parameters available for assignment to FX columns in performance view
-namespace gp = deluge::global_effectable::param;
+namespace gp = deluge::host_chain::param;
 constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
     {gp::kLpfFrequency, 8, 7, colours::red, colours::red.forTail()},
     {gp::kLpfResonance, 8, 6, colours::red, colours::red.forTail()},
@@ -180,7 +179,7 @@ constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerfor
 // clang-format off
 constexpr std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>
     kPerformanceShortcuts = [] {
-	namespace gp = deluge::global_effectable::param;
+	namespace gp = deluge::host_chain::param;
 	return std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>{{
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
     {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},

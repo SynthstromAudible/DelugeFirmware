@@ -194,11 +194,15 @@ LIBRARIES: dict[str, Library] = {
             "foundation/panic.h",
             "synth/modulation/patch_source.h",
             "synth/modulation/cable.h",
+            # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
+            "synth/voice/sound_config.h",
+            "synth/voice/unison.h",
+            "dsp-next/fixed/pitch/",
         ),
     ),
-    "global-effectable": Library(
-        REPO / "src" / "effects" / "global_effectable",
-        "effects/global_effectable/",
+    "host-chain": Library(
+        REPO / "src" / "effects" / "host_chain",
+        "effects/host_chain/",
         (
             "plugin-api/types/",
             # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state
@@ -208,6 +212,9 @@ LIBRARIES: dict[str, Library] = {
             "effects/plugin.h",
             "effects/words.h",
             "effects/setting_params.h",
+            # its effect rows are the effects' params at its ids
+            "effects/params.h",
+            "effects/param_row.h",
         ),
     ),
     "serialization": Library(
@@ -243,7 +250,7 @@ LIBRARIES: dict[str, Library] = {
             "plugin-api/",
             "instruments/deluge/",
             "effects/",
-            "effects/global_effectable/",
+            "effects/host_chain/",
             "serialization/",
             "music-theory/",
             "foundation/panic.h",

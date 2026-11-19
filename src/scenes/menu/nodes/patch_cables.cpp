@@ -40,6 +40,7 @@
 
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/cable_acceptance.h"
+#include "instruments/deluge/state_access.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable.h"
@@ -192,9 +193,10 @@ const deluge::instrument::SoundState* sound_state_of(const MenuContext& ctx) {
 ///        filter modes make them.
 std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
 	const deluge::instrument::SoundState* state = sound_state_of(ctx);
-	const char* name = state != nullptr ? params::getPatchedParamShortName(p, state->effects.filter.lpf_mode,
-	                                                                       state->effects.filter.hpf_mode)
-	                                    : params::getPatchedParamShortName(p);
+	const deluge::effects::FilterState* filter =
+	    state != nullptr ? &deluge::instrument::sound_effects(*state).filter : nullptr;
+	const char* name = filter != nullptr ? params::getPatchedParamShortName(p, filter->lpf_mode, filter->hpf_mode)
+	                                     : params::getPatchedParamShortName(p);
 	return name != nullptr ? std::string_view{name} : std::string_view{};
 }
 

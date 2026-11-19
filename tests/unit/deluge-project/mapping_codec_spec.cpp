@@ -21,8 +21,8 @@
 
 #include "deluge-project/mapping_codec.h"
 #include "deluge-project/mapping_table.h"
-#include "effects/global_effectable/naming.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/naming.h"
+#include "effects/host_chain/params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
@@ -132,10 +132,10 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 			<midiKnob channel="0" ccNumber="2" relative="0" controlsParam="volume" />
 			</midiKnobs></kit>)", "kit");
 		const std::vector<Mapping> knobs = decode_knobs(*kit.find("midiKnobs"), ControlsAddress{ControlsAddress::Kind::OUTPUT, 2},
-		                                                deluge::global_effectable::kNaming);
+		                                                deluge::host_chain::kNaming);
 		expect(knobs.size()).to_equal(size_t{1});
 		expect(knobs.empty() ? 0U : std::get<OwnerParamTarget>(knobs[0].target).param.id.value)
-		    .to_equal(deluge::global_effectable::param::kVolume.value);
+		    .to_equal(deluge::host_chain::param::kVolume.value);
 	});
 
 	it("reads each knob's source and owner, and a song's table takes the same knobs", _ {

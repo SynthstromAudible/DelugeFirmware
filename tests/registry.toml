@@ -1343,7 +1343,7 @@ level = "unit"
 runner = "ctest"
 kind = "unit"
 status = "gate"
-gates = "the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable and bench specs and model equality hold on ARM"
+gates = "the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, host-chain and bench specs and model equality hold on ARM"
 source = "tests/trees/arm"
 tree = "build/test-arm"
 configure = ["-G", "Ninja"]
@@ -1483,6 +1483,30 @@ job = "model"
 runtime_s = 1
 variants = ["asan"]
 variant_fields = { asan = { runtime_s = 20 } }
+
+[[harness]]
+name = "edit-cost"
+template = "scenario-driver"
+override = ["status"]
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch"
+scenario = "edit_cost"
+tier = "manual"
+job = "model"
+runtime_s = 5
+
+[[harness]]
+name = "source-memory"
+template = "scenario-driver"
+override = ["status"]
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back"
+scenario = "source_memory"
+tier = "manual"
+job = "model"
+runtime_s = 5
 
 [[harness]]
 name = "edit-substrate"

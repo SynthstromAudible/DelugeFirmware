@@ -77,6 +77,13 @@ oscillator, whatever its class; null when the slot holds none (a mode change und
 | `owns_envelope()` | declared: the engine shapes the amplitude itself (a physical model's decay); false everywhere, not read yet |
 | `sound_stage()` | declared: a `BasicSoundStage<B>` the instrument would run once per sound after its voices; null everywhere |
 
+`BasicEngineNote<B>` carries the sound's config (`synth::SoundConfig`, `src/synth/voice/sound_config.h`: its voicing
+and unison layout, its engine settings and its LFOs, which the Deluge instrument derives from its state in one place,
+`DelugeSynth::derive`) beside the note's own values.
+Each block, the voice and its engine read that config beside `synth::BlockValues` (`src/synth/voice/block_values.h`):
+the host's facts, the transport's synced LFO rates, what the sound's params make of this block (read through
+`synth::param_view`), its expression, and the slot settings the runtime still holds.
+
 `BasicEngineBlock<B>` carries the voice's buffer and scratch, the unison parts and the shared `SourceLevels` it lends,
 the voice config and per-voice block, the noise stream, and one control struct per family (`DualSourceControls`,
 `FmControls`, `engine_controls.h`), of which the voice fills its family's.

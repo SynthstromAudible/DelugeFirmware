@@ -31,7 +31,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -43,6 +43,7 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <span>
 #include <string_view>
 #include <utility>
 
@@ -532,7 +533,8 @@ ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, s
 	if (sound == nullptr) {
 		return ValueText{};
 	}
-	const auto& ranges = sound->sources[source].ranges;
+	const std::span<const instrument::RangeState> ranges =
+	    instrument::source_ranges(*sound, static_cast<instrument::SourceId>(source));
 	if (std::ranges::none_of(ranges, [](const instrument::RangeState& r) { return !r.file_path.empty(); })) {
 		return kValueTextFallback;
 	}

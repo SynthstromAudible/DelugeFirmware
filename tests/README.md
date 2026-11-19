@@ -144,7 +144,7 @@ builds only `golden-vt-render`.
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree (the dsp-next specs among them), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
+| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, host-chain and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
@@ -156,6 +156,8 @@ builds only `golden-vt-render`.
 | document-version | integration | scenario | unit | gate | the firmware version a document is read as is that document's own | pr | model | ~1s |
 | preset-parse | integration | scenario | unit | gate | a JSON synth preset reads into a kit row as an XML one does | pr | model | ~1s |
 | effect-owners | integration | scenario | unit | gate | every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows | pr | model | ~1s |
+| edit-cost | integration | scenario | benchmark | investigative | nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch | manual | model | ~5s |
+| source-memory | integration | scenario | benchmark | investigative | nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back | manual | model | ~5s |
 | edit-substrate | integration | scenario | unit | gate | the Edit substrate on its own | pr | model | ~1s |
 | mapping-dispatch | integration | scenario | property | gate | the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do | pr | app | ~5s |
 | xml-replay-diff | integration | scenario | differential | gate | ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does | pr | model | ~1s |
