@@ -84,7 +84,7 @@ void refreshKnobsForRoot();
 /// @brief After a guest tick, re-render the root's audition column (or the keyboard) when the menu's selected
 ///        range or the source's number of ranges changed (`SoundEditor::possibleChangeToCurrentRangeDisplay`, which
 ///        legacy's picker calls after every pick, insert and delete), or when the range highlight turned on or off, as
-///        a move through legacy's menu re-renders the root.
+///        a move through the menu re-renders the root.
 void refreshShellRangeDisplay();
 
 /// @brief After a guest tick, re-render the keyboard's sidebar when the DX column's white row changed: legacy's
@@ -105,7 +105,7 @@ void forgetShellMenuContext();
 ///        posting no `ClearWorking` (`RecorderScene::taken_down`). A no-op with no take running.
 void endShellRecorderTakeForTeardown();
 
-/// @brief SAVE while the ported sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
+/// @brief SAVE while the sound menu is frontmost, as `SoundEditor::buttonAction`'s SAVE arm takes it
 ///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): on a press with no UI mode up and an instrument clip's
 ///        view at the root, Shift deletes the note-range picker's range (`MultiRange::deletePress`, when the picker is
 ///        focused) and a plain press opens the save-preset screen.

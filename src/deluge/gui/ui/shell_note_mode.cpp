@@ -163,31 +163,34 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 		return std::nullopt;
 	}
 
-	// **SYNTH, KIT, MIDI and CV: the column focus, which is the menu's.** Both handlers send
-	// these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-	// (`InstrumentClipView::handleNoteEditorButtonAction`, `handleNoteRowEditorButtonAction`), whose target is the
-	// horizontal menu's column focus, which `MenuScene` carries. Forwarding them would also dereference that navigation
-	// record, which no guest path writes.
+	// **SYNTH, KIT, MIDI and CV: the column focus, which is the menu's.** Main's two
+	// handlers send these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
+	// (`InstrumentClipView::handleNoteEditorButtonAction`, `handleNoteRowEditorButtonAction`,
+	// `origin/main:src/deluge/gui/views/instrument_clip_view.cpp`, `util::one_of(b, {SYNTH, KIT, MIDI, CV})`), whose
+	// target is the horizontal menu's column focus, which `MenuScene` carries. The handlers here have no such arm
+	// (`gui/views/instrument_clip_view.cpp`), so forwarding these buttons would swallow them as `DEALT_WITH`; the
+	// menu takes them instead.
 	if (b == SYNTH || b == KIT || b == MIDI || b == CV) {
 		return std::nullopt;
 	}
 
 	// **PLAY, SHIFT and the two gold-knob pushes: `NOT_DEALT_WITH`** in both handlers (the `NOT_DEALT_WITH` returns of
 	// `InstrumentClipView::handleNoteEditorButtonAction` and `handleNoteRowEditorButtonAction`,
-	// `origin/main:src/deluge/gui/views/instrument_clip_view.cpp`), which is exactly what the guest's fed path already
-	// returns -- so feeding them keeps main's answer and also keeps the shell's own shift latch fed. (The gold-knob
+	// `gui/views/instrument_clip_view.cpp`), which is exactly what the guest's fed path already
+	// returns -- so feeding them keeps that answer and also keeps the shell's own shift latch fed. (The gold-knob
 	// pushes never get here: `ShellHostUI::buttonAction` returns for them first.)
 	if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return std::nullopt;
 	}
 
 	// **Everything else is the handler's, and its answer is the guest's answer.** AFFECT_ENTIRE gets here at all
-	// because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() && !inNoteRowEditor()`
-	// (`SoundEditor::buttonAction`). In the handlers, X_ENC and SYNC_SCALING reach `InstrumentClipView::buttonAction`
-	// through their `return buttonAction(...)` arms (`InstrumentClipView::handleNoteEditorButtonAction` and
-	// `InstrumentClipView::handleNoteRowEditorButtonAction` in `gui/views/instrument_clip_view.cpp`); AFFECT_ENTIRE
-	// toggles a kit clip's `affectEntire` in the note-row editor and is swallowed in the note editor; every other
-	// button, CROSS_SCREEN and SCALE included, is swallowed as `DEALT_WITH` (the final `return` of each handler).
+	// because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() && !inNoteRowEditor()` (main's
+	// `SoundEditor::buttonAction`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`). In the handlers, X_ENC and
+	// SYNC_SCALING reach `InstrumentClipView::buttonAction` through their `return buttonAction(...)` arms
+	// (`InstrumentClipView::handleNoteEditorButtonAction` and `InstrumentClipView::handleNoteRowEditorButtonAction` in
+	// `gui/views/instrument_clip_view.cpp`); AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor
+	// and is swallowed in the note editor; every other button, CROSS_SCREEN and SCALE included, is swallowed as
+	// `DEALT_WITH` (the final `return` of each handler).
 	const NoteModeLegacyCalls& calls = noteModeLegacyCalls();
 	if (mode == NoteModeKind::NoteEditor) {
 		return calls.noteEditorButton(b, on); // `SoundEditor::buttonAction`

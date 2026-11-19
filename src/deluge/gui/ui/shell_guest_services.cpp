@@ -125,7 +125,7 @@ void setViewStates(GuestServices& services) {
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
 	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp`: it is
 	// the same question with a null guard on it. While nothing is open (a song swap, or a spec that opens no UI)
-	// this tree's `getCurrentUI()` answers `emptyStackUI`, whose `toClipMinder()` is null; main's answers
+	// `getCurrentUI()` (`gui/ui/ui.cpp`) answers `emptyStackUI`, whose `toClipMinder()` is null; main's answers
 	// `lastUIBeforeNullifying`, which can itself be null (`origin/main:src/deluge/gui/ui/ui.cpp`).
 	controlView.current_ui_is_clip_minder = currentUIIsClipMinderScreen();
 	controlView.root_is_performance = getRootUI() == &performanceView;

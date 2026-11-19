@@ -21,9 +21,8 @@
 /// @brief The one call that opens the menu in `shellHostUI`'s place.
 ///
 /// The *first tenant* of the shell guest: every place legacy enters `soundEditor` becomes `openUI(&shellHostUI)` plus
-/// a `Menu{node}` push. There are fifteen such places;
-/// fourteen of them route here and one, site 10, stays on the legacy path for the reason its row gives. The table is in
-/// `gui/ui/shell_menu_entry.cpp`.
+/// a `Menu{node}` push. There are fourteen such places, and each routes
+/// here; the table is in `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
@@ -31,7 +30,7 @@
 /// ordinary legacy views, and making each of them name `deluge::scenes::menu::context_for`,
 /// `MenuScene::roots()` and `SceneId` would put `src/scenes` includes into eight `gui/views/` and
 /// `model/clip/` translation units for four lines of work apiece. `ShellMenuNode` below exists for
-/// exactly that reason: it is how a caller names a *specific ported node* without naming the
+/// exactly that reason: it is how a caller names a *specific node* without naming the
 /// `deluge::scenes::menu::nodes` namespace.
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
@@ -60,7 +59,7 @@
 ///
 /// This is what a user gets by default, and none of it is discoverable from a green test suite:
 ///
-///  1. **Every `MenuAction` the ported items file has a body.** `gui::ui::dispatchShellActions`
+///  1. **Every `MenuAction` the menu's items file has a body.** `gui::ui::dispatchShellActions`
 ///     drains the outbox once per guest tick, so `perform_editor`, `start_stem_export`,
 ///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` do what their legacy items
 ///     do. What each arm still owes is recorded
@@ -77,10 +76,10 @@
 ///  3. **`perform_editor` shows the performance view's own mode.** It reads
 ///     `RuntimeFacts::performance_editing_mode()`, which the host answers from `PerformanceView`'s two bools, so the
 ///     item and the view cannot disagree.
-///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
+///  4. **The settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
-///     their `FlashStorage` assignment in the ported hook, matching the first statement of each
-///     legacy `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and call
+///     their `FlashStorage` assignment in the menu's hook, matching the first statement of each
+///     main `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and call
 ///     `menu::host_screensaver_settings_changed()` for the second, `Screensaver::settingsChanged()`.
 
 #include "definitions_cxx.hpp" // ActionResult

@@ -725,8 +725,8 @@ namespace {
 
 /// Whether another of @p owner's siblings already has @p name: another clip of the clip's track, another audio track,
 /// another drum of the lane's kit, as legacy's rename editors refuse a name (`RenameClipUI::trySetName` in
-/// `rename_clip_ui.cpp`, `RenameOutputUI::trySetName` in `rename_output_ui.cpp`, `RenameDrumUI`). Letter case does not
-/// count.
+/// `rename_clip_ui.cpp`, `RenameOutputUI::trySetName` in `rename_output_ui.cpp`, main's `RenameDrumUI`,
+/// `origin/main:src/deluge/gui/ui/rename/rename_drum_ui.cpp`). Letter case does not count.
 bool name_taken(const deluge::project::SettingAddress& owner, std::string_view name) {
 	if (const auto* clip_at = std::get_if<deluge::project::ClipAddress>(&owner.owner)) {
 		::Clip* clip = currentSong->clipForId(clip_at->clip_id);

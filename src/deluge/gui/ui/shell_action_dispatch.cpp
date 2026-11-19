@@ -84,7 +84,7 @@ namespace {
 /// So this branch is unreachable through every real path, and is defence in depth rather than behaviour -- and, being
 /// unreachable, it is the one line here no example can redden.
 ///
-/// Ignoring rather than asserting, deliberately: the only assert this tree has on the device is
+/// Ignoring rather than asserting, deliberately: the only assert on the device is
 /// `FREEZE_WITH_ERROR`, a hard hang, and hanging the instrument over a menu press would be a worse
 /// answer than a press that does nothing. What must not happen is falling through -- the branch
 /// below is an `if`/`else` exactly as legacy's is, so a `DISABLED` reaching it would take the `else`
@@ -138,8 +138,8 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// place and nothing on that path opens `soundEditor` at all.
 ///
 /// So calling `soundEditor.exitCompletely()` here would not close the menu. `closeUI`'s search loop stops at `u >= 1`
-/// (`gui/ui/ui.cpp`); given a UI that is not on the stack it falls out with `u == 0`. This tree's `closeUI` returns
-/// there, so the guest would stay open over a menu whose session `endScreen()` had just ended. Main's `closeUI`
+/// (`gui/ui/ui.cpp`); given a UI that is not on the stack it falls out with `u == 0`. `closeUI` (`gui/ui/ui.cpp`)
+/// returns there, so the guest would stay open over a menu whose session `endScreen()` had just ended. Main's `closeUI`
 /// (`origin/main:src/deluge/gui/ui/ui.cpp`, "If UI not found, chaos") has no such return: it reads
 /// `uiNavigationHierarchy[u - 1]` -- index **-1** -- and sets `numUIsOpen = 0`, after which `getRootUI()` answers
 /// `nullptr` for the whole application.
@@ -227,11 +227,11 @@ namespace {
 /// @par The one ordering divergence, named rather than absorbed
 ///
 /// Main closes and *then* exports. Here the removal is filed first but the guest is popped by
-/// `ShellHostUI::timerCallback`, after this function has returned. `StemExport::startStemExportProcess`
+/// `ShellHostUI::timerCallback`, after this function has returned, so the UI closes after the export is started
+/// rather than before. That is harmless: `StemExport::startStemExportProcess`
 /// (`processing/stem_export/stem_export.cpp`) returns at once, having stopped playback, entered
-/// `UI_MODE_STEM_EXPORT` and requested the app loop; the export then runs a step at a time from
-/// `StemExport::exportRoutine`. So both orders are the same sequence: stack emptied, export started, guest closed,
-/// export steps run from the app loop.
+/// `UI_MODE_STEM_EXPORT` and requested the app loop, and the export then runs a step at a time from
+/// `StemExport::exportRoutine`, after the guest has closed.
 ///
 /// `exitCompletely`'s last statement, `currentUIMode = UI_MODE_NONE`, is the guest's close's
 /// (`ShellHostUI::closeGuest`), which runs after this arm has started the export. The close keeps the export's own

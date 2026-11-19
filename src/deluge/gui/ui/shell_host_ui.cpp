@@ -734,12 +734,12 @@ void ShellHostUI::syncHoldTime() {
 	// item's range is 1..20, re-clamped on read (`storage/flash_storage.cpp`), i.e.
 	// 50..1000 ms, so the `uint16_t` cannot overflow.
 	//
-	// **Here rather than in `opened()`.** Seeding once per open would assume that "a guest that is
-	// not open cannot be observing the threshold" -- which is backwards for the one writer that can
-	// only be reached *while the guest is open*: `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is
-	// the ported settings item, and it writes `FlashStorage::holdTime` from inside the shell. A per-open seed lags it
-	// by a whole guest session. This is the same hole the screensaver settings have from the ported tree, and unlike
-	// that one it is closable here, because the *reader* is on this side of the seam.
+	// **Here rather than in `opened()`.** Seeding once per open would assume that "a guest that is not open cannot be
+	// observing the threshold" -- which is backwards for the one writer that can only be reached *while the guest is
+	// open*: `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the settings item in the menu, and it
+	// writes `FlashStorage::holdTime` from inside the shell. A per-open seed lags it by a whole guest session. This is
+	// the same hole the screensaver settings have from the menu, and unlike that one it is closable here, because the
+	// *reader* is on this side of the seam.
 	//
 	// This is the funnel every pad and every button passes through (`padAction`, `buttonAction`), so
 	// it is where legacy's own read happens: two loads, a divide and a compare-free store, on a path

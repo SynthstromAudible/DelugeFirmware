@@ -53,11 +53,11 @@ namespace {
 /// @brief `SoundEditor::isEditingAutomationViewParam`, asked
 ///        of the menu instead of of `SoundEditor`.
 ///
-/// **Not a call into legacy's copy, and this is the whole reason this function exists.** That copy opens with
+/// **Not a call into main's copy, and this is the whole reason this function exists.** That copy opens with
 /// `getCurrentMenuItem()->getParamKind()`, and `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
 /// (`SoundEditor::getCurrentMenuItem`) -- a zero-initialised member (`menuItemNavigationRecord` in
 /// `origin/main:src/deluge/gui/ui/sound_editor.h`) written only by `SoundEditor::setup`/`navigate`, neither of which
-/// runs under the guest. So legacy's copy dereferences null here on any boot that never ran `SoundEditor::setup`, and
+/// runs under the guest. So main's copy dereferences null here on any boot that never ran `SoundEditor::setup`, and
 /// the state cannot be supplied here, because the open menu genuinely is `MenuScene`.
 ///
 /// The param compared is the one `focused_value()` edits: on a horizontal page the focused column, as legacy's
@@ -66,7 +66,7 @@ namespace {
 ///
 /// The `clip != nullptr` guard is the one main's `SoundEditor::isEditingAutomationViewParam` lacks, ahead of its
 /// `clip->lastSelectedParamKind` reads. Writing it in this copy is
-/// not a fix to `origin/main:src/deluge/gui/ui/sound_editor.cpp`; legacy's copy is untouched.
+/// not a fix to `origin/main:src/deluge/gui/ui/sound_editor.cpp`; main's copy is untouched.
 bool menuShowsAutomationParam() {
 	// Main's `kind != NONE && paramID != kNoParamID` test is `focused_automation_param()` answering at all.
 	const std::optional<deluge::scenes::menu::AutomationParam> param =
@@ -119,7 +119,7 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 		instrumentClipView.padAction(x, y, velocity); // `SoundEditor::padAction`'s audition-column arm
 		break;
 	case PadForwardTarget::Automation:
-		automationView.padAction(x, y, velocity); // `SoundEditor::handleAutomationViewPadAction`
+		automationView.padAction(x, y, velocity); // main's `SoundEditor::handleAutomationViewPadAction`
 		break;
 	case PadForwardTarget::Performance:
 		(void)performanceView.padAction(x, y, velocity); // `SoundEditor::padAction`'s performance-view arm

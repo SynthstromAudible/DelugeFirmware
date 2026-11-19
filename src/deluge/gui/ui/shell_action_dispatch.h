@@ -117,9 +117,9 @@ namespace deluge::gui::ui {
 /// @par The `switch` has no `default:`, deliberately
 ///
 /// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly" (`MenuAction`'s doc in
-/// `scenes/menu/action.h`). `-Werror=switch` is on for every target (`cmake/deluge_common_options.cmake`, which sets
-/// `-Werror=switch`), so an enumerator added without an arm here fails the build; a `default:` would absorb it silently
-/// and the compiler would stop being the check.
+/// `scenes/menu/action.h`). `-Werror=switch` is on for every target (`cmake/deluge_common_options.cmake`), so an
+/// enumerator added without an arm here fails the build; a `default:` would absorb it silently and the compiler would
+/// stop being the check.
 void dispatchShellActions();
 
 /// @brief Drop whatever the menu asked for on the guest's last tick, for its close: a request filed by the input

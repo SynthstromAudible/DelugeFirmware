@@ -71,8 +71,9 @@ enum class PadForwardTarget : uint8_t {
 	AuditionColumn,
 	/// The performance-view arm -- `performanceView.padAction`, every coordinate, never reaching the tail.
 	Performance,
-	/// The automation arm -- `SoundEditor::handleAutomationViewPadAction`'s work, done here: see
-	/// `menuShowsAutomationParam` in the `.cpp` for why it is not a call into that function.
+	/// The automation arm -- main's `SoundEditor::handleAutomationViewPadAction`'s work
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), done here: see `menuShowsAutomationParam` in the `.cpp` for
+	/// why it is not a call into that function.
 	Automation,
 	/// The tail's `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three firmware-version
 	/// diagnostic pads, which are `FirmwareDiagnostic`. Also the note editor's sidebar half (the note-editor arm's

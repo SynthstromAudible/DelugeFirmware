@@ -176,8 +176,8 @@ const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
 /// `MenuScene::open`). It is spelled with the resolved root because `open(root, ctx)` is the only
 /// entry point that installs a `MenuContext`.
 ///
-/// With the guest already open the open menu re-roots in place instead, as legacy's `setup()` re-sets the open
-/// editor. The guest is taken to be the frontmost UI there: the legacy context menus and the ported ones take every
+/// With the guest already open the open menu re-roots in place instead, as legacy's `setup()` re-sets the open editor.
+/// The guest is taken to be the frontmost UI there: the legacy context menus and the scenes' context menus take every
 /// pad, so no press arrives while another UI is pushed above it.
 /// @return Whether the guest is now open.
 bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t arg, const menu::Node* shortcut,
@@ -447,7 +447,8 @@ ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on) {
 	    && !menu::is_automation_item(*padNode)) {
 		return ActionResult::DEALT_WITH;
 	}
-	// `[audition pad] + [sequence direction pad]`: the note-row editor on PLAY DIRECTION (site 13's ported leg).
+	// `[audition pad] + [sequence direction pad]`: the note-row editor on PLAY DIRECTION (the same shortcut as row 13
+	// of the table above).
 	if (clip->type == ClipType::INSTRUMENT && padNode == &menu::nodes::sequence_direction
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus) == RuntimeFeatureStateToggle::On
 	    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
