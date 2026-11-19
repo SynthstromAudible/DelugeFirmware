@@ -22,13 +22,16 @@
 //                            codec's encode of the sound's state
 //   instrument_codec_decode  every sound's element as read (its slot, or a preset's element) decodes, into a new
 //                            sound's state, to the state the app's reader left; INSTRUMENT_DUMP_STATE=<path> writes
-//                            the first sound's state as the reader left it (dump_state, JSON) to <path>
+//                            the first sound's state as the reader left it (dump_state, JSON) to <path>; and each
+//                            sound's state, composed into what it plays and what it keeps and flattened again, is
+//                            the same state
 //   instrument_state_roundtrip  every sound's element as the app writes it, decoded into a new sound's state and
 //                            encoded again, is the same tree (cut to the instrument's keys)
 //
 // Exit: 0 agree; 1 load failure; 2 usage/IO; 3 a sound differs (its name and the first differing path are printed).
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/composed_state.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/fx/chain_params.h"
@@ -263,8 +266,21 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			             entry.name.c_str(), d.c_str(), valueAt(loaded, d).c_str(), valueAt(decodedDump, d).c_str());
 			return 3;
 		}
+		// The sound's record as the state it plays and what it keeps for a switch back, and back again, loses nothing
+		const auto [composed, recall] = deluge::instrument::compose(*entry.sound->boundState());
+		if (const deluge::instrument::SoundState flat = deluge::instrument::flatten(composed, recall);
+		    !(flat == *entry.sound->boundState())) {
+			const Value flatDump = deluge::instrument::dump_state(flat);
+			const std::string d = deluge::serialization::first_difference(loaded, flatDump);
+			std::fprintf(io.err,
+			             "CODEC DIFF: %s: composed and flattened again, the state differs at %s (read %s, now %s)\n",
+			             entry.name.c_str(), d.empty() ? "effects" : d.c_str(), valueAt(loaded, d).c_str(),
+			             valueAt(flatDump, d).c_str());
+			return 3;
+		}
 	}
-	std::fprintf(io.err, "codec decodes %zu sounds as the reader does\n", sounds.size());
+	std::fprintf(io.err, "codec decodes %zu sounds as the reader does, and each composes and flattens back\n",
+	             sounds.size());
 	return 0;
 }
 
