@@ -68,9 +68,9 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 /// @brief The select encoder's detents for a non-submenu item: multiplied by 5 while SHIFT is held.
 ///
 /// Ports `SoundEditor::selectEncoderAction`'s `item->isSubmenu() ? offset : scaledOffset`
-/// (`gui/ui/sound_editor.cpp`). A submenu and a horizontal page take `f.turn()` itself; every other item takes
-/// this, and then applies its own clamp, wrap or refusal. Read through the frame, so an unfocused frame
-/// contributes nothing.
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). A submenu and a horizontal page take `f.turn()` itself; every
+/// other item takes this, and then applies its own clamp, wrap or refusal. Read through the frame, so an unfocused
+/// frame contributes nothing.
 int64_t select_delta(const OledFrame& f);
 
 /// @brief The vertical menu, as one immediate-mode call.

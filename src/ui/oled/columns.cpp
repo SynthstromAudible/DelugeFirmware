@@ -275,8 +275,9 @@ void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const Pa
 		int32_t content_height = kHorizontalBoxHeight;
 
 		if (col.span_next > 0 && col.relevant) {
-			// A container (`horizontal_menu.cpp:231-245`): its render over its columns' combined width, at the full box
-			// height, with no label and no highlight for any of them.
+			// A container (`HorizontalMenu::renderMenuItems` in
+			// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): its render over its columns' combined width,
+			// at the full box height, with no label and no highlight for any of them.
 			const int32_t covered = std::min<int32_t>(col.span_next, w.last - 1 - i);
 			if (col.render != nullptr) {
 				render_slot(f, Rect{current_x, base_y, box_width * (covered + 1), kHorizontalBoxHeight}, col,
@@ -306,20 +307,21 @@ void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const Pa
 
 		// Highlight the focused column, unless it is the page's only column and fills the page.
 		if (is_selected && (page_columns > 1 || std::max<int32_t>(1, cols[w.first].slots) < kPageSlots)) {
-			if (f.style.highlighting == Highlighting::FullInversion) { // horizontal_menu.cpp:269-276
+			if (f.style.highlighting
+			    == Highlighting::FullInversion) { // `HorizontalMenu::renderMenuItems`
+				                                  // (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)
 				const bool whole_slot = !col.show_label || col.is_submenu;
 				const int32_t start_y = whole_slot ? base_y - 1 : label_y;
 				const int32_t end_y = whole_slot ? base_y + kHorizontalBoxHeight - 1 : label_y + kLabelHeight - 1;
 				f.invert_rounded(Rect{current_x + 1, start_y, box_width - 3, end_y - start_y + 1});
 			}
 			else {
-				// horizontal_menu.cpp:278-281: `PARTIAL_INVERSION` falls through into
-				// `NO_INVERSION`, both reaching this same line-draw -- so this `else` covers both
-				// arms with no `NoInversion`-specific branch of its own, exactly as legacy has
-				// none. The row is `OLED_MAIN_VISIBLE_HEIGHT + 2` in canvas coordinates, i.e.
-				// three rows up from the bottom of the visible area; taken frame-relative here,
-				// because the canvas-absolute reading falls off the bottom of a panel with no
-				// bezel.
+				// `HorizontalMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
+				// `PARTIAL_INVERSION` falls through into `NO_INVERSION`, both reaching this same line-draw -- so this
+				// `else` covers both arms with no `NoInversion`-specific branch of its own, exactly as legacy has none.
+				// The row is `OLED_MAIN_VISIBLE_HEIGHT + 2` in canvas coordinates, i.e. three rows up from the bottom
+				// of the visible area; taken frame-relative here, because the canvas-absolute reading falls off the
+				// bottom of a panel with no bezel.
 				f.hline(rect.bottom() - 3, current_x, current_x + box_width - 2);
 			}
 		}
@@ -514,7 +516,7 @@ void text_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 
 	if (data->strikethrough) {
 		// Transcribes `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm
-		// (`gui/menu_item/note/fill.h:70-79`): `center_y = slot.start_y + kHorizontalMenuSlotYOffset
+		// (`origin/main:src/deluge/gui/menu_item/note/fill.h`): `center_y = slot.start_y + kHorizontalMenuSlotYOffset
 		// + 4`, a line from `line_start_x = slot.start_x + 2` to `line_end_x = slot.start_x +
 		// slot.width - 4`, with the rows immediately above and below the line cleared first
 		// (legacy clears pixel by pixel; `clear` over a one-row span is the same effect).

@@ -38,12 +38,12 @@ int32_t place_value(int32_t exponent) {
 
 /// @brief The face legacy draws both widgets' text in.
 ///
-/// Legacy passes `kTextSpacingX` for the advance in both blocks, but two *different* heights:
-/// `kTextSizeYUpdated` (7) for the diagram's stage labels (`patch_cable_strength.cpp:91`) and
-/// `kTextSpacingY` (9) for the switch's slot labels (`:143-145`). `FontId::Apple7` is the height-9
-/// spelling (`ui/core/metrics.h`'s `text_height_of` note), so only the diagram needs
-/// `kApple7Height7YAdjust` -- which is exactly why that constant is caller-side, and why this file
-/// applies it in one place and not the other.
+/// Legacy passes `kTextSpacingX` for the advance in both blocks, but two *different* heights: `kTextSizeYUpdated` (7)
+/// for the diagram's stage labels (`PatchCableStrength::renderOLED` in
+/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) and `kTextSpacingY` (9) for the switch's slot
+/// labels. `FontId::Apple7` is the height-9 spelling (`ui/core/metrics.h`'s `text_height_of` note), so only the diagram
+/// needs `kApple7Height7YAdjust` -- which is exactly why that constant is caller-side, and why this file applies it in
+/// one place and not the other.
 constexpr gfx::oled::FontId kFace = gfx::oled::FontId::Apple7;
 
 /// @brief `Canvas::drawString(s, x, y, kTextSpacingX, kTextSizeYUpdated)` at a legacy height of 7.
@@ -60,35 +60,37 @@ void routing_chain(OledFrame& f, Rect rect, std::span<const std::string_view> st
 		return;
 	}
 
-	// `constexpr int32_t leftPadding = 2;` (`patch_cable_strength.cpp:85`), against the rect's left
-	// edge rather than the panel's.
+	// `constexpr int32_t leftPadding = 2;` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), against
+	// the rect's left edge rather than the panel's.
 	const int32_t left = rect.x + 2;
 	const int32_t spacing_x = gfx::oled::kTextSpacingX;
 
 	if (n == 2) {
-		// `:86-88` -- `ySpacing = kTextSpacingY`, `y = extraY + TOPMOST` then `+= 4`. The frame's
-		// origin already carries TOPMOST, so `extraY + 4` is what survives.
+		// The two-stage arm of main's `PatchCableStrength::renderOLED`: `ySpacing = kTextSpacingY`,
+		// `y = extraY + TOPMOST` then `+= 4`. The frame's origin already carries TOPMOST, so `extraY + 4` is what
+		// survives.
 		const int32_t y_spacing = gfx::oled::kTextSpacingY;
 		int32_t y = rect.y + 1 + 4;
-		stage_label(f, rect, left, y, stages[0]); // `:91`
+		stage_label(f, rect, left, y, stages[0]); // The first stage label.
 		y += y_spacing;
 
-		// `:113-115` -- the drop to the destination, and its arrowhead.
+		// The drop to the destination, and its arrowhead.
 		f.vline(left + 3, y + 2, y + 5);
 		f.icon(gfx::oled::icons::arrowDown, left + 1, y + 6);
 		y += 16;
 
-		stage_label(f, rect, left, y, stages[1]); // `:120-122`
+		stage_label(f, rect, left, y, stages[1]); // The destination label.
 		return;
 	}
 
-	// `:86-88` -- the three-stage form runs at a literal pitch of 8 and starts one row higher.
+	// The three-stage arm of main's `PatchCableStrength::renderOLED` runs at a literal pitch of 8 and starts one row
+	// higher.
 	const int32_t y_spacing = 8;
 	int32_t y = rect.y + 1 + 1;
-	stage_label(f, rect, left, y, stages[0]); // `:91`
+	stage_label(f, rect, left, y, stages[0]); // The first stage label.
 	y += y_spacing;
 
-	// `:96-99` -- the elbow from stage 0 across to stage 1, with the right-pointing arrowhead
+	// The elbow from stage 0 across to stage 1, with the right-pointing arrowhead
 	// sitting two rows above the horizontal.
 	const int32_t elbow_y = y + (y_spacing << 1);
 	f.vline(left + 4, y + 1, elbow_y);
@@ -96,15 +98,15 @@ void routing_chain(OledFrame& f, Rect rect, std::span<const std::string_view> st
 	f.icon(gfx::oled::icons::arrowRight, left + 3 + spacing_x, elbow_y - 2);
 	y += y_spacing - 1;
 
-	stage_label(f, rect, left + spacing_x * 2, y - 3, stages[1]); // `:103-104`
+	stage_label(f, rect, left + spacing_x * 2, y - 3, stages[1]); // The middle stage label.
 	y += y_spacing;
 
-	// `:108-109` -- the drop from stage 1 to the destination.
+	// The drop from stage 1 to the destination.
 	f.vline(left + spacing_x * 2 + 4, y - 2, y + 2);
 	f.icon(gfx::oled::icons::arrowDown, left + spacing_x * 2 + 2, y);
 	y += y_spacing;
 
-	stage_label(f, rect, left, y, stages[2]); // `:120-122`
+	stage_label(f, rect, left, y, stages[2]); // The destination label.
 }
 
 void segmented_switch(OledFrame& f, Rect area, std::span<const std::string_view> labels,
@@ -118,13 +120,13 @@ void segmented_switch(OledFrame& f, Rect area, std::span<const std::string_view>
 		total += widths[i];
 	}
 
-	// `:130-132` -- `endX = startX + <all the slot widths> - 1`, `endY = startY + kTextSpacingY`.
+	// The extent: `endX = startX + <all the slot widths> - 1`, `endY = startY + kTextSpacingY`.
 	const int32_t start_x = area.x;
 	const int32_t start_y = area.y;
 	const int32_t end_x = start_x + total - 1;
 	const int32_t end_y = start_y + area.h;
 
-	// `:135-139` -- the bracket: two verticals, a horizontal above, and a rounding pixel at each
+	// The bracket: two verticals, a horizontal above, and a rounding pixel at each
 	// top corner.
 	f.vline(start_x - 2, start_y, end_y);
 	f.vline(end_x + 2, start_y, end_y);
@@ -132,7 +134,7 @@ void segmented_switch(OledFrame& f, Rect area, std::span<const std::string_view>
 	f.pixel(start_x - 1, start_y - 1);
 	f.pixel(end_x + 1, start_y - 1);
 
-	// `:143-145` -- `drawStringCentered(label, x, startY, kTextSpacingX, kTextSpacingY, width)`,
+	// The labels: `drawStringCentered(label, x, startY, kTextSpacingX, kTextSpacingY, width)`,
 	// which is what `TextStyle::truncate` ports. Note the `+ 1` on every slot but the first: see
 	// the header's note on the label/inversion offset.
 	int32_t x = start_x;
@@ -142,7 +144,7 @@ void segmented_switch(OledFrame& f, Rect area, std::span<const std::string_view>
 		x += widths[i];
 	}
 
-	// `:147-149` -- `invertAreaRounded(x, width, startY, endY)`, whose `endY` is inclusive.
+	// The selection: `invertAreaRounded(x, width, startY, endY)`, whose `endY` is inclusive.
 	if (selected >= 0 && static_cast<size_t>(selected) < n) {
 		int32_t slot_x = start_x;
 		for (int32_t i = 0; i < selected; i++) {

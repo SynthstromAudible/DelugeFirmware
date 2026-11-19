@@ -186,7 +186,7 @@ inline constexpr int32_t kOptionWindowRows = 2;
 ///                     by the caller across frames.
 /// @param allow_motion Whether that scroller may advance this frame.
 /// @param footer       An extra line under the option rows, or empty for none.
-///                     `AudioInputSelector::renderOLED` (`gui/context_menu/audio_input_selector.cpp:223-250`)
+///                     `AudioInputSelector::renderOLED` (`gui/context_menu/audio_input_selector.cpp`)
 ///                     is the one legacy subclass that draws past the base renderer, and this is
 ///                     that tail: an L arrow from the option above, then `drawString(trackName, 35,
 ///                     windowMinY + 20 + kTextSpacingY, kTextSpacingX, kTextSpacingY, 0,
@@ -210,7 +210,7 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
                    int32_t first, ScrollText& label, bool allow_motion = true, std::string_view footer = {},
                    ScrollText* footer_label = nullptr);
 
-/// @brief Ports legacy `Slicer::renderOLED` (`gui/ui/slicer.cpp:74-98`): a framed 100x31 window
+/// @brief Ports legacy `Slicer::renderOLED` (`origin/main:src/deluge/gui/ui/slicer.cpp`): a framed 100x31 window
 ///        with a left-aligned heading, a rule under it, and one value centred below the rule.
 ///
 /// A member of the popup family for the same reason `option_window` is: every coordinate legacy

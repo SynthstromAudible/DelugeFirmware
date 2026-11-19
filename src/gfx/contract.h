@@ -3,14 +3,13 @@
 /// @brief Runtime contract check for the leaf drawing libraries (`src/gfx`, and anything else that
 ///        may only include the standard library): traps immediately if @p cond is false.
 ///
-/// Why not `assert`: the libraries' only contract checks used to be `assert()`, which `-DNDEBUG`
-/// compiles out. Every shipped build defines `NDEBUG`, so on the device the checks did not exist —
-/// and the conditions they guard are not recoverable runtime conditions but memory-safety
-/// preconditions. A `Canvas` built over a span shorter than its geometry writes off the end of
-/// caller memory on the *first* draw call; a `PadGrid` indexed out of range reads or writes past
-/// its buffer. Compiling those checks out is exactly backwards.
+/// Why not `assert`: `assert()` is compiled out by `-DNDEBUG`. Every shipped build defines `NDEBUG`, so on the device
+/// the checks did not exist — and the conditions they guard are not recoverable runtime conditions but memory-safety
+/// preconditions. A `Canvas` built over a span shorter than its geometry writes off the end of caller memory on the
+/// *first* draw call; a `PadGrid` indexed out of range reads or writes past its buffer. Compiling those checks out is
+/// exactly backwards.
 ///
-/// Why not the firmware's failure path: the app has `FREEZE_WITH_ERROR` (`io/debug/log.h` ->
+/// Why not the firmware's failure path: the app has `FREEZE_WITH_ERROR` (`foundation/panic.h` ->
 /// `display->freezeWithError()`), which parks the display with a code and is the right thing for
 /// an app-layer invariant. `src/gfx` is a leaf — it depends on nothing but the C/C++ standard
 /// library (enforced by `scripts/check_gfx_layer.py`), so `display` is not reachable from here and

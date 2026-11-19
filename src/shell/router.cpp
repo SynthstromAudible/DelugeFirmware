@@ -8,24 +8,24 @@ namespace {
 ///        consulted for, *after* the top scene has had them and declined?
 ///
 /// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** implementations of
-/// `modEncoderAction`/`modButtonAction` forward to (`gui/ui/ui.cpp:35-41`). The dispatchers call
-/// the current UI, never `view` directly -- `interpretEncoders` in `hid/encoder_input.cpp`,
-/// `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp:104` -- so a UI that overrides
-/// the hook wins and one that does not falls through to `View`. Hence: scene first, service
-/// second. See `Router::route`'s doc for the override census.
+/// `modEncoderAction`/`modButtonAction` forward to in main (`origin/main:src/deluge/gui/ui/ui.cpp`; HEAD's call
+/// `root_knobs`). The dispatchers call the current UI, never `view` directly -- `interpretEncoders` in
+/// `hid/encoder_input.cpp`, `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp` -- so a UI that overrides
+/// the hook wins and one that does not falls through to `View`. Hence: scene first, service second. See
+/// `Router::route`'s doc for the override census.
 ///
-/// A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is included too, from one step further
-/// down the same dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its
-/// *tail* (`hid/buttons.cpp:225-231`, reached only past the `getCurrentUI()->buttonAction` call at
-/// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
-/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
-/// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
-/// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
-/// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
+/// A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is included too, from one step further down the same
+/// dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its *tail* (`hid/buttons.cpp`,
+/// reached only past the `getCurrentUI()->buttonAction` call), and the line it runs there is
+/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a hook whose base implementation (main's
+/// `UI::modEncoderButtonAction`, `origin/main:src/deluge/gui/ui/ui.cpp`, forwards to `view`; HEAD's hands the call to
+/// `root_knobs::push`), and which five UIs override (`gui/views/instrument_clip_view.h`,
+/// `SoundEditor::modEncoderButtonAction` in `origin/main:src/deluge/gui/ui/sound_editor.h`, `gui/views/session_view.h`,
+/// `gui/views/performance_view.h`, `gui/views/automation_view.h`). Scene first, then here.
 ///
 /// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that
-///       would mean "never a `mod_knobs` event", leaving `View::modEncoderButtonAction`
-///       (`gui/views/view.cpp`) unreachable; the scene-first chain is what lets them be
+///       would mean "never a `mod_knobs` event", leaving main's `View::modEncoderButtonAction`
+///       (`origin/main:src/deluge/gui/views/view.cpp`) unreachable; the scene-first chain is what lets them be
 ///       `mod_knobs` events.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
@@ -47,7 +47,7 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `input_top()`, not `top()`: a popup, a console line or the working animation sits on the
 	// stack without ever taking the input of the scene it is drawn over (`Scene::input_transparent`,
 	// and legacy's own popups, which are composited into the OLED image and route nothing --
-	// `hid/display/oled.cpp:364-376`).
+	// `OLED::sendMainImage` (`hid/display/oled.cpp`)).
 	Result scene_result = stack_.input_top().handle(event, ctx);
 	apply(scene_result);
 	if (scene_result.handled) {
@@ -71,7 +71,7 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// `midi_learn` last. The four `View::buttonAction` arms it owns
-	// (`gui/views/view.cpp:150-168`, `:187-198`, `:201-214`, `:217-230`) sit in the SAME
+	// (`gui/views/view.cpp`) sit in the SAME
 	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
 	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
 	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own
@@ -144,7 +144,8 @@ void Router::apply(const Result& result) {
 	}
 	// A scene that acts on Select's release and has just taken the input -- opened, or returned to -- uses the current
 	// press up now, before another event of this tick can release it: legacy's `SoundEditor::opened` and
-	// `focusRegained` set `Buttons::selectButtonPressUsedUp` at that moment (`sound_editor.cpp:513-516`, `:531-533`).
+	// `focusRegained` set `Buttons::selectButtonPressUsedUp` at that moment
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	if (Scene& top = stack_.input_top(); &top != input_top_before && top.select_acts_on_release()) {
 		lowering_.mark_press_used_up(ButtonId::SelectEnc);
 	}

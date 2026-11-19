@@ -14,12 +14,12 @@ namespace deluge::ui::shell {
 /// @brief Is a declared LED lit at \p now_ms?
 ///
 /// The whole of the legacy `indicator_leds` blinker machinery, reduced to a pure function of the
-/// declaration and the clock. Legacy kept a `LedBlinker` table (`hid/led/indicator_leds.h:71-79`)
+/// declaration and the clock. Legacy kept a `LedBlinker` table (`hid/led/indicator_leds.h`)
 /// whose phase was advanced by a `TimerName::LED_BLINK`/`LED_BLINK_TYPE_1` callback
-/// (`indicator_leds.cpp:94,108-112`, at `kFlashTime` 110 ms / `kFastFlashTime` 60 ms,
-/// `definitions_cxx.hpp:159-160`) and whose "blink N times then go back" case counted
+/// (`blinkLed` and `ledBlinkTimeout` in `indicator_leds.cpp`, at `kFlashTime` 110 ms / `kFastFlashTime` 60 ms,
+/// `definitions_cxx.hpp`) and whose "blink N times then go back" case counted
 /// `blinksLeft` down before calling `setLedState(..., returnToState)`
-/// (`indicator_leds.cpp:115-130`). Here the phase is `now_ms / period_ms` -- so two LEDs declared
+/// (`indicator_leds.cpp`). Here the phase is `now_ms / period_ms` -- so two LEDs declared
 /// with the same period blink *together* whatever tick they were first declared on, which the
 /// per-blinker timers could not guarantee -- and the countdown is an absolute deadline,
 /// `until_ms`, after which the LED is simply on. That is the "blink N times, then an alert folds

@@ -31,13 +31,11 @@ inline constexpr uint8_t kMaxColumnPairs = gfx::grid::kMaxGridCols / 2;
 
 /// @brief Bytes in one main-grid column-pair send, for `Shell::flush`'s pad-output-space budget.
 ///
-/// Legacy: `kNumBytesInColUpdateMessage = 49` and `kNumBytesInMainPadRedraw =
-/// kNumBytesInColUpdateMessage * 8` for the whole 8-pair main grid (`src/definitions_cxx.hpp:94,
-/// 100`), so one pair's message is `kNumBytesInMainPadRedraw / 8` bytes -- 49, the same number as
-/// `kNumBytesInColUpdateMessage` itself, since the main grid is exactly 8 pairs of one message
-/// each. `flush_spec.cpp` copies that expression and `static_assert`s it against this literal, so
-/// this file never includes `definitions_cxx.hpp` (no libdeluge includes outside
-/// `board_surfaces.cpp`).
+/// Legacy: `kNumBytesInColUpdateMessage = 49` and `kNumBytesInMainPadRedraw = kNumBytesInColUpdateMessage * 8` for the
+/// whole 8-pair main grid (both in `src/definitions_cxx.hpp`), so one pair's message is `kNumBytesInMainPadRedraw / 8`
+/// bytes -- 49, the same number as `kNumBytesInColUpdateMessage` itself, since the main grid is exactly 8 pairs of one
+/// message each. `tests/unit/shell/flush_spec.cpp` copies that expression and `static_assert`s it against this literal,
+/// so this file never includes `definitions_cxx.hpp` (no libdeluge includes outside `board_surfaces.cpp`).
 inline constexpr uint32_t kBytesPerColumnPair = 49;
 
 /// @brief One OLED panel the shell can render into and flush.
@@ -171,7 +169,8 @@ public:
 	/// @brief The pad grid surface.
 	GridSurface& grid() { return grid_; }
 	/// @brief Restyle every surface's menu highlighting: legacy's renderers read
-	///        `FlashStorage::accessibilityMenuHighlighting` live (`horizontal_menu.cpp:268`).
+	///        `FlashStorage::accessibilityMenuHighlighting` live (`HorizontalMenu::renderMenuItems` in
+	///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	/// @param h The highlighting the card stores.
 	void set_highlighting(Highlighting h) {
 		for (uint8_t i = 0; i < oled_count_; i++) {

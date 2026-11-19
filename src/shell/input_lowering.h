@@ -17,9 +17,9 @@ namespace deluge::ui::shell {
 ///        reads out of flash rather than constants.
 ///
 /// The defaults are the legacy defaults, converted to milliseconds: `FlashStorage::holdTime` is
-/// `defaultHoldTime (2) * kSampleRate / 20` audio samples (`storage/flash_storage.cpp:349-350`),
+/// `defaultHoldTime (2) * kSampleRate / 20` audio samples (`resetSettings` in `storage/flash_storage.cpp`),
 /// which is 100 ms at 44.1 kHz; `kShortPressTime` is `kSampleRate / 2`
-/// (`definitions_cxx.hpp:1028`), 500 ms; and `DetentedEncoder::applyEdges` takes two A-pin edges
+/// (`definitions_cxx.hpp`), 500 ms; and `DetentedEncoder::applyEdges` takes two A-pin edges
 /// -- one quadrature cycle -- per detent click (`DetentedEncoder::applyEdges`).
 struct LoweringConfig {
 	/// A press shorter than this counts as a tap for the sticky-shift rule.
@@ -65,7 +65,7 @@ struct LoweringConfig {
 ///
 /// # The gold knobs act on every turn
 ///
-/// An `EncoderKind::Accelerating` encoder lowers every turn, as `interpretEncoders` does on `main`
+/// An `EncoderKind::Accelerating` encoder lowers every turn, as `interpretEncoders` does on main
 /// (`origin/main:src/deluge/hid/encoder_input.cpp`): its wiggle test compares the turn against
 /// `modEncoderInitialTurnDirection`, which nothing sets to anything but 0, so no turn is written off.
 ///
@@ -104,11 +104,11 @@ public:
 	/// @{
 	/// @brief Lower one event from `deluge_control_poll_event`.
 	///
-	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
-	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp`) but the host injector uses it; its `x` is the encoder index and its
-	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_quadrature_edges`
-	/// reports, so it is handed straight to the encoder path.
+	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's three shapes.
+	/// `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge (`dispatchInputEvent` in
+	/// `src/deluge/deluge.cpp`) but the host injector uses it; its `x` is the encoder index and its `value` is a signed
+	/// count of A-pin *edges*, the same unit `deluge_encoder_take_quadrature_edges` reports, so it is handed straight
+	/// to the encoder path.
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
 	void on_board_event(const DelugeInputEvent& ev, uint32_t now_ms);
@@ -203,9 +203,10 @@ public:
 	void clear_shift_sticky();
 	/// @brief Turn the sticky-shift feature on or off at runtime.
 	///
-	/// The `ShiftIsSticky` settings toggle (`menu_item/runtime_feature/shift_is_sticky.cpp:25-27`),
-	/// which calls `clearShiftSticky()` when it is switched off -- otherwise a shift latched under
-	/// the old setting would stay on with nothing left to clear it.
+	/// The `ShiftIsSticky` settings toggle
+	/// (`origin/main:src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp`), which calls `clearShiftSticky()`
+	/// when it is switched off -- otherwise a shift latched under the old setting would stay on with nothing left to
+	/// clear it.
 	/// @param sticky The new setting.
 	void set_shift_is_sticky(bool sticky);
 	/// @brief Take up a new sticky-shift setting and leave the latch as it is: a reset changes the setting under the
@@ -231,19 +232,19 @@ public:
 	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
 	/// @brief Set the tap threshold at runtime, in milliseconds.
 	///
-	/// The port of `FlashStorage::holdTime` (`storage/flash_storage.h:70`), which legacy reads
-	/// live on every shift release (`Buttons::commandToggleShift`) and which the settings menu writes
-	/// (`gui/menu_item/defaults/hold_time.h:30-31`). `LoweringConfig::hold_time_ms` is otherwise a
-	/// construction-time field, and a host that is a static-init global cannot read flash at
-	/// construction -- so without this the shell's threshold is stuck at its 100 ms default while
-	/// the user's is anywhere from 50 ms to 1 s, and a sticky-shift tap that legacy latches this
-	/// one does not. This is the sibling of `set_shift_is_sticky` above and the same argument.
+	/// The port of `FlashStorage::holdTime` (`storage/flash_storage.h`), which legacy reads live on every shift release
+	/// (`Buttons::commandToggleShift`) and which the settings menu writes (`HoldTime::writeCurrentValue` in
+	/// `origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`). `LoweringConfig::hold_time_ms` is otherwise a
+	/// construction-time field, and a host that is a static-init global cannot read flash at construction -- so without
+	/// this the shell's threshold is stuck at its 100 ms default while the user's is anywhere from 50 ms to 1 s, and a
+	/// sticky-shift tap that legacy latches this one does not. This is the sibling of `set_shift_is_sticky` above and
+	/// the same argument.
 	///
 	/// @note Not a `LoweringConfig` setter in general. These two fields are settings; the other
 	///       two are not -- `short_press_ms` is legacy's `kShortPressTime` constant
-	///       (`definitions_cxx.hpp:1028`) and `edges_per_detent` is a board fact.
+	///       (`definitions_cxx.hpp`) and `edges_per_detent` is a board fact.
 	/// @param ms The new threshold. Legacy's own range is 50..1000 ms
-	///           (`defaultHoldTime` 1..20, clamped at `storage/flash_storage.cpp:730-732`, times
+	///           (`defaultHoldTime` 1..20, clamped at `storage/flash_storage.cpp`, times
 	///           `kSampleRate / 20` samples); nothing here enforces it, since a host converting
 	///           from samples is the only caller.
 	void set_hold_time_ms(uint16_t ms) { cfg_.hold_time_ms = ms; }
@@ -252,16 +253,16 @@ public:
 	/// @brief Has \p b's current press already been consumed?
 	///
 	/// The generalisation of the legacy `recordButtonPressUsedUp` / `selectButtonPressUsedUp`
-	/// pair (`hid/buttons.cpp:39-43`): one bit per button, cleared when the button goes down.
+	/// pair (`hid/buttons.cpp`): one bit per button, cleared when the button goes down.
 	/// @param b The button.
 	/// @return True if something has claimed the press.
 	bool press_used_up(ButtonId b) const { return used_up_.has(b); }
 	/// @brief Choose the Select edge this tick's snapshot carries: the press, or the release.
 	///
 	/// Legacy's sound editor acts on Select's **release**, and only when the press was not used up and no blocking UI
-	/// mode is on (`SoundEditor::buttonAction`, `sound_editor.cpp:609-614`); every other UI acts on the press. Which
-	/// mode is on is the scene's to say (`Scene::select_release_blocked`). The shell calls this before rendering, for
-	/// the scene that takes this tick's input.
+	/// mode is on (`SoundEditor::buttonAction`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`); every other UI acts
+	/// on the press. Which mode is on is the scene's to say (`Scene::select_release_blocked`). The shell calls this
+	/// before rendering, for the scene that takes this tick's input.
 	/// @param on      True for the release edge, false for the press edge.
 	/// @param blocked With @p on: the scene is in a mode that refuses the release, so it carries no edge.
 	void select_on_release(bool on, bool blocked = false) {
@@ -272,10 +273,10 @@ public:
 	}
 	/// @brief Mark \p b's current press consumed, so its release does not act as well.
 	///
-	/// @note The bit belongs to the button whose *release* should be suppressed, which is not
-	///       always the button that was pressed: legacy's single `recordButtonPressUsedUp` is
-	///       written on a **Play** press (`buttons.cpp:172`) to stop the following Record release
-	///       acting, so that caller must pass `ButtonId::Record`, not `ButtonId::Play`.
+	/// @note The bit belongs to the button whose *release* should be suppressed, which is not always the button that
+	///       was pressed: legacy's single `recordButtonPressUsedUp` is written on a **Play** press (the `PLAY` arm of
+	///       `buttonAction` in `buttons.cpp`) to stop the following Record release acting, so that caller must pass
+	///       `ButtonId::Record`, not `ButtonId::Play`.
 	/// @param b The button whose current press is consumed.
 	void mark_press_used_up(ButtonId b) { used_up_.set(b, true); }
 	/// @brief When \p b's current press began.
@@ -284,7 +285,7 @@ public:
 	uint32_t held_since(ButtonId b) const;
 	/// @brief Was \p b's most recent press shorter than `LoweringConfig::short_press_ms`?
 	///
-	/// The legacy record-release test (`buttons.cpp:193-194`), which reads the press time *after*
+	/// The legacy record-release test (`buttonAction` in `buttons.cpp`), which reads the press time *after*
 	/// the release, so this deliberately does not require \p b to still be held.
 	/// @param b      The button.
 	/// @param now_ms The clock to measure against.
@@ -346,7 +347,7 @@ public:
 	/// While set, `on_board_event` queues instead of lowering; releasing it replays the queue in
 	/// arrival order, each event with the clock it arrived at. `DELUGE_EVENT_NO_PRESSES` is
 	/// deferred like everything else rather than dropped -- dropping it strands whatever the
-	/// firmware still believes is held (issue #3168, `deluge.cpp:266-275`).
+	/// firmware still believes is held (issue #3168; `dispatchInputEvent` in `src/deluge/deluge.cpp` handles it).
 	///
 	/// @note Dropping the oldest can separate a press from its release, so a scene that pairs the
 	///       two may see a release for a button it never saw pressed. `held()` stays correct
@@ -374,7 +375,7 @@ public:
 	///        `AllReleased`.
 	///
 	/// The safety net behind `DELUGE_EVENT_NO_PRESSES` (`MatrixDriver::noPressesHappening`, `matrix_driver.cpp`;
-	/// `buttons.cpp:315-323`). The synthetic releases run through the same path a real release
+	/// `buttons.cpp`). The synthetic releases run through the same path a real release
 	/// takes, so the sticky-shift rule sees a released shift exactly as it would have, and each
 	/// lands in whichever queue that event would normally have gone to.
 	/// @param now_ms The clock to record the releases at.
@@ -419,10 +420,10 @@ private:
 	///          division.** `interpretEncoders` takes whole detents from the encoder
 	///          (`hid/encoder_input.cpp`'s `interpretEncoders`, `int32_t detentDelta = fe.take()`) and then makes two
 	///          different choices, in a comment that says so: tempo and select get
-	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`:117`), while
-	///          horizontal and vertical are handed the **full `int32_t`** (`:124`, `:140`) "for
-	///          natural acceleration". So legacy's worst case is a saturated turn; this one's is a
-	///          reversed turn, and its `UiEvent::delta` cannot express more than 127 detents at all.
+	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`hid/encoder_input.cpp`), while
+	///          horizontal and vertical are handed the **full `int32_t`** (the `horizontalEncoderAction` and
+	///          `verticalEncoderAction` calls) "for natural acceleration". So legacy's worst case is a saturated turn;
+	///          this one's is a reversed turn, and its `UiEvent::delta` cannot express more than 127 detents at all.
 	///
 	///          Widening it is not local: it touches the board-event boundary (`DelugeInputEvent`),
 	///          `saturating_add` (in `input_lowering.cpp`, which already caps `tick_delta_` at

@@ -167,8 +167,9 @@ void title(OledFrame& f, std::string_view s, bool underline) {
 }
 
 void title_badge(OledFrame& f, const gfx::oled::Icon& i) {
-	// `OLED_MAIN_WIDTH_PIXELS - 10` against the frame's own width; `+ 1` and the row below the
-	// icon's own eight are legacy's (`sample_marker_editor.cpp:1131-1132`).
+	// `OLED_MAIN_WIDTH_PIXELS - 10` against the frame's own width; `+ 1` and the row below the icon's own eight are
+	// legacy's (the `lockIcon` draw and its `invertArea` in main's `SampleMarkerEditor::renderOLED`,
+	// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	const int32_t x = f.bounds().w - 10;
 	const int32_t y = kTitleBadgeY;
 	f.icon(i, x, y);

@@ -48,7 +48,7 @@ struct ShellConfig {
 	///        own grid?
 	///
 	/// A host that greys pads as it sends them -- the guest inside legacy, whose `prepareColour`
-	/// (`hid/led/pad_leds.cpp:284-298`) greys whatever `PadLEDs::image` holds by the mask
+	/// (`hid/led/pad_leds.cpp`) greys whatever `PadLEDs::image` holds by the mask
 	/// `getGreyoutColsAndRows` reports -- sets this, so the pads are greyed once, with legacy's own
 	/// proportion and fade. A shell that drives the pads itself leaves it false and greys in
 	/// `render_grid`, statically and through the `GreyOut` tween.
@@ -80,7 +80,7 @@ const char* scene_kind_name(SceneKind k);
 ///        stack, render every surface that needs a frame, and derive the LEDs.
 ///
 /// One object replacing the legacy `doAnyPendingUIRendering` / `uiTimerManager.routine` / the UI
-/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:596-628`). It owns
+/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`src/deluge/deluge.cpp`). It owns
 /// the scene stack, the input lowering, the router, the three overlay scenes and the `Notices`
 /// service that drives them; it *borrows* the `SurfaceSet` (the only hardware seam) and the board
 /// profile. Nothing here is global, and nothing on the tick path allocates -- `state_lines()`,
@@ -196,14 +196,13 @@ public:
 	/// @brief Prepare the surfaces for the first frame, with nothing on the stack.
 	///
 	/// Ports legacy's boot sequence, which is only `renderUIsForOled` marking the OLED dirty
-	/// (in `deluge.cpp`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
+	/// (`src/deluge/deluge.cpp` marks it with `raise(Dirty::Oled)`): a repaint requested on every surface,
 	/// so the first `tick()` after this call draws regardless of any gate's prior state.
 	///
-	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
-	/// own root, and an empty stack draws nothing -- which is what legacy's firmware does before its
-	/// first root frame. The logo a player sees at power-on is the *bootloader's*, not this
-	/// firmware's: `hid/display/rainfall.cpp` transcribes its `logoPixels` for the screensaver, and
-	/// that is the only thing here that draws it.
+	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its own root, and an
+	/// empty stack draws nothing -- which is what legacy's firmware does before its first root frame. The logo a player
+	/// sees at power-on is the *bootloader's*, not this firmware's: `origin/main:src/deluge/hid/display/rainfall.cpp`
+	/// transcribes its `logoPixels` for the screensaver, and that is the only thing here that draws it.
 	///
 	/// No "DELUGE" title over the firmware version is shown either: the port must not add UI the
 	/// instrument did not have.
@@ -218,7 +217,7 @@ public:
 	/// @brief Re-supply `ShellConfig::screensaver_idle_ms` after the settings behind it changed.
 	///
 	/// The shell-level half of `Screensaver::set_idle_ms`, which is the port of legacy's
-	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`). The number is
+	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp`). The number is
 	/// `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`, computed
 	/// by the host -- `src/shell` may not read `storage/` (`check_layer_rules.py`'s
 	/// `shell-includes-outside` row) -- and it has to be re-supplied on every change, because the
@@ -239,13 +238,13 @@ public:
 	}
 
 	/// @brief Register a physical control the host handled itself -- a pad, button or encoder it forwarded to legacy
-	///        instead of feeding: legacy's `Screensaver::noteActivity()` (`hid/display/screensaver.cpp:85-99`).
+	///        instead of feeding: legacy's `Screensaver::noteActivity()` (`hid/display/screensaver.cpp`).
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms) { screensaver_.note_activity(now_ms); }
 
 	/// @brief Set the host's screensaver inhibitors: stem export running, or a permanent-looking popup up
-	///        (`Screensaver::tick`'s `isPermanentPopupPresent() || stemExport.processStarted`,
-	///        `hid/display/screensaver.cpp:113`). The working animation is the shell's own and needs no fact.
+	///        (`Screensaver::timerEvent`'s `isPermanentPopupPresent() || stemExport.processStarted` check,
+	///        `hid/display/screensaver.cpp`). The working animation is the shell's own and needs no fact.
 	/// @param inhibit Whether either holds now.
 	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
 	/// @brief Whether `tick` drains the notice queue: the host gives it to whichever consumer shows notices now, so
@@ -316,7 +315,7 @@ public:
 	/// Here `t` is `(now_ms - tw.start_ms) * 65536 / tw.duration_ms`, clamped to 0..65535.
 	/// `GreyOut` replaces (not stacks with) the tick's ordinary full-strength greyout pass while it
 	/// runs, and applies only inside the stack's greyout mask, matching legacy's ramp
-	/// (`pad_leds.cpp:983-1005`) feeding the same masked `prepareColour` (`:293-296`).
+	/// (`PadLEDs::timerRoutine` in `pad_leds.cpp`) feeding the same masked `prepareColour`.
 	/// @param tw The tween to play; `tw.start_ms` is the clock it is measured from.
 	void start_tween(ActiveTween tw);
 
@@ -392,7 +391,7 @@ public:
 	///          whole of playback (`AudioClipScene::next_timer`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
-	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:212-217`, and
+	///          re-arms it at 15 ms, `UITimerManager::routine` (`gui/ui_timer_manager.cpp`), and
 	///          `Scene::next_timer`'s own doc has the measurement.) So while an audio clip is
 	///          playing this hook reports `now_ms` on
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
@@ -413,7 +412,7 @@ public:
 	///          `now` on every tick, which is a full grid *render* at up to 1 kHz, and the guest
 	///          re-arms `UI_SPECIFIC` at 1 ms, which runs legacy's whole 29-timer sweep at up to
 	///          1 kHz where `graphicsRoutine` -- the thing this is faithful to -- runs at ~66 Hz
-	///          (`gui/ui_timer_manager.cpp:212-217`). Latent rather than live: the guest's only
+	///          (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`). Latent rather than live: the guest's only
 	///          tenant today is `MenuScene`, whose `next_timer()` answers `std::nullopt` for most of
 	///          the tree. It stops being latent the moment `AudioClipScene` becomes a guest tenant.
 	///
@@ -688,7 +687,7 @@ private:
 	std::optional<uint32_t> next_wake_;
 	uint32_t last_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
-	/// `had_input`, and the port of legacy's `anything` flag in `deluge.cpp`.
+	/// `had_input`, and the port of legacy's `anything` flag in `readButtonsAndPads` (`src/deluge/deluge.cpp`).
 	bool had_input_ = false;
 	/// Whether the lowering's tick window is open; see the class note on the tick window.
 	bool tick_open_ = false;

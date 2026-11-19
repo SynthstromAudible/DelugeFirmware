@@ -10,7 +10,7 @@ namespace deluge::ui::oled {
 
 namespace {
 
-/// @brief `intToString(number, buffer, min_digits)` (`foundation/string_format.c:35`), locally.
+/// @brief `intToString(number, buffer, min_digits)` (`foundation/string_format.c`), locally.
 ///
 /// `src/ui` may include neither `foundation/` nor `util/` (`ui-includes-outside`), and this is the
 /// only thing either was wanted for. Non-negative only -- every value on this screen is a sample
@@ -47,7 +47,8 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 	if (sample_rate != 0) {
 		// Legacy's variable name, kept because the unit is genuinely surprising: this is
 		// hundred-thousandths of a second (10 microseconds), not hundreds of milliseconds
-		// (`sample_marker_editor.cpp:1142`).
+		// (the `hundredmilliseconds` computation in main's `SampleMarkerEditor::renderOLED`,
+		// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 		uint64_t hundredmilliseconds = static_cast<uint64_t>(samples) * 100000 / sample_rate;
 		uint32_t hours = 0;
 		uint32_t minutes = 0;
@@ -109,7 +110,7 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 
 			// `intToString` to at least `decimal_places + 1` digits, then push the last
 			// `decimal_places` of them one place right and drop a '.' into the gap
-			// (`sample_marker_editor.cpp:1190-1193`).
+			// (the `memmove` after `intToString` in main's `SampleMarkerEditor::renderOLED`).
 			char buffer[14];
 			const size_t length = int_to_chars(static_cast<uint32_t>(hundredmilliseconds), buffer, decimal_places + 1);
 			const size_t point = length - static_cast<size_t>(decimal_places);
@@ -131,7 +132,7 @@ void sample_position(OledFrame& f, gfx::oled::Rect rect, uint32_t samples, uint3
 		}
 	}
 
-	// Sample count. Legacy resets `xPixel` to its initial 1 here (`:1211`), which is `rect.x`.
+	// Sample count. Legacy resets `xPixel` to its initial 1 at the sample count, which is `rect.x`.
 	const int32_t count_y = y + kSamplePositionLineGap;
 	x = rect.x;
 

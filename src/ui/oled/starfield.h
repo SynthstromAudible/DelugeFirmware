@@ -141,9 +141,9 @@ private:
 
 /// @brief Paint one frame of @p field onto @p f, clipped exactly as legacy clips it.
 ///
-/// Ports `Screensaver::renderStarfield` (`hid/display/screensaver.cpp:254-260`) and the same
-/// `drawBlock` helper (`:64-77`) `draw_rainfall` ports -- so the clip is `Rainfall`'s panel band,
-/// which `hid/display/screensaver.cpp`'s own static_asserts (`:38-40`) hold to
+/// Ports `Screensaver::renderStarfield` (`hid/display/screensaver.cpp`) and the same
+/// `drawBlock` helper `draw_rainfall` ports -- so the clip is `Rainfall`'s panel band,
+/// which `hid/display/screensaver.cpp`'s own `static_assert`s hold to
 /// `OLED_MAIN_WIDTH_PIXELS`/`OLED_MAIN_TOPMOST_PIXEL`/`OLED_MAIN_HEIGHT_PIXELS`. `Starfield` has no
 /// panel constants of its own (only `kCentreX`/`kCentreY`, which are a projection centre, not an
 /// extent), which is why the band is spelled in `Rainfall`'s.

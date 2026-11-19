@@ -14,8 +14,8 @@ namespace deluge::ui::oled {
 ///       is `width`. Every routine below lays out from those exactly as legacy did, so a slot at
 ///       the horizontal menu's own geometry reproduces legacy pixel for pixel. The frame's origin
 ///       now carries the panel-relative offset legacy folded into `start_y`, so the same slot on
-///       a taller panel draws the same pixels shifted by the visible area's offset. `slot.h` is
-///       unused, as it was in legacy -- none of these routines read `SlotPosition::height`.
+///       a taller panel draws the same pixels shifted by the visible area's offset. `SlotPosition::height` is
+///       unused, as it was in legacy -- none of these routines read it.
 ///
 /// Where legacy derived a number from the menu item, this layer takes it as a parameter and the
 /// arithmetic is unchanged: the value's normalized position in `[min, max]` becomes \p norm, and

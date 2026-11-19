@@ -38,39 +38,41 @@ constexpr int32_t kMenuBaseY64 = 15;
 ///       64-row one; `columns` follows this constant, `list`/`menu_rect` the pair above.
 constexpr int32_t kHorizontalMenuBaseY = 14;
 constexpr int32_t kTitleY = 1; // title baseline offset (+ visible_top)
-/// Top row of a `title_badge` icon -- `OLED_MAIN_TOPMOST_PIXEL + 1` (`sample_marker_editor.cpp:1131`),
-/// i.e. the same row the title's own glyphs start on.
+/// Top row of a `title_badge` icon -- `OLED_MAIN_TOPMOST_PIXEL + 1` (the `lockIcon` draw in main's
+/// `SampleMarkerEditor::renderOLED`, `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), i.e. the same row the
+/// title's own glyphs start on.
 constexpr int32_t kTitleBadgeY = 1;
 constexpr int32_t kTitleSeparatorY = 12; // (+ visible_top)
 constexpr int32_t kPopupMargin = 12;     // legacy doubleMargin
 constexpr int32_t kPopupMaxCharsPerLine = 19;
 constexpr int32_t kValueY = 18; // huge-font value baseline (+ visible_top)
-/// `SyncLevel::drawPixelsForOled`'s baseline (`gui/menu_item/sync_level.cpp:37`): 2px below
+/// `SyncLevel::drawPixelsForOled`'s baseline (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`): 2px below
 /// `kValueY`, and in the smaller "Big" font (`MetricBold13`, `kTextBigSpacingX`/`kTextBigSizeY`),
 /// not the huge one `int_value`/`decimal_value` draw with -- legacy's own choice, presumably
 /// because a note-length string ("128TH-NOTES-TPLTS") is far wider than a handful of digits ever
 /// gets, and the huge font would run it off a 128px panel.
 constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
-/// `IntegerContinuous::drawPixelsForOled`'s baseline (`gui/menu_item/integer.cpp:68`), in the Big font over the value
-/// bar `Number::drawHorizontalBar(35, 10)` draws.
+/// `IntegerContinuous::drawPixelsForOled`'s baseline (`origin/main:src/deluge/gui/menu_item/integer.cpp`), in the Big
+/// font over the value bar `Number::drawHorizontalBar(35, 10)` draws.
 constexpr int32_t kContinuousValueY = 15; // big-font value baseline (+ visible_top)
-/// The same screen on a 64-row panel (`integer.cpp:65-66`, `drawInteger(13, 15, 20)`), in the huge face: legacy's
-/// height 15 has no font of its own.
+/// The same screen on a 64-row panel (`IntegerContinuous::drawPixelsForOled`'s `drawInteger(13, 15, 20)`), in the huge
+/// face: legacy's height 15 has no font of its own.
 constexpr int32_t kContinuousValueY64 = 20; // huge-font value baseline (+ visible_top)
-/// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s
-/// `CustomItem`s): `firmware::Version`/`battery::Level::drawPixelsForOled`
-/// (`gui/menu_item/firmware/version.h:31`, `battery/level.h:40`) both call
+/// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s `CustomItem`s):
+/// `firmware::Version`/`battery::Level::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/firmware/version.h`,
+/// `origin/main:src/deluge/gui/menu_item/battery/level.h`) both call
 /// `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` -- a literal canvas y of 22, NOT
 /// `18 + OLED_MAIN_TOPMOST_PIXEL` the way `kValueY`'s own legacy call spells its baseline
-/// (`integer.cpp:60`). `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h`), so the "+ visible_top"
-/// value that reproduces canvas y = 22 on the shipped panel is 22 - 5 = 17, not `kValueY`'s 18.
+/// (`Integer::drawPixelsForOled`, `origin/main:src/deluge/gui/menu_item/integer.cpp`). `OLED_MAIN_TOPMOST_PIXEL` is 5
+/// (`board_config.h`), so the "+ visible_top" value that reproduces canvas y = 22 on the shipped panel is 22 - 5 = 17,
+/// not `kValueY`'s 18.
 constexpr int32_t kReadoutValueY = 17; // huge-font value baseline (+ visible_top)
 
 /// @brief The `midi::Command` learn readout's first text row (+ visible_top), per panel height.
 ///
-/// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:37`) starts at a literal
+/// `midi::Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) starts at a literal
 /// canvas `yPixel = 20` and steps by `kTextSpacingY`. Note the literal: unlike
-/// `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:51-52`), it does **not** add
+/// `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), it does **not** add
 /// `OLED_MAIN_TOPMOST_PIXEL`, so 20 is an absolute canvas row on every panel.
 ///
 /// A frame's origin already carries `visible_top`, so the local row is `20 - visible_top` -- and

@@ -27,7 +27,7 @@ struct Services {
 ///        controls, then MIDI learn.
 ///
 /// The tail half is `Buttons::buttonAction`'s shape exactly -- `getCurrentUI()->buttonAction` at
-/// `hid/buttons.cpp:134`, then the `:143-231` tail. The `mod_knobs` step sits between them because
+/// `hid/buttons.cpp`, then its tail. The `mod_knobs` step sits between them because
 /// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** hooks forward to;
 /// see `route()`.
 ///
@@ -79,31 +79,31 @@ public:
 	/// either of these two event shapes. `interpretEncoders` calls
 	/// `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
 	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
-	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`).
-	/// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the
-	/// **base-class** implementations, and both do nothing but forward to `view` -- so the current
+	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp`).
+	/// main's `UI::modEncoderAction` and `UI::modButtonAction` (`origin/main:src/deluge/gui/ui/ui.cpp`) are the
+	/// **base-class** implementations, and both do nothing but forward to `view` (HEAD's hand the call to
+	/// `root_knobs::turn` and `root_knobs::mod_button`) -- so the current
 	/// UI gets first refusal and `View` is the fallback. Six UIs override the first
-	/// (`SoundEditor`; `ArrangerView`, `gui/views/arranger_view.h:49`;
-	/// `AutomationView`, `gui/views/automation_view.h:116`; `PerformanceView`,
-	/// `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
-	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h:215`) and two override the second
-	/// (`SessionView`, `gui/views/session_view.h:81`; `PerformanceView`,
+	/// (`SoundEditor`; `ArrangerView`, `gui/views/arranger_view.h`;
+	/// `AutomationView`, `gui/views/automation_view.h`; `PerformanceView`,
+	/// `gui/views/performance_view.h`; `SessionView`, `gui/views/session_view.h`;
+	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h`) and two override the second
+	/// (`SessionView`, `gui/views/session_view.h`; `PerformanceView`,
 	/// `gui/views/performance_view.h`).
 	///
 	/// Putting `mod_knobs` first would have a concrete cost: `SoundEditor::modEncoderAction`'s
-	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1638-1662`), whose port is `MenuScene`, could never
+	/// MIDI-learn arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), whose port is `MenuScene`, could never
 	/// fire -- the service would claim the turn first.
 	///
-	/// A gold knob's own push (`ButtonId::ModEnc0`/`ButtonId::ModEnc1`) is a `mod_knobs` event too,
-	/// reached from the same dispatcher one step lower: `Buttons::buttonAction` handles
-	/// `MOD_ENCODER_0`/`MOD_ENCODER_1` in the tail (`hid/buttons.cpp:225-231`), after the scene's
-	/// own `buttonAction` at `:134`, and what it runs there is
-	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- `UI::modEncoderButtonAction`
-	/// (`gui/ui/ui.cpp:43-45`) being another bare forward to `view`, overridden by five UIs
-	/// (`gui/views/instrument_clip_view.h:199`, `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`,
-	/// `gui/views/session_view.h:80`, `gui/views/performance_view.h:97`,
-	/// `gui/views/automation_view.h:117`). Every `Result` along the way is `apply()`d immediately,
-	/// whether or not it reports `handled`, and routing stops at the first `handled` step.
+	/// A gold knob's own push (`ButtonId::ModEnc0`/`ButtonId::ModEnc1`) is a `mod_knobs` event too, reached from the
+	/// same dispatcher one step lower: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in the tail
+	/// (`hid/buttons.cpp`), after the scene's own `buttonAction` call, and what it runs there is
+	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- main's `UI::modEncoderButtonAction`
+	/// (`origin/main:src/deluge/gui/ui/ui.cpp`) being another bare forward to `view` (HEAD's calls `root_knobs::push`),
+	/// overridden by five UIs (`gui/views/instrument_clip_view.h`, `SoundEditor::modEncoderButtonAction` in
+	/// `origin/main:src/deluge/gui/ui/sound_editor.h`, `gui/views/session_view.h`, `gui/views/performance_view.h`,
+	/// `gui/views/automation_view.h`). Every `Result` along the way is `apply()`d immediately, whether or not it
+	/// reports `handled`, and routing stops at the first `handled` step.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.
 	/// @return True if some step of the chain reported `handled`; false if the event fell off the

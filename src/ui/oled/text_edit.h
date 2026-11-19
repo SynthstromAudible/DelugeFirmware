@@ -22,7 +22,7 @@ struct TextEditState {
 /// @brief Draw @p s in @p rect with a cursor at `state.cursor`, scrolling horizontally so the
 /// cursor stays inside the window.
 ///
-/// Ports `QwertyUI::drawTextForOLEDEditing` (`gui/ui/qwerty_ui.cpp:127-171`), generalised from
+/// Ports `QwertyUI::drawTextForOLEDEditing` (`gui/ui/qwerty_ui.cpp`), generalised from
 /// "the whole panel" (its `xPixel`/`xPixelMax`/`maxNumChars` triple) to `rect`, the way every
 /// other widget in `src/ui/oled/` was:
 ///   - `max_num_chars` is `rect.w / kTextSpacingX` where legacy's callers each computed their own
@@ -35,13 +35,14 @@ struct TextEditState {
 ///     nudged in only as far as needed to keep the cursor visible, never recentred;
 ///   - the cursor has legacy's own two presentations, both ported, selected by `atVeryEnd`
 ///     (`cursor == s.size()`):
-///     - **at the end**: the blinking-underline case (`qwerty_ui.cpp:149-154`) -- a 3-row band,
+///     - **at the end**: the blinking-underline case (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`) -- a 3-row
+///     band,
 ///       `kTextSpacingY - 4 .. kTextSpacingY - 2` from the text's top, one `kTextSpacingX`-wide
 ///       column at the cursor. `state.cursor_lit` gates only this bar, exactly as legacy's
 ///       `setupBlink` is only ever reached from this arm;
 ///     - **mid-string**: `invertLeftEdgeForMenuHighlighting` from the cursor to the rect's right
-///       edge (`qwerty_ui.cpp:156-170`) -- legacy's *only* mid-string cursor presentation, not a
-///       predictive-text overlay (`enteredTextEditPos` is plainly the cursor throughout this
+///       edge (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`) -- legacy's *only* mid-string cursor
+///       presentation, not a predictive-text overlay (`enteredTextEditPos` is plainly the cursor throughout this
 ///       routine). Unconditional, like its legacy call -- `state.cursor_lit` is not consulted
 ///       here, so this presentation never flashes off. Ported following `f.style.highlighting`,
 ///       exactly the way `list` and `columns` already port the same legacy primitive

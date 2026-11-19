@@ -46,8 +46,9 @@ struct Column {
 	/// Start a new page at this column (not at index 0): a menu group's member boundary.
 	bool page_break = false;
 	/// The following columns this column's `render` also draws across, unlabelled and unhighlighted -- legacy's
-	/// `HorizontalMenuContainer` (`horizontal_menu.cpp:231-245`). 0 for an ordinary column; the covered columns'
-	/// own `render` is not called.
+	/// `HorizontalMenuContainer` (the `containers_map` arm of `HorizontalMenu::renderMenuItems` in
+	/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). 0 for an ordinary column; the covered columns' own
+	/// `render` is not called.
 	uint8_t span_next = 0;
 	void (*render)(OledFrame& slot_frame, bool focused, void* ctx) = nullptr;
 	void* ctx = nullptr;
@@ -97,13 +98,12 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 /// @brief The column covering instrument button \p button (0-3) on \p focused's visible page.
 ///
 /// @note Ports legacy `HorizontalMenu::handleInstrumentButtonPress`'s search loop
-///       (`horizontal_menu.cpp:405-441`): walk the visible page's columns in order, accumulating
-///       occupied slots, and take the one whose `[start, start + slots)` covers \p button. The
-///       page itself is `window_of(cols, focused)` -- the same page computation `paging_of` and
-///       `columns` already use, reused rather than re-derived, and relevance plays no part here:
-///       legacy's `layout == FIXED && !isItemRelevant(item)` refusal is the caller's decision (a
-///       button press "does nothing" on a disabled column, it does not report "no column"), not
-///       this function's.
+///       (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): walk the visible page's columns in order,
+///       accumulating occupied slots, and take the one whose `[start, start + slots)` covers \p button. The page itself
+///       is `window_of(cols, focused)` -- the same page computation `paging_of` and `columns` already use, reused
+///       rather than re-derived, and relevance plays no part here: legacy's `layout == FIXED && !isItemRelevant(item)`
+///       refusal is the caller's decision (a button press "does nothing" on a disabled column, it does not report "no
+///       column"), not this function's.
 ///
 /// @param cols     The full column sequence, in page order.
 /// @param focused  Index into \p cols of the currently focused column -- names which page is
@@ -114,17 +114,16 @@ int32_t column_under_button(std::span<const Column> cols, int32_t focused, int32
 
 /// @brief Where focus lands after switching the visible page by \p direction.
 ///
-/// @note Ports legacy `HorizontalMenu::switchVisiblePage` (`horizontal_menu.cpp`) plus the
-///       `selectMenuItem` call it makes (`:444-476`): the *target* page wraps
-///       (`(page + direction) mod total_pages`), and the column selected on it is the one
-///       `selectMenuItem` keeps updating to the last *relevant* column seen while walking that
-///       page up to (and including) \p focused's own position on its own page --
-///       `Paging::selectedItemPositionOnPage`, i.e. `paging_of(cols, focused).focused_on_page`.
-///       Falling short of that position (a shorter target page) leaves the last relevant column
-///       seen as the answer, matching legacy's own fall-through when the loop's `break` never
-///       fires for that page. The walk breaks pages as `selectMenuItem` does, on slots alone (and at a
-///       `Column::page_break`), so an irrelevant column that `paging_of` keeps on the current page opens the
-///       walk's next one; landing on it leaves \p focused unchanged, as legacy keeps its current item.
+/// @note Ports legacy `HorizontalMenu::switchVisiblePage` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)
+///       plus the `selectMenuItem` call it makes: the *target* page wraps (`(page + direction) mod total_pages`), and
+///       the column selected on it is the one `selectMenuItem` keeps updating to the last *relevant* column seen while
+///       walking that page up to (and including) \p focused's own position on its own page --
+///       `Paging::selectedItemPositionOnPage`, i.e. `paging_of(cols, focused).focused_on_page`. Falling short of that
+///       position (a shorter target page) leaves the last relevant column seen as the answer, matching legacy's own
+///       fall-through when the loop's `break` never fires for that page. The walk breaks pages as `selectMenuItem`
+///       does, on slots alone (and at a `Column::page_break`), so an irrelevant column that `paging_of` keeps on the
+///       current page opens the walk's next one; landing on it leaves \p focused unchanged, as legacy keeps its current
+///       item.
 ///
 /// @param cols      The full column sequence, in page order.
 /// @param focused   Index into \p cols of the currently focused column.
@@ -183,12 +182,12 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 /// @note An empty \p cols still draws: the placeholder loop still runs, drawing four dotted
 ///       frames under the title, and `Paging::total_pages` is 0, so no counters are drawn.
 ///
-/// The focus highlight follows `style.highlighting`: `FullInversion` inverts (rounded) over the
-/// label alone, or over the whole slot when the column has no label or is a submenu;
-/// `PartialInversion` and `NoInversion` both draw a rule under the slot instead --
-/// `horizontal_menu.cpp:278-281` falls `PARTIAL_INVERSION` through into `NO_INVERSION`, reaching
-/// the same line-draw, so this widget has no separate `NoInversion` arm either. A page holding a
-/// single 4-slot column is never highlighted.
+/// The focus highlight follows `style.highlighting`: `FullInversion` inverts (rounded) over the label alone, or over
+/// the whole slot when the column has no label or is a submenu; `PartialInversion` and `NoInversion` both draw a rule
+/// under the slot instead -- `HorizontalMenu::renderMenuItems`
+/// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) falls `PARTIAL_INVERSION` through into `NO_INVERSION`,
+/// reaching the same line-draw, so this widget has no separate `NoInversion` arm either. A page holding a single 4-slot
+/// column is never highlighted.
 ///
 /// @param f          Target frame.
 /// @param rect       Region to lay the page out in; `f.bounds()` for the legacy-reproducing rect.
@@ -257,7 +256,7 @@ void meter_column(OledFrame& slot_frame, bool focused, void* ctx);
 struct TextColumn {
 	std::string_view value;
 	/// @brief Draw `value` with a line through it -- `note::Fill::renderInHorizontalMenu`'s
-	///        `NOT_FILL` arm (`gui/menu_item/note/fill.h:70-79`), the only legacy caller of this.
+	///        `NOT_FILL` arm (`origin/main:src/deluge/gui/menu_item/note/fill.h`), the only legacy caller of this.
 	///        Every other `text_column` use leaves it false.
 	bool strikethrough = false;
 };
@@ -296,16 +295,17 @@ struct ArtColumn {
 	int8_t dx = 0;
 	/// Rows below `kHorizontalSlotYOffset` the icon or text starts at (negative is above).
 	int8_t dy = 0;
-	/// Drawn when set: `osc::Type`'s analog letter (`osc/type.h:150-155`), in the row face at the slot's left plus 4
-	/// and canvas row `height - kTextSpacingY - 8`, its box cleared first.
+	/// Drawn when set: `osc::Type`'s analog letter (`origin/main:src/deluge/gui/menu_item/osc/type.h`), in the row face
+	/// at the slot's left plus 4 and canvas row `height - kTextSpacingY - 8`, its box cleared first.
 	char badge = 0;
-	/// `stutter::Direction`'s ping-pong marks (`stutter/direction.h:150-154`): a pixel at the region's centre column,
-	/// on the icon's first row and seven below.
+	/// `stutter::Direction`'s ping-pong marks (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): a pixel at
+	/// the region's centre column, on the icon's first row and seven below.
 	bool dots = false;
-	/// When set, `icon` is drawn twice, `twin_dx` right and mirrored `twin_dx` left (`sequence/direction.h:132-135`).
+	/// When set, `icon` is drawn twice, `twin_dx` right and mirrored `twin_dx` left (the `PINGPONG` arm of
+	/// `Direction::renderInHorizontalMenu` in `origin/main:src/deluge/gui/menu_item/sequence/direction.h`).
 	int8_t twin_dx = 0;
 	/// When set, `text` is drawn a character at a time, `kTextSpacingX + char_gap` apart and centred, `dx` added
-	/// (`arpeggiator/rhythm.h:52-61`).
+	/// (`Rhythm::renderInHorizontalMenu` in `origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`).
 	uint8_t char_gap = 0;
 	/// With `char_gap`: '0' is drawn as 'X', the rhythm's beat mark.
 	bool zero_as_x = false;
