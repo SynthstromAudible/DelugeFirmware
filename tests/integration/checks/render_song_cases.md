@@ -43,6 +43,13 @@ the song master's filter chain renders as recorded: a generated song (tests/gold
 beside RS_STREAM's two synths, compared with its record in tests/golden/render/songs.json; its dry twin with the
 filters at their defaults must render differently (RS-FX), so the filters reach the render
 
+## render-audio-cents
+
+an audio clip's fine tune renders as recorded, and differs from the clip untuned: a generated song
+(tests/golden/render/songs/make_render_song.py --song RS_AUDIO_CENTS) whose audio clip plays 30 cents up, its effects at
+their defaults, beside RS_STREAM's two synths, compared with its record in tests/golden/render/songs.json; its dry twin
+plays the clip untuned and must render differently (RS-FX), so the clip's cents reach the render
+
 ## render-audio-track-fx
 
 an audio track's effect chain renders as recorded: a generated song (tests/golden/render/songs/make_render_song.py
