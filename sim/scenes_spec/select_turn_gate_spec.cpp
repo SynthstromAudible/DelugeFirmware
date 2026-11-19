@@ -1,5 +1,5 @@
 /// @file
-/// @brief The guest's select-encoder gate under the ported menu: `SoundEditor::selectEncoderAction` edits only in the
+/// @brief The guest's select-encoder gate under the menu: `SoundEditor::selectEncoderAction` edits only in the
 /// UI
 ///        modes `selectEncoderUIModes` lists, and not while LEARN holds learn mode.
 ///

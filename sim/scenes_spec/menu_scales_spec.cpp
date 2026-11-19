@@ -121,8 +121,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -383,7 +383,7 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 
 	it("treats a null song as legacy does: nothing disabled, and a write that goes nowhere", _ {
 		// `isDisabled`'s `else return false` and `setDisabled`'s `else if (currentSong)`
-		// (`active_scales.cpp:121-123`, `:130-132`). A settings-root context always has a song, so
+		// (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`). A settings-root context always has a song, so
 		// this is the defensive arm rather than a reachable screen -- ported because legacy has it.
 		spec::SongFixture fixture = spec::make_synth_song();
 		ScalesGuard guard;

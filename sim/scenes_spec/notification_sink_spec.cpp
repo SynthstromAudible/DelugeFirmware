@@ -5,7 +5,7 @@
 /// (`gui/ui/ui.cpp`) and the shell's `Notices::drain` (`Shell::tick`). A
 /// `Notice::Kind::Notification` must end in the same legacy call whichever pops it --
 /// `display->displayNotification(title, value)`, the call `HorizontalMenu::displayNotification`
-/// makes itself (`gui/menu_item/horizontal_menu.cpp:342`) -- so legacy's one popup slot holds a
+/// makes itself (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- so legacy's one popup slot holds a
 /// `PopupType::NOTIFICATION` either way. Both consumers are driven here against a real
 /// `deluge::hid::display::OLED`, and each is compared byte for byte against that direct call.
 ///
@@ -76,7 +76,7 @@ std::vector<uint8_t> popup_bytes() {
 
 /// @brief What legacy's own call leaves in the popup slot: `HorizontalMenu::displayNotification`'s
 ///        `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
-///        (`horizontal_menu.cpp:342`), made directly and then cleared again.
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), made directly and then cleared again.
 std::vector<uint8_t> direct_call(const char* title, const char* value) {
 	OLED::popup.clear();
 	display->displayNotification(title, value);
@@ -162,7 +162,8 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 	it("legacy's drain maps CancelNotification to the guarded cancelPopup: a notification goes, a "
 	   "general popup stays", _ {
 		// `if (display->hasPopupOfType(PopupType::NOTIFICATION)) { display->cancelPopup(); }`
-		// (`horizontal_menu.cpp:363-365`, `:587-589`).
+		// (`HorizontalMenu::switchVisiblePage`, `HorizontalMenu::switchHorizontalMenu` and `HorizontalMenu::endSession`
+		// in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		LegacyDisplay legacy;
 		deluge::notify::notice_notification("Probability", "100%");
 		drain_notifications();
@@ -202,7 +203,7 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 	it("with no sink, a replacement banner reaches the panel on the tick that drains it, with no input", _ {
 		// Legacy's replacement is a redraw as well as a rewrite: `displayNotification` ends in
-		// `markChanged()` (`oled.cpp:793`), so the new title is on the panel at once.
+		// `markChanged()` (`oled.cpp`), so the new title is on the panel at once.
 		expect(deluge::ui::shell::notification_sink()).to_be_null();
 		Notice discard;
 		while (deluge::notify::notices().pop(discard)) {}

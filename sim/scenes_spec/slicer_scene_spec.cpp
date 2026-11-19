@@ -596,7 +596,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("refuses a slice at or past the end of the sample, as legacy does", _ {
-		// `:535`: `samplePos < waveformBasicNavigator.sample->lengthInSamples`.
+		// Main's `Slicer::padAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`):
+		// `samplePos < waveformBasicNavigator.sample->lengthInSamples`.
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -608,8 +609,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("stops placing slices at the 64-slot ceiling, as legacy does", _ {
-		// The other half of `:535`: `numManualSlice < MAX_MANUAL_SLICES`. `focusRegained` leaves one
-		// slice, so 63 taps fill the table and the 64th is refused.
+		// The other half of that test in `Slicer::padAction`: `numManualSlice < MAX_MANUAL_SLICES`. `focusRegained`
+		// leaves one slice, so 63 taps fill the table and the 64th is refused.
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -666,7 +667,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("auditions the slice under the pad, from its start to the next slice's start", _ {
-		// `:493-496`, the interior arm.
+		// `Slicer::padAction`'s interior arm (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -684,7 +685,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("auditions the last slice to the end of the sample", _ {
-		// `:497-500`, the tail arm.
+		// `Slicer::padAction`'s tail arm (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -700,7 +701,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("silences the audition when the pad is released", _ {
-		// `:559-561`: a release inside the window is `preview(0, 0, 0, 0)`.
+		// `Slicer::padAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`): a release inside the window is
+		// `preview(0, 0, 0, 0)`.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -783,7 +785,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	it("resets its state when a real scene above it closes", _ {
 		// The other half of the pair above, and the half `SlicerScene::on_resume`'s empty-body
 		// placeholder could not make: `closeUI` calls `focusRegained()` on whatever it leaves on
-		// top (`gui/ui/ui.cpp:223-229`), so an opaque scene closing over the slicer DOES reset it.
+		// top (`gui/ui/ui.cpp`), so an opaque scene closing over the slicer DOES reset it.
 		// `ContextMenuScene` is the stand-in for the context menus and MIDI-learn overlays wiring
 		// will put here; unlike a popup it is not `input_transparent()`, so it really does take the
 		// input top and really does hand it back.
@@ -803,7 +805,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.shell.stack().pop();
 		expect(&r.shell.stack().input_top()).to_equal(&slicer_scene());
 
-		// `Slicer::focusRegained` (`slicer.cpp:59-72`) again: one slice, slot 0, REGION.
+		// `Slicer::focusRegained` (`origin/main:src/deluge/gui/ui/slicer.cpp`) again: one slice, slot 0, REGION.
 		expect(slicer_scene().num_manual_slices()).to_equal(1);
 		expect(slicer_scene().current_slice()).to_equal(0);
 		expect(slicer_scene().mode()).to_equal(Mode::Region);
@@ -903,7 +905,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("swallows a MANUAL pad outside the slot grid, as legacy does", _ {
-		// `:563-565`: in MANUAL every pad is DEALT_WITH -- the bottom half and the sidebar included.
+		// `Slicer::padAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`): in MANUAL every pad is DEALT_WITH -- the
+		// bottom half and the sidebar included.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1293,8 +1296,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	// --- BACK -----------------------------------------------------------------------------------
 
 	it("closes on BACK, as legacy's buttonAction does", _ {
-		// `:371-392`. `close()` is `Action::Kind::Remove` here, not `Pop` -- see the note at the
-		// definition.
+		// `Slicer::buttonAction`'s BACK arm (`origin/main:src/deluge/gui/ui/slicer.cpp`). `close()` is
+		// `Action::Kind::Remove` here, not `Pop` -- see the note at the definition.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1304,13 +1307,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.back(true, 10);
 		r.settle(10);
 		expect(r.on_stack()).to_be_false();
-		// REGION mode restores nothing (`:375`).
+		// REGION mode restores nothing (`Slicer::buttonAction`'s BACK arm).
 		expect(ops.restore_calls).to_equal(0);
 		expect(ops.kill_voices_calls).to_equal(0);
 	});
 
 	it("puts the drum's range back to the whole sample before closing, in MANUAL mode", _ {
-		// `:375-389`, the MANUAL arm.
+		// `Slicer::buttonAction`'s MANUAL arm (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1325,7 +1328,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("does nothing on a button RELEASE, as legacy's !on guard does", _ {
-		// The other half of `:279`.
+		// The other half of `Slicer::buttonAction`'s `!on` guard (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);

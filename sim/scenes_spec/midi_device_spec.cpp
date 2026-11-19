@@ -162,8 +162,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -309,9 +309,11 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		expect(address_of(nodes::device_send_thru.bind.set)).to_equal(address_of(&nodes::set_device_send_thru));
 
 		// The three toggles are `Kind::Toggle` because their legacy items are `Toggle`s
-		// (`midi/device_send_clock.h:24`, `device_receive_clock.h:24`, `device_is_relative.h:24`);
-		// the velocity one is an `IntegerWithOff` (`default_velocity_to_level.h:24`), so it is
-		// `Kind::Int` with `off_at_zero` and `kMaxMenuValue` bounds (`:28`).
+		// (`origin/main:src/deluge/gui/menu_item/midi/device_send_clock.h`,
+		// `origin/main:src/deluge/gui/menu_item/midi/device_receive_clock.h`,
+		// `origin/main:src/deluge/gui/menu_item/midi/device_is_relative.h`); the velocity one is an `IntegerWithOff`
+		// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`), so it is `Kind::Int` with
+		// `off_at_zero` and `kMaxMenuValue` bounds.
 		expect(nodes::device_send_clock.kind).to_equal(menu::Kind::Toggle);
 		expect(nodes::device_receive_clock.kind).to_equal(menu::Kind::Toggle);
 		expect(nodes::device_is_relative.kind).to_equal(menu::Kind::Toggle);
@@ -573,10 +575,10 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-channel pages", $ {
 
 	it("resets the direction and the zone on a forward entry, and keeps them on the way back", _ {
-		// `DirectionSelector::beginSession` / `ZoneSelector::beginSession` assign their member only
-		// when `navigatedBackwardFrom == nullptr` (`mpe/direction_selector.cpp:24-29`,
-		// `mpe/zone_selector.cpp:25-30`); `CustomItem::on_focus` fires only on a descent, which is
-		// that condition one hop earlier.
+		// `DirectionSelector::beginSession` / `ZoneSelector::beginSession` assign their member only when
+		// `navigatedBackwardFrom == nullptr` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`,
+		// `origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`); `CustomItem::on_focus` fires only on a
+		// descent, which is that condition one hop earlier.
 		select_language();
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
@@ -869,8 +871,8 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 
 	it("renders the MPE direction selector, titled MPE INPUT on IN and MPE OUTPUT on OUT", _ {
 		// The pair that shows the runtime title (`DirectionSelector::getTitle`,
-		// `mpe/direction_selector.h:40-43`) actually reaching the panel: same node, same context,
-		// one detent apart, and the two goldens differ in the title band as well as in the cursor.
+		// `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) actually reaching the panel: same node, same
+		// context, one detent apart, and the two goldens differ in the title band as well as in the cursor.
 		shoot(self, nodes::mpe_direction, "menu_mpe_direction_in", 0);
 		shoot(self, nodes::mpe_direction, "menu_mpe_direction_out", 1);
 	});

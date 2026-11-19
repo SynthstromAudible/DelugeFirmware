@@ -412,7 +412,8 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 			expect(menu::shortcut_node(root, false, 15, 3)).to_equal(&nodes::note_probability_midi);
 			// The second layer is the same layer here, so the toggle must not lose them.
 			expect(menu::shortcut_node(root, true, 4, 7)).to_equal(&nodes::sequence_direction);
-			// `:1294-1295`'s `default:` -- the randomizer column is y = 1..3 and nothing else.
+			// The `default:` of the randomizer switch in main's `SoundEditor::get_basic_shortcut_action`
+			// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) -- the randomizer column is y = 1..3 and nothing else.
 			expect(menu::shortcut_node(root, false, 15, 0)).to_be_null();
 			expect(menu::shortcut_node(root, false, 15, 4)).to_be_null();
 		}
@@ -496,9 +497,9 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// The guard admits everything up to column 14, so nothing else is lost.
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 14, 0)).to_equal(&nodes::global_delay_rate);
 
-		// But the blink side has no such guard (`setupShortcutsBlinkFromTable`, `:825`), so the two
-		// cells are still in the layer and still report a pad. Removing the press gate, or applying
-		// it to the layer as well, fails one half of this.
+		// But the blink side has no such guard (main's `SoundEditor::setupShortcutsBlinkFromTable`,
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the two cells are still in the layer and still report a
+		// pad. Removing the press gate, or applying it to the layer as well, fails one half of this.
 		const auto layer = menu::shortcut_layer(Root::KitGlobalFx, false);
 		expect(layer[size_t(2) * menu::kShortcutCols + 15]).to_equal(&nodes::randomizer_lock);
 		expect(layer[size_t(3) * menu::kShortcutCols + 15]).to_equal(&nodes::note_probability);
@@ -668,8 +669,8 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// `ScaleSet`) or the twelve `MidiCommandItem`s (one per learnable `GlobalMIDICommand`) could
 		// not tell which of its nodes it was being asked about. The families are
 		// `BatteryLevelItem` and `FirmwareVersionItem`; `kEditClipName`, `kEditOutputName` and
-		// `kEditDrumName` (`edit_name.h`); the `ContextMenuItem`s (`nodes/context_menu_items.h`);
-		// `kMidiCommandPlayItem` .. `kMidiCommandShiftItem` (`midi_command.h`); `kPatchCablesItem`,
+		// `kEditDrumName` (`nodes/edit_name.h`); the `ContextMenuItem`s (`nodes/context_menu_items.h`);
+		// `kMidiCommandPlayItem` .. `kMidiCommandShiftItem` (`nodes/midi_command.h`); `kPatchCablesItem`,
 		// the two `SourceSelectionItem`s (regular/range), the two navigated `PatchCableStrengthItem`s
 		// plus the two `Fixed` ones (`kVibratoItem`, `kSidechainVolumeItem`) and `kMultiRangeItem`;
 		// `kCvSelectionItem`, `kGateSelectionItem` and `kMidiDevicesItem` (`nodes/dynamic.h`); the

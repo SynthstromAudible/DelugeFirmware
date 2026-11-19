@@ -1,9 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief The fixtures and port-side predicates of the batch-1 tables: a synth clip, the seventeen subtree roots keyed
-///        as the reference rows key them, and the synth whose first source carries a chosen number of note ranges.
-///        The spec and the menu oracle freezer share them.
+/// @brief The fixtures and port-side predicates of the first menu tables: a synth clip, the seventeen subtree roots
+///        keyed as the reference rows key them, and the synth whose first source carries a chosen number of note
+///        ranges. The spec and the menu oracle freezer share them.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/context.h"

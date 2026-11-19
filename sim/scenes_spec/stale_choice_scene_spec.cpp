@@ -1,4 +1,4 @@
-// A stored choice that no longer applies (step 2's decision 2), driven through the real menu scene: the list shows it
+// A stored choice that no longer applies, driven through the real menu scene: the list shows it
 // marked, and turning off it moves among the choices that apply without the cursor slipping when the marked entry
 // leaves the list.
 

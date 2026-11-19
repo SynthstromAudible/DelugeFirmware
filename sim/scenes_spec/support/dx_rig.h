@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief What the DX7 specs and the menu oracle freezer share: a synth whose first oscillator is DX7, the ported menu
+/// @brief What the DX7 specs and the menu oracle freezer share: a synth whose first oscillator is DX7, the menu
 ///        over it on a `Shell` over the fake surfaces, and the panel readers the pixel examples compare.
 ///
 /// For the spec files only: it names `gui/` objects, which the scenes library may not.
@@ -144,7 +144,7 @@ struct Popups {
 	static std::string read_error() { return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR); }
 };
 
-/// @brief The DX7 synth with the ported menu over it, on a `Shell` over the fake surfaces. Node ids come from every
+/// @brief The DX7 synth with the menu over it, on a `Shell` over the fake surfaces. Node ids come from every
 ///        root, as the app numbers them.
 struct MenuRig : DxRig {
 	const BoardProfile& profile = deluge_profile();

@@ -1,5 +1,5 @@
 /// @file
-/// @brief The ported menu's entry, in place of the fifteen `openUI(&soundEditor)` sites, driven
+/// @brief The menu's entry, in place of the fifteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
 /// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the routed
@@ -13,7 +13,7 @@
 ///       which is what the gated sites call; it does **not** drive the sites themselves (site 15's column
 ///       aside), because
 ///       reaching `AudioClipView::buttonAction` here would need the whole legacy view stack. So
-///       "the site passes the right arguments" is not covered here: like the `deluge.cpp` boot calls, it is
+///       "the site passes the right arguments" is not covered here: like the `deluge/deluge.cpp` boot calls, it is
 ///       left to a level-3 A/B run. Each example names the site whose
 ///       argument shape it replays so the two can be compared by eye in the meantime.
 ///
@@ -122,8 +122,9 @@ namespace {
 
 /// @brief Put the UI hierarchy back to "nothing open" after an example opened the guest.
 ///
-/// `closeUI` would index `uiNavigationHierarchy[-1]` when the guest is the only entry
-/// (`gui/ui/ui.cpp:213-223`, whose loop stops at `u >= 1`), so this is `nullifyUIs()`, which is what
+/// main's `closeUI` (`origin/main:src/deluge/gui/ui/ui.cpp`, whose loop stops at `u >= 1`) would index
+/// `uiNavigationHierarchy[-1]` when the guest is the only entry (ours, in `gui/ui/ui.cpp`, returns without closing),
+/// so this is `nullifyUIs()`, which is what
 /// legacy itself calls when it tears the hierarchy down (`nullifyUIs`). That skips the close, so the kit-global-FX
 /// latch the close would clear is cleared here: the next example starts with no history.
 void closeGuest() {
@@ -379,7 +380,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		(void)f;
 
 		// All four UI facts false -- SHIFT is held at that site, so `setup()`'s two view tests are
-		// false and the root is `settingsRootMenu` (`gui/ui/sound_editor.cpp:1816-1825`).
+		// false and the root is `settingsRootMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		expect(getCurrentUI()).to_equal(&shellHostUI);
 		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::root_settings);
@@ -662,8 +663,8 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 
 describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the ported menu on that pad's node", $ {
 	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
-		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it,
-		// focused on it (`maybeGetParentMenu` and `parent->focusChild`, `gui/ui/sound_editor.cpp`).
+		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it, focused on it
+		// (`maybeGetParentMenu` and `parent->focusChild`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7)).to_equal(&nodes::lpf_freq);
 
@@ -809,12 +810,12 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 
 		// `MenuContext::resolved` is `setup()`'s own `return false` at
-		// `gui/ui/sound_editor.cpp:1733-1739`, and the five gated sites that test a return value
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`, and the five gated sites that test a return value
 		// are written against exactly that. **Nothing must be left half-open**: the assertion is
 		// that the hierarchy did not move, not merely that the call said false.
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_false();
 		// `isUIOpen`, deliberately, and NOT `getCurrentUI()`: with an empty hierarchy `getCurrentUI()`
-		// answers `lastUIBeforeNullifying` (`gui/ui/ui.cpp:166-171`), which the previous example's
+		// answers `lastUIBeforeNullifying` (`origin/main:src/deluge/gui/ui/ui.cpp`), which the previous example's
 		// teardown left pointing at the guest. `currentUIIsClipMinderScreen()`'s null guard trips on the
 		// same accessor from the other side, which is why it is named here.
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -837,7 +838,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
 		// `ActionLogger::getNewAction` refuses unless `getCurrentUI() == getRootUI()`
-		// (`model/action/action_logger.cpp:100-104`), which in a spec process is only true while
+		// (`model/action/action_logger.cpp`), which in a spec process is only true while
 		// something is actually on the hierarchy. So open first, seed, then close.
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
@@ -1112,7 +1113,7 @@ struct HeldPadInAutomation {
 } // namespace
 
 describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what setup(clip) infers", $ {
-	// The note leaves read through the note bridge, which boot wires (`deluge.cpp`) and this binary does not.
+	// The note leaves read through the note bridge, which boot wires (`deluge/deluge.cpp`) and this binary does not.
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("opens the note editor on an instrument clip, wiping the undo log as setup() does with no item", _ {
@@ -1232,7 +1233,7 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 
 	it("ends the mode after a refused take, where legacy falls back to its editor on the file selector", _ {
 		// A take already running: the recorder refuses, and the menu lands on the file selector, whose hook pushes the
-		// browser, as legacy's `openUI(&soundEditor)` does. That is an editor visit now: its exit is `exitCompletely`.
+		// browser, as legacy's `openUI(&soundEditor)` does. That is an editor visit: its exit is `exitCompletely`.
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;

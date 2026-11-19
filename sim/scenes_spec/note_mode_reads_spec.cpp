@@ -12,7 +12,7 @@
 /// **What is pinned:** `noteEditorOpen()`/`noteRowEditorOpen()` per root, closed and open; each gated
 /// pair's port observed through the menu's own state (its depth, its focused node, the value its edit
 /// storage re-read) with `activeNoteMode()` asked at every step of the toggle; and, per edited file a
-/// spec can reach, the legacy arm with the ported menu closed. The offset gate's note-mode arm is
+/// spec can reach, the legacy arm with the menu closed. The offset gate's note-mode arm is
 /// `note_bridge_spec.cpp`'s, beside its legacy-arm example.
 ///
 /// **Not reachable here, argued per site instead:** `timeline_view.cpp`'s zoom read (its
@@ -124,7 +124,7 @@ struct HeldButton {
 };
 
 /// @brief Hold SHIFT for an example's lifetime: `Buttons::isShiftButtonPressed` reads
-///        `shiftCurrentlyPressed` (`hid/buttons.cpp:294-296`), not the button matrix.
+///        `shiftCurrentlyPressed` (`hid/buttons.cpp`), not the button matrix.
 struct HeldShift {
 	HeldShift() {
 		::Buttons::shiftCurrentlyPressed = true;
@@ -294,7 +294,7 @@ std::string drain_last_notice() {
 	return text;
 }
 
-/// @brief Is the ported menu on the global guest's stack at all?
+/// @brief Is the menu on the global guest's stack at all?
 bool menu_on_guest_stack() {
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
 		if (scene == &menu_scene()) {
@@ -610,9 +610,10 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(std::ranges::none_of(instrumentClipView.get_note_edit_targets(), &EditPadPress::isActive)).to_be_true();
 		(void)drain_last_notice();
 
-		// The port directly, not through the pad handler: every real press that holds a note also selects
-		// it (`InstrumentClipView::editPadAction`, `:2705-2706`), so no press reaches `:3891` with
-		// nothing selected. This is the call that line makes.
+		// The port directly, not through the pad handler: every real press that holds a note also selects it
+		// (`InstrumentClipView::editPadAction`), so no press reaches the toggle in
+		// `InstrumentClipView::handleNoteRowEditorMainPadAction` with nothing selected. This is the call that toggle
+		// makes.
 		guest::noteModeToggleNoteEditorParamMenu(1);
 
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
@@ -726,8 +727,8 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a main pad on a kit y with no NoteRow creates no row and leaves the selected drum alone -- editPadAction's "
 	   "`inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:2404-2407` returns before `:2387-2414` creates a row (or, failing
-		// that, clears the kit's selected drum).
+		// the `inNoteRowEditor` arm of `InstrumentClipView::editPadAction` (`gui/views/instrument_clip_view.cpp`)
+		// returns before it creates a row (or, failing that, clears the kit's selected drum).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -770,7 +771,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
 		// `InstrumentClipView::verticalEncoderAction` (`gui/views/instrument_clip_view.cpp`): no colour shifting in the
 		// note-row editor; the turn falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift
-		// (`:6541-6543`).
+		// (`gui/views/instrument_clip_view.cpp`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -787,7 +788,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
 	   "`inNoteOrNoteRowEditor`", _ {
 		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp`), and
-		// `:5143-5144` then re-targets the active mod-controllable (`:5156`).
+		// `InstrumentClipView::setSelectedDrum` then re-targets the active mod-controllable.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -843,8 +844,9 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submenu -- the two entries the note modes use", $ {
 	it("go_up_one_level answers false at depth 0, steps up otherwise, and answers false when the step lands on a "
 	   "refused root -- goUpOneLevel's two exitCompletely passes", _ {
-		// `gui/ui/sound_editor.cpp:714-722`: `exitCompletely` on the loop's first pass at depth 0, and again
-		// on a later pass when `:720-722` refuses the level it stepped down to.
+		// `SoundEditor::goUpOneLevel` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): `exitCompletely` on the
+		// loop's first pass at depth 0, and again on a later pass when the loop's `checkPermissionToBeginSession` test
+		// refuses the level it stepped down to.
 		SongFixture fx = deluge::scenes::spec::make_synth_song();
 		const MenuContext ctx = deluge::scenes::spec::menu_context_at(fx, Root::Song);
 
@@ -911,7 +913,8 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 	});
 
 	it("action_logger.cpp: menu closed, getNewAction allows under the root and refuses under any other current UI", _ {
-		// Legacy's gate, `model/action/action_logger.cpp:100-104`, with no ported menu on the guest's stack.
+		// Legacy's gate, `ActionLogger::getNewAction` (`model/action/action_logger.cpp`), with no menu on the guest's
+		// stack.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -1037,8 +1040,9 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		instrumentClipView.lastAuditionedYDisplay = 1;
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
-		// `Value::readValueAgain`'s `renderUIsForOled()` (`gui/menu_item/value.h:77-80`): a re-read value is shown on
-		// the shell's next tick, which a pending fact asks for, whatever the legacy drain takes first.
+		// `Value::readValueAgain`'s `renderUIsForOled()` (`origin/main:src/deluge/gui/menu_item/value.h`): a re-read
+		// value is shown on the shell's next tick, which a pending fact asks for, whatever the legacy drain takes
+		// first.
 		expect(deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)).to_be_true();
 		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
 		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))

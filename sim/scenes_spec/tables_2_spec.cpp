@@ -1,8 +1,8 @@
 /// @file
-/// @brief The batch-2 menu tables -- the whole sound-editor root -- checked against the reference rows of upstream
+/// @brief The second menu tables -- the whole sound-editor root -- checked against the reference rows of upstream
 ///        `main`'s menu (`tests/golden/ui/menu_oracle/tables_2.tsv`).
 ///
-/// Batch 2 covers the six sound subtrees (filters, compressor, unison, oscillators, envelopes, LFOs) and the root
+/// These tables cover the six sound subtrees (filters, compressor, unison, oscillators, envelopes, LFOs) and the root
 /// itself with everything else hanging off it: actions, master, arpeggiator, randomizer, FX, sidechain, voice, bend,
 /// the sequence direction and the output-MIDI page. The rows hold what main's items answer on a synth clip and on a kit
 /// row, so the whole transcription is checked against the originals rather than against a second hand-written list:
@@ -18,7 +18,7 @@
 /// plus `validate_tree` over the root (placeholders allowed, see the validation group) and two `MenuScene` renders of
 /// the root list.
 ///
-/// @note The answers are rows of a reference table, not live calls: the spec includes no legacy menu header, and the
+/// @note The answers are rows of a reference table, not live calls: the spec includes no main-menu header, and the
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
@@ -164,8 +164,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -261,7 +261,8 @@ bool raises_reverb(const Node& node) {
 describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	it("declares the sound-editor root with the legacy child count and order", _ {
 		(void)fixture();
-		// `menus.cpp`'s `soundEditorRootMenu` literal lists **27** children; the literal is the authority.
+		// `origin/main:src/deluge/gui/ui/menus.cpp`'s `soundEditorRootMenu` literal lists **27** children; the literal
+		// is the authority.
 		expect(nodes::sound_root.children.size()).to_equal(size_t(27));
 		expect(std::to_string(nodes::sound_root.children.size())).to_equal(table().value("sound", "kids"));
 	});
@@ -404,7 +405,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("carries main's occupied-slot counts and range dependence for every leaf", _ {
-		// The wide batch-2 items, by their sources: `mod_fx::Type` draws the whole four-slot page, and both rhythm items
+		// The wide items, by their sources: `mod_fx::Type` draws the whole four-slot page, and both rhythm items
 		// take two.
 		expect(int(nodes::mod_fx_type.slots)).to_equal(4);
 		expect(int(nodes::arp_rhythm.slots)).to_equal(2);
@@ -671,11 +672,13 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 
 	it("declares the four chain-only arp pages exactly as their legacy base class reads and writes", _ {
-		// `arpOctaveModeToNoteModeMenu` and its three relatives override nothing but
-		// `selectButtonPress` (`octave_mode.h:85-100`, `note_mode.h:70-76`,
-		// `note_mode_for_drums.h:78-84`), so each must be indistinguishable from the page already in
-		// `arpPatternMenu` apart from the chain itself. Comparing against the sibling node -- not
-		// against a copy of the field values -- is what makes this fail if one drifts.
+		// `arpOctaveModeToNoteModeMenu` and its three relatives add only the chain to the reads and writes of their
+		// base classes (`origin/main:src/deluge/gui/menu_item/arpeggiator/octave_mode.h`,
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/note_mode.h` and
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/note_mode_for_drums.h`; only
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/octave_mode.h` overrides `selectButtonPress`), so each must
+		// be indistinguishable from the page already in `arpPatternMenu` apart from the chain itself. Comparing against
+		// the sibling node -- not against a copy of the field values -- is what makes this fail if one drifts.
 		struct Twin {
 			const Node* chained;
 			const Node* plain;
@@ -769,7 +772,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		}
 		// The two `Fixed` items differ ONLY in their baked-in param and source, so a swapped pair would be invisible to
 		// every check above. This is what makes them distinguishable: each item's own `on_focus` installs its pair, and
-		// the two pairs are the ones `menus.cpp` constructs the globals with.
+		// the two pairs are the ones `origin/main:src/deluge/gui/ui/menus.cpp` constructs the globals with.
 		menu::MenuState vib{};
 		nodes::kVibratoItem.on_focus(f.ctx, vib);
 		expect(int(vib.walk.patching_param)).to_equal(int(deluge::modulation::params::LOCAL_PITCH_ADJUST));
@@ -901,15 +904,15 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	});
 
 	it("gives a cable it creates the polarity the page was showing, not the source's default", _ {
-		// The half of legacy's write path that is not the value:
-		// `getModelStack(..., allowCreation = true)` calls `setPatchCablePolarity(polarity_in_the_ui_)`
-		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:223-227`), so a polarity the
-		// user chose *before* the cable existed survives its creation.
+		// The half of legacy's write path that is not the value: `getModelStack(..., allowCreation = true)` calls
+		// `setPatchCablePolarity(polarity_in_the_ui_)` on the `!patch_cable_exists_` arm
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), so a polarity the user chose *before* the
+		// cable existed survives its creation.
 		//
-		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:443`),
-		// so the *default* needs no help -- what would be lost is a chosen one. Hence the sentinel
-		// below: the page is put in the polarity that is NOT the source's default, and the created
-		// cable must come out in it.
+		// `PatchCableSet::getPatchCableIndex` (`origin/main:src/deluge/modulation/patch/patch_cable_set.cpp`) already
+		// gives a new cable `setDefaultPolarity()`, so the *default* needs no help -- what would be lost is a chosen
+		// one. Hence the sentinel below: the page is put in the polarity that is NOT the source's default, and the
+		// created cable must come out in it.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 
@@ -945,7 +948,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// ... and that really is a different answer from the one creation alone would have given.
 		expect(static_cast<int>(chosen)).not_().to_equal(static_cast<int>(fresh));
 
-		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:61-63`).
+		// `on_focus` reads it back off the cable, which is `PatchCableStrength::beginSession`'s own arm
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
 		menu::MenuState reopened{};
 		reopened.walk.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
 		reopened.walk.patch_source = kSource;
@@ -984,7 +988,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 
 	it("gives a cable it creates from a horizontal page's column the source's default polarity", _ {
 		// `getModelStack(..., allowCreation = true)` applies the shown polarity only `!isInHorizontalMenu()`
-		// (`patch_cable_strength.cpp:224`): a column's new cable takes its source's default.
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`): a column's new cable takes its source's
+		// default.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		constexpr PatchSource kSource = PatchSource::LFO_GLOBAL_1;
@@ -1228,7 +1233,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 });
 describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
-		// Every batch-2 `set` hook the rows name is driven for the values they name: each starts from a sentinel that is
+		// Every `set` hook the rows name is driven for the values they name: each starts from a sentinel that is
 		// not the value, so a hook that stores nothing shows; the port's read after its own write is compared with the
 		// frozen read after main's write.
 		//
@@ -1282,10 +1287,11 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("round-trips every param node, and raises the reverb flag on exactly the one that should", _ {
-		// The param half of the coverage above, port-only for the reason that example explains,
-		// plus one more: `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`
-		// (`sidechain/shape.h:6`), so its write must also set
-		// `AudioEngine::mustUpdateReverbParamsBeforeNextRender` (`updating_reverb_params.h:26-29`).
+		// The param half of the coverage above, port-only for the reason that example explains, plus one more:
+		// `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`
+		// (`origin/main:src/deluge/gui/menu_item/sidechain/shape.h`), so its write must also set
+		// `AudioEngine::mustUpdateReverbParamsBeforeNextRender` (`writeCurrentValue` in
+		// `origin/main:src/deluge/gui/menu_item/unpatched_param/updating_reverb_params.h`).
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t exercised = 0;
@@ -1322,7 +1328,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 		expect(exercised).to_equal(size_t(3) * pair_probes);
 		// Exactly one node in this tree edits such a param; the other `UpdatingReverbParams` item,
-		// `sidechain::GlobalVolume` (`sidechain/volume_global.h`), belongs to batch 3's roots.
+		// `sidechain::GlobalVolume` (`origin/main:src/deluge/gui/menu_item/sidechain/volume_global.h`), belongs to
+		// `tables_3_spec.cpp`'s roots.
 		std::set<const Node*> flagged;
 		for (const spec::TreeEntry& p : entries()) {
 			if (raises_reverb(*p.node)) {
@@ -1386,13 +1393,13 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("asks each drum its own allowNoteTails when sweeping the kit-arp toggle", _ {
-		// Legacy's sweep (`include_in_kit_arp.h:33-45`) builds a model stack per
-		// `SoundDrum` and skips the ones that cannot hold a note tail; the port must too, or the two
-		// end up with different `includeInKitArp` across the kit. Made observable by giving drum A
-		// an arpeggiator -- `Sound::allowNoteTails` returns true outright when the arp is on
-		// (`sound.cpp:1922-1925`) -- while drum B keeps its sample setup's answer.
+		// Main's sweep (`IncludeInKitArp::writeCurrentValue` in
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`) builds a model stack per `SoundDrum`
+		// and skips the ones that cannot hold a note tail; the port must too, or the two end up with different
+		// `includeInKitArp` across the kit. Made observable by giving drum A an arpeggiator -- `Sound::allowNoteTails`
+		// returns true outright when the arp is on (`sound.cpp`) -- while drum B keeps its sample setup's answer.
 		KitRig& k = kit_fixture();
-		k.drum_a->arpSettings.mode = ArpMode::ARP; // `sound.cpp:1922-1925` -- arp on, tails allowed
+		k.drum_a->arpSettings.mode = ArpMode::ARP; // `Sound::allowNoteTails` (`sound.cpp`) -- arp on, tails allowed
 		k.drum_b->arpSettings.mode = ArpMode::OFF;
 		k.drum_a->arpSettings.includeInKitArp = false;
 		k.drum_b->arpSettings.includeInKitArp = false;
@@ -1419,7 +1426,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		menu::bindings::write(nodes::arp_include_in_kit_arp, held, 1);
 
 		// Drum A takes the write; drum B, which cannot hold a tail, is left alone -- exactly what
-		// `include_in_kit_arp.h:43-45` does, and what the context-wide test this replaces did not.
+		// `IncludeInKitArp::writeCurrentValue`
+		// (`origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`) does, and what the context-wide
+		// test this replaces did not.
 		expect(k.drum_a->arpSettings.includeInKitArp).to_be_true();
 		expect(k.drum_b->arpSettings.includeInKitArp).to_be_false();
 
@@ -1428,9 +1437,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 	});
 
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
-		// `sequence::Direction::writeCurrentValue`
-		// (`sequence/direction.h:78-90`) writes the *resolved* note row when there is one and the
-		// clip when there is not; `bindings::individual_note_row` resolves the kit row's.
+		// `sequence::Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`) writes
+		// the *resolved* note row when there is one and the clip when there is not; `bindings::individual_note_row`
+		// resolves the kit row's.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		const auto want_clip = static_cast<int32_t>(SequenceDirection::REVERSE);
@@ -1464,7 +1473,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		size_t covered = 0;
 
 		{ // --- synth_mode --------------------------------------------------------------------
-			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as legacy's menu does), so
+			// Ring mod takes two ring-moddable oscillators (the model refuses it otherwise, as main's menu does), so
 			// both sources are saws while the hook is driven.
 			const OscType osc_before[2] = {spec::menu_engine(f.ctx).sound->sources[0].getOscType(), spec::menu_engine(f.ctx).sound->sources[1].getOscType()};
 			spec::menu_engine(f.ctx).sound->sources[0].setOscType(OscType::SAW);
@@ -1492,8 +1501,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			covered++;
 		}
 
-		// The toggle's silencing only fires on a clip that is actually sounding
-		// (legacy `arpeggiator/mode.h`), and `song_fixture.h` never makes its clip the
+		// The toggle's silencing only fires on a clip that is actually sounding (legacy
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`), and `song_fixture.h` never makes its clip the
 		// output's active one -- nothing in the fixture plays. Arranged here, and put back.
 		Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output);
 		OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output) = spec::menu_engine(f.ctx).clip;
@@ -1513,7 +1522,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
 
 			expect(arp->mode).to_equal(ArpMode::ARP);
-			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- false unless
+			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp`) -- false unless
 			// `updatePresetFromCurrentSettings()` ran.
 			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();

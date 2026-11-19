@@ -157,8 +157,8 @@ struct Rig {
 	/// `RenameScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -362,7 +362,7 @@ describe rename_targets("scenes::rename target table", $ {
 	});
 
 	it("carries each subclass's own allowEmpty()", _ {
-		// Only `RenameDrumUI` overrides it (`rename_drum_ui.h:25`).
+		// Only `RenameDrumUI` overrides it (`origin/main:src/deluge/gui/ui/rename/rename_drum_ui.h`).
 		expect(rename::target(TargetId::Clip).allow_empty).to_be_true();
 		expect(rename::target(TargetId::Output).allow_empty).to_be_true();
 		expect(rename::target(TargetId::Drum).allow_empty).to_be_false();
@@ -386,19 +386,19 @@ describe rename_composition("scenes::rename::RenameScene composition", $ {
 		    .to_equal(static_cast<int>(SceneKind::FirstApp) + 1);
 
 		const deluge::ui::shell::Scene& s = rename_scene();
-		// `RenameUI`'s constructor sets `oledShowsUIUnderneath = true` (`rename_ui.cpp:29`).
+		// `RenameUI`'s constructor sets `oledShowsUIUnderneath = true` (`rename_ui.cpp`).
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
 		expect(s.input_transparent()).to_be_false();
-		// `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp:58-61`): `*cols = 0b11`.
+		// `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp`): `*cols = 0b11`.
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
 
 	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
-		// `QwertyUI::drawKeys` clears and draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`);
-		// `RenameUI::getGreyoutColsAndRows` greys the two sidebar columns (`rename/rename_ui.cpp:63-66`).
+		// `QwertyUI::drawKeys` clears and draws the main pads only (`gui/ui/qwerty_ui.cpp`);
+		// `RenameUI::getGreyoutColsAndRows` greys the two sidebar columns (`rename/rename_ui.cpp`).
 		const deluge::ui::shell::Scene& s = rename_scene();
 		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b11});
@@ -500,7 +500,7 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 
 	it("the window's frame covers main's rows, its top edge included", _ {
 		// `RenameUI::renderOLED` draws `drawRectangle(4, 4, 124, 44)` on the 48-row panel: inclusive corners,
-		// 121 x 41 pixels (`rename_ui.cpp:65-74`).
+		// 121 x 41 pixels (`rename_ui.cpp`).
 		select_language();
 		spec::SongFixture f = spec::make_synth_song();
 		rename_scene().open(context_of(f));
@@ -571,7 +571,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.clock = 10;
 
 		r.type(std::string_view{"KICK"});
-		// `qwerty_ui.cpp:334-343`: a letter following another letter is lowercased.
+		// `QwertyUI::padAction` (`qwerty_ui.cpp`): a letter following another letter is lowercased.
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Kick"});
 
 		const Result done = commit(rename_scene());
@@ -651,12 +651,12 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(0);
 		r.clock = 10;
 
-		// `qwerty_ui.cpp:305-317` -- `charCaseEqual`, so the case of the typed key does not matter.
+		// `QwertyUI::padAction` (`qwerty_ui.cpp`) -- `charCaseEqual`, so the case of the typed key does not matter.
 		r.type('S');
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 		expect(rename_scene().cursor()).to_equal(1);
 
-		// A character that does NOT match truncates the tail and appends (`:350-353`).
+		// A character that does NOT match truncates the tail and appends (`QwertyUI::padAction`'s new-character arm).
 		r.type('T');
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"St"});
 		expect(rename_scene().cursor()).to_equal(2);
@@ -670,7 +670,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(0);
 		r.clock = 10;
 
-		// `qwerty_ui.cpp:273-280`: "First character must be alphanumerical".
+		// `QwertyUI::padAction` (`qwerty_ui.cpp`): "First character must be alphanumerical".
 		r.type('.');
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{""});
 		r.type(' ');
@@ -814,7 +814,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs); // one repeat
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
-		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp:223-228`); here the hold is a
+		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp`); here the hold is a
 		// level, so letting go simply stops `held_index` naming the key.
 		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
 		r.tick(1600);
@@ -834,7 +834,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(0);
 
 		// Legacy arms `UI_MODE_HOLDING_BACKSPACE` from the backspace arm only
-		// (`QwertyUI::padAction`); the "normal keys" arm at `:254` arms no timer at all.
+		// (`QwertyUI::padAction`); the "normal keys" arm arms no timer at all.
 		r.press('A', 1000);
 		r.tick(1000);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
@@ -886,10 +886,10 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
 
-		// `setupBlink(..., shouldBlinkImmediately = true)` (`qwerty_ui.cpp:153`): the bar is lit on
-		// the frame the editor opens, and `kFlashTime` (110 ms) later it is dark.
-		// The cursor starts at 0 -- mid-string -- where `text_edit` draws the inversion instead and
-		// there is nothing to flash, so nothing to wake for.
+		// `setupBlink(..., shouldBlinkImmediately = true)` (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`): the
+		// bar is lit on the frame the editor opens, and `kFlashTime` (110 ms) later it is dark. The cursor starts at 0
+		// -- mid-string -- where `text_edit` draws the inversion instead and there is nothing to flash, so nothing to
+		// wake for.
 		expect(rename_scene().next_timer().has_value()).to_be_false();
 
 		// Walk it to the end: now the bar exists, and the scene asks for the flip.
@@ -1182,7 +1182,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 
 		// `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
 		// and the editor comes back -- legacy's `focusRegained` -> `beginScreen` -> `beginSession`
-		// (`sound_editor.cpp:330,1053`), which `EditName` answers by opening `RenameUI`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which `EditName` answers by opening `RenameUI`
 		// unconditionally. Restoring the user's place means restoring the editor they were in.
 		menu_scene().restore_state(saved);
 		expect(menu_scene().focused()).to_equal(&nodes::drum_name_edit);

@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The ported menu opened over a chosen legacy root UI through the real shortcut entry, and the legacy Shift
+/// @brief The menu opened over a chosen legacy root UI through the real shortcut entry, and the legacy Shift
 ///        state the examples that do so hold for their length.
 ///
 /// Shared by `pad_forward_spec.cpp` and `automation_retarget_spec.cpp`. Pair each with `GlobalGuestGuard` and
@@ -39,7 +39,7 @@ struct ShiftHeld {
 	ShiftHeld& operator=(const ShiftHeld&) = delete;
 };
 
-/// @brief Open the ported menu over @p root at the sound shortcut (@p x, @p y) -- the page that lists the shortcut's
+/// @brief Open the menu over @p root at the sound shortcut (@p x, @p y) -- the page that lists the shortcut's
 ///        param, focused on it, as `SoundEditor::setup` lands one.
 ///
 /// The application's node numbering is put back first: `open_menu_on_global_guest` numbers `root_song` alone, and the

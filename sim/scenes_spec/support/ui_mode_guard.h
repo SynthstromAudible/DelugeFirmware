@@ -3,7 +3,7 @@
 /// @file
 /// @brief `currentUIMode` cleared for a spec example and put back however the example ends.
 ///
-/// Legacy's UI mode is a process-wide word that the ported menu's close now ends (`ShellHostUI::closeGuest`), so an
+/// Legacy's UI mode is a process-wide word that the menu's close ends (`ShellHostUI::closeGuest`), so an
 /// example that asserts on it, or that opens the menu over a mode, holds this guard to start from `UI_MODE_NONE` and
 /// leave the next example the value it found.
 

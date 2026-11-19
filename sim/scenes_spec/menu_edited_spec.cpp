@@ -1,5 +1,5 @@
 /// @file
-/// @brief The instrument the ported menu edits counts as edited by the user, as `SoundEditor::selectEncoderAction`
+/// @brief The instrument the menu edits counts as edited by the user, as `SoundEditor::selectEncoderAction`
 ///        marks it: after a select turn on an item that edits the instrument
 ///        (`MenuItem::selectEncoderActionEditsInstrument`), when there is a sound to edit, never in the settings menu.
 ///

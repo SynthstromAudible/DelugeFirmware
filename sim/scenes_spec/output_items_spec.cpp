@@ -284,12 +284,13 @@ std::vector<Wiring> observed_wiring() {
 /// @brief What each node must carry, derived from the legacy class each item ports.
 std::vector<Wiring> expected_wiring() {
 	return {
-	    // `midi::device_definition::Linked::writeCurrentValue`'s ON arm is
-	    // `openUI(&loadMidiDeviceDefinitionUI)` (`midi/device_definition/linked.h:42`), which is
+	    // `midi::device_definition::Linked::writeCurrentValue`'s ON arm is `openUI(&loadMidiDeviceDefinitionUI)`
+	    // (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`), which is
 	    // `browser::BrowserId::MidiDeviceDefinition` == 1 (`browser::BrowserId`).
 	    {"midi_device_linked", 0, 1},
-	    // `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h`)
-	    // opens nothing at all -- it is a page, so it carries no browser id.
+	    // `audio_clip::SpecificSourceOutputSelector`
+	    // (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) opens nothing at all --
+	    // it is a page, so it carries no browser id.
 	    {"specific_output_selector", 1, -1},
 	};
 }
@@ -506,11 +507,12 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 	});
 
 	it("draws the checkbox its parent's row wants, not the CustomItem default arrow", _ {
-		// `Linked::renderSubmenuItemTypeForOled` (`linked.h:56-78`) is one of the three overrides of
+		// `Linked::renderSubmenuItemTypeForOled`
+		// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) is one of the three overrides of
 		// legacy's base blit, so this row is a checkbox in both states -- never the submenu arrow
-		// `CustomItem::row_icon` defaults to (`scenes/menu/node.h`). Both icons are named, so a
-		// port that returned one constant could not pass, and the arrow is named too, so a port
-		// that fell back to the default could not either.
+		// `CustomItem::row_icon` defaults to (`scenes/menu/node.h`). Both icons are named, so a port that returned one
+		// constant could not pass, and the arrow is named too, so a port that fell back to the default could not
+		// either.
 		MidiRig rig;
 
 		rig.instrument()->deviceDefinitionFileName.clear();
@@ -556,9 +558,9 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 
 	it("says nothing is linked when the output is not a MIDI instrument", _ {
 		// Legacy's `readCurrentValue` casts `getCurrentOutput()` unguarded and is safe only because
-		// `isRelevant` (`linked.h:51-54`) refused first -- which is `relevance::is_midi_out` on the
-		// node. The port answers false rather than reading through the wrong type, and the predicate
-		// that keeps it off screen is checked here too.
+		// `Linked::isRelevant` (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`) refused first
+		// -- which is `relevance::is_midi_out` on the node. The port answers false rather than reading through the
+		// wrong type, and the predicate that keeps it off screen is checked here too.
 		ClipRig rig;
 		expect(nodes::MidiDeviceLinkedItem::linked(rig.ctx())).to_be_false();
 		expect(menu::relevance::is_midi_out(rig.ctx())).to_be_false();
@@ -640,7 +642,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		// `enter_leaf` -> `on_focus` then replayed the *press*, and on the linked arm cleared the
 		// definition file the browser had just loaded, with no user action. Legacy cannot: its
 		// `beginSession` does not toggle, and `Toggle::selectButtonPress` guards this exact case
-		// (`gui/menu_item/toggle.h:35-37`).
+		// (`origin/main:src/deluge/gui/menu_item/toggle.h`).
 		CleanScenes clean;
 		spec::QuietAudio quiet;
 		ScratchCard card;
@@ -704,14 +706,15 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		Rig r;
 		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
 
-		// `Linked::writeCurrentValue`'s OFF arm (`linked.h:45-48`).
+		// `Linked::writeCurrentValue`'s OFF arm
+		// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`).
 		expect(rig.instrument()->deviceDefinitionFileName.empty()).to_be_true();
 		// And no browser: this arm opens no UI at all.
 		r.step();
 		r.step();
 		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
-		// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`toggle.h:42`) -- the user is left on
-		// the parent list, which the port reaches by descending for one render and ascending out.
+		// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`origin/main:src/deluge/gui/menu_item/toggle.h`) -- the
+		// user is left on the parent list, which the port reaches by descending for one render and ascending out.
 		expect(menu_scene().focused()).to_equal(&nodes::midi_device_definition);
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
 	});
@@ -835,10 +838,10 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 	});
 
 	it("draws what SpecificSourceOutputSelector::drawPixelsForOled draws", _ {
-		// The pixel oracle, and it is what pins the layout: legacy's rows are
-		// `OLED_MAIN_TOPMOST_PIXEL + 14` and `+ 28` (`:82`, `:92`), and the port's frame origin
-		// already carries `OLED_MAIN_TOPMOST_PIXEL` (5, `src/board_config.h:64`), so a port drawing
-		// at `ui::oled::output_name`'s rows (12 and 30) would fail here.
+		// The pixel oracle, and it is what pins the layout: legacy's rows are `OLED_MAIN_TOPMOST_PIXEL + 14` and `+ 28`
+		// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`), and the port's frame
+		// origin already carries `OLED_MAIN_TOPMOST_PIXEL` (5, `src/board_config.h`), so a port drawing at
+		// `ui::oled::output_name`'s rows (12 and 30) would fail here.
 		ClipRig rig;
 		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 
@@ -854,8 +857,8 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 	});
 
 	it("draws the same empty page when nothing can be recorded from", _ {
-		// A song with only the audio track in it: `canRecordFrom` refuses `this`, so there is no
-		// valid target at all and both sides take the "No track" arm (`:64-67`) -- a different
+		// A song with only the audio track in it: `canRecordFrom` refuses `this`, so there is no valid target at all
+		// and both sides take the "No track" arm of `SpecificSourceOutputSelector::drawPixelsForOled` -- a different
 		// branch of the renderer from the example above.
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		f.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);

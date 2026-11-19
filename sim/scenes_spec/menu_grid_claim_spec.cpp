@@ -2,10 +2,10 @@
 /// @brief `deluge::ui::shell::Scene::grid_pad_claim` and `MenuScene`'s override of it -- the
 ///        declaration and its answers.
 ///
-/// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and
-/// `None` on a settings root -- the port of `SoundEditor::padAction`'s gate at
-/// `gui/ui/sound_editor.cpp` (`SoundEditor::padAction`) -- and that a scene which never overrides the virtual (the
-/// context menu, stood in for every scene that does not override it) answers the safe default, `All`.
+/// What this pins: that `MenuScene::grid_pad_claim()` answers `ShortcutsOnly` on a sound root and `None` on a settings
+/// root -- the port of `SoundEditor::padAction`'s gate at `origin/main:src/deluge/gui/ui/sound_editor.cpp`
+/// (`SoundEditor::padAction`) -- and that a scene which never overrides the virtual (the context menu, stood in for
+/// every scene that does not override it) answers the safe default, `All`.
 ///
 /// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
 /// path, no `ShellHostUI::claimsGridPad`, and no grid-pad test through a `Shell` -- those are later

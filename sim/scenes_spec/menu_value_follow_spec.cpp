@@ -1,6 +1,6 @@
 /// @file
-/// @brief The ported menu's open value follows a change made behind it: `View::displayAutomation`, the callback of
-///        `TimerName::DISPLAY_AUTOMATION` outside the automation editor, re-reads the menu as it re-reads legacy's
+/// @brief The menu's open value follows a change made behind it: `View::displayAutomation`, the callback of
+///        `TimerName::DISPLAY_AUTOMATION` outside the automation editor, re-reads the menu as it re-reads main's
 ///        item after a gold-knob turn, a learned or followed MIDI CC or automation playback.
 ///
 /// Each example writes the param with the edit a gold knob makes (`edits::SetParamValue`, which

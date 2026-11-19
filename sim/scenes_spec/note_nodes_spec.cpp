@@ -381,11 +381,12 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 	});
 
 	it("returns false for every step with a bridge installed but nothing selected, both families", _ {
-		// Legacy's own no-note (`note/iterance_step_toggle.h:79`) / no-row
-		// (`note_row/iterance_step_toggle.h:109`) arm: a bridge that answers "nothing selected"
-		// must report every step not relevant, not just index 0's "OFF, divisor 0" case (fix
-		// round 1, important 2b -- before this fix, index 0 read as relevant here because a raw
-		// iterance of 0 is indistinguishable, on its own, from "no note"/"no row").
+		// Main's own no-note (`note::IteranceStepToggle::isRelevant` in
+		// `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) / no-row
+		// (`note_row::IteranceStepToggle::isRelevant` in
+		// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`) arm: a bridge that answers "nothing
+		// selected" must report every step not relevant, not just index 0's "OFF, divisor 0" case (a raw iterance of 0
+		// is indistinguishable, on its own, from "no note"/"no row", so index 0 would read as relevant).
 		FakeNoteBridgeGuard guard;
 		guard.fake.note_selected_value = false;
 		guard.fake.row_auditioning_value = false;

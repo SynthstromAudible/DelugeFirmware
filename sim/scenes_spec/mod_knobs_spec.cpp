@@ -15,16 +15,17 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp`,
-///     `:885`). `PerformanceScene` does not exist and the song browser is not among the legacy UIs
-///     `BrowserScene` carries, so there is no port-side state that could make either fire. See
+///   * **The popup's performance-view and song-browser suppression arms** (`View::modEncoderAction_existentParam` in
+///     `origin/main:src/deluge/gui/views/view.cpp`). `PerformanceScene` does not exist and the song browser is not
+///     among the legacy UIs `BrowserScene` carries, so there is no port-side state that could make either fire. See
 ///     `GuestKnobPresentation::suppress_value_popup`.
 ///   * **`PopupContext::stuttering` true**: no example plays a stutter while a knob turns.
-///   * **`PopupContext::midi_clip`, the MIDI-clip CC/expression naming arm** (`view.cpp`): no example
-///     compares its text with legacy's. The filter-aware naming half of the context IS driven, below.
+///   * **`PopupContext::midi_clip`, the MIDI-clip CC/expression naming arm** (`View::displayModEncoderValuePopup` in
+///     `views/view.cpp`): no example compares its text with legacy's. The filter-aware naming half of the context IS
+///     driven, below.
 ///   * **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer.** Legacy's
 ///     timer callback is `automationView.displayAutomation()` / `view.displayAutomation()`
-///     (`gui/ui_timer_manager.cpp:158-170`), both view-side and not ported; only the *arming* is
+///     (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`), both view-side and not ported; only the *arming* is
 ///     compared here.
 
 #include "board_controls.hpp"
@@ -139,7 +140,7 @@ namespace {
 using ShellAction = deluge::ui::shell::Action;
 
 /// @brief The minimum `Display` legacy's popup needs; `display` is null in a spec process
-///        (`hid/display/display.cpp:4`) and `View::displayModEncoderValuePopup` dereferences it.
+///        (`hid/display/display.cpp`) and `View::displayModEncoderValuePopup` dereferences it.
 ///
 /// The popup's *pixels* are `param_popup_spec.cpp`'s subject, driven against the real
 /// `OLED::displayNotification`; what this records is the one thing that spec cannot reach, the
@@ -171,8 +172,8 @@ struct StubDisplay final : deluge::hid::Display {
 	}
 };
 
-/// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe
-///        (`song_fixture.h`, `song.cpp:370-395`'s `couldntLoad` branch), applied again.
+/// @brief A second (or third) default synth clip in @p song -- `make_synth_song`'s own recipe (`song_fixture.h`,
+///        `Song::ensureAtLeastOneSessionClip`'s `couldntLoad` branch in `song/song.cpp`), applied again.
 ///
 /// The two-clip shape is the point: legacy and the port each get a clip of their own, so neither
 /// can read the other's model.
@@ -271,8 +272,8 @@ void seed_params(ParamManager& pm, int32_t value) {
 /// @brief The host BSP's shadow of the knob indicator columns.
 ///
 /// `indicator_leds::clearKnobIndicatorLevels` is the one legacy writer left that the "clears both columns" example
-/// drives, and in the host BSP its sink keeps a shadow of what it was last handed (`src/bsp/host/host_bsp.c`,
-/// written by `deluge_control_set_indicator`).
+/// drives, and in the host BSP its sink keeps a shadow of what it was last handed (`record_ring` in
+/// `peripherals/ui_harness.rs`, called from `deluge_control_set_indicator` in `peripherals/control.rs`).
 ///
 /// Declared rather than included: `host_script.h` lives under `src/bsp/host`, which is on this target's link line but
 /// not on its include path, and an `extern "C"` line is cheaper -- and more explicit about the dependency -- than
@@ -316,7 +317,7 @@ std::optional<ModLed> port_mod_led(const deluge::ui::LedFrame& frame, int32_t i)
 			return ModLed{true, false};
 		case deluge::ui::LedState::Kind::Blink:
 		case deluge::ui::LedState::Kind::Shared:
-			// `blinkLed`'s default `initialState` is true (`indicator_leds.h:86`), and
+			// `blinkLed`'s default `initialState` is true (`indicator_leds.h`), and
 			// `shell/leds.h`'s `led_is_on` reads phase 0 of a blink as lit too, so a freshly
 			// declared blink is lit.
 			return ModLed{true, true};
@@ -436,13 +437,13 @@ struct RouteRig {
 	}
 };
 
-// ---------------------------------------------------------------------------------------------
-// A one-column horizontal page bound to `LOCAL_LPF_RESONANCE` -- `modKnobs[1][0]`'s param
-// (`processing/sound/sound.cpp:98`), which is what `GoldLower` actually edits on the
-// `SoundInstrument` `spec::make_synth_song()` builds: measured (not assumed) against the fixture's
-// own default mod-knob mode, which is 1 (the FILTER page), not 0. Built to test
-// `ModKnobs::popup_suppressed`'s horizontal-page forwarding: the menu's own
-// focused *column*, not the page node, is what the same-param guard has to compare against.
+// --------------------------------------------------------------------------------------------- A one-column horizontal
+// page bound to `LOCAL_LPF_RESONANCE` -- `modKnobs[1][0]`'s param (`Sound::Sound` in
+// `origin/main:src/deluge/processing/sound/sound.cpp`), which is what `GoldLower` actually edits on the
+// `SoundInstrument` `spec::make_synth_song()` builds: measured (not assumed) against the fixture's own default mod-knob
+// mode, which is 1 (the FILTER page), not 0. Built to test `GuestKnobPresentation::suppress_value_popup`'s
+// horizontal-page forwarding: the menu's own focused *column*, not the page node, is what the same-param guard has to
+// compare against.
 namespace mod_knobs_spec_nodes {
 inline constexpr deluge::scenes::menu::Node res_col = deluge::scenes::menu::param(
     static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
@@ -456,7 +457,7 @@ inline constexpr const deluge::scenes::menu::Node* kRoots[] = {&res_page};
 
 /// @brief A live `ModKnobs` over a real (empty) scene stack and a real `InputLowering`.
 /// @brief The knobs' focus on @p counter's active mod controllable, resolved as legacy's
-///        `View::setActiveModControllableTimelineCounter` resolves it (`view.cpp`), over a stack of its own.
+///        `View::setActiveModControllableTimelineCounter` resolves it (`views/view.cpp`), over a stack of its own.
 deluge::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	if (counter != nullptr) {
@@ -628,7 +629,7 @@ void report_indicators(const std::vector<std::string>& found) {
 describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	// Legacy's param naming resolves l10n strings, and nothing here boots the app, so
-	// `l10n::chosenLanguage` is otherwise left null (`gui/l10n/l10n.cpp:6`) and
+	// `l10n::chosenLanguage` is otherwise left null (`gui/l10n/l10n.cpp`) and
 	// `getParamDisplayName` dereferences it -- the same `before_all` every other spec in this
 	// directory needs, for the same reason.
 	before_all([] { deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english; });
@@ -1636,7 +1637,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.focus().region.pos).to_equal(view.modPos());
 		expect(rig.knobs.focus().region.length).to_equal(view.modLength());
 
-		// And the defaulted call is legacy's defaulted call (`view.h:81`).
+		// And the defaulted call is legacy's defaulted call (`views/view.h`).
 		view.setModRegion();
 		rig.knobs.set_mod_region();
 		expect(rig.knobs.focus().region.pos).to_equal(view.modPos());
@@ -1808,10 +1809,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
 	   _ {
-		// `ModKnobs::popup_suppressed` compares against
+		// `GuestKnobPresentation::suppress_value_popup` compares against
 		// `MenuScene::focused_value()`, not `focused()`: legacy's same-param test forwards through a
 		// horizontal page to the focused *column* (`Submenu::getParamKind`/`getParamIndex`,
-		// `gui/menu_item/submenu.cpp:205-219`, both gated on `shouldForwardButtons`),
+		// `origin/main:src/deluge/gui/menu_item/submenu.cpp`, both gated on `shouldForwardButtons`),
 		// and the page node itself has no `bind.param` to ever match against -- so comparing against
 		// `focused()` could never suppress on a horizontal page, only on a full-page leaf. `GoldLower`
 		// edits `LOCAL_LPF_RESONANCE` on this fixture (see
@@ -1852,8 +1853,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// action the panel keeps the value it had when the popup opened, and the next OLED frame is
 		// the one that draws the popup disappearing. A gold knob turned slowly showed a stale value
 		// for two seconds; the *fast* path did not, because the throttled arm arms
-		// `pending_flush_remaining_ms_` and `timer_repaints()` names `{.oled = true}`. So it was the
-		// immediate-commit arm alone.
+		// `pending_flush_remaining_ms_` and `timer_repaints()` names `{.oled = true}`. So only the
+		// immediate-commit arm lacked it.
 		StubDisplay stub;
 		display = &stub;
 
@@ -1921,7 +1922,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		// A ladder LPF is what makes the rename fire; an SVF or a filter that is off keeps the
-		// default name (`param.cpp:365-372`'s own comment).
+		// default name (`getParamDisplayName`'s own comment in `modulation/params/param.cpp`).
 		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
 		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
@@ -2024,7 +2025,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		}
 
 		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
-		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5548-5555`);
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song/song.cpp`);
 		//    without it the song resolves nothing and this shape would collapse into shape 1.
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
@@ -2352,12 +2353,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
-		// `View::setModLedStates` -- the one row of the table that is not "on iff selected", and the
-		// only reason the VU meter is ported at all. It needs three things at once: the song
-		// context, mod button 0 selected, and the meter on. `mod_button_action` toggles the meter -- pressing the
-		// already-selected button 0 outside a clip minder (`:1517-1523`) -- so this drives the toggle as well as the
-		// LED it feeds. The recorded values are `View::modButtonAction`'s and `View::setModLedStates`'s on the same
-		// presses.
+		// `View::setModLedStates` -- the one row of the table that is not "on iff selected", and the only reason the VU
+		// meter is ported at all. It needs three things at once: the song context, mod button 0 selected, and the meter
+		// on. `mod_button_action` toggles the meter -- pressing the already-selected button 0 outside a clip minder
+		// (`View::modButtonAction`, `origin/main:src/deluge/gui/views/view.cpp`) -- so this drives the toggle as well
+		// as the LED it feeds. The recorded values are `View::modButtonAction`'s and `View::setModLedStates`'s on the
+		// same presses.
 		StubDisplay stub;
 		display = &stub;
 
@@ -2365,7 +2366,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// (`project.mod_knob_mode`).
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = pf.song;
-		pf.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5548-5555`)
+		pf.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`Song::getActiveModControllable` in `song/song.cpp`)
 
 		KnobRig rig;
 		rig.set_song(pf.song);
@@ -2432,12 +2433,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
-		// `View::setModLedStates` and `View::modButtonAction` in `view.cpp`. Legacy's condition is
-		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
-		// process can produce -- there is no root UI here at all -- so this arm is driven through
-		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
-		// table whose legacy side is asserted from the source rather than from a live comparison.
-		// Named here rather than left implicit.
+		// `View::setModLedStates` (`views/view.cpp`) and `View::modButtonAction`
+		// (`origin/main:src/deluge/gui/views/view.cpp`). Legacy's condition is
+		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec process can produce
+		// -- there is no root UI here at all -- so this arm is driven through the injected `ViewState` the port carries
+		// in its place, and it is the ONE row of the table whose legacy side is asserted from the source rather than
+		// from a live comparison. Named here rather than left implicit.
 		StubDisplay stub;
 		display = &stub;
 
@@ -2467,16 +2468,17 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			for (int32_t i = 0; i < 8; i++) {
 				expect(port_mod_led(frame, i).value()).to_equal(ModLed{false, false});
 			}
-			// `:1386-1387`'s early return: legacy leaves both columns exactly as they were, which here
-			// is "declares nothing".
+			// `View::setKnobIndicatorLevels`'s early return (`views/view.cpp`): legacy leaves both columns exactly as
+			// they were, which here is "declares nothing".
 			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
 			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
 		}
 
-		// `:1501-1505` -- and the mod button itself is ignored, so the mode does not move.
+		// `View::modButtonAction` ignores the mod button in the automation editor -- and the mod button itself is
+		// ignored, so the mode does not move.
 		rig.knobs.mod_button_action(5, true);
 		expect(rig.knobs.mode()).to_equal(3);
-		// ...except mod button 0 on arranger automation view (`:1503`).
+		// ...except mod button 0 on arranger automation view (`View::modButtonAction`).
 		state.automation_on_arranger = true;
 		rig.knobs.set_view_state(state);
 		rig.knobs.mod_button_action(0, true);
@@ -2617,8 +2619,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("clears both indicator columns when the knobs point at nothing, as clearKnobIndicatorLevels does", _ {
-		// `view.cpp`. `indicator_leds::clearKnobIndicatorLevels`
-		// (`hid/led/indicator_leds.cpp:318-322`) is `setKnobIndicatorLevel(i, 0)` for both, so the
+		// `View::setKnobIndicatorLevels` (`views/view.cpp`). `indicator_leds::clearKnobIndicatorLevels`
+		// (`hid/led/indicator_leds.cpp`) is `setKnobIndicatorLevel(i, 0)` for both, so the
 		// legacy side is driven through exactly that and read back from the same shadow.
 		KnobRig rig;
 		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
@@ -2642,9 +2644,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
-		// `view.cpp`. The mod LEDs are unaffected -- that block is below the early return
-		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
-		// of `leds()` are gated separately.
+		// `View::setKnobIndicatorLevels` (`views/view.cpp`). The mod LEDs are unaffected -- that block is below the
+		// early return in legacy and outside `declare_indicators` here -- so this also pins that the two halves of
+		// `leds()` are gated separately.
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		KnobRig rig;
@@ -2661,10 +2663,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
-		// `view.cpp` and its two helpers. The push arrives as an `EncoderButton` event,
-		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
-		// (`InputLowering::on_button`) -- and which the router routes here, after
-		// the scene (`tests/unit/shell/router_spec.cpp`).
+		// `View::modEncoderButtonAction` and its two helpers (`origin/main:src/deluge/gui/views/view.cpp`). The push
+		// arrives as an `EncoderButton` event, which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
+		// (`InputLowering::on_button`) -- and which the router routes here, after the scene
+		// (`tests/unit/shell/router_spec.cpp`).
 		StubDisplay stub;
 		display = &stub;
 		spec::SongFixture f = spec::make_synth_song();
@@ -2682,14 +2684,15 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		push.on = true;
 
 		// Claimed unconditionally: legacy's tail always reaches `dealtWith`
-		// (`hid/buttons.cpp:225-232`).
+		// (`buttonAction` in `hid/buttons.cpp`).
 		DirectCtx plain{0};
 		const Result r = rig.knobs.handle(push, plain.ctx);
 		expect(r.handled).to_be_true();
 		expect(r.actions.size()).to_equal(size_t(0)); // no shift: no "automation deleted" popup
 
-		// Shift + push deletes the param's automation and raises the popup legacy raises at
-		// `:1359`: there is a param to delete on this fixture, so the action must be there.
+		// Shift + push deletes the param's automation and raises the popup main's
+		// `View::modEncoderButtonAction_deleteAutomation` raises: there is a param to delete on this fixture, so the
+		// action must be there.
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};
 			deluge::ui::PadMask pads{};
@@ -2703,7 +2706,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(deleted.actions[0].popup_string)
 		    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
-		// LEARN held: legacy returns immediately (`:1336-1338`) and still counts as dealt with.
+		// LEARN held: `View::modEncoderButtonAction` returns immediately and still counts as dealt with.
 		struct LearnCtx {
 			deluge::ui::shell::ButtonSet held = learn_held();
 			deluge::ui::PadMask pads{};
@@ -2737,7 +2740,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.automation_display_pending()).to_be_false();
 		expect(rig.knobs.next_timer().has_value()).to_be_false();
 
-		// The one they are pointed at arms both, 25ms out (`:1699`, `:1708`).
+		// The one they are pointed at arms both, 25ms out (`View::notifyParamAutomationOccurred` in `views/view.cpp`).
 		const deluge::project::ParamAddress ours = *deluge::scenes::bind::knob_owner(rig.knobs.focus());
 		rig.knobs.notify_param_automation_occurred(ours, false);
 		expect(rig.knobs.automation_display_pending()).to_be_true();
@@ -2745,7 +2748,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.next_timer().value()).to_equal(uint32_t(25));
 
 		// A second call inside the window does not re-arm, but does upgrade the payload
-		// (`:1702-1706`).
+		// (`View::notifyParamAutomationOccurred`).
 		rig.knobs.tick(5010, 10);
 		rig.knobs.notify_param_automation_occurred(ours, true);
 		expect(rig.knobs.automation_updates_mod_levels()).to_be_true();

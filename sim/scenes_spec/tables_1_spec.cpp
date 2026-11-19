@@ -1,8 +1,8 @@
 /// @file
-/// @brief The batch-1 menu tables, checked against the reference rows of upstream `main`'s menu
+/// @brief The first menu tables (`tables_1.tsv`), checked against the reference rows of upstream `main`'s menu
 ///        (`tests/golden/ui/menu_oracle/tables_1.tsv`).
 ///
-/// The six subtrees the retired Python generator produced are `constexpr Node` literals
+/// The six subtrees are `constexpr Node` literals
 /// (`src/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
 /// transcription is checked against the original rather than against a second hand-written list:
 ///
@@ -17,7 +17,7 @@
 ///
 /// plus `validate_tree` over the seventeen roots, and one `MenuScene` render of the LPF page.
 ///
-/// @note The answers are rows of a reference table, not live calls: the spec includes no legacy menu header, and the
+/// @note The answers are rows of a reference table, not live calls: the spec includes no main-menu header, and the
 ///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
@@ -147,8 +147,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -395,7 +395,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 
 	it("carries main's occupied-slot counts for every leaf", _ {
 		(void)fixture();
-		// The wide batch-1 items, by their sources: `FilterRouting` draws the whole four-slot page and the audio
+		// The wide items, by their sources: `FilterRouting` draws the whole four-slot page and the audio
 		// recorder takes two.
 		expect(int(nodes::kSoundFiltersChildren[0]->children[2]->slots)).to_equal(4);
 		expect(int(nodes::kSoundOscChildren[0]->children[0]->slots)).to_equal(2);
@@ -440,7 +440,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		// Only the shortcut sweep is stood down, and only because this is a *subtree*: the rule is
-		// quantified over every root's table, so pointed at batch 1 it would report every cell in
+		// quantified over every root's table, so pointed at these roots it would report every cell in
 		// every other root's (`validate.h`'s `skip_shortcut_sweep`). Nothing else is: no
 		// placeholder option is passed: every node in the tree has a real item.
 		const auto issues =
@@ -465,10 +465,10 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 	it("reports no placeholder at all any more, even when strict", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		// The batch-1 tree is clean under the default (strict) options: both file selectors, the
+		// This tree is clean under the default (strict) options: both file selectors, the
 		// four sample loop points and both audio recorders have real items (`nodes/sample.h`).
 		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and this
-		// is the same claim `output_items_spec.cpp` makes over `kAllRoots`, made here over batch 1.
+		// is the same claim `output_items_spec.cpp` makes over `kAllRoots`, made here over `kBatch1Roots`.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeSpecificNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
@@ -510,8 +510,8 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 
 describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
-		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this drives the `set`
-		// hooks. Every batch-1 hook is driven here for the three values spanning the node's range: each write starts
+		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this drives the `set` hooks.
+		// Every hook of these tables is driven here for the three values spanning the node's range: each write starts
 		// from a sentinel that is not the value, so a hook that stores nothing shows, and the port's read after its own
 		// write is compared with the frozen read after main's.
 		//
@@ -549,7 +549,7 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 			}
 			expect(table().columns(e.path, "write/").size()).to_equal(spec::distinct_probe_values(r).size());
 		}
-		// Every batch-1 node with a `set` hook is driven -- no exceptions in this batch.
+		// Every node of these tables with a `set` hook is driven -- no exceptions.
 		expect(covered.size()).to_equal(with_hook.size());
 		for (const Node* n : with_hook) {
 			expect(covered.contains(n)).to_be_true();
@@ -613,12 +613,12 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 
 		// The span has to be the whole `range_specific` set, because any one of them can be what
 		// `permission_for` refused. Asserted against `nodes::kRangeSpecificNodes` itself so the two
-		// lists cannot drift (`multi_range.h` says why it is spelled twice).
+		// lists cannot drift (`nodes/multi_range.h` says why it is spelled twice).
 		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeSpecificNodes.size());
 		for (const Node* n : nodes::kRangeSpecificNodes) {
 			expect(nodes::kMultiRangeChain).to_contain(n);
 		}
-		// And the picker itself is NOT range-specific -- see `multi_range.h`: it would recurse.
+		// And the picker itself is NOT range-specific -- see `nodes/multi_range.h`: it would recurse.
 		expect(nodes::multi_range.range_specific).to_be_false();
 	});
 
@@ -840,7 +840,8 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(static_cast<int32_t>(state.walk.range_choice)).to_equal(1);
 		display->cancelPopup();
 
-		// `selectEncoderAction` is refused whole while a popup is up (`:71-73`): the turn moves no cursor.
+		// `selectEncoderAction` is refused whole while a popup is up (`MultiRange::selectEncoderAction` in
+		// `origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the turn moves no cursor.
 		menu::MenuState picker{};
 		picker.list[0].cursor = 0;
 		{

@@ -1,5 +1,5 @@
 /// @file
-/// @brief `SoundEditor`'s UI-mode arms under the ported menu: the keyboard's horizontal turn while one of its notes is
+/// @brief `SoundEditor`'s UI-mode arms under the menu: the keyboard's horizontal turn while one of its notes is
 ///        held (`SoundEditor::horizontalEncoderAction`), and the `currentUIMode` gates on LEARN, SELECT and BACK
 ///        (`SoundEditor::buttonAction`).
 ///

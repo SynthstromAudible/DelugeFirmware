@@ -116,7 +116,7 @@ const BoardProfile& profile_64() {
 
 /// @brief The minimum `Display` `View::displayModEncoderValuePopup` needs to run its arbitration
 ///        without touching pixels -- `display` is null in a spec process
-///        (`hid/display/display.cpp:4`).
+///        (`hid/display/display.cpp`).
 ///
 /// Captures exactly what `displayNotification`/`hasPopupOfType` are for: what legacy decided to
 /// show, and whether it currently considers a notification up. This is the oracle for the

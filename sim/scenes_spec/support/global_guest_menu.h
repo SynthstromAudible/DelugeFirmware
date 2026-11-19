@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The ported menu, opened at a chosen root on the GLOBAL guest's own scene stack, and the
+/// @brief The menu, opened at a chosen root on the GLOBAL guest's own scene stack, and the
 ///        two guards that put the guest and legacy's UI hierarchy back afterwards.
 ///
 /// Shared by `note_mode_spec.cpp` and `pad_forward_spec.cpp` which both ask
@@ -29,8 +29,8 @@ namespace deluge::scenes::spec {
 ///        `setRootUILowLevel` or opens the guest with `openUI`.
 ///
 /// `menu_actions_spec.cpp`'s `UiStackGuard`, unchanged: `nullifyUIs()` is what legacy itself calls
-/// to tear the hierarchy down (`gui/ui/ui.cpp:287-291`), and `closeUI` is not safe here for the
-/// same `[-1]` reason that file's copy of this note gives.
+/// to tear the hierarchy down (`gui/ui/ui.cpp`), and main's `closeUI` would index
+/// `uiNavigationHierarchy[-1]` here (ours returns without closing), as that file's copy of this note says.
 struct UiStackGuard {
 	UiStackGuard(const UiStackGuard&) = delete;
 	UiStackGuard& operator=(const UiStackGuard&) = delete;
@@ -116,7 +116,7 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 	return shellHostUI.opened();
 }
 
-/// @brief The ported menu open at @p root in production's shape: `instrumentClipView` as the root UI
+/// @brief The menu open at @p root in production's shape: `instrumentClipView` as the root UI
 ///        and the guest opened over it as the current UI.
 ///
 /// **What this establishes, beyond `open_menu_on_global_guest_at`:** `open_menu_on_global_guest_at`'s
@@ -125,13 +125,13 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 /// the guest's stack at the initial scene. `getCurrentUI()` is `&shellHostUI` and `getRootUI()` is
 /// `&instrumentClipView`, exactly as when `openShellMenu` opens a note editor from the clip view.
 ///
-/// **Why the guest must be current over `instrumentClipView`.** `ActionLogger::getNewAction` refuses
-/// an action whenever the current UI is not the root, unless a note editor is open
-/// (`model/action/action_logger.cpp:100-104`) -- the gate every note-mode edit is written through. With no
-/// UI seated, `getRootUI()` is null and `getCurrentUI()` is whatever `nullifyUIs` last left
-/// (`gui/ui/ui.cpp:166-180`), so the gate's answer would be an accident of the previous example rather
-/// than the question production asks. And `instrumentClipView` is the root every note-mode handler
-/// runs under. Tear down with `UiStackGuard` and `GlobalGuestGuard`.
+/// **Why the guest must be current over `instrumentClipView`.** `ActionLogger::getNewAction` refuses an action whenever
+/// the current UI is not the root, unless a note editor is open (`model/action/action_logger.cpp`) -- the gate every
+/// note-mode edit is written through. With no UI seated, `getRootUI()` is null and `getCurrentUI()` answers
+/// `emptyStackUI` (`gui/ui/ui.cpp`; main's answers `lastUIBeforeNullifying`, `origin/main:src/deluge/gui/ui/ui.cpp`),
+/// so the gate's answer would be an accident of the previous example rather than the question production asks. And
+/// `instrumentClipView` is the root every note-mode handler runs under. Tear down with `UiStackGuard` and
+/// `GlobalGuestGuard`.
 ///
 /// @return What `openUI` returned: false only if the guest refused to open.
 inline bool open_note_mode_over_clip_view(SongFixture& fx, menu::MenuContext::Root root) {
