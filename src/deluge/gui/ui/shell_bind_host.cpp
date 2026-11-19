@@ -27,6 +27,7 @@
 #include "hid/display/oled.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
 #include "io/midi/follow_host.h"
@@ -103,6 +104,7 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 #include <string>
 #include <utility>
 #include <variant>
@@ -959,11 +961,13 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		if (sound == nullptr || sound->boundState() == nullptr) {
 			return false;
 		}
-		const deluge::instrument::SoundState& state = *sound->boundState();
-		const deluge::instrument::SourceState& src = state.sources[source];
-		if (!src.ranges.empty() && state.synth_mode != deluge::instrument::SynthMode::FM
-		    && src.osc_type == deluge::instrument::OscType::SAMPLE) {
-			std::vector<deluge::instrument::RangeState> ranges = src.ranges;
+		namespace instrument = deluge::instrument;
+		const instrument::SoundState& state = *sound->boundState();
+		const auto id = static_cast<instrument::SourceId>(source);
+		const std::span<const instrument::RangeState> held = instrument::source_ranges(state, id);
+		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
+		    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
+			std::vector<instrument::RangeState> ranges{held.begin(), held.end()};
 			const size_t r = in_range && *in_range < ranges.size() ? *in_range : 0;
 			ranges[r].transpose = static_cast<int16_t>(transpose);
 			ranges[r].cents = static_cast<int8_t>(cents);

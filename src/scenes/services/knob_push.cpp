@@ -17,6 +17,7 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/state_access.h"
 #include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/reverb_presets.h"
@@ -480,7 +481,7 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 	}
 	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
 		const instrument::SoundState* state = facts.sound_state(*slot);
-		return state != nullptr ? &state->effects : nullptr;
+		return state != nullptr ? &instrument::sound_effects(*state) : nullptr;
 	}
 	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
 }

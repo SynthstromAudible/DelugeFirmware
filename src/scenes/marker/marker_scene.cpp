@@ -26,6 +26,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/state_access.h"
 #include "model/sample/waveform_scan.h"
 #include "serialization/tree.h"
 
@@ -33,6 +34,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <span>
 #include <vector>
 
 namespace deluge::scenes::marker {
@@ -116,17 +118,25 @@ std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::Men
 	                                 .range = static_cast<uint16_t>(ctx.range_index)};
 }
 
-const deluge::instrument::SourceState* MarkerScene::source_state() const {
-	if (ctx_.is_audio_clip || ctx_.facts == nullptr) {
+const deluge::instrument::SoundState* MarkerScene::sound_state() const {
+	if (ctx_.is_audio_clip || ctx_.facts == nullptr || where_.source >= kNumSources) {
 		return nullptr;
 	}
-	const deluge::instrument::SoundState* state = ctx_.facts->sound_state(where_.slot);
-	return state != nullptr && where_.source < state->sources.size() ? &state->sources[where_.source] : nullptr;
+	return ctx_.facts->sound_state(where_.slot);
+}
+
+deluge::instrument::SourceId MarkerScene::source_id() const {
+	return static_cast<deluge::instrument::SourceId>(where_.source);
 }
 
 const deluge::instrument::RangeState* MarkerScene::range_state() const {
-	const deluge::instrument::SourceState* source = source_state();
-	return source != nullptr && where_.range < source->ranges.size() ? &source->ranges[where_.range] : nullptr;
+	const deluge::instrument::SoundState* sound = sound_state();
+	if (sound == nullptr) {
+		return nullptr;
+	}
+	const std::span<const deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*sound, source_id());
+	return where_.range < ranges.size() ? &ranges[where_.range] : nullptr;
 }
 
 int64_t MarkerScene::audio_clip_row(std::string_view path) const {
@@ -158,8 +168,8 @@ bool MarkerScene::reversed() const {
 	if (ctx_.is_audio_clip) {
 		return audio_clip_row("reversed") != 0;
 	}
-	const deluge::instrument::SourceState* source = source_state();
-	return source != nullptr && source->reversed;
+	const deluge::instrument::SoundState* sound = sound_state();
+	return sound != nullptr && deluge::instrument::sample_playback(*sound, source_id()).reversed;
 }
 
 std::optional<services::ViewKey> MarkerScene::view_key_of() const {
@@ -352,8 +362,9 @@ bool MarkerScene::allow_extra_scroll_right() const {
 	if (ctx_.is_audio_clip) {
 		return true;
 	}
-	const deluge::instrument::SourceState* source = source_state();
-	return source != nullptr && source->repeat_mode == SampleRepeatMode::STRETCH;
+	const deluge::instrument::SoundState* sound = sound_state();
+	return sound != nullptr
+	       && deluge::instrument::sample_playback(*sound, source_id()).repeat_mode == SampleRepeatMode::STRETCH;
 }
 
 void MarkerScene::set_loop_locked(bool locked, bool announce) {
@@ -397,11 +408,15 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	// A sound's markers are its range's zone: the new zone is built from the source's ranges and written as one
 	// request, which the app applies to the record and the clusters a moved zone needs, then lets a sounding voice
 	// follow the moved marker (`:203-215`).
-	const deluge::instrument::SourceState* source = source_state();
-	if (source == nullptr || where_.range >= source->ranges.size()) {
+	const deluge::instrument::SoundState* sound = sound_state();
+	if (sound == nullptr) {
 		return;
 	}
-	std::vector<deluge::instrument::RangeState> ranges = source->ranges;
+	const std::span<const deluge::instrument::RangeState> held = deluge::instrument::source_ranges(*sound, source_id());
+	if (where_.range >= held.size()) {
+		return;
+	}
+	std::vector<deluge::instrument::RangeState> ranges{held.begin(), held.end()};
 	deluge::instrument::RangeState& range = ranges[where_.range];
 	const bool locked = loop_locked();
 	const uint32_t loop_length = range.loop_end_pos - range.loop_start_pos;

@@ -20,7 +20,8 @@
 // replaces another. Every legal value of every setting path an Edit maps is set on every bound sound through
 // SetEngineSetting: after each, the slot holds the value, the slot's instrument entries are the encoding of the
 // sound's state (equation 1), and the sound's snapshot is the one its state projects (equation 2); then the old value
-// is restored. A kit's affect-entire leg sets one path on all its sound drums at once. Exit: 0 every check holds; 1 the
+// is restored. Each oscillator keeps its tuning while FM. A kit's affect-entire leg sets one path on all its sound
+// drums at once. Exit: 0 every check holds; 1 the
 // file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
@@ -447,13 +448,17 @@ bool sameHiddenSource(const deluge::instrument::SourceState& a, const deluge::in
 
 /// The mode pair: @p sound set to subtractive, FM, then subtractive again, its slot coherent after each, holding the
 /// modulators only while FM, and its oscillators afterwards what they were (the types, samples and DX patches no FM
-/// file holds); then its old mode back. 0 when each holds, else 3 after printing the first that does not.
+/// file holds); then its old mode back. While FM, each oscillator's tuning is the one it had: FM's carriers play it.
+/// 0 when each holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address || sound.boundState() == nullptr) {
 		return 0;
 	}
 	const deluge::instrument::SoundState before = *sound.boundState();
+	const auto tuningOf = [](const deluge::instrument::SourceState& source) {
+		return std::pair{source.transpose, source.cents};
+	};
 	deluge::edits::Context ctx{song, song.project};
 	const Value old = *leafAt((*deluge::harness::encodedSlot(song, *address)), "mode");
 	for (std::string_view mode : {"subtractive", "fm", "subtractive"}) {
@@ -472,6 +477,15 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		}
 		if (mode != "fm") {
 			continue;
+		}
+		for (size_t s = 0; s < before.sources.size(); s++) {
+			const auto now = tuningOf(sound.boundState()->sources[s]);
+			const auto was = tuningOf(before.sources[s]);
+			if (now != was) {
+				std::fprintf(io.err, "%s mode pair: osc%zu's tuning while FM is %d/%d, it was %d/%d\n", name, s + 1,
+				             now.first, now.second, was.first, was.second);
+				return 3;
+			}
 		}
 		// While FM, each oscillator's own tuning moves and comes back: its entry changes, and what no FM file holds of
 		// it must outlast that.
