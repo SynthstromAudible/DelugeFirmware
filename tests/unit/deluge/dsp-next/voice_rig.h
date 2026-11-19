@@ -96,20 +96,22 @@ inline SoundConfig snapshot(SynthMode mode) {
 	return snap;
 }
 
-inline VoiceConfig config(SynthMode mode, OscType osc) {
-	VoiceConfig cfg{};
-	cfg.volume_neutral_value_for_unison = deluge::dsp::Q<31>::from_raw(134217728);
-	cfg.voice_priority = VoicePriority::MEDIUM;
-	cfg.synth_mode = mode;
-	cfg.num_unison = 1;
-	cfg.osc_retrigger_phase = {0, 0};
-	cfg.osc_type = {osc, OscType::SQUARE};
-	cfg.repeat_mode = {SampleRepeatMode::ONCE, SampleRepeatMode::ONCE};
-	cfg.note_tails_allowed = true;
-	cfg.source_ever_active = {true, false};
-	cfg.source_active_currently = {true, false};
-	cfg.portamento = kMin;
-	cfg.bend_ranges = {2, 48};
+/// A sound's config and one block's values, as a voice renders from them.
+struct RenderConfig {
+	SoundConfig sound;
+	BlockValues values;
+};
+
+inline RenderConfig config(SynthMode mode, OscType osc) {
+	RenderConfig cfg{.sound = snapshot(mode), .values = {}};
+	cfg.sound.voicing.unison.level = deluge::dsp::Q<31>::from_raw(134217728);
+	cfg.values.osc_type = {osc, OscType::SQUARE};
+	cfg.values.repeat_mode = {SampleRepeatMode::ONCE, SampleRepeatMode::ONCE};
+	cfg.values.note_tails_allowed = true;
+	cfg.values.source_ever_active = {true, false};
+	cfg.values.source_active_currently = {true, false};
+	cfg.values.portamento = kMin;
+	cfg.values.bend_ranges = {2, 48};
 	return cfg;
 }
 
@@ -125,22 +127,22 @@ inline NoteOnEvent note(int32_t code) {
 }
 
 /// The note-off for a sound whose amplitude envelope sustains (its presets' sustain is full).
-inline ReleaseInfo release(const VoiceConfig& cfg) {
+inline ReleaseInfo release(const RenderConfig& cfg) {
 	return {.envelope_has_sustain = {true, false, false, false},
 	        .note_tails_allowed = true,
-	        .osc_types = cfg.osc_type,
-	        .synth_mode = cfg.synth_mode,
+	        .osc_types = cfg.values.osc_type,
+	        .synth_mode = cfg.sound.engine.mode,
 	        .num_unison = 1};
 }
 
 /// Renders one block. @return whether the voice still sounds; @p peak takes the block's loudest sample.
-inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cfg, int64_t* peak = nullptr,
+inline bool render_block(Rig& rig, const NoteSetup& setup, const RenderConfig& cfg, int64_t* peak = nullptr,
                          bool sample_can_auto_release = false) {
 	rig.out.fill(deluge::dsp::Q<31>{});
 	VoiceBlock block{.num_active_voices = 1, .clock = rig.clock()};
 	block.sample_can_auto_release[0] = sample_can_auto_release;
 	const bool alive = rig.voice.render(
-	    setup.initial_patching, cfg, block,
+	    setup.initial_patching, cfg.sound, cfg.values, block,
 	    {
 	        .buffer = rig.out.data(),
 	        .num_samples = kBlock,
@@ -159,7 +161,7 @@ inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cf
 	return alive;
 }
 
-inline int32_t blocks_until_silent(Rig& rig, const NoteSetup& setup, const VoiceConfig& cfg, int32_t limit) {
+inline int32_t blocks_until_silent(Rig& rig, const NoteSetup& setup, const RenderConfig& cfg, int32_t limit) {
 	int32_t blocks = 0;
 	while (blocks < limit && render_block(rig, setup, cfg)) {
 		blocks++;

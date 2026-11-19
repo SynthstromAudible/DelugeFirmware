@@ -185,7 +185,6 @@ void FMEngine::set_levels(std::span<const Q<31>, kNumModulators> modulator_volum
 }
 
 EngineRenderResult FMEngine::render(const EngineBlock& block) {
-	const VoiceConfig& cfg = *block.cfg;
 	const FmControls& c = block.fm;
 	const bool stereo_unison = c.stereo_unison;
 
@@ -196,7 +195,7 @@ EngineRenderResult FMEngine::render(const EngineBlock& block) {
 
 	// The unison parts ascend in frequency, so a carrier too high in one is too high in the rest: its amplitude is
 	// knocked to 0 for them all
-	for (int32_t u = 0; u < cfg.num_unison; u++) {
+	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
 		const std::array<UQ<32>, kNumSources> phase_increments = carrier_increments(block, u, pass);
 		render_unison_part(block, u, phase_increments, pass);
 	}
@@ -297,19 +296,18 @@ std::array<UQ<32>, kNumModulators> FMEngine::modulator_increments(const EngineBl
 
 bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
                                  std::span<const UQ<32>, kNumModulators> increments, const Pass& pass) {
-	const VoiceConfig& cfg = *block.cfg;
 	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
 	Q<31>* const modulator_scratch = block.spare_buffers[2];
 	const std::array<bool, kNumModulators>& active = pass.modulators_active;
 
 	// Modulator 1 into a silent modulator 0 sounds nothing
-	const bool into_silent_modulator = cfg.modulator1_to_modulator0 && !active[0];
+	const bool into_silent_modulator = block.config->engine.modulator1_to_modulator0 && !active[0];
 	if (active[1] && !into_silent_modulator) {
 		render_sine_wave_with_feedback(modulator_scratch, num_samples, &modulator_phase_[u][1],
 		                               modulator_amplitude_last_time_[1], increments[1], c.modulator_feedback[1],
 		                               &modulator_feedback_[u][1], false, pass.modulator_amplitude_increments[1]);
-		if (cfg.modulator1_to_modulator0) {
+		if (block.config->engine.modulator1_to_modulator0) {
 			// Modulator 0, frequency-modulated by modulator 1
 			render_fm_with_feedback(modulator_scratch, num_samples, modulator_phase_[u].data(),
 			                        modulator_amplitude_last_time_[0], increments[0], c.modulator_feedback[0],
@@ -373,7 +371,7 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 
 	if (c.stereo_unison) {
 		// Pan this part's carriers into the stereo buffer
-		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(block.cfg->unison_pan[u]);
+		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(block.config->voicing.unison.pans[u]);
 		for (int32_t i = 0; i < num_samples; i++) {
 			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left, pan.right);
 		}

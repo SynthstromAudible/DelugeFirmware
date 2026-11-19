@@ -21,8 +21,8 @@
 #include "dsp-next/fixed/noise/cong.h"
 #include "synth/engines/slot_engine.h"
 #include "synth/engines/source_levels.h"
+#include "synth/voice/block_values.h"
 #include "synth/voice/unison_part.h"
-#include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
 #include <array>
 #include <cstdint>

@@ -25,7 +25,7 @@
 namespace deluge::synth {
 
 EngineRenderResult SubtractiveEngine::render(const EngineBlock& block) {
-	const VoiceConfig& cfg = *block.cfg;
+	const BlockValues& cfg = *block.values;
 	const DualSourceControls& c = block.dual;
 	const int32_t num_samples = block.num_samples;
 	dsp::Q<31>* const osc_buffer = block.osc_buffer;
@@ -113,20 +113,20 @@ SubtractiveEngine::Pass SubtractiveEngine::begin(const EngineBlock& block,
 	levels.filter_gain_last_time = c.filter_gain;
 
 	pass.wave_index_increments = wave_index_increments(block);
-	if (block.cfg->doing_osc_sync) {
+	if (block.values->doing_osc_sync) {
 		pass.sync_pos = capture_sync(block);
 	}
 	return pass;
 }
 
 bool SubtractiveEngine::render_one(const EngineBlock& block, Pass& pass, int32_t s, bool stereo) {
-	const bool doing_osc_sync = block.cfg->doing_osc_sync;
+	const bool doing_osc_sync = block.values->doing_osc_sync;
 	std::span<dsp::UQ<32>> master_increments;
 	if (s == 0 && doing_osc_sync) {
 		master_increments = pass.sync_increments;
 	}
 	// A silent master still advances its phase, which the slave syncs to
-	const bool advance_only = !master_increments.empty() && !block.cfg->source_active_currently[s];
+	const bool advance_only = !master_increments.empty() && !block.values->source_active_currently[s];
 	return render_source(block, s, stereo, pass.amplitudes[s], pass.amplitude_increments[s], (s == 1) && doing_osc_sync,
 	                     pass.sync_pos.data(), pass.sync_increments.data(), master_increments, advance_only,
 	                     pass.wave_index_increments[s]);

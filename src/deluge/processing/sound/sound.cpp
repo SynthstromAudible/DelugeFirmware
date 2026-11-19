@@ -114,8 +114,8 @@
 
 using namespace deluge;
 
+using deluge::synth::BlockValues;
 using deluge::synth::SourceSlot;
-using deluge::synth::VoiceConfig;
 
 namespace params = deluge::modulation::params;
 
@@ -1941,7 +1941,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		             && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		                 || (hpfFreq != std::numeric_limits<int32_t>::min())
 		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
-		// The sound's render config for this block, the same for each of its voices.
+		// What changes this block for each of the sound's voices; their settings are its config.
 		std::array<OscType, kNumSources> oscTypes;
 		std::array<SampleRepeatMode, kNumSources> repeatModes;
 		std::array<InterpolationMode, kNumSources> interpolationModes;
@@ -1958,18 +1958,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
-		const VoiceConfig voiceConfig{
+		const deluge::synth::BlockValues blockValues{
 		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot().effects.filter.lpf_mode)
 		                      : deluge::dsp::fixed::LowPassSlot{},
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
-		    .volume_neutral_value_for_unison = config_.voicing.unison.level,
 		    .cpu_direness = AudioEngine::cpuDireness,
-		    .voice_priority = config_.voicing.priority,
-		    .synth_mode = getSynthMode(),
-		    .lfo2_config = config_.lfos[LFO2_ID],
-		    .lfo4_config = config_.lfos[LFO4_ID],
 		    .lfo2_synced_phase_increment = (config_.lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
 		                                       : getSyncedLFOPhaseIncrement(config_.lfos[LFO2_ID]),
@@ -1982,10 +1977,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .clipping_amount = modControllableSnapshot().effects.saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
-		    .num_unison = config_.voicing.unison.count,
-		    .unison_stereo_spread = config_.voicing.unison_spread,
-		    .unison_pan = config_.voicing.unison.pans,
-		    .osc_retrigger_phase = config_.engine.osc_retrigger_phase,
 		    .osc_type = oscTypes,
 		    .repeat_mode = repeatModes,
 		    .interpolation_mode = interpolationModes,
@@ -2000,7 +1991,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
 		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
 		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
-		    .modulator1_to_modulator0 = config_.engine.modulator1_to_modulator0,
 		    .source_active_currently = sourceActiveCurrentlys,
 		};
 
@@ -2018,8 +2008,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
 			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previously_ignored_note_off() && voiceConfig.note_tails_allowed) {
-				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
+			if (voice->just_created && voice->kernel.previously_ignored_note_off() && blockValues.note_tails_allowed) {
+				voice->note_off(paramManager, blockValues.note_tails_allowed);
 			}
 			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
 #if defined(DELUGE_STREAM_BENCH)
@@ -2029,7 +2019,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			// the calls after it count toward the voices' cost.
 			const bool renders = voice->just_created;
 			voicesRendered += renders ? 1 : 0;
-			bool stillGoing = voice->render(controlBlock, voiceConfig,
+			bool stillGoing = voice->render(controlBlock, config_, blockValues,
 			                                {
 			                                    .buffer = sound_mono.data(),
 			                                    .num_samples = static_cast<int32_t>(sound_mono.size()),

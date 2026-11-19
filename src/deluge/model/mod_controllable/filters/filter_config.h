@@ -23,7 +23,7 @@
 #include <cstddef>
 
 // l10n::String is only a return type below (SpecificFilter::getMorphName, defined out-of-line in the .cpp), so
-// forward-declare it rather than pulling gui/l10n/strings.h — this header is included by the synth-side VoiceConfig
+// forward-declare it rather than pulling gui/l10n/strings.h — this header is included by the synth-side BlockValues
 // and must stay free of gui/.
 namespace deluge::l10n {
 enum class String : size_t;

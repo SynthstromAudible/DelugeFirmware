@@ -40,7 +40,7 @@ bool RingModEngine::note_on(const EngineNote& note) {
 }
 
 EngineRenderResult RingModEngine::render(const EngineBlock& block) {
-	const VoiceConfig& cfg = *block.cfg;
+	const BlockValues& cfg = *block.values;
 	const DualSourceControls& c = block.dual;
 	const bool stereo_unison = c.stereo_unison;
 
@@ -61,14 +61,14 @@ EngineRenderResult RingModEngine::render(const EngineBlock& block) {
 
 void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp::UQ<32>, kMaxNumVoicesUnison>& sync_pos,
                                  const std::array<int32_t, kNumSources>& wave_index_increments) {
-	const VoiceConfig& cfg = *block.cfg;
+	const BlockValues& cfg = *block.values;
 	const DualSourceControls& c = block.dual;
 	const bool stereo_unison = c.stereo_unison;
 
-	for (int32_t u = 0; u < cfg.num_unison; u++) {
+	for (int32_t u = 0; u < block.config->voicing.unison.count; u++) {
 
-		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : deluge::dsp::Q<31>{});
+		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes = deluge::dsp::fixed::pan_amplitudes(
+		    stereo_unison ? block.config->voicing.unison.pans[u] : deluge::dsp::Q<31>{});
 		const dsp::Q<30> unison_amplitude_l = unison_pan_amplitudes.left;
 		const dsp::Q<30> unison_amplitude_r = unison_pan_amplitudes.right;
 
@@ -108,7 +108,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<dsp:
 			    .wave_index_last = static_cast<int32_t>(block.levels->wave_indexes_last_time[s]),
 			    .wave_index_increment = wave_index_increments[s],
 			    .osc_type = cfg.osc_type[s],
-			    .retrigger_phase = cfg.osc_retrigger_phase[s],
+			    .retrigger_phase = block.config->engine.osc_retrigger_phase[s],
 			};
 		}
 

@@ -31,7 +31,7 @@ struct DualSourceControls;
 struct FmControls;
 struct UnisonPart;
 struct SourceLevels;
-struct VoiceConfig;
+struct BlockValues;
 struct VoiceBlock;
 struct NoteSetup;
 struct SoundConfig;
@@ -57,7 +57,7 @@ struct Fixed {
 	// The voice an engine plays and the controls it derives for each engine family
 	using UnisonPart = synth::UnisonPart;
 	using Levels = synth::SourceLevels;
-	using Config = synth::VoiceConfig;
+	using BlockValues = synth::BlockValues;
 	using VoiceInputs = synth::VoiceBlock;
 	using Setup = synth::NoteSetup;
 	using SoundConfig = synth::SoundConfig;
