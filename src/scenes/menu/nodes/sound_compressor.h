@@ -52,10 +52,11 @@ ValueText compressor_banner(const MenuContext& ctx, int32_t value, ValueTextUse 
 template <CompressorShown kWhich>
 ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
-inline constexpr Node comp_threshold = param(
-    sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
-    {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_COMPRESSOR_THRESHOLD},
-    Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
+inline constexpr Node comp_threshold =
+    param(sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
+          {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+           deluge::instrument::runtime_index(deluge::instrument::param::kCompressorThreshold)},
+          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
 // The decimal-place counts are the `getNumDecimalPlaces()` overrides of `audio_compressor::CompressorValue`, `Release`
 // and `Blend`; the hints are the `getRenderingStyle()` overrides of `CompressorValue`, `Attack`, `Release` and
 // `SideHPF`.

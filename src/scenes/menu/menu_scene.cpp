@@ -1018,7 +1018,7 @@ Result MenuScene::after_render_navigation() {
 				// `PatchedParam::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`) records
 				// the param it patches. The source page reads it from the level above it, which here is the page, not
 				// the column.
-				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+				if (column->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 					st_.walk.patching_param = column->bind.param.index;
 				}
 				walk_.enter_child(core(), visit_.session, *chained);
@@ -1382,7 +1382,7 @@ std::optional<AutomationParam> automation_param(const Node& item, const MenuCont
 		if (!item.custom->is_automation_item()) {
 			return std::nullopt;
 		}
-		return AutomationParam{.kind = deluge::modulation::params::Kind::PATCH_CABLE,
+		return AutomationParam{.kind = deluge::plugin::ParamKind::PATCH_CABLE,
 		                       .id = static_cast<int32_t>(item.custom->learn_descriptor(ctx, state).word)};
 	}
 	if (!item.bind.param.valid()) {

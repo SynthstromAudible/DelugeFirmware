@@ -77,9 +77,6 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_collection.h"
-#include "modulation/params/param_manager.h"
 #include "notify/dirty_set.h"
 #include "processing/sound/sound_drum.h"
 
@@ -91,8 +88,6 @@
 namespace deluge::scenes::menu::bindings {
 
 namespace {
-
-namespace params = deluge::modulation::params;
 
 /// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
 std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {

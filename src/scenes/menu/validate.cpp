@@ -32,8 +32,8 @@
 ///   * *non-empty submenu* -> `EmptySubmenu`, quantified over the supplied contexts in which the
 ///     submenu is itself relevant (see the rule's own comment for why that qualifier is there).
 ///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one `bindings.cpp` can
-///     serve and the index must be inside that kind's parameter space (`params::kNumParams` and
-///     `params::kMaxNumUnpatchedParams` in `modulation/params/param.h`). Whether a *particular* song's param manager
+///     serve and the index must be inside that kind's parameter space (the instrument's first param block, and
+///     the larger of its second block and the host chain's). Whether a *particular* song's param manager
 ///     holds the param is `bridge::paramStackAt`'s answer, at the point of use, and is not something a static tree
 ///     check can decide.
 ///   * *`Enum` names* -> `EnumWithoutNames`.
@@ -68,16 +68,15 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
 
+#include "effects/host_chain/params.h"
 #include "gfx/grid/pad_grid.h" // kMaxGridCols / kMaxGridRows -- the widest pad grid to sweep
-#include "modulation/params/param.h"
+#include "instruments/deluge/params.h"
 
 #include <algorithm>
 
 namespace deluge::scenes::menu {
 
 namespace {
-
-namespace params = deluge::modulation::params;
 
 using Issues = deluge::ui::shell::FixedVector<Issue, 64>;
 
@@ -144,18 +143,25 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 	return true;
 }
 
-/// @brief Is @p param a pair `bindings.cpp` could resolve? (`params::kNumParams`, `params::kMaxNumUnpatchedParams` in
-/// `modulation/params/param.h`.)
+/// @brief Is @p param a pair `bindings.cpp` could resolve? The patched set holds the instrument's first block of
+/// params; either unpatched kind holds as many as the larger of the instrument's second block and the host chain's.
 bool param_in_range(const ParamRef& param) {
+	constexpr size_t kUnpatchedMax =
+	    std::max<size_t>(deluge::instrument::kParamBlocks[1].count, deluge::host_chain::kParamBlock.count);
 	switch (param.kind) {
-	case params::Kind::PATCHED:
-		return param.index < params::kNumParams;
-	case params::Kind::UNPATCHED_SOUND:
-	case params::Kind::UNPATCHED_GLOBAL:
-		return param.index < params::kMaxNumUnpatchedParams;
-	default:
-		return false;
+	case deluge::plugin::ParamKind::PATCHED:
+		return param.index < deluge::instrument::kParamBlocks[0].count;
+	case deluge::plugin::ParamKind::UNPATCHED_SOUND:
+	case deluge::plugin::ParamKind::UNPATCHED_GLOBAL:
+		return param.index < kUnpatchedMax;
+	case deluge::plugin::ParamKind::NONE:
+	case deluge::plugin::ParamKind::STATIC:
+	case deluge::plugin::ParamKind::MIDI:
+	case deluge::plugin::ParamKind::PATCH_CABLE:
+	case deluge::plugin::ParamKind::EXPRESSION:
+		break;
 	}
+	return false;
 }
 
 /// @brief Does @p node hold a value at all -- i.e. is a missing binding a bug?
@@ -296,7 +302,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 			add(out, Issue::Kind::EnumWithoutNames, &n);
 		}
 
-		if (n.bind.param.kind != params::Kind::NONE && !param_in_range(n.bind.param)) {
+		if (n.bind.param.kind != deluge::plugin::ParamKind::NONE && !param_in_range(n.bind.param)) {
 			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
 		}
 		else if (is_value_kind(n.kind) && !n.bind.target.valid() && !n.bind.param.valid() && n.bind.get == nullptr) {

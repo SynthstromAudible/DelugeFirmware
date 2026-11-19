@@ -80,7 +80,7 @@ ParamBlink own_pad(const MenuContext& ctx, const Node& item) {
 
 /// Whether @p node is the patched param @p p's own item.
 bool is_patched_param(const Node* node, uint8_t p) {
-	return node != nullptr && node->bind.param.kind == deluge::modulation::params::Kind::PATCHED
+	return node != nullptr && node->bind.param.kind == deluge::plugin::ParamKind::PATCHED
 	       && node->bind.param.index == p;
 }
 
@@ -114,7 +114,7 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	if (item.custom != nullptr) {
 		return item.custom->source_blink(ctx, state, source, colour);
 	}
-	if (item.bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+	if (item.bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 		return patching::source_is_patched(ctx, source, deluge::synth::CableTarget::param(item.bind.param.index))
 		           ? 3
 		           : kNoBlink;

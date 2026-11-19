@@ -72,7 +72,7 @@
 #include "shell/scene.h"
 
 #include "definitions_cxx.hpp"
-#include "modulation/params/param.h"
+#include "plugin-api/types/param_kind.h"
 
 #include "effects/state.h"
 
@@ -113,7 +113,7 @@ struct ShownPopup {
 	uint32_t remaining_ms{0};
 	/// The param shown, its value as the change check compares it, and its patch sources: what the receiving
 	/// display needs to tell a later draw of the same param and value from a change.
-	deluge::modulation::params::Kind kind{deluge::modulation::params::Kind::NONE};
+	deluge::plugin::ParamKind kind{deluge::plugin::ParamKind::NONE};
 	int32_t param_id{-1};
 	int32_t display_value{0};
 	PatchSource source1{PatchSource::NONE};
@@ -154,7 +154,7 @@ public:
 	///
 	/// @note A draw, here or in `tick()`'s deferred flush, raises a `CancelNotification` notice: legacy's popup is the
 	///       display's notification, so it replaces whatever notification was up. A hand-off raises none.
-	bool show(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+	bool show(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	          PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
 	deluge::ui::shell::SceneKind kind() const override { return kParamPopupSceneKind; }
@@ -208,7 +208,7 @@ private:
 	///        notification" block (`gui/views/view.cpp`), shared by `show()` and the flush path in
 	///        `tick()`.
 	/// @return True when the commit arm ran; see `show()`.
-	bool attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+	bool attempt_display(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	                     PatchSource source2, uint32_t now_ms, PopupContext context);
 
 	static constexpr size_t kTextCap = 40; // `etl::string<40>` (`View::displayModEncoderValuePopup`).
@@ -225,7 +225,7 @@ private:
 
 	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (`View::displayModEncoderValuePopup` in
 	// `gui/views/view.cpp`).
-	deluge::modulation::params::Kind last_param_kind_ = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind last_param_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t last_param_id_ = -1;
 	int32_t last_display_value_ = INT32_MIN;
 	PatchSource last_source1_ = PatchSource::NONE;
@@ -233,7 +233,7 @@ private:
 
 	// `display_owner_*`/`display_ownership_start_time`/`last_display_update_time`/
 	// `last_actual_display_time`: the arbitration ("juggling ball") statics (`View::displayModEncoderValuePopup`).
-	deluge::modulation::params::Kind display_owner_kind_ = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind display_owner_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t display_owner_param_id_ = -1;
 	PatchSource display_owner_source1_ = PatchSource::NONE;
 	PatchSource display_owner_source2_ = PatchSource::NONE;
@@ -243,7 +243,7 @@ private:
 
 	// `hasPendingModEncoderValuePopup`/`pendingPopup*` (`gui/views/view.h`).
 	bool has_pending_ = false;
-	deluge::modulation::params::Kind pending_kind_ = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind pending_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t pending_param_id_ = 0;
 	int32_t pending_knob_pos_ = 0;
 	PatchSource pending_source1_ = PatchSource::NONE;

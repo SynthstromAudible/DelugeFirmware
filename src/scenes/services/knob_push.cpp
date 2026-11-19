@@ -452,7 +452,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
 		const std::optional<uint8_t> index = host_chain::runtime_index(id);
-		return index ? params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
+		return index ? params::getParamDisplayName(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
 		                                           fx.filter.hpf_mode)
 		             : std::string{};
 	}
@@ -460,8 +460,8 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 	if (!slot) {
 		return {};
 	}
-	const params::Kind kind =
-	    slot->set == instrument::RuntimeSet::PATCHED ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND;
+	const plugin::ParamKind kind =
+	    slot->set == instrument::RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND;
 	return params::getParamDisplayName(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode);
 }
 

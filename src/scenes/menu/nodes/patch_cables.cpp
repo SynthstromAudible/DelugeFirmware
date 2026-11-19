@@ -41,6 +41,7 @@
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
@@ -57,6 +58,15 @@ namespace deluge::scenes::menu::nodes {
 
 namespace params = deluge::modulation::params;
 using deluge::l10n::String;
+
+/// @brief The three volume params a patch cable can reach, which the user sees as one destination, and the first of
+/// the sound's global (rather than per-voice) patched params, as bytes the way the menu's walk stores a param.
+inline constexpr uint8_t kLocalVolume = static_cast<uint8_t>(deluge::instrument::param::kVolume.value);
+inline constexpr uint8_t kPostFxVolume = static_cast<uint8_t>(deluge::instrument::param::kVolumePostFX.value);
+inline constexpr uint8_t kPostReverbSendVolume =
+    static_cast<uint8_t>(deluge::instrument::param::kVolumePostReverbSend.value);
+/// The post-FX volume is the first global param: the per-voice ones come before it.
+inline constexpr uint8_t kFirstGlobal = kPostFxVolume;
 
 namespace {
 /// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
@@ -443,7 +453,7 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 	// the range picker below it.
 	if (which_ == Which::Regular && state.depth > 0) {
 		const Node* from = state.path[state.depth - 1];
-		if (from != nullptr && from->bind.param.kind == params::Kind::PATCHED) {
+		if (from != nullptr && from->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 			state.walk.patching_param = from->bind.param.index;
 		}
 	}
@@ -595,16 +605,16 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		state.walk.patching_param = param_;
 		state.walk.patch_source = source_;
 	}
-	else if (which_ == Which::Regular && state.walk.patching_param == params::GLOBAL_VOLUME_POST_FX) {
+	else if (which_ == Which::Regular && state.walk.patching_param == kPostFxVolume) {
 		// `Regular::checkPermissionToBeginSession`
 		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`): the three volume params are one
 		// destination to the user, so a source that cannot reach POST_FX is retried against POST_REVERB_SEND and then
 		// LOCAL_VOLUME before the page gives up.
 		const auto disallowed = [&](int32_t p) { return !patching::source_may_patch(ctx, state.walk.patch_source, p); };
-		if (disallowed(params::GLOBAL_VOLUME_POST_FX)) {
-			state.walk.patching_param = params::GLOBAL_VOLUME_POST_REVERB_SEND;
-			if (disallowed(params::GLOBAL_VOLUME_POST_REVERB_SEND)) {
-				state.walk.patching_param = params::LOCAL_VOLUME;
+		if (disallowed(kPostFxVolume)) {
+			state.walk.patching_param = kPostReverbSendVolume;
+			if (disallowed(kPostReverbSendVolume)) {
+				state.walk.patching_param = kLocalVolume;
 			}
 		}
 	}
@@ -874,8 +884,8 @@ namespace {
 
 /// The volume triple is one param to the user: its two other members blink POST_FX's pad.
 uint8_t folded_volume(uint8_t param) {
-	if (param == params::GLOBAL_VOLUME_POST_REVERB_SEND || param == params::LOCAL_VOLUME) {
-		return params::GLOBAL_VOLUME_POST_FX;
+	if (param == kPostReverbSendVolume || param == kLocalVolume) {
+		return kPostFxVolume;
 	}
 	return param;
 }
@@ -1003,8 +1013,11 @@ const Node patch_cable_strength_range =
 
 namespace deluge::scenes::menu::patching {
 
-namespace params = deluge::modulation::params;
 using nodes::find_cable;
+using nodes::kFirstGlobal;
+using nodes::kLocalVolume;
+using nodes::kPostFxVolume;
+using nodes::kPostReverbSendVolume;
 using nodes::sound_state_of;
 
 bool source_may_patch(const MenuContext& ctx, PatchSource source, int32_t param) {
@@ -1025,15 +1038,14 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth
 		if (source < kFirstLocalSource) {
 			return true;
 		}
-		return destination.param_index() < params::FIRST_GLOBAL;
+		return destination.param_index() < kFirstGlobal;
 	}
 	const int32_t p = destination.param_index();
 	const auto allowed = [&](int32_t target) { return source_may_patch(ctx, source, target); };
 	// Also main's `sourceIsAllowed`: the volume triple is one destination as far as the user is concerned, so any of
 	// the three accepting the source makes it offerable.
-	if (p == params::GLOBAL_VOLUME_POST_FX) {
-		return allowed(params::GLOBAL_VOLUME_POST_FX) || allowed(params::LOCAL_VOLUME)
-		       || allowed(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+	if (p == kPostFxVolume) {
+		return allowed(kPostFxVolume) || allowed(kLocalVolume) || allowed(kPostReverbSendVolume);
 	}
 	return allowed(p);
 }
@@ -1042,12 +1054,11 @@ bool source_is_patched(const MenuContext& ctx, PatchSource source, deluge::synth
 	if (find_cable(ctx, source, destination).has_value()) {
 		return true;
 	}
-	if (destination.param_index() != params::GLOBAL_VOLUME_POST_FX) {
+	if (destination.param_index() != kPostFxVolume) {
 		return false;
 	}
 	// The three volume params are one destination to the user.
-	for (const int32_t p :
-	     {static_cast<int32_t>(params::GLOBAL_VOLUME_POST_REVERB_SEND), static_cast<int32_t>(params::LOCAL_VOLUME)}) {
+	for (const int32_t p : {static_cast<int32_t>(kPostReverbSendVolume), static_cast<int32_t>(kLocalVolume)}) {
 		destination = destination.with_param(p);
 		if (find_cable(ctx, source, destination).has_value()) {
 			return true;

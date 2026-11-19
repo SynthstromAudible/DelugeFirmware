@@ -273,8 +273,9 @@ inline const SourceSelectionItem kSourceSelectionRangeItem{SourceSelectionItem::
 inline const PatchCableStrengthItem kPatchCableStrengthRegularItem{PatchCableStrengthItem::Which::Regular};
 inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStrengthItem::Which::Range};
 /// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
-inline const PatchCableStrengthItem kVibratoItem{
-    PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
+inline const PatchCableStrengthItem kVibratoItem{PatchCableStrengthItem::Which::Fixed,
+                                                 deluge::instrument::runtime_index(deluge::instrument::param::kPitch),
+                                                 PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`) and the column
 ///        (`Decimal::renderInHorizontalMenu`, `origin/main:src/deluge/gui/menu_item/decimal.cpp`, rendering style
@@ -288,9 +289,9 @@ ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueText
 
 /// `sidechainVolumeShortcutMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
-inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem::Which::Fixed,
-                                                         deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
-                                                         PatchSource::SIDECHAIN};
+inline const PatchCableStrengthItem kSidechainVolumeItem{
+    PatchCableStrengthItem::Which::Fixed,
+    deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend), PatchSource::SIDECHAIN};
 /// @}
 
 /// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
@@ -391,7 +392,7 @@ std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContex
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///
-/// Applied at the 29 declaration sites whose `bind.param.kind == params::Kind::PATCHED` (the macros
+/// Applied at the 29 declaration sites whose `bind.param.kind == ParamKind::PATCHED` (the macros
 /// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which is **exactly 53 nodes** -- the same
 /// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
 /// `tables_2_spec` pins both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper

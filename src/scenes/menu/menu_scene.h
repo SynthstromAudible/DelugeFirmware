@@ -68,7 +68,7 @@ namespace deluge::scenes::menu {
 ///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack`
 ///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) addresses it.
 struct AutomationParam {
-	deluge::modulation::params::Kind kind;
+	deluge::plugin::ParamKind kind;
 	int32_t id;
 	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
 };

@@ -110,8 +110,8 @@ inline constexpr Node polyphony = with_affect_entire(
                      sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT)));
 inline constexpr Node portamento =
     with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
-                                            {deluge::modulation::params::Kind::UNPATCHED_SOUND,
-                                             deluge::modulation::params::UNPATCHED_PORTAMENTO},
+                                            {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                                             deluge::instrument::runtime_index(deluge::instrument::param::kPortamento)},
                                             Hint::None),
                                       sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
                      glide_draw);

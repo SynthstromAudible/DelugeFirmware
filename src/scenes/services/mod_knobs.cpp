@@ -44,7 +44,6 @@
 #include "io/midi/midi_follow.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
-#include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 
 #include <algorithm>
@@ -52,7 +51,7 @@
 
 namespace deluge::scenes::services {
 
-using deluge::modulation::params::Kind;
+using Kind = deluge::plugin::ParamKind;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::ui::EncoderRole;
@@ -393,7 +392,9 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
 		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
 		// port.
-		out.blink_indicator(which_encoder, deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id));
+		out.blink_indicator(
+		    which_encoder,
+		    deluge::instrument::is_bipolar(turn.kind, deluge::instrument::runtime_param_id(turn.kind, turn.param_id)));
 	}
 	else {
 		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`

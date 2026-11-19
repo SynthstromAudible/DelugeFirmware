@@ -4,7 +4,7 @@
 /// @brief The plain results `ModKnobs` computes for a gold-knob turn and a knob's indicator, over the knobs' focus.
 
 #include "definitions_cxx.hpp" // ActionResult (a root-level header; see scenes/CMakeLists.txt)
-#include "modulation/params/param.h"
+#include "plugin-api/types/param_kind.h"
 #include "scenes/bind/knob_focus.h"
 
 #include <cstdint>
@@ -22,7 +22,7 @@ bool is_clip_context(const bind::KnobFocus& focus);
 ///        (`origin/main:src/deluge/gui/views/view.cpp`).
 struct ModTurn {
 	/// The param's kind, as the popup and MIDI follow name it.
-	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
 	/// The param's id in its kind's numbering (a cable's packed word, a CC number).
 	int32_t param_id = 0;
 	/// The knob position before the turn.
@@ -53,7 +53,7 @@ struct ModIndicatorInfo {
 	/// The knob names a param (or a MIDI lane, shown at 0 until it is made).
 	bool has_auto_param = false;
 	/// The param's kind.
-	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
 	/// The param's id in its kind's numbering.
 	int32_t param_id = 0;
 	/// The value's knob position, at the held region or the playhead.
