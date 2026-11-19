@@ -16,6 +16,9 @@
  */
 
 #include "model/project_bridge/slot_bridge.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_dx_patch.h"
+#include "model/edits/set_source_ranges.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
@@ -252,8 +255,24 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 		return;
 	}
 	{
-		AudioExcludedSection section; // the reseed reprojects the snapshot the render reads
-		sound.reseedRecord();
+		AudioExcludedSection section; // the render reads the effects' projection
+		sound.projectModControllableSnapshot();
+	}
+	// What loading made of each oscillator reaches its record as the Edits a gesture would make, in this tick: the
+	// ranges' clamped zones and found files, and a DX7 patch the runtime made for one decoded without its own
+	// (a source whose record already holds what it loaded takes no Edit)
+	deluge::edits::Context ctx{song, song.project};
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const deluge::instrument::SourceState& recorded = sound.boundState()->sources[s];
+		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sources[s]);
+		    patch && patch != recorded.dx_patch) {
+			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
+			(void)deluge::edits::apply(ctx, dx);
+		}
+		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sources[s]); held != recorded.ranges) {
+			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
+			(void)deluge::edits::apply(ctx, ranges);
+		}
 	}
 	if (const std::optional<deluge::project::ControlsAddress> owner = controlsAddressOf(sound)) {
 		if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*owner)) {

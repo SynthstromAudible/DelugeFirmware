@@ -35,7 +35,7 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/voice_budget.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_block.h"
@@ -197,6 +197,15 @@ public:
 	void projectSnapshot();
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
+	/// @brief Oscillator @p s's first range, made when it has none and then recorded as the record's.
+	/// @return The range, or null when there is no memory for one.
+	MultiRange* getOrCreateFirstRange(int32_t s);
+	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped).
+	void recordHeldRanges(int32_t s);
+	/// @brief Record oscillator @p s's DX7 patch as its runtime holds it.
+	void recordHeldDxPatch(int32_t s);
+	/// @brief What oscillator @p s plays.
+	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
 	[[nodiscard]] bool playsReversed(int32_t s) const {
 		return config_.sources[s].reversed != sources[s].invertReversed;
@@ -211,7 +220,7 @@ public:
 
 	ParamLPF paramLPF{};
 
-	Source sources[kNumSources];
+	SourceResources sources[kNumSources];
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
@@ -374,12 +383,6 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
-	/// @brief Re-read the record's effects, DX7 patches and ranges from the runtime, as binding seeds them; then
-	/// reproject the snapshot.
-	///
-	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
-	/// another folder).
-	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);

@@ -28,6 +28,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/folder_import.h"
@@ -74,7 +75,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenarios/guest_drive.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "scenarios/slot_coherence.h"
@@ -572,8 +573,8 @@ void checkTier() {
 	}
 }
 
-AudioFileHolder* firstHolder(Source& source) {
-	MultiRange* range = source.getOrCreateFirstRange();
+AudioFileHolder* firstHolder(Sound& sound, int32_t s) {
+	MultiRange* range = sound.getOrCreateFirstRange(s);
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
@@ -584,7 +585,7 @@ int32_t g_pitchGiveUpsBefore = 0;
 /// pitch counts marked.
 void armPitchLeg(uint32_t holdMs) {
 	deluge_streaming_set_fill_latency_ms(holdMs);
-	if (AudioFileHolder* holder = firstHolder(g_synth->sources[0]); holder != nullptr) {
+	if (AudioFileHolder* holder = firstHolder(*g_synth, 0); holder != nullptr) {
 		static_cast<SampleHolderForVoice*>(holder)->transpose = kTransposeSentinel;
 	}
 	g_pitchTicksBefore = deluge::gui::sampleClaim.pitchScanTicks();
@@ -610,8 +611,8 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	kit.addDrum(drum);
 	drum->setName(name);
 	drum->setupAsSample(&paramManager);
-	drum->sources[0].setOscType(OscType::SAMPLE);
-	AudioFileHolder* holder = firstHolder(drum->sources[0]);
+	deluge::test::setOscType(*drum, 0, OscType::SAMPLE);
+	AudioFileHolder* holder = firstHolder(*drum, 0);
 	if (holder == nullptr) {
 		setupFailed("kit", "a drum has no sample range");
 		return nullptr;
@@ -747,7 +748,7 @@ Sample* previewedSample() {
 	if (deluge::gui::ui::shellPreviewer().pending()) {
 		return nullptr;
 	}
-	Source& source = AudioEngine::sampleForPreview->sources[0];
+	SourceResources& source = AudioEngine::sampleForPreview->sources[0];
 	if (source.ranges.empty()) {
 		return nullptr;
 	}
@@ -774,7 +775,7 @@ void recordRandomizeRows() {
 	int32_t index = 0;
 	for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr && index < kRandomizeDrumCount;
 	     drum = drum->next, index++) {
-		AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+		AudioFileHolder* holder = firstHolder(*static_cast<SoundDrum*>(drum), 0);
 		g_randomizeRowPaths[index] = (holder != nullptr) ? holder->filePath : "";
 	}
 }
@@ -828,7 +829,7 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 	if (clip == nullptr) {
 		return setupFailed(leg, "the boot song has no synth clip");
 	}
-	g_synth->sources[0].setOscType(osc);
+	deluge::test::setOscType(*g_synth, 0, osc);
 	return openBrowser(leg, clip, &instrumentClipView);
 }
 
@@ -837,12 +838,12 @@ std::string g_osc2TypeBefore;
 
 /// Oscillator 2 of the boot synth on @p clip, as the menu's resolved sound target names it (`resolvedFor`).
 deluge::gui::SoundTarget osc2Target(Clip& clip) {
-	Source& source = g_synth->sources[1];
+	SourceResources& source = g_synth->sources[1];
 	return {.sound = g_synth,
 	        .mod = g_synth,
 	        .params = &clip.paramManager,
 	        .arp = &static_cast<InstrumentClip&>(clip).arpSettings,
-	        .range = source.getOrCreateFirstRange(),
+	        .range = g_synth->getOrCreateFirstRange(1),
 	        .rangeIndex = 0,
 	        .sourceIndex = 1,
 	        .source = &source};
@@ -857,7 +858,7 @@ bool openOsc2Claim() {
 	}
 	frontClip(legName(g_leg), clip, &instrumentClipView, nullptr);
 	if (g_leg == Leg::WaveTableOsc2) {
-		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->sources[1].oscType)};
+		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->oscType(1))};
 		deluge::edits::settingFor(*g_synth, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 	}
 	return true;
@@ -1049,7 +1050,7 @@ void prepareLeg() {
 			// The legs before this one left the first drum on the stall folder. Back to the randomizer's own folder,
 			// unbound: a cancelled walk must leave both exactly as they are, so both are what the check reads.
 			SoundDrum* drum = kitDrum();
-			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 			if (holder == nullptr) {
 				setupFailed("randomize-cancelscan", "the randomizer kit's first drum has no holder");
 				return;
@@ -1063,7 +1064,7 @@ void prepareLeg() {
 	case Leg::RandomizeGate:
 		buildFixture([] {
 			SoundDrum* drum = kitDrum();
-			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 			if (holder == nullptr) {
 				setupFailed("randomize-gate", "the randomizer kit's first drum has no holder");
 				return;
@@ -1082,12 +1083,9 @@ void prepareLeg() {
 			Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
 			Drum* second = (first != nullptr) ? first->next : nullptr;
 			Drum* third = (second != nullptr) ? second->next : nullptr;
-			AudioFileHolder* kept =
-			    (first != nullptr) ? firstHolder(static_cast<SoundDrum*>(first)->sources[0]) : nullptr;
-			AudioFileHolder* held =
-			    (second != nullptr) ? firstHolder(static_cast<SoundDrum*>(second)->sources[0]) : nullptr;
-			AudioFileHolder* after =
-			    (third != nullptr) ? firstHolder(static_cast<SoundDrum*>(third)->sources[0]) : nullptr;
+			AudioFileHolder* kept = (first != nullptr) ? firstHolder(*static_cast<SoundDrum*>(first), 0) : nullptr;
+			AudioFileHolder* held = (second != nullptr) ? firstHolder(*static_cast<SoundDrum*>(second), 0) : nullptr;
+			AudioFileHolder* after = (third != nullptr) ? firstHolder(*static_cast<SoundDrum*>(third), 0) : nullptr;
 			NoteRow* afterRow =
 			    (third != nullptr) ? static_cast<InstrumentClip*>(g_kitClip)->getNoteRowForDrum(third) : nullptr;
 			if (kept == nullptr || held == nullptr || after == nullptr || afterRow == nullptr) {
@@ -1174,7 +1172,7 @@ void prepareLeg() {
 			}
 			g_imStallRangePaths.clear();
 			if (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr) {
-				Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+				SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
 				for (int32_t i = 0; i < std::ssize(source.ranges); i++) {
 					g_imStallRangePaths.push_back(
 					    static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath);
@@ -1315,7 +1313,7 @@ bool openLeg() {
 			return setupFailed("import-multi", "no synth clip could be created");
 		}
 		// A wavetable oscillator: the import makes it a sample one, and finds the range it fills again.
-		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::WAVETABLE);
+		deluge::test::setOscType(*static_cast<SoundInstrument*>(g_importSynthClip->output), 0, OscType::WAVETABLE);
 		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
@@ -1569,7 +1567,7 @@ void actShellSlice() {
 	if (g_leg == Leg::ShellSliceBack) {
 		// A first drum that holds no file, as a brand-new kit's has: main dereferences its missing sample here.
 		auto* drum = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);
-		auto* range = static_cast<MultisampleRange*>(drum->sources[0].getOrCreateFirstRange());
+		auto* range = static_cast<MultisampleRange*>(drum->getOrCreateFirstRange(0));
 		range->sampleHolder.setAudioFile(nullptr);
 		const uint64_t start = range->sampleHolder.startPos;
 		const uint64_t end = range->sampleHolder.endPos;
@@ -1863,7 +1861,7 @@ void actLeg() {
 std::string randomizeStallHeldPath() {
 	Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
 	Drum* second = (first != nullptr) ? first->next : nullptr;
-	AudioFileHolder* holder = (second != nullptr) ? firstHolder(static_cast<SoundDrum*>(second)->sources[0]) : nullptr;
+	AudioFileHolder* holder = (second != nullptr) ? firstHolder(*static_cast<SoundDrum*>(second), 0) : nullptr;
 	return (holder != nullptr) ? holder->filePath : std::string{kRandomizeStallSample};
 }
 
@@ -1900,7 +1898,7 @@ bool legEnded() {
 		       && (g_leg != Leg::RandomizeStall || deluge_audio_load_can_progress(randomizeStallHeldPath().c_str()));
 	}
 	if (isSupersede()) {
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		return g_supersedeFired && !deluge::gui::sampleClaim.inFlight() && holder != nullptr
 		       && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
 	}
@@ -1927,7 +1925,7 @@ void checkRegionSlice(const char* stage) {
 		if (drum->type != DrumType::SOUND) {
 			continue;
 		}
-		AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+		AudioFileHolder* holder = firstHolder(*static_cast<SoundDrum*>(drum), 0);
 		if (holder != nullptr && holder->audioFile != nullptr && holder->filePath == kSliceSample) {
 			boundToSlice++;
 		}
@@ -1961,7 +1959,7 @@ void checkManualSlice(const char* stage) {
 		if (drum->type != DrumType::SOUND) {
 			continue;
 		}
-		auto* range = static_cast<MultisampleRange*>(static_cast<SoundDrum*>(drum)->sources[0].getOrCreateFirstRange());
+		auto* range = static_cast<MultisampleRange*>(static_cast<SoundDrum*>(drum)->getOrCreateFirstRange(0));
 		if (range == nullptr || range->sampleHolder.audioFile == nullptr
 		    || !(range->sampleHolder.filePath == kSliceSample)) {
 			continue;
@@ -1998,7 +1996,7 @@ void checkLeg() {
 	checkTier();
 	switch (g_leg) {
 	case Leg::Synth: {
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		// The browser closes itself once its claim lands (`shellSampleClaimDone`).
 		const bool browserClosed = !browserOnTop();
@@ -2012,8 +2010,8 @@ void checkLeg() {
 		                    && (menu.state().path[0] != &deluge::scenes::menu::nodes::file0_selector) == horizontal;
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
-		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "",
-		       static_cast<int>(g_synth->sources[0].oscType), static_cast<int>(g_synth->sources[0].state_->repeat_mode),
+		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
+		       static_cast<int>(g_synth->state_->sources[0].repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2047,7 +2045,7 @@ void checkLeg() {
 	}
 	case Leg::Stall: {
 		deluge_audio_load_set_latency_ms(0);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool browserOpen = browserOnTop();
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
@@ -2063,9 +2061,9 @@ void checkLeg() {
 	case Leg::WaveTable:
 	case Leg::Fallback: {
 		const bool wantWaveTable = (g_leg == Leg::WaveTable);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		const OscType osc = g_synth->sources[0].oscType;
+		const OscType osc = g_synth->oscType(0);
 		printf("SC-%s bound=%d path=%s osc=%d modKnobMode=%d ticks=%d\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(osc),
 		       static_cast<int>(g_synth->modKnobMode), g_wait.ticks());
@@ -2086,9 +2084,9 @@ void checkLeg() {
 	case Leg::WaveTableOsc2:
 	case Leg::FallbackOsc2: {
 		const bool wantWaveTable = (g_leg == Leg::WaveTableOsc2);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[1]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 1);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		const OscType osc = g_synth->sources[1].oscType;
+		const OscType osc = g_synth->oscType(1);
 		printf("SC-OSC2 leg=%s bound=%d osc=%d ticks=%d\n", legName(g_leg), bound ? 1 : 0, static_cast<int>(osc),
 		       g_wait.ticks());
 		if (!bound || osc != (wantWaveTable ? OscType::WAVETABLE : OscType::SAMPLE)) {
@@ -2123,7 +2121,7 @@ void checkLeg() {
 		deluge_streaming_set_fill_latency_ms(0);
 		const auto& claim = deluge::gui::sampleClaim;
 		const char* supersedeCase = (g_leg == Leg::Supersede) ? "landed" : "loading";
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const int32_t cancels = claim.cancels() - g_cancelsBefore;
 		const int32_t finishes = claim.finishes() - g_finishesBefore;
 		const bool boundSecond =
@@ -2145,7 +2143,7 @@ void checkLeg() {
 		break;
 	}
 	case Leg::WaveTableConverted: {
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
 		const ConversionMark conv = conversionsSince(g_convBefore);
@@ -2175,10 +2173,10 @@ void checkLeg() {
 	}
 	case Leg::WaveTableResident: {
 		deluge_streaming_set_fill_latency_ms(0);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
-		const OscType osc = g_synth->sources[0].oscType;
+		const OscType osc = g_synth->oscType(0);
 		const ConversionMark conv = conversionsSince(g_convBefore);
 		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d converted=%d fromCard=%d\n",
 		       bound ? 1 : 0, isWaveTable ? 1 : 0, static_cast<int>(osc),
@@ -2195,7 +2193,7 @@ void checkLeg() {
 	}
 	case Leg::Pitch: {
 		deluge_streaming_set_fill_latency_ms(0);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const int32_t transpose = holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0;
 		const int32_t scanTicks = deluge::gui::sampleClaim.pitchScanTicks() - g_pitchTicksBefore;
@@ -2209,7 +2207,7 @@ void checkLeg() {
 	}
 	case Leg::PitchStall: {
 		deluge_streaming_set_fill_latency_ms(0);
-		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		AudioFileHolder* holder = firstHolder(*g_synth, 0);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool noteError = bound && static_cast<Sample*>(holder->audioFile)->midiNote == MIDI_NOTE_ERROR;
 		const int32_t transpose = holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0;
@@ -2229,11 +2227,11 @@ void checkLeg() {
 	}
 	case Leg::Kit: {
 		SoundDrum* drum = kitDrum();
-		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "",
-		       drum != nullptr ? static_cast<int>(drum->sources[0].state_->repeat_mode) : -1,
+		       drum != nullptr ? static_cast<int>(drum->state_->sources[0].repeat_mode) : -1,
 		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
 		       g_wait.ticks());
 		if (!bound) {
@@ -2349,7 +2347,7 @@ void checkLeg() {
 	}
 	case Leg::ImportStall: {
 		deluge_audio_load_set_latency_ms(0);
-		Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
 		bool rangesKept = std::ssize(source.ranges) == std::ssize(g_imStallRangePaths);
 		for (int32_t i = 0; rangesKept && i < std::ssize(source.ranges); i++) {
 			rangesKept = static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath
@@ -2400,11 +2398,11 @@ void checkLeg() {
 					continue;
 				}
 				auto* soundDrum = static_cast<SoundDrum*>(drum);
-				AudioFileHolder* holder = firstHolder(soundDrum->sources[0]);
+				AudioFileHolder* holder = firstHolder(*soundDrum, 0);
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(soundDrum->sources[0].state_->repeat_mode), soundDrum->sideChainSendLevel);
+				       static_cast<int>(soundDrum->state_->sources[0].repeat_mode), soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]
 				    && holder->filePath == std::string{kImportKitFolder} + "/IMK_" + kImportKitNames[drums] + ".WAV") {
@@ -2431,7 +2429,7 @@ void checkLeg() {
 		}
 		else {
 			auto* synth = static_cast<SoundInstrument*>(g_importSynthClip->output);
-			Source& source = synth->sources[0];
+			SourceResources& source = synth->sources[0];
 			const int32_t ranges = std::ssize(source.ranges);
 			int32_t matched = 0;
 			for (int32_t i = 0; i < ranges; i++) {
@@ -2451,14 +2449,15 @@ void checkLeg() {
 			const int32_t editorRange = menuRange >= 0 && menuRange < ranges ? menuRange : -1;
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
-			    ranges, matched, static_cast<int>(source.state_->repeat_mode), static_cast<int>(source.oscType),
-			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_wait.ticks());
+			    ranges, matched, static_cast<int>(synth->config().sources[0].repeat_mode),
+			    static_cast<int>(synth->oscType(0)), synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange,
+			    g_wait.ticks());
 			if (editorRange != kImportMultiCount / 2) {
 				g_report.fail("IM-MULTI the menu context was not left on the middle range");
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
-			    || source.state_->repeat_mode != SampleRepeatMode::ONCE || source.oscType != OscType::SAMPLE
-			    || !browserClosed) {
+			    || synth->config().sources[0].repeat_mode != SampleRepeatMode::ONCE
+			    || synth->oscType(0) != OscType::SAMPLE || !browserClosed) {
 				g_report.fail(
 				    "IM-MULTI the multisample import did not end with one range per file in pitch order, each "
 				    "bound to its file with the top note today's importer gives it and the transpose its detection "
@@ -2498,8 +2497,8 @@ void checkLeg() {
 		auto* first = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);
 		auto* second = static_cast<SoundDrum*>(first->next);
 		auto* third = static_cast<SoundDrum*>(second->next);
-		AudioFileHolder* kept = firstHolder(first->sources[0]);
-		AudioFileHolder* held = firstHolder(second->sources[0]);
+		AudioFileHolder* kept = firstHolder(*first, 0);
+		AudioFileHolder* held = firstHolder(*second, 0);
 		const bool keptFirst = kept != nullptr && kept->audioFile != nullptr && kept->filePath == kRandomizeStallKept
 		                       && first->name() == kRandomizeStallKeptName;
 		const bool secondUnbound = held != nullptr && held->audioFile == nullptr;
@@ -2520,7 +2519,7 @@ void checkLeg() {
 	case Leg::RandomizeCancelScan: {
 		deluge_file_directory_set_latency_ms(0);
 		SoundDrum* drum = kitDrum();
-		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const int32_t entered = deluge::gui::randomizeDrums.drainsEntered() - g_rdCancelDrainsEnteredBefore;
 		const int32_t collected = deluge::gui::randomizeDrums.drainsCollected() - g_rdCancelDrainsCollectedBefore;
 		// The claim the rounds are for: a randomize made after them still gets a directory handle, so every handle
@@ -2577,7 +2576,7 @@ void checkLeg() {
 		int32_t index = 0;
 		for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum;
 		     drum != nullptr && index < kRandomizeDrumCount; drum = drum->next, index++) {
-			AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+			AudioFileHolder* holder = firstHolder(*static_cast<SoundDrum*>(drum), 0);
 			const bool eligible = (g_leg == Leg::RandomizeAll) ? (index < kRandomizeEligible) : (index == 0);
 			const bool inFolder =
 			    holder != nullptr && holder->audioFile != nullptr && holder->filePath.rfind(kRandomizeFolder, 0) == 0;
@@ -2683,7 +2682,7 @@ void tickRandomizeCancel() {
 	// must not have done.
 	g_rdCancelDrained = walk.scansRun() - g_rdCancelScansBefore;
 	SoundDrum* drum = kitDrum();
-	AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+	AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 	g_rdCancelRowUntouched = holder != nullptr && holder->audioFile == nullptr
 	                         && holder->filePath == kRandomizeFirstSample && drum->name() == kRandomizeDrums[0].name;
 	deluge_file_directory_set_latency_ms(0);

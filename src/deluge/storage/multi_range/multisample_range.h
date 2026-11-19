@@ -20,7 +20,7 @@
 #include "model/sample/sample_holder_for_voice.h"
 #include "storage/multi_range/multi_range.h"
 
-class Source;
+class SourceResources;
 class Sample;
 class Cluster;
 

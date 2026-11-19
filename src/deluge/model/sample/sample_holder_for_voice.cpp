@@ -19,7 +19,7 @@
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_transpose.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include <cmath>

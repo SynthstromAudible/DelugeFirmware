@@ -29,7 +29,7 @@ BlockingSampleLoad::BlockingSampleLoad(bool mayReadCard, AudioLoadContext* conte
 }
 
 Walk BlockingSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
-	AudioEngine::logAction("Source::loadAllSamples");
+	AudioEngine::logAction("SourceResources::loadAllSamples");
 	return Walk::Continue;
 }
 

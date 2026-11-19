@@ -231,7 +231,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[0].getOrCreateFirstRange();
+		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
 		std::vector<deluge::instrument::RangeState> ranges =
 		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;

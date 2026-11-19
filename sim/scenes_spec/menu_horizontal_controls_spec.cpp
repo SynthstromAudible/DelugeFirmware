@@ -47,7 +47,7 @@
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "util/functions.h"
 
 #include "support/menu_engine.h"
@@ -376,11 +376,11 @@ struct Rig {
 	///        first range.
 	SoundInstrument* without_ranges() {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
-			source.state_->osc_type = OscType::SQUARE;
-			source.ranges.clear();
+		for (int32_t s = 0; s < kNumSources; s++) {
+			sound->state_->sources[s].osc_type = OscType::SQUARE;
+			sound->sources[s].ranges.clear();
 		}
+		sound->projectSnapshot();
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
@@ -964,7 +964,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		MenuContext ctx = r.open(horiz_page);
 		::Sound& sound = *spec::menu_engine(ctx).sound;
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[0].getOrCreateFirstRange();
+		(void)sound.getOrCreateFirstRange(0);
 		sound.sources[0].ranges.getElement(0)->topNote = 40;
 		sound.sources[0].ranges.insertMultiRange(1)->topNote = 60;
 		sound.sources[0].ranges.insertMultiRange(2)->topNote = 32767;
@@ -2423,7 +2423,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2454,7 +2454,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
-		for (const Source& source : sound->sources) {
+		for (const SourceResources& source : sound->sources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});

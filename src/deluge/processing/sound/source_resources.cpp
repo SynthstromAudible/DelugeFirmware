@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/sound_state.h"
 #include "libdeluge/system.h" // AudioExcludedSection
@@ -33,13 +33,12 @@
 #include <cstring>
 #include <iterator>
 
-Source::Source() {
-	oscType = OscType::SQUARE;
+SourceResources::SourceResources() {
 	defaultRangeI = -1;
 	dxPatch = nullptr;
 }
 
-Source::~Source() {
+SourceResources::~SourceResources() {
 	// destruct dxPatch if it was allocated
 	if (dxPatch != nullptr) {
 		dxPatch->~DxPatch();
@@ -48,17 +47,7 @@ Source::~Source() {
 	}
 }
 
-void Source::attachState(deluge::instrument::SourceState* d) {
-	state_ = d;
-}
-
-void Source::bindState(deluge::instrument::SourceState* d) {
-	state_ = d;
-	seedDocDxPatch();
-	seedDocRanges();
-}
-
-void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
+void SourceResources::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	if (dxPatch != nullptr) {
 		deluge::instrument::DxPatchState p;
 		for (int32_t b = 0; b < 156; b++) {
@@ -73,13 +62,7 @@ void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	}
 }
 
-void Source::seedDocDxPatch() {
-	if (state_ != nullptr) {
-		seedDxPatchInto(*state_);
-	}
-}
-
-void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
+void SourceResources::seedRangesInto(deluge::instrument::SourceState& d) const {
 	d.ranges.clear();
 	int32_t numRanges = std::ssize(ranges);
 	d.ranges.reserve(numRanges);
@@ -101,14 +84,8 @@ void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
 	}
 }
 
-void Source::seedDocRanges() {
-	if (state_ != nullptr) {
-		seedRangesInto(*state_);
-	}
-}
-
-// Only to be called if already determined that oscType == OscType::SAMPLE
-int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
+int32_t SourceResources::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
 	if (range != nullptr) {
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
@@ -117,8 +94,8 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
-bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
-                            SampleHolder* sampleHolder) {
+bool SourceResources::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
+                                     SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) {
 		return false;
 	}
@@ -132,13 +109,13 @@ bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t
 	       || (oscType == OscType::INPUT_STEREO && (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn));
 }
 
-void Source::detachAllAudioFiles() {
+void SourceResources::detachAllAudioFiles() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
 	}
 }
 
-deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
+deluge::storage::Walk SourceResources::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
 			return deluge::storage::Walk::Stop;
@@ -152,9 +129,8 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 	return deluge::storage::Walk::Continue;
 }
 
-// Only to be called if already determined that oscType == OscType::SAMPLE
-void Source::followDirection() {
-	const bool reversed = isCurrentlyReversed();
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
+void SourceResources::followDirection(bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -168,7 +144,7 @@ void Source::followDirection() {
 	}
 }
 
-MultiRange* Source::getRange(int32_t note) {
+MultiRange* SourceResources::getRange(int32_t note) {
 	if (std::ssize(ranges) == 1) {
 		return ranges.getElement(0);
 	}
@@ -184,7 +160,7 @@ MultiRange* Source::getRange(int32_t note) {
 	}
 }
 
-int32_t Source::getRangeIndex(int32_t note) {
+int32_t SourceResources::getRangeIndex(int32_t note) {
 	if (std::ssize(ranges) <= 1) {
 		return 0;
 	}
@@ -197,7 +173,7 @@ int32_t Source::getRangeIndex(int32_t note) {
 	}
 }
 
-MultiRange* Source::getOrCreateFirstRange() {
+MultiRange* SourceResources::getOrCreateFirstRange() {
 	if (ranges.empty()) {
 		MultiRange* newRange = ranges.insertMultiRange(
 		    0); // Default option - allowed e.g. for a new Sound where the current process is the Ranges get set up
@@ -207,9 +183,6 @@ MultiRange* Source::getOrCreateFirstRange() {
 		}
 
 		newRange->topNote = 32767;
-		// The range collection just grew from empty: reflect it into the record. Self-guards when unbound (e.g. a
-		// Source being built before adoption); bind or a load's reseedRecord seeds it later in that case.
-		seedDocRanges();
 		return newRange;
 	}
 
@@ -218,7 +191,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 	}
 }
 
-bool Source::hasAtLeastOneAudioFileLoaded() {
+bool SourceResources::hasAtLeastOneAudioFileLoaded() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (ranges.getElement(e)->getAudioFileHolder()->audioFile) {
 			return true;
@@ -227,8 +200,8 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 	return false;
 }
 
-// Only to be called if already determined that oscType == OscType::SAMPLE
-bool Source::hasAnyLoopEndPoint() {
+// Only for a sample oscillator (its sound's oscType is SAMPLE)
+bool SourceResources::hasAnyLoopEndPoint() {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 		if (range->sampleHolder.loopEndPos) {
@@ -240,7 +213,7 @@ bool Source::hasAnyLoopEndPoint() {
 
 // If setting to SAMPLE or WAVETABLE, you must call killAllVoices before this, because ranges is going to get
 // emptied; likewise to or from an input type, whose live histories are replaced.
-void Source::setOscType(OscType newType) {
+void SourceResources::setOscType(OscType newType) {
 
 	int32_t multiRangeSize;
 	if (newType == OscType::SAMPLE) {
@@ -256,8 +229,6 @@ doChangeType:
 				goto doChangeType; // Can't fail now it's empty.
 			}
 
-			oscType = newType;
-
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 			RangesRetypeWatch::rangesRetyped(*this, cleared);
@@ -268,26 +239,17 @@ doChangeType:
 		goto possiblyDeleteRanges;
 	}
 
-	oscType = newType;
-	if (state_ != nullptr) {
-		state_->osc_type = newType;
-	}
-	if (oscType == OscType::DX7) {
+	if (newType == OscType::DX7) {
 		ensureDxPatch();
 	}
-	seedDocDxPatch(); // reflect the (possibly newly-created) patch into the record
-	// changeType() (above, when the element size actually changed) rebuilds every range as the new variant type,
-	// preserving only topNote: reflect the whole list into the record. Also covers the getOrCreateFirstRange()
-	// insert-from-empty path (redundant with its own reseed, but harmless).
-	seedDocRanges();
-	reconcileLiveInputs();
+	reconcileLiveInputs(newType);
 }
 
-void Source::reconcileLiveInputs() {
-	if (liveInputs.holds_for(oscType)) {
+void SourceResources::reconcileLiveInputs(OscType type) {
+	if (liveInputs.holds_for(type)) {
 		return;
 	}
-	deluge::synth::LiveInputStore next = deluge::synth::LiveInputStore::for_type(oscType);
+	deluge::synth::LiveInputStore next = deluge::synth::LiveInputStore::for_type(type);
 	{
 		AudioExcludedSection section; // the render reads the histories each block
 		liveInputs.swap(next);
@@ -295,7 +257,7 @@ void Source::reconcileLiveInputs() {
 	// next holds the old histories, freed here, outside the section
 }
 
-DxPatch* Source::ensureDxPatch() {
+DxPatch* SourceResources::ensureDxPatch() {
 	if (dxPatch == nullptr) {
 		DxEngine* engine = getDxEngine();
 		if (engine == nullptr) {

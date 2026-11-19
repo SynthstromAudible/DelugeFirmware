@@ -16,7 +16,7 @@ Error SetDxPatch::apply(Context& ctx) {
 	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
 	if (slot == nullptr || sound == nullptr || sound->boundState() == nullptr || source_ >= kNumSources
-	    || sound->sources[source_].oscType != OscType::DX7) {
+	    || sound->oscType(source_) != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}
 	const auto id = static_cast<deluge::instrument::SourceId>(source_);

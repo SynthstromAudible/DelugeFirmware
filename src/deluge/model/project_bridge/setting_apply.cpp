@@ -36,7 +36,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/tree.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "util/comparison.h"
@@ -175,7 +175,7 @@ bool runtimeTakes(const ::Sound& sound, std::string_view path) {
 	const bool fm = sound.getSynthMode() == SynthMode::FM;
 	std::string_view rest;
 	if (const int32_t s = oscillatorOf(path, rest); s >= 0) {
-		const OscType type = sound.sources[s].oscType;
+		const OscType type = sound.oscType(s);
 		if (isSamplePlayback(rest)) {
 			const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
 			return !fm && (type == OscType::SAMPLE || (input && rest == "linearInterpolation"));
@@ -226,16 +226,21 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	}
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		Source& source = sound.sources[s];
+		SourceResources& source = sound.sources[s];
 		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
 			squareCameOrWent = squareCameOrWent || before.sources[s].osc_type == OscType::SQUARE
 			                   || after.sources[s].osc_type == OscType::SQUARE;
 			source.setOscType(after.sources[s].osc_type);
+			// The render reads the type from the config: it learns the new one as soon as the ranges have it. Retyping
+			// itself can release clusters, which must not happen with the render excluded.
+			AudioExcludedSection section;
+			sound.projectSnapshot();
 		}
 		if (before.sources[s].reversed != after.sources[s].reversed) {
 			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
-			source.followDirection();
-			source.seedDocRanges();
+			source.followDirection(after.sources[s].reversed
+			                       != source.invertReversed); // the config is not yet the new one
+			sound.recordHeldRanges(s);
 		}
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -277,7 +282,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		const std::vector<deluge::instrument::RangeState>& heldRanges =
 		    retyped ? held.ranges : before.sources[s].ranges;
 		Error error = Error::NONE;
-		if (wanted.dx_patch && heldPatch != wanted.dx_patch && sound.sources[s].oscType == OscType::DX7) {
+		if (wanted.dx_patch && heldPatch != wanted.dx_patch && sound.oscType(s) == OscType::DX7) {
 			error = applyDxPatch(sound, s, *wanted.dx_patch);
 		}
 		if (error == Error::NONE && heldRanges != wanted.ranges) {

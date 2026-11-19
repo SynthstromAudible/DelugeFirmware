@@ -44,7 +44,7 @@
 #include "modulation/params/param.h"
 #include "modulation/sync.h" // NUM_SYNC_VALUES
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/song_fixture.h"
 
@@ -1801,7 +1801,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a `defaultRangeI` of -1
 		// is invalid, so the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
-		// `Source::defaultRangeI`, as legacy does.
+		// `SourceResources::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
@@ -1866,7 +1866,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
 		// `selectEncoderAction`'s flick writes `defaultRangeI` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
 		// `MultiRange::selectEncoderAction`); a voice start writes it too
-		// (`Source::getRange`), and the open picker's cursor stays where it was.
+		// (`SourceResources::getRange`), and the open picker's cursor stays where it was.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2164,7 +2164,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
-		// `Source::getOrCreateFirstRange` gives it the top of the keyboard.
+		// `SourceResources::getOrCreateFirstRange` gives it the top of the keyboard.
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 

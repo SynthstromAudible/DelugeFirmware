@@ -685,7 +685,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	}
 	deluge::edits::SetEngineSetting sample{*slot, "osc1/type", Value::makeScalar("sample")};
 	check(deluge::edits::apply(ctx, sample) == Error::NONE, "ranges: osc1 plays samples");
-	sound.sources[0].getOrCreateFirstRange();
+	sound.getOrCreateFirstRange(0);
 	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	check(ranges.size() == 1, "ranges: one range");
 	if (ranges.size() != 1) {
@@ -719,9 +719,18 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	          != "SAMPLES/OTHER.WAV",
 	      "ranges: a refused list leaves the runtime's file");
 	auto longer = ranges;
-	longer.insert(longer.begin(), deluge::instrument::RangeState{.top_note = 40});
+	longer.insert(longer.begin(),
+	              {deluge::instrument::RangeState{.top_note = 30}, deluge::instrument::RangeState{.top_note = 40}});
 	deluge::edits::SetSourceRanges reshape{*slot, 0, longer};
-	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: another length is refused");
+	check(deluge::edits::apply(ctx, reshape) != Error::NONE, "ranges: two ranges more at once is refused");
+	// A range added above the open top note, but below it in pitch: out of order, refused before the runtime takes it
+	auto unordered = ranges;
+	unordered.push_back(deluge::instrument::RangeState{.top_note = 40, .end_pos = deluge::instrument::kUnsetEndPos});
+	const auto heldBefore = std::ssize(sound.sources[0].ranges);
+	deluge::edits::SetSourceRanges insertOutOfOrder{*slot, 0, unordered};
+	check(deluge::edits::apply(ctx, insertOutOfOrder) != Error::NONE
+	          && std::ssize(sound.sources[0].ranges) == heldBefore,
+	      "ranges: an insert out of order is refused before the runtime takes a range");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "ranges: a refusal leaves the slot");
 
@@ -735,7 +744,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 		}
 		range->topNote = 60;
 	}
-	sound.sources[0].seedDocRanges();
+	deluge::edits::recordRanges(sound, 0);
 	ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	ranges[2].end_pos = 700;
 	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};
@@ -939,7 +948,7 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	check(state != nullptr && state->sources[0].osc_type == OscType::DX7 && state->sources[0].dx_patch.has_value()
 	          && state->sources[0].dx_patch->params == deluge::instrument::kDx7InitVoice,
 	      "blank dx: its state holds a DX7 oscillator on the init voice");
-	check(sound.sources[0].oscType == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
+	check(sound.oscType(0) == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
 	      "blank dx: its runtime plays a DX7 oscillator");
 	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	ctx.song.addOutput(synth);

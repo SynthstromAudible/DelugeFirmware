@@ -97,7 +97,8 @@ bool shellRangePickerOpen();
 bool shellRangeDependentOpen();
 
 /// @brief Whether @p untransposed falls in the range the ported menu has selected, on a source of several: the guest's
-///        half of `noteWithinCurrentRange`. Asks `Source::getRange`, which remembers the range as legacy's test does.
+///        half of `noteWithinCurrentRange`. Asks `SourceResources::getRange`, which remembers the range as legacy's
+///        test does.
 /// @param untransposed The note as the clip has it, before the sound's transpose.
 bool shellNoteWithinCurrentRange(int32_t untransposed);
 

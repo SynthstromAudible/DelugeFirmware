@@ -30,6 +30,7 @@
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
@@ -87,7 +88,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "serialization/value.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
@@ -841,19 +842,20 @@ bool setupLeg() {
 		auditionSynth(kRowNote);
 		return true;
 	case Leg::VoiceFail: {
-		// Ring-mod with a sample source that has no sample: Sound::noteOn lets a ring-mod note through, and the voice's
-		// own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
+		// Ring-mod with a wavetable source that has no file: Sound::noteOn lets a ring-mod note through, and the
+		// voice's own note-on fails on the inactive source (the voice's note-on returns false only in ring-mod).
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		deluge::edits::settingFor(
 		    *synth, "mode",
 		    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::RINGMOD))));
-		synth->sources[0].setOscType(OscType::SAMPLE);
+		deluge::test::setOscType(*synth, 0, OscType::WAVETABLE);
 		return true;
 	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
-		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
-		if (source.getOrCreateFirstRange() == nullptr || source.ranges.insertMultiRange(1) == nullptr) {
+		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
+		if (static_cast<SoundInstrument*>(g_clip->output)->getOrCreateFirstRange(0) == nullptr
+		    || source.ranges.insertMultiRange(1) == nullptr) {
 			return setupFailed("no memory for two multi-ranges");
 		}
 		auditionSynth(kRowNote);
@@ -1326,7 +1328,7 @@ void editLeg() {
 		// The oscillator-type menu's shape (gui/menu_item/osc/type.h): end the voices, then change the type.
 		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
 		synth->killAllVoices();
-		synth->sources[0].setOscType(OscType::SQUARE);
+		deluge::test::setOscType(*synth, 0, OscType::SQUARE);
 		break;
 	}
 	case Leg::VoiceFail: {

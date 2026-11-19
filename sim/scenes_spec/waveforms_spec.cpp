@@ -16,7 +16,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -76,8 +76,8 @@ struct PreviewSound {
 	SoundDrum* const saved = AudioEngine::sampleForPreview;
 	SoundDrum* drum = new (memory) SoundDrum();
 	PreviewSound() {
-		drum->sources[0].oscType = OscType::SAMPLE;
 		drum->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
+		drum->projectSnapshot();
 		AudioEngine::sampleForPreview = drum;
 	}
 	~PreviewSound() {
@@ -88,7 +88,7 @@ struct PreviewSound {
 	PreviewSound& operator=(const PreviewSound&) = delete;
 	/// Put @p sample in the preview's range, as `SampleBrowser::showPreview`'s load does.
 	void hold(Sample* sample) {
-		static_cast<MultisampleRange*>(drum->sources[0].getOrCreateFirstRange())->sampleHolder.audioFile = sample;
+		static_cast<MultisampleRange*>(drum->getOrCreateFirstRange(0))->sampleHolder.audioFile = sample;
 	}
 };
 
@@ -106,10 +106,10 @@ describe waveforms("a waveform by its address", ${
 		expect(waveforms.info(range).has_value()).to_be_false();
 
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
-		Source& source = sound->sources[0];
-		source.oscType = OscType::SAMPLE;
+		SourceResources& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
-		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+		sound->projectSnapshot();
+		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
 		const auto info = waveforms.info(range);
@@ -142,10 +142,10 @@ describe waveforms("a waveform by its address", ${
 		Song* const saved = currentSong;
 		currentSong = synth.song;
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
-		Source& source = sound->sources[0];
-		source.oscType = OscType::SAMPLE;
+		SourceResources& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
-		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+		sound->projectSnapshot();
+		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,

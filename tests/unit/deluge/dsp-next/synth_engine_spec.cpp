@@ -69,7 +69,8 @@ NoteSetup two_sources_and_noise() {
 
 RenderConfig two_source_config(SynthMode mode) {
 	RenderConfig cfg = config(mode, OscType::SAW);
-	cfg.values.osc_type = {OscType::SAW, OscType::SQUARE};
+	cfg.sound.sources[0].osc_type = OscType::SAW;
+	cfg.sound.sources[1].osc_type = OscType::SQUARE;
 	cfg.values.source_ever_active = {true, true};
 	cfg.values.source_active_currently = {true, true};
 	cfg.values.noise_volume_contains_something = true;

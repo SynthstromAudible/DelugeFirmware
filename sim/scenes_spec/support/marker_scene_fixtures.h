@@ -32,7 +32,7 @@
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -130,7 +130,7 @@ struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sample* sample = make_sample();
 	Sound* sound = nullptr;
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	const BoardProfile& profile;
@@ -162,11 +162,11 @@ struct Rig {
 		    song.song); // the app's sink and waveforms resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		source->oscType = OscType::SAMPLE;
-		source->state_->osc_type = OscType::SAMPLE;
-		source->state_->repeat_mode = SampleRepeatMode::ONCE;
-		source->state_->reversed = false;
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		sound->state_->sources[0].osc_type = OscType::SAMPLE;
+		sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
+		sound->state_->sources[0].reversed = false;
+		sound->projectSnapshot();
+		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.startPos = 0;
 		range->sampleHolder.endPos = kSampleLength;

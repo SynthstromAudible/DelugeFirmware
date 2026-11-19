@@ -48,6 +48,11 @@ public:
 	void press() {
 		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
 	}
+	/// A press of a slice from @p start to @p end, transposed by @p transpose.
+	void press_slice(int64_t start, int64_t end, int32_t transpose) {
+		core_.audition(*waveformBasicNavigator.sample,
+		               {.startPoint = start, .endPoint = end, .transpose = transpose, .on = 1});
+	}
 	/// The release of that pad.
 	void release() {
 		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = 0, .transpose = 0, .on = 0});
@@ -71,6 +76,19 @@ private:
 
 // clang-format off
 describe slicer_preview_group("slicer preview", ${
+	it("plays the pressed slice's zone and transpose, through the drum's ranges", _ {
+		SlicerPreviewProbe probe;
+		probe.answer(LoadAnswer::Loaded);
+		probe.press_slice(1000, 5000, 3);
+		probe.graphicsRoutine(); // the held load lands, and the slice sounds
+		expect(deluge::test::lastAppliedRanges.size()).to_equal(size_t{1});
+		if (deluge::test::lastAppliedRanges.size() == 1) {
+			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].start_pos)).to_equal(int64_t{1000});
+			expect(static_cast<int64_t>(deluge::test::lastAppliedRanges[0].end_pos)).to_equal(int64_t{5000});
+			expect(int{deluge::test::lastAppliedRanges[0].transpose}).to_equal(3);
+		}
+	});
+
 	/// A release loads nothing and therefore never waits: its note-off is sent at once, whatever a load is doing. This is
 	/// asserted rather than left as a reading of the control flow, because a release that waited for a load would leave a
 	/// note sounding after the finger lifted.

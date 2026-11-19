@@ -17,7 +17,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/menu_engine.h"
 #include "support/oracle_tree.h"

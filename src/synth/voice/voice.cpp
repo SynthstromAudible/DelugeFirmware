@@ -727,7 +727,7 @@ uint32_t Voice::play_once_sample_sources(const SoundConfig& config, const BlockV
 
 		// Not for anything but a play-once sample (STRETCH is too hard to calculate), nor for one whose loop end is
 		// still obeyed
-		if (cfg.osc_type[s] != OscType::SAMPLE || config.sources[s].repeat_mode != SampleRepeatMode::ONCE
+		if (config.sources[s].osc_type != OscType::SAMPLE || config.sources[s].repeat_mode != SampleRepeatMode::ONCE
 		    || !block.sample_can_auto_release[s]) {
 			return 0;
 		}
@@ -857,7 +857,7 @@ DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& contro
 		controls.phase_width[s] = params_.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s];
 		controls.wave_index[s] = params_.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
 		controls.pitch_mod_disallows_cache[s] =
-		    cfg.osc_type[s] == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
+		    config.sources[s].osc_type == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
 	}
 	return controls;
 }

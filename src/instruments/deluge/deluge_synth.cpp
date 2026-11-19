@@ -68,7 +68,8 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 	}
 	for (size_t s = 0; s < config.sources.size(); s++) {
 		const SourceState& source = state.sources[s];
-		config.sources[s] = {.transpose = source.transpose,
+		config.sources[s] = {.osc_type = source.osc_type,
+		                     .transpose = source.transpose,
 		                     .cents = source.cents,
 		                     .tune = FineTune::of_cents(source.cents),
 		                     .repeat_mode = source.repeat_mode,

@@ -46,7 +46,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 
 #include "support/known_differences.h"
 #include "support/menu_engine.h"
@@ -638,7 +638,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(spec::menu_engine(f.ctx).range).not_().to_be_null();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
 		expect(menu::permission_for(nodes::source0_transpose, f.ctx)).to_equal(menu::Permission::Yes);
-		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard.
+		// `SourceResources::getOrCreateFirstRange` gives the new range the top of the keyboard.
 		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
 
 		// Idempotent: a second call must not add a second range.
@@ -858,7 +858,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 	});
 
 	it("moves to a played note's range as noteOnToChangeRange does, a note at a range's top inside it, and not mid-edge", _ {
-		// `MultiRange::noteOnToChangeRange` and `Source::getRangeIndex`: the first range whose top is at or above the note.
+		// `MultiRange::noteOnToChangeRange` and `SourceResources::getRangeIndex`: the first range whose top is at or above the note.
 		RangeFixture f{3};
 		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
 		const int16_t tops[] = {40, 60, 32767};

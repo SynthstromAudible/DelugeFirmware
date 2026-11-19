@@ -34,7 +34,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multi_range.h"
 
 #include <iterator>

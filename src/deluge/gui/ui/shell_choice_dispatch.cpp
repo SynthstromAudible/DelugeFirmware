@@ -44,7 +44,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"

@@ -307,10 +307,10 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// past a menu edit where legacy stops them.
 	//
 	// Remembering the previously selected range across sessions (`SoundEditor::setup` in `sound_editor.cpp`) is not
-	// done here either: the source keeps it (`Source::defaultRangeI`), which the picker reads.
+	// done here either: the source keeps it (`SourceResources::defaultRangeI`), which the picker reads.
 	//
 	// **Nor is the first range's allocation.**
-	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check
+	// `SourceResources::getOrCreateFirstRange()`'s allocation inside the legacy permission check
 	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) belongs to whoever *opens* a range-dependent
 	// item, and this function does not: it hands the node id to `MenuScene::on_enter` through `SceneId::arg`, which is
 	// where the open happens and where it belongs. Site 8 -- the only site here that names a leaf -- is the one this

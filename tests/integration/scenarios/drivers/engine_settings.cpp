@@ -252,7 +252,7 @@ bool isSamplePlayback(std::string_view path) {
 /// Whether @p sound's source that @p path names (`oscN/…`) takes the sample-playback setting: a sample source of a
 /// non-FM sound, or for interpolation a live-input one too.
 bool playsSamples(Sound& sound, std::string_view path) {
-	const OscType type = sound.sources[path[3] - '1'].oscType;
+	const OscType type = sound.oscType(path[3] - '1');
 	const bool input = type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
 	return sound.getSynthMode() != SynthMode::FM
 	       && (type == OscType::SAMPLE || (input && path.ends_with("/linearInterpolation")));
@@ -362,7 +362,7 @@ bool takes(Sound& sound, std::string_view path) {
 		return sound.getSynthMode() != SynthMode::FM;
 	}
 	if (path.starts_with("osc") && (path.ends_with("/transpose") || path.ends_with("/cents"))) {
-		return sound.getSynthMode() == SynthMode::FM || sound.sources[path[3] - '1'].oscType != OscType::SAMPLE;
+		return sound.getSynthMode() == SynthMode::FM || sound.oscType(path[3] - '1') != OscType::SAMPLE;
 	}
 	if (path.starts_with("modulator")) {
 		return sound.getSynthMode() == SynthMode::FM;
@@ -516,7 +516,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 int ringModLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 	if (!address || sound.boundState() == nullptr || sound.getSynthMode() == SynthMode::FM
-	    || sound.sources[0].oscType != OscType::SAMPLE) {
+	    || sound.oscType(0) != OscType::SAMPLE) {
 		return 0;
 	}
 	const std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[0].ranges;
@@ -527,7 +527,7 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 	if (deluge::edits::apply(ctx, ringMod) == Error::NONE) {
 		failed = "taken";
 	}
-	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.sources[0].oscType != OscType::SAMPLE
+	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.oscType(0) != OscType::SAMPLE
 	         || sound.boundState()->sources[0].ranges != ranges
 	         || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)), slotBefore)
 	                 .empty()) {
@@ -828,7 +828,7 @@ int liveRangeLeg(Song& song) {
 			continue;
 		}
 		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[s]);
-		if (synth->sources[s].oscType == OscType::SAMPLE) {
+		if (synth->oscType(s) == OscType::SAMPLE) {
 			ranges.back().transpose = static_cast<int16_t>(ranges.back().transpose == 0 ? 1 : 0);
 		}
 		else {

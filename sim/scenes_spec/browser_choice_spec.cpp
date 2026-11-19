@@ -80,7 +80,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -339,7 +339,7 @@ Sample* make_sample() {
 ///        pointing at `kChosenPath`, so `sample_start_at` lands the browser on that file.
 struct SongRig {
 	spec::SongFixture song = spec::make_synth_song();
-	Source* source = nullptr;
+	SourceResources* source = nullptr;
 	MultisampleRange* range = nullptr;
 
 	SongRig(const SongRig&) = delete;
@@ -348,11 +348,11 @@ struct SongRig {
 	SongRig() {
 		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		source->oscType = OscType::SAMPLE;
-		source->state_->osc_type = OscType::SAMPLE;
-		source->state_->repeat_mode = SampleRepeatMode::ONCE;
+		sound->state_->sources[0].osc_type = OscType::SAMPLE;
+		sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
+		sound->projectSnapshot();
 		Sample* sample = make_sample();
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.filePath = std::string{kChosenPath};
 		sample->filePath = std::string{kChosenPath}; // the record names the range's file by its sample
@@ -1525,7 +1525,7 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		shellHostUI.selectEncoderAction(1);
 		(void)shellHostUI.timerCallback();
 		// The landed preview, as the previewer leaves it: its sample in the preview drum.
-		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
+		auto* preview = static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		sample->addReason();
 		preview->sampleHolder.audioFile = sample;

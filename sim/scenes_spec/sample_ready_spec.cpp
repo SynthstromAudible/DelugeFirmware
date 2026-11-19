@@ -81,7 +81,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		expect(bindings::relevant(menu::nodes::sample0_repeat, ctx)).to_be_false();
 
 		auto* sample = static_cast<AudioFile*>(new (deluge::memory::alloc_fast(sizeof(Sample))) Sample());
-		AudioFileHolder* holder = spec::menu_engine(ctx).sound->sources[0].getOrCreateFirstRange()->getAudioFileHolder();
+		AudioFileHolder* holder = spec::menu_engine(ctx).sound->getOrCreateFirstRange(0)->getAudioFileHolder();
 		holder->AudioFileHolder::setAudioFile(sample, false, false, CLUSTER_DONT_LOAD);
 		r.shell.tick(60);
 		expect(r.fake.blits.size()).to_be_greater_than(settled);

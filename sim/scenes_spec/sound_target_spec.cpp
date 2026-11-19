@@ -1,15 +1,16 @@
 /// @file
 /// @brief The range a claim or an import carries across the oscillator-type change it makes
 ///        (`deluge::gui::retargetRangeAfterRetype`, `RangesRetypeWatch`), on a real synth's source, by the
-///        rule `Source::setOscType` applies to the legacy editor's range: only a reallocation moves it, by its index,
-///        and a reallocation that had to clear the ranges starts again from range 0.
+///        rule `SourceResources::setOscType` applies to the legacy editor's range: only a reallocation moves it, by its
+///        index, and a reallocation that had to clear the ranges starts again from range 0.
 
 #include "gui/ui/sound_target.h"
+#include "support/sound_fixtures.h"
 
 #include "definitions_cxx.hpp"
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/multi_range/multi_range.h"
 
 #include "support/song_fixture.h"
@@ -31,15 +32,16 @@ using deluge::gui::SoundTarget;
 struct SourceRig {
 	deluge::scenes::spec::SongFixture song = deluge::scenes::spec::make_synth_song();
 	Sound* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-	Source* source = &sound->sources[0];
+	SourceResources* source = &sound->sources[0];
 	SoundTarget target{};
 
 	SourceRig(int32_t count, int16_t index) {
-		source->setOscType(OscType::SAMPLE);
-		(void)source->getOrCreateFirstRange();
+		deluge::test::setOscType(*sound, 0, OscType::SAMPLE);
+		(void)sound->getOrCreateFirstRange(0);
 		while (std::ssize(source->ranges) < count) {
 			(void)source->ranges.insertMultiRange(std::ssize(source->ranges));
 		}
+		deluge::edits::recordRanges(*sound, 0); // the ranges built here are the record's
 		target.sound = sound;
 		target.source = source;
 		target.sourceIndex = 0;
@@ -60,11 +62,11 @@ struct SourceRig {
 } // namespace
 
 // clang-format off
-describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscType", $ {
+describe sound_target_retype("gui::retargetRangeAfterRetype over SourceResources::setOscType", $ {
 	it("re-points the range by its index after a retype that reallocates the ranges", _ {
 		SourceRig r{2, 1};
 		deluge::gui::setOscTypeFor(r.target, OscType::WAVETABLE);
-		expect(r.source->oscType).to_equal(OscType::WAVETABLE);
+		expect(r.sound->oscType(0)).to_equal(OscType::WAVETABLE);
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(1);
 		expect(r.target.range).to_equal(r.source->ranges.getElement(1));
 	});
@@ -111,7 +113,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 
 	it("hears only the source it watches", _ {
 		SourceRig r{1, 0};
-		Source* const other = &r.sound->sources[1];
+		SourceResources* const other = &r.sound->sources[1];
 		const RangesRetypeWatch watch{*other};
 		RangesRetypeWatch::rangesRetyped(*r.source, false);
 		expect(watch.result().reallocated).to_be_false();

@@ -181,7 +181,7 @@
 # browser's favourites category finds its bank and writes nothing into the fixture.
 #
 # **Two port defects this script caught, both fixed:**
-# `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
+# `MenuScene::on_enter` did not run the `SourceResources::getOrCreateFirstRange()` that legacy's permission
 # check runs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), so the ported browser refused to open at all; and
 # `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp`), which
 # nothing the menu opens writes, so the claim SIGSEGVed.

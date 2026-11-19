@@ -92,7 +92,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
@@ -542,7 +542,7 @@ private:
 			if (AudioEngine::sampleForPreview == nullptr) {
 				return {};
 			}
-			::Source& source = AudioEngine::sampleForPreview->sources[0];
+			::SourceResources& source = AudioEngine::sampleForPreview->sources[0];
 			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				return {};
 			}
@@ -567,7 +567,7 @@ private:
 		if (sound == nullptr || address.source >= kNumSources) {
 			return {};
 		}
-		::Source& source = sound->sources[address.source];
+		::SourceResources& source = sound->sources[address.source];
 		if (source.ranges.size() <= address.range || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 			return {};
 		}
@@ -782,7 +782,7 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
                                    const deluge::instrument::DxPatchState& patch) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
+	if (sound == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7) {
 		return false;
 	}
 	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:59-73`),
@@ -794,7 +794,7 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 	DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
-	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
+	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->oscType(source) != OscType::DX7
 	    || program < 0 || program >= bank->numPatches()) {
 		return false;
 	}
@@ -808,39 +808,40 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::selectEncoderAction`'s insert (`gui/menu_item/multi_range.cpp:130-203`): range storage is about
-	// to change, so every voice is unassigned and none may be assigned during the allocation.
-	sound->killAllVoices();
-	::MultiRange* inserted = nullptr;
-	{
-		AudioEngine::AudioTickHold hold;
-		inserted = sound->sources[source].ranges.insertMultiRange(at);
-	}
-	if (inserted == nullptr) {
-		display->displayError(Error::INSUFFICIENT_RAM);
+	// `MultiRange::selectEncoderAction`'s insert: a range with no file at @p at, the one below it narrowed
+	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	if (at > ranges.size()) {
 		return false;
 	}
-	inserted->topNote = top_note;
+	// A new range's end is unset until a file gives it one, as a runtime range starts
+	ranges.insert(ranges.begin() + at,
+	              deluge::instrument::RangeState{.top_note = top_note, .end_pos = deluge::instrument::kUnsetEndPos});
 	if (previous_top && at > 0) {
-		sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
+		ranges[at - 1].top_note = *previous_top;
 	}
-	deluge::edits::recordRanges(*sound, source);
-	return true;
+	const Error error = deluge::edits::rangesFor(*sound, source, std::move(ranges));
+	if (error == Error::INSUFFICIENT_RAM) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+	}
+	return error == Error::NONE;
 }
 
 bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
                                  std::optional<int16_t> lower_top) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
+	if (sound == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `MultiRange::deletePress` (`gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns the voices.
-	sound->deleteMultiRange(source, index);
-	if (lower_top && index > 0) {
-		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
+	// `MultiRange::deletePress`: the range goes, the one below it widened
+	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	if (index >= ranges.size()) {
+		return false;
 	}
-	deluge::edits::recordRanges(*sound, source);
-	return true;
+	ranges.erase(ranges.begin() + index);
+	if (lower_top && index > 0) {
+		ranges[index - 1].top_note = *lower_top;
+	}
+	return deluge::edits::rangesFor(*sound, source, std::move(ranges)) == Error::NONE;
 }
 
 bool ShellEditSink::attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,

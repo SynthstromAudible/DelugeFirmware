@@ -10,7 +10,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
-#include "processing/source.h"
+#include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
@@ -79,10 +79,10 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	sound.boundRecord()->synth_mode = c.synth_mode;
 	sound.projectSnapshot();
 	for (int32_t i = 0; i < 2; i++) {
-		Source& s = sound.sources[i];
-		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
-		s.state_->osc_type = s.oscType;
-		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
+		SourceResources& s = sound.sources[i];
+		sound.state_->sources[i].osc_type = i == which ? c.osc_type : OscType::SQUARE;
+		sound.projectSnapshot();
+		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}
 	deluge::bridge::recordLoadedSound(sound, song);

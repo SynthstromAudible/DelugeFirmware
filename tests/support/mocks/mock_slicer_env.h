@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "instruments/deluge/sound_state.h"
+#include <vector>
+
 #include <cstdint>
 
 /// @file
@@ -56,6 +59,9 @@ extern int32_t auditionNoteCount;
 
 /// The `on` argument of the most recent `sendAuditionNote()` call (1 = note-on, 0 = note-off).
 extern int32_t lastAuditionOn;
+
+/// The ranges the most recent `bridge::applyRanges()` was handed: what the slicer's zone edits ask the drum to play.
+extern std::vector<deluge::instrument::RangeState> lastAppliedRanges;
 
 /// Rebuild the fake kit/drum/sample world and zero the counters. Call at the top of every spec.
 void resetSlicerEnv();
