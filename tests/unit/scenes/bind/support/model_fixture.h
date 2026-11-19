@@ -14,11 +14,6 @@
 #include "scenes/bind/ports/ports.h"
 
 #include <cstdint>
-#include <map>
-#include <optional>
-#include <span>
-#include <utility>
-#include <vector>
 
 namespace deluge::scenes::bind::test {
 
