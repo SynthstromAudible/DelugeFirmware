@@ -48,11 +48,8 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 	    && slot->state.as<deluge::instrument::DelugeSynth>() == sound.boundState()) {
 		return; // the sound plays this slot's state already
 	}
-	// What the sound settled moves into the record, which it then plays: its own state, or a copy of the record it
+	// What the sound plays moves into the record, which it then plays: its own state, or a copy of the record it
 	// plays now, which stays that record's.
-	if (sound.boundState() == nullptr) {
-		sound.bindState();
-	}
 	slot =
 	    deluge::project::InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 	                                    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>({}),

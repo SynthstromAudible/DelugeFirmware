@@ -211,6 +211,8 @@ Sound::Sound()
 	paramLPF.p = PARAM_LPF_OFF;
 
 	doneReadingFromFile();
+	// A new sound plays a new synth's state, its effects following the song
+	adoptState(deluge::instrument::with_song_defaults(deluge::instrument::SoundState{}, deluge::model::songDefaults()));
 	AudioEngine::sounds.add(this);
 }
 
@@ -2454,18 +2456,9 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
-
-	// Parsing is complete, so refresh the DOM-owned scalars from the now-final engine fields. This is what a SoundDrum
-	// needs: its adoptDrum bound the record with default values before its fields were parsed. A
-	// SoundInstrument/fresh Sound isn't bound yet here (state_ == nullptr); bindState seeds it later, post-parse.
-	reseedRecord();
 }
 
 void Sound::reseedRecord() {
-	if (state_ == nullptr) {
-		projectSnapshot();
-		return;
-	}
 	seedDocSoundScalars();
 	projectModControllableSnapshot();
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -2707,7 +2700,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	if (element == nullptr) {
 		return Error::FILE_CORRUPTED;
 	}
-	deluge::instrument::SoundState decoded = seededState();
+	deluge::instrument::SoundState decoded = *state_;
 	if (!deluge::instrument::decode(*element, decoded,
 	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
 		return Error::FILE_CORRUPTED;
@@ -2826,23 +2819,7 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	if (state_ != nullptr) {
-		config_ = deluge::instrument::DelugeSynth::derive(*state_);
-		return;
-	}
-	// An unbound sound (a preview) has no record: its sound-wide settings are written into the config directly, and
-	// its oscillators' come from the oscillators themselves
-	for (int32_t s = 0; s < kNumSources; s++) {
-		const ::Source& source = sources[s];
-		config_.sources[s] = {.transpose = source.transpose,
-		                      .cents = source.cents,
-		                      .tune = deluge::dsp::fixed::FineTune::of_cents(source.cents),
-		                      .repeat_mode = source.repeatMode,
-		                      .time_stretch_amount = source.timeStretchAmount,
-		                      .interpolation_mode = source.sampleControls.interpolationMode,
-		                      .pitch_and_speed_independent = source.sampleControls.pitchAndSpeedAreIndependent,
-		                      .reversed = source.sampleControls.reversed};
-	}
+	config_ = deluge::instrument::DelugeSynth::derive(*state_);
 }
 
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
@@ -2952,21 +2929,6 @@ deluge::instrument::SoundState Sound::seededState() const {
 	return seeded;
 }
 
-void Sound::bindState() {
-	state_ = &ownedState_;
-	deluge::instrument::SoundState* d = state_;
-	// Seed the DOM-owned scalars from the engine caches. Correct for a SoundInstrument (bound at assignMissingIds,
-	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
-	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
-	seedDocSoundScalars();
-	projectSnapshot();      // derive the render read-view from the now-seeded record
-	d->effects = effects(); // the effects it plays, seeded like the rest
-	bindEffects(&d->effects);
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].bindState(&d->sources[s]);
-	}
-}
-
 void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	// A drum plays the record its kit adopted it into; any other sound its own state
 	deluge::instrument::SoundState& home = (state_ == nullptr || state_ == &ownedState_) ? ownedState_ : *state_;
@@ -2980,9 +2942,6 @@ void Sound::adoptState(deluge::instrument::SoundState loaded) {
 }
 
 void Sound::bindState(deluge::instrument::SoundState& record) {
-	if (state_ == nullptr) {
-		bindState();
-	}
 	if (state_ == &record) {
 		return;
 	}

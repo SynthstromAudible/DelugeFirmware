@@ -803,7 +803,6 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline params;
 	Instrument* synth = StorageManager::createNewInstrument(OutputType::SYNTH, &params);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
-	sound.bindState(); // its own state, as a sound read from a file holds before its adoption
 	sound.state_->sources[0].ranges.resize(2);
 	sound.state_->effects.compressor.threshold = 12345; // the sound's effects come with it
 	const deluge::instrument::RangeState* buffer = sound.boundState()->sources[0].ranges.data();
