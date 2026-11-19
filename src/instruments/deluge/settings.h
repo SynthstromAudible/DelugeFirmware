@@ -98,7 +98,20 @@ extern const std::span<const plugin::SettingInfo> kClipScopedSettings;
 /// @return True when the sound takes a setting there.
 [[nodiscard]] bool takes_setting(const FlatSoundState& state, std::string_view path);
 
-/// @brief write_setting() on a sound's record: written in the flat layout, then composed.
+/// @brief setting_value() over a sound's record.
+[[nodiscard]] std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path);
+
+/// @brief held_setting() over a sound's record: kept fields answer too.
+[[nodiscard]] std::optional<int32_t> held_setting(const SoundState& state, std::string_view path);
+
+/// @brief allows_setting() over a sound's record.
+[[nodiscard]] bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value);
+
+/// @brief takes_setting() over a sound's record.
+[[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);
+
+/// @brief write_setting() on a sound's record, through its parts as the file's layout names them: a field the sound
+/// keeps for a switch back is written where it is kept.
 [[nodiscard]] std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
                                                           const serialization::Value& value);
 

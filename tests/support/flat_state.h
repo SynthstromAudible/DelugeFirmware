@@ -17,13 +17,17 @@
 
 #pragma once
 
+#include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/state_rules.h"
+#include "serialization/value.h"
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace deluge::test {
 
@@ -181,6 +185,66 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 	for (const bool dx : {false, true}) {
 		if (!(in::as_blank_synth(record, dx) == in::SoundState(in::as_blank_synth(flat, dx)))) {
 			return "as_blank_synth";
+		}
+	}
+	return {};
+}
+
+/// @brief The first settings row on which the record's native form and the flat oracle disagree for @p flat: what a
+/// row reads, holds, takes and allows, and what writing it makes (the state and the entries it changes), for each
+/// row's candidate values (every choice, both bools, an integer's least, greatest, default and middle values).
+/// Empty where none does.
+[[nodiscard]] inline std::string setting_difference(const instrument::FlatSoundState& flat) {
+	namespace in = instrument;
+	const in::SoundState record = flat;
+	for (const plugin::SettingInfo& row : in::kSettings) {
+		if (row.kind == plugin::SettingKind::STRUCTURED || row.kind == plugin::SettingKind::TEXT) {
+			continue;
+		}
+		const std::string path(row.path);
+		if (in::setting_value(record, row.path) != in::setting_value(flat, row.path)) {
+			return path + " value";
+		}
+		if (in::held_setting(record, row.path) != in::held_setting(flat, row.path)) {
+			return path + " held";
+		}
+		if (in::takes_setting(record, row.path) != in::takes_setting(flat, row.path)) {
+			return path + " takes";
+		}
+		std::vector<std::string> candidates;
+		if (row.kind == plugin::SettingKind::CHOICE) {
+			for (const std::string_view choice : row.choices) {
+				candidates.emplace_back(choice);
+			}
+		}
+		else if (row.kind == plugin::SettingKind::BOOL) {
+			candidates = {"0", "1"};
+		}
+		else {
+			for (const int64_t n : {int64_t{row.min}, int64_t{row.max}, int64_t{row.default_value},
+			                        (int64_t{row.min} + int64_t{row.max}) / 2}) {
+				candidates.push_back(std::to_string(n));
+			}
+		}
+		for (const std::string& text : candidates) {
+			const std::optional<serialization::Value> value =
+			    in::canonical_setting(row.path, serialization::Value::makeScalar(text));
+			if (!value) {
+				continue;
+			}
+			if (in::allows_setting(record, row.path, *value) != in::allows_setting(flat, row.path, *value)) {
+				return path + " allows " + text;
+			}
+			in::SoundState written = record;
+			in::FlatSoundState flat_written = flat;
+			const std::vector<std::string_view> entries = in::write_setting(written, row.path, *value);
+			const std::vector<std::string_view> flat_entries = in::write_setting(flat_written, row.path, *value);
+			if (!(written == in::SoundState(flat_written))) {
+				return path + " write " + text;
+			}
+			if (entries != flat_entries) {
+				return path + " entries " + text;
+			}
 		}
 	}
 	return {};

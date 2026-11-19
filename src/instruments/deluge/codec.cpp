@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/state_access.h"
 
 #include "effects/codec.h"
 #include "instruments/deluge/dx7_init_voice.h"
@@ -257,6 +258,69 @@ constexpr std::array<EntryDiffers, kStateKeys.size()> kEntryDiffers{
 };
 
 } // namespace
+
+namespace {
+
+/// Whether slot @p s differs between @p a and @p b in anything its entry writes or keeps.
+bool slot_differs(const SoundState& a, const SoundState& b, size_t s) {
+	const auto id = static_cast<SourceId>(s);
+	const DxPatchState* pa = dx_patch(a, id);
+	const DxPatchState* pb = dx_patch(b, id);
+	return source_type(a, id) != source_type(b, id) || source_tuning(a, id) != source_tuning(b, id)
+	       || sample_playback(a, id) != sample_playback(b, id) || source_ranges(a, id) != source_ranges(b, id)
+	       || (pa != nullptr) != (pb != nullptr) || (pa != nullptr && *pa != *pb)
+	       || source_retrigger(a, id) != source_retrigger(b, id)
+	       || (s == 1 && oscillator_sync(a) != oscillator_sync(b));
+}
+
+} // namespace
+
+std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b) {
+	const synth::VoicingState va = voicing(a);
+	const synth::VoicingState vb = voicing(b);
+	const effects::EffectStates& fa = sound_effects(a);
+	const effects::EffectStates& fb = sound_effects(b);
+	const HostFields ha = host_fields(a);
+	const HostFields hb = host_fields(b);
+	const std::array<synth::Pitch, 2> ma = modulators(a);
+	const std::array<synth::Pitch, 2> mb = modulators(b);
+	const std::array<bool, kStateKeys.size()> differ{
+	    va.polyphony != vb.polyphony,
+	    va.priority != vb.priority,
+	    ha.side_chain_send_level != hb.side_chain_send_level,
+	    synth_mode(a) != synth_mode(b),
+	    va.master.transpose != vb.master.transpose,
+	    va.master.cents != vb.master.cents,
+	    fa.mod_fx != fb.mod_fx,
+	    fa.filter.lpf_mode != fb.filter.lpf_mode,
+	    fa.filter.hpf_mode != fb.filter.hpf_mode,
+	    fa.filter.route != fb.filter.route,
+	    fa.saturation != fb.saturation,
+	    va.max_voices != vb.max_voices,
+	    slot_differs(a, b, 0),
+	    slot_differs(a, b, 1),
+	    lfo(a, 0) != lfo(b, 0),
+	    lfo(a, 1) != lfo(b, 1),
+	    lfo(a, 2) != lfo(b, 2),
+	    lfo(a, 3) != lfo(b, 3),
+	    ma[0] != mb[0],
+	    ma[1] != mb[1] || modulator1_to_modulator0(a) != modulator1_to_modulator0(b),
+	    va.unison != vb.unison,
+	    ha.output_midi_channel != hb.output_midi_channel
+	        || ha.output_midi_note_for_drum != hb.output_midi_note_for_drum,
+	    fa.delay != fb.delay,
+	    fa.sidechain != fb.sidechain,
+	    fa.compressor != fb.compressor,
+	    fa.stutter != fb.stutter,
+	};
+	std::vector<std::string_view> changed;
+	for (size_t k = 0; k < kStateKeys.size(); k++) {
+		if (differ[k]) {
+			changed.push_back(kStateKeys[k]);
+		}
+	}
+	return changed;
+}
 
 std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b) {
 	std::vector<std::string_view> changed;

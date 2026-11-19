@@ -168,6 +168,9 @@ struct SlotChange {
 /// @return The keys.
 [[nodiscard]] std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b);
 
+/// @brief changed_entries() over two sounds' records, read through their readers.
+[[nodiscard]] std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b);
+
 /// @brief decode_change of @p next's encoding of @p keys onto @p state, whose encoding of them is the slot before: what
 /// a slot changed to say @p next there reads as, the entries read as a file holds them (and refused as a file's would
 /// be). Only @p keys and "mode" are encoded and read.

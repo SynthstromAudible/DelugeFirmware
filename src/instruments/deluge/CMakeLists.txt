@@ -1,7 +1,7 @@
 # deluge_instrument: the Deluge instrument plugin — its state, its words and its codec. Built on the plugin API and the
 # effects.
 add_library(deluge_instrument STATIC cable_acceptance.cpp codec.cpp cable_codec.cpp deluge_synth.cpp mod_matrix.cpp naming.cpp pages.cpp settings.cpp
-                                     state_access.cpp state_rules.cpp composed_state.cpp)
+                                     state_access.cpp state_rules.cpp composed_state.cpp record_edit.cpp)
 target_include_directories(deluge_instrument PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../..)
 target_compile_features(deluge_instrument PUBLIC cxx_std_23)
 if(DEFINED DELUGE_CXX_STANDARD)

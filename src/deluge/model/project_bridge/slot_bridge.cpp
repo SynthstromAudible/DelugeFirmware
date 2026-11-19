@@ -228,7 +228,8 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
 	else if (want && got->state == want->state) {
 		const bool named = std::ranges::all_of(
 		    got->changed, [&](std::string_view key) { return std::ranges::contains(want->changed, key); });
-		if (got->changed != deluge::instrument::changed_entries(before, got->state) || !named) {
+		if (got->changed != deluge::instrument::changed_entries(before, deluge::instrument::SoundState(got->state))
+		    || !named) {
 			why = " (touched entries)";
 		}
 	}

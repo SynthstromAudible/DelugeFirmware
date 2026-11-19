@@ -25,7 +25,8 @@
 //                            the first sound's state as the reader left it (dump_state, JSON) to <path>; and each
 //                            sound's state, composed into what it plays and what it keeps and flattened again, is
 //                            the same state, every state_access reader reads the record as its flat layout holds,
-//                            and every rule switches the record as the flat rule switches the flat layout
+//                            every rule switches the record as the flat rule switches the flat layout, and every
+//                            settings row reads and writes the record as the flat row does the flat layout
 //   instrument_state_roundtrip  every sound's element as the app writes it, decoded into a new sound's state and
 //                            encoded again, is the same tree (cut to the instrument's keys)
 //
@@ -281,6 +282,11 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			             "CODEC DIFF: %s: composed and flattened again, the state differs at %s (read %s, now %s)\n",
 			             entry.name.c_str(), d.empty() ? "effects" : d.c_str(), valueAt(loaded, d).c_str(),
 			             valueAt(flatDump, d).c_str());
+			return 3;
+		}
+		if (const std::string setting = deluge::test::setting_difference(decoded); !setting.empty()) {
+			std::fprintf(io.err, "CODEC DIFF: %s: the record's setting %s and the flat row's differ\n",
+			             entry.name.c_str(), setting.c_str());
 			return 3;
 		}
 		if (const std::string rule = deluge::test::rule_difference(decoded); !rule.empty()) {

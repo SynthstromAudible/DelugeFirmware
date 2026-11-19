@@ -1,0 +1,72 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/words.h"
+#include "synth/modulation/lfo_state.h"
+#include "synth/sources/source_state.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+/// @file
+/// @brief Changes to a sound's record through the parts the file's layout names: an oscillator's whole source, its
+/// phase word and the sync; the engine; an LFO; FM's modulators. The rules and the settings rows write through these,
+/// so what a write means is what it means to the file.
+namespace deluge::instrument {
+
+/// @brief Oscillator slot @p s as the file's layout holds it, for one change: its whole source, its retrigger phase
+/// word and the oscillators' sync.
+struct SlotEdit {
+	SourceState full;
+	uint32_t phase{0};
+	bool sync{false};
+};
+
+/// @brief Slot @p s of @p state as a SlotEdit: an FM sound's carrier pitch and kept fields, another's kind state and
+/// kept fields.
+[[nodiscard]] SlotEdit begin_slot_edit(const SoundState& state, size_t s);
+
+/// @brief Write @p edit back into slot @p s of @p state, its kind state, carrier and kept fields as the change left
+/// them, and the sync where the file writes it.
+void end_slot_edit(SoundState& state, size_t s, const SlotEdit& edit);
+
+/// @brief Slot @p s of @p state changed through its SlotEdit.
+template <class Change>
+void edit_slot(SoundState& state, size_t s, const Change& change) {
+	SlotEdit edit = begin_slot_edit(state, s);
+	change(edit);
+	end_slot_edit(state, s, edit);
+}
+
+/// @brief @p state's engine set to @p mode and nothing else (the filters stay): what leaves is kept for a switch back,
+/// what arrives comes from what was kept.
+void set_engine(SoundState& state, SynthMode mode);
+
+/// @brief One of @p state's four LFOs, in file order, to change in place.
+[[nodiscard]] synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept;
+
+/// @brief FM's two modulators' pitches, played or kept, to change in place.
+[[nodiscard]] std::array<synth::Pitch, 2>& modulators_of(SoundState& state) noexcept;
+
+/// @brief Whether FM's second modulator modulates the first, played or kept, to change in place.
+[[nodiscard]] bool& modulator_routing_of(SoundState& state) noexcept;
+
+} // namespace deluge::instrument

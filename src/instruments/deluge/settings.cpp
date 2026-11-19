@@ -16,6 +16,9 @@
  */
 
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/composed_state.h"
+#include "instruments/deluge/record_edit.h"
+#include "instruments/deluge/state_access.h"
 
 #include "plugin-api/settings.h"
 
@@ -875,12 +878,411 @@ bool check_setting(std::string_view path, const serialization::Value& value) {
 	return plugin::check_setting(kSettings, path, value);
 }
 
+namespace {
+
+// The record's rows: the readers and writers above, over a sound's record through its readers and its record edits.
+
+Answer top_level_value(const SoundState& state, std::string_view path) {
+	const synth::VoicingState v = voicing(state);
+	if (path == "polyphonic") {
+		return word(to_string(v.polyphony));
+	}
+	if (path == "voicePriority") {
+		return number(std::to_underlying(v.priority));
+	}
+	if (path == "sideChainSend") {
+		return number(host_fields(state).side_chain_send_level);
+	}
+	if (path == "mode") {
+		return word(to_string(synth_mode(state)));
+	}
+	if (path == "transpose") {
+		return number(v.master.transpose);
+	}
+	if (path == "cents") {
+		return number(v.master.cents);
+	}
+	if (path == "maxVoices") {
+		return number(v.max_voices);
+	}
+	return std::nullopt;
+}
+
+// One branch per oscillator key, each read where the source's kind and the engine say it applies:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+Answer oscillator_value(const SoundState& state, std::string_view path, bool held) {
+	const std::optional<size_t> s = indexAfter(path, 3, '2');
+	if (!s) {
+		return std::nullopt;
+	}
+	const auto id = static_cast<SourceId>(*s);
+	const OscType type = source_type(state, id);
+	const SamplePlayback playback = sample_playback(state, id);
+	const std::string_view rest = path.substr(5);
+	const bool fm = !held && synth_mode(state) == SynthMode::FM;
+	const bool sample = held || type == OscType::SAMPLE;
+	const bool input = held || type == OscType::INPUT_L || type == OscType::INPUT_R || type == OscType::INPUT_STEREO;
+	if (rest == "linearInterpolation") {
+		return !fm && (sample || input) ? flag(playback.interpolation == plugin::InterpolationMode::LINEAR)
+		                                : std::nullopt;
+	}
+	if (rest == "loopMode" || rest == "reversed" || rest == "timeStretchEnable" || rest == "timeStretchAmount") {
+		if (fm || !sample) {
+			return std::nullopt;
+		}
+		if (rest == "loopMode") {
+			return number(std::to_underlying(playback.repeat_mode));
+		}
+		if (rest == "reversed") {
+			return flag(playback.reversed);
+		}
+		if (rest == "timeStretchEnable") {
+			return flag(playback.pitch_and_speed_independent);
+		}
+		return number(playback.time_stretch_amount);
+	}
+	if (rest == "type") {
+		return fm ? std::nullopt : word(to_string(type));
+	}
+	if (rest == "transpose" || rest == "cents") {
+		if (!held && !fm && sample) {
+			return std::nullopt; // a sample source's tuning is its ranges'
+		}
+		const Tuning tuning = source_tuning(state, id);
+		return rest == "transpose" ? number(tuning.transpose) : number(tuning.cents);
+	}
+	if (rest == "retrigPhase") {
+		return phase(phase_word(source_retrigger(state, id)));
+	}
+	if (rest == "oscillatorSync" && *s == 1) {
+		return flag(oscillator_sync(state));
+	}
+	return std::nullopt;
+}
+
+Answer lfo_value(const SoundState& state, std::string_view path) {
+	const std::optional<size_t> l = indexAfter(path, 3, '4');
+	if (!l) {
+		return std::nullopt;
+	}
+	const synth::LfoState lfo_state = lfo(state, *l);
+	const std::string_view rest = path.substr(5);
+	if (rest == "type") {
+		return word(to_string(lfo_state.shape));
+	}
+	if (rest == "syncLevel") {
+		return number(plugin::index_of(lfo_state.sync_level));
+	}
+	if (rest == "syncType") {
+		return number(std::to_underlying(lfo_state.sync_type));
+	}
+	return std::nullopt;
+}
+
+Answer modulator_value(const SoundState& state, std::string_view path, bool held) {
+	const std::optional<size_t> m = indexAfter(path, 9, '2');
+	if (!m || (!held && synth_mode(state) != SynthMode::FM)) {
+		return std::nullopt; // only FM writes its modulators
+	}
+	const synth::Pitch pitch = modulators(state)[*m];
+	const std::string_view rest = path.substr(11);
+	if (rest == "transpose") {
+		return number(pitch.tuning.transpose);
+	}
+	if (rest == "cents") {
+		return number(pitch.tuning.cents);
+	}
+	if (rest == "retrigPhase") {
+		return phase(phase_word(pitch.retrigger));
+	}
+	if (rest == "toModulator1" && *m == 1) {
+		return flag(modulator1_to_modulator0(state));
+	}
+	return std::nullopt;
+}
+
+Answer unison_value(const SoundState& state, std::string_view path) {
+	const synth::UnisonState u = unison(state);
+	const std::string_view rest = path.substr(7);
+	if (rest == "num") {
+		return number(u.count);
+	}
+	if (rest == "detune") {
+		return number(u.detune);
+	}
+	if (rest == "spread") {
+		return number(u.spread);
+	}
+	return std::nullopt;
+}
+
+Answer midi_output_value(const SoundState& state, std::string_view path) {
+	const HostFields host = host_fields(state);
+	const std::string_view rest = path.substr(11);
+	if (rest == "channel") {
+		return number(host.output_midi_channel);
+	}
+	if (rest == "noteForDrum") {
+		return number(host.output_midi_note_for_drum);
+	}
+	return std::nullopt;
+}
+
+/// The record's family readers, by the prefixes kFamilies reads the flat layout by.
+Answer any_value(const SoundState& state, std::string_view path, bool held = false) {
+	const SettingInfo* row = plugin::find_setting(kSettings, path);
+	if (row == nullptr || row->kind == STRUCTURED) {
+		return std::nullopt;
+	}
+	if (plugin::find_setting(effects::kEffectSettings, path) != nullptr) {
+		return effects::effect_setting_value(sound_effects(state), path);
+	}
+	if (path.starts_with("osc")) {
+		return oscillator_value(state, path, held);
+	}
+	if (path.starts_with("lfo")) {
+		return lfo_value(state, path);
+	}
+	if (path.starts_with("modulator")) {
+		return modulator_value(state, path, held);
+	}
+	if (path.starts_with("unison/")) {
+		return unison_value(state, path);
+	}
+	if (path.starts_with("midiOutput/")) {
+		return midi_output_value(state, path);
+	}
+	return top_level_value(state, path);
+}
+
+bool write_top_level(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const int32_t n = intOf(value);
+	synth::VoicingState& v = state.plays.voicing;
+	if (path == "polyphonic") {
+		v.polyphony = parse_polyphony_mode(value.str());
+	}
+	else if (path == "voicePriority") {
+		v.priority = static_cast<plugin::VoicePriority>(n);
+	}
+	else if (path == "sideChainSend") {
+		state.plays.side_chain_send_level = n;
+	}
+	else if (path == "mode") {
+		set_engine(state, parse_synth_mode(value.str()));
+	}
+	else if (path == "transpose") {
+		v.master.transpose = static_cast<int16_t>(n);
+	}
+	else if (path == "cents") {
+		v.master.cents = static_cast<int8_t>(n);
+	}
+	else if (path == "maxVoices") {
+		v.max_voices = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+// One branch per oscillator key, each written through the slot's whole source:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+bool write_oscillator(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> s = indexAfter(path, 3, '2');
+	if (!s) {
+		return false;
+	}
+	const std::string_view rest = path.substr(5);
+	const int32_t n = intOf(value);
+	bool known = true;
+	edit_slot(state, *s, [&](SlotEdit& edit) {
+		SourceState& src = edit.full;
+		if (rest == "linearInterpolation") {
+			src.interpolation_mode = n != 0 ? plugin::InterpolationMode::LINEAR : plugin::InterpolationMode::SMOOTH;
+		}
+		else if (rest == "loopMode") {
+			src.repeat_mode = static_cast<SampleRepeatMode>(n);
+		}
+		else if (rest == "reversed") {
+			src.reversed = n != 0;
+		}
+		else if (rest == "timeStretchEnable") {
+			src.pitch_and_speed_independent = n != 0;
+		}
+		else if (rest == "timeStretchAmount") {
+			src.time_stretch_amount = static_cast<int8_t>(n);
+		}
+		else if (rest == "type") {
+			src.osc_type = parse_osc_type(value.str());
+		}
+		else if (rest == "transpose") {
+			src.transpose = static_cast<int16_t>(n);
+		}
+		else if (rest == "cents") {
+			src.cents = static_cast<int8_t>(n);
+		}
+		else if (rest == "retrigPhase") {
+			edit.phase = static_cast<uint32_t>(n); // the phase as a file writes it, signed
+		}
+		else if (rest == "oscillatorSync" && *s == 1) {
+			edit.sync = n != 0;
+		}
+		else {
+			known = false;
+		}
+	});
+	return known;
+}
+
+bool write_lfo(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> l = indexAfter(path, 3, '4');
+	if (!l) {
+		return false;
+	}
+	synth::LfoState& lfo_state = lfo_of(state, *l);
+	const std::string_view rest = path.substr(5);
+	if (rest == "type") {
+		lfo_state.shape = parse_lfo_type(value.str());
+	}
+	else if (rest == "syncLevel") {
+		lfo_state.sync_level = plugin::sync_level_from_index(intOf(value));
+	}
+	else if (rest == "syncType") {
+		lfo_state.sync_type = static_cast<plugin::SyncType>(intOf(value));
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool write_modulator(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::optional<size_t> m = indexAfter(path, 9, '2');
+	if (!m) {
+		return false;
+	}
+	synth::Pitch& pitch = modulators_of(state)[*m];
+	const std::string_view rest = path.substr(11);
+	const int32_t n = intOf(value);
+	if (rest == "transpose") {
+		pitch.tuning.transpose = static_cast<int16_t>(n);
+	}
+	else if (rest == "cents") {
+		pitch.tuning.cents = static_cast<int8_t>(n);
+	}
+	else if (rest == "retrigPhase") {
+		pitch.retrigger = retrigger_of_word(static_cast<uint32_t>(n));
+	}
+	else if (rest == "toModulator1" && *m == 1) {
+		modulator_routing_of(state) = n != 0;
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool write_unison(SoundState& state, std::string_view path, const serialization::Value& value) {
+	synth::UnisonState& u = state.plays.voicing.unison;
+	const std::string_view rest = path.substr(7);
+	const int32_t n = intOf(value);
+	if (rest == "num") {
+		u.count = static_cast<uint8_t>(n);
+	}
+	else if (rest == "detune") {
+		u.detune = static_cast<int8_t>(n);
+	}
+	else if (rest == "spread") {
+		u.spread = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+bool write_midi_output(SoundState& state, std::string_view path, const serialization::Value& value) {
+	const std::string_view rest = path.substr(11);
+	const int32_t n = intOf(value);
+	if (rest == "channel") {
+		state.plays.output_midi_channel = static_cast<uint8_t>(n);
+	}
+	else if (rest == "noteForDrum") {
+		state.plays.output_midi_note_for_drum = static_cast<uint8_t>(n);
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+} // namespace
+
+std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path) {
+	Answer value = any_value(state, path);
+	if (value && path == "midiOutput/noteForDrum" && value->str() == "255") {
+		return std::nullopt; // unset: the menu shows its default there and writes only a note
+	}
+	return value;
+}
+
+std::optional<int32_t> held_setting(const SoundState& state, std::string_view path) {
+	const SettingInfo* row = plugin::find_setting(kSettings, path);
+	const Answer value = any_value(state, path, true);
+	if (!value) {
+		return std::nullopt;
+	}
+	if (row->kind == CHOICE) {
+		return plugin::stored_value(*row, value->str());
+	}
+	const std::optional<int64_t> n = plugin::whole_number(value->str());
+	return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
+}
+
+bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value) {
+	const auto ringable = [](OscType type) { return type <= OscType::WAVETABLE; };
+	if (path == "mode" && parse_synth_mode(value.str()) == SynthMode::RINGMOD) {
+		return ringable(source_type(state, SourceId::A)) && ringable(source_type(state, SourceId::B));
+	}
+	if (synth_mode(state) == SynthMode::RINGMOD && path.starts_with("osc") && path.ends_with("/type")) {
+		return ringable(parse_osc_type(value.str()));
+	}
+	return true;
+}
+
+bool takes_setting(const SoundState& state, std::string_view path) {
+	return any_value(state, path).has_value();
+}
+
 std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
                                             const serialization::Value& value) {
-	FlatSoundState flat = state;
-	std::vector<std::string_view> written = write_setting(flat, path, value);
-	state = flat;
-	return written;
+	const SettingInfo* row = plugin::find_setting(kSettings, path);
+	if (row == nullptr || row->kind == STRUCTURED) {
+		return {};
+	}
+	const SoundState before = state;
+	if (plugin::find_setting(effects::kEffectSettings, path) != nullptr) {
+		(void)effects::write_effect_setting(state.plays.fx, path, value);
+	}
+	else if (path.starts_with("osc")) {
+		(void)write_oscillator(state, path, value);
+	}
+	else if (path.starts_with("lfo")) {
+		(void)write_lfo(state, path, value);
+	}
+	else if (path.starts_with("modulator")) {
+		(void)write_modulator(state, path, value);
+	}
+	else if (path.starts_with("unison/")) {
+		(void)write_unison(state, path, value);
+	}
+	else if (path.starts_with("midiOutput/")) {
+		(void)write_midi_output(state, path, value);
+	}
+	else {
+		(void)write_top_level(state, path, value);
+	}
+	return changed_entries(before, state);
 }
 
 } // namespace deluge::instrument
