@@ -72,4 +72,18 @@ std::pair<int64_t, int64_t> FakeClipFacts::audio_clip_samples(project::ClipAddre
 	return audio_clips.contains(clip.clip_id) ? samples : std::pair<int64_t, int64_t>{0, 0};
 }
 
+uint32_t FakeTrackFacts::chain_key(project::ChainAddress chain) {
+	return chain.kind == project::ChainAddress::Kind::SONG ? UINT32_MAX : chain.id;
+}
+
+int32_t FakeTrackFacts::played_bend_range(const project::SettingAddress& owner, int32_t which) const {
+	// As a set made for the owner plays: a kit row's finger range starts at the main one.
+	return which == 0 || owner.group == project::SettingGroupId::NOTE_ROW ? bend_main : bend_mpe;
+}
+
+const effects::EffectStates* FakeTrackFacts::chain_effects(project::ChainAddress chain) const {
+	const auto found = chains.find(chain_key(chain));
+	return found != chains.end() ? &found->second : nullptr;
+}
+
 } // namespace deluge::scenes::bind::test

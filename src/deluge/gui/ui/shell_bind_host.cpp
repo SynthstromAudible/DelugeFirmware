@@ -272,16 +272,12 @@ private:
 	deluge::project::ClipAddress resize_clip_{};
 };
 
-/// The runtime facts, answered from the running app: each host chain's effects, found by its address, and the song's
-/// tracks, clips and params.
+/// The runtime facts, answered from the running app: the knobs' reads (params' live values, stutter, note tails) and
+/// the params' rows.
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
-	[[nodiscard]] const deluge::effects::EffectStates*
-	chain_effects(deluge::project::ChainAddress chain) const override;
-	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
 	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot,
 	                                     std::optional<deluge::project::ClipAddress> clip) const override;
-	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> clip_param_value(const deluge::project::ParamAddress& address,
@@ -290,7 +286,6 @@ public:
 	                                                    uint32_t pos) const override {
 		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
 	}
-	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
 	[[nodiscard]] bool stutter_active() const override {
 		return currentSong != nullptr && currentSong->live.stutter.active();
 	}
@@ -1071,25 +1066,6 @@ void ShellEditSink::apply(const WriteRequest& request) {
 	          request.target.path.data());
 }
 
-const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {
-	// The effects the chain's record holds, which its owner plays.
-	const deluge::project::FxChain* record =
-	    currentSong != nullptr ? currentSong->project.resolveChain(chain) : nullptr;
-	return record != nullptr ? record->effects.as<deluge::effects::DelugeEffects>() : nullptr;
-}
-
-int32_t ShellRuntimeFacts::played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const {
-	const int32_t range = which == 0 ? BEND_RANGE_MAIN : BEND_RANGE_FINGER_LEVEL;
-	if (const ExpressionParamSet* expression =
-	        currentSong != nullptr ? deluge::bridge::expressionSetAt(*currentSong, owner) : nullptr) {
-		return expression->bendRanges[range];
-	}
-	// A new set starts at the device's default; a kit row's at its main range (ExpressionParamSet's forDrum).
-	const bool drum = owner.group == deluge::project::SettingGroupId::NOTE_ROW
-	                  && std::get<deluge::project::NoteRowAddress>(owner.owner).is_kit;
-	return FlashStorage::defaultBendRange[drum ? BEND_RANGE_MAIN : range];
-}
-
 bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot,
                                           std::optional<deluge::project::ClipAddress> clip) const {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
@@ -1341,58 +1317,6 @@ std::span<const deluge::controls::KitRow> ShellRuntimeFacts::sound_rows(uint32_t
 		}
 	}
 	return rows_;
-}
-
-std::vector<deluge::scenes::bind::TrackFact> ShellRuntimeFacts::tracks() const {
-	using deluge::scenes::bind::TrackKind;
-	std::vector<deluge::scenes::bind::TrackFact> list;
-	if (currentSong == nullptr) {
-		return list;
-	}
-	for (::Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
-		if (!output->id()) {
-			continue; // a track the song has not given an id cannot be named
-		}
-		deluge::scenes::bind::TrackFact fact{.output_id = *output->id()};
-		switch (output->type) {
-		case OutputType::KIT:
-			fact.kind = TrackKind::KIT;
-			break;
-		case OutputType::MIDI_OUT:
-			fact.kind = TrackKind::MIDI_OUT;
-			fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
-			break;
-		case OutputType::CV:
-			fact.kind = TrackKind::CV;
-			fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
-			break;
-		case OutputType::AUDIO:
-			fact.kind = TrackKind::AUDIO;
-			break;
-		default:
-			fact.kind = TrackKind::SYNTH;
-			break;
-		}
-		list.push_back(fact);
-	}
-	return list;
-}
-
-uint8_t ShellRuntimeFacts::arp_preset(const deluge::project::SettingAddress& address) const {
-	const ArpeggiatorSettings* arp = nullptr;
-	if (currentSong != nullptr) {
-		if (const auto* lane = std::get_if<deluge::project::LaneAddress>(&address.owner)) {
-			const ::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane->drum_id);
-			arp = drum != nullptr ? &drum->arpSettings : nullptr;
-		}
-		else if (const auto* clip = std::get_if<deluge::project::ClipAddress>(&address.owner)) {
-			const ::Clip* found = currentSong->clipForId(clip->clip_id);
-			arp = found != nullptr && found->type == ClipType::INSTRUMENT
-			          ? &static_cast<const InstrumentClip*>(found)->arpSettings
-			          : nullptr;
-		}
-	}
-	return arp != nullptr ? static_cast<uint8_t>(std::to_underlying(arp->preset)) : 0;
 }
 
 uint32_t shellEditRefusals() {

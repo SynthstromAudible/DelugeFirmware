@@ -215,30 +215,30 @@ describe model_targets("a model target's write reaches the record its menu names
 	});
 
 	it("answers a clip's played bend ranges, a kit row's note tails and an arp's preset as the engine holds them", _ {
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+		const bind::Ports& ports = menu::host_ports();
 		spec::SongFixture midi = spec::make_midi_song();
 		const MenuContext on_midi = clip_root(*midi.song, midi.clip);
 		const SettingAddress values{SettingGroupId::CLIP_VALUES, *on_midi.addresses.clip};
 		auto& params = static_cast<InstrumentClip*>(midi.clip)->paramManager;
 		if (params.getExpressionParamSet() == nullptr) {
-			expect(facts.played_bend_range(values, 0)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[0]));
-			expect(facts.played_bend_range(values, 1)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[1]));
+			expect(ports.tracks->played_bend_range(values, 0)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[0]));
+			expect(ports.tracks->played_bend_range(values, 1)).to_equal(static_cast<int32_t>(FlashStorage::defaultBendRange[1]));
 		}
 		ExpressionParamSet* expression = params.getOrCreateExpressionParamSet();
 		expression->bendRanges[BEND_RANGE_MAIN] = 3;
 		expression->bendRanges[BEND_RANGE_FINGER_LEVEL] = 33;
-		expect(facts.played_bend_range(values, 0)).to_equal(3);
-		expect(facts.played_bend_range(values, 1)).to_equal(33);
+		expect(ports.tracks->played_bend_range(values, 0)).to_equal(3);
+		expect(ports.tracks->played_bend_range(values, 1)).to_equal(33);
 
 		spec::SongFixture kit = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(kit);
 		const MenuContext row = clip_root(*kit.song, kit.clip);
 		alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
-		expect(facts.allows_note_tails(*row.addresses.slot, std::nullopt))
+		expect(ports.controls->allows_note_tails(*row.addresses.slot, std::nullopt))
 		    .to_equal(drum->allowNoteTails(getModelStackFromSoundDrum(drum_memory, drum)->addSoundFlags(),
 		                                   /*disregardSampleLoop=*/true));
 		drum->arpSettings.mode = ArpMode::ARP;
-		expect(facts.allows_note_tails(*row.addresses.slot, std::nullopt)).to_be_true(); // an arp holds its notes
+		expect(ports.controls->allows_note_tails(*row.addresses.slot, std::nullopt)).to_be_true(); // an arp holds its notes
 
 		spec::SongFixture synth = spec::make_synth_song();
 		const MenuContext ctx = clip_root(*synth.song, synth.clip);
@@ -246,7 +246,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		deluge::edits::Context edits{*synth.song, synth.song->project};
 		deluge::edits::SetSetting custom{arp, "arpeggiator/preset", Value::makeScalar("custom")};
 		expect(deluge::edits::apply(edits, custom)).to_equal(Error::NONE);
-		expect(static_cast<int>(facts.arp_preset(arp))).to_equal(6);
+		expect(static_cast<int>(ports.tracks->arp_preset(arp))).to_equal(6);
 	});
 
 	it("answers whether a kit would take a whole folder as main's sample browser asks it", _ {

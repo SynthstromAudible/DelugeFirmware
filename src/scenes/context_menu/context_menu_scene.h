@@ -168,7 +168,7 @@ inline constexpr size_t kFooterScratch = 48;
 ///        sound and the browser's item allow.
 ///
 /// MULTISAMPLES and BASIC need a synth that is not in ring-mod; a folder offers MULTISAMPLES alone.
-/// @param ctx       The sound the browser loads into: its synth mode is read through `ctx.facts`.
+/// @param ctx       The sound the browser loads into: its synth mode is read through `ctx.ports.sound`.
 /// @param is_folder Whether the browser's selected item is a folder.
 /// @param out       Receives the available options' indexes into the descriptor's `options`, in order.
 /// @return How many were written.

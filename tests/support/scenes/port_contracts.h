@@ -49,4 +49,9 @@ namespace deluge::scenes::bind::contract {
 	       && !clips.clip_recording_linearly(nowhere) && clips.audio_clip_samples(nowhere, 0, 1) == nothing;
 }
 
+/// @brief A chain no song holds has no effects.
+[[nodiscard]] inline bool unknown_chain_has_no_effects(const TrackFacts& tracks, project::ChainAddress nowhere) {
+	return tracks.chain_effects(nowhere) == nullptr;
+}
+
 } // namespace deluge::scenes::bind::contract

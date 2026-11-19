@@ -2,7 +2,7 @@
 #
 # Standalone of the app: it depends on the model and the engine libraries only, so its specs (tests/unit/scenes/bind)
 # run against a project::Song with no engine runtime objects, and scripts/check_library_boundary.py holds it to that.
-# The app supplies what it cannot see: the runtime facts (RuntimeFacts), the sink that applies Edits (WriteSink) and the
+# The app supplies what it cannot see: the knobs' reads (RuntimeFacts), the sink that applies Edits (WriteSink) and the
 # ports (ports/), one interface per domain.
 
 add_library(deluge_scenes_bind STATIC dispatch.cpp slot_reader.cpp chain_reader.cpp model_reader.cpp setting_context.cpp knob_assignment.cpp page_sources.cpp

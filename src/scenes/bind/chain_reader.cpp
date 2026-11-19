@@ -4,9 +4,9 @@
 
 namespace deluge::scenes::bind {
 
-ChainReader::ChainReader(const project::Song& model, project::ChainAddress chain, const RuntimeFacts& facts) {
+ChainReader::ChainReader(const project::Song& model, project::ChainAddress chain, const TrackFacts& tracks) {
 	if (model.resolveChain(chain) != nullptr) {
-		effects_ = facts.chain_effects(chain);
+		effects_ = tracks.chain_effects(chain);
 	}
 }
 

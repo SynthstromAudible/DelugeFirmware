@@ -23,6 +23,9 @@ namespace deluge::gui::shell_host {
 /// @brief The host's ClipFacts.
 [[nodiscard]] const scenes::bind::ClipFacts& clip_facts();
 
+/// @brief The host's TrackFacts.
+[[nodiscard]] const scenes::bind::TrackFacts& track_facts();
+
 /// @brief The audio clip @p clip addresses in the current song, or null: shared by the clip port and the waveforms.
 [[nodiscard]] ::AudioClip* audioClipAt(project::ClipAddress clip);
 

@@ -20,7 +20,7 @@
 
 #include "scenes/context_menu/context_menu_scene.h"
 
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
@@ -187,10 +187,10 @@ std::optional<uint32_t> recording_from_of(const menu::MenuContext& ctx) {
 /// recordable and in the song.
 std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, std::optional<uint32_t> selected) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
-	if (!track || !selected || ctx.facts == nullptr) {
+	if (!track || !selected || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+	for (const bind::TrackFact& candidate : ctx.ports.tracks->tracks()) {
 		if (candidate.output_id == *selected) {
 			return bind::can_record_from(track->output_id, candidate) ? selected : std::nullopt;
 		}
@@ -201,10 +201,10 @@ std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, s
 /// `getFirstRecordableOutput` (`audio_input_selector.cpp`).
 std::optional<uint32_t> first_recordable_track(const menu::MenuContext& ctx) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
-	if (!track || ctx.facts == nullptr) {
+	if (!track || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+	for (const bind::TrackFact& candidate : ctx.ports.tracks->tracks()) {
 		if (bind::can_record_from(track->output_id, candidate)) {
 			return candidate.output_id;
 		}

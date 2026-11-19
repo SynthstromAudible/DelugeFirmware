@@ -9,7 +9,7 @@
 #include "deluge-project/drum_type.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/setting_group.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
 #include "scenes/services/waveform_address.h"
 
 #include <cstdint>

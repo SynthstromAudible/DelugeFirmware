@@ -6,7 +6,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "plugin-api/types/setting.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/ports.h"
 
 #include <cstdint>
 #include <optional>
@@ -22,8 +22,8 @@ class ModelReader {
 public:
 	/// @param model   The song.
 	/// @param address The group and owner.
-	/// @param facts   The host's runtime facts, which give the bend ranges played and a kit row's note tails.
-	ModelReader(const project::Song& model, project::SettingAddress address, const RuntimeFacts& facts);
+	/// @param ports   The host's ports: the bend ranges played (tracks) and a kit row's note tails (controls).
+	ModelReader(const project::Song& model, project::SettingAddress address, const Ports& ports);
 
 	/// @brief Whether the song holds the owner.
 	[[nodiscard]] bool resolved() const { return resolved_; }
@@ -37,7 +37,7 @@ public:
 private:
 	const project::Song* model_;
 	project::SettingAddress address_;
-	const RuntimeFacts* facts_;
+	const Ports* ports_;
 	bool resolved_{false};
 };
 

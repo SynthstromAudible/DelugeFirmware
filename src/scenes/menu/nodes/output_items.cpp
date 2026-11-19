@@ -20,7 +20,7 @@
 
 #include "scenes/menu/nodes/output_items.h"
 
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
@@ -82,10 +82,10 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 
 /// @brief The track the menu's context names, as the song holds it; nullopt where it names none.
 std::optional<bind::TrackFact> track_of(const MenuContext& ctx) {
-	if (!ctx.addresses.track || ctx.facts == nullptr) {
+	if (!ctx.addresses.track || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& track : ctx.facts->tracks()) {
+	for (const bind::TrackFact& track : ctx.ports.tracks->tracks()) {
 		if (track.output_id == ctx.addresses.track->output_id) {
 			return track;
 		}
@@ -372,7 +372,7 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	const std::vector<bind::TrackFact> tracks =
-	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
+	    ctx.ports.tracks != nullptr ? ctx.ports.tracks->tracks() : std::vector<bind::TrackFact>{};
 	int32_t index = recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
 	if (index < 0) {
 		// Main's `SpecificSourceOutputSelector::beginSession` -- "if the stored source was removed or became invalid,
@@ -395,7 +395,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const size_t d = depth_of(state);
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	const std::vector<bind::TrackFact> tracks =
-	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
+	    ctx.ports.tracks != nullptr ? ctx.ports.tracks->tracks() : std::vector<bind::TrackFact>{};
 
 	// Main's `SpecificSourceOutputSelector::selectEncoderAction`. Done here rather than in `handle` for
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
@@ -474,10 +474,10 @@ void SpecificOutputItem::commit(const MenuContext& ctx, MenuState& state) const 
 	// cannot have moved between the render that set `value_changed` and this call -- `after_render` runs immediately
 	// after, with no input in between (`ActiveScalesItem::commit`'s note).
 	const std::optional<uint32_t> editing = editing_of(ctx);
-	if (!editing || ctx.facts == nullptr) {
+	if (!editing || ctx.ports.tracks == nullptr) {
 		return;
 	}
-	const std::vector<bind::TrackFact> tracks = ctx.facts->tracks();
+	const std::vector<bind::TrackFact> tracks = ctx.ports.tracks->tracks();
 	write_recording_from(ctx, track_at(tracks, editing, state.list[depth_of(state)].cursor));
 }
 

@@ -10,6 +10,8 @@ const bind::Ports& host_ports() {
 	    .ui = &gui::shell_host::ui_facts(),
 	    .sound = &gui::shell_host::sound_facts(),
 	    .clips = &gui::shell_host::clip_facts(),
+	    .tracks = &gui::shell_host::track_facts(),
+	    .controls = &host_runtime_facts(),
 	};
 	return ports;
 }

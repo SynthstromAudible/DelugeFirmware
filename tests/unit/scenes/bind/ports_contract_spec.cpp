@@ -46,6 +46,15 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.clips->clip_live_pos(deluge::project::ClipAddress{.clip_id = 5})).to_equal(96);
 		expect(contract::unknown_clip_is_silent(*p.clips, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
 	});
+	it("answers the tracks as the spec set them, and an unknown chain as having no effects", _ {
+		test::FakeHost host;
+		host.tracks.track_list = {{.output_id = 3, .kind = TrackKind::SYNTH}};
+		const Ports p = host.ports();
+		expect(p.tracks->tracks().size()).to_equal(size_t{1});
+		expect(contract::unknown_chain_has_no_effects(
+		           *p.tracks, deluge::project::ChainAddress{deluge::project::ChainAddress::Kind::OUTPUT, 999}))
+		    .to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

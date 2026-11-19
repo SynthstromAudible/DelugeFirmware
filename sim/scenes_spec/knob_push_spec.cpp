@@ -101,7 +101,6 @@ struct Outcome {
 Outcome outcome_of(const Side& side, std::string text) {
 	Outcome out;
 	currentSong = side.song;
-	const deluge::scenes::bind::RuntimeFacts& facts = deluge::scenes::menu::host_runtime_facts();
 	const deluge::project::Song& model = side.song->project;
 	if (const std::optional<services::EffectOwner> owner = services::effect_owner(side.focus)) {
 		if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&*owner)) {
@@ -123,7 +122,8 @@ Outcome outcome_of(const Side& side, std::string text) {
 		}
 		else {
 			const auto chain = std::get<deluge::project::ChainAddress>(*owner);
-			if (const deluge::effects::EffectStates* states = facts.chain_effects(chain)) {
+			if (const deluge::effects::EffectStates* states =
+			        deluge::scenes::menu::host_ports().tracks->chain_effects(chain)) {
 				out.effects = *states;
 			}
 			const deluge::project::FxChain* record = const_cast<deluge::project::Song&>(model).resolveChain(chain);

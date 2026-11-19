@@ -39,7 +39,6 @@
 #include "modulation/sync.h"
 #include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
@@ -79,8 +78,8 @@ std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) 
 		    ctx.ports.sound != nullptr ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
 	}
-	if (ctx.addresses.chain && ctx.facts != nullptr) {
-		const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+	if (ctx.addresses.chain && ctx.ports.tracks != nullptr) {
+		const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);
 		return effects != nullptr ? std::optional{effects->stutter} : std::nullopt;
 	}
 	return std::nullopt;
@@ -188,10 +187,10 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	write_stutter(ctx, "stutter/useSongStutter", v == kUseSong);
 	write_stutter(ctx, "stutter/reverse", v == kReversed || v == kReversedPingPong);
 	write_stutter(ctx, "stutter/pingPong", v == kForwardPingPong || v == kReversedPingPong);
-	if (v == kUseSong && ctx.facts != nullptr) {
+	if (v == kUseSong && ctx.ports.tracks != nullptr) {
 		// Inherit the song's settings wholesale.
-		const deluge::effects::EffectStates* song =
-		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+		const deluge::effects::EffectStates* song = ctx.ports.tracks->chain_effects(
+		    deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
 		if (song != nullptr) {
 			write_stutter(ctx, "stutter/quantized", song->stutter.quantized);
 			write_stutter(ctx, "stutter/reverse", song->stutter.reversed);
@@ -207,9 +206,9 @@ bool stutter_rate_quantized(const MenuContext& ctx) {
 	if (!sc) {
 		return false;
 	}
-	if (sc->use_song_stutter && ctx.facts != nullptr) {
-		const deluge::effects::EffectStates* song =
-		    ctx.facts->chain_effects(deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
+	if (sc->use_song_stutter && ctx.ports.tracks != nullptr) {
+		const deluge::effects::EffectStates* song = ctx.ports.tracks->chain_effects(
+		    deluge::project::ChainAddress{.kind = deluge::project::ChainAddress::Kind::SONG});
 		return song != nullptr && song->stutter.quantized;
 	}
 	return sc->quantized;

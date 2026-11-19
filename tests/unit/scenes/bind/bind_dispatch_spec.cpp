@@ -34,8 +34,7 @@ Addresses at(deluge::project::SlotAddress slot) {
 /// The names choice_names gives, as their ids, an unavailable one written negative.
 std::vector<int64_t> names_of(const ModelFixture& fixture, std::string_view path, deluge::project::SlotAddress slot) {
 	std::array<ChoiceName, 32> out{};
-	const size_t count =
-	    choice_names(sound(path), fixture.song, at(slot), fixture.facts, fixture.audio, fixture.sound, out);
+	const size_t count = choice_names(sound(path), fixture.song, at(slot), fixture.ports(), out);
 	std::vector<int64_t> ids;
 	for (size_t i = 0; i < count; ++i) {
 		const auto id = static_cast<int64_t>(out[i].name);
@@ -49,10 +48,10 @@ std::vector<int64_t> names_of(const ModelFixture& fixture, std::string_view path
 describe bind_dispatch("a sound target's value, range, choices, names and applicability", ${
 	it("lists only the choices that apply, by position, with the name table's names", _ {
 		const ModelFixture fixture;
-		const auto shown = view(sound("osc2/type"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound);
+		const auto shown = view(sound("osc2/type"), fixture.song, at(kSynth), fixture.ports());
 		expect(shown.has_value()).to_be_true();
-		const SlotReader reader{fixture.song, kSynth, fixture.sound};
-		const auto shown_for = setting_context(fixture.song, kSynth, fixture.sound, fixture.audio);
+		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
+		const auto shown_for = setting_context(fixture.song, kSynth, fixture.host.sound, fixture.host.audio);
 		const auto& row = row_at("osc2/type");
 		expect(shown->greatest + 1).to_equal(deluge::plugin::applicable_choice_count(row, shown_for, reader.reader()));
 		expect(shown->stale.has_value()).to_be_false();
@@ -80,19 +79,19 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("shows a stored choice that no longer applies as a marked entry the menu cannot write", _ {
 		ModelFixture fixture;
-		auto state = fixture.sound.states.at(kDrum.id);
+		auto state = fixture.host.sound.states.at(kDrum.id);
 		state.sources[0].osc_type = OscType::INPUT_R;
 		fixture.set_state(kDrum, state);
-		const auto shown = view(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, fixture.audio, fixture.sound);
+		const auto shown = view(sound("osc1/type"), fixture.song, at(kDrum), fixture.ports());
 		expect(shown->stale.has_value()).to_be_true();
 		expect(shown->value).to_equal(*shown->stale);
 		const auto names = names_of(fixture, "osc1/type", kDrum);
 		const auto* table = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, "osc1/type");
 		const auto input_r = -static_cast<int64_t>(table->choices[static_cast<size_t>(OscType::INPUT_R)]);
 		expect(names[static_cast<size_t>(*shown->stale)]).to_equal(input_r);
-		expect(request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, fixture.audio, fixture.sound, *shown->stale).has_value())
+		expect(request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.ports(), *shown->stale).has_value())
 		    .to_be_false();
-		const auto next = request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, fixture.audio, fixture.sound, *shown->stale - 1);
+		const auto next = request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.ports(), *shown->stale - 1);
 		expect(next.has_value()).to_be_true();
 		const auto stored = deluge::plugin::from_menu(row_at("osc1/type"), next->menu_value);
 		expect(stored.has_value()).to_be_true();
@@ -103,37 +102,37 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("reads a stored value the menu never writes as legacy shows it", _ {
 		ModelFixture fixture;
-		auto state = fixture.sound.states.at(kSynth.id);
+		auto state = fixture.host.sound.states.at(kSynth.id);
 		state.polyphonic = deluge::instrument::PolyphonyMode::POLY;
 		state.max_voice_count = 20;
 		fixture.set_state(kSynth, state);
-		const auto shown = view(sound("maxVoices"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound);
+		const auto shown = view(sound("maxVoices"), fixture.song, at(kSynth), fixture.ports());
 		expect(shown->value).to_equal(deluge::plugin::to_menu(row_at("maxVoices"), 20));
 	});
 
 	it("reads a combined menu through its partner row", _ {
 		ModelFixture fixture;
-		auto state = fixture.sound.states.at(kSynth.id);
+		auto state = fixture.host.sound.states.at(kSynth.id);
 		state.transpose = -3;
 		state.cents = 25;
 		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{4};
 		state.lfo_sync_type[0] = deluge::plugin::SyncType::TRIPLET;
 		fixture.set_state(kSynth, state);
-		const SlotReader reader{fixture.song, kSynth, fixture.sound};
-		expect(view(sound("transpose"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound)->value).to_equal(-275);
-		expect(view(sound("lfo1/syncLevel"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound)->value)
+		const SlotReader reader{fixture.song, kSynth, fixture.host.sound};
+		expect(view(sound("transpose"), fixture.song, at(kSynth), fixture.ports())->value).to_equal(-275);
+		expect(view(sound("lfo1/syncLevel"), fixture.song, at(kSynth), fixture.ports())->value)
 		    .to_equal(deluge::plugin::to_menu(row_at("lfo1/syncLevel"), 4, *reader.read("lfo1/syncType")));
 	});
 
 	it("says a row does not apply where its conditions fail", _ {
 		ModelFixture fixture;
-		auto state = fixture.sound.states.at(kSynth.id);
+		auto state = fixture.host.sound.states.at(kSynth.id);
 		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
 		fixture.set_state(kSynth, state);
-		expect(view(sound("maxVoices"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound)->applies).to_be_false();
+		expect(view(sound("maxVoices"), fixture.song, at(kSynth), fixture.ports())->applies).to_be_false();
 		state.polyphonic = deluge::instrument::PolyphonyMode::POLY;
 		fixture.set_state(kSynth, state);
-		expect(view(sound("maxVoices"), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound)->applies).to_be_true();
+		expect(view(sound("maxVoices"), fixture.song, at(kSynth), fixture.ports())->applies).to_be_true();
 	});
 
 
@@ -144,7 +143,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 			if (row.kind == deluge::plugin::SettingKind::STRUCTURED || row.kind == deluge::plugin::SettingKind::TEXT) {
 				continue;
 			}
-			if (!view(sound(row.path), fixture.song, at(kSynth), fixture.facts, fixture.audio, fixture.sound)) {
+			if (!view(sound(row.path), fixture.song, at(kSynth), fixture.ports())) {
 				unresolved += std::string(row.path) + " ";
 			}
 		}
@@ -153,9 +152,9 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("shows nothing for a target whose slot does not resolve", _ {
 		const ModelFixture fixture;
-		expect(view(sound("polyphonic"), fixture.song, Addresses{}, fixture.facts, fixture.audio, fixture.sound).has_value()).to_be_false();
+		expect(view(sound("polyphonic"), fixture.song, Addresses{}, fixture.ports()).has_value()).to_be_false();
 		expect(view(sound("polyphonic"), fixture.song, at({deluge::project::SlotAddress::Kind::DRUM, 77}),
-		            fixture.facts, fixture.audio, fixture.sound)
+		            fixture.ports())
 		           .has_value())
 		    .to_be_false();
 	});

@@ -41,8 +41,8 @@ namespace params = deluge::modulation::params;
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
-/// What a push reads beyond the song's records: the owner's effects and the device facts, from the host's runtime
-/// facts, and the gesture's context.
+/// What a push reads beyond the song's records: the owner's effects and the device facts, from the host's ports,
+/// and the gesture's context.
 struct Reads {
 	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
 	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
@@ -56,7 +56,7 @@ Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const effects::EffectStates* fx = owner_effects(focus, facts, *menu::host_ports().sound)) {
+	if (const effects::EffectStates* fx = owner_effects(focus, *menu::host_ports().tracks, *menu::host_ports().sound)) {
 		out.effects = *fx;
 	}
 	return out;
@@ -474,7 +474,7 @@ std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus) {
 	return std::nullopt;
 }
 
-const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts,
+const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::TrackFacts& tracks,
                                            const bind::SoundFacts& sound) {
 	const std::optional<EffectOwner> owner = effect_owner(focus);
 	if (!owner) {
@@ -484,7 +484,7 @@ const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const b
 		const instrument::SoundState* state = sound.sound_state(*slot);
 		return state != nullptr ? &instrument::sound_effects(*state) : nullptr;
 	}
-	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
+	return tracks.chain_effects(std::get<project::ChainAddress>(*owner));
 }
 
 KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,

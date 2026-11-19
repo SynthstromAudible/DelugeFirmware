@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief A project::Song with a synth track and a sound kit row, each with an instrument slot, and fake runtime facts
+/// @brief A project::Song with a synth track and a sound kit row, each with an instrument slot, and fake ports
 /// holding each sound's typed state.
 
 #include "deluge-project/fx_chain.h"
@@ -11,6 +11,7 @@
 #include "effects/state.h"
 #include "fakes.h"
 #include "instruments/deluge/sound_state.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/bind/runtime_facts.h"
 
 #include <cstdint>
@@ -45,33 +46,19 @@ inline constexpr project::LaneAddress kMidiLane{kKit, 42};
 inline constexpr project::LaneAddress kGateLane{kKit, 43};
 inline constexpr project::NoteRowAddress kSoundRow{
     .clip_id = kKitClip.clip_id, .is_kit = true, .row_key = static_cast<int32_t>(kDrum.id)};
-/// The device's default bend ranges FakeFacts gives (main, MPE).
+/// The device's default bend ranges the fixture's track facts give (main, MPE).
 inline constexpr int32_t kDeviceBendRange = 7;
 inline constexpr int32_t kDeviceBendRangeMpe = 30;
 
-/// Runtime facts a spec sets directly: each chain's effects, the arp preset and the params' values.
+/// The knobs' reads, as a spec sets them: each note-tail answer and the params' values, by their addresses.
 class FakeFacts final : public RuntimeFacts {
 public:
-	std::map<uint32_t, effects::EffectStates> chains; ///< by chain_key
-
-	/// A chain's key in chains: its output id, or UINT32_MAX for the master's.
-	[[nodiscard]] static uint32_t chain_key(project::ChainAddress chain);
-
-	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
 	std::map<uint32_t, bool> note_tails; ///< by slot id; a sound absent here can hold tails
-	uint8_t preset{0};                   ///< the arp preset every owner's engine holds
-	/// As a set made for the owner plays: a kit row's finger range starts at the main one.
-	[[nodiscard]] int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const override {
-		return which == 0 || owner.group == project::SettingGroupId::NOTE_ROW ? kDeviceBendRange : kDeviceBendRangeMpe;
-	}
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot,
 	                                     std::optional<project::ClipAddress> clip) const override;
-	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
-	std::vector<TrackFact> track_list;
-	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
 	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
@@ -94,16 +81,21 @@ public:
 	}
 };
 
-/// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for @p facts' states, which
-/// start as a new synth's; whose kit (kKitChain) and audio track (kAudioChain) have a chain, as the master does,
-/// each with default effects in @p facts; and which holds the model groups' owners above, each clip and lane with an
-/// arp record.
+/// A song whose synth track (kSynth) and kit row (kDrum) hold the slot encode() writes for the host's sound states,
+/// which start as a new synth's; whose kit (kKitChain) and audio track (kAudioChain) have a chain, as the master does,
+/// each with default effects in the host's track facts; and which holds the model groups' owners above, each clip and
+/// lane with an arp record.
 struct ModelFixture {
 	project::Song song;
-	FakeFacts facts;
-	FakeSoundFacts sound; ///< each sound's typed state, loaded sources and cables
-	FakeAudioFacts audio; ///< the plugged inputs the contexts are built with
+	FakeFacts facts; ///< the knobs' reads, which `ports()` serves as `controls`
+	FakeHost host; ///< the fakes of the other ports: each sound's typed state, the plugged inputs, each chain's effects
 	ModelFixture();
+	/// The host's ports, with `controls` the fixture's `facts`; valid while this fixture lives.
+	[[nodiscard]] Ports ports() const {
+		Ports held = host.ports();
+		held.controls = &facts;
+		return held;
+	}
 	/// Set @p slot's state and re-encode its slot from it, as a coherent song holds them.
 	void set_state(project::SlotAddress slot, const instrument::SoundState& state);
 };

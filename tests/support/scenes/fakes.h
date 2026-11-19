@@ -84,16 +84,34 @@ struct FakeClipFacts final : ClipFacts {
 	[[nodiscard]] std::optional<IsomorphicKeyboard> isomorphic_keyboard() const override { return keyboard; }
 };
 
+/// @brief TrackFacts a spec sets directly.
+struct FakeTrackFacts final : TrackFacts {
+	std::vector<TrackFact> track_list;                ///< what `tracks` answers
+	int32_t bend_main{7};                             ///< the main bend range `played_bend_range` answers
+	int32_t bend_mpe{30};                             ///< the MPE bend range `played_bend_range` answers
+	uint8_t preset{0};                                ///< what `arp_preset` answers for every owner
+	std::map<uint32_t, effects::EffectStates> chains; ///< by chain key: output id, or UINT32_MAX for the master's
+	/// @brief A chain's key in `chains`.
+	/// @param chain The chain's address.
+	/// @return Its output id, or UINT32_MAX for the song's (the master's).
+	[[nodiscard]] static uint32_t chain_key(project::ChainAddress chain);
+	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
+	[[nodiscard]] int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const override;
+	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }
+	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio; ///< the audio port's fake
-	FakeCardFacts card;   ///< the card port's fake
-	FakeUiFacts ui;       ///< the UI port's fake
-	FakeSoundFacts sound; ///< the sound port's fake
-	FakeClipFacts clips;  ///< the clip port's fake
+	FakeAudioFacts audio;  ///< the audio port's fake
+	FakeCardFacts card;    ///< the card port's fake
+	FakeUiFacts ui;        ///< the UI port's fake
+	FakeSoundFacts sound;  ///< the sound port's fake
+	FakeClipFacts clips;   ///< the clip port's fake
+	FakeTrackFacts tracks; ///< the track port's fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() const {
-		return {.audio = &audio, .card = &card, .ui = &ui, .sound = &sound, .clips = &clips};
+		return {.audio = &audio, .card = &card, .ui = &ui, .sound = &sound, .clips = &clips, .tracks = &tracks};
 	}
 };
 

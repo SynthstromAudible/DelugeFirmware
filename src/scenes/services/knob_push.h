@@ -14,7 +14,7 @@
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/sound_facts.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
 
@@ -60,12 +60,12 @@ struct KnobPush {
 /// @brief Whose effect settings @p focus's knobs push: a sound's slot, the song's chain, a kit's or audio track's.
 [[nodiscard]] std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus);
 
-/// @brief The effect settings of @p focus's owner, as the host's runtime facts hold them.
+/// @brief The effect settings of @p focus's owner, as the host's facts hold them.
 /// @param focus What the knobs point at.
-/// @param facts The host's runtime facts: a chain's effects.
+/// @param tracks The track facts: a chain's effects.
 /// @param sound The sound facts: a sound's typed state.
 /// @return The owner's effects; nullptr for an owner with none, or one the facts do not resolve.
-[[nodiscard]] const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts,
+[[nodiscard]] const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::TrackFacts& tracks,
                                                          const bind::SoundFacts& sound);
 
 /// @brief What pressing (or releasing, @p on false) gold knob @p knob of @p focus does.

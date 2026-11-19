@@ -49,8 +49,6 @@ src/deluge/model/instrument/kit.cpp	model-calls-ui	4
 src/deluge/model/instrument/kit.cpp	model-includes-ui	3
 src/deluge/model/instrument/melodic_instrument.cpp	model-calls-ui	4
 src/deluge/model/instrument/melodic_instrument.cpp	model-includes-ui	4
-src/deluge/model/instrument/midi_instrument.cpp	model-calls-display	2
-src/deluge/model/instrument/midi_instrument.cpp	model-calls-ui	9
 src/deluge/model/instrument/midi_instrument.cpp	model-includes-ui	5
 src/deluge/model/model_stack.h	model-includes-ui	1
 src/deluge/model/note/note_row.cpp	model-includes-ui	3
@@ -92,7 +90,6 @@ src/deluge/processing/engines/cv_engine.cpp	model-includes-ui	1
 src/deluge/processing/recording/foreground_recording.cpp	model-calls-display	3
 src/deluge/processing/recording/foreground_recording.cpp	model-calls-ui	5
 src/deluge/processing/recording/foreground_recording.cpp	model-includes-ui	2
-src/deluge/processing/sound/sound.cpp	model-calls-ui	1
 src/deluge/processing/sound/sound.cpp	model-includes-ui	6
 src/deluge/processing/sound/sound_drum.cpp	model-calls-ui	1
 src/deluge/processing/sound/sound_drum.cpp	model-includes-ui	3

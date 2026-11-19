@@ -40,7 +40,6 @@
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveforms.h"
 
@@ -166,7 +165,7 @@ bool reverb_sidechain_on(const MenuContext& ctx) {
 
 bool stutter_quantize_allowed(const MenuContext& ctx) {
 	// The song's own stutter always offers quantize; anything else's does unless it plays the song's.
-	if (ctx.facts == nullptr) {
+	if (ctx.ports.tracks == nullptr) {
 		return false;
 	}
 	if (const deluge::instrument::SoundState* state = sound_state(ctx); state != nullptr) {
@@ -178,7 +177,7 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 	if (ctx.addresses.chain_owner == bind::ChainOwner::SONG) {
 		return true;
 	}
-	const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);
+	const deluge::effects::EffectStates* effects = ctx.ports.tracks->chain_effects(*ctx.addresses.chain);
 	return effects != nullptr && !effects->stutter.use_song_stutter;
 }
 

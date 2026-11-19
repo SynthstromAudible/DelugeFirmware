@@ -34,7 +34,6 @@
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 
 #include <span>

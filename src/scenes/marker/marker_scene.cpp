@@ -14,7 +14,6 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"

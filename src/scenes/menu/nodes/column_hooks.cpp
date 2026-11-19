@@ -37,7 +37,6 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
-#include "scenes/bind/runtime_facts.h"
 
 #include <algorithm>
 #include <array>
