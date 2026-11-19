@@ -80,6 +80,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "processing/sound/param_dump.h"
+#include "processing/sound/param_manager_view.h"
 #include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -1774,9 +1775,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
+	const ParamManagerView paramView{*paramManager};
 
 	// Do global LFO
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
+	if (paramView.wired(PatchSource::LFO_GLOBAL_1)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
 		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
@@ -1792,7 +1794,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
+	if (paramView.wired(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
 
 		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
@@ -1816,7 +1818,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Do sidechain
-	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::SIDECHAIN)) {
+	if (paramView.wired(PatchSource::SIDECHAIN)) {
 		if (sideChainHitPending) {
 			core().sidechain().register_hit(sideChainHitPending);
 		}
@@ -1825,7 +1827,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		int32_t old = params.source_values[patchSourceSidechainUnderlying];
 		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
-		    output.size(), paramManager->getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
+		    output.size(), paramView.knob(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);
@@ -1923,9 +1925,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (!voices_.empty()) {
 
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
-		bool applyingPanAtVoiceLevel =
-		    (AudioEngine::renderInStereo
-		     && paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN));
+		bool applyingPanAtVoiceLevel = (AudioEngine::renderInStereo && paramView.modulated(params::LOCAL_PAN));
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
@@ -1935,11 +1935,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
 		             && (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
-		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
-		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<int32_t>::min()));
+		                 || paramView.modulated(params::LOCAL_LPF_FREQ) || (lpfFreq < 0x7FFFFFD2)
+		                 || (lpfMorph > std::numeric_limits<int32_t>::min()));
 		bool doHPF = thisHasFilters
-		             && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
-		                 || (hpfFreq != std::numeric_limits<int32_t>::min())
+		             && (paramView.modulated(params::LOCAL_HPF_FREQ) || (hpfFreq != std::numeric_limits<int32_t>::min())
 		                 || (hpfMorph > std::numeric_limits<int32_t>::min()));
 		// What changes this block for each of the sound's voices; their settings are its config.
 		std::array<OscType, kNumSources> oscTypes;
@@ -1956,8 +1955,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
-		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const deluge::synth::BlockValues blockValues{
 		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot().effects.filter.lpf_mode)
 		                      : deluge::dsp::fixed::LowPassSlot{},
@@ -1984,13 +1981,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .global_source_values = params.source_values,
 		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
 		    .source_ever_active = sourceEverActives,
-		    .noise_volume_contains_something =
-		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
-		            paramManager->getPatchedParamSet()->playedLane(params::LOCAL_NOISE_VOLUME), -2147483648),
-		    .local_sources_patched_to_anything =
-		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
-		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
-		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
+		    .noise_volume_contains_something = paramView.can_sound(params::LOCAL_NOISE_VOLUME),
+		    .local_sources_patched_to_anything = paramView.sources_wired(GLOBALITY_LOCAL),
+		    .bend_ranges = paramView.bend_ranges(),
+		    .portamento = paramView.unpatched(params::UNPATCHED_PORTAMENTO),
 		    .source_active_currently = sourceActiveCurrentlys,
 		};
 
