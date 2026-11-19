@@ -5,10 +5,11 @@ These tests use the same CppUTest `TEST_GROUP` / `TEST` fixtures, assertions and
 
 - `../parameter_value_tests.cpp` runs in the existing `UnitTests` binary. It tests
   the production value classes, offset widths, rebinding, saturation and interpolation.
-- `auto_param_tests.cpp` runs in `ParameterTests`. These cases
+- `auto_param_tests.cpp` and `midi_param_tests.cpp` run in `ParameterTests`. They
   test actual AutoParam node operations, attribute serialization/deserialization,
   cloning, automation deletion/recreation, undo/redo state capture and exchange (including saturated clip adjustments) and live
-  interpolation-context preservation and undoable-trim replacement preparation.
+  interpolation-context preservation, undoable-trim replacement preparation, and MIDI
+  parameter insertion/deletion, binding, and detachment before an output is destroyed.
 - `parameter_io_tests.cpp` compiles the production JSON/XML deserializers and shared
   parameter-table reader. It checks full-width IDs, empty tables, unknown fields,
   and preservation of subsequent fields. Only the file byte transport is mocked.
@@ -42,7 +43,11 @@ build/host-tests/unit/UnitTests -g ParameterValueTests -v
 
 The existing x86 PR workflow builds and runs both binaries through CTest.
 
-`parameter_control_tests.cpp` tests the production layer-selection policies, including live expression controls. Value tests cover full-width detachment and rebinding.
+`parameter_control_tests.cpp` tests the production layer-selection, automation
+transition policies used by the firmware callers. It covers
+expression/live input, recording/region exceptions,
+inactive MIDI automation removal. Value tests exercise full-width detachment/rebinding
+and MIDI backup destruction with the real storage classes. 
 
 These cases do not simulate physical encoder input, whole UI transactions or menu reset
 commands. Changing a ClipParamValue directly tests that value object's behavior,
@@ -52,6 +57,13 @@ The trim regression cases call the production replacement-vector preparation use
 by `AutoParam::trimToLength()`, then exercise real vector ownership and undo/redo
 state exchange. They do not instantiate the UI action logger or a clip-length UI.
 
-Relative-value persistence tests retain positive and negative overshoot, truncated timelines, wide scalars and clones using the production serializer and reader.
+The save/reload regression cases exercise the production supplemental relative
+serializer and reader with positive and negative overshoot, retained timeline
+limits, and saturated cloning. Preset rebasing tests preserve another clip's
+hidden overshoot and leave unrelated owners untouched. Whole-song UI save routing is
+validated separately in delugemu; these unit tests do not emulate those UIs.
 
-Preset-save tests exercise the production scoped snapshot and scalar rebasing helper, preserving hidden overshoot and relative curves. The snapshot retains actual serialized values while automation advances; song serialization does not change the baseline. Whole UI save transactions require emulator validation.
+Preset-save tests also verify that the scoped snapshot retains the actual
+serialized value while automation advances and does not alter the baseline
+itself. Dynamic-parameter tests round-trip relative data through patch-cable
+cloning and MIDI vector relocation using the production classes.

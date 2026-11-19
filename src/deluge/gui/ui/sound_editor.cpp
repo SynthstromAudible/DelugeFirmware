@@ -2328,16 +2328,22 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	}
 	else {
 		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
+		int32_t note_row_index = 0;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
-				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
+				noteRow = clip->getNoteRowForDrum(selectedDrum, &note_row_index);
 			}
 		}
 
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-		                                                          noteRow, currentModControllable, currentParamManager);
+		// currentModControllable is audio-only and stays null for MIDI/CV menus.
+		// Their parameter model stack still needs the actual output owner.
+		ModControllable* owner = currentModControllable;
+		if ((owner == nullptr) && currentParamManager == &clip->paramManager) {
+			owner = clip->output->toModControllable();
+		}
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), note_row_index,
+		                                                          noteRow, owner, currentParamManager);
 	}
 }
 

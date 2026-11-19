@@ -197,7 +197,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 			source_value = patch_cable.toPolarity(source_value);
 		}
 
-		int32_t cable_strength = patch_cable.param.getCurrentValue();
+		int32_t cable_strength = patch_cable.getValue();
 		running_total = cableToLinearParamWithoutRangeAdjustment(running_total, source_value, cable_strength);
 	}
 
@@ -227,7 +227,7 @@ int32_t Patcher::cableToExpParam(int32_t running_total, const PatchCable& patch_
 			PatchSource source = patch_cable.from;
 			int32_t source_value = source_values_[std::to_underlying(source)];
 			source_value = patch_cable.toPolarity(source_value);
-			int32_t cable_strength = patch_cable.param.getCurrentValue();
+			int32_t cable_strength = patch_cable.getValue();
 			running_total = cableToLinearParam(running_total, patch_cable, source_value, cable_strength);
 		}
 	}

@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "modulation/params/patch_cable_preset_values.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/granular/GranularProcessor.h"
@@ -50,10 +51,14 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 	void bindPresetValues(ParamManager* manager) override;
+	int32_t* reuseZeroPresetPatchCable(Song* song, uint32_t id);
 	int32_t* getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) override;
-	int32_t getPresetValue(deluge::modulation::params::Kind kind, int32_t id) const;
+	[[nodiscard]] const PatchCablePresetValues& getPresetPatchCableValues() const { return presetPatchCables_; }
+	[[nodiscard]] int32_t getPresetValue(deluge::modulation::params::Kind kind, int32_t id) const;
 
 private:
+	PatchCablePresetValues presetPatchCables_;
+	bool hasPresetPatchCables_ = false;
 	std::array<int32_t, deluge::modulation::params::kNumParams> presetPatched_{};
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> presetUnpatched_{};
 	bool hasPresetPatched_ = false;

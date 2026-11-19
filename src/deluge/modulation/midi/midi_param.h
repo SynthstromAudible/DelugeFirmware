@@ -23,6 +23,8 @@ class MIDIParam {
 public:
 	MIDIParam();
 
-	uint8_t cc;
+	// The ordered array uses signed keys; retain positive values for internal CCs 128–255.
+	uint32_t cc;
+	ClipParamValue clipValue;
 	AutoParam param;
 };

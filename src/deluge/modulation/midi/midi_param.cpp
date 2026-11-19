@@ -18,5 +18,5 @@
 #include "modulation/midi/midi_param.h"
 
 MIDIParam::MIDIParam() {
-	// TODO Auto-generated constructor stub
+	param.rebindClipValueAfterMove(&clipValue);
 }

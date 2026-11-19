@@ -88,6 +88,8 @@ bool PatchCable::isActive() {
 
 void PatchCable::initAmount(int32_t value) {
 	param.nodes.empty();
+	clipValue = ClipParamValue{};
+	param.rebindClipValueAfterMove(&clipValue);
 	param.setCurrentValueBasicForSetup(value);
 }
 

@@ -32,8 +32,12 @@
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
+#include "storage/parameter_value_io.h"
+#include "storage/preset_save_values.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
+#include <array>
+#include <charconv>
 #include <cstring>
 #include <string_view>
 
@@ -367,12 +371,31 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
+void MIDIInstrument::bindPresetValues(ParamManager* manager) {
+	if ((manager->summaries[0].paramCollection == nullptr)
+	    || manager->summaries[0].paramCollection->getParamKind() != deluge::modulation::params::Kind::MIDI) {
+		return;
+	}
+	auto* collection = manager->getMIDIParamCollection();
+	if (collection == nullptr) {
+		return;
+	}
+	if (!hasPresetMidiValues_) {
+		for (int32_t i = 0; i < collection->params.getNumElements(); ++i) {
+			auto* entry = collection->params.getElement(i);
+			presetMidiValues_[entry->cc] = entry->clipValue.getValue();
+		}
+		hasPresetMidiValues_ = true;
+	}
+	collection->params.bindPresetValues(presetMidiValues_.data());
+}
+
 bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// NonAudioInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 
-	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
+	if (editedByUser || (clipForSavingOutputOnly != nullptr)) {
 		writer.writeOpeningTagEnd();
 		writer.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
@@ -405,7 +428,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
-		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+		if ((clipForSavingOutputOnly == nullptr) && !midiInput.containsSomething() && !hasPresetMidiValues_) {
 			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
 			// since then it's the whole tag
 			return false;
@@ -414,6 +437,28 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTagEnd();
 	}
 
+	if (hasPresetMidiValues_ || clipForSavingOutputOnly != nullptr) {
+		writer.writeOpeningTagBeginning("presetMidiValues");
+		for (int32_t cc = 0; cc < 256; ++cc) {
+			int32_t value = presetMidiValues_.at(cc);
+			if (clipForSavingOutputOnly != nullptr) {
+				auto* collection = clipForSavingOutputOnly->paramManager.getMIDIParamCollection();
+				auto* entry = collection != nullptr ? collection->params.getParamFromCC(cc) : nullptr;
+				value = entry != nullptr ? entry->param.getCurrentValue() : value;
+				if (entry != nullptr) {
+					PresetSaveValues::record(&entry->param, value);
+				}
+			}
+			if (value != 0) {
+				std::array<char, 8> name_storage{};
+				char* name = name_storage.data();
+				name[0] = 'p';
+				std::to_chars(name + 1, name + name_storage.size() - 1, cc);
+				writer.writeAttribute(name, value);
+			}
+		}
+		writer.closeTag();
+	}
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
 }
@@ -465,6 +510,16 @@ void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
 }
 
 bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
+	if (strcmp(tagName, "presetMidiValues") == 0) {
+		presetMidiValues_.fill(0);
+		readParameterValueObject(reader, "presetMidiValues", [&](uint32_t cc, int32_t value) {
+			if (cc < presetMidiValues_.size()) {
+				presetMidiValues_.at(cc) = value;
+			}
+		});
+		hasPresetMidiValues_ = true;
+		return true;
+	}
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
@@ -651,6 +706,9 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
+	int32_t clip_value = 0;
+	bool has_clip_value = false;
+	bool has_relative_value = false;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -673,6 +731,20 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 			reader.exitTag("cc");
 		}
+		else if (strcmp(tagName, "clipValue") == 0) {
+			clip_value = reader.readTagOrAttributeValueInt();
+			has_clip_value = true;
+			reader.exitTag("clipValue");
+		}
+		else if (strcmp(tagName, "relativeValue") == 0) {
+			if (midiParamCollection != nullptr) {
+				auto* entry = midiParamCollection->params.getParamFromCC(cc);
+				if (entry != nullptr) {
+					has_relative_value = entry->param.readRelativeFromFile(reader);
+				}
+			}
+			reader.exitTag("relativeValue");
+		}
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
@@ -693,6 +765,12 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 		}
 	}
 
+	if (has_clip_value && !has_relative_value && (midiParamCollection != nullptr)) {
+		auto* entry = midiParamCollection->params.getParamFromCC(cc);
+		if ((entry != nullptr) && entry->param.isAutomated()) {
+			entry->param.restoreClipValueFromFile(clip_value);
+		}
+	}
 	if (getCC) {
 		*getCC = cc;
 	}
@@ -1337,4 +1415,8 @@ void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
 		labels[cc] = name;
 	}
+}
+
+int32_t* MIDIInstrument::getPresetValueStorage(deluge::modulation::params::Kind kind, int32_t id) {
+	return kind == deluge::modulation::params::Kind::MIDI && id >= 0 && id < 256 ? &presetMidiValues_[id] : nullptr;
 }

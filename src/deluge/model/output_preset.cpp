@@ -18,12 +18,18 @@
 #include "model/instrument/kit.h"
 #include "model/output_parameter_visitors.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "storage/preset_save_values.h"
 
 using deluge::modulation::params::Kind;
 
 Error Output::rebasePresetParameter(Song* song, ModControllable* owner, Kind kind, int32_t id, int32_t value) {
 	auto* preset = owner->getPresetValueStorage(kind, id);
+	if (preset == nullptr && kind == Kind::PATCH_CABLE) {
+		preset = static_cast<ModControllableAudio*>(owner)->reuseZeroPresetPatchCable(song, id);
+	}
 	if (preset == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -82,13 +88,35 @@ Error captureSavedManager(Output* output, Song* song, ModControllable* owner, Pa
 	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
 		auto* collection = summary->paramCollection;
 		Kind kind = collection->getParamKind();
-		if (kind == Kind::EXPRESSION || kind == Kind::MIDI || kind == Kind::PATCH_CABLE) {
+		if (kind == Kind::EXPRESSION) {
 			continue;
 		}
-		int32_t count = static_cast<ParamSet*>(collection)->getNumParams();
+		int32_t count = 0;
+		if (kind == Kind::PATCH_CABLE) {
+			count = static_cast<PatchCableSet*>(collection)->numPatchCables;
+		}
+		else if (kind == Kind::MIDI) {
+			count = static_cast<MIDIParamCollection*>(collection)->params.getNumElements();
+		}
+		else {
+			count = static_cast<ParamSet*>(collection)->getNumParams();
+		}
 		for (int32_t i = 0; i < count; ++i) {
 			int32_t id = i;
-			AutoParam* param = &static_cast<ParamSet*>(collection)->params[i];
+			AutoParam* param = nullptr;
+			if (kind == Kind::PATCH_CABLE) {
+				auto& cable = static_cast<PatchCableSet*>(collection)->patchCables[i];
+				id = PatchCableSet::getParamId(cable.destinationParamDescriptor, cable.from);
+				param = &cable.param;
+			}
+			else if (kind == Kind::MIDI) {
+				auto* entry = static_cast<MIDIParamCollection*>(collection)->params.getElement(i);
+				id = static_cast<int32_t>(entry->cc);
+				param = &entry->param;
+			}
+			else {
+				param = &static_cast<ParamSet*>(collection)->params[i];
+			}
 			auto value = saved.find(param);
 			if (!value.has_value()) {
 				continue;

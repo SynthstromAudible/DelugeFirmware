@@ -19,7 +19,7 @@
 #include "modulation/midi/midi_param.h"
 #include <new>
 
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
+MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 32) {
 }
 
 MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
@@ -33,6 +33,9 @@ MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
 }
 
 MIDIParam* MIDIParamVector::getOrCreateParamFromCC(int32_t cc, int32_t defaultValue, bool allowCreation) {
+	if (cc < 0 || cc > 255) {
+		return nullptr;
+	}
 	int32_t i = search(cc, GREATER_OR_EQUAL);
 	MIDIParam* param;
 	if (i >= getNumElements()) {
@@ -45,7 +48,8 @@ doesntExistYet:
 			return NULL;
 		}
 		param->cc = cc;
-		param->param.setCurrentValueBasicForSetup(defaultValue);
+		param->param.setCurrentValueBasicForSetup((presetValues_ != nullptr) ? presetValues_[cc] : defaultValue);
+		param->clipValue.bindPreset((presetValues_ != nullptr) ? &presetValues_[cc] : nullptr);
 	}
 	else {
 		param = getElement(i);
@@ -64,10 +68,39 @@ MIDIParam* MIDIParamVector::insertParam(int32_t i) {
 	else {
 		void* address = getElementAddress(i);
 		MIDIParam* param = new (address) MIDIParam();
+		rebindAfterMove();
 		return param;
 	}
 }
 
 MIDIParam* MIDIParamVector::getElement(int32_t i) {
 	return (MIDIParam*)getElementAddress(i);
+}
+
+void MIDIParamVector::rebindAfterMove() {
+	for (int32_t i = 0; i < getNumElements(); ++i) {
+		auto* entry = getElement(i);
+		entry->param.rebindClipValueAfterMove(&entry->clipValue);
+	}
+}
+
+Error MIDIParamVector::beenCloned() {
+	Error error = OrderedResizeableArray::beenCloned();
+	if (error == Error::NONE) {
+		rebindAfterMove();
+	}
+	return error;
+}
+
+void MIDIParamVector::deleteAtKey(int32_t key) {
+	OrderedResizeableArray::deleteAtKey(key);
+	rebindAfterMove();
+}
+
+void MIDIParamVector::bindPresetValues(const int32_t* values) {
+	presetValues_ = values;
+	for (int32_t i = 0; i < getNumElements(); ++i) {
+		auto* entry = getElement(i);
+		entry->clipValue.bindPreset(values != nullptr ? &values[entry->cc] : nullptr);
+	}
 }
