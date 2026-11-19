@@ -319,8 +319,7 @@ bool ensure_first_range(MenuContext& ctx);
 /// @param node The item; one that is not range-specific makes nothing and answers `Yes`.
 /// @param ctx  The menu's context, whose range index the first range resolves when the rule is about its source.
 /// @return `No` where the sound port refused the first range; `MustSelectRange` where the rule's context edits a sound
-/// whose
-///         range is still unresolved (more than one, none remembered); `Yes` otherwise.
+///         whose range is still unresolved (more than one, none remembered); `Yes` otherwise.
 Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
