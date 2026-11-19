@@ -112,9 +112,7 @@ Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchS
 			return Error::INSUFFICIENT_RAM;
 		}
 		std::ranges::copy(patch.params, runtime->params.begin());
-		if (runtime->engineMode != patch.engine_mode) {
-			runtime->setEngineMode(patch.engine_mode);
-		}
+		runtime->setEngineMode(patch.engine_mode); // the engine follows the bytes as well as the mode
 		runtime->random_detune = patch.random_detune;
 		source.dxPatchChanged = true;
 	}

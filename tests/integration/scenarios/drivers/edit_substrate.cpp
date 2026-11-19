@@ -945,16 +945,14 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	      "dx: the runtime takes it");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "dx: the sound stays coherent");
 
-	// The engine an auto patch renders in, as it stands: chosen only when the patch's engine mode changes, so new
-	// bytes that would choose MkI (algorithm 4 with feedback) keep the engine the patch had. Pinned, not endorsed: the
-	// fix re-chooses on every byte change (TODO.md).
+	// The engine an auto patch renders in follows its bytes: algorithm 4 with feedback needs MkI's feedback loop.
 	using deluge::dsp::fixed::dx7::Engine;
 	patch->params[134] = 3; // algorithm 4
 	patch->params[135] = 7; // feedback
 	patch->engine_mode = 0; // auto
 	deluge::edits::SetDxPatch autoBytes{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MODERN,
-	      "dx: an auto patch's new bytes keep its engine");
+	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
+	      "dx: an auto patch's new bytes choose its engine");
 	patch->engine_mode = 2; // MkI
 	deluge::edits::SetDxPatch mk1{*slot, 0, *patch};
 	check(deluge::edits::apply(ctx, mk1) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
@@ -963,6 +961,10 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	deluge::edits::SetDxPatch backToAuto{*slot, 0, *patch};
 	check(deluge::edits::apply(ctx, backToAuto) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
 	      "dx: auto chosen again picks MkI for algorithm 4 with feedback");
+	patch->params[135] = 0; // no feedback
+	deluge::edits::SetDxPatch noFeedback{*slot, 0, *patch};
+	check(deluge::edits::apply(ctx, noFeedback) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MODERN,
+	      "dx: an auto patch without feedback goes back to the modern engine");
 
 	deluge::edits::SetEngineSetting saw{*slot, "osc2/type", Value::makeScalar("saw")};
 	(void)deluge::edits::apply(ctx, saw);

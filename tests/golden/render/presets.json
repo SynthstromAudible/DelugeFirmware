@@ -307,9 +307,9 @@
  },
  "community/Glistening": {
   "frames": 88200,
-  "peak": 320165120,
-  "rms_db": -28.74,
-  "sha256": "5716e2f9a4ac186798492e169e1f8a4885df6b0e33853ec7410645930b2e7299"
+  "peak": 319686912,
+  "rms_db": -28.9,
+  "sha256": "b42b0685f923136954b7722bdb503ffc48429e25c520802af043d09d63df4b16"
  },
  "community/Gong": {
   "frames": 88200,
@@ -565,9 +565,9 @@
  },
  "community/Rubberdemon": {
   "frames": 88200,
-  "peak": 308964352,
-  "rms_db": -28.04,
-  "sha256": "0a85b7d244fed346e102e5d8d034a8c6622159da00b26fce117858f54c916618"
+  "peak": 306804224,
+  "rms_db": -28.09,
+  "sha256": "23430fbb23d22cac0f156276ae16d90ad7fd1ee04100705bcc9ed24ccdba5b45"
  },
  "community/Runner Lead": {
   "frames": 88200,
