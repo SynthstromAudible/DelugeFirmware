@@ -10,7 +10,6 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
 #include "instruments/deluge/cables.h"
-#include "instruments/deluge/sound_state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/target.h"
 #include "serialization/value.h"
@@ -51,18 +50,6 @@ struct WriteRequest {
 	bool operator==(const WriteRequest&) const = default;
 };
 
-/// @brief Why a source's ranges are written: a plain edit, or a marker the marker editor moved (which a sounding voice
-///        follows, and which counts as editing the instrument).
-struct RangesCause {
-	enum class Kind : uint8_t {
-		EDIT,
-		MARKER,
-	};
-	Kind kind{Kind::EDIT};
-	int8_t marker{0}; ///< the moved marker's `MarkerType` value (START 0 .. END 3), for a MARKER cause
-	bool operator==(const RangesCause&) const = default;
-};
-
 /// @brief Whose effect settings a write names: a sound's slot, or a chain.
 using controls::EffectOwner;
 
@@ -80,42 +67,9 @@ public:
 	/// track's device definition file) on the owner @p where names.
 	/// @return Whether it was taken.
 	virtual bool write_text(const Target& target, const Addresses& where, std::string_view text) = 0;
-	/// @brief Write source @p source's ranges of the sound at @p slot.
-	/// @return Whether it was taken.
-	virtual bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
-	                          RangesCause cause = {}) = 0;
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
-	/// @brief Make @p range the range source @p source of the sound at @p slot remembers (`Source::defaultRangeI`):
-	/// runtime state, as legacy's picker writes it, not an edit.
-	virtual void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) = 0;
-	/// @brief Insert a range at @p at into source @p source of the sound at @p slot, with top note @p top_note, and
-	/// give the range below it @p previous_top when set: `MultiRange::selectEncoderAction`'s insert, the voices killed
-	/// and the audio routine locked around the insert, the samples the other ranges hold kept.
-	/// @return Whether it was taken: false on a RAM failure, which the host reports.
-	virtual bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
-	                          std::optional<int16_t> previous_top) = 0;
-	/// @brief Delete range @p index of source @p source of the sound at @p slot, and give the range below it
-	/// @p lower_top when set: `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), the
-	/// range's voices unassigned.
-	/// @return Whether it was taken.
-	virtual bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
-	                          std::optional<int16_t> lower_top) = 0;
-	/// @brief Attach the recorded take at @p path (a sample in memory, never read from the card) to range @p range of
-	/// source @p source of the sound at @p slot, which becomes a sample source.
-	/// @return Whether it was taken: false where no take at @p path is in memory or the address does not resolve.
-	virtual bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) = 0;
-	/// @brief Make @p patch the DX7 patch of source @p source of the sound at @p slot: its voice bytes, engine mode and
-	/// random detune, as the DX7 menu pages write them. Not undoable, as legacy's DX7 edits are not.
-	/// @return Whether it was taken: false where the address does not resolve or the source is not a DX7 one.
-	virtual bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) = 0;
-	/// @brief Load program @p program of the DX7 bank the last `.syx` read loaded into source @p source of the sound at
-	/// @p slot, as the cartridge page's turn does: the patch unpacked, the voices cut, and an unsaved synth renamed to
-	/// the program. Not undoable, as legacy's is not.
-	/// @return Whether it was taken: false where no bank is loaded, @p program is not one of its programs, the address
-	/// does not resolve or the source is not a DX7 one.
-	virtual bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) = 0;
 	/// @brief Learn @p command as what @p target is played by, or unlearn @p target when @p command is nullopt. Any
 	/// unlearn marks the current instrument edited, as `learn_knob`'s learn does; the menu is the only caller and
 	/// unlearns only a param's knob.
@@ -133,12 +87,6 @@ public:
 	/// @return Whether the knob was learned.
 	virtual bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
 	                        int32_t midi_channel) = 0;
-	/// @brief Transpose source @p source of the sound @p where names -- every sound row of the kit under affect-entire
-	/// -- by @p menu_value, in cents. A sample source with ranges (not FM) takes it in its range: @p range, or range 0
-	/// on a whole kit; any other source in its own transpose and cents.
-	/// @return Whether it was taken.
-	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
-	                                    int32_t menu_value) = 0;
 	/// @brief Give every synth and sound kit row whose input is @p cable its velocity-to-level default, in every clip:
 	/// the device menu's "for everything", a default set up for the user with no undo step.
 	/// @return Whether it was taken.
@@ -149,15 +97,9 @@ public:
 struct GestureRequest {
 	enum class Kind : uint8_t {
 		TEXT,
-		RANGES,
 		DEFAULT_INPUT_CHANNEL,
-		DEFAULT_RANGE,
-		INSERT_RANGE,
-		DELETE_RANGE,
-		ATTACH,
 		LEARN,
 		LEARN_KNOB,
-		TRANSPOSE,
 		KNOB_MODE,
 		CHAIN_VIEW,
 		CONTROLS,
@@ -168,18 +110,11 @@ struct GestureRequest {
 		VELOCITY_EVERYWHERE,
 		DELETE_KNOB_AUTOMATION,
 		INSTRUMENT_EDITED,
-		DX_PATCH,
-		DX_PROGRAM,
 	};
 	Kind kind{Kind::TEXT};
 	Target target{};
 	Addresses where{};
 	std::string text;
-	project::SlotAddress slot{};
-	uint8_t source{0};
-	std::optional<uint16_t> range; ///< the range an ATTACH or TRANSPOSE names; none for a source's own transpose
-	std::vector<instrument::RangeState> ranges;
-	RangesCause cause{};
 	int64_t value{0};
 	std::optional<project::MappingTarget> mapping;
 	std::optional<project::MidiCommand> command;
@@ -194,10 +129,6 @@ struct GestureRequest {
 	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
 	const ::MIDICable* cable{nullptr}; ///< a LEARN_KNOB's cable; its target in @ref mapping, its knob in @ref value
 	int32_t midi_channel{0};           ///< a LEARN_KNOB's channel
-	/// An INSERT_RANGE's new top for the range below the inserted one (its own top is @ref value); a DELETE_RANGE's
-	/// new top for the range below the deleted one. None where it keeps its top.
-	std::optional<int16_t> neighbour_top;
-	std::optional<instrument::DxPatchState> dx_patch; ///< a DX_PATCH's patch
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -221,23 +152,11 @@ public:
 	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
-	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
-	                  RangesCause cause = {}) override;
 	void set_default_audio_input_channel(int32_t channel) override;
-	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;
-	bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
-	                  std::optional<int16_t> previous_top) override;
-	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
-	                  std::optional<int16_t> lower_top) override;
-	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
-	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
-	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
 	bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
 	                int32_t midi_channel) override;
-	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
-	                            int32_t menu_value) override;
 	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
 	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;
 	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;

@@ -285,7 +285,7 @@ int32_t range_count(const MenuContext& ctx);
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
 
 /// @brief The addressed source's recorded ranges, empty where the context edits no sound: the list a range edit
-///        rewrites and hands back to the sink, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
+///        rewrites and hands back to the sound writes, as legacy's edge edit builds it (`deluge::bridge::rangesOf`).
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the choice is
@@ -304,7 +304,7 @@ std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 ///
 /// @param ctx The context to top up; only its sound and source matter. A context with no sound is a
 ///            no-op success -- nothing is being edited that could want a range.
-/// @return False only where the sink refused the first range -- main's `INSUFFICIENT_RAM`, answered with
+/// @return False only where the sound writes refused the first range -- main's `INSUFFICIENT_RAM`, answered with
 ///         `MenuPermission::NO`.
 bool ensure_first_range(MenuContext& ctx);
 

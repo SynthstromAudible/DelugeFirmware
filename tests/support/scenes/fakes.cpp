@@ -131,4 +131,61 @@ void RecordingClipWrites::set_undo_scroll_after(project::ClipAddress clip, int32
 	calls.push_back({.kind = Call::Kind::UNDO_SCROLL, .clip = clip, .value = x_scroll});
 }
 
+bool RecordingSoundWrites::write_ranges(project::SlotAddress slot, uint8_t source,
+                                        std::span<const instrument::RangeState> ranges, RangesCause cause) {
+	calls.push_back({.kind = Call::Kind::RANGES,
+	                 .slot = slot,
+	                 .source = source,
+	                 .ranges = {ranges.begin(), ranges.end()},
+	                 .cause = cause});
+	return accept;
+}
+
+void RecordingSoundWrites::set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) {
+	calls.push_back({.kind = Call::Kind::DEFAULT_RANGE, .slot = slot, .source = source, .range = range});
+}
+
+bool RecordingSoundWrites::insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+                                        std::optional<int16_t> previous_top) {
+	calls.push_back({.kind = Call::Kind::INSERT_RANGE,
+	                 .slot = slot,
+	                 .source = source,
+	                 .range = at,
+	                 .value = top_note,
+	                 .neighbour_top = previous_top});
+	return accept;
+}
+
+bool RecordingSoundWrites::delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+                                        std::optional<int16_t> lower_top) {
+	calls.push_back(
+	    {.kind = Call::Kind::DELETE_RANGE, .slot = slot, .source = source, .range = index, .neighbour_top = lower_top});
+	return accept;
+}
+
+bool RecordingSoundWrites::attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range,
+                                            std::string_view path) {
+	calls.push_back(
+	    {.kind = Call::Kind::ATTACH, .slot = slot, .source = source, .range = range, .text = std::string{path}});
+	return accept;
+}
+
+bool RecordingSoundWrites::write_dx_patch(project::SlotAddress slot, uint8_t source,
+                                          const instrument::DxPatchState& patch) {
+	calls.push_back({.kind = Call::Kind::DX_PATCH, .slot = slot, .source = source, .dx_patch = patch});
+	return accept;
+}
+
+bool RecordingSoundWrites::load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) {
+	calls.push_back({.kind = Call::Kind::DX_PROGRAM, .slot = slot, .source = source, .value = program});
+	return accept;
+}
+
+bool RecordingSoundWrites::write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
+                                                  int32_t menu_value) {
+	calls.push_back(
+	    {.kind = Call::Kind::TRANSPOSE, .source = source, .range = range, .value = menu_value, .where = where});
+	return accept;
+}
+
 } // namespace deluge::scenes::bind::test

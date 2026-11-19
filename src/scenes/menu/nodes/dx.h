@@ -19,7 +19,7 @@
 ///
 /// Legacy keeps the param shown and the two lists' cursors on its singletons, so they outlive the editor; the port
 /// keeps them in `MenuState::dx`, which `MenuScene::open` carries over. Every write is the whole patch, through
-/// `WriteSink::write_dx_patch`.
+/// `SoundWrites::write_dx_patch`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -49,7 +49,7 @@ public:
 ///        `origin/main:src/deluge/gui/menu_item/dx/cartridge.cpp`), from `SoundFacts::dx_cartridge`.
 ///
 /// Entering loads the first program; a turn moves the cursor within the bank and loads the program it lands on, through
-/// `WriteSink::load_dx_program`; SELECT closes the menu.
+/// `SoundWrites::load_dx_program`; SELECT closes the menu.
 class DxCartridgeItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;

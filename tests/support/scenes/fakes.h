@@ -165,16 +165,65 @@ struct RecordingClipWrites final : ClipWrites {
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 };
 
+/// @brief SoundWrites that records every request, in order, and answers each with @ref accept.
+struct RecordingSoundWrites final : SoundWrites {
+	/// @brief One recorded request: its kind and its arguments.
+	struct Call {
+		/// @brief Which request it was.
+		enum class Kind : uint8_t {
+			RANGES,        ///< write_ranges
+			DEFAULT_RANGE, ///< set_default_range
+			INSERT_RANGE,  ///< insert_range
+			DELETE_RANGE,  ///< delete_range
+			ATTACH,        ///< attach_recording
+			DX_PATCH,      ///< write_dx_patch
+			DX_PROGRAM,    ///< load_dx_program
+			TRANSPOSE,     ///< write_source_transpose
+		};
+		Kind kind{Kind::RANGES};     ///< which request it was
+		project::SlotAddress slot{}; ///< the sound it named (not TRANSPOSE's)
+		uint8_t source{0};           ///< the source it named
+		/// The range an ATTACH, DEFAULT_RANGE or TRANSPOSE names, or an INSERT_RANGE's position or a DELETE_RANGE's
+		/// index; none for a source's own transpose.
+		std::optional<uint16_t> range;
+		std::vector<instrument::RangeState> ranges; ///< RANGES' ranges
+		RangesCause cause{};                        ///< RANGES' cause
+		/// INSERT_RANGE's new top note, DX_PROGRAM's program, TRANSPOSE's menu value.
+		int64_t value{0};
+		/// An INSERT_RANGE's new top for the range below the inserted one; a DELETE_RANGE's new top for the range
+		/// below the deleted one. None where it keeps its top.
+		std::optional<int16_t> neighbour_top;
+		std::string text;                                 ///< ATTACH's path
+		std::optional<instrument::DxPatchState> dx_patch; ///< DX_PATCH's patch
+		Addresses where{};                                ///< TRANSPOSE's owner
+	};
+	std::vector<Call> calls; ///< every request taken, in order
+	bool accept{true};       ///< what each request that answers, answers
+	bool write_ranges(project::SlotAddress slot, uint8_t source, std::span<const instrument::RangeState> ranges,
+	                  RangesCause cause) override;
+	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override;
+	bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
+	                  std::optional<int16_t> previous_top) override;
+	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
+	                  std::optional<int16_t> lower_top) override;
+	bool attach_recording(project::SlotAddress slot, uint8_t source, uint16_t range, std::string_view path) override;
+	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override;
+	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
+	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
+	                            int32_t menu_value) override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;            ///< the audio port's fake
-	FakeCardFacts card;              ///< the card port's fake
-	FakeUiFacts ui;                  ///< the UI port's fake
-	FakeSoundFacts sound;            ///< the sound port's fake
-	FakeClipFacts clips;             ///< the clip port's fake
-	FakeTrackFacts tracks;           ///< the track port's fake
-	FakeControlFacts controls;       ///< the knobs' port's fake
-	RecordingClipWrites clip_writes; ///< the clip port's recorder
+	FakeAudioFacts audio;              ///< the audio port's fake
+	FakeCardFacts card;                ///< the card port's fake
+	FakeUiFacts ui;                    ///< the UI port's fake
+	FakeSoundFacts sound;              ///< the sound port's fake
+	FakeClipFacts clips;               ///< the clip port's fake
+	FakeTrackFacts tracks;             ///< the track port's fake
+	FakeControlFacts controls;         ///< the knobs' port's fake
+	RecordingClipWrites clip_writes;   ///< the clip port's recorder
+	RecordingSoundWrites sound_writes; ///< the sound port's recorder
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
@@ -184,7 +233,8 @@ struct FakeHost {
 		        .clips = &clips,
 		        .tracks = &tracks,
 		        .controls = &controls,
-		        .clip_writes = &clip_writes};
+		        .clip_writes = &clip_writes,
+		        .sound_writes = &sound_writes};
 	}
 };
 

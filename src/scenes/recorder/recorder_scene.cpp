@@ -264,7 +264,7 @@ void RecorderScene::end_recording_soon() {
 void RecorderScene::attach_sample() {
 	// `process()`'s success arm, as one request: the app stops the sound's voices, makes the
 	// source a sample source and puts the take, found in memory by its path, on the range.
-	if (ctx_.sink == nullptr) {
+	if (ctx_.ports.sound_writes == nullptr) {
 		return;
 	}
 	// `SoundFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
@@ -275,7 +275,8 @@ void RecorderScene::attach_sample() {
 	if (!range) {
 		return;
 	}
-	if (!ctx_.sink->attach_recording(target_.slot, target_.source, *range, recorder_->sample->filePath.c_str())) {
+	if (!ctx_.ports.sound_writes->attach_recording(target_.slot, target_.source, *range,
+	                                               recorder_->sample->filePath.c_str())) {
 		// The take is on the card, but the sound did not get it.
 		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	}

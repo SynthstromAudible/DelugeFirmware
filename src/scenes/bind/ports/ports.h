@@ -10,6 +10,7 @@
 #include "scenes/bind/ports/clip_facts.h"
 #include "scenes/bind/ports/clip_writes.h"
 #include "scenes/bind/ports/sound_facts.h"
+#include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/ports/ui_facts.h"
 
@@ -27,6 +28,7 @@ struct Ports {
 	const TrackFacts* tracks{nullptr}; ///< the song's tracks and what its owners play that their records do not hold
 	const controls::Facts* controls{nullptr}; ///< what the knobs read: live param values, stutter, note tails
 	ClipWrites* clip_writes{nullptr};         ///< where a scene's clip edits go
+	SoundWrites* sound_writes{nullptr};       ///< where a scene's edits of a sound's sources go
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

@@ -13,6 +13,7 @@ const bind::Ports& host_ports() {
 	    .tracks = &gui::shell_host::track_facts(),
 	    .controls = &gui::shell_host::control_facts(),
 	    .clip_writes = &gui::shell_host::clip_writes(),
+	    .sound_writes = &gui::shell_host::sound_writes(),
 	};
 	return ports;
 }

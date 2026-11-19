@@ -19,6 +19,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.tracks).not_().to_be_null();
 		expect(p.controls).not_().to_be_null();
 		expect(p.clip_writes).not_().to_be_null();
+		expect(p.sound_writes).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
@@ -42,6 +43,13 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.clip_writes != nullptr) {
 			// A clip id the default card's song does not hold.
 			expect(bind::contract::unknown_clip_is_refused(*p.clip_writes, deluge::project::ClipAddress{.clip_id = 0xFFFF'FFF0}))
+			    .to_be_true();
+		}
+		if (p.sound_writes != nullptr) {
+			// An output id no song holds.
+			expect(bind::contract::unknown_sound_is_refused(
+			           *p.sound_writes,
+			           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 0xFFFF'FFF0}))
 			    .to_be_true();
 		}
 		if (p.tracks != nullptr) {

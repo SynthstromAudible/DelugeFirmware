@@ -124,11 +124,15 @@ struct Rig {
 	}
 
 	/// @brief Open the recorder, the way `osc::AudioRecorder::beginSession` does.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(bind::WriteSink* sink = nullptr) {
+	/// @param sink         Where the scene's writes go; the app's sink when null.
+	/// @param sound_writes Where the scene's sound edits go; the app's when null.
+	void open(bind::WriteSink* sink = nullptr, bind::SoundWrites* sound_writes = nullptr) {
 		MenuContext c = ctx();
 		if (sink != nullptr) {
 			c.sink = sink;
+		}
+		if (sound_writes != nullptr) {
+			c.ports.sound_writes = sound_writes;
 		}
 		recorder_scene().open(c);
 		shell.init(SceneId{kRecorderSceneKind, 0});

@@ -22,6 +22,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "fakes.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -61,19 +62,19 @@ const deluge::instrument::SoundState* state_at(deluge::project::SlotAddress slot
 
 // clang-format off
 describe sound_hooks("the sound menu's hook-built items, by address", ${
-	it("hands an osc transpose to the sink, and a sample source's lands in its range", _ {
+	it("hands an osc transpose to the sound port, and a sample source's lands in its range", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_sample_range(sound);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
+		bind::test::RecordingSoundWrites recording;
 		MenuContext recorded = ctx;
-		recorded.sink = &recording;
+		recorded.ports.sound_writes = &recording;
 		menu::bindings::write(nodes::source0_transpose, recorded, 250);
-		expect(recording.gestures.size()).to_equal(size_t{1});
-		if (!recording.gestures.empty()) {
-			expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::TRANSPOSE);
-			expect(recording.gestures[0].value).to_equal(int64_t{250});
+		expect(recording.calls.size()).to_equal(size_t{1});
+		if (!recording.calls.empty()) {
+			expect(recording.calls[0].kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::TRANSPOSE);
+			expect(recording.calls[0].value).to_equal(int64_t{250});
 		}
 
 		menu::bindings::write(nodes::source0_transpose, ctx, 250);
@@ -188,27 +189,27 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 	});
 
-	it("hands a source's own transpose to the sink with no range, and a sample source's with its range", _ {
+	it("hands a source's own transpose to the sound port with no range, and a sample source's with its range", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::settingFor(*static_cast<SoundInstrument*>(f.instrument), "osc1/type", Value::makeScalar("saw"));
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
-		ctx.sink = &recording;
+		bind::test::RecordingSoundWrites recording;
+		ctx.ports.sound_writes = &recording;
 		menu::bindings::write(nodes::source0_transpose, ctx, 100);
-		expect(recording.gestures.size()).to_equal(1);
-		if (recording.gestures.size() == 1) {
-			expect(recording.gestures[0].range.has_value()).to_be_false();
+		expect(recording.calls.size()).to_equal(1);
+		if (recording.calls.size() == 1) {
+			expect(recording.calls[0].range.has_value()).to_be_false();
 		}
 
 		spec::SongFixture sampled = spec::make_synth_song();
 		give_sample_range(*static_cast<SoundInstrument*>(sampled.instrument));
 		MenuContext on_range = menu::context_for(*sampled.song, deluge::gui::menuViewOf(sampled.clip), 0, false, false, false, false);
-		bind::RecordingSink range_recording;
-		on_range.sink = &range_recording;
+		bind::test::RecordingSoundWrites range_recording;
+		on_range.ports.sound_writes = &range_recording;
 		menu::bindings::write(nodes::source0_transpose, on_range, 100);
-		expect(range_recording.gestures.size()).to_equal(1);
-		if (range_recording.gestures.size() == 1) {
-			expect(range_recording.gestures[0].range).to_equal(std::optional<uint16_t>{0});
+		expect(range_recording.calls.size()).to_equal(1);
+		if (range_recording.calls.size() == 1) {
+			expect(range_recording.calls[0].range).to_equal(std::optional<uint16_t>{0});
 		}
 	});
 

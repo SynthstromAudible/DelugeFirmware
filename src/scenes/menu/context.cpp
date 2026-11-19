@@ -111,12 +111,13 @@ bool ensure_first_range(MenuContext& ctx) {
 		// refusal is that call's INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`.
 		const std::array<deluge::instrument::RangeState, 1> first{deluge::instrument::RangeState{
 		    .top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
-		if (ctx.sink == nullptr
-		    || !ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first)) {
+		if (ctx.ports.sound_writes == nullptr
+		    || !ctx.ports.sound_writes->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), first,
+		                                             {})) {
 			return false;
 		}
 		if (range_count(ctx) == 0) {
-			return true; // a sink that only records the request made nothing to point at
+			return true; // a port that only records the request made nothing to point at
 		}
 	}
 	// The same unambiguous cases `context_for` resolves, re-applied now that a range

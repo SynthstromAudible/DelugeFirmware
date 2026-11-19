@@ -195,8 +195,8 @@ struct Rig {
 	}
 
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
+	/// @param sound_writes Where the scene's sound edits go; the app's when null.
+	void open(MarkerType marker, bind::SoundWrites* sound_writes = nullptr) {
 		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
 		// record.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -207,8 +207,8 @@ struct Rig {
 		deluge::scenes::services::view_state().set_sample_view(
 		    key(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
 		MenuContext c = ctx();
-		if (sink != nullptr) {
-			c.sink = sink;
+		if (sound_writes != nullptr) {
+			c.ports.sound_writes = sound_writes;
 		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});

@@ -11,7 +11,6 @@
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
-#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
@@ -26,7 +25,6 @@
 #include "hid/display/screensaver.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/settings.h"
-#include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
 #include "io/midi/follow_host.h"
@@ -38,7 +36,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
-#include "model/edits/attach_recorded_sample.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
@@ -54,9 +51,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
-#include "model/edits/set_source_ranges.h"
 #include "model/edits/set_velocity_to_level.h"
-#include "model/edits/setting_edit.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -69,7 +64,6 @@
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
-#include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/last_file_path_loaded.h"
@@ -89,7 +83,6 @@
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
-#include "storage/DX7Cartridge.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -195,33 +188,13 @@ public:
 	bool delete_automation(const deluge::project::ParamAddress& address) override;
 	bool write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
 	                std::string_view text) override;
-	bool write_ranges(deluge::project::SlotAddress slot, uint8_t source,
-	                  std::span<const deluge::instrument::RangeState> ranges,
-	                  deluge::scenes::bind::RangesCause cause = {}) override;
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
-	void set_default_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t range) override {
-		::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-		if (sound != nullptr && source < kNumSources) {
-			sound->sources[source].defaultRangeI = range;
-		}
-	}
-	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
-	                      std::string_view path) override;
-	bool write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
-	                    const deluge::instrument::DxPatchState& patch) override;
-	bool load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) override;
-	bool insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
-	                  std::optional<int16_t> previous_top) override;
-	bool delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
-	                  std::optional<int16_t> lower_top) override;
 	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
 	bool learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
 	                int32_t midi_channel) override;
-	bool write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
-	                            std::optional<uint16_t> range, int32_t menu_value) override;
 	bool knob_mode(deluge::project::KnobModeOwner owner, uint8_t mode) override {
 		return deluge::edits::modKnobModeFor(owner, mode);
 	}
@@ -561,103 +534,6 @@ bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const
 	return applied(edit);
 }
 
-bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t source,
-                                 std::span<const deluge::instrument::RangeState> ranges,
-                                 deluge::scenes::bind::RangesCause cause) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	deluge::edits::SetSourceRanges edit{slot, source, {ranges.begin(), ranges.end()}};
-	if (!applied(edit)) {
-		return false;
-	}
-	if (cause.kind == deluge::scenes::bind::RangesCause::Kind::MARKER) {
-		// A marker moved: the sounding voices follow the zone, and the instrument counts as edited.
-		::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
-		deluge::bridge::zoneMoved(*sound, source, static_cast<MarkerType>(cause.marker), *currentSong);
-		Instrument* instrument = sound->isDrum() ? static_cast<Instrument*>(static_cast<SoundDrum*>(sound)->kit)
-		                                         : static_cast<Instrument*>(static_cast<SoundInstrument*>(sound));
-		if (instrument != nullptr) {
-			instrument->beenEdited(true);
-		}
-	}
-	return true;
-}
-
-bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
-                                   const deluge::instrument::DxPatchState& patch) {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
-		return false;
-	}
-	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`,
-	// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`), which records no undo.
-	deluge::edits::dxPatchFor(*sound, source, patch);
-	return true;
-}
-
-bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
-	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
-	    || program < 0 || program >= bank->numPatches()) {
-		return false;
-	}
-	deluge::gui::loadDxProgram(*sound, source, *bank, program);
-	return true;
-}
-
-bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
-                                 std::optional<int16_t> previous_top) {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources) {
-		return false;
-	}
-	// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): range
-	// storage is about to change, so every voice is unassigned and none may be assigned during the allocation.
-	sound->killAllVoices();
-	::MultiRange* inserted = nullptr;
-	{
-		AudioEngine::AudioTickHold hold;
-		inserted = sound->sources[source].ranges.insertMultiRange(at);
-	}
-	if (inserted == nullptr) {
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return false;
-	}
-	inserted->topNote = top_note;
-	if (previous_top && at > 0) {
-		sound->sources[source].ranges.getElement(at - 1)->topNote = *previous_top;
-	}
-	deluge::edits::recordRanges(*sound, source);
-	return true;
-}
-
-bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t index,
-                                 std::optional<int16_t> lower_top) {
-	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
-		return false;
-	}
-	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): `deleteMultiRange` unassigns
-	// the voices.
-	sound->deleteMultiRange(source, index);
-	if (lower_top && index > 0) {
-		sound->sources[source].ranges.getElement(index - 1)->topNote = *lower_top;
-	}
-	deluge::edits::recordRanges(*sound, source);
-	return true;
-}
-
-bool ShellEditSink::attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
-                                     std::string_view path) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	deluge::edits::AttachRecordedSample edit{slot, source, range, std::string{path}};
-	return applied(edit);
-}
-
 bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
                           std::optional<deluge::scenes::bind::LearnInput> input) {
 	if (currentSong == nullptr) {
@@ -714,60 +590,6 @@ bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, 
 		instrument->beenEdited();
 	}
 	return true;
-}
-
-bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
-                                           std::optional<uint16_t> range, int32_t menu_value) {
-	if (currentSong == nullptr || source >= kNumSources) {
-		return false;
-	}
-	// `computeFinalValuesForTranspose` (`util/value_scaling.cpp`).
-	const int32_t current = menu_value + 25600;
-	const int32_t semitones = (current + 50) / 100;
-	const int32_t cents = current - semitones * 100;
-	const int32_t transpose = semitones - 256;
-	// One sound: a sample source with ranges (not FM) in its range, any other source in its own setting.
-	const auto one = [&](deluge::project::SlotAddress slot, std::optional<uint16_t> in_range) {
-		::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
-		if (sound == nullptr || sound->boundState() == nullptr) {
-			return false;
-		}
-		namespace instrument = deluge::instrument;
-		const instrument::SoundState& state = *sound->boundState();
-		const auto id = static_cast<instrument::SourceId>(source);
-		const std::span<const instrument::RangeState> held = instrument::source_ranges(state, id);
-		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
-		    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
-			std::vector<instrument::RangeState> ranges{held.begin(), held.end()};
-			const size_t r = in_range && *in_range < ranges.size() ? *in_range : 0;
-			ranges[r].transpose = static_cast<int16_t>(transpose);
-			ranges[r].cents = static_cast<int8_t>(cents);
-			deluge::edits::SetSourceRanges edit{slot, source, std::move(ranges)};
-			return applied(edit);
-		}
-		const std::string osc = "osc" + std::to_string(source + 1) + "/";
-		deluge::edits::SetEngineSetting semis{slot, osc + "transpose",
-		                                      deluge::serialization::Value::makeNumber(transpose)};
-		deluge::edits::SetEngineSetting fine{slot, osc + "cents", deluge::serialization::Value::makeNumber(cents)};
-		const bool took = applied(semis);
-		return applied(fine) && took;
-	};
-	if (where.affect_entire && where.kit_output) {
-		// Every sound row of the kit, each in its range 0 (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`'s
-		// kit sweep).
-		::Output* output = currentSong->outputForId(*where.kit_output);
-		if (output == nullptr || output->type != OutputType::KIT) {
-			return false;
-		}
-		bool took = true;
-		for (::Drum* drum = static_cast<::Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
-			if (drum->type == DrumType::SOUND && drum->id()) {
-				took = one({deluge::project::SlotAddress::Kind::DRUM, *drum->id()}, std::nullopt) && took;
-			}
-		}
-		return took;
-	}
-	return where.slot && one(*where.slot, range);
 }
 
 bool ShellEditSink::write(const WriteRequest& request) {

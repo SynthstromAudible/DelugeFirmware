@@ -239,7 +239,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
 			       ranges[0].start_pos = (i % 2) != 0 ? 1000 : 2000;
-			       (void)menu::host_write_sink().write_ranges(slot, 0, ranges, marker);
+			       (void)menu::host_ports().sound_writes->write_ranges(slot, 0, ranges, marker);
 		       }));
 		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges[0].end_pos).to_equal(uint64_t{100000});
 		deluge::scenes::spec::make_current(saved);

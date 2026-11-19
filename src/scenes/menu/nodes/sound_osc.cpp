@@ -34,7 +34,7 @@
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/sound_writes.h"
 
 #include <span>
 #include <string>
@@ -109,11 +109,11 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 	// `sample::Transpose::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`): a sample
 	// source's transpose is its range's -- the selected one, or range 0 in the kit sweep -- and any other source's is
-	// its own setting; the sink decides per sound. Legacy's affect-entire test here is `soundEditor.editingKit()`, not
+	// its own setting; the host decides per sound. Legacy's affect-entire test here is `soundEditor.editingKit()`, not
 	// the `editingKitRow()` every other item uses; `bindings::writes_whole_kit` is the latter, so on a kit-global-FX
 	// context this writes one target where legacy swept the kit. Unreachable in practice (the oscillator menus are not
 	// reachable from the kit-global-FX root).
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.sound_writes == nullptr) {
 		return;
 	}
 	bind::Addresses where = ctx.addresses;
@@ -121,7 +121,7 @@ void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 	const std::optional<uint16_t> range = ctx.source_index == index && ctx.range_index >= 0
 	                                          ? std::optional{static_cast<uint16_t>(ctx.range_index)}
 	                                          : std::nullopt;
-	(void)ctx.sink->write_source_transpose(where, index, range, value);
+	(void)ctx.ports.sound_writes->write_source_transpose(where, index, range, value);
 }
 
 // ---------------------------------------------------------------------------------------------

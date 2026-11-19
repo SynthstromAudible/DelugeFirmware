@@ -66,7 +66,7 @@ deluge::project::ParamAddress audio_lpf(const spec::AudioSongFixture& audio) {
 } // namespace
 
 // clang-format off
-describe gesture_sink("a scene's gestures through the app's sink and clip port", ${
+describe gesture_sink("a scene's gestures through the app's sink and its clip and sound ports", ${
 	it("writes a track's, a clip's and a lane's name into the record", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
@@ -164,7 +164,7 @@ describe gesture_sink("a scene's gestures through the app's sink and clip port",
 		std::vector<deluge::instrument::RangeState> ranges = state->sources[0].ranges;
 		expect(ranges.size()).to_equal(size_t(1));
 		ranges[0].transpose = 7;
-		expect(menu::host_write_sink().write_ranges(slot, 0, ranges)).to_be_true();
+		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, ranges, {})).to_be_true();
 		const deluge::instrument::SoundState* after = menu::host_ports().sound->sound_state(slot);
 		expect(after->sources[0].ranges.empty()).to_be_false();
 		if (!after->sources[0].ranges.empty()) {
@@ -185,7 +185,7 @@ describe gesture_sink("a scene's gestures through the app's sink and clip port",
 		std::vector<deluge::instrument::RangeState> ranges = menu::host_ports().sound->sound_state(slot)->sources[0].ranges;
 		ranges[0].start_pos = 100;
 		synth.instrument->editedByUser = false;
-		expect(menu::host_write_sink().write_ranges(slot, 0, ranges,
+		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, ranges,
 		                                            {.kind = bind::RangesCause::Kind::MARKER,
 		                                             .marker = static_cast<int8_t>(MarkerType::START)}))
 		    .to_be_true();
@@ -204,7 +204,7 @@ describe gesture_sink("a scene's gestures through the app's sink and clip port",
 		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges.empty()).to_be_true();
 		const std::vector<deluge::instrument::RangeState> first{
 		    {.top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
-		expect(menu::host_write_sink().write_ranges(slot, 0, first)).to_be_true();
+		expect(menu::host_ports().sound_writes->write_ranges(slot, 0, first, {})).to_be_true();
 		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(std::ssize(sound.sources[0].ranges)).to_equal(1);
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
@@ -234,7 +234,9 @@ describe gesture_sink("a scene's gestures through the app's sink and clip port",
 		expect(clip_writes.clear_clip(nowhere, true, true)).to_be_false();
 		expect(clip_writes.recolour_clip(nowhere, 1)).to_be_false();
 		expect(clip_writes.move_audio_clip_marker(nowhere, "endSamplePos", 1)).to_be_false();
-		expect(sink.write_ranges({deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id() + 1000}, 0, {}))
+		bind::SoundWrites& sound_writes = *menu::host_ports().sound_writes;
+		expect(sound_writes.write_ranges({deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id() + 1000}, 0,
+		                                 {}, {}))
 		    .to_be_false();
 		currentSong = saved;
 	});

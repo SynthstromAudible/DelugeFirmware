@@ -32,6 +32,9 @@ namespace deluge::gui::shell_host {
 /// @brief The host's ClipWrites: the clip edits, applied to the current song.
 [[nodiscard]] scenes::bind::ClipWrites& clip_writes();
 
+/// @brief The host's SoundWrites: the sound's source edits, applied to the current song.
+[[nodiscard]] scenes::bind::SoundWrites& sound_writes();
+
 /// @brief The audio clip @p clip addresses in the current song, or null: shared by the clip port and the waveforms.
 [[nodiscard]] ::AudioClip* audioClipAt(project::ClipAddress clip);
 

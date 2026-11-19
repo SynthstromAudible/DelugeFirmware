@@ -67,8 +67,8 @@ std::optional<deluge::instrument::DxPatchState> patch_of(const MenuContext& ctx)
 
 /// @brief Write oscillator 1's patch.
 void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState& patch) {
-	if (ctx.sink != nullptr && ctx.addresses.slot) {
-		(void)ctx.sink->write_dx_patch(*ctx.addresses.slot, 0, patch);
+	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
+		(void)ctx.ports.sound_writes->write_dx_patch(*ctx.addresses.slot, 0, patch);
 	}
 }
 
@@ -280,8 +280,9 @@ namespace {
 
 /// @brief Load program @p program of the bank the last read loaded into the menu's source.
 void load_program(const MenuContext& ctx, int32_t program) {
-	if (ctx.sink != nullptr && ctx.addresses.slot) {
-		(void)ctx.sink->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), program);
+	if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
+		(void)ctx.ports.sound_writes->load_dx_program(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+		                                              program);
 	}
 }
 

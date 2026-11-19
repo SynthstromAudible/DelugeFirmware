@@ -382,7 +382,8 @@ struct Rig {
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
-	/// @brief `open` on a context with no sink, which refuses a range request as `main`'s `getOrCreateFirstRange`
+	/// @brief `open` on a context with no sound writes, which refuses a range request as `main`'s
+	/// `getOrCreateFirstRange`
 	///        fails with INSUFFICIENT_RAM.
 	/// @param list Open with horizontal menus off.
 	void open_refusing_ranges(const Node& root, bool list = false) {
@@ -391,7 +392,7 @@ struct Rig {
 		if (list) {
 			ctx.horizontal_menus = false;
 		}
-		ctx.sink = nullptr;
+		ctx.ports.sound_writes = nullptr;
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -2461,7 +2462,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
 		// `Submenu::selectButtonPress` asks `checkPermissionToBeginSession`, whose `getOrCreateFirstRange` failure is
-		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sink is one
+		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sound writes is one
 		// whose range request is refused.
 		select_language();
 		deluge::notify::dirty().drain();

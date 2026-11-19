@@ -72,6 +72,25 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.clip_writes.accept = false;
 		expect(contract::unknown_clip_is_refused(*p.clip_writes, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
 	});
+	it("records each sound edit in order with its arguments, and answers as the spec set", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, 7};
+		expect(p.sound_writes->insert_range(slot, 1, 2, 60, int16_t{48})).to_be_true();
+		expect(host.sound_writes.calls.size()).to_equal(size_t{1});
+		if (host.sound_writes.calls.size() == 1) {
+			const auto& call = host.sound_writes.calls[0];
+			expect(call.kind).to_equal(test::RecordingSoundWrites::Call::Kind::INSERT_RANGE);
+			expect(call.slot).to_equal(slot);
+			expect(call.source).to_equal(uint8_t{1});
+			expect(call.range).to_equal(std::optional<uint16_t>{2});
+			expect(call.value).to_equal(int64_t{60});
+			expect(call.neighbour_top).to_equal(std::optional<int16_t>{48});
+		}
+		host.sound_writes.accept = false;
+		expect(contract::unknown_sound_is_refused(*p.sound_writes, deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 54321}))
+		    .to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

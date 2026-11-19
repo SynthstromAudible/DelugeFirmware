@@ -14,7 +14,7 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/sound_writes.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
@@ -406,7 +406,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		}
 		return;
 	}
-	if (ctx_.sink == nullptr) {
+	if (ctx_.ports.sound_writes == nullptr) {
 		return;
 	}
 
@@ -456,8 +456,9 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	else if (which == MarkerType::END) {
 		range.end_pos = value;
 	}
-	(void)ctx_.sink->write_ranges(where_.slot, where_.source, ranges,
-	                              {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
+	(void)ctx_.ports.sound_writes->write_ranges(
+	    where_.slot, where_.source, ranges,
+	    {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
 }
 
 // ---------------------------------------------------------------------------------------------
