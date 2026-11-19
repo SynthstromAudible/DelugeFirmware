@@ -39,7 +39,7 @@ inline constexpr std::array<ReverbPreset, 3> kReverbPresets{
 
 namespace detail {
 
-/// @brief The distance between two menu values; std::abs is not constexpr on the toolchains' libstdc++.
+/// @brief The distance between two menu values, kept constexpr and dependency-free.
 [[nodiscard]] constexpr int32_t menu_distance(int32_t a, int32_t b) {
 	return a > b ? a - b : b - a;
 }
@@ -51,11 +51,14 @@ namespace detail {
 /// @param damping   The damping, in the song menu's units (0 to 50).
 /// @return The preset's index into kReverbPresets.
 [[nodiscard]] constexpr size_t nearest_reverb_preset(int32_t room_size, int32_t damping) {
+	const auto distance_to = [&](size_t p) {
+		return detail::menu_distance(room_size, kReverbPresets[p].room_size)
+		       + detail::menu_distance(damping, kReverbPresets[p].damping);
+	};
 	size_t nearest = 0;
-	int32_t lowest = 1000;
-	for (size_t p = 0; p < kReverbPresets.size(); ++p) {
-		const int32_t distance = detail::menu_distance(room_size, kReverbPresets[p].room_size)
-		                         + detail::menu_distance(damping, kReverbPresets[p].damping);
+	int32_t lowest = distance_to(0);
+	for (size_t p = 1; p < kReverbPresets.size(); ++p) {
+		const int32_t distance = distance_to(p);
 		if (distance < lowest) {
 			lowest = distance;
 			nearest = p;

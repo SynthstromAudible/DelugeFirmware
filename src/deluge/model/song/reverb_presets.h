@@ -20,9 +20,7 @@
 /// @file
 /// @brief The song's reverb against the presets (effects/reverb_presets.h) a gold-knob push cycles.
 
-#include <array>
 #include <cstddef>
-#include <cstdint>
 
 class Song;
 namespace deluge::project {

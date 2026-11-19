@@ -49,8 +49,8 @@ describe reverb_presets("the reverb presets", ${
 		// The presets lie along a line, so the middle one is nearer than the outer two wherever those are equally
 		// far: no menu point is a tie, and the first-on-tie rule never decides.
 		const auto distance = [](int32_t room, int32_t damping, size_t p) {
-			return (room > kReverbPresets[p].room_size ? room - kReverbPresets[p].room_size : kReverbPresets[p].room_size - room)
-			       + (damping > kReverbPresets[p].damping ? damping - kReverbPresets[p].damping : kReverbPresets[p].damping - damping);
+			return detail::menu_distance(room, kReverbPresets[p].room_size)
+			       + detail::menu_distance(damping, kReverbPresets[p].damping);
 		};
 		int wrong = 0;
 		for (int32_t room = 0; room <= 50; ++room) {
