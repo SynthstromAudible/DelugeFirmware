@@ -260,7 +260,7 @@ constexpr std::array kOscCentsExtras{plugin::SettingDescriptorExtras{.applies_an
 constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cents", kFmConditions),
                                                transpose_extras("modulator2/cents", kFmConditions)};
 
-/// A new sound's settings (new_synth_state), as the rows store them.
+/// A new sound's settings (a default SoundState's), as the rows store them.
 constexpr int32_t kDefaultMaxVoices = 8;
 constexpr int32_t kDefaultMidiChannel = 16; // "255": none
 constexpr int32_t kDefaultUnisonDetune = 8;

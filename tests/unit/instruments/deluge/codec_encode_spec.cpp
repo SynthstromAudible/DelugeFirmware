@@ -75,7 +75,7 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		const SoundPieces nonePieces = encode_pieces(s, {});
 		const Value& none = *nonePieces.body.find("osc1");
 		expect(keys(none)).to_equal(std::vector<std::string>{"type", "loopMode", "reversed", "timeStretchEnable",
-		                                                     "timeStretchAmount", "linearInterpolation"});
+		                                                     "timeStretchAmount"});
 		for (int16_t top : {40, 60, 127}) {
 			s.sources[0].ranges.push_back({.top_note = top, .file_path = "SAMPLES/A.WAV", .transpose = 2});
 		}

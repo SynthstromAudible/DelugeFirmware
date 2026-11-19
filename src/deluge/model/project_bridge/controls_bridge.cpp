@@ -338,7 +338,7 @@ namespace {
 
 /// A sound element's instrument, read onto a new synth's state as a load reads it.
 deluge::plugin::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
-	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
+	deluge::instrument::SoundState state = deluge::instrument::SoundState{};
 	(void)deluge::instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
 	return deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(std::move(state));
 }

@@ -232,12 +232,11 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	const deluge::instrument::SoundState newDrum =
 	    static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->seededState();
 	if (std::string d = deluge::serialization::first_difference(
-	        deluge::instrument::dump_state(newSynth),
-	        deluge::instrument::dump_state(deluge::instrument::new_synth_state()));
+	        deluge::instrument::dump_state(newSynth), deluge::instrument::dump_state(deluge::instrument::SoundState{}));
 	    !d.empty()) {
 		const Value fresh = deluge::instrument::dump_state(newSynth);
-		const Value constant = deluge::instrument::dump_state(deluge::instrument::new_synth_state());
-		std::fprintf(io.err, "CODEC DIFF: a new synth and new_synth_state() differ at %s (synth %s, constant %s)\n",
+		const Value constant = deluge::instrument::dump_state(deluge::instrument::SoundState{});
+		std::fprintf(io.err, "CODEC DIFF: a new synth and SoundState{} differ at %s (synth %s, constant %s)\n",
 		             d.c_str(), valueAt(fresh, d).c_str(), valueAt(constant, d).c_str());
 		return 3;
 	}

@@ -15,7 +15,7 @@ namespace {
 
 /// An FM sound with every field the config derives from set away from its default.
 SoundState fm_state() {
-	SoundState s = new_synth_state();
+	SoundState s = SoundState{};
 	s.synth_mode = SynthMode::FM;
 	s.voice_priority = deluge::plugin::VoicePriority::HIGH;
 	s.polyphonic = PolyphonyMode::MONO;

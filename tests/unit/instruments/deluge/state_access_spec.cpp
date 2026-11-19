@@ -26,7 +26,7 @@ SoundState sample_on_b() {
 describe state_access("the Deluge instrument's state, as code outside the instrument reads it", ${
 	it("reads each slot's type, tuning and playback", _ {
 		const SoundState s = sample_on_b();
-		expect(source_type(s, SourceId::A)).to_equal(OscType::SINE);
+		expect(source_type(s, SourceId::A)).to_equal(OscType::SQUARE);
 		expect(source_type(s, SourceId::B)).to_equal(OscType::SAMPLE);
 		expect(source_tuning(s, SourceId::A) == Tuning{.transpose = 7, .cents = -3}).to_equal(true);
 		expect(sample_playback(s, SourceId::B).repeat_mode).to_equal(SampleRepeatMode::LOOP);

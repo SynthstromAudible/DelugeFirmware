@@ -50,7 +50,7 @@ struct Tuning {
 struct SamplePlayback {
 	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
 	int8_t time_stretch_amount{0};
-	plugin::InterpolationMode interpolation{plugin::InterpolationMode::LINEAR};
+	plugin::InterpolationMode interpolation{plugin::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
 	bool operator==(const SamplePlayback&) const = default;

@@ -902,7 +902,7 @@ void keep_unwritten(SoundState& state, const SoundState& from) {
 std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
                                                             const SoundState& current,
                                                             const plugin::CodecContext& context) {
-	SlotChange change{.state = new_synth_state()};
+	SlotChange change; // from a new synth's state
 	SoundState& decoded = change.state;
 	if (auto read = decodeImpl(element, decoded, context, /*fileRead=*/false); !read) {
 		return std::unexpected(read.error());
@@ -1049,25 +1049,6 @@ std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, 
 	return decode_change(element, encode(current, context), current, context).transform([](SlotChange&& change) {
 		return std::move(change.state);
 	});
-}
-
-SoundState new_synth_state() {
-	SoundState state{
-	    .max_voice_count = 8,
-	    .output_midi_channel = 255,
-	    .output_midi_note_for_drum = 255,
-	    .polyphonic = PolyphonyMode::POLY,
-	    .num_unison = 1,
-	    .unison_detune = 8,
-	    .modulator_transpose = {0, -12},
-	    .osc_retrigger_phase = {0xFFFFFFFF, 0xFFFFFFFF},
-	    .lfo_wave_type = {LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE},
-	};
-	for (SourceState& src : state.sources) {
-		src.osc_type = OscType::SQUARE;
-		src.interpolation_mode = plugin::InterpolationMode::SMOOTH;
-	}
-	return state;
 }
 
 Value dump_state(const SoundState& state) {

@@ -13,20 +13,20 @@ using deluge::serialization::Value;
 namespace {
 
 SoundState fmState() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	state.synth_mode = SynthMode::FM;
 	return state;
 }
 
 SoundState sampleState() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	state.sources[0].osc_type = OscType::SAMPLE;
 	state.sources[0].ranges.push_back(RangeState{.top_note = 32767, .file_path = "SAMPLES/x.wav"});
 	return state;
 }
 
 SoundState wavetableState() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	state.sources[0].osc_type = OscType::WAVETABLE;
 	state.sources[0].ranges.push_back(RangeState{.top_note = 32767, .file_path = "WAVETABLES/x.wav"});
 	return state;
@@ -58,19 +58,19 @@ std::string answer(const SoundState& state, std::string_view path) {
 // clang-format off
 describe setting_values("a sound's settings in an Edit's form", ${
 	it("answers only values the schema allows", _ {
-		expect(firstUncheckedAnswer(new_synth_state())).to_equal(std::string{});
+		expect(firstUncheckedAnswer(SoundState{})).to_equal(std::string{});
 		expect(firstUncheckedAnswer(fmState())).to_equal(std::string{});
 		expect(firstUncheckedAnswer(sampleState())).to_equal(std::string{});
 		expect(firstUncheckedAnswer(wavetableState())).to_equal(std::string{});
 	});
 
 	it("answers nothing where a sound does not take the setting", _ {
-		expect(answer(new_synth_state(), "osc1/loopMode")).to_equal(std::string("none"));
+		expect(answer(SoundState{}, "osc1/loopMode")).to_equal(std::string("none"));
 		expect(answer(sampleState(), "osc1/transpose")).to_equal(std::string("none"));
-		expect(answer(new_synth_state(), "modulator1/transpose")).to_equal(std::string("none"));
+		expect(answer(SoundState{}, "modulator1/transpose")).to_equal(std::string("none"));
 		expect(answer(fmState(), "osc1/type")).to_equal(std::string("none"));
 		expect(answer(fmState(), "osc1/loopMode")).to_equal(std::string("none"));
-		expect(answer(new_synth_state(), "osc1/sampleRanges")).to_equal(std::string("none"));
+		expect(answer(SoundState{}, "osc1/sampleRanges")).to_equal(std::string("none"));
 	});
 
 	it("answers where it does", _ {
@@ -78,18 +78,18 @@ describe setting_values("a sound's settings in an Edit's form", ${
 		expect(answer(fmState(), "osc1/transpose")).to_equal(std::string("0"));
 		expect(answer(fmState(), "modulator2/transpose")).to_equal(std::string("-12"));
 		expect(answer(wavetableState(), "osc1/type")).to_equal(std::string("wavetable"));
-		expect(answer(new_synth_state(), "midiOutput/channel")).to_equal(std::string("255"));
+		expect(answer(SoundState{}, "midiOutput/channel")).to_equal(std::string("255"));
 	});
 
 	it("takes an unset drum note, which answers nothing", _ {
-		expect(answer(new_synth_state(), "midiOutput/noteForDrum")).to_equal(std::string("none"));
-		expect(takes_setting(new_synth_state(), "midiOutput/noteForDrum")).to_be_true();
+		expect(answer(SoundState{}, "midiOutput/noteForDrum")).to_equal(std::string("none"));
+		expect(takes_setting(SoundState{}, "midiOutput/noteForDrum")).to_be_true();
 		expect(takes_setting(fmState(), "osc1/type")).to_be_false();
-		expect(takes_setting(new_synth_state(), "osc1/sampleRanges")).to_be_false();
+		expect(takes_setting(SoundState{}, "osc1/sampleRanges")).to_be_false();
 	});
 
 	it("gives an LFO's sync level as the level itself", _ {
-		SoundState state = new_synth_state();
+		SoundState state = SoundState{};
 		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(3);
 		expect(answer(state, "lfo1/syncLevel")).to_equal(std::string("3"));
 	});
