@@ -83,7 +83,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 			}
 		}
 
-		setup.porta = sound.polyphonic != PolyphonyMode::LEGATO
+		setup.porta = sound.config().voicing.polyphony != PolyphonyMode::LEGATO
 		              && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
 		              && sound.lastNoteCode != deluge::synth::kNoLastNote;
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {

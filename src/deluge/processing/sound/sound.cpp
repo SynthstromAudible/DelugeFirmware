@@ -33,6 +33,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
@@ -264,7 +265,7 @@ void Sound::initParams(ParamManager* paramManager) {
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
-	polyphonic = PolyphonyMode::AUTO;
+	config_.voicing.polyphony = PolyphonyMode::AUTO;
 	deluge::model::changeEffects(
 	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
@@ -937,20 +938,20 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	// so that whole path runs with the render excluded (free on the audio tier). A polyphonic note-on builds its new
 	// voice with the render running and only publishes it excluded, below.
 	std::optional<AudioExcludedSection> nonPolyphonic;
-	if (polyphonic != PolyphonyMode::POLY) {
+	if (config_.voicing.polyphony != PolyphonyMode::POLY) {
 		nonPolyphonic.emplace();
 	}
 
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(modelStack->paramManager);
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (!voices_.empty() && polyphonic != PolyphonyMode::POLY) [[unlikely]] {
+	if (!voices_.empty() && config_.voicing.polyphony != PolyphonyMode::POLY) [[unlikely]] {
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
-			if (polyphonic != PolyphonyMode::MONO && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE
-			    && allowNoteTails(modelStack, true)) {
+			if (config_.voicing.polyphony != PolyphonyMode::MONO
+			    && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE && allowNoteTails(modelStack, true)) {
 				voiceForLegato = &voice;
 				break;
 			}
@@ -980,7 +981,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		}
 	}
 
-	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
+	if (config_.voicing.polyphony == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		(*voiceForLegato)
 		    ->change_note(*modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeSpan(mpeValues));
 	}
@@ -1036,7 +1037,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
 				AudioExcludedSection section;
 				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
-				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
+				if (std::ranges::count_if(voices_, countsTowardLimit) >= config_.voicing.max_voices) {
 					this->terminateOneActiveVoice(); // a voice for a voice: the block's cost stays
 				}
 				else {
@@ -1245,16 +1246,16 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 			}
 
 			// If we're in LEGATO or true-MONO mode and there's another note we can switch back to...
-			if ((polyphonic == PolyphonyMode::LEGATO || polyphonic == PolyphonyMode::MONO) && !isDrum()
-			    && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
-				                                 // Arpeggiator will be full of notes which
+			if ((config_.voicing.polyphony == PolyphonyMode::LEGATO || config_.voicing.polyphony == PolyphonyMode::MONO)
+			    && !isDrum() && allowNoteTails(modelStack)) { // If no note-tails (i.e. yes one-shot samples etc.), the
+				                                              // Arpeggiator will be full of notes which
 				// might not be active anymore, cos we were keeping track of them for MPE purposes.
 				Arpeggiator* arpeggiator = &((SoundInstrument*)this)->arpeggiator;
 				if (arpeggiator->hasAnyInputNotesActive()) {
 					ArpNote* arpNote = &arpeggiator->notes.back();
 					int32_t newNoteCode = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 
-					if (polyphonic == PolyphonyMode::LEGATO) {
+					if (config_.voicing.polyphony == PolyphonyMode::LEGATO) {
 						voice->change_note(
 						    *modelStack, newNoteCode, newNoteCode,
 						    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
@@ -1963,7 +1964,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
-		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
+		    .volume_neutral_value_for_unison = config_.voicing.unison.level,
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .voice_priority = config_.voicing.priority,
 		    .synth_mode = getSynthMode(),
@@ -2519,7 +2520,6 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 void Sound::refreshUnison() {
 	config_.voicing.unison = deluge::synth::derive_unison(config_.voicing.unison.count, config_.voicing.unison_detune,
 	                                                      config_.voicing.unison_spread);
-	volumeNeutralValueForUnison = config_.voicing.unison.level;
 }
 
 // The filters go off into FM and come back on out of it. The knobs a mode change remaps are the caller's
@@ -2792,14 +2792,14 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 // doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run necessary for SoundDrums).
 void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
 	d.voice_priority = config_.voicing.priority;
-	d.max_voice_count = maxVoiceCount;
+	d.max_voice_count = config_.voicing.max_voices;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
 	d.oscillator_sync = config_.engine.osc_sync;
 	// Top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind before
 	// parse, so the re-seed at doneReadingFromFile is what captures their loaded values into the record.
-	d.polyphonic = polyphonic;
+	d.polyphonic = config_.voicing.polyphony;
 	d.synth_mode = config_.engine.mode;
 	d.transpose = config_.voicing.transpose;
 	d.cents = config_.voicing.cents; // transpose lives on the snapshot; the record seeds from it (bind-time)
@@ -2827,38 +2827,11 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (a preview
-	// sound): those sounds write config_ directly and have no record to project from.
+	// Unbound sounds (a preview) have no record: their fields are written directly until they are bound.
 	if (state_ == nullptr) {
 		return;
 	}
-	config_.voicing.transpose = state_->transpose;
-	config_.voicing.cents = state_->cents;
-	recalculateFineTuner();
-	config_.voicing.unison.count = state_->num_unison;
-	config_.voicing.unison_detune = state_->unison_detune;
-	config_.voicing.unison_spread = state_->unison_stereo_spread;
-	refreshUnison();
-	config_.engine.mode = static_cast<SynthMode>(state_->synth_mode);
-	config_.engine.osc_sync = state_->oscillator_sync;
-	config_.voicing.priority = static_cast<VoicePriority>(state_->voice_priority);
-	config_.voicing.polyphony = state_->polyphonic;
-	config_.voicing.max_voices = state_->max_voice_count;
-	config_.engine.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
-	for (int32_t i = 0; i < kNumModulators; i++) {
-		config_.engine.modulators[i].cents = state_->modulator_cents[i];
-		config_.engine.modulators[i].tune = deluge::dsp::fixed::FineTune::of_cents(config_.engine.modulators[i].cents);
-		config_.engine.modulators[i].transpose = state_->modulator_transpose[i];
-		config_.engine.modulators[i].retrigger_phase = state_->modulator_retrigger_phase[i];
-	}
-	for (int32_t s = 0; s < kNumSources; s++) {
-		config_.engine.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
-	}
-	for (int32_t l = 0; l < LFO_COUNT; l++) {
-		config_.lfos[l].wave_type = static_cast<LFOType>(state_->lfo_wave_type[l]);
-		config_.lfos[l].sync_type = static_cast<SyncType>(state_->lfo_sync_type[l]);
-		config_.lfos[l].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[l]);
-	}
+	config_ = deluge::instrument::DelugeSynth::derive(*state_);
 }
 
 static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
@@ -2866,8 +2839,8 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
               && deluge::instrument::kMaxUnisonSpread == kMaxUnisonStereoSpread);
 
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
-	polyphonic = state.polyphonic;
-	maxVoiceCount = state.max_voice_count;
+	config_.voicing.polyphony = state.polyphonic;
+	config_.voicing.max_voices = state.max_voice_count;
 	sideChainSendLevel = state.side_chain_send_level;
 	outputMidiChannel = state.output_midi_channel;
 	outputMidiNoteForDrum = state.output_midi_note_for_drum;
@@ -3036,7 +3009,6 @@ void Sound::setVoicePriority(VoicePriority value) {
 	}
 }
 void Sound::setMaxVoiceCount(uint8_t value) {
-	maxVoiceCount = value;
 	config_.voicing.max_voices = value;
 	if (state_ != nullptr) {
 		state_->max_voice_count = value;
@@ -3070,7 +3042,6 @@ void Sound::setOscillatorSync(bool value) {
 	}
 }
 void Sound::setPolyphonic(PolyphonyMode value) {
-	polyphonic = value;
 	config_.voicing.polyphony = value;
 	if (state_ != nullptr) {
 		state_->polyphonic = value;

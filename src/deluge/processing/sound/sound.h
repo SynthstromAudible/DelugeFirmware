@@ -246,16 +246,11 @@ public:
 
 	int32_t sideChainSendLevel = 0;
 
-	PolyphonyMode polyphonic = PolyphonyMode::POLY;
-	uint8_t maxVoiceCount = 8;
-
 	// The sound's transpose lives in the SoundConfig read-view (see config_ / getTranspose()).
 
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
 	uint8_t outputMidiNoteForDrum = MIDI_NOTE_NONE;
-
-	deluge::dsp::Q<31> volumeNeutralValueForUnison{};
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 

@@ -160,12 +160,8 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			                                                 deluge::instrument::dump_state(record));
 		}
 	}
-	if (checks.snapshot) {
-		const deluge::synth::SoundConfig before = sound.config();
-		sound.projectSnapshot();
-		if (!(sound.config() == before)) {
-			return "snapshot";
-		}
+	if (checks.snapshot && !(sound.config() == deluge::instrument::DelugeSynth::derive(record))) {
+		return "config"; // the sound plays what its record derives
 	}
 	return {};
 }

@@ -136,7 +136,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		set_polyphony(*spec::menu_engine(ctx).sound, "poly");
 		bindings::write(kMaxVoices, ctx, 5);
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(5);
-		expect(static_cast<int>(spec::menu_engine(ctx).sound->maxVoiceCount)).to_equal(5);
+		expect(static_cast<int>(spec::menu_engine(ctx).sound->config().voicing.max_voices)).to_equal(5);
 		expect(bindings::read(kMaxVoices, ctx)).to_equal(5);
 	});
 
