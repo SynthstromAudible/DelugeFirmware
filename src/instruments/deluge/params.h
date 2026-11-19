@@ -22,6 +22,7 @@
 #include "effects/params.h"
 #include "plugin-api/types/param.h"
 #include "plugin-api/types/param_kind.h"
+#include "plugin-api/types/plugin_id.h"
 
 #include <array>
 #include <cstdint>
@@ -541,6 +542,18 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 [[nodiscard]] constexpr bool is_bipolar_at(plugin::ParamKind kind, uint32_t index) {
 	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
 	return id ? is_bipolar(kind, *id) : kind == plugin::ParamKind::PATCH_CABLE;
+}
+
+/// @brief Whether a plugin's param table has the param @p id: the global effectable's host-chain table for it, the
+/// instrument's table for any other plugin.
+/// @param plugin The plugin whose params are asked.
+/// @param id     The param id, in that plugin's numbering.
+/// @return True when the table has the param.
+[[nodiscard]] constexpr bool has_engine_param(plugin::PluginId plugin, plugin::ParamId id) {
+	const std::span<const plugin::ParamInfo> table = plugin == plugin::kGlobalEffectable
+	                                                     ? std::span<const plugin::ParamInfo>{host_chain::kParams}
+	                                                     : std::span<const plugin::ParamInfo>{kParams};
+	return plugin::find_param(table, id) != nullptr;
 }
 
 } // namespace deluge::instrument

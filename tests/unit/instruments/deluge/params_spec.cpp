@@ -1,4 +1,5 @@
 #include "instruments/deluge/params.h"
+#include "plugin-api/types/plugin_id.h"
 #include "support/printers/runtime_slot_printer.h"
 
 #include <algorithm>
@@ -256,6 +257,15 @@ describe params("the Deluge instrument's param table", ${
 		expect(kEqIds[3].value).to_equal(94U);
 		expect(kBitcrushIds[0].value).to_equal(96U);
 		expect(kBitcrushIds[1].value).to_equal(95U);
+	});
+
+	it("finds a param in the table of the plugin that owns it, and in no other", _ {
+		const deluge::plugin::ParamId sound_only = kParams.front().id;
+		const deluge::plugin::ParamId global_only = deluge::host_chain::kParams.front().id;
+		expect(has_engine_param(deluge::plugin::kDelugeInstrument, sound_only)).to_be_true();
+		expect(has_engine_param(deluge::plugin::kGlobalEffectable, global_only)).to_be_true();
+		expect(has_engine_param(deluge::plugin::kDelugeInstrument, deluge::plugin::ParamId{4000})).to_be_false();
+		expect(has_engine_param(deluge::plugin::kGlobalEffectable, deluge::plugin::ParamId{4000})).to_be_false();
 	});
 });
 

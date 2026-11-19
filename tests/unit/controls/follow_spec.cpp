@@ -116,7 +116,7 @@ describe follow("MIDI follow's params", ${
 	});
 
 	it("follows a MIDI CC and an expression axis for either owner, whatever the table holds", _{
-		auto none = [](project::OwnerPlugin, plugin::ParamId) { return false; };
+		auto none = [](plugin::PluginId, plugin::ParamId) { return false; };
 		for (project::OwnerPlugin owner : {project::OwnerPlugin::INSTRUMENT, project::OwnerPlugin::GLOBAL_EFFECTABLE}) {
 			expect(follow_target(owner, plugin::ParamKind::MIDI, plugin::ParamId{74}, none))
 			    .to_equal(std::optional{ParamTarget{project::ParamSpace::MIDI_CC, plugin::ParamId{74}}});
@@ -125,7 +125,7 @@ describe follow("MIDI follow's params", ${
 		}
 	});
 	it("follows an engine param only in its owner's plugin, and only when its table has the id", _{
-		auto has_7 = [](project::OwnerPlugin, plugin::ParamId id) { return id.value == 7; };
+		auto has_7 = [](plugin::PluginId, plugin::ParamId id) { return id.value == 7; };
 		const auto sound = project::OwnerPlugin::INSTRUMENT;
 		const auto global = project::OwnerPlugin::GLOBAL_EFFECTABLE;
 		expect(follow_target(sound, plugin::ParamKind::PATCHED, plugin::ParamId{7}, has_7))
@@ -143,7 +143,7 @@ describe follow("MIDI follow's params", ${
 		expect(follow_target(sound, plugin::ParamKind::STATIC, plugin::ParamId{7}, has_7)).not_().to_have_value();
 	});
 	it("follows a cable's depth in a sound without asking the table", _{
-		auto none = [](project::OwnerPlugin, plugin::ParamId) { return false; };
+		auto none = [](plugin::PluginId, plugin::ParamId) { return false; };
 		const plugin::ParamId depth{0x4000'0119u};
 		expect(follow_target(project::OwnerPlugin::INSTRUMENT, plugin::ParamKind::PATCH_CABLE, depth, none))
 		    .to_equal(std::optional{project::engine_target(0x4000'0119u)});

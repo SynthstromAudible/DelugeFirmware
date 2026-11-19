@@ -737,14 +737,7 @@ void ModKnobs::send_midi_follow_feedback(const std::optional<TurnedParam>& param
 		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
 		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
 		const std::optional<deluge::project::ParamTarget> target = deluge::controls::follow_target(
-		    owner, param->kind, param->address.id, [](deluge::project::OwnerPlugin in, deluge::plugin::ParamId id) {
-			    return deluge::plugin::find_param(
-			               in == deluge::project::OwnerPlugin::INSTRUMENT
-			                   ? std::span<const deluge::plugin::ParamInfo>{deluge::instrument::kParams}
-			                   : std::span<const deluge::plugin::ParamInfo>{deluge::host_chain::kParams},
-			               id)
-			           != nullptr;
-		    });
+		    owner, param->kind, param->address.id, deluge::instrument::has_engine_param);
 		if (const std::optional<uint8_t> cc_number = target ? midiFollow.ccOf(owner, *target) : std::nullopt) {
 			midiFollow.sendCCForMidiFollowFeedback(*cc_number, knob_pos);
 		}

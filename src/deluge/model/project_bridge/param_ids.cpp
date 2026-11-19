@@ -286,14 +286,7 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	if (kind == params::Kind::NONE) { // an unpatched set its owner's init has not named yet
 		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	}
-	return deluge::controls::follow_target(
-	    owner, kind, paramIdOf(kind, index), [](OwnerPlugin in, deluge::plugin::ParamId id) {
-		    return deluge::plugin::find_param(in == OwnerPlugin::INSTRUMENT
-		                                          ? std::span<const deluge::plugin::ParamInfo>{instrument::kParams}
-		                                          : std::span<const deluge::plugin::ParamInfo>{host_chain::kParams},
-		                                      id)
-		           != nullptr;
-	    });
+	return deluge::controls::follow_target(owner, kind, paramIdOf(kind, index), instrument::has_engine_param);
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {
