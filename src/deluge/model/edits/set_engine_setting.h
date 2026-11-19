@@ -17,25 +17,30 @@ namespace deluge::edits {
 /// @brief The change writing @p value at @p path makes to @p sound's state: the setting's field written by its family's
 /// writer, or where its menu reshapes more (an oscillator's type or loop mode, the synth mode) the state it reshapes
 /// to; with the entries whose fields changed.
-/// @param sound The sound, bound.
-/// @param slot  Its slot.
+/// @param sound The sound.
 /// @param path  The setting's path.
 /// @param value The canonical value, taken and allowed by the sound's state.
 /// @return The new state and the entries touched.
 [[nodiscard]] std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
-settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& slot, std::string_view path,
-              const deluge::serialization::Value& value);
+settingChange(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value);
 
 /// @brief Commit @p value, already canonical and taken and allowed by @p sound's state, at @p path into @p slot and
 /// the sound playing it: the step SetEngineSetting and SetKitSetting share once their checks pass.
 /// @param sound The sound playing @p slot.
-/// @param slot  Its instrument slot.
+/// @param slot  Its instrument slot, or null for a sound in none (the sample browser's preview): only the write audit
+///              reads it.
 /// @param path  The setting's path.
 /// @param value The canonical value.
 /// @param song  The song.
 /// @return Error::NONE when the value landed (or the runtime holds one the state does not read back), else why not.
-Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
+Error commitEngineSetting(::Sound& sound, const deluge::project::InstrumentSlot* slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song);
+
+/// @brief Set @p sound's setting at @p path to @p value (its file form) where the sound is in no slot (the sample
+/// browser's preview): the checks, rules, write and runtime effects SetEngineSetting has, on the sound's own state.
+/// @return Error::NONE when the value landed, else why not.
+Error setUnslottedSetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value,
+                          ::Song& song);
 
 /// @brief Set one setting of a sound's instrument (a path of its settings schema, its effects' included) to a value.
 ///

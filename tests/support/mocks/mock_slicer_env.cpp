@@ -414,14 +414,16 @@ std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/)
 Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
 	return Error::NONE;
 }
-Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
-                   ::Song& /*song*/) {
-	return Error::NONE;
-}
 void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,
                        deluge::instrument::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
+namespace deluge::edits {
+Error setUnslottedSetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
+                          ::Song& /*song*/) {
+	return Error::NONE;
+}
+} // namespace deluge::edits
 
 namespace deluge::edits {
 Error apply(Context& /*ctx*/, Edit& /*edit*/) {

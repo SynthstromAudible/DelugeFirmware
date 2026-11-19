@@ -44,16 +44,6 @@ void retuneVoices(::Sound& sound, ::Song& song);
 /// @param song   The song it plays in.
 void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song);
 
-/// @brief Change @p sound's setting at @p path (a path of the Deluge instrument's settings schema) to @p value, as the
-/// sound editor's menu for it does, side effects included: the runtime's own setter for the path.
-///
-/// @param sound The sound to change.
-/// @param path  A path of the Deluge instrument's settings schema.
-/// @param value The new value.
-/// @param song  The song the sound belongs to.
-/// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path, or the path has no setter here.
-Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song);
-
 /// @brief Change @p owner's effect setting at @p path (a path of the effects' schema) to @p value, as its menu does:
 /// for an owner outside the song's slots and chains (a sound not bound, a preview), which holds its effects itself.
 ///
