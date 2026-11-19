@@ -28,6 +28,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
@@ -39,10 +40,37 @@
 namespace params = deluge::modulation::params;
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
-    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
+    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), clip_values_(nullptr),
+      topUintToRepParams(1) {
+}
+
+int32_t ParamSet::getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack) {
+	auto layer = params::controlLayer(getParamKind(), true, controlsEditClipValue(modelStack),
+	                                  false);
+	if (layer == params::ControlLayer::PRESET) {
+		return getPresetValue(p);
+	}
+	return layer == params::ControlLayer::CLIP ? getClipValue(p) : getValue(p);
+}
+
+int32_t ParamSet::getValueForControl(ModelStackWithAutoParam const* modelStack) {
+	return getValueForControl(modelStack->paramId, modelStack);
+}
+
+void ParamSet::bindAutomationValues() const {
+	for (int32_t p = 0; p < numParams_; ++p) {
+		params[p].bindClipValue(&clip_values_[p]);
+	}
+}
+
+void ParamSet::bindPresetValues(const int32_t* values) const {
+	for (int32_t p = 0; p < numParams_; ++p) {
+		clip_values_[p].bindPreset(&values[p]);
+	}
 }
 
 void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	bindAutomationValues();
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
 		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
@@ -84,6 +112,7 @@ void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p)
 }
 
 void ParamSet::paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p) {
+	params[p].clearAutomationOffset();
 
 	uint32_t mask = ~((uint32_t)1 << (p & 31));
 	modelStack->summary->whichParamsAreAutomated[p >> 5] &= mask;
@@ -258,9 +287,10 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 	AutoParam* param = &params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
+	int32_t old_value = params[p].getCurrentValue();
 	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
 	if (!params[p].isAutomated()) {
-		paramHasNoAutomationNow(modelStack, p);
+		notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, true, true, false);
 	}
 
 	FOR_EACH_PARAM_END
@@ -297,7 +327,8 @@ void ParamSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(p, &params[p]);
-	params[p].deleteAutomation(action, modelStackWithParam, false);
+	// Deletion can now change the audible value, so notify sound/UI consumers.
+	params[p].deleteAutomation(action, modelStackWithParam);
 
 	FOR_EACH_PARAM_END
 
@@ -324,9 +355,10 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
+	int32_t old_value = params[p].getCurrentValue();
 	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
 	if (!params[p].isAutomated()) {
-		paramHasNoAutomationNow(modelStack, p);
+		notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, true, true, false);
 	}
 
 	FOR_EACH_PARAM_END
@@ -340,10 +372,11 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 	AutoParam* param = &params[p];
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
+	int32_t old_value = params[p].getCurrentValue();
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
 	if (!params[p].isAutomated()) {
-		paramHasNoAutomationNow(modelStack, p);
+		notifyParamModifiedInSomeWay(modelStackWithAutoParam, old_value, true, true, false);
 	}
 
 	FOR_EACH_PARAM_END
@@ -387,14 +420,18 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 
 UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(UnpatchedParamSet), summary) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 }
 
 void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
@@ -468,14 +505,18 @@ bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 }
 
 void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
@@ -579,8 +620,10 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 	bendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 
 	bendRanges[BEND_RANGE_FINGER_LEVEL] =
@@ -589,8 +632,10 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 
 void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
+	setClipValueStorage(clipValues_.data());
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
+	bindAutomationValues();
 
 	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }

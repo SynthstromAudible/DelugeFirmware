@@ -88,7 +88,7 @@ bool PatchCable::isActive() {
 
 void PatchCable::initAmount(int32_t value) {
 	param.nodes.empty();
-	param.currentValue = value;
+	param.setCurrentValueBasicForSetup(value);
 }
 
 void PatchCable::makeUnusable() {

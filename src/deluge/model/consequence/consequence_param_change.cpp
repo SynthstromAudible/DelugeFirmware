@@ -27,17 +27,7 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	type = Consequence::PARAM_CHANGE;
 	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
-	state.value = modelStack->autoParam->currentValue;
-
-	// Either steal the data...
-	if (stealData) {
-		state.nodes.swapStateWith(&modelStack->autoParam->nodes);
-	}
-
-	// Or clone it...
-	else {
-		state.nodes.cloneFrom(&modelStack->autoParam->nodes);
-	}
+	modelStack->autoParam->captureState(state, stealData);
 }
 
 Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {

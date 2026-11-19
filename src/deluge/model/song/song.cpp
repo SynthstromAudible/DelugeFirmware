@@ -3911,6 +3911,8 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 		return;
 	}
 
+	modControllable->bindPresetValues(paramManager);
+
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)modControllable;
 	keyWords[1] = (uint32_t)clip;
@@ -4791,7 +4793,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated()) {
-				unpatchedParams->params[p].currentValue = unautomatedParamValues[p];
+				unpatchedParams->params[p].setCurrentValueBasicForSetup(unautomatedParamValues[p]);
 			}
 		}
 	}

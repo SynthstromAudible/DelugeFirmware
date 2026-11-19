@@ -1300,6 +1300,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 		return Error::FILE_CORRUPTED;
 	}
 
+	output->toModControllable()->bindPresetValues(&paramManager);
 	return Error::NONE;
 }
 

@@ -746,34 +746,36 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos);
+			int32_t value = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+			int32_t knob_pos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-			int32_t newKnobPos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knobPos, offset);
+			int32_t new_knob_pos = calculateAutomationKnobPosForModEncoderTurn(modelStackWithParam, knob_pos, offset);
 
 			int32_t newValue =
-			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+			    modelStackWithParam->paramCollection->knobPosToParamValue(new_knob_pos, modelStackWithParam);
 
 			// use default interpolation settings
 			initInterpolation();
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
+			// Selected pads have their own step-editing path. With no selection,
+			// edit the scalar layer, or record automation when recording is active.
+			modelStackWithParam->paramCollection->setValueFromControl(newValue, modelStackWithParam);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
-				int32_t knobPos = newKnobPos + kKnobPosOffset;
-				renderDisplay(knobPos, kNoSelection, true);
-				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);
+				int32_t display_knob_pos = new_knob_pos + kKnobPosOffset;
+				renderDisplay(display_knob_pos, kNoSelection, true);
+				setAutomationKnobIndicatorLevels(modelStackWithParam, display_knob_pos, display_knob_pos);
 			}
 
-			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
+			view.potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, new_knob_pos);
 
 			// midi follow and midi feedback enabled
 			// re-send midi cc because learned parameter value has changed
-			view.sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
+			view.sendMidiFollowFeedback(modelStackWithParam, new_knob_pos);
 		}
 	}
 }

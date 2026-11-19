@@ -74,6 +74,9 @@ bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeS
 		return true;
 	}
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
+	if (auto* mod_controllable = toModControllable()) {
+		mod_controllable->bindPresetValues(&newClip->paramManager);
+	}
 
 	bool clipChanged = (activeClip != newClip);
 	activeClip = newClip;

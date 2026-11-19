@@ -40,10 +40,14 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "storage/parameter_value_io.h"
 #include "storage/storage_manager.h"
 #include "util/fast_divide.h"
 #include <algorithm>
 #include <arm_neon.h>
+#include <array>
+#include <charconv>
+#include <utility>
 
 namespace params = deluge::modulation::params;
 
@@ -89,7 +93,74 @@ ModControllableAudio::~ModControllableAudio() {
 	delete grainFX;
 }
 
+namespace {
+// Baselines are independent of the legacy effective-value attributes. Older
+// firmware can skip these tags and still load the same audible parameter values.
+void writePresetValues(Serializer& writer, const char* tag, const int32_t* values, int32_t count) {
+	writer.writeOpeningTagBeginning(tag);
+	for (int32_t i = 0; i < count; ++i) {
+		std::array<char, 16> name_storage{};
+		char* name = name_storage.data();
+		name[0] = 'p';
+		std::to_chars(name + 1, name + name_storage.size() - 1, i);
+		writer.writeAttribute(name, values[i]);
+	}
+	writer.closeTag();
+}
+
+bool readPresetValues(Deserializer& reader, const char* tag, int32_t* values, int32_t count) {
+	int32_t entries = 0;
+	std::array<bool, params::kNumParams + params::kMaxNumUnpatchedParams> seen{};
+	readParameterValueObject(reader, tag, [&](uint32_t id, int32_t value) {
+		if (std::cmp_less(id, count)) {
+			values[id] = value;
+			if (!seen[id]) {
+				seen[id] = true;
+				++entries;
+			}
+		}
+	});
+	return entries == count;
+}
+} // namespace
+
+void ModControllableAudio::bindPresetValues(ParamManager* manager) {
+	for (auto* summary = manager->summaries; summary->paramCollection != nullptr; ++summary) {
+		auto kind = summary->paramCollection->getParamKind();
+
+		bool patched = kind == params::Kind::PATCHED;
+		if (!patched && kind != params::Kind::UNPATCHED_SOUND && kind != params::Kind::UNPATCHED_GLOBAL) {
+			continue;
+		}
+		auto* set = static_cast<ParamSet*>(summary->paramCollection);
+		int32_t* baseline = patched ? presetPatched_.data() : presetUnpatched_.data();
+		bool& initialized = patched ? hasPresetPatched_ : hasPresetUnpatched_;
+		if (!initialized) {
+			for (int32_t p = 0; p < set->getNumParams(); ++p) {
+				baseline[p] = set->getClipValue(p);
+			}
+			initialized = true;
+		}
+		set->bindPresetValues(baseline);
+	}
+}
+
+int32_t ModControllableAudio::getPresetValue(params::Kind kind, int32_t id) const {
+	if (kind == params::Kind::PATCHED && id >= 0 && id < static_cast<int32_t>(presetPatched_.size())) {
+		return presetPatched_[id];
+	}
+	if ((kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) && id >= 0
+	    && id < static_cast<int32_t>(presetUnpatched_.size())) {
+		return presetUnpatched_[id];
+	}
+	return 0;
+}
+
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
+	presetPatched_ = other->presetPatched_;
+	presetUnpatched_ = other->presetUnpatched_;
+	hasPresetPatched_ = other->hasPresetPatched_;
+	hasPresetUnpatched_ = other->hasPresetUnpatched_;
 	lpfMode = other->lpfMode;
 	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
@@ -338,7 +409,7 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 	// Bitcrushing ------------------------------------------------------------------------------
 	if (isBitcrushingEnabled(paramManager)) {
 		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
+		    (paramManager->getUnpatchedValueForRender(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
 		if (positivePreset > 4) {
 			*postFXVolume >>= (positivePreset - 4);
 		}
@@ -372,7 +443,7 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		// started clipping off where I needed it if sample rate too low
 
 		uint32_t positivePreset =
-		    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
+		    paramManager->getUnpatchedValueForRender(params::UNPATCHED_SAMPLE_RATE_REDUCTION) + 2147483648;
 		int32_t lowSampleRateIncrement = getExp(4194304, (positivePreset >> 3));
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
@@ -479,7 +550,16 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	}
 }
 
-void ModControllableAudio::writeTagsToFile(Serializer& writer) {
+void ModControllableAudio::writeTagsToFile(Serializer& writer, bool savingSong) {
+
+	if (savingSong && hasPresetPatched_) {
+		writePresetValues(writer, "presetPatchedValues", presetPatched_.data(),
+		                  static_cast<int32_t>(presetPatched_.size()));
+	}
+	if (savingSong && hasPresetUnpatched_) {
+		writePresetValues(writer, "presetUnpatchedValues", presetUnpatched_.data(),
+		                  static_cast<int32_t>(presetUnpatched_.size()));
+	}
 	// Delay
 	writer.writeOpeningTagBeginning("delay");
 	writer.writeAttribute("pingPong", delay.pingPong);
@@ -612,12 +692,83 @@ void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager
 	unpatchedParams->writeParamAsAttribute(writer, "trebleFrequency", params::UNPATCHED_TREBLE_FREQ, writeAutomation,
 	                                       false, valuesForOverride);
 	writer.closeTag();
+	if (writeAutomation) {
+		for (auto* summary = paramManager->summaries; summary->paramCollection != nullptr; ++summary) {
+			auto kind = summary->paramCollection->getParamKind();
+			if (kind != params::Kind::PATCHED && kind != params::Kind::UNPATCHED_SOUND
+			    && kind != params::Kind::UNPATCHED_GLOBAL) {
+				continue;
+			}
+			auto* set = static_cast<ParamSet*>(summary->paramCollection);
+			writer.writeOpeningTagBeginning(kind == params::Kind::PATCHED ? "clipPatchedValues"
+			                                                              : "clipUnpatchedValues");
+			for (int32_t p = 0; p < set->getNumParams(); ++p) {
+				if (set->params[p].isAutomated()) {
+					std::array<char, 16> name_storage{};
+					char* name = name_storage.data();
+					name[0] = 'p';
+					std::to_chars(name + 1, name + name_storage.size() - 1, p);
+					writer.writeAttribute(name, set->getClipValue(p));
+				}
+			}
+			writer.closeTag();
+			writer.writeOpeningTagBeginning(kind == params::Kind::PATCHED ? "relativePatchedValues"
+			                                                              : "relativeUnpatchedValues");
+			for (int32_t p = 0; p < set->getNumParams(); ++p) {
+				auto& param = set->params[p];
+				if (!param.isAutomated() && param.getUnclampedClipValue() == set->getClipValue(p)) {
+					continue;
+				}
+				std::array<char, 16> name{};
+				name.front() = 'p';
+				std::to_chars(name.data() + 1, name.data() + name.size() - 1, p);
+				writer.insertCommaIfNeeded();
+				writer.write("\n");
+				writer.printIndents();
+				writer.writeTagNameAndSeperator(name.data());
+				writer.write("\"");
+				param.writeRelativeToFile(writer);
+				writer.write("\"");
+			}
+			writer.closeTag();
+		}
+	}
 }
 
 bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                                 ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
+
+	if (strcmp(tagName, "relativePatchedValues") == 0 || strcmp(tagName, "relativeUnpatchedValues") == 0) {
+		bool patched = strcmp(tagName, "relativePatchedValues") == 0;
+		ParamSet* set = unpatchedParams;
+		if (patched) {
+			set = paramManager->getExpressionParamSetOffset() >= 3 ? paramManager->getPatchedParamSet() : nullptr;
+		}
+		readParameterObject(reader, patched ? "relativePatchedValues" : "relativeUnpatchedValues",
+		                    [&](uint32_t id, Deserializer& value) {
+			                    if (set != nullptr && std::cmp_less(id, set->getNumParams())) {
+				                    set->params[id].readRelativeFromFile(value);
+			                    }
+		                    });
+		return true;
+	}
+
+	if ((strcmp(tagName, "clipPatchedValues") == 0) || (strcmp(tagName, "clipUnpatchedValues") == 0)) {
+		bool patched = strcmp(tagName, "clipPatchedValues") == 0;
+		ParamSet* set = unpatchedParams;
+		if (patched) {
+			set = paramManager->getExpressionParamSetOffset() >= 3 ? paramManager->getPatchedParamSet() : nullptr;
+		}
+		readParameterValueObject(
+		    reader, patched ? "clipPatchedValues" : "clipUnpatchedValues", [&](uint32_t id, int32_t value) {
+			    if (set != nullptr && std::cmp_less(id, set->getNumParams()) && set->params[id].isAutomated()) {
+				    set->params[id].restoreClipValueFromFile(value);
+			    }
+		    });
+		return true;
+	}
 
 	if (!strcmp(tagName, "equalizer")) {
 		reader.match('{');
@@ -784,6 +935,17 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
                                             ArpeggiatorSettings* arpSettings, Song* song) {
 
 	int32_t p;
+
+	if (strcmp(tagName, "presetPatchedValues") == 0) {
+		hasPresetPatched_ = readPresetValues(reader, "presetPatchedValues", presetPatched_.data(),
+		                                     static_cast<int32_t>(presetPatched_.size()));
+		return Error::NONE;
+	}
+	if (strcmp(tagName, "presetUnpatchedValues") == 0) {
+		hasPresetUnpatched_ = readPresetValues(reader, "presetUnpatchedValues", presetUnpatched_.data(),
+		                                       static_cast<int32_t>(presetUnpatched_.size()));
+		return Error::NONE;
+	}
 
 	if (!strcmp(tagName, "lpfMode")) {
 		lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
@@ -983,9 +1145,9 @@ doReadPatchedParam:
 			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
 				MIDICable* cable = nullptr;
-				uint8_t channel;
-				uint8_t ccNumber;
-				bool relative;
+				uint8_t channel = 0;
+				uint8_t cc_number = 0;
+				bool relative = false;
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
@@ -997,11 +1159,11 @@ doReadPatchedParam:
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
 					}
-					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = reader.readTagOrAttributeValueInt();
+					else if (strcmp(tagName, "ccNumber") == 0) {
+						cc_number = reader.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
+						relative = reader.readTagOrAttributeValueInt() != 0;
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
 						// if the unpatched kind for the current mod controllable is sound then we also want to check
@@ -1027,7 +1189,7 @@ doReadPatchedParam:
 						MIDIKnob& new_knob = midi_knobs.emplace_back();
 						new_knob.midiInput.cable = cable;
 						new_knob.midiInput.channelOrZone = channel;
-						new_knob.midiInput.noteOrCC = ccNumber;
+						new_knob.midiInput.noteOrCC = cc_number;
 						new_knob.relative = relative;
 
 						if (s == PatchSource::NOT_AVAILABLE) {
@@ -1847,4 +2009,15 @@ void ModControllableAudio::disableGrain() {
 	if (grainFX) {
 		grainFX->startSkippingRendering();
 	}
+}
+
+int32_t* ModControllableAudio::getPresetValueStorage(params::Kind kind, int32_t id) {
+	if (kind == params::Kind::PATCHED && id >= 0 && id < static_cast<int32_t>(presetPatched_.size())) {
+		return &presetPatched_[id];
+	}
+	if ((kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL) && id >= 0
+	    && id < static_cast<int32_t>(presetUnpatched_.size())) {
+		return &presetUnpatched_[id];
+	}
+	return nullptr;
 }

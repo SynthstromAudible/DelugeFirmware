@@ -2312,13 +2312,16 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Instrument* instrument = getCurrentInstrument();
-
 	if (!rootUIIsClipMinderScreen()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		return currentSong->setupModelStackWithCurrentClip(memory)->addOtherTwoThingsButNoNoteRow(
+		    currentModControllable, currentParamManager);
+	}
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument->type == OutputType::KIT && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);

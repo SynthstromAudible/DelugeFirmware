@@ -18,8 +18,9 @@
 #include "io/debug/log.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_node.h"
+#include "storage/preset_save_values.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h"
+#include "util/d_stringbuf.h"
 #include <array>
 
 void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride) {
@@ -28,7 +29,11 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, const int3
 
 	writer.write("0x");
 
-	int32_t value_now = ((valueForOverride != nullptr) && isAutomated()) ? *valueForOverride : currentValue;
+	int32_t value_now = ((valueForOverride != nullptr) && isAutomated()) ? *valueForOverride : getCurrentValue();
+
+	if (!writeAutomation) {
+		PresetSaveValues::record(this, value_now);
+	}
 
 	intToHex(value_now, buffer);
 	writer.write(buffer);
@@ -37,7 +42,7 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, const int3
 
 		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 			ParamNode* this_node = nodes.getElement(i);
-			intToHex(this_node->value, buffer);
+			intToHex(getNodeValue(this_node), buffer);
 			writer.write(buffer);
 
 			uint32_t pos = this_node->pos;
@@ -77,7 +82,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 		for (int32_t i = 2; i < 12 && ((buffer[i] = reader.readNextCharOfTagOrAttributeValue()) != 0); i++) {}
 		buffer[11] = 0;
-		currentValue = stringToInt(buffer);
+		setCurrentValueBasicForSetup(stringToInt(buffer));
 		return Error::NONE;
 	}
 
@@ -88,7 +93,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 	if (hex_chars == nullptr) {
 		return Error::NONE;
 	}
-	currentValue = static_cast<int32_t>(hexToIntFixedLength(hex_chars, 8));
+	setCurrentValueBasicForSetup(static_cast<int32_t>(hexToIntFixedLength(hex_chars, 8)));
 
 	return readAutomationFromFile(reader, readAutomationUpToPos);
 }
@@ -161,7 +166,7 @@ Error AutoParam::readAutomationFromFile(Deserializer& reader, int32_t readAutoma
 				return Error::INSUFFICIENT_RAM;
 			}
 			ParamNode* node = nodes.getElement(node_i);
-			node->value = value;
+			setNodeValue(node, value);
 			node->interpolated = interpolated;
 
 			num_elements_to_allocate_for--;
@@ -182,7 +187,75 @@ Error AutoParam::readLegacyAutomationEndpoint(int32_t value, bool interpolated) 
 	}
 	first_node = nodes.getElement(0);
 	first_node->pos = 0;
-	first_node->value = value;
+	setNodeValue(first_node, value);
 	first_node->interpolated = interpolated;
 	return Error::NONE;
+}
+
+// Supplemental metadata follows the legacy absolute values. It needs no new
+// allocations: the legacy stream has already created the retained nodes.
+void AutoParam::writeRelativeToFile(Serializer& writer) const {
+	auto write_wide = [&](int64_t value) {
+		std::array<char, 9> buffer{};
+		auto bits = static_cast<uint64_t>(value);
+		intToHex(static_cast<int32_t>(bits >> 32), buffer.data());
+		writer.write(buffer.data());
+		intToHex(static_cast<int32_t>(bits), buffer.data());
+		writer.write(buffer.data());
+	};
+	writer.write("0x");
+	write_wide(getUnclampedClipValue());
+	write_wide(getAutomationOffset());
+	for (int32_t i = 0; i < nodes.getNumElements(); ++i) {
+		auto* node = nodes.getElement(i);
+		std::array<char, 9> position{};
+		intToHex(node->pos, position.data());
+		writer.write(position.data());
+		write_wide(node->offset);
+	}
+}
+
+bool AutoParam::readRelativeFromFile(Deserializer& reader) {
+	if (clipValue() == nullptr || !reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		return false;
+	}
+	const auto* prefix = reader.readNextCharsOfTagOrAttributeValue(2);
+	if (prefix == nullptr || prefix[0] != '0' || prefix[1] != 'x') {
+		return false;
+	}
+	auto read_wide = [&](int64_t& value) {
+		const auto* chars = reader.readNextCharsOfTagOrAttributeValue(16);
+		if (chars == nullptr) {
+			return false;
+		}
+		uint64_t high = hexToIntFixedLength(chars, 8);
+		uint64_t low = hexToIntFixedLength(chars + 8, 8);
+		value = std::bit_cast<int64_t>((high << 32) | low);
+		// Valid layer differences fit comfortably here. Reject corrupt values
+		// which could overflow subsequent interpolation or baseline arithmetic.
+		constexpr int64_t limit = INT64_MAX / 4;
+		return value >= -limit && value <= limit;
+	};
+	int64_t scalar = 0;
+	int64_t curve = 0;
+	if (!read_wide(scalar) || !read_wide(curve)) {
+		return false;
+	}
+	clipValue()->setUnclampedValue(scalar);
+	setCurveValue(curve);
+	int32_t index = 0;
+	while (const auto* position = reader.readNextCharsOfTagOrAttributeValue(8)) {
+		auto pos = static_cast<int32_t>(hexToIntFixedLength(position, 8));
+		int64_t offset = 0;
+		if (!read_wide(offset)) {
+			break;
+		}
+		while (index < nodes.getNumElements() && nodes.getElement(index)->pos < pos) {
+			++index;
+		}
+		if (index < nodes.getNumElements() && nodes.getElement(index)->pos == pos) {
+			nodes.getElement(index)->offset = offset;
+		}
+	}
+	return true;
 }

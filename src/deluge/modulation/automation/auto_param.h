@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
+#include "modulation/params/param_value.h"
 #include <cstdint>
 
 class Serializer;
@@ -36,8 +37,13 @@ class ModelStackWithAutoParam;
 // For backing up a snapshot
 class AutoParamState {
 public:
+	// Existing public curve-editing interface; this object owns its nodes.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
 	LazyParamNodeVector nodes;
-	int32_t value;
+	int32_t value = 0;
+	int64_t clipValue = 0;
+	int64_t curveValue = 0;
+	int32_t nodeBase = 0;
 };
 
 struct StolenParamNodes;
@@ -56,6 +62,7 @@ public:
 	                       ActionType actionType = ActionType::NOTE_EDIT);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
+	// Curve evaluation can operate without a playback/model context.
 	int32_t getValueAtPos(uint32_t pos, int32_t loopLength, bool reversed = false);
 	bool grabValueFromPos(uint32_t pos, int32_t loopLength);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
@@ -70,6 +77,9 @@ public:
 	Error beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
+	// Prepare an independent retained prefix before the original curve is handed to undo.
+	// The destination must be empty and num_nodes must select an existing prefix of at least two nodes.
+	Error copyNodesForTrim(int32_t num_nodes, LazyParamNodeVector& trimmed) const;
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
 	void writeToFile(Serializer& writer, bool writeAutomation, const int32_t* valueForOverride = nullptr);
@@ -115,43 +125,106 @@ public:
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 
-	inline int32_t getCurrentValue() { return currentValue; }
+	[[nodiscard]] int32_t getCurrentValue() const {
+		return (clipValue() != nullptr) && (nodes.get() != nullptr)
+		           ? nodes.get()->value.getValueForBase(clipValue()->getValue())
+		           : getClipValue();
+	}
+	// Owning collections already know the clip scalar. Avoid resolving its binding twice.
+	[[nodiscard]] int32_t getValueForClip(int32_t clip_value) const {
+		auto* curve = nodes.get();
+		return curve != nullptr && curve->getNumElements() != 0 ? curve->value.getValueForBase(clip_value) : clip_value;
+	}
+	[[nodiscard]] int32_t getClipValue() const {
+		return (clipValue() != nullptr) ? clipValue()->getValue() : standaloneValue();
+	}
+	[[nodiscard]] int64_t getAutomationOffset() const {
+		return (clipValue() != nullptr) && (nodes.get() != nullptr) ? nodes.get()->value.getOffset() : 0;
+	}
+	void bindClipValue(ClipParamValue* clip);
+	// Data-only undo/redo operation; the model-stack wrapper notifies consumers.
+	[[nodiscard]] int64_t getUnclampedClipValue() const {
+		return clipValue() != nullptr ? clipValue()->getUnclampedValue() : standaloneValue();
+	}
+	void captureState(AutoParamState& state, bool stealNodes);
+	void swapStateBasicForSetup(AutoParamState* state);
+	// Relocated scalar and curve already share a reference; never dereference the old scalar.
+	void rebindClipValueAfterMove(ClipParamValue* clip) {
+		// The node pointer tag selects the active scalar-binding union member.
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		binding_.clip = clip;
+		if (clip == nullptr) {
+			// Activate the standalone member when clearing the binding.
+			setStandaloneValue(0);
+		}
+		nodes.setHasClipValue(clip != nullptr);
+	}
+	int32_t getNodeValue(const ParamNode* node) const;
+	void setNodeValue(ParamNode* node, int32_t value);
+	[[nodiscard]] int64_t getCurveValue() const {
+		return (clipValue() != nullptr) ? getAutomationOffset() : standaloneValue();
+	}
+	[[nodiscard]] int32_t getNodeBase() const { return (clipValue() != nullptr) ? clipValue()->getValue() : 0; }
+	void restoreClipValueFromFile(int32_t value);
+	void writeRelativeToFile(Serializer& writer) const;
+	bool readRelativeFromFile(Deserializer& reader);
+	void restoreClipValue(int32_t value);
+	void clearAutomationOffset() const {
+		if (nodes.get() != nullptr) {
+			nodes.get()->value.setOffsetForBase(0, getNodeBase());
+		}
+	}
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred(bool use_float_interpolation);
-
-	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
-
-	inline bool isAutomated() { return (nodes.getNumElements()); }
-
-	inline void cancelOverriding() { // Will also cancel "latching".
-		renewedOverridingAtTime = 0;
-	}
-
-	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
+	void setCurrentValueBasicForSetup(int32_t value);
+	[[nodiscard]] bool isAutomated() const { return nodes.getNumElements() != 0; }
+	void cancelOverriding() { setOverridingTime(0); }
+	// Existing public curve-editing interface; this object owns its nodes.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
 	LazyParamNodeVector nodes;
-
-	/// Current value of the AutoParam. Updated by several functions.
-	int32_t currentValue;
-
-	// interpolation to calculate current value
 	bool hasInterpolationIncrement(bool use_float_interpolation);
 	void resetInterpolationIncrement();
-	// Which of these is in use depends on ParamCollection::shouldInterpolateWithFloat(), so anything reading the
-	// increment has to be told which by the ParamCollection that owns this AutoParam.
-	union {
-		int32_t valueIncrementPerHalfTick;
-		float value_increment_per_half_tick_float;
-	};
-	float interpolation_increment_remainder_float;
-
-	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
-
-	// "Latching" happens when you start recording values, but then stops if you arrive at any pre-existing values. So
-	// it only works in empty stretches of time.
 
 private:
+	union Binding {
+		int32_t standalone = 0;
+		ClipParamValue* clip;
+	} binding_;
+	// These accessors select the member using nodes.hasClipValue().
+	[[nodiscard]] int32_t standaloneValue() const {
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		return binding_.standalone;
+	}
+	void setStandaloneValue(int32_t value) {
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+		binding_.standalone = value;
+	}
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+	[[nodiscard]] ClipParamValue* clipValue() const { return nodes.hasClipValue() ? binding_.clip : nullptr; }
+	[[nodiscard]] int32_t resolveOffset(int64_t offset) const {
+		return ClipParamValue::resolve(int64_t{getNodeBase()} + offset);
+	}
+	void setCurveValue(int64_t offset) {
+		if (clipValue() == nullptr) {
+			setStandaloneValue(ClipParamValue::resolve(offset));
+		}
+		else if (nodes.get() != nullptr) {
+			nodes.get()->value.setOffsetForBase(offset, getNodeBase());
+		}
+	}
+	[[nodiscard]] uint32_t getOverridingTime() const {
+		return (nodes.get() != nullptr) ? nodes.get()->renewedOverridingAtTime : 0;
+	}
+	void setOverridingTime(uint32_t time) const {
+		if (nodes.get() != nullptr) {
+			nodes.get()->renewedOverridingAtTime = time;
+		}
+	}
+	void rebaseNodes(int64_t difference);
+	int64_t getOffsetAtPos(uint32_t pos, int32_t loopLength, bool reversed = false);
 	Error readAutomationFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	Error readLegacyAutomationEndpoint(int32_t value, bool interpolated);
+	int64_t getOffsetAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
@@ -162,10 +235,13 @@ private:
 
 	// interpolation to calculate current value
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
-	void calculateInterpolationIncrement(int32_t half_distance, int32_t ticks_til_next_node,
+	void calculateInterpolationIncrement(int64_t half_distance, int32_t ticks_til_next_node,
 	                                     bool use_float_interpolation);
 	void potentiallyOverrideInterpolationIncrement(int32_t limit, bool use_float_interpolation);
 	void reverseInterpolationIncrement(bool use_float_interpolation);
-	int32_t consumeFloatInterpolationIncrement(float value_increment);
-	bool applyValueIncrement(int32_t value_increment);
+	int64_t consumeFloatInterpolationIncrement(float value_increment);
+	bool applyValueIncrement(int64_t value_increment);
 };
+
+// An idle parameter owns only its lazy curve and scalar binding.
+static_assert(sizeof(AutoParam) == 2 * sizeof(void*));

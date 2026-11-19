@@ -268,7 +268,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 			if (expressionParams) {
 				for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-					monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
+					monophonicExpressionValues.at(i) = expressionParams->getValue(i);
 				}
 			}
 			else {

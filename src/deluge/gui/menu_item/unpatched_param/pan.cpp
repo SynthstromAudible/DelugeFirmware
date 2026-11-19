@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "pan.h"
+#include <array>
 
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/model_stack.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "util/cfunctions.h"
@@ -44,8 +46,11 @@ int32_t Pan::getFinalValue() {
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(
-	    computeCurrentValueForPan(soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
+	char* model_stack_memory = model_stack_memory_storage.data();
+	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+	auto* param_set = soundEditor.currentParamManager->getUnpatchedParamSet();
+	this->setValue(computeCurrentValueForPan(param_set->getValueForControl(getP(), model_stack)));
 }
 
 } // namespace deluge::gui::menu_item::unpatched_param

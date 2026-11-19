@@ -3764,6 +3764,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			}
 		}
 
+		soundDrum->bindPresetValues(&paramManager);
+
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThings(soundDrum, &paramManager);
 		drum = soundDrum;

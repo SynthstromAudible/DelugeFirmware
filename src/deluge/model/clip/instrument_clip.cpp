@@ -4154,6 +4154,17 @@ haveNoDrum:
 		}
 	}
 
+	if (auto* owner = output->toModControllable()) {
+		owner->bindPresetValues(&paramManager);
+	}
+	if (output->type == OutputType::KIT) {
+		for (int32_t i = 0; i < noteRows.getNumElements(); ++i) {
+			auto* row = noteRows.getElement(i);
+			if ((row->drum != nullptr) && row->drum->type == DrumType::SOUND) {
+				static_cast<SoundDrum*>(row->drum)->bindPresetValues(&row->paramManager);
+			}
+		}
+	}
 	return Error::NONE;
 }
 
@@ -4628,7 +4639,7 @@ doNormal: // Wrap it back to the start.
 			if (error == Error::NONE) {
 				ParamNode* firstNode = param->nodes.getElement(0);
 				firstNode->pos = quantizedPos;
-				firstNode->value = value;
+				param->setNodeValue(firstNode, value);
 				firstNode->interpolated = reversed;
 			}
 		}
@@ -4661,7 +4672,7 @@ doHomogenize:
 
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
-		param->currentValue = value;
+		param->setCurrentValueBasicForSetup(value);
 		param->resetInterpolationIncrement();
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.

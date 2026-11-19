@@ -17,9 +17,18 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/view.h"
+#include "hid/display/display.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/output.h"
+#include "model/song/song.h"
+#include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_manager.h"
+#include "playback/playback_handler.h"
 
 ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
@@ -32,6 +41,43 @@ ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* 
 }
 
 ParamCollection::~ParamCollection() {
+}
+
+bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack) {
+	bool recording_automation = playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0)
+	                            && playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()
+	                            && modelStack->getTimelineCounter()->armedForRecording
+	                            && modelStack->getTimelineCounter()->isPlayingAutomationNow();
+	return !recording_automation;
+}
+
+int32_t ParamCollection::getValueForControl(ModelStackWithAutoParam const* modelStack) {
+	using namespace deluge::modulation::params;
+	auto* clip = getClipValueStorage(modelStack->paramId);
+	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack),
+	                          false);
+	if (layer == ControlLayer::PRESET) {
+		return clip->getPresetValue();
+	}
+	return layer == ControlLayer::CLIP ? clip->getValue() : modelStack->autoParam->getCurrentValue();
+}
+
+void ParamCollection::setValueFromControl(int32_t value, ModelStackWithAutoParam const* modelStack) {
+	using namespace deluge::modulation::params;
+	auto* clip = getClipValueStorage(modelStack->paramId);
+	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack), false);
+	if (layer == ControlLayer::LIVE || !modelStack->autoParam->isAutomated()) {
+		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+		return;
+	}
+	if (value == clip->getValue()) {
+		return;
+	}
+	actionLogger.recordUnautomatedParamChange(modelStack);
+	int32_t old_value = modelStack->autoParam->getCurrentValue();
+	clip->setValue(value);
+	view.notifyParamAutomationOccurred(modelStack->paramManager);
+	notifyParamModifiedInSomeWay(modelStack, old_value, false, true, true);
 }
 
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

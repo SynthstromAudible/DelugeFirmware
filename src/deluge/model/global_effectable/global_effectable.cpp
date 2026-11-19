@@ -811,7 +811,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		writer.writeClosingTag("defaultParams");
 	}
 
-	ModControllableAudio::writeTagsToFile(writer);
+	ModControllableAudio::writeTagsToFile(writer, writeAutomation);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -1100,13 +1100,13 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 	if (!unpatchedParams->params[params::UNPATCHED_LPF_FREQ].isAutomated()
 	    && unpatchedParams->params[params::UNPATCHED_LPF_FREQ].getCurrentValue() >= 2147483602
 	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(0)) {
-		unpatchedParams->params[params::UNPATCHED_LPF_RES].currentValue = -2147483648;
+		unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(-2147483648);
 	}
 
 	// If no HPF on, and resonance is at 25%, set it to 0%
 	if (!unpatchedParams->params[params::UNPATCHED_HPF_FREQ].containsSomething(-2147483648)
 	    && !unpatchedParams->params[params::UNPATCHED_LPF_RES].containsSomething(-1073741824)) {
-		unpatchedParams->params[params::UNPATCHED_HPF_RES].currentValue = -2147483648;
+		unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(-2147483648);
 	}
 }
 
