@@ -4,32 +4,32 @@
 ///        `drum_bend_range` item that stands in for it on a kit row.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `bendMenu` literal (`:795-801`) and the globals it names (`:790-791`,
-/// `:1732`):
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `bendMenu` literal and the globals it names (`mainBendRangeMenu`,
+/// `perFingerBendRangeMenu` and `drumBendRangeMenu`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `bend_range_main` | `mainBendRangeMenu` (`:792`) | `bend_range::Main` | Int |
-/// | `bend_range_per_finger` | `perFingerBendRangeMenu` (`:793`) | `bend_range::PerFinger` | Int |
-/// | `bend` | `bendMenu` (`:795`) | `submenu::Bend` (`submenu/bend.h:23`) | Submenu (Vertical) |
-/// | `drum_bend_range` | `drumBendRangeMenu` (`:1732`) | `bend_range::PerFinger` | Int |
+/// | `bend_range_main` | `mainBendRangeMenu` | `bend_range::Main` | Int |
+/// | `bend_range_per_finger` | `perFingerBendRangeMenu` | `bend_range::PerFinger` | Int |
+/// | `bend` | `bendMenu` | `submenu::Bend` (`origin/main:src/deluge/gui/menu_item/submenu/bend.h`) | Submenu (Vertical) |
+/// | `drum_bend_range` | `drumBendRangeMenu` | `bend_range::PerFinger` | Int |
 // clang-format on
 ///
 /// @note **`bendMenu` and `drumBendRangeMenu` are siblings under the sound root sharing one name**
-///       (`STRING_FOR_BEND_RANGE`). That is legacy's own doing and is not a `DuplicateName` report:
-///       they are never relevant at once -- the submenu is for SYNTH/CV/MIDI outputs
-///       (`submenu/bend.h`'s `isRelevant`), the single item for a kit row (`bend_range::PerFinger::isRelevant`)
-///       -- and `validate.cpp`'s `co_visible` is what encodes that.
+///       (`STRING_FOR_BEND_RANGE`). That is legacy's own doing and is not a `DuplicateName` report: they are never
+///       relevant at once -- the submenu is for SYNTH/CV/MIDI outputs
+///       (`origin/main:src/deluge/gui/menu_item/submenu/bend.h`'s `isRelevant`), the single item for a kit row
+///       (`bend_range::PerFinger::isRelevant`) -- and `validate.cpp`'s `co_visible` is what encodes that.
 ///
 /// @note **The two `bend_range::PerFinger` objects need different relevance**, because the class's
 ///       own override depends on how deep the menu is (`bend_range::PerFinger::isRelevant`) and the two are used at
 ///       different depths. See each node's note below.
 ///
 /// @note **All three items read and write the clip's `ExpressionParamSet`**, creating it on demand
-///       (`getOrCreateExpressionParamSet(editingKit())`, `bend_range/main.h:28-30`), and fall back
-///       to `FlashStorage::defaultBendRange` when there is none. That is a `ParamManager` call, not
-///       a param *read*, so these are `get`/`set` items rather than `ParamRef` ones.
+///       (`getOrCreateExpressionParamSet(editingKit())`, `origin/main:src/deluge/gui/menu_item/bend_range/main.h`), and
+///       fall back to `FlashStorage::defaultBendRange` when there is none. That is a `ParamManager` call, not a param
+///       *read*, so these are `get`/`set` items rather than `ParamRef` ones.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -45,7 +45,7 @@ namespace deluge::scenes::menu::nodes {
 
 /// @}
 
-/// @brief `BendRange::getMaxValue` (`gui/menu_item/bend_range.h:24`) over `Number`'s default
+/// @brief `BendRange::getMaxValue` (`origin/main:src/deluge/gui/menu_item/bend_range.h`) over `Number`'s default
 ///        minimum of 0.
 inline constexpr IntRange kBendRange{0, 96, 1};
 
@@ -75,10 +75,10 @@ inline constexpr const Node* kBendChildren[] = {&bend_range_main, &bend_range_pe
 inline constexpr Node bend =
     submenu(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), kBendChildren, Layout::Vertical, relevance::bend_submenu);
 
-/// The same class and hooks as `bend_range_per_finger`, under its own name -- legacy's
-/// "the single option available for Drums" (`menus.cpp:1732`) -- but a **root child**, i.e. shown
-/// at `navigationDepth == 0`, where `PerFinger::isRelevant`'s first arm is false and only `editingKit()`
-/// decides. `with_relevant` is what attaches the predicate to the shared shape.
+/// The same class and hooks as `bend_range_per_finger`, under its own name -- legacy's "the single option available for
+/// Drums" (`drumBendRangeMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`) -- but a **root child**, i.e. shown at
+/// `navigationDepth == 0`, where `PerFinger::isRelevant`'s first arm is false and only `editingKit()` decides.
+/// `with_relevant` is what attaches the predicate to the shared shape.
 inline constexpr Node drum_bend_range = setting_item(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), Kind::Int,
                                                      {.kind = deluge::scenes::bind::Target::Kind::MODEL,
                                                       .path = "bendRange",

@@ -55,7 +55,8 @@ using deluge::l10n::String;
 namespace {
 
 /// @brief A float-backed reverb setting as its menu shows it: `round(x * kMaxMenuValue)`
-///        (`reverb/room_size.h` readCurrentValue and siblings). Writes go through the row's user scale.
+///        (`origin/main:src/deluge/gui/menu_item/reverb/room_size.h` readCurrentValue and siblings). Writes go through
+///        the row's user scale.
 int32_t reverb_float_to_menu(float value) {
 	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
 }
@@ -108,7 +109,8 @@ int32_t get_reverb_sidechain_volume(const MenuContext& ctx) {
 	if (ctx.model == nullptr) {
 		return 0;
 	}
-	return ctx.model->reverb.sidechain_volume / 21474836; // `reverb/sidechain/volume.h`
+	return ctx.model->reverb.sidechain_volume
+	       / 21474836; // `origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`
 }
 void set_reverb_sidechain_volume(const MenuContext& ctx, int32_t value) {
 	bindings::write_song(ctx, "reverb/compressor/volume", value * 21474836);
@@ -138,7 +140,7 @@ void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 // Stutter
 
 size_t stutter_direction_names(const MenuContext& ctx, std::span<std::string_view> out) {
-	// `StutterDirection::getOptions` (`stutter/direction.h:22-40`), FULL spelling.
+	// `StutterDirection::getOptions` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`), FULL spelling.
 	size_t n = 0;
 	const auto emit = [&](String s) {
 		if (n < out.size()) {
@@ -156,8 +158,8 @@ size_t stutter_direction_names(const MenuContext& ctx, std::span<std::string_vie
 }
 
 int32_t get_stutter_direction(const MenuContext& ctx) {
-	// `StutterDirection::readCurrentValue` (`stutter/direction.h`) and its private `setValue`
-	// shift: the option index drops by one when "use song" is not offered.
+	// `StutterDirection::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`) and its private
+	// `setValue` shift: the option index drops by one when "use song" is not offered.
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
 	if (!sc) {
 		return 0;
@@ -180,7 +182,7 @@ int32_t get_stutter_direction(const MenuContext& ctx) {
 
 void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	// The private `getValue()` shift, then `applyOptionToStutter` over the affect-entire sweep
-	// (`stutter/direction.h`).
+	// (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`).
 	if (ctx.sink == nullptr) {
 		return;
 	}
@@ -201,8 +203,8 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 }
 
 bool stutter_rate_quantized(const MenuContext& ctx) {
-	// `stutter::Rate::isStutterQuantized` (`stutter/rate.cpp:70-76`): the song's setting when the sound uses the song's
-	// stutter.
+	// `stutter::Rate::isStutterQuantized` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): the song's setting
+	// when the sound uses the song's stutter.
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
 	if (!sc) {
 		return false;
@@ -217,10 +219,11 @@ bool stutter_rate_quantized(const MenuContext& ctx) {
 
 namespace {
 
-/// `stutter::Rate::optionValues` (`stutter/rate.cpp:26`).
+/// `stutter::Rate::optionValues` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`).
 constexpr std::array<int32_t, 5> kRateValues{0, 12, 25, 37, 50};
 
-/// `stutter::Rate::getClosestQuantizedOptionIndex` (`stutter/rate.cpp:84-95`): the first of equally near options.
+/// `stutter::Rate::getClosestQuantizedOptionIndex` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): the first
+/// of equally near options.
 size_t nearest_rate_option(int32_t value) {
 	size_t nearest = 0;
 	for (size_t i = 1; i < kRateValues.size(); i++) {
@@ -241,7 +244,7 @@ ValueText put_view(std::string_view text, std::span<char> out) {
 
 ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
 	// `stutter::Rate::renderInHorizontalMenu`, `getNotificationValue` and `drawPixelsForOled`
-	// (`stutter/rate.cpp:43-68`): quantized, the label of the nearest option value.
+	// (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): quantized, the label of the nearest option value.
 	if ((use != ValueTextUse::Column && use != ValueTextUse::Notification) || !stutter_rate_quantized(ctx)) {
 		return kValueTextFallback;
 	}
@@ -251,7 +254,7 @@ ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse 
 }
 
 std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, int32_t offset) {
-	// `stutter::Rate::selectEncoderAction` (`stutter/rate.cpp:28-41`).
+	// `stutter::Rate::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`).
 	if (!stutter_rate_quantized(ctx)) {
 		return std::nullopt;
 	}
@@ -260,7 +263,8 @@ std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, 
 }
 
 std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value) {
-	// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:133-156`) over its shifted `getValue()`.
+	// `stutter::StutterDirection::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`)
+	// over its shifted `getValue()`.
 	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
 	if (v == kUseSong) {
 		return deluge::ui::oled::ArtColumn{.text = "song"};
@@ -271,7 +275,8 @@ std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuConte
 }
 
 ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out) {
-	// `stutter::Direction::getNotificationValue` (`stutter/direction.h:129-132`): the SHORT option at the list index.
+	// `stutter::StutterDirection::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`):
+	// the SHORT option at the list index.
 	if (use != ValueTextUse::Notification) {
 		return kValueTextFallback;
 	}
@@ -284,13 +289,13 @@ ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTex
 }
 
 int32_t get_stutter_quantize(const MenuContext& ctx) {
-	// `stutter/quantized.h`'s `readCurrentValue`
+	// `origin/main:src/deluge/gui/menu_item/stutter/quantized.h`'s `readCurrentValue`
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);
 	return sc && sc->quantized ? 1 : 0;
 }
 void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
-	// `QuantizedStutter::writeCurrentValue` (`stutter/quantized.h`). The affect-entire sweep tests
-	// the *context's* `use_song_stutter`, not each drum's, as legacy does.
+	// `QuantizedStutter::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/stutter/quantized.h`). The
+	// affect-entire sweep tests the *context's* `use_song_stutter`, not each drum's, as legacy does.
 	if (ctx.sink == nullptr) {
 		return;
 	}
@@ -308,7 +313,8 @@ constexpr const Node* kRoots[] = {&sound_fx};
 const std::span<const Node* const> kSoundFxChildren{kRoots};
 
 void eq_page_draw(ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused) {
-	// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:127-152`): treble frequency counts up to 32 only.
+	// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`): treble
+	// frequency counts up to 32 only.
 	ui::oled::eq_graph(panel, static_cast<float>(bindings::read(eq_bass, ctx)) / 50.f,
 	                   static_cast<float>(bindings::read(eq_treble, ctx)) / 50.f,
 	                   static_cast<float>(bindings::read(eq_bass_freq, ctx)) / 50.f,

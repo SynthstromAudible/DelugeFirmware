@@ -8,14 +8,14 @@
 /// `paramShortcutsForSounds` names `&lpfFreqMenu` -- rather than walking `children` spans at
 /// runtime. The `.cpp` keeps the `get`/`set` hook bodies and the exported `k…Children` span.
 ///
-/// Transcribed from `gui/ui/menus.cpp`'s filter block, from `lpfModeMenu`, with the get/set logic of the two
-/// non-`ParamRef` items taken from the legacy classes they instantiated:
+/// Transcribed from `origin/main:src/deluge/gui/ui/menus.cpp`'s filter block, from `lpfModeMenu`, with the get/set
+/// logic of the two non-`ParamRef` items taken from the legacy classes they instantiated:
 ///
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `lpf_mode` | `lpfModeMenu` | `filter::FilterModeSelection` (`filter/mode.h:34`) |
-/// | `lpf_freq` | `lpfFreqMenu` | `filter::FilterParam` (`filter/param.h:33`) |
+/// | `lpf_mode` | `lpfModeMenu` | `filter::FilterModeSelection` (`origin/main:src/deluge/gui/menu_item/filter/mode.h`) |
+/// | `lpf_freq` | `lpfFreqMenu` | `filter::FilterParam` (`origin/main:src/deluge/gui/menu_item/filter/param.h`) |
 /// | `lpf_res` | `lpfResMenu` | `filter::FilterParam` |
 /// | `lpf_morph` | `lpfMorphMenu` | `filter::FilterParam` |
 /// | `lpf` | `lpfMenu` | `HorizontalMenu` |
@@ -28,23 +28,24 @@
 /// | `sound_filters` | `soundFiltersMenu` | `Submenu` |
 // clang-format on
 ///
-/// @note **The morph items' name.** `lpfMorphMenu` in `menus.cpp` passes `STRING_FOR_LPF_MORPH` as both the
-///       item's name and its title (not `STRING_FOR_MORPH` for the name), and `menus.cpp` is what the firmware
-///       ships, so that is what is transcribed. Legacy then overrides `getName()`/`getTitle()` to
-///       return the *filter mode's* morph name instead (`filter/param.h:40-41` ->
-///       `FilterInfo::getMorphNameOr`, `filter/info.h:78-89`), and its column label to the short
-///       morph name (`filter/param.h:47-49`). Neither is carried yet: the morph columns show the
-///       static name.
+/// @note **The morph items' name.** `lpfMorphMenu` in `origin/main:src/deluge/gui/ui/menus.cpp` passes
+///       `STRING_FOR_LPF_MORPH` as both the item's name and its title (not `STRING_FOR_MORPH` for the name), and
+///       `origin/main:src/deluge/gui/ui/menus.cpp` is what the firmware ships, so that is what is transcribed. Legacy
+///       then overrides `getName()`/`getTitle()` to return the *filter mode's* morph name instead
+///       (`origin/main:src/deluge/gui/menu_item/filter/param.h` -> `FilterInfo::getMorphNameOr`,
+///       `origin/main:src/deluge/gui/menu_item/filter/info.h`), and its column label to the short morph name
+///       (`FilterParam::getColumnLabel` in `origin/main:src/deluge/gui/menu_item/filter/param.h`). Neither is carried
+///       yet: the morph columns show the static name.
 ///
 /// @note **`Node::hint` on the four `FilterParam`s is `Bar`, not `Knob`.** `FilterParam` inherits
-///       `getRenderingStyle() == KNOB` (`gui/menu_item/number.h:48`) but overrides
-///       `renderInHorizontalMenu` to call `drawBar` -- or `drawSlider`, when the item is the MORPH
-///       one and the filter is an SVF (`filter/param.h:51-63`). The hint names what is drawn, which
-///       is the fact the toolkit needs; the mode-dependent slider is dynamic and has no `Node`
-///       spelling, so MORPH takes `Bar` too.
+///       `getRenderingStyle() == KNOB` (`origin/main:src/deluge/gui/menu_item/number.h`) but overrides
+///       `renderInHorizontalMenu` to call `drawBar` -- or `drawSlider`, when the item is the MORPH one and the filter
+///       is an SVF (`origin/main:src/deluge/gui/menu_item/filter/param.h`). The hint names what is drawn, which is the
+///       fact the toolkit needs; the mode-dependent slider is dynamic and has no `Node` spelling, so MORPH takes `Bar`
+///       too.
 ///
 /// @note **`FilterRouting` draws no label and raises no notification**: its `showColumnLabel()` and
-///       `showNotification()` are false (`filter_route.h:72-73`), so `filter_routing` is
+///       `showNotification()` are false (`origin/main:src/deluge/gui/menu_item/filter_route.h`), so `filter_routing` is
 ///       `without_column_label` and `without_notification`.
 
 #include "scenes/menu/node.h"
@@ -115,7 +116,7 @@ inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), k
 
 /// Four slots wide -- `FilterRouting::getOccupiedSlots()`, which draws the
 /// whole page rather than one column. Affect-entire routes only the drums with both filters on
-/// (`filter_route.h:49-50`).
+/// (`FilterRouting::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/filter_route.h`).
 inline constexpr Node filter_routing = with_affect_entire(with_option_list_column(without_notification(
     without_column_label(with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
                                                  {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
@@ -126,7 +127,7 @@ inline constexpr Node filter_routing = with_affect_entire(with_option_list_colum
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);
 
-/// @brief This file's contribution to `kBatch1Roots`: `soundFiltersMenu` (`menus.cpp`).
+/// @brief This file's contribution to `kBatch1Roots`: `soundFiltersMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 ///
 /// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
 extern const std::span<const Node* const> kSoundFiltersChildren;

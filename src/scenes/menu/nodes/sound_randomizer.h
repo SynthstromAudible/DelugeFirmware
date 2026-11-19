@@ -3,8 +3,7 @@
 /// @brief The randomizer page as data: `randomizer` and its twenty-four columns.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `randomizerMenu` literal (`:599-624`) and the globals it names
-/// (`:559-597`).
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `randomizerMenu` literal and the globals it names.
 ///
 /// **The page is eleven variant pairs plus two singletons.** Every randomizer setting exists twice:
 /// once as a `RandomizerUnpatchedParam` (or one of its two narrower siblings) reading an unpatched
@@ -16,31 +15,31 @@
 // clang-format off
 /// | node | legacy global | legacy class | param / field |
 /// |---|---|---|---|
-/// | `randomizer_lock` | `randomizerLockMenu` (`:543`) | `randomizer::RandomizerLock` (`randomizer_lock.h`) | `randomizerLock` |
-/// | `spread_gate` | `spreadGateMenu` (`:545`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
-/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` (`:547`) | `midi_cv::SpreadGate` (`midi_cv/spread_gate.h`) | `spreadGate` |
-/// | `spread_octave` | `spreadOctaveMenu` (`:549`) | `RandomizerSoundOnlyUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_OCTAVE` |
-/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` (`:551`) | `midi_cv::SpreadOctave` (`spread_octave.h`) | `spreadOctave` |
-/// | `spread_velocity` | `spreadVelocityMenu` (`:553`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_SPREAD_VELOCITY` |
-/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` (`:555`) | `midi_cv::SpreadVelocity` (`spread_velocity.h`) | `spreadVelocity` |
-/// | `ratchet_amount` | `ratchetAmountMenu` (`:557`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_RATCHET_AMOUNT` |
-/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` (`:559`) | `midi_cv::RatchetAmount` (`ratchet_amount.h`) | `ratchetAmount` |
-/// | `ratchet_probability` | `ratchetProbabilityMenu` (`:561`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_RATCHET_PROBABILITY` |
-/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` (`:564`) | `midi_cv::RatchetProbability` (`ratchet_probability.h`) | `ratchetProbability` |
-/// | `chord_polyphony` | `chordPolyphonyMenu` (`:566`) | `RandomizerNonKitSoundUnpatchedParam`, BAR | `UNPATCHED_ARP_CHORD_POLYPHONY` |
-/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` (`:568`) | `midi_cv::ChordPolyphony` (`chord_polyphony.h`) | `chordPolyphony` |
-/// | `chord_probability` | `chordProbabilityMenu` (`:570`) | `RandomizerNonKitSoundUnpatchedParam`, PERCENT | `UNPATCHED_ARP_CHORD_PROBABILITY` |
-/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` (`:573`) | `midi_cv::ChordProbability` (`chord_probability.h`) | `chordProbability` |
-/// | `note_probability` | `randomizerNoteProbabilityMenu` (`:575`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_NOTE_PROBABILITY` |
-/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` (`:577`) | `midi_cv::NoteProbability` (`note_probability.h`) | `noteProbability` |
-/// | `swap_probability` | `swapProbabilityMenu` (`:579`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_SWAP_PROBABILITY` |
-/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` (`:582`) | `midi_cv::SwapProbability` (`swap_probability.h`) | `swapProbability` |
-/// | `bass_probability` | `bassProbabilityMenu` (`:584`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_BASS_PROBABILITY` |
-/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` (`:587`) | `midi_cv::BassProbability` (`bass_probability.h`) | `bassProbability` |
-/// | `glide_probability` | `glideProbabilityMenu` (`:590`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_GLIDE_PROBABILITY` |
-/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` (`:593`) | `midi_cv::GlideProbability` (`glide_probability.h`) | `glideProbability` |
-/// | `reverse_probability` | `reverseProbabilityMenu` (`:595`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_REVERSE_PROBABILITY` |
-/// | `randomizer` | `randomizerMenu` (`:599`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `randomizer_lock` | `randomizerLockMenu` | `randomizer::RandomizerLock` (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_lock.h`) | `randomizerLock` |
+/// | `spread_gate` | `spreadGateMenu` | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
+/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` | `midi_cv::SpreadGate` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_gate.h`) | `spreadGate` |
+/// | `spread_octave` | `spreadOctaveMenu` | `RandomizerSoundOnlyUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_OCTAVE` |
+/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` | `midi_cv::SpreadOctave` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_octave.h`) | `spreadOctave` |
+/// | `spread_velocity` | `spreadVelocityMenu` | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_SPREAD_VELOCITY` |
+/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` | `midi_cv::SpreadVelocity` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_velocity.h`) | `spreadVelocity` |
+/// | `ratchet_amount` | `ratchetAmountMenu` | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_RATCHET_AMOUNT` |
+/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` | `midi_cv::RatchetAmount` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/ratchet_amount.h`) | `ratchetAmount` |
+/// | `ratchet_probability` | `ratchetProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_RATCHET_PROBABILITY` |
+/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` | `midi_cv::RatchetProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/ratchet_probability.h`) | `ratchetProbability` |
+/// | `chord_polyphony` | `chordPolyphonyMenu` | `RandomizerNonKitSoundUnpatchedParam`, BAR | `UNPATCHED_ARP_CHORD_POLYPHONY` |
+/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` | `midi_cv::ChordPolyphony` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/chord_polyphony.h`) | `chordPolyphony` |
+/// | `chord_probability` | `chordProbabilityMenu` | `RandomizerNonKitSoundUnpatchedParam`, PERCENT | `UNPATCHED_ARP_CHORD_PROBABILITY` |
+/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` | `midi_cv::ChordProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/chord_probability.h`) | `chordProbability` |
+/// | `note_probability` | `randomizerNoteProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_NOTE_PROBABILITY` |
+/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` | `midi_cv::NoteProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/note_probability.h`) | `noteProbability` |
+/// | `swap_probability` | `swapProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_SWAP_PROBABILITY` |
+/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` | `midi_cv::SwapProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/swap_probability.h`) | `swapProbability` |
+/// | `bass_probability` | `bassProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_BASS_PROBABILITY` |
+/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` | `midi_cv::BassProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/bass_probability.h`) | `bassProbability` |
+/// | `glide_probability` | `glideProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_GLIDE_PROBABILITY` |
+/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` | `midi_cv::GlideProbability` (`origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/glide_probability.h`) | `glideProbability` |
+/// | `reverse_probability` | `reverseProbabilityMenu` | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_REVERSE_PROBABILITY` |
+/// | `randomizer` | `randomizerMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
 /// @note **The `midi_cv` items use the *unsigned* value scaling** --
@@ -52,12 +51,11 @@
 ///       (`node.h`'s doc), and none of these is one. The hooks call
 ///       `bindings::unsigned_to_menu` / `menu_to_unsigned` instead.
 ///
-/// @note **`RandomizerLock` draws a padlock icon** rather than a checkbox
-///       (`randomizer_lock.h:52-56`), and is an `isToggle()` `Selection` like the arpeggiator's own
-///       mode toggle. Same call as `sound_arp.h`'s: `Kind::Enum` with the two options, no `Hint`.
-///       Unlike the arpeggiator's, `randomizer` is a `Layout::Horizontal` page, so
-///       `randomizer_lock` sets `Node::selection_is_toggle` -- see its own definition below and
-///       `node.h`'s doc.
+/// @note **`RandomizerLock` draws a padlock icon** rather than a checkbox (`RandomizerLock::renderInHorizontalMenu` in
+///       `origin/main:src/deluge/gui/menu_item/randomizer/randomizer_lock.h`), and is an `isToggle()` `Selection` like
+///       the arpeggiator's own mode toggle. Same call as `sound_arp.h`'s: `Kind::Enum` with the two options, no `Hint`.
+///       Unlike the arpeggiator's, `randomizer` is a `Layout::Horizontal` page, so `randomizer_lock` sets
+///       `Node::selection_is_toggle` -- see its own definition below and `node.h`'s doc.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -75,7 +73,8 @@ struct MenuContext;
 namespace deluge::scenes::menu::nodes {
 
 /// @brief One MIDI/CV randomizer column: the arp's host row at @p path, which a MIDI or CV arp holds as a setting and
-///        legacy's items write on the selected arp alone (`randomizer/midi_cv/randomizer_integer.h:22-32`).
+///        legacy's items write on the selected arp alone (each item's `writeCurrentValue` under
+///        `origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/`).
 #define DELUGE_RANDOMIZER_MIDI(node_name, name_id, title_id, path, hint)                                               \
 	inline constexpr Node node_name = with_short_column_label(                                                         \
 	    with_title(setting_item(sid(deluge::l10n::String::name_id), Kind::Int, arp_row(path, false), hint),            \
@@ -98,14 +97,16 @@ inline constexpr Node randomizer_lock =
                                            sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE))))),
                                        lock_art));
 
-// `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
-// ids need the arpeggiator on, the three global ones do not.
+// `RandomizerUnpatchedParam::isRelevant`
+// (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`) -- the non-global ids need the
+// arpeggiator on, the three global ones do not.
 DELUGE_RANDOMIZER_PARAM(spread_gate, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                         UNPATCHED_ARP_SPREAD_GATE, param_shows::kRandomizer, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_gate_midi, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                        "arpeggiator/spreadGate", Hint::Bar);
 
-// `RandomizerSoundOnlyUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:37-40`).
+// `RandomizerSoundOnlyUnpatchedParam::isRelevant`
+// (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`).
 DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                         UNPATCHED_ARP_SPREAD_OCTAVE, param_shows::kRandomizerSoundOnly, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
@@ -132,7 +133,8 @@ DELUGE_RANDOMIZER_PARAM(ratchet_probability, STRING_FOR_RATCHET_PROBABILITY,
 DELUGE_RANDOMIZER_MIDI(ratchet_probability_midi, STRING_FOR_RATCHET_PROBABILITY,
                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "arpeggiator/ratchetProbability", Hint::Percent);
 
-// `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h`).
+// `RandomizerNonKitSoundUnpatchedParam::isRelevant`
+// (`origin/main:src/deluge/gui/menu_item/randomizer/randomizer_unpatched_param.h`).
 DELUGE_RANDOMIZER_PARAM(chord_polyphony, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
                         UNPATCHED_ARP_CHORD_POLYPHONY, param_shows::kRandomizerNonKit, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(chord_polyphony_midi, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
@@ -163,7 +165,7 @@ DELUGE_RANDOMIZER_PARAM(glide_probability, STRING_FOR_GLIDE_PROBABILITY, STRING_
 DELUGE_RANDOMIZER_MIDI(glide_probability_midi, STRING_FOR_GLIDE_PROBABILITY,
                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, "arpeggiator/glideProbability", Hint::Percent);
 
-// The one setting with no MIDI/CV twin (`menus.cpp:595-597`).
+// The one setting with no MIDI/CV twin (`reverseProbabilityMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`).
 DELUGE_RANDOMIZER_PARAM(reverse_probability, STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
                         UNPATCHED_REVERSE_PROBABILITY, ParamShows{}, Hint::Percent);
 

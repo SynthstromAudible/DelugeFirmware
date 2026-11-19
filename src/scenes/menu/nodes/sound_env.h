@@ -2,14 +2,13 @@
 
 /// @brief The four envelope subtrees as data: `env1` .. `env4`, each an ADSR page.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s envelope block, from `env1AttackMenu`. Every leaf is an `envelope::Segment`
-/// (`gui/menu_item/envelope/segment.h:24`), which is a `source::PatchedParam` -- a patched param
-/// whose index is `p + source_id_` (`gui/menu_item/source/patched_param.h:21`), with the envelope
-/// number playing the part of the source id. The legacy menu therefore uses
-/// `params::LOCAL_ENV_0_ATTACK` with an envelope index of 0..3 and the four attack params come out
-/// consecutive (`modulation/params/param.h:112-115`), which is exactly what a `ParamRef` carries
-/// directly here.
+/// `inline constexpr` for the reason `sound_filters.h` explains. From `origin/main:src/deluge/gui/ui/menus.cpp`'s
+/// envelope block, from `env1AttackMenu`. Every leaf is an `envelope::Segment`
+/// (`origin/main:src/deluge/gui/menu_item/envelope/segment.h`), which is a `source::PatchedParam` -- a patched param
+/// whose index is `p + source_id_` (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`), with the envelope
+/// number playing the part of the source id. Main's menu therefore uses `params::LOCAL_ENV_0_ATTACK` with an envelope
+/// index of 0..3 and the four attack params come out consecutive (`Local` in `modulation/params/param.h`), which is
+/// exactly what a `ParamRef` carries directly here.
 ///
 // clang-format off
 /// | node | legacy global | param |
@@ -18,17 +17,17 @@
 /// | `env<n>_decay` | `env<n>DecayMenu` | `LOCAL_ENV_<n-1>_DECAY` |
 /// | `env<n>_sustain` | `env<n>SustainMenu` | `LOCAL_ENV_<n-1>_SUSTAIN` |
 /// | `env<n>_release` | `env<n>ReleaseMenu` | `LOCAL_ENV_<n-1>_RELEASE` |
-/// | `env<n>` | `env<n>Menu` | -- (`envelope::EnvelopeMenu`, `envelope/envelope_menu.h:26`) |
+/// | `env<n>` | `env<n>Menu` | -- (`envelope::EnvelopeMenu`, `origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) |
 // clang-format on
 ///
 /// @note **A known gap, `envelope::EnvelopeMenu`'s.** It overrides `renderMenuItems`
-///       (`envelope_menu.h:37-97`) to draw one ADSR curve across the whole page instead of four
-///       column meters -- a page-level renderer `Node` has no field for, so the four columns fall
-///       back to their own hints (`Number`'s default knob: `Segment` overrides no
-///       `getRenderingStyle`). Its name and title are a `FormattedTitle`
-///       (`envelope_menu.h:31-34`) substituting the envelope number into
-///       `STRING_FOR_ENVELOPE_MENU_TITLE`, as each `Segment`'s title is (`envelope/segment.h:27`);
-///       every node here carries that number as its `title_arg`.
+///       (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) to draw one ADSR curve across the whole page
+///       instead of four column meters -- a page-level renderer `Node` has no field for, so the four columns fall back
+///       to their own hints (`Number`'s default knob: `Segment` overrides no `getRenderingStyle`). Its name and title
+///       are a `FormattedTitle` (`EnvelopeMenu::getName` and `EnvelopeMenu::getTitle`) substituting the envelope number
+///       into `STRING_FOR_ENVELOPE_MENU_TITLE`, as each `Segment`'s title is
+///       (`origin/main:src/deluge/gui/menu_item/envelope/segment.h`); every node here carries that number as its
+///       `title_arg`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -41,8 +40,8 @@ namespace deluge::scenes::menu::nodes {
 /// @brief One segment of envelope @p index.
 ///
 /// `params::LOCAL_ENV_0_*` + @p index is `source::PatchedParam::getP()`
-/// (`gui/menu_item/source/patched_param.h:28`) written out: the four envelopes' copies of each
-/// parameter are consecutive enumerators (`modulation/params/param.h:86-89,112-123`).
+/// (`origin/main:src/deluge/gui/menu_item/source/patched_param.h`) written out: the four envelopes' copies of each
+/// parameter are consecutive enumerators (`Local` in `modulation/params/param.h`).
 constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index) {
 	return with_patch_chain(
 	    param(name, {deluge::modulation::params::Kind::PATCHED, static_cast<uint8_t>(first_param + index)}, Hint::Knob,
