@@ -89,6 +89,11 @@ SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) 
 	return state;
 }
 
+SoundState with_song_defaults(SoundState state, const effects::SongDefaults& defaults) {
+	state.effects = effects::with_song_defaults(state.effects, defaults);
+	return state;
+}
+
 SoundState as_sample_sound(SoundState state) {
 	state.polyphonic = PolyphonyMode::AUTO;
 	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;

@@ -44,6 +44,10 @@ namespace deluge::instrument {
 /// leaving it gives that up.
 [[nodiscard]] SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode);
 
+/// @brief @p state with the effect settings that follow the song set from @p defaults: a new sound is
+/// `with_song_defaults(SoundState{}, defaults)`.
+[[nodiscard]] SoundState with_song_defaults(SoundState state, const effects::SongDefaults& defaults);
+
 /// @brief @p state set up to play samples (a new kit row, the sample browser's preview): polyphony automatic, the 24dB
 /// ladder low-pass, both oscillators sample ones.
 [[nodiscard]] SoundState as_sample_sound(SoundState state);

@@ -101,6 +101,21 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		    .to_equal(true);
 	});
 
+	it("takes the effect settings that follow the song from the song's defaults, and keeps the rest", _ {
+		const deluge::effects::SongDefaults song{.delay_sync_level = deluge::plugin::SyncLevel::EIGHTH,
+		                                          .sidechain = {.attack = 3, .release = 4,
+		                                                        .sync_type = deluge::plugin::SyncType::EVEN,
+		                                                        .sync_level = deluge::plugin::SyncLevel::QUARTER}};
+		SoundState s;
+		s.effects.delay.ping_pong = false;
+		const SoundState fresh = with_song_defaults(s, song);
+		expect(fresh.effects.delay.sync_level).to_equal(deluge::plugin::SyncLevel::EIGHTH);
+		expect(fresh.effects.sidechain.attack).to_equal(3);
+		expect(fresh.effects.sidechain.release).to_equal(4);
+		expect(fresh.effects.sidechain.sync_level).to_equal(deluge::plugin::SyncLevel::QUARTER);
+		expect(fresh.effects.delay.ping_pong).to_be_false();
+	});
+
 	it("sets a sound up for samples, keeping the rest", _ {
 		SoundState s;
 		s.unison_detune = 33;

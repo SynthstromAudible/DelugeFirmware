@@ -24,22 +24,19 @@
 
 namespace deluge::model {
 
+deluge::effects::SongDefaults songDefaults() {
+	// The song being loaded, or else the current one; with none, the stored default magnitude
+	const Song* song = preLoadedSong != nullptr ? preLoadedSong : currentSong;
+	const int32_t magnitude = song != nullptr
+	                              ? song->project.transport.inside_world_tick_magnitude
+	                                    + song->project.transport.inside_world_tick_magnitude_offset_from_bpm
+	                              : FlashStorage::defaultMagnitude;
+	return {.delay_sync_level = static_cast<SyncLevel>(8 - magnitude),
+	        .sidechain = modulation::default_sidechain_state()};
+}
+
 EffectsBinding::EffectsBinding() {
-	SyncLevel syncLevel;
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8
-		                        - (song->project.transport.inside_world_tick_magnitude
-		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
-	own_.delay.sync_level = syncLevel;
-	own_.sidechain = modulation::default_sidechain_state();
+	own_ = deluge::effects::with_song_defaults(own_, songDefaults());
 	snapshot_.effects = own_; // nothing renders this owner yet
 }
 
