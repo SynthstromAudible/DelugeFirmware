@@ -169,13 +169,9 @@ public:
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
 
-	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
-	                                uint32_t paramID) override {
-		if (kind == deluge::modulation::params::Kind::EXPRESSION) {
-			return expressionChangeMatters(old_value, new_value, static_cast<int32_t>(paramID));
-		}
-		return old_value >> 25 != new_value >> 25;
-	}
+	/// @brief A CC lane of this instrument's clip moved from @p oldValue to @p newValue: sends CC @p cc on the
+	///        instrument's channel when its 7-bit value changed.
+	void ccValueChanged(int32_t cc, int32_t oldValue, int32_t newValue);
 
 	/// @brief An expression change matters when the MIDI it sends moves: pitch bend's 14 bits, or the 7 bits of
 	///        aftertouch and the mod wheel.

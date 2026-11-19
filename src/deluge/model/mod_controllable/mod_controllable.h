@@ -16,29 +16,14 @@
  */
 
 #pragma once
-#include "controls/knob_focus.h"
-#include "definitions_cxx.hpp"
 #include "model/fx/effects_owner.h"
-#include "modulation/params/param.h"
 
 #include <optional>
 
-class ParamManagerForTimeline;
-class ParamManagerForTimeline;
-class InstrumentClip;
-class Action;
-class ParamManagerForTimeline;
-class AutoParam;
-class ParamCollection;
-class Sound;
-class TimelineCounter;
-class ModelStackWithAutoParam;
-class ModelStackWithThreeMainThings;
-
-/// Base class for things that the internal modulation engine knows how to control.
+/// The ModelStack owner slot's view of an owner: its effects, for code that holds only a ModelStack.
 ///
-/// Responsible for reacting to the mod (gold) encoders and MIDI data (CC+MPE) as well as providing a consistent
-/// interface to the rest of the system when displaying information about the underlying modulation state.
+/// Instruments answer their own note tails (Voiced), expression events (Drum, MelodicInstrument) and CC output
+/// (MIDIInstrument). This class goes with the slot when ModelStack is retired.
 class ModControllable {
 public:
 	ModControllable() = default;
@@ -47,8 +32,4 @@ public:
 	/// slot when ModelStack is retired; an owner in a song is otherwise found by address.
 	/// @return The owner's effects; nullopt for an owner without any (a MIDI or CV instrument).
 	[[nodiscard]] virtual std::optional<deluge::model::EffectsOwner> effectsOwner() { return std::nullopt; }
-	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
-	                                        uint32_t paramID) {
-		return old_value != new_value;
-	}
 };
