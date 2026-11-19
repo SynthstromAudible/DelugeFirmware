@@ -16,8 +16,8 @@
  */
 
 /// @file
-/// @brief The choice seam's consumer. See `shell_choice_dispatch.h` for why it lives here, why its
-///        caller may not gate it, and what the split between the choosing and acting halves is for.
+/// @brief The ported browser's host. See `shell_choice_dispatch.h` for why it lives here and how its answers reach the
+///        browser.
 
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_slice_ops.h"
@@ -82,6 +82,7 @@ struct BrowserAnswer {
 		DeferredLoadDone,    ///< A load the browser waits on ended: `BrowserScene::deferred_load_done`.
 		DxReadSettled,       ///< The `.syx` read ended or could not start: `deliverDxCartridgeRead`.
 		SliceReady,          ///< The slicer's open ended: `BrowserScene::slice_ready`.
+		PreviewSettled,      ///< A preview's load ended, or the preview stopped: `BrowserScene::preview_settled`.
 	};
 	Kind kind = Kind::DxReadSettled;
 	/// Claimed, imported, loaded or opened; for a preview, a sample to draw.
@@ -363,29 +364,16 @@ PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	};
 }
 
-/// @brief Act on the ported browser's preview request, and tick the preview in hand: a file is previewed as the legacy
-///        browser's `previewFile` does, an empty path stops previewing as its `cancelPreview` and `stopAnyPreviewing`
-///        do; a load that ends, or a stop, is answered through `BrowserScene::preview_settled`.
-void dispatchPreview() {
+/// @brief Tick the preview in hand, as the legacy browser's `tickPreview` does: a load that ends is answered through
+///        `BrowserScene::preview_settled`.
+void tickPreview() {
 	SamplePreviewer& previewer = shellPreviewer();
-	if (const std::optional<PreviewRequest> request = browser_scene().take_preview()) {
-		// A move supersedes an auto-load claim of the file it has left (`previewFile`, `cancelPreview`).
-		claimCancel();
-		if (request->path.empty()) {
-			previewer.cancel();
-			AudioEngine::stopAnyPreviewing();
-			browser_scene().preview_settled(false);
-		}
-		else {
-			previewer.request(request->path, request->direction);
-		}
-	}
 	if (!previewer.pending()) {
 		return;
 	}
 	if (const std::optional<SamplePreviewer::Landed> landed =
 	        previewer.tick(previewSoundFor(deluge::scenes::menu_scene().menu_context()))) {
-		browser_scene().preview_settled(landed->hasSample);
+		answerBrowser({.kind = BrowserAnswer::Kind::PreviewSettled, .success = landed->hasSample});
 	}
 }
 
@@ -686,6 +674,9 @@ void deliverAnswer(const BrowserAnswer& answer) {
 	case BrowserAnswer::Kind::SliceReady:
 		browser_scene().slice_ready(answer.success);
 		break;
+	case BrowserAnswer::Kind::PreviewSettled:
+		browser_scene().preview_settled(answer.success);
+		break;
 	}
 }
 
@@ -697,6 +688,21 @@ public:
 		const Performing performing;
 		dispatchChoice(choice);
 	}
+	/// A file is previewed as the legacy browser's `previewFile` does; an empty path stops previewing as its
+	/// `cancelPreview` and `stopAnyPreviewing` do.
+	void preview(const PreviewRequest& request) override {
+		const Performing performing;
+		// A move supersedes an auto-load claim of the file it has left (`previewFile`, `cancelPreview`).
+		claimCancel();
+		SamplePreviewer& previewer = shellPreviewer();
+		if (request.path.empty()) {
+			previewer.cancel();
+			AudioEngine::stopAnyPreviewing();
+			answerBrowser({.kind = BrowserAnswer::Kind::PreviewSettled, .success = false});
+			return;
+		}
+		previewer.request(request.path, request.direction);
+	}
 };
 
 /// @brief The one host, made on first use.
@@ -707,12 +713,11 @@ ShellBrowserHost& shellBrowserHost() {
 
 } // namespace
 
-void dispatchShellChoices() {
-	// Every step runs on every tick: nothing announces a held answer, a read or a load in flight, or a scroll asked
-	// for.
+void pollShellBrowserHost() {
+	// The held answers first: a scroll one asks for is started below, before the next tick renders the pads.
 	deliverShellBrowserAnswers();
 	pollDxCartridgeRead();
-	dispatchPreview();
+	tickPreview();
 	dispatchScroll();
 }
 

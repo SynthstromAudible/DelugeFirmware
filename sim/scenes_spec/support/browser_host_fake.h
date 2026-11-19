@@ -16,6 +16,17 @@ namespace deluge::scenes::spec {
 class FakeBrowserHost final : public deluge::scenes::browser::BrowserHost {
 public:
 	void perform(const deluge::scenes::browser::BrowserChoice& choice) override { performed_.push_back(choice); }
+	void preview(const deluge::scenes::browser::PreviewRequest& request) override { previews_.push_back(request); }
+
+	/// @brief The last preview asked for since the last take or clear, once; nothing when none was.
+	std::optional<deluge::scenes::browser::PreviewRequest> take_preview() {
+		if (previews_.empty()) {
+			return std::nullopt;
+		}
+		std::optional<deluge::scenes::browser::PreviewRequest> last{std::move(previews_.back())};
+		previews_.clear();
+		return last;
+	}
 
 	/// @brief The last choice performed since the last take or clear, once; nothing when none was.
 	std::optional<deluge::scenes::browser::BrowserChoice> take_choice() {
@@ -29,10 +40,14 @@ public:
 	/// @brief Every choice performed since the last take or clear, in order.
 	[[nodiscard]] const std::vector<deluge::scenes::browser::BrowserChoice>& performed() const { return performed_; }
 	/// @brief Forget every request.
-	void clear() { performed_.clear(); }
+	void clear() {
+		performed_.clear();
+		previews_.clear();
+	}
 
 private:
 	std::vector<deluge::scenes::browser::BrowserChoice> performed_{};
+	std::vector<deluge::scenes::browser::PreviewRequest> previews_{};
 };
 
 /// @brief The process's one fake host. A scenes spec runs one file per process, so one instance serves its examples.

@@ -319,13 +319,13 @@ struct BrowserChoice {
 	bool keep_open = false;
 };
 
-/// @brief The application's half of the file browser: the loads, claims, imports, slices and deletions that reach
-///        objects this layer may not name (`Descriptor::accept`).
+/// @brief The application's half of the file browser: the loads, claims, imports, slices, deletions and previews that
+///        reach objects this layer may not name (`Descriptor::accept`).
 ///
 /// A request is performed when the browser makes it. How it ends comes back through `BrowserScene`'s answer methods
-/// (`deferred_load_done`, `long_press_done`, `slice_ready`, `file_deleted`), never from inside the call: an answer the
-/// request produces before it returns is held by the host and delivered after the shell's tick, so no answer reaches
-/// a scene from inside the hook that asked.
+/// (`deferred_load_done`, `long_press_done`, `slice_ready`, `file_deleted`, `preview_settled`), never from inside the
+/// call: an answer the request produces before it returns is held by the host and delivered after the shell's tick, so
+/// no answer reaches a scene from inside the hook that asked.
 class BrowserHost {
 public:
 	virtual ~BrowserHost() = default;
@@ -333,6 +333,9 @@ public:
 	///        definition's load, or the `.syx` bank's read or deletion.
 	/// @param choice What the browser asks for, and on which item.
 	virtual void perform(const BrowserChoice& choice) = 0;
+	/// @brief Preview @p request's file with the shared previewer, or stop previewing for an empty path.
+	/// @param request The file the selection landed on, and the move that landed it.
+	virtual void preview(const PreviewRequest& request) = 0;
 };
 
 /// @brief The host that performs nothing: the browser's until an application installs one (`BrowserScene::set_host`).
@@ -569,18 +572,12 @@ public:
 	/// @param path The deleted file's full path.
 	void file_deleted(std::string_view path);
 
-	/// @brief Take the preview the selection last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains
-	/// it
-	///        every guest tick after `take_choice()`. One deep: a later request overwrites one not yet taken, as
-	///        legacy's latest-wins preview does.
-	/// @return The request, or `std::nullopt` when none is waiting.
-	std::optional<PreviewRequest> take_preview();
 	/// @brief The host's answer to the request in hand: its load ended, with a sample in the preview drum or not, or
 	/// the
 	///        preview was stopped.
 	/// @param has_sample Whether the preview drum holds a sample to draw.
 	void preview_settled(bool has_sample);
-	/// @brief Take the scroll the browser last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains it
+	/// @brief Take the scroll the browser last asked for, for `deluge::gui::ui::pollShellBrowserHost`, which takes it
 	///        after the preview. A scroll of the browser's own pads is handed over only once they hold what scrolls in.
 	/// @return The request, or `std::nullopt` when none is ready.
 	std::optional<ScrollRequest> take_scroll();
@@ -588,7 +585,7 @@ public:
 	///        pads the scroll brings in are not first sent whole.
 	[[nodiscard]] bool scroll_pending() const { return pad_scroll_.has_value() || waveform_scroll_ != 0; }
 	/// @brief Whether a preview was asked for and the host has not yet answered; `next_timer()` polls meanwhile, so the
-	///        host's dispatcher keeps ticking the load.
+	///        host's poll keeps ticking the load.
 	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
 
 	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
@@ -790,7 +787,6 @@ private:
 	int32_t scroll_ = 0;
 	/// @}
 
-	std::optional<PreviewRequest> preview_{};
 	std::optional<ScrollRequest> pad_scroll_{};
 	/// A waveform to scroll in once drawn: the move's direction, or 0. `after_render` files it after a grid pass
 	/// that drew the waveform.

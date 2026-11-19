@@ -142,8 +142,8 @@ struct CleanBrowser {
 		// Collects an uncollected result (releasing the catalogue claim) and empties the catalogue.
 		browser_scene().on_exit();
 		fake_browser_host().clear();
-		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
-		(void)browser_scene().take_preview();
+		// Answers the stop that exit asked for, and drops the last file an example previewed, which a fresh browser
+		// opens beside.
 		browser_scene().preview_settled(false);
 		deluge::model::lastFilePathLoaded().clear();
 		Deferred::reset();

@@ -225,7 +225,7 @@
 11300  pad 17 4 up
 
 # **The claim.** A select press on the file is `BrowserScene`'s deferred choice (`main`'s
-# `SampleBrowser::enterKeyPress` file arm) going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
+# `SampleBrowser::enterKeyPress` file arm) going through `ShellBrowserHost::perform` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
 #

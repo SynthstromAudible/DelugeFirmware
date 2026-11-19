@@ -513,8 +513,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// tick, or requests are dropped or stale**" (the same warning). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
 	//
-	// It is not the only such poll: `dispatchShellChoices()` below is the same poll for the *browser's*
-	// own outbox, which is a second mailbox with a second producer.
+	// The browser host's poll below sits in the same place for its own reasons.
 	//
 	// **After the tick**, because a request is filed by `MenuScene::after_render`, and `after_render`
 	// is what `Shell::tick` runs as its step 7 -- a poll above
@@ -539,19 +538,10 @@ ActionResult ShellHostUI::timerCallback() {
 	// never moves the value node, so nothing turns on the order.
 	dispatchMenuTransitions();
 
-	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
-	// the same two reasons.**
-	//
-	// `BrowserScene::take_choice()` is the menu outbox's twin:
-	// one slot, filled by `Descriptor::accept`'s `DeferAndWait` answer, announcing nothing. **After the
-	// tick**, because the choice is filed while `Shell::tick` routes the press
-	// (`BrowserScene::enter_key_press`, reached from step 3's `pump_input` or step 7's
-	// `after_render`). **Above the close check**, so
-	// no path through this function can skip it. **Unconditional**, because asking is what takes it.
-	//
-	// **After `dispatchShellActions()`**, for the one interaction `shell_choice_dispatch.h` states in full. The
-	// browser is still up when this runs: it waits for the claim this starts.
-	dispatchShellChoices();
+	// The browser host's poll: the answers this tick's requests left held, the `.syx` read, the preview's load and the
+	// browser's scroll. After the tick, because the answers were produced inside it; above the close check, so the
+	// closing tick's answers are delivered; unconditional, because nothing announces any of them.
+	pollShellBrowserHost();
 
 	// The slicer's loads -- the open a SLICE asked for above, an audition, a slice -- advance on the guest's ticks, as
 	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.

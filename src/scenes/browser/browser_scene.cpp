@@ -401,6 +401,7 @@ namespace {
 class NullBrowserHost final : public BrowserHost {
 public:
 	void perform(const BrowserChoice& /*choice*/) override {}
+	void preview(const PreviewRequest& /*request*/) override {}
 };
 } // namespace
 
@@ -517,11 +518,11 @@ void BrowserScene::on_exit() {
 	pending_.reset();
 	// `SampleBrowser::exitAction` and `exitAndNeverDeleteDrum` stop the preview; nothing is left to preview.
 	if (id_ == BrowserId::Sample) {
-		preview_ = PreviewRequest{.id = id_};
 		preview_outstanding_ = true;
 		preview_path_.clear();
 		preview_direction_ = 0;
 		favourites().close(); // `Browser::close`
+		host().preview(PreviewRequest{.id = id_});
 	}
 	xenc_held_ = false;
 	pad_scroll_.reset();
@@ -548,12 +549,6 @@ std::string_view BrowserScene::current_dir() const {
 std::optional<ScrollRequest> BrowserScene::take_scroll() {
 	std::optional<ScrollRequest> out = pad_scroll_;
 	pad_scroll_.reset();
-	return out;
-}
-
-std::optional<PreviewRequest> BrowserScene::take_preview() {
-	std::optional<PreviewRequest> out = std::move(preview_);
-	preview_.reset();
 	return out;
 }
 
@@ -632,8 +627,8 @@ void BrowserScene::file_preview(int8_t direction) {
 	}
 	preview_path_ = request.path;
 	preview_direction_ = direction;
-	preview_ = std::move(request);
 	preview_outstanding_ = true;
+	host().preview(request);
 }
 
 void BrowserScene::arrive_in_new_folder() {
@@ -2244,7 +2239,7 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 
-	// A preview or a `DeferAndWait` load the host has not answered: the host's dispatcher ticks its load only when the
+	// A preview or a `DeferAndWait` load the host has not answered: the host's poll ticks its load only when the
 	// guest is woken.
 	if (preview_outstanding_ || awaiting_deferred_) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;

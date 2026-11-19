@@ -18,30 +18,27 @@
 #pragma once
 
 /// @file
-/// @brief The consumer half of the **browser's** choice seam -- the noun half of the wall
-///        `gui/ui/shell_action_dispatch.h` is the verb half of.
+/// @brief The ported browser's host: the claims, imports, slices, deletions, MIDI definition loads, `.syx` reads and
+///        previews `BrowserScene` asks for, performed with the legacy objects the scenes layer may not name.
 ///
-/// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::DeferAndWait`, `BrowserScene::enter_key_press` parks the chosen path and keeps the browser up, and
-/// `BrowserScene::take_choice()` hands it out exactly once; the claim's completion answers `deferred_load_done`.
+/// The browser hands each request to its `BrowserHost` (`scenes/browser/browser_scene.h`) when it decides, and
+/// `wireShellBrowserHost` installs this file's host there. `SampleBrowser::enterKeyPress`'s file arm requests a claim
+/// from `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
+/// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`: `gui/` and `hid/` symbols the scenes layer may not name
+/// (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 ///
-/// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
-/// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
-/// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView` -- `gui/` and `hid/` symbols the
-/// scenes layer may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
-/// `Descriptor::accept`'s own note says the same thing from the other side
-/// (`scenes/browser/browser_scene.h`).
+/// **How answers reach the browser.** An answer produced before the request returns would reach the scene that asked
+/// from inside its own hook, so it is held. `pollShellBrowserHost` delivers held answers after the shell's tick, and
+/// `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. Every other answer
+/// is delivered when it arrives.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
-/// Both of `shell_action_dispatch.h`'s reasons, unchanged. **In `gui/ui/`** because performing a
-/// choice is exactly the half that gets to name the five symbols above. **Its own translation unit**
-/// because it also names `deluge::scenes::browser::browser_scene()`, and so belongs to the
-/// `deluge_scenes` closure the host spec suite deliberately never builds
-/// (`tests/trees/host/CMakeLists.txt`): naming it inside `gui/ui/shell_host_ui.cpp` would take that file's
-/// specs off the board. The host suite stubs this one symbol in
-/// `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
-/// `wireShellGuestServices`.
+/// **In `gui/ui/`** because performing a request is exactly the half that gets to name the symbols above. **Its own
+/// translation unit** because it names `deluge::scenes::browser::browser_scene()`, and so belongs to the
+/// `deluge_scenes` closure the host spec suite never builds (`tests/trees/host/CMakeLists.txt`). The host suite stubs
+/// the two functions the guest calls (`pollShellBrowserHost`, `deliverShellBrowserAnswers`) in
+/// `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`. This header names no `scenes/` type.
 
 #include "gui/ui/sound_target.h"
 
@@ -69,11 +66,11 @@ SamplePreviewer& shellPreviewer();
 ///
 /// This is `SampleBrowser::getCurrentFilePath()` run backwards: `currentDir`, a separator when
 /// `currentDir` is non-empty, then the filename with its extension. `BrowserScene::enter_key_press` builds the
-/// parked path the same way, so the two spellings agree. The claim takes the whole path; the split
+/// chosen path the same way, so the two spellings agree. The claim takes the whole path; the split
 /// gives the filename the claim's entered text is made from, and rejects a path that names no file.
 ///
 /// Both members point **into the caller's path**; neither owns storage. The `BrowserChoice` the
-/// dispatcher splits outlives every use of the target inside `dispatchShellChoices`.
+/// host splits outlives every use of the target inside the request.
 struct SampleClaimTarget {
 	/// The directory, as `Browser::currentDir` spells it: empty for a file at the card root.
 	std::string_view dir;
@@ -91,11 +88,11 @@ struct SampleClaimTarget {
 ///         separator is the last character -- neither of which names a file to claim.
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);
 
-/// @brief The arguments the drain claims with.
+/// @brief The arguments the browser host claims with.
 ///
 /// `ClaimRequest`'s three detection choices (`gui/ui/browser/sample_claim.h`) plus the one that
 /// differs from the browser's own Enter, named so a spec can read it rather than find it as a
-/// literal inside the dispatcher.
+/// literal inside the browser host.
 struct SampleClaimArgs {
 	/// 0 no, 1 auto, 2 definitely: the browser's own value.
 	int32_t mayDoPitchDetection;
@@ -105,14 +102,14 @@ struct SampleClaimArgs {
 	int32_t mayDoWaveTable;
 };
 
-/// @brief What `dispatchShellChoices` claims with: the browser's three defaults.
+/// @brief What the browser host claims with: the browser's three defaults.
 ///
 /// The same values the Load button's auto-load claims with: load the file into the sound as if
 /// confirmed. The ported browser waits on the claim's completion and closes itself.
 inline constexpr SampleClaimArgs kShellSampleClaimArgs{
     .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1};
 
-/// @brief The completion `dispatchShellChoices` gives the claim it requests for a `Sample` choice.
+/// @brief The completion the browser host gives the claim it requests for a `Sample` choice.
 ///
 /// On success it asks for the render and re-roots the menu over the claimed source,
 /// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`.
@@ -215,7 +212,7 @@ void wireShellBrowserHost();
 /// @brief Deliver the browser answers held since the last delivery, in the order they came.
 ///
 /// An answer a request produces before it returns would reach the scene that asked from inside its own hook, so the
-/// host holds it. The guest's after-tick poll delivers held answers first, before the next `Shell::tick`.
+/// host holds it. `pollShellBrowserHost` delivers held answers first, before the next `Shell::tick`.
 /// `ShellHostUI::closeGuest` and `ShellHostUI::uisTakenDown` deliver what their stack's exits left. Every other answer
 /// is delivered when it arrives.
 void deliverShellBrowserAnswers();
@@ -223,55 +220,17 @@ void deliverShellBrowserAnswers();
 /// @return Whether a browser answer is held for `deliverShellBrowserAnswers`.
 bool shellBrowserAnswersHeld();
 
-/// @brief Take whatever the ported browser chose, if anything, and perform it.
+/// @brief The browser host's share of every guest tick: deliver the answers held since the last poll, collect the
+///        `.syx` read, tick the preview in hand, and run or hold the browser's scroll.
 ///
-/// @par Call this after every `Shell::tick`, and do not gate it
+/// @par Call this after every `Shell::tick`, above the close check, and do not gate it
 ///
-/// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
-/// returns an ordinary `Result`, so no `Action` says a
-/// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
-/// (`scenes/menu/menu_scene.h`, the warning on `take_action`) in the same shape, and it lands as the same requirement
-/// on this function's *caller*: poll after every tick, or a choice is delivered whenever something next asks, against
-/// whatever song and clip exist then.
-///
-/// So the one call site (`ShellHostUI::timerCallback`) makes the poll unconditional, and sits
-/// **after** `Shell::tick` and **above** the close check that can return early -- both for the
-/// reasons `dispatchShellActions`' call site gives, and one more that is this drain's own.
-///
-/// @par The browser is still up while the claim runs
-///
-/// `DeferAndWait` parks and stays: `choice_ = BrowserChoice{...}` and `awaiting_deferred_` are set together, and the
-/// browser refuses input while the claim is in flight (`RuntimeFacts::sample_load_in_flight`). The claim's completion,
-/// `shellSampleClaimDone`, answers `deferred_load_done` and re-roots the covered menu; the browser closes on its next
-/// render, as `claimCurrentFile` closes `main`'s once the file is in.
-///
-/// @par Order against `dispatchShellActions`, and whether both can be pending at once
-///
-/// Both drains run after `Shell::tick`, actions first. A choice is parked while the browser is the input top, so the
-/// menu beneath files nothing on that tick; the order matters only for the one interaction below.
-///
-/// Neither drain reads the other's mailbox and neither is gated on the other, so the order changes
-/// nothing observable. It is fixed as **actions, then choices** for the one interaction that is
-/// real: `MenuAction::StartStemExport`'s arm removes the ported menu from
-/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp`), and the
-/// re-rooting the claim performs writes that same menu's navigation state
-/// (`BrowserScene`'s note on the sample dispatcher, applied through
-/// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be
-/// applied to a menu the same tick's verb was about to take off the stack.
-///
-/// @par The preview, after the choice
-///
-/// Then `BrowserScene::take_preview()`, the sample browser's other outbox, one deep in the same way: a file is
-/// previewed (the shared `SamplePreviewer`, loading into `AudioEngine::sampleForPreview`), an empty path stops
-/// previewing; and on every tick the preview in hand is ticked, its landing answered through
-/// `BrowserScene::preview_settled`. The browser's `on_exit` files a stop, so a preview never outlives the scene.
-///
-/// @par The `switch` has no `default:`, deliberately
-///
-/// The same rule `dispatchShellActions` runs under, for the same reason: `-Werror=switch` is on for
-/// every target (`cmake/deluge_common_options.cmake:32`), so a `BrowserId` added without an arm here
-/// fails the build, and a `default:` would absorb it silently.
-void dispatchShellChoices();
+/// Held answers were produced inside the tick, so this is the first moment no scene is in a hook, and it is before the
+/// next `Shell::tick` reads input. The `.syx` read and the preview's load advance only here. A scroll a delivered
+/// answer asks for starts here, before the next tick renders the pads it hands over. Nothing announces any of the four,
+/// so the one call site, `ShellHostUI::timerCallback`, makes the poll unconditional, after `dispatchShellActions` and
+/// above the close check.
+void pollShellBrowserHost();
 
 /// @brief Whether the visit open now pushed a scene that refused: the drum creator's browser or take, after which
 ///        legacy opens its editor on the file selector (`enterDrumCreator`'s `openUI(&soundEditor)`).

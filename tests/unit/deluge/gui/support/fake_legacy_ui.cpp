@@ -43,7 +43,7 @@ int clip_audition_forwards = 0;
 PadCall last_clip_audition{};
 int transition_dispatches = 0;
 std::function<void()> on_action_dispatch{};
-int choice_dispatches = 0;
+int browser_host_polls = 0;
 int browser_answer_deliveries = 0;
 std::function<void()> on_browser_answer_delivery{};
 int pad_forwards = 0;
@@ -120,7 +120,7 @@ void reset() {
 	last_clip_audition = {};
 	transition_dispatches = 0;
 	on_action_dispatch = nullptr;
-	choice_dispatches = 0;
+	browser_host_polls = 0;
 	browser_answer_deliveries = 0;
 	on_browser_answer_delivery = nullptr;
 	pad_forwards = 0;
@@ -542,13 +542,10 @@ void dispatchShellActions() {
 void discardShellActionsBeforeClose() {
 }
 
-// `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
-// `deluge::scenes::browser::browser_scene()` and its Sample arm performs a load that names
-// `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. No callback hook here
-// because nothing in this suite asks an ordering question about it yet -- add one beside
-// `on_action_dispatch` when something does.
-void dispatchShellChoices() {
-	fakelegacyui::choice_dispatches++;
+// `gui/ui/shell_choice_dispatch.cpp`'s poll: the real one reads `deluge::scenes::browser::browser_scene()` and performs
+// loads that name `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`.
+void pollShellBrowserHost() {
+	fakelegacyui::browser_host_polls++;
 }
 
 // The held-answer half of the same file, on the same terms; the callback lets an example record what the guest had

@@ -58,6 +58,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
@@ -175,9 +176,9 @@ struct CleanBrowser {
 	CleanBrowser() {
 		check("a browser singleton was still busy when an example started");
 		// A file an earlier example previewed is the browsers' last file loaded, which a fresh browser opens beside, as
-		// legacy's does; each example starts from none, and with no preview waiting.
+		// legacy's does; each example starts from none, and with no preview wanted.
 		deluge::model::lastFilePathLoaded().clear();
-		(void)browser::browser_scene().take_preview();
+		deluge::gui::ui::shellPreviewer().cancel();
 	}
 	~CleanBrowser() { check("an example finished with a browser singleton still busy"); }
 	CleanBrowser(const CleanBrowser&) = delete;
@@ -753,7 +754,7 @@ void import_from_picker(ShellRig& r) {
 	}
 	long_press(r.shell, r.clock);
 	pick(r.shell, r.clock, 0); // MULTISAMPLES
-	deluge::gui::ui::dispatchShellChoices();
+	deluge::gui::ui::pollShellBrowserHost();
 }
 
 /// @brief A walk at depth 0 on @p submenu, with its column and its row both at @p focused.
@@ -920,7 +921,7 @@ describe browser_choice_host("gui::ui's browser host, performing on the press", 
 		r.open_browser();
 		for (int32_t i = 0; i < 20; i++) {
 			r.step();
-			deluge::gui::ui::dispatchShellChoices();
+			deluge::gui::ui::pollShellBrowserHost();
 		}
 		expect(r.browser_on_stack()).to_be_true();
 		expect(spy.dispatches).to_equal(0);
@@ -957,7 +958,7 @@ describe browser_choice_host("gui::ui's browser host, performing on the press", 
 		expect(RefusingClaimSpy::dispatches).to_equal(1);
 		expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
 		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_false();
 		expect(browser::browser_scene().awaiting_deferred_load()).to_be_false();
 		r.step();
@@ -1005,7 +1006,7 @@ describe browser_choice_claim(
 		        r.open_browser();
 		        r.enter();
 		        Sound* const sound = r.model.song.instrument->toModControllable()->effectsOwner()->sound;
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last.target.sound).to_equal(sound);
@@ -1031,12 +1032,13 @@ describe browser_choice_claim(
 		        // The host requests the load on the press. Before boot finishes the file opens directly, inside the
 		        // request, so its answer is held and the browser still waits.
 		        r.enter();
+		        expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
 		        expect(r.browser_on_stack()).to_be_true();
 		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
 
 		        // Polled the same way a quiet guest tick polls, which is unconditionally; then the
 		        // load's own job, run until it finishes.
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(0);
 		        for (int32_t pass = 0; pass < 64 && deluge::gui::instrumentLoad.currentTicket().generation != 0;
 		             pass++) {
@@ -1071,7 +1073,7 @@ describe browser_choice_claim(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(1);
 
 		        // `claimCurrentFile` loads with the browser up; the claim here has not landed yet.
@@ -1102,7 +1104,7 @@ describe browser_choice_claim(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(ClaimSpy::last.completion).not_().to_be_null();
 		        if (ClaimSpy::last.completion != nullptr) {
 			        ClaimSpy::last.completion(false);
@@ -1135,7 +1137,7 @@ describe browser_choice_claim(
 		        }
 		        expect(r.browser_on_stack()).to_be_true();
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(ClaimSpy::last.completion).not_().to_be_null();
 		        if (ClaimSpy::last.completion != nullptr) {
 			        ClaimSpy::last.completion(true);
@@ -1194,7 +1196,7 @@ describe browser_choice_reroot(
 		        expect(menu_scene().state().path[0]).to_equal(&nodes::file0_selector);
 
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        // The claim was requested on the press -- the group above's subject, re-checked
 		        // here only so a failure below cannot be blamed on the press not having landed.
 		        expect(spy.dispatches).to_equal(1);
@@ -1240,7 +1242,7 @@ describe browser_choice_reroot(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
 		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
@@ -1262,7 +1264,7 @@ describe browser_choice_reroot(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        r.step();
 		        (void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell);
 
@@ -1310,7 +1312,7 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		}
 	});
 
-	it("drains the preview outbox after the choice outbox, starting the file's load as the last file loaded", _ {
+	it("starts the file's load as the last file loaded once the browser asks for its preview", _ {
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
@@ -1318,26 +1320,28 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		r.open_browser();
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
 		expect(deluge::model::lastFilePathLoaded().empty()).to_be_true();
-		deluge::gui::ui::dispatchShellChoices();
-		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(deluge::model::lastFilePathLoaded()).to_equal(std::string{kChosenPath});
 		expect(spy.dispatches).to_equal(0);
 		// No load ends in a spec process: the browser still waits for the answer.
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
 	});
 
-	it("stops previewing for an empty path, and answers at once", _ {
+	it("stops previewing for an empty path at once, and answers after the tick that asked", _ {
+		// A browser leaving asks for the stop from `on_exit`, inside the shell's tick: the previewer stops then, and the
+		// answer waits for the guest's poll, so it cannot reach the browser from inside its own hook.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
 		ShellRig r;
 		r.open_browser();
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		browser::browser_scene().on_exit();
+		expect(deluge::gui::ui::shellPreviewer().pending()).to_be_false();
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
-		deluge::gui::ui::dispatchShellChoices();
+		expect(deluge::gui::ui::shellBrowserAnswersHeld()).to_be_true();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(browser::browser_scene().preview_outstanding()).to_be_false();
-		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
 	});
 
 	it("sounds the preview while the guest's sample browser is frontmost, and not under the menu", _ {
@@ -1382,7 +1386,7 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		r.step();
 		expect(browser::browser_scene().auto_load()).to_be_true();
 		browser::browser_scene().preview_settled(true);
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(spy.dispatches).to_equal(1);
 		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
 		expect(ClaimSpy::last.origin).to_equal(deluge::gui::ClaimOrigin::AutoLoad);
@@ -1403,12 +1407,10 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		ShellRig r;
 		r.open_browser();
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
-		deluge::gui::ui::dispatchShellChoices(); // the file the browser opened on
-		expect(CancelSpy::cancels).to_equal(1);
-		deluge::gui::ui::dispatchShellChoices(); // nothing asked
+		expect(CancelSpy::cancels).to_equal(1); // the file the browser opened on, as the browser asked for it
+		deluge::gui::ui::pollShellBrowserHost(); // nothing asked
 		expect(CancelSpy::cancels).to_equal(1);
 		browser::browser_scene().on_exit(); // a stop
-		deluge::gui::ui::dispatchShellChoices();
 		expect(CancelSpy::cancels).to_equal(2);
 	});
 
@@ -1485,11 +1487,11 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		ScratchCard card;
 		currentUIMode = UI_MODE_NONE;
 		shellHostUI.surfaces().hold_main_columns(true);
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL; // legacy's scroll still running keeps them
 		shellHostUI.surfaces().hold_main_columns(true);
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		shellHostUI.surfaces().hold_main_columns(false);
@@ -1505,7 +1507,7 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 		r.open_browser();
 		expect(context_menu::descriptor(context_menu::DescriptorId::DeleteFile).accept(menu_scene().menu_context(), 0))
 		    .to_be_false(); // the menu closes
-		deluge::gui::ui::dispatchShellChoices();
+		deluge::gui::ui::pollShellBrowserHost();
 		expect(DeleteSpy::paths.size()).to_equal(size_t(1));
 		expect(DeleteSpy::paths.empty() ? std::string{} : DeleteSpy::paths[0]).to_equal(std::string{kChosenPath});
 		const std::string before{browser::browser_scene().entered_text()};
@@ -1652,7 +1654,7 @@ describe browser_choice_long_press(
 			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_true();
 			        pick(r.shell, r.clock, w.detents);
 			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_true();
-			        deluge::gui::ui::dispatchShellChoices();
+			        deluge::gui::ui::pollShellBrowserHost();
 			        expect(spy.dispatches).to_equal(1);
 			        expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
 			        expect(ClaimSpy::last.enteredText).to_equal(std::string{"A1"});
@@ -1672,7 +1674,7 @@ describe browser_choice_long_press(
 		        r.open_browser();
 		        long_press(r.shell, r.clock);
 		        pick(r.shell, r.clock, 0);
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(1);
 		        expect(static_cast<int>(ImportSpy::last.kind))
 		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Multisamples));
@@ -1689,7 +1691,7 @@ describe browser_choice_long_press(
 		        r.open_browser();
 		        long_press(r.shell, r.clock);
 		        pick(r.shell, r.clock, 0);
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ImportSpy::last.target.source).to_equal(r.model.source);
 		        expect(ImportSpy::last.rangeChosen).not_().to_be_null();
@@ -1746,7 +1748,7 @@ describe browser_choice_long_press(
 		        expect(r.browser_on_stack()).to_be_true();
 		        long_press(r.shell, r.clock);
 		        pick(r.shell, r.clock, 0); // MULTISAMPLES
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(1);
 
 		        give_three_ranges(r.model); // what the import built
@@ -1896,7 +1898,7 @@ describe browser_choice_long_press(
 		        expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
 		            .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserKit));
 		        pick(r.shell, r.clock, 0);
-		        deluge::gui::ui::dispatchShellChoices();
+		        deluge::gui::ui::pollShellBrowserHost();
 		        expect(spy.dispatches).to_equal(1);
 		        expect(static_cast<int>(ImportSpy::last.kind))
 		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Kit));
@@ -1915,7 +1917,7 @@ describe browser_choice_long_press(
 			        long_press(r.shell, r.clock);
 			        const int32_t item = browser::browser_scene().file_index();
 			        pick(r.shell, r.clock, 0);
-			        deluge::gui::ui::dispatchShellChoices();
+			        deluge::gui::ui::pollShellBrowserHost();
 			        expect(ImportSpy::last.completion).not_().to_be_null();
 			        if (ImportSpy::last.completion != nullptr) {
 				        ImportSpy::last.completion(success);

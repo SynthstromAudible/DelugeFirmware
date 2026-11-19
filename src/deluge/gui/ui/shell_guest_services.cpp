@@ -468,7 +468,7 @@ void wireShellGuestServices() {
 
 	setViewStates(services);
 
-	// The browser's host: what the ported browser asks to load, claim, import, slice or delete.
+	// The browser's host: what the ported browser asks to load, claim, import, slice, delete or preview.
 	wireShellBrowserHost();
 
 	// Installs the services into the guest's `Shell`. Safe over a live set:

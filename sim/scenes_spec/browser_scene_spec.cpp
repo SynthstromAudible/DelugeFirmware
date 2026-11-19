@@ -882,10 +882,10 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		const std::optional<PreviewRequest> request = browser_scene().take_preview();
+		const std::optional<PreviewRequest> request = fake_browser_host().take_preview();
 		expect(request).to_equal(PreviewRequest{.id = BrowserId::Sample, .path = "SAMPLES/CLAP.WAV", .direction = 0});
 		expect(browser_scene().preview_outstanding()).to_be_true();
-		expect(browser_scene().take_preview().has_value()).to_be_false();
+		expect(fake_browser_host().take_preview().has_value()).to_be_false();
 	});
 
 	it("files a preview request when the selection moves, with its direction", _ {
@@ -894,14 +894,14 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		r.turn(3, r.clock + 10);
 		r.step();
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"SNARE"});
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/SNARE.WAV", .direction = 1});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/SNARE.WAV", .direction = 1});
 		r.turn(-3, r.clock + 10);
 		r.step();
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/CLAP.WAV", .direction = -1});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/CLAP.WAV", .direction = -1});
 	});
 
 	it("files an empty-path request for a folder", _ {
@@ -910,11 +910,11 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		r.turn(1, r.clock + 10);
 		r.step();
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 1});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 1});
 	});
 
 	it("files a request when a typed search lands on another file, direction 0", _ {
@@ -923,9 +923,9 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		r.type('T');
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/TOM.WAV", .direction = 0});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/TOM.WAV", .direction = 0});
 	});
 
 	it("files an empty-path request on exit", _ {
@@ -934,9 +934,9 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().on_exit();
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 
 	it("files none for the MIDI device definition browser", _ {
@@ -945,7 +945,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::SongFixture f = spec::make_midi_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
-		expect(browser_scene().take_preview().has_value()).to_be_false();
+		expect(fake_browser_host().take_preview().has_value()).to_be_false();
 		expect(browser_scene().preview_outstanding()).to_be_false();
 	});
 
@@ -1175,7 +1175,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		PreviewHeld held(make_overview_sample());
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
@@ -1198,7 +1198,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		PreviewHeld held(make_overview_sample());
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
 		r.turn(1, r.clock + 10);
@@ -1207,7 +1207,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_true();
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().preview_settled(false);
 		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Browser);
 		from = r.fake.flashes_sent.size();
@@ -1227,7 +1227,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		select_folder(r, true); // a move onto a folder: no preview showed, so the blink runs on
 		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
 		select_folder(r, false);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().preview_settled(true);
 		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Off);
 	});
@@ -1321,11 +1321,11 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		spec::SongFixture f = spec::make_synth_song();
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		r.pad(kDisplayWidth, 0, 64, r.clock + 10);
 		r.step();
 		expect(r.browser_on_stack()).to_be_false();
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 
 	it("keeps the MIDI definition browser on its keyboard", _ {
@@ -1890,8 +1890,8 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 
 		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which loads with the browser up under the
 		// working animation and closes it once the file is in. The claim names `soundEditor`, `AudioEngine`, `slicer`,
-		// `PadLEDs` and `instrumentClipView`, behind the `scenes-includes-outside` wall, so the descriptor parks the
-		// path and the browser waits for the host's answer.
+		// `PadLEDs` and `instrumentClipView`, behind the `scenes-includes-outside` wall, so the descriptor hands the
+		// path to the host and the browser waits for its answer.
 		Error unused = Error::NONE;
 		expect(static_cast<int>(
 		           browser::descriptor(BrowserId::Sample).accept(context_of(f), "SAMPLES/CLAP.WAV", unused)))
@@ -1903,7 +1903,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 
 		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
-		// Read through defaults rather than through `choice->`: a mutant that leaves the outbox empty must fail this
+		// Read through defaults rather than through `choice->`: a mutant that asks the host for nothing must fail this
 		// example, not abort the process inside `std::optional::operator->`.
 		expect(static_cast<int>(choice.has_value() ? choice->id : BrowserId::Count))
 		    .to_equal(static_cast<int>(BrowserId::Sample));
@@ -1953,8 +1953,8 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"DEVICE1"});
 
 		// The load is an instrument-load request on the interaction tier (`shell_choice_dispatch.cpp`'s
-		// `requestMidiDefinitionLoad`), which the drain makes, and `LoadMidiDeviceDefinitionUI` stays open until
-		// `definitionLoaded` closes it. So the press parks the path, loads nothing itself and waits.
+		// `requestMidiDefinitionLoad`), which the host makes, and `LoadMidiDeviceDefinitionUI` stays open until
+		// `definitionLoaded` closes it. So the press hands the path to the host, loads nothing itself and waits.
 		Error unused = Error::NONE;
 		expect(static_cast<int>(browser::descriptor(BrowserId::MidiDeviceDefinition)
 		                            .accept(context_of(f), "MIDI_DEVICES/DEFINITION/DEVICE1.XML", unused)))
@@ -1970,7 +1970,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		}
 		expect(choice.has_value() ? choice->path : std::string{})
 		    .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
-		// What the drain then does with the choice is `browser_choice_spec.cpp`'s.
+		// What the host then does with the choice is `browser_choice_spec.cpp`'s.
 		expect(instrument->deviceDefinitionFileName).to_equal(std::string{});
 		browser_scene().deferred_load_done(true); // the load's completion
 		r.step();
@@ -2682,7 +2682,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		held.range->sampleHolder.filePath.clear();
 	});
 
-	it("SLICE parks a slice of the selected file and keeps the menu", _ {
+	it("SLICE asks the host for a slice of the selected file and keeps the menu", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_kit_song();
@@ -2702,7 +2702,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		}
 	});
 
-	it("Shift+Select on a file in a fresh kit parks a slice and keeps the browser", _ {
+	it("Shift+Select on a file in a fresh kit asks the host for a slice and keeps the browser", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_kit_song();
@@ -2947,7 +2947,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		r.click(kLoadX, kLoadY);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().preview_settled(true);
 		const std::optional<browser::BrowserChoice> choice = fake_browser_host().take_choice();
 		expect(choice.has_value()).to_be_true();
@@ -3533,13 +3533,13 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		(void)browser_scene().take_preview();
+		(void)fake_browser_host().take_preview();
 		browser_scene().file_deleted("SAMPLES/SNARE.WAV"); // not the selection: nothing
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
 		browser_scene().file_deleted("SAMPLES/CLAP.WAV");
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
 		expect(catalogue_order()).not_().to_contain("CLAP.WAV");
-		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
+		expect(fake_browser_host().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 });
 describe browser_favourites("scenes::browser::BrowserScene the favourites row", $ {

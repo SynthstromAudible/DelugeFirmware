@@ -169,15 +169,12 @@ extern int transition_dispatches;
 /// lets the example record whatever it is asking about. Empty by default; cleared by `reset()`.
 extern std::function<void()> on_action_dispatch;
 
-/// @brief How many times the fake `dispatchShellChoices()` has been called since `reset()`.
+/// @brief How many times the fake `pollShellBrowserHost()` has been called since `reset()`.
 ///
-/// The sibling of `action_dispatches`, on identical terms: the real
-/// `gui/ui/shell_choice_dispatch.cpp` names `deluge::scenes::browser::browser_scene()` and so
-/// belongs to the `deluge_scenes` closure this suite never builds. What the drain then does with a
-/// real outbox is `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter exists so the guest
-/// still links here, and so a spec can ask the one question that IS on this side -- whether
-/// the second poll happens on the same paths the first does.
-extern int choice_dispatches;
+/// The real one is `gui/ui/shell_choice_dispatch.cpp`'s, which names `browser_scene()` and so belongs to the
+/// `deluge_scenes` closure this suite never builds. What the poll does is `sim/scenes_spec/browser_choice_spec.cpp`'s;
+/// this counter keeps the guest linking here.
+extern int browser_host_polls;
 
 /// @brief How many times `deluge::gui::ui::deliverShellBrowserAnswers()` was called since `reset()`.
 ///
@@ -192,7 +189,7 @@ extern std::function<void()> on_browser_answer_delivery;
 
 /// @brief How many times `deluge::gui::ui::forwardGridPad()` was called.
 ///
-/// The sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real
+/// The sibling of `action_dispatches` and `browser_host_polls`, on the same terms: the real
 /// `gui/ui/shell_pad_forward.cpp` names `keyboardScreen`, `instrumentClipView`, `performanceView`,
 /// `automationView` and `deluge::scenes::menu_scene()`, none of which this suite builds. What that
 /// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
