@@ -133,10 +133,9 @@ menu, measured on `RelWithDebInfo`:
   tail, `--icf=safe` would fold other crates' identical functions onto its copies, and their callers would run heap
   memory.
 - In `.sdram_init`: the scenes' menu node and cell tables (118,795 B, `deluge::scenes::menu`, ASSERTed over 64 KB), the
-  legacy menu items' vtables (74 KB) and the scenes'. In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes'
-  statics (13 KB). The UI tier alone reads any of them.
-- What stays in SRAM is code: the scenes' 98 KB and the shell and guest's 18 KB, beside the legacy menu items' 104 KB
-  and `SoundEditor`'s 10 KB.
+  scenes' vtables, and the code under `src/deluge/gui/` (`libdeluge_app_gui.a`, the guest's `gui/ui/shell_*` among
+  it). In `.sdram_bss`: `shellHostUI` (25.7 KB) and the scenes' statics (13 KB). The UI tier alone reads any of them.
+- What stays in SRAM is the code of `deluge_scenes` (98 KB) and `deluge_ui_shell`.
 - Deleting the legacy menu, measured on `RelWithDebInfo` from `c5b0f7e0d`: the SRAM heap 556,784 B -> 584,592 B
   (+27,808 B). By then the GUI's code ran from SDRAM, so most of what left was SDRAM content: `.sdram_init`
   783,096 B -> 581,928 B (its pack 325,348 B -> 230,086 B, in a 273,034 B reserve), the SDRAM text 420,138 B ->
@@ -174,29 +173,19 @@ Read off the linker scripts and the image's symbols. The load-copy item is built
 
 ## The UI and immediate mode
 
-The menu system costs about 215 KB of SRAM:
-
-| Part | Size |
-|---|---:|
-| `gui/menu_item/` code | 110 KB in 2,624 functions; 1,346 of them are 16 bytes or less |
-| menu-item vtables | 73 KB: 295 vtables, `MenuItem` declares 49 virtuals |
-| `menus.cpp` + `sound_editor.cpp` code | 32 KB, including a 2 KB static constructor |
-
-The 412 menu objects themselves are already `PLACE_SDRAM_BSS`.
-
-The cost is the shape, not the logic: one class per menu item, many tiny overrides, and a 250-byte vtable for each
-class. ICF and cold `-Oz` reduce the code but not the vtables. With all five levers applied, the menu system is still
-about 214 KB. The immediate-mode design (branch `feat/immediate-mode`,
-OLED scope) replaces it with plain build functions over a small widget engine. Phase 3 of that
-plan deletes `menus.cpp`, the ~285 menu classes and `SoundEditor`. At roughly 60 B of build code per item plus an
-engine of 10–15 KB, the replacement would be 30–50 KB, saving about 160–180 KB on top of the levers (*estimate*).
+The menu is `MenuScene` over constexpr node tables, drawn with the immediate-mode toolkit in `src/ui`: the tables
+(118,795 B) are SDRAM data and the scene's code is part of the scenes' 98 KB of SRAM text (see the scenes' section
+under [Measured levers](#measured-levers)). The class-per-item menu it replaced is deleted
+(`origin/main:src/deluge/gui/menu_item/`, `origin/main:src/deluge/gui/ui/menus.cpp`,
+`origin/main:src/deluge/gui/ui/sound_editor.cpp`); deleting it returned 27,808 B of SRAM heap, because the GUI's code
+already ran from SDRAM.
 
 The rest of `gui/` gains little from immediate mode:
 
 | Area | Code | Why |
 |---|---:|---|
-| browser, load, save | ~73 KB | mostly listing and loading logic, which is the same in either paradigm; phase 4 trims the drawing and navigation |
-| grid views (`instrument_clip_view`, `session_view`, `arranger_view`, `automation_view`, `performance_view`, keyboard) | ~165 KB | large gesture-handling functions, out of the plan's scope |
+| browser, load, save | ~73 KB | mostly listing and loading logic, which is the same in either paradigm |
+| grid views (`instrument_clip_view`, `session_view`, `arranger_view`, `automation_view`, `performance_view`, keyboard) | ~165 KB | large gesture-handling functions |
 
 ## Rust
 
@@ -288,7 +277,7 @@ unless marked measured.
 | 1 | Oscillator tables to SDRAM | 287 KB | an hour | audio path: bench |
 | 2 | Reverb delay lines to SDRAM | 128 KB | an hour | audio path: bench |
 | 3 | No exceptions | 100–145 KB | 4–6 days | OOM recovery paths |
-| 4 | Immediate-mode menus, with context menus | 120–150 KB | large | existing program |
+| 4 | The class-per-item menu | **done: 27.8 KB of heap** | | |
 | 5 | Finish the domain split | 50–70 KB | large | existing program |
 | 6 | Inline threshold instead of `-fno-inline-functions` | **done: 241 KB** | | |
 | 7 | Container instantiations | 25–30 KB | days | low |
@@ -325,11 +314,11 @@ unless marked measured.
      4. Allocators and `operator new` call `oom()`.
      5. Build with `-fno-exceptions` and delete the firewalls.
      6. Discard `.ARM.exidx` / `.ARM.extab`. Rust is already `panic=abort`.
-4. **Immediate-mode menus, 120–150 KB.**
-   - Already planned (`feat/immediate-mode`).
-   - **Measured:** `menu_item` 97.5 KB of code and 71.5 KB of vtables (290 classes); `menus.cpp` 17.1 KB, of which
-     15.3 KB is the static initialisation of 497 globals; `sound_editor` 10.2 KB.
-   - Context menus are a further 12.4 KB and worth adding to that spec's scope.
+4. **The class-per-item menu: done, 27.8 KB.**
+   - The menu items, `menus.cpp` and `SoundEditor` are deleted; the menu is `MenuScene` over node tables (see the
+     scenes' section under [Measured levers](#measured-levers)). Most of their cost had already moved to SDRAM with the
+     GUI's code, so the SRAM heap gained 27,808 B.
+   - The context menus (12.4 KB at the audit) are still classes under `src/deluge/gui/context_menu/`.
 5. **Finish the domain split, 50–70 KB.**
    - **Measured:** the legacy streaming `read*/write*File` methods are 46.9 KB (209 functions; `Song::readFromFile`
      alone is 5.6 KB). The bridge is 19 KB, and the streaming XML/JSON backends about 9 KB. The new codecs (about
@@ -412,5 +401,3 @@ fill); `std::function` (0.3 KB).
 3. Structural:
    - Remove exceptions (`BAD_ALLOC` → returned errors) and discard `.ARM.exidx`.
    - Cold code to SDRAM.
-   - Immediate-mode menus, an existing program on its own merits. Its ~160–180 KB is measured against the image after
-     steps 1 and 2, so it adds to them.

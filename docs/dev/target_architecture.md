@@ -37,9 +37,10 @@ Downward arrows (gui → model) are healthy. The defining problems are the
 *upward* arrows and the globals:
 
 - **model → gui (103)**: `song.cpp` calls `uiNeedsRendering(&instrumentClipView, …)`,
-  `display->displayError(…)`, `display->displayPopup("E248")` directly, and
-  `song.h` includes `gui/menu_item/reverb/model.h` (the model stores a *menu*
-  type). The data model knows about five concrete view singletons.
+  `display->displayError(…)`, `display->displayPopup("E248")` directly, and at the
+  baseline `song.h` included `gui/menu_item/reverb/model.h` (the model stored a
+  *menu* type; it now keeps `deluge::effects::ReverbModel`, `src/effects/words.h`).
+  The data model knows about five concrete view singletons.
 - **model ↔ storage**: serialization is member functions on model classes
   (39 model files touch `Serializer`), flowing through the global
   `storageManager`.
@@ -58,8 +59,9 @@ Downward arrows (gui → model) are healthy. The defining problems are the
 - **Allocator ↔ model entanglement**: the `Stealable` protocol has the memory
   manager calling back *into* model objects (clusters, sample caches) to
   reclaim them.
-- **The GUI is 86k lines / 501 files, 327 of which are `menu_item`** — every
-  menu item is a class conflating tree structure, behavior, and rendering.
+- **The GUI was 86k lines / 501 files at the baseline, 327 of them `menu_item`**:
+  every menu item a class conflating tree structure, behavior, and rendering. The
+  menu is now node tables interpreted by one scene (`src/scenes/menu`).
 - **Concurrency safety is ad-hoc discipline.** The UI mutates the model while
   the audio path reads it; safety rests on single-core cooperative scheduling
   plus hand-placed guards at call sites that query `deluge_storage_fs_busy()`
@@ -591,13 +593,12 @@ notification dirty-set drain (§4.3), the active presenter-set pointer,
 indicator LEDs, popups and timers (`ui_timer_manager`), and the menu
 *interpreter*.
 
-**The menu system becomes data + interpreter.** Menu trees as declarative
-structure; items bind to a param/setting handle (via the params registry, §7)
-or a command; rendering is toolkit code ("draw a menu") fed through the
-presenter sets. The 327 `menu_item` classes collapse into a small item-kind
-taxonomy + tables. This also fixes the backwards `song.h` →
-`gui/menu_item/reverb/model.h` dependency: the model keeps its own enum, the
-menu reflects it.
+**The menu system is data + interpreter.** Menu trees are declarative
+structure (`src/scenes/menu/nodes/`), a small item-kind taxonomy plus tables;
+items bind to a setting, param or cable by address through `scenes/bind`, or
+name an action for the host; rendering is toolkit code (`src/ui`) that
+`MenuScene` draws with. The model keeps its own reverb enum
+(`deluge::effects::ReverbModel`), and the menu reflects it.
 
 **Full-UI integration test**: inject pad/button/encoder events, assert on
 three small framebuffers. No hardware, no sim process, milliseconds per case.
@@ -705,10 +706,10 @@ the firmware target is *statically linked CLAP-API plugins and a CLAP-shaped
 param model*; real dynamic CLAP hosting applies to desktop/host builds.
 (Open question §10.)
 
-**Registry-driven UI.** A large fraction of the 327 `menu_item` classes are
-per-param boilerplate; with `ParamInfo` available, param menus, mod-matrix
+**Registry-driven UI.** The menu's param items are table rows
+(`src/scenes/menu/nodes/`); with `ParamInfo` available, those rows, mod-matrix
 shortcuts, gold-knob assignment, and automation-lane naming become generic
-code. This is where §6.4's menu collapse and §7 meet.
+code over it. This is where §6.4's menu tables and §7 meet.
 
 ### 7.3 Params migration sequence (each step ships green)
 
