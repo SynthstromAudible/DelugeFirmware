@@ -1497,6 +1497,18 @@ job = "model"
 runtime_s = 5
 
 [[harness]]
+name = "source-memory"
+template = "scenario-driver"
+override = ["status"]
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it prints the SRAM and SDRAM heaps' free bytes and low-water marks across a sample oscillator's switch to a saw and back"
+scenario = "source_memory"
+tier = "manual"
+job = "model"
+runtime_s = 5
+
+[[harness]]
 name = "edit-substrate"
 template = "scenario-driver"
 kind = "unit"
