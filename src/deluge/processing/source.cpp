@@ -133,6 +133,19 @@ void Source::seedDocRanges() {
 	}
 }
 
+void Source::reflect(const deluge::instrument::SourceState& state) {
+	transpose = state.transpose;
+	cents = state.cents;
+	recalculateFineTuner();
+	repeatMode = state.repeat_mode;
+	timeStretchAmount = state.time_stretch_amount;
+	sampleControls.interpolationMode = state.interpolation_mode;
+	sampleControls.pitchAndSpeedAreIndependent = state.pitch_and_speed_independent;
+	if (sampleControls.reversed != state.reversed) {
+		setReversed(state.reversed); // the zones' ends and the clusters' claims follow the direction
+	}
+}
+
 void Source::setTranspose(int16_t newTranspose) {
 	transpose = newTranspose;
 	if (state_ != nullptr) {

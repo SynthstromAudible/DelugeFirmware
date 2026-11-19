@@ -17,14 +17,17 @@
 
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/source_bridge.h"
 
 #include "effects/settings.h"
 #include "effects/words.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/dx7_init_voice.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/state_rules.h"
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
+#include "model/fx/effects_owner.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
@@ -338,6 +341,106 @@ std::optional<deluge::effects::EffectStates> withEffectValue(deluge::effects::Ef
 	return e;
 }
 } // namespace
+
+Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
+                  const deluge::instrument::SoundState& after, ::Song& song) {
+	using deluge::instrument::Part;
+	const deluge::instrument::Parts parts = deluge::instrument::DelugeSynth::changes(before, after);
+	const auto changed = [&](Part part) { return parts.test(std::to_underlying(part)); };
+	const auto slotPart = [](Part a, int32_t s) { return static_cast<Part>(std::to_underlying(a) + s); };
+	const auto playsFiles = [](OscType type) {
+		return util::one_of(type, {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
+		                           OscType::DX7, OscType::WAVETABLE});
+	};
+
+	// Voices stop first, as each setting's menu stops them before it changes anything.
+	bool stopVoices = changed(Part::MODE);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const deluge::instrument::SourceState& was = before.sources[s];
+		const deluge::instrument::SourceState& now = after.sources[s];
+		stopVoices =
+		    stopVoices
+		    || (changed(slotPart(Part::SOURCE_A_TYPE, s)) && (playsFiles(was.osc_type) || playsFiles(now.osc_type)))
+		    || was.reversed != now.reversed
+		    || (was.repeat_mode != now.repeat_mode
+		        && (was.repeat_mode == SampleRepeatMode::STRETCH || now.repeat_mode == SampleRepeatMode::STRETCH));
+	}
+	if (stopVoices) {
+		sound.killAllVoices();
+	}
+
+	// The sound's own fields and its sources' follow the record; a new type reshapes a source's ranges.
+	if (changed(Part::HOST)) {
+		sound.sideChainSendLevel = after.side_chain_send_level;
+		sound.outputMidiChannel = after.output_midi_channel;
+		sound.outputMidiNoteForDrum = after.output_midi_note_for_drum;
+	}
+	bool squareCameOrWent = false;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source& source = sound.sources[s];
+		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
+			squareCameOrWent = squareCameOrWent || before.sources[s].osc_type == OscType::SQUARE
+			                   || after.sources[s].osc_type == OscType::SQUARE;
+			source.setOscType(after.sources[s].osc_type);
+		}
+		source.reflect(after.sources[s]);
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
+	{
+		// The render sees the new config with its voices already retuned and re-voiced.
+		AudioExcludedSection section;
+		sound.projectSnapshot();
+		if (changed(Part::TUNING) || changed(Part::UNISON_COUNT) || changed(Part::UNISON_DETUNE)
+		    || changed(Part::MODULATOR_TUNING) || changed(Part::SOURCE_A_TUNING) || changed(Part::SOURCE_B_TUNING)) {
+			sound.recalculateAllVoicePhaseIncrements(modelStack);
+		}
+		if (changed(Part::UNISON_COUNT)) {
+			// After the retune: a new part plays on from its neighbour, increment included (Sound::setNumUnison's
+			// order)
+			sound.revoiceUnison(before.num_unison, after.num_unison, modelStack);
+		}
+	}
+	if (changed(Part::EFFECTS)) {
+		deluge::model::storeEffects(*sound.effectsOwner(), after.effects);
+	}
+	if (changed(Part::MODE) || squareCameOrWent || changed(Part::LFO_SYNC)) {
+		sound.setupPatchingForAllParamManagers(&song);
+	}
+	if (changed(Part::LFO_WAVE) || changed(Part::LFO_SYNC)) {
+		sound.resyncGlobalLFOs();
+	}
+
+	// The ranges and DX7 patches the runtime holds follow the change's, as the record held them before it: a new type
+	// has just reshaped them in the runtime, which reflected them into the record. A source whose ranges or patch the
+	// runtime refuses keeps what the runtime holds, in the record too.
+	for (int32_t s = 0; s < kNumSources; s++) {
+		const deluge::instrument::SourceState& wanted = after.sources[s];
+		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
+		deluge::instrument::SourceState held;
+		sound.sources[s].seedDxPatchInto(held);
+		sound.sources[s].seedRangesInto(held);
+		const std::optional<deluge::instrument::DxPatchState>& heldPatch =
+		    retyped ? held.dx_patch : before.sources[s].dx_patch;
+		const std::vector<deluge::instrument::RangeState>& heldRanges =
+		    retyped ? held.ranges : before.sources[s].ranges;
+		Error error = Error::NONE;
+		if (wanted.dx_patch && heldPatch != wanted.dx_patch && sound.sources[s].oscType == OscType::DX7) {
+			error = applyDxPatch(sound, s, *wanted.dx_patch);
+		}
+		if (error == Error::NONE && heldRanges != wanted.ranges) {
+			error = applyRanges(sound, s, wanted.ranges);
+		}
+		if (error != Error::NONE) {
+			if (deluge::instrument::SoundState* record = sound.boundRecord()) {
+				sound.sources[s].seedDxPatchInto(record->sources[s]);
+				sound.sources[s].seedRangesInto(record->sources[s]);
+			}
+			return error;
+		}
+	}
+	return Error::NONE;
+}
 
 void retuneVoices(::Sound& sound, ::Song& song) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];

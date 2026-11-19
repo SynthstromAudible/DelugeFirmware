@@ -759,6 +759,48 @@ int liveUnisonLeg(Song& song) {
 	return 0;
 }
 
+/// The live-mode leg: a note sounds on the first synth of @p song with a clip, and its engine changes under it
+/// through an Edit; the voice stops, as the mode menu stops every voice before it changes the engine, and the slot
+/// stays coherent. 0 when each holds (or no synth sounds), else 3 after printing the first that does not.
+int liveModeLeg(Song& song) {
+	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		auto* clip = static_cast<InstrumentClip*>(output->getActiveClip());
+		if (output->type != OutputType::SYNTH || clip == nullptr) {
+			continue;
+		}
+		auto* synth = static_cast<SoundInstrument*>(output);
+		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
+		if (!address) {
+			continue;
+		}
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, synth, clip, &clip->paramManager);
+		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
+		if (synth->numActiveVoices() == 0) {
+			continue; // a source with nothing to play: try the next synth
+		}
+		deluge::edits::Context ctx{song, song.project};
+		const std::string_view to = synth->getSynthMode() == SynthMode::FM ? "subtractive" : "fm";
+		const Value value = Value::makeScalar(std::string(to));
+		deluge::edits::SetEngineSetting edit{*address, "mode", value};
+		std::string_view failed =
+		    deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : coherence(*synth, song, "mode", value);
+		if (failed.empty() && synth->numActiveVoices() != 0) {
+			failed = "a voice kept sounding";
+		}
+		synth->killAllVoices();
+		if (!failed.empty()) {
+			std::fprintf(io.err, "synth %s live mode=%.*s: %.*s\n", synth->name.c_str(), static_cast<int>(to.size()),
+			             to.data(), static_cast<int>(failed.size()), failed.data());
+			return 3;
+		}
+		std::fprintf(io.err, "live mode: the voices of %s stopped\n", synth->name.c_str());
+		return 0;
+	}
+	return 0;
+}
+
 /// The live-range leg: a note sounds on the first synth of @p song with a clip and a source with ranges, and a range
 /// of that source changes in place through an Edit; the voice keeps sounding and the sound stays coherent. 0 when each
 /// holds (or no such synth sounds), else 3 after printing the first that does not.
@@ -1074,6 +1116,9 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 			}
 		}
 		if (int r = liveUnisonLeg(*song)) {
+			return r;
+		}
+		if (int r = liveModeLeg(*song)) {
 			return r;
 		}
 		if (int r = liveRangeLeg(*song)) {

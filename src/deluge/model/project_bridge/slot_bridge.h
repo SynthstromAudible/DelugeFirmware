@@ -76,20 +76,6 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 [[nodiscard]] deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, std::string_view path,
                                                     deluge::serialization::Value leaf);
 
-/// @brief Take @p sound's runtime from @p old to @p next: each settings row of the @p changed entries whose value
-/// differs, in the table's order, through applySetting; then each source's DX patch and ranges where they differ. A row
-/// of an entry the change did not touch is not compared: @p next holds what @p old does there.
-///
-/// @param sound   The sound to change.
-/// @param old     The state the runtime holds.
-/// @param next    The state to reach.
-/// @param changed The entries the change touched.
-/// @param song    The song the sound belongs to.
-/// @return Error::NONE, or the first error an apply returned (the rows and sources after it are not applied).
-Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
-                      const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
-                      ::Song& song);
-
 /// @brief Take @p sound from its state to @p change's by difference: the setters of the entries it touched. The sound
 /// plays its record's state, so the record holds the change once its setters have run.
 ///

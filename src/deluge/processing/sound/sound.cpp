@@ -2595,7 +2595,11 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	assignNumUnison(static_cast<uint8_t>(newNum));
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
 	refreshUnison();
+	revoiceUnison(oldNum, newNum, modelStack);
+}
 
+void Sound::revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack) {
+	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	// Effective volume has changed. Need to pass that change onto Voices
 	for (const ActiveVoice& voice : voices_) {
 		if (getSynthMode() == SynthMode::SUBTRACTIVE) {

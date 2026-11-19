@@ -183,6 +183,8 @@ public:
 	/// @brief The bound state.
 	/// @return The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
+	/// @brief The record this sound plays, to write a change into before applying it; null when unbound.
+	[[nodiscard]] deluge::instrument::SoundState* boundRecord() { return state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
@@ -355,6 +357,9 @@ public:
 
 	void sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack);
 	void setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack);
+	/// @brief Give the live voices' sample parts the new unison count: a part that comes plays on from its neighbour,
+	/// a part that goes lets go of its clusters. The count, detunes and level are already the new ones.
+	void revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack);
 	void setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack);
 	void setUnisonStereoSpread(int32_t newAmount);
 	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);

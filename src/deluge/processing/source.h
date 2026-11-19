@@ -110,6 +110,9 @@ public:
 	/// @{
 	/// @brief Set the transpose, in semitones.
 	/// @param newTranspose New transpose.
+	/// @brief Take @p state's tuning and sample playback into this source's fields: the record already holds them.
+	/// The type is taken by setOscType, which also reshapes the ranges.
+	void reflect(const deluge::instrument::SourceState& state);
 	void setTranspose(int16_t newTranspose);
 	/// @brief Set the sample repeat mode.
 	/// @param newMode New mode.

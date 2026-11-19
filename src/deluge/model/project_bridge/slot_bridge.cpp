@@ -160,50 +160,18 @@ deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, 
 	return out;
 }
 
-Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
-                      const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
-                      ::Song& song) {
-	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
-		const std::string_view entry = row.path.substr(0, row.path.find('/'));
-		if (row.kind == deluge::plugin::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
-			continue; // an entry the change did not touch holds what the sound holds
-		}
-		const std::optional<deluge::serialization::Value> before = deluge::instrument::setting_value(old, row.path);
-		const std::optional<deluge::serialization::Value> after = deluge::instrument::setting_value(next, row.path);
-		if (after && (!before || before->str() != after->str())) {
-			if (Error error = applySetting(sound, row.path, *after, song); error != Error::NONE) {
-				return error;
-			}
-		}
-	}
-	for (int32_t s = 0; s < kNumSources; s++) {
-		// After the settings, an oscillator type among them.
-		const deluge::instrument::SourceState& now = sound.boundState()->sources[s];
-		const deluge::instrument::SourceState& wanted = next.sources[s];
-		if (wanted.dx_patch && now.dx_patch != wanted.dx_patch && sound.sources[s].oscType == OscType::DX7) {
-			if (Error error = applyDxPatch(sound, s, *wanted.dx_patch); error != Error::NONE) {
-				return error;
-			}
-		}
-		if (now.ranges != wanted.ranges) {
-			if (Error error = applyRanges(sound, s, wanted.ranges); error != Error::NONE) {
-				return error;
-			}
-		}
-	}
-	return Error::NONE;
-}
-
 Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, ::Song& song) {
-	if (sound.boundState() == nullptr) {
+	deluge::instrument::SoundState* record = sound.boundRecord();
+	if (record == nullptr) {
 		return Error::UNSPECIFIED;
 	}
-	const deluge::instrument::SoundState before = *sound.boundState();
-	Error error = applyDifference(sound, before, change.state, change.changed, song);
-	// Each setter writes the record the sound plays, so the state is the change's once they have run; the gates' audit
-	// checks that it landed.
-	if (error == Error::NONE && typedWriteAudit().enabled && !(*sound.boundState() == change.state)) {
-		error = Error::UNSPECIFIED; // the runtime did not reach the state the change reads as
+	const deluge::instrument::SoundState before = *record;
+	*record = change.state;
+	Error error = applyChange(sound, before, change.state, song);
+	// The runtime reshapes ranges as it takes a type (keeping only top notes across kinds), which it reflects into the
+	// record: the gates' audit checks that the record is the change's afterwards.
+	if (error == Error::NONE && typedWriteAudit().enabled && !(*record == change.state)) {
+		error = Error::UNSPECIFIED;
 	}
 	return error;
 }
