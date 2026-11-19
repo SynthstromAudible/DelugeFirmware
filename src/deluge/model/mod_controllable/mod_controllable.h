@@ -34,7 +34,6 @@ class Sound;
 class TimelineCounter;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
-class ModelStackWithSoundFlags;
 
 /// Base class for things that the internal modulation engine knows how to control.
 ///
@@ -52,7 +51,6 @@ public:
 	                                        uint32_t paramID) {
 		return old_value != new_value;
 	}
-	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
