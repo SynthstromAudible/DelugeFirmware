@@ -25,6 +25,7 @@
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
+#include "instruments/deluge/deluge_synth.h"
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
@@ -752,6 +753,20 @@ Sample* previewedSample() {
 	}
 	AudioFile* file = static_cast<MultisampleRange*>(source.ranges.getElement(0))->sampleHolder.audioFile;
 	return (file != nullptr && file->type == AudioFileType::SAMPLE) ? static_cast<Sample*>(file) : nullptr;
+}
+
+/// The preview plays the sample sound it was set up as: its render reads the config its state derives, whose
+/// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
+void checkPreviewPlays() {
+	const Sound& preview = *AudioEngine::sampleForPreview;
+	const deluge::instrument::SoundState* state = preview.boundState();
+	const bool derived = state != nullptr && preview.config() == deluge::instrument::DelugeSynth::derive(*state);
+	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
+	if (!derived || state->sources[0].osc_type != OscType::SAMPLE
+	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {
+		g_report.fail("PREVIEW leg=%s the preview does not play its sample sound's config (derived=%d smooth=%d)",
+		              legName(g_leg), derived ? 1 : 0, osc.interpolation_mode == InterpolationMode::SMOOTH ? 1 : 0);
+	}
 }
 
 /// Remember every randomizer row's path, so a row the gesture must leave alone can be shown to still hold it.
@@ -2839,6 +2854,7 @@ void runTick() {
 			break;
 		case WaitState::Met:
 			printf("SC-PROBE leg=%s preview landed ticks=%d\n", legName(g_leg), g_wait.ticks());
+			checkPreviewPlays();
 			g_step = (g_leg == Leg::WaveTableConverted) ? Step::ResidentWait : Step::Act;
 			startWait("the file becoming fully resident", kMaxLegTicks);
 			break;
