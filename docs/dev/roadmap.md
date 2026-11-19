@@ -243,8 +243,9 @@ nightly tier and both `DELUGE_SONG_CORPUS` and `DELUGE_LEGACY_CORPUS` set.
 3. Before each merge, run the nightly tier with both corpus variables set; without them the preset and upgrade
    gates fail or go absent.
 4. Port the #5049 SD-perf follow-ups from `main`.
-5. With each `main` to `next` merge, set `scripts/main_citation_ref` (one line, a commit SHA) to the `main` commit merged. The
-   dangling-path gate resolves `origin/main:<path>` citations against that pinned commit, never a live `origin/main`.
+5. Each merge of `main` into `next` writes the merged `main` commit to `scripts/main_citation_ref` and runs
+   `python3 scripts/check_doc_hygiene.py --strict`; an `origin/main:` citation whose file or symbol that commit lacks
+   is rewritten in the merge.
 
 Biggest risk: the gap to `main` grows with every `next` merge, and the device flash-tests (3a, async-SD,
 relocations) are still outstanding.

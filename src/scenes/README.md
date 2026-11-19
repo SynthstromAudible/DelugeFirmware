@@ -18,7 +18,7 @@ in `website/src/data/generated/menu-tree.json`.
 | path | what it is |
 |---|---|
 | `registry.{h,cpp}` | the application's `SceneRegistry` (`scene_registry()`), the menu singleton (`menu_scene()`), `assigned_node_ids()`, and the boot-wiring record |
-| `l10n_bridge.{h,cpp}`, `profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
+| `l10n_bridge.{h,cpp}`, `scenes/profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
 | `menu/` | the `Node` data model (`node.h`), `MenuContext` (`context.h`), `bindings`, the ten root tables (`menu/nodes/`), the shortcut tables, the validator, the node-id registry, and `MenuScene` with its units |
 | `bind/` | `deluge_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; writes leave as requests through `WriteSink` |
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
@@ -140,7 +140,7 @@ rest to units it owns by value. A unit is given the context and state per call (
 | presentation | `present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
 | chains | `chains.{h,cpp}` | the horizontal-menu chains and where a named node lands |
 | `MenuWalk` | `walk.{h,cpp}` | re-rooting, descending, ascending, the range picker, the remembered rows, saved state |
-| `MenuView` | `view.{h,cpp}` | the OLED render, and `owned_input`, the claims it makes |
+| `MenuView` | `menu/view.{h,cpp}` | the OLED render, and `owned_input`, the claims it makes |
 | `ValueSession` | `value_session.{h,cpp}` | loading a leaf's value into the edit storage and committing it |
 | `MenuLearn` | `learn.{h,cpp}` | learn mode, the LEARN button and LED, learn delivery |
 | `VoiceUsageClock` | `voice_usage.{h,cpp}` | the voice usage page's counters and sampling |

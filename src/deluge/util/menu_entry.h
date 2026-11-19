@@ -52,9 +52,6 @@
 /// Clip`. Every `src/scenes` and `gui/` dependency stays in `gui/ui/menu_entry.cpp`, where the rule would judge
 /// it if it moved.
 ///
-/// @note `check_citations.py`'s `SCAN_ROOTS` includes `src/deluge/util`, so this file's citations
-///       are gate-read.
-///
 /// @par What works, and what does not
 ///
 /// This is what a user gets by default, and none of it is discoverable from a green test suite:

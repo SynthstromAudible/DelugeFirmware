@@ -226,8 +226,8 @@ Error Listing::run_action(ListingResult& out) {
 
 	case ListingAction::ByPath: {
 		// `setFileByFullPathImpl`.
-		// TODO(conflation-batch-4): an unknown `fileExists` is treated as absent here, the same conflation
-		// `AudioFileManager` marks with `TODO(conflation-batch-5)` (`storage/audio/audio_file_manager.cpp`);
+		// TODO(conflation): an unknown `fileExists` is treated as absent here, the same conflation
+		// `AudioFileManager` marks with its own conflation TODOs (`storage/audio/audio_file_manager.cpp`);
 		// whatever the load/browse/favourites sites decide, this port inherits.
 		if (!StorageManager::fileExists(request_.path.c_str()).value_or(false)) {
 			return Error::FILE_NOT_FOUND;

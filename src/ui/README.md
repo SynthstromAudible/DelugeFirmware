@@ -36,7 +36,7 @@ pre-commit hook `check-layer-rules`). Its four `src/ui` rows, all held at zero i
 | `ui-includes-outside` | `src/ui/**` | any slashed `#include` outside `ui/`/`gfx/`, and the root headers above |
 | `ui-oled-no-grid` | `src/ui/oled/**` | `#include "ui/grid/..."` |
 | `ui-grid-no-oled` | `src/ui/grid/**` | `#include "ui/oled/..."` |
-| `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `frame.{h,cpp}` | `input.turn`, `input.edit`, `input.horizontal`, `input.vertical`, `input.select_pressed`, `input.back_pressed`, `input.shift`, `input.now_ms` |
+| `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `oled/frame.{h,cpp}` and `grid/frame.{h,cpp}` | `input.turn`, `input.edit`, `input.horizontal`, `input.vertical`, `input.select_pressed`, `input.back_pressed`, `input.shift`, `input.now_ms` |
 
 The frame files are exempt because they are the accessors. The rule is line-based: a ratchet
 against drift, not a proof.

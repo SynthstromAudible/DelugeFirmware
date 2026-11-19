@@ -854,8 +854,8 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 				// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
 				// `PerformanceView`, which is exactly `setup()`'s
 				// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
-				// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
-				// (`scenes/menu/context.cpp:365-367`).
+				// (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
+				// `context_for`'s `performance_view` (`scenes/menu/context.cpp`).
 				(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
 				                                /*performanceView=*/true,
 				                                /*sessionOrArrangerRoot=*/false,

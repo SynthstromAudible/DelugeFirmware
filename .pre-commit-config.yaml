@@ -152,28 +152,22 @@ repos:
         # scenes-no-root-ui, scenes-no-display) and without it a scenes-only commit never ran them.
         files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|src/scenes/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
-        name: legacy citations resolve (warning only; the UI trees are strict below)
-        description: warn when a `foo.h:NN` citation points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
-        # Warning-only over the whole tree: legacy's own comments carry citations this hook only
-        # reports. The UI trees are held strictly by `check-citations-ui` below and by CI's lint job.
+        name: legacy's line citations resolve (warning only)
+        description: warn when a `foo.h:NN` citation in src/deluge points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
+        # Warning-only: legacy's own comments carry line citations this hook only reports. The UI trees cite no
+        # line at all, which check-doc-hygiene holds strictly.
         entry: python3 scripts/check_citations.py
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/unit/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
-      - id: check-citations-ui
-        name: the UI trees' legacy citations resolve
-        description: a `foo.cpp:NN` citation in the ported UI must point at the code it names; cite the symbol instead
-        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/shell tests/unit/ui tests/unit/deluge/gui tests/unit/scenes tests/unit/harness tests/ui-scripts tests/harness src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/gui/ui/menu_entry src/deluge/gui/ui/browser_host src/deluge/util/menu_entry
-        language: system
-        pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/(shell|ui|scenes|harness|deluge/gui)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of|menu_entry|browser_host)|src/deluge/util/menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
+        files: ^(src/deluge/|scripts/check_citations\.py)
       - id: check-doc-hygiene
-        name: the UI trees' docs carry no history and no line citations into our own code
-        description: comments say what the code is and why; task, review and spec breadcrumbs and `our_file.cpp:NN` citations are refused
+        name: the UI trees' docs carry no history, no line numbers and no paths that name no file
+        description: comments say what the code is and why, and cite a file and a symbol; task, review and spec breadcrumbs, `file.cpp:NN` and bare `:NN` citations, and a path that names no one file are refused
         entry: python3 scripts/check_doc_hygiene.py --strict
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/(shell|ui|scenes|harness|deluge/gui)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of|menu_entry|browser_host)|src/deluge/util/menu_entry|scripts/check_doc_hygiene\.py)
+        # Every commit: a cited path dangles when the file it names moves or loses the symbol, wherever that is.
+        always_run: true
       - id: spec-comparisons
         name: no spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy()
         description: a staged spec may not add expect(a == b).to_be_true() or .to_be_truthy(), whose failure prints no value; use to_equal and the other value matchers (tests/README.md, "A unit spec")
