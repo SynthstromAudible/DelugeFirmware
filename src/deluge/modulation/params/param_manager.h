@@ -55,6 +55,8 @@ public:
 	Error setupWithPatching();
 	Error setupUnpatched();
 	Error setupMIDI();
+	// Reset the scalar layer only; keep automation nodes and offsets intact.
+	Error resetValuesToPreset(ModelStackWithThreeMainThings* modelStack);
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,

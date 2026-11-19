@@ -1118,40 +1118,36 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 	bool haveRedoneSetup = false;
 
-	if (!modelStack->timelineCounterIsSet() || ((Clip*)modelStack->getTimelineCounter())->isActiveOnOutput()) {
-		int32_t currentValue = modelStack->autoParam->getCurrentValue();
-		bool currentValueChanged = (oldValue != currentValue);
+	int32_t current_value = modelStack->autoParam->getCurrentValue();
+	bool current_value_changed = (oldValue != current_value);
 
-		PatchSource s;
-		ParamDescriptor destinationParamDescriptor;
-		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
+	PatchSource s = PatchSource::NOT_AVAILABLE;
+	ParamDescriptor destination;
+	dissectParamId(modelStack->paramId, &destination, &s);
 
-		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
-		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0) && (getClipValueStorage(modelStack->paramId)->getOffset() == 0)
-		    && (getClipValueStorage(modelStack->paramId)->getPresetValue() == 0)) {
-			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-			if (c != 255) {
+	// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
+	// delete the AutoParam that called us!
+	if (!modelStack->autoParam->containsSomething(0) && (getClipValueStorage(modelStack->paramId)->getOffset() == 0)
+	    && (getClipValueStorage(modelStack->paramId)->getPresetValue() == 0)) {
+		int32_t c = getPatchCableIndex(s, destination);
+		if (c != 255) {
 
-				// Clone the ModelStack, since we only need the smaller amount of data that makes up a
-				// ModelStackWithParamCollection, and our call we make below could overwrite further-down fields of the
-				// ModelStack. Although I think in this case it actually doesn't - but best to be safe.
-				char localModelStackMemory[MODEL_STACK_MAX_SIZE];
-				copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithParamCollection));
-
-				deletePatchCable((ModelStackWithParamCollection*)localModelStackMemory, c);
-				haveRedoneSetup = true;
-			}
+			// Patching may append fields to the stack while reordering cables.
+			// Keep a full-sized local copy so the caller's stack remains intact.
+			auto local_stack = *modelStack;
+			deletePatchCable(&local_stack, c);
+			haveRedoneSetup = true;
 		}
+	}
 
-		if (currentValueChanged) {
-			int32_t p =
-			    destinationParamDescriptor
-			        .getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
-			                            // would the call below actually cause all of that to get recalculated?
-			((Sound*)modelStack->modControllable)
-			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
-		}
+	if (current_value_changed
+	    && (!modelStack->timelineCounterIsSet()
+	        || static_cast<Clip*>(modelStack->getTimelineCounter())->isActiveOnOutput())) {
+		int32_t p =
+		    destination.getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
+		                                   // would the call below actually cause all of that to get recalculated?
+		static_cast<Sound*>(modelStack->modControllable)
+		    ->recalculatePatchingToParam(p, static_cast<ParamManagerForTimeline*>(modelStack->paramManager));
 	}
 
 	if (!haveRedoneSetup && automatedBefore != automatedNow) {

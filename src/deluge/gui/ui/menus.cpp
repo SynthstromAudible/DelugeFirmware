@@ -170,6 +170,7 @@
 #include "gui/menu_item/record/countin.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
+#include "gui/menu_item/reset_param_values.h"
 #include "gui/menu_item/reset_settings/reset.h"
 #include "gui/menu_item/reverb/amount.h"
 #include "gui/menu_item/reverb/amount_unpatched.h"
@@ -891,10 +892,13 @@ PLACE_SDRAM_BSS Submenu editNameMenu{
     },
 };
 
+PLACE_SDRAM_BSS menu_item::ResetParamValues reset_param_values_menu{STRING_FOR_RESET_PARAM_VALUES};
+
 PLACE_SDRAM_BSS Submenu audioClipActionsMenu{
     STRING_FOR_ACTIONS,
     {
         &editNameMenu,
+        &reset_param_values_menu,
         &setClipLengthMenu,
     },
 };
@@ -1520,12 +1524,12 @@ PLACE_SDRAM_BSS Submenu soundFXMenu{
 
 PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenu{
     STRING_FOR_ACTIONS,
-    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu},
 };
 
 PLACE_SDRAM_BSS Submenu soundEditorRootDrumActionsMenu{
     STRING_FOR_ACTIONS,
-    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu, &reset_param_values_menu},
 };
 
 PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
@@ -1703,6 +1707,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenuMIDIOrCV{
     STRING_FOR_ACTIONS,
     {
         &editNameMenu,
+        &reset_param_values_menu,
     },
 };
 
@@ -1838,10 +1843,13 @@ PLACE_SDRAM_BSS Submenu songThresholdRecordingSubmenu{
 PLACE_SDRAM_BSS song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 PLACE_SDRAM_BSS song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
+PLACE_SDRAM_BSS Submenu song_actions_menu{STRING_FOR_ACTIONS, {&reset_param_values_menu}};
+
 // Root menu for Song View
 PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
+        &song_actions_menu,
         &songMasterMenu,
         &globalFiltersMenu,
         &globalFXMenu,
@@ -1858,6 +1866,7 @@ PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXActionsMenu{
     STRING_FOR_ACTIONS,
     {
         &editNameMenu,
+        &reset_param_values_menu,
         &kitGlobalFXStemExportMenu,
     },
 };
