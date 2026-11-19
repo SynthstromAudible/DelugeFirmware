@@ -247,7 +247,7 @@ private:
 	MarkerType reverse_remap(MarkerType type) const;
 	/// @brief `isLoopLocked()`.
 	bool loop_locked() const;
-	/// @brief `SampleMarkerEditor::loopUnlock` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) / `loopLock`:
+	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`):
 	///        set the lock and, when @p announce, queue their popup ("FREE" / "LOCK") in `pending_popup_` for `handle`
 	///        to file -- the only place that can raise an `Action`.
 	/// @param locked   The new state.

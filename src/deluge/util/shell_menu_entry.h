@@ -64,7 +64,7 @@
 ///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` do what their legacy items
 ///     do. What each arm still owes is recorded
 ///     per arm at `gui/ui/shell_action_dispatch.h`.
-///  2. **A file chosen in the ported browser is claimed.** The browser's host
+///  2. **A file chosen in the browser scene is claimed.** The browser's host
 ///     (`gui/ui/shell_choice_dispatch.cpp`, installed by `wireShellGuestServices`) performs the sample
 ///     claim (`SampleClaim`) on the press, so the sample really loads; and `shellSampleClaimDone`'s success arm
 ///     then calls `MenuScene::reroot_to_scene_opener_page()` (`scenes/menu/menu_scene.h`), which is

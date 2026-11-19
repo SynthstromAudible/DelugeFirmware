@@ -94,10 +94,10 @@ void SlicerScene::open(Sample* sample, const deluge::sample::WaveformNav* shown)
 		nav_path_ = sample->filePath;
 		return;
 	}
-	// `SampleBrowser::previewIfPossible`'s (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`)
-	// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` onto this scene's own navigator.
-	// Reopened on the sample it already shows, the navigator is kept, render cache and all: legacy's global is not
-	// reset between two slicer opens on the same file.
+	// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` from
+	// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), onto this
+	// scene's own navigator. Reopened on the sample it already shows, the navigator is kept, render cache and all:
+	// legacy's global is not reset between two slicer opens on the same file.
 	if (sample != nullptr && sample == nav_.sample && sample->filePath == nav_path_) {
 		return;
 	}

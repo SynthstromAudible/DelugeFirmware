@@ -113,8 +113,8 @@
 ///     -- the four-button guard, the hold, the short-press test, the overdub refusal -- is ported
 ///     in full and specced; only the open is missing. See `handle_save`/`handle_load`.
 ///   * **`context_menu::clearSong`** (`View::buttonAction`'s LOAD arm), shift+LOAD. `ContextMenuScene` exists
-///     (`scenes/context_menu/`), but the *clear-song* menu is not among the ported context
-///     menus, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
+///     (`scenes/context_menu/`), but the *clear-song* menu is not among the context menu
+///     scenes, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
 ///     missing.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
 ///     it guards (`Buttons::buttonAction` in `hid/buttons.cpp`). `scenes-no-display` forbids `display->`, and the
@@ -125,7 +125,7 @@
 ///     RECORD tap dismisses it and does nothing else, while this port falls through to
 ///     `PlaybackHandler::recordButtonPressed()` and toggles recording.
 ///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`View::buttonAction` in `gui/views/view.cpp`). The
-///     note-editor test needs no port here: it holds only in a note mode, and the ported note mode never lets this
+///     note-editor test needs no port here: it holds only in a note mode, and the note mode never lets this
 ///     service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler, whose
 ///     `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
 ///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` . The two fill adjustments name `instrumentClipView`, on

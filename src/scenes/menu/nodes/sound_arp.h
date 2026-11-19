@@ -235,7 +235,7 @@ inline constexpr Node arp_basic =
 
 // --- the pattern page ------------------------------------------------------------------------
 
-// `Octaves::getMinValue` (`origin/main:src/deluge/gui/menu_item/arpeggiator/octaves.h`)/`getMaxValue` and
+// `Octaves::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/arpeggiator/octaves.h`) and
 // `StepRepeat`'s; both render a plain NUMBER (`getRenderingStyle`), hence `Hint::None`.
 /// Relevant by `arpeggiator::Octaves::isRelevant` alone, which asks only the latch and the selected row: on the kit's
 /// own shortcut table it shows while the latch is clear, though the kit's own chain holds no octaves.

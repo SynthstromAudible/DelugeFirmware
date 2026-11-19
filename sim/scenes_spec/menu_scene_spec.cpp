@@ -1767,8 +1767,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("lands the start markers, the waveform and the file selectors on themselves, not on their page", _ {
-		// `SoundEditor::maybeGetParentMenu`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) two early answers:
-		// these go straight to the marker editor or the browser, so `setup()` opens the item rather than a page.
+		// The two early answers of `SoundEditor::maybeGetParentMenu`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): these go straight to the marker editor or the browser, so
+		// `setup()` opens the item rather than a page.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

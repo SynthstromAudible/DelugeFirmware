@@ -18,7 +18,7 @@
 /// `setNoteRowParameterValue` likewise -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own
 /// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Those predicates
-/// see the ported note mode through `util/note_editor_open.h`; this bridge does not paper over the
+/// see the note mode through `util/note_editor_open.h`; this bridge does not paper over the
 /// gate itself.
 ///
 /// **Reads that allocate.** The note-row entries create a `NoteRow` for a non-kit clip when none exists yet, the way

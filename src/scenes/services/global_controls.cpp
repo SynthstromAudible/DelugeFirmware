@@ -228,7 +228,7 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 			// `openUI(&context_menu::clearSong)`.
 			//
 			// @warning **Not ported.** `ContextMenuScene` exists, but the clear-song menu is not
-			//          among the ported context menus and its availability check is a
+			//          among the context menu scenes and its availability check is a
 			//          `gui/` call. Decision ported (shift+LOAD from a clean mode), open missing.
 			count_unported(UnportedOpen::ClearSong);
 			return;
@@ -265,7 +265,7 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	    == RuntimeFeatureStateSyncScalingAction::Fill) {
 		// `View::buttonAction` (`gui/views/view.cpp`) (the note editor / note-row editor test) needs no port here: in a
-		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`) and
+		// note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`) and
 		// gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test. The fill adjustments
 		// (`View::buttonAction` in `gui/views/view.cpp`) name `instrumentClipView`, whose scene is unported.
 		//

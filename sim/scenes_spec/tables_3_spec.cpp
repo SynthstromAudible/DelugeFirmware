@@ -1644,7 +1644,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("from the list, a note-on and a program change learn the row under the cursor as legacy's Submenu does", _ {
-		// `Submenu::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) / `learnProgramChange` forward to
+		// `Submenu::learnNoteOn` / `learnProgramChange` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) forward to
 		// the current child when the list is the current item.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
@@ -1855,7 +1855,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 
 	it("has no param learn target: this is global-command learn, not param learn", _ {
 		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()`
-		// (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`) -- "which automatable parameter would a CC bind
+		// (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`,
+		// `origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`) -- "which automatable parameter would a CC bind
 		// to". These twelve bind a whole message to a transport action instead and carry no `ParamRef`, so there is no
 		// target. The two learn paths share a name and nothing else.
 		const TablesRoot& settings = roots().back();
@@ -2016,8 +2017,9 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	// The port is three `CustomItem`s (`menu/nodes/dynamic.h`) plus the `MenuWalkState::source_choice` /
 	// `midi_cable_choice` write-back `nodes/settings.h` recorded as owed.
 	//
-	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled from
-	// `Node::name`, one static `uint16_t` l10n id (`MenuView::render_vertical`), and `Devices` labels its rows with
+	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled by
+	// `display_text` (`MenuView::render_vertical`; `present.cpp`) -- a `Binding::name_text` hook with no row index, or
+	// the `Node::name` l10n id -- and `Devices` labels its rows with
 	// `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- a runtime string with no id at all -- while the two
 	// selectors' option lists are static in main (`getOptions` in

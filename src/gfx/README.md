@@ -93,9 +93,8 @@ dirty-row marking and in-place aliasing, and freezes a golden `.state` per mode
 
 `gfx/grid/tween.{h,cpp}`: pure `from -> to` frame transitions over `PadGrid`; the caller owns
 timing and calls one of these once per tick with its own progress parameter. `fade`,
-`scroll_horizontal`/`scroll_vertical` and `grey_out` ported first; `smear_scroll_horizontal`/
-`smear_scroll_vertical`, `zoom`, `explode` and `expand_collapse` round out
-the set legacy's `hid/led/pad_leds.cpp` animates:
+`scroll_horizontal`/`scroll_vertical`, `grey_out`, `smear_scroll_horizontal`/`smear_scroll_vertical`, `zoom`,
+`explode` and `expand_collapse` are the set legacy's `hid/led/pad_leds.cpp` animates:
 
 | function | ports | notes |
 |---|---|---|

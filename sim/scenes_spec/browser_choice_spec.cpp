@@ -7,7 +7,7 @@
 /// wall, and what is covered here matters more than usual because one legacy statement is split in
 /// two:
 ///
-///   * **Covered:** that a real file press through the ported browser hands exactly one `BrowserChoice` to the
+///   * **Covered:** that a real file press through the browser scene hands exactly one `BrowserChoice` to the
 ///     browser's host, which claims it on the press, through a bare `Shell` and through the guest's own input path;
 ///     that an answer the request produced before it returned waits for the guest's poll; that ticks that chose
 ///     nothing claim nothing; and that `sampleClaimTargetFor` splits a chosen path exactly the way

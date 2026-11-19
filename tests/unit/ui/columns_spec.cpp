@@ -53,8 +53,8 @@ namespace uitest = deluge::ui::test;
 //    with it.
 //  - `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because legacy's is a `constexpr`
 //    literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is NOT list's
-//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`)
-//    `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` and belongs to a different renderer. The two
+//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14`
+//    (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) and belongs to a different renderer. The two
 //    coincide at 48 and differ by a row at 64, so the oracle below spells legacy's literal
 //    rather than the port's constant -- encoding the port's rule there would make the 64-row
 //    comparison circular.

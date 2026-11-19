@@ -456,7 +456,8 @@ std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext
 }
 
 std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, const MenuContext& ctx) {
-	// `PatchedParam`/`UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`):
+	// `PatchedParam`/`UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`,
+	// `origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`):
 	// the node's param, by its engine id.
 	const std::optional<deluge::project::ControlsAddress> owner = controls_owner(ctx);
 	if (!node.bind.param.valid() || !owner) {

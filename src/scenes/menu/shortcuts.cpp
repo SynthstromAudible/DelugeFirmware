@@ -274,11 +274,11 @@ constexpr Cells kAudioClipV1Cells = with_cell(
 /// (`x in {14, 15}`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
-	// `SoundEditor::get_basic_shortcut_action` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) for each cell.
-	out[cell_index(4, 7)] = &n::sequence_direction;     // `SoundEditor::get_basic_shortcut_action`
-	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // ditto
-	out[cell_index(15, 2)] = &n::randomizer_lock;       // ditto
-	out[cell_index(15, 3)] = &n::note_probability_midi; // ditto
+	// Each cell: `SoundEditor::get_basic_shortcut_action` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
+	out[cell_index(4, 7)] = &n::sequence_direction;
+	out[cell_index(15, 1)] = &n::spread_velocity_midi;
+	out[cell_index(15, 2)] = &n::randomizer_lock;
+	out[cell_index(15, 3)] = &n::note_probability_midi;
 	return out;
 }();
 

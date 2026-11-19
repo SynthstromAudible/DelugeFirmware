@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The ported browser's host. See `shell_choice_dispatch.h` for why it lives here and how its answers reach the
+/// @brief The browser scene's host. See `shell_choice_dispatch.h` for why it lives here and how its answers reach the
 ///        browser.
 
 #include "gui/ui/shell_choice_dispatch.h"
@@ -71,7 +71,7 @@ using deluge::scenes::browser::PreviewRequest;
 
 namespace {
 
-/// @brief How one of the browser host's requests ended: what the ported browser, and the menu beneath it, are told.
+/// @brief How one of the browser host's requests ended: what the browser scene, and the menu beneath it, are told.
 struct BrowserAnswer {
 	/// @brief Which completion this is.
 	enum class Kind : uint8_t {
@@ -278,7 +278,7 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	});
 }
 
-/// @brief `FolderImportRequest::rangeChosen` for an import the ported browser asked for: the range the import makes
+/// @brief `FolderImportRequest::rangeChosen` for an import the browser scene asked for: the range the import makes
 ///        current goes to the menu beneath, as `SoundEditor::setCurrentMultiRange` makes it the legacy editor's.
 void shellImportRangeChosen(int32_t index) {
 	deluge::scenes::menu_scene().import_chose_range(index);
@@ -363,7 +363,8 @@ PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	};
 }
 
-/// @brief Tick the preview in hand, as the legacy browser's `tickPreview` does: a load that ends is answered through
+/// @brief Tick the preview in hand, for the auto-load of main's `SampleBrowser::previewIfPossible`
+///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a load that ends is answered through
 ///        `BrowserScene::preview_settled`.
 void tickPreview() {
 	SamplePreviewer& previewer = shellPreviewer();
@@ -376,7 +377,7 @@ void tickPreview() {
 	}
 }
 
-/// @brief Start legacy's horizontal scroll for the ported browser, as `SampleBrowser` does where it calls
+/// @brief Start legacy's horizontal scroll for the browser scene, as `SampleBrowser` does where it calls
 ///        `PadLEDs::horizontal::setupScroll`: the root view, or the browser's main pads off the guest's grid, into the
 ///        image store (or nothing, for the scroll out), and the guest's main columns left to the animation until
 ///        `ShellHostUI::scrollFinished`.
@@ -547,7 +548,7 @@ void pollDxCartridgeRead() {
 	dxCartridgeReadSettled(read.poll());
 }
 
-/// @brief Perform what the ported browser asks its host for: the claim, import, slice, deletion, MIDI definition load
+/// @brief Perform what the browser scene asks its host for: the claim, import, slice, deletion, MIDI definition load
 ///        or `.syx` read it names.
 void dispatchChoice(const BrowserChoice& choice) {
 	switch (choice.id) {
@@ -624,7 +625,7 @@ void deliverSampleClaimDone(bool success) {
 	}
 	uiNeedsRendering(&audioClipView);
 	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
-	// opened the ported browser, so a claim with no recorded opener came from elsewhere.
+	// opened the browser scene, so a claim with no recorded opener came from elsewhere.
 	if (deluge::scenes::menu_scene().reroot_to_scene_opener_page()) {
 		// Legacy re-enters its editor here (`SampleBrowser::claimCurrentFile`'s `enterOrUpdateSoundEditor`), whose
 		// write to `setupKitGlobalFXMenu` the latch takes.
@@ -679,7 +680,7 @@ void deliverAnswer(const BrowserAnswer& answer) {
 	}
 }
 
-/// @brief The ported browser's host: each request is performed when the browser makes it, and an answer it produces
+/// @brief The browser scene's host: each request is performed when the browser makes it, and an answer it produces
 ///        before returning is held (`Performing`).
 class ShellBrowserHost final : public deluge::scenes::browser::BrowserHost {
 public:

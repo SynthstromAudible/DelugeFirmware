@@ -19,7 +19,7 @@
 
 /// @file
 /// @brief "Is a note editor open?", asked by the functions the note mode forwards into and writes through. The
-///        answer is the ported note mode's, `gui::ui::activeNoteMode()` (`gui/ui/shell_note_mode.h`), which is `None`
+///        answer is the note mode's, `gui::ui::activeNoteMode()` (`gui/ui/shell_note_mode.h`), which is `None`
 ///        with the menu off the guest's stack.
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`

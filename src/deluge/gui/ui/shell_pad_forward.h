@@ -154,7 +154,7 @@ void setPadForwardPerform(PadForwardPerform perform);
 ///
 /// `SampleMarkerEditor::renderSidebar` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), whole: over
 /// the keyboard screen it draws `instrumentClipView`'s sidebar, and over any other root it leaves
-/// the sidebar to the UI underneath. The ported marker scene may not read the root UI, so the guest
+/// the sidebar to the UI underneath. The marker scene may not read the root UI, so the guest
 /// asks here on its behalf. Same arguments and answer as `UI::renderSidebar`, query form included.
 /// @param whichRows Bit `y` selects row `y`.
 /// @param image Legacy's pad image, or null to ask without drawing.

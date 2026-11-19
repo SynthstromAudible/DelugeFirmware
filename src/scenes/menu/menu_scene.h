@@ -191,7 +191,7 @@ public:
 	///
 	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not itself a submenu --
 	/// `Submenu::shouldForwardButtons` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): legacy's same-param popup
-	/// test (`View::modEncoderAction_existentParam`'s (`origin/main:src/deluge/gui/views/view.cpp`) guard) forwards
+	/// test (the guard in `View::modEncoderAction_existentParam`, `origin/main:src/deluge/gui/views/view.cpp`) forwards
 	/// through a horizontal page to whichever item the buttons would actually reach, not the page itself. On any other
 	/// leaf this is `focused()` unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.

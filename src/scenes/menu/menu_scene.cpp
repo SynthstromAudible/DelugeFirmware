@@ -263,7 +263,6 @@ void MenuScene::on_resume() {
 	// A folder import's range is this resume's to apply (on the step up below) or to drop.
 	const int16_t imported = std::exchange(import_range_, int16_t{-1});
 	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
-	                             // (`SoundEditor::focusRegained` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`)
 	// `SoundEditor::focusRegained` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it

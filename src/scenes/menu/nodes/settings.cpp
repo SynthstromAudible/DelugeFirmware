@@ -996,8 +996,8 @@ void set_cv_transpose(const MenuContext& ctx, int32_t value) {
 }
 
 size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out) {
-	// `gate::Mode`'s `options_` (`origin/main:src/deluge/gui/menu_item/gate/mode.h`) as `updateOptions(whichOutput)`
-	// leaves it (`origin/main:src/deluge/gui/menu_item/gate/mode.h`): the two trigger polarities always, plus one extra
+	// `gate::Mode`'s `options_` as `updateOptions(whichOutput)` leaves it
+	// (`origin/main:src/deluge/gui/menu_item/gate/mode.h`): the two trigger polarities always, plus one extra
 	// on the outputs that carry the clock or the run signal.
 	size_t n = 0;
 	for (const String s : {String::STRING_FOR_V_TRIGGER, String::STRING_FOR_S_TRIGGER}) {
@@ -1126,8 +1126,7 @@ void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	}
 
 	// `battery::Level::getBatteryString` (`origin/main:src/deluge/gui/menu_item/battery/level.h`). 2600 mV / 4200 mV
-	// are legacy's own empty/full endpoints (`Level::getBatteryString` in
-	// `origin/main:src/deluge/gui/menu_item/battery/level.h`).
+	// are its own empty/full endpoints.
 	constexpr int32_t kMinMv = 2600;
 	constexpr int32_t kMaxMv = 4200;
 	int32_t percentage = 0;

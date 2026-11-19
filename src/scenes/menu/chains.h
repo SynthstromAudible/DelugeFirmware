@@ -16,7 +16,7 @@ namespace deluge::scenes::menu {
 ///
 /// Null for the two sample start markers, the audio clip's waveform and the two file selectors, which open their own
 /// scenes. Otherwise the first page of @p root's horizontal-menu chain that lists it, the chain transcribed from
-/// `SoundEditor::getCurrentHorizontalMenusChain`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) (each group as
+/// `SoundEditor::getCurrentHorizontalMenusChain` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`; each group as
 /// its member pages; pinned against legacy's search by `shortcuts_spec`).
 /// @param root   The menu root.
 /// @param target The named node.

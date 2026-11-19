@@ -602,8 +602,9 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 /// @note No node sets `dynamic_children`, and none can. The candidates are the MIDI device list and the CV and gate
 ///       output selectors (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`,
 ///       `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
-///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`). A submenu's rows are labelled from `Node::name`, a
-///       single static `uint16_t` l10n id (`MenuView::render_vertical`), and `Devices` labels every row with
+///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`). A submenu's rows are labelled by `display_text`
+///       (`MenuView::render_vertical`; `src/scenes/menu/present.cpp`) -- a `Binding::name_text` hook with no row index,
+///       or the `Node::name` l10n id -- and `Devices` labels every row with
 ///       `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
 ///       `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime string with no id at all -- while the two
 ///       selectors' option lists are *static* in main (`getOptions` in

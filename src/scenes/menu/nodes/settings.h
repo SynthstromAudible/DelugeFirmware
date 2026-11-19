@@ -64,7 +64,7 @@
 ///       `gate::Selection::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`,
 ///       `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- so the port hangs them off `cv_selection` /
 ///       `gate_selection`'s `Node::chain_targets` instead, which is what the reachability walk follows to number and
-///       validate them without inventing a parent the legacy tree does not have. Every chaining override in
+///       validate them without inventing a parent main's menu tree does not have. Every chaining override in
 ///       `gui/menu_item/` was swept for this; these two selectors and `midi_devices` (below) are the only ones that
 ///       need it.
 ///

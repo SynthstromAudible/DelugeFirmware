@@ -187,7 +187,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// settings root instead.
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
-/// **The site-8 example really opens the ported browser**, because `MenuScene::on_enter` performs the
+/// **The site-8 example really opens the browser scene**, because `MenuScene::on_enter` performs the
 /// `Source::getOrCreateFirstRange()` legacy's permission check performs
 /// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
 /// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)) -- so `browser::sample_can` stops refusing and the scene reads

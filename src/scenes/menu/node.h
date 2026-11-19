@@ -161,8 +161,8 @@ enum class SourceTarget : uint8_t {
 	Range,     ///< A cable's range.
 };
 
-/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s
-/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`) three.
+/// @brief An item's answer to SHIFT and a patching-source pad -- the three answers of
+/// `MenuItem::patchingSourceShortcutPress` (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 enum class SourcePress : uint8_t {
 	/// Nothing happens (`nullptr`): the press stops at this item.
 	Unhandled,
@@ -503,8 +503,8 @@ struct Binding {
 	TickMagnitudeFn sync_name_magnitude = nullptr;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
-	///        (`Submenu::wrapAround` answering true on a horizontal page,
-	///        `origin/main:src/deluge/gui/menu_item/submenu.cpp`).
+	///        (main's `osc::Type::wrapAround`, the `Enumeration::wrapAround` override answering
+	///        `parent->renderingStyle() == HORIZONTAL`, `origin/main:src/deluge/gui/menu_item/osc/type.h`).
 	bool wrap_in_horizontal = false;
 
 	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
@@ -833,9 +833,9 @@ struct CustomItem {
 	/// @param previous_held Another patching-source pad is held.
 	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
 
-	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves --
-	///        `PatchCables::blinkShortcutsSoon`'s (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`) throttle,
-	///        so scrolling a list is not a storm of flashes.
+	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves -- the throttle
+	///        in `PatchCables::blinkShortcutsSoon` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`), so
+	///        scrolling a list is not a storm of flashes.
 	/// @return Milliseconds; 0 for none.
 	virtual uint16_t blink_delay_ms() const { return 0; }
 
@@ -956,9 +956,9 @@ struct Node {
 	bool range_specific = false;
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
-	///        range-picker gate and column-press notification? The port of
-	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`)
-	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
+	///        range-picker gate and column-press notification? Main's
+	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()` (default false,
+	///        `origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
 	/// Six legacy classes override it to true: five scene openers -- `FileSelector`
 	/// (`origin/main:src/deluge/gui/menu_item/file_selector.h`), `osc::AudioRecorder`

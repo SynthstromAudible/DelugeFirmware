@@ -80,7 +80,7 @@ ValueText cv_volts_word(const MenuContext& ctx, int32_t value, ValueTextUse use,
 ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::sidechain::Volume` (`origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`): AUTO below zero.
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
-/// `defaults::HoldTime::getDisplayValue` (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`)/`getUnit`:
+/// `defaults::HoldTime::getDisplayValue`/`getUnit` (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`):
 /// twentieths of a second, 1..19 as 50..950 ms, 20 as 1 SEC.
 ValueText hold_time_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `defaults::Magnitude::drawPixelsForOled`: the resolution, `96 << value`.

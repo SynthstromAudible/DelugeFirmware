@@ -1,6 +1,6 @@
 /// @file
 /// @brief Legacy's own "is a note editor open?" reads, and the note-mode handlers' own menu
-///        calls, against the ported note mode.
+///        calls, against the note mode.
 ///
 /// **Everything real.** A real `Song`/clip (`support/song_fixture.h`), the real `instrumentClipView`,
 /// the real `MenuScene` on the GLOBAL guest's stack, and the guest itself opened over

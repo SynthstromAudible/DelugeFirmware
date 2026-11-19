@@ -20,7 +20,7 @@
 /// `handleNoteRowEditorButtonAction`'s kit toggle) and every swallowed button. X_ENC and SYNC_SCALING are pinned
 /// through the seam only: their `return buttonAction(...)` arm reaches `InstrumentClipView::buttonAction`, whose
 /// SYNC_SCALING fill arm asks `noteEditorOpen() || noteRowEditorOpen()` (in `View::buttonAction`) -- one of the reads
-/// widened to see the ported note mode, so it takes the in-editor arm.
+/// widened to see the note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
 /// when it answers a value -- `tests/unit/deluge/gui/shell_host_ui_buttons_spec.cpp`'s, against fakes.

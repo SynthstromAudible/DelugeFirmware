@@ -7,10 +7,9 @@ golden_vt_render, one song per run through `tests/integration/corpus/driver.py`,
 
 ## Song serialization round-trip (`tests/integration/corpus/songs_run.py`)
 
-Regression net for the **project-model extraction** (see
-[docs/dev/project_model_extraction.md](../../../docs/dev/project_model_extraction.md)).
-It pins the *serialization behaviour* of `Song` so any accidental change to what
-gets written to disk during the extraction is caught.
+It pins the *serialization behaviour* of `Song` (the project model is described in
+[docs/dev/project_model_extraction.md](../../../docs/dev/project_model_extraction.md)), so any accidental change to
+what gets written to disk is caught.
 
 ### What it checks — the canonical fixed point
 

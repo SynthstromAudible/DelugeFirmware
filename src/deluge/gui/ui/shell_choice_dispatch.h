@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief The ported browser's host: the claims, imports, slices, deletions, MIDI definition loads, `.syx` reads and
+/// @brief The browser scene's host: the claims, imports, slices, deletions, MIDI definition loads, `.syx` reads and
 ///        previews `BrowserScene` asks for, performed with the legacy objects the scenes layer may not name.
 ///
 /// The browser hands each request to its `BrowserHost` (`scenes/browser/browser_scene.h`) when it decides, and
@@ -105,7 +105,7 @@ struct SampleClaimArgs {
 /// @brief What the browser host claims with: the browser's three defaults.
 ///
 /// The same values the Load button's auto-load claims with: load the file into the sound as if
-/// confirmed. The ported browser waits on the claim's completion and closes itself.
+/// confirmed. The browser scene waits on the claim's completion and closes itself.
 inline constexpr SampleClaimArgs kShellSampleClaimArgs{
     .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1};
 
@@ -126,7 +126,7 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 
 /// @brief Install a claim dispatcher other than `deluge::gui::sampleClaim`'s `request`.
 ///
-/// For specs: a spec that presses a real file in the ported browser reaches this dispatcher, and
+/// For specs: a spec that presses a real file in the browser scene reaches this dispatcher, and
 /// with the shipped one the claim would load the sample for real. A recording dispatcher lets it
 /// assert what was requested (the path, the entered text and `kShellSampleClaimArgs`) without a
 /// load. Nothing outside a spec calls this.
@@ -134,21 +134,21 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 
-/// @brief How the ported browser's file deletion ended, as `DeleteFile::applyOutcome` reads the card's answer.
+/// @brief How the browser scene's file deletion ended, as `DeleteFile::applyOutcome` reads the card's answer.
 enum class FileDeleteOutcome : uint8_t {
 	Removed, ///< The card removed the file.
 	Missing, ///< The file was not on the card.
 	Failed,  ///< The card refused it, or the channel stalled.
 };
 
-/// @brief Finish the ported browser's file deletion: `main`'s popup, and the file leaves the browser's list once the
+/// @brief Finish the browser scene's file deletion: `main`'s popup, and the file leaves the browser's list once the
 ///        card has removed it. The shipped deleter calls this when the card answers; an answer inside the
 ///        deletion's own request is held (`deliverShellBrowserAnswers`).
 /// @param path    The file asked for.
 /// @param outcome How it ended.
 void shellFileDeleteDone(std::string_view path, FileDeleteOutcome outcome);
 
-/// @brief What removes a file from the card for the ported browser's delete menu.
+/// @brief What removes a file from the card for the browser scene's delete menu.
 using FileDeleteDispatch = void (*)(std::string_view path);
 
 /// @brief Install a deleter other than the card's, for specs, which cannot complete an unlink. Nothing outside a spec
@@ -197,12 +197,12 @@ void publishShellMenuTarget();
 ///        or a slice started from the menu acts on.
 deluge::gui::SoundTarget shellMenuTarget();
 
-/// @brief Tell the ported browser whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
+/// @brief Tell the browser scene whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
 ///        opens the browser with no `SoundEditor::beginScreen` after it, so only the browser's own BROWSE blink runs.
 /// @param fromCreator True for the drum creator's open; false to forget it.
 void setShellBrowserFromDrumCreator(bool fromCreator);
 
-/// @brief Install the ported browser's host (`BrowserScene::set_host`): the requests it makes are performed here, with
+/// @brief Install the browser scene's host (`BrowserScene::set_host`): the requests it makes are performed here, with
 ///        the legacy objects this file names.
 ///
 /// `wireShellGuestServices()` calls it at boot and on every open of the guest. A spec that drives the browser through a

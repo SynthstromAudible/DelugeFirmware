@@ -21,7 +21,7 @@
 /// `activeNoteMode()` reads exactly that. Their performer is pinned without running either legacy handler:
 /// `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with recorders. (Both handlers' `soundEditor`
 /// navigation calls -- `readValueAgain`, `goUpOneLevel` and `toggleNoteEditorParamMenu` in
-/// `gui/views/instrument_clip_view.cpp` -- are gated on the ported note mode, and `note_mode_reads_spec.cpp` runs
+/// `gui/views/instrument_clip_view.cpp` -- are gated on the note mode, and `note_mode_reads_spec.cpp` runs
 /// them.)
 ///
 /// Nothing here asks

@@ -31,7 +31,7 @@ class UI;
 ///
 /// It also defines `deluge::scenes::scene_registry()`, for the same reason and not the same shape:
 /// `shell_host_ui.cpp` defines the one `shellHostUI` global over the application's real scene table,
-/// and that table odr-uses every ported scene -- the whole `deluge_scenes` closure this suite does
+/// and that table odr-uses every scene -- the whole `deluge_scenes` closure this suite does
 /// not build. The fake returns an empty registry, so the global exists and is inert; every example
 /// builds its own `ShellHostUI` over its own table.
 /// @brief Legacy's audio-sample counter, which `ShellHostUI::nowMs()` reads at 44 samples a millisecond. Defined

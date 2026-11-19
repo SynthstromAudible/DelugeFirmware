@@ -10,8 +10,8 @@
 /// legacy implements as bespoke `MenuItem` subclasses rather than as data.
 ///
 /// @note **None of the three is a `Node::dynamic_children` node.** None can be, because a submenu's rows are labelled
-///       from `Node::name` -- one static `uint16_t` l10n id (`node.h`, `MenuView::render_vertical`'s
-///       `text_of(kids[i]->name, ...)`) -- and:
+///       by `display_text(*kids[i], ValueTextUse::Name, ...)` (`MenuView::render_vertical`; `present.cpp`): the
+///       node's `Binding::name_text` hook, which gets no row index, or else its `Node::name` l10n id -- and:
 ///
 ///         * `midi::Devices` labels every row with `MIDICable::getDisplayName()`
 ///           (`Devices::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime

@@ -18,7 +18,7 @@
 # - SAMPLES/SCKICK.WAV: claimed into that kit's drum. Its name holds "KICK", which the claim reads as a kick.
 # - SAMPLES/SCAUD.WAV: claimed into an audio clip.
 # - SAMPLES/SCSLICE.WAV: one second long, sliced into four regions of 250 ms each.
-# - SAMPLES/SCSLCF.WAV: a file only the ported slicer's stalled open asks for, so nothing has loaded it before.
+# - SAMPLES/SCSLCF.WAV: a file only the slicer scene's stalled open asks for, so nothing has loaded it before.
 # - SAMPLES/RD/RD1.WAV, RD2.WAV and RD3.WAV: the Drum Randomizer's folder. Its kit preset names the first, and the
 #   randomizer picks from the folder a drum's sample sits in, so these three are reachable by no other leg.
 # - SAMPLES/RDG/G1.WAV..G3.WAV: the randomizer gate leg's folder, loaded by nothing before it, so its load reaches the

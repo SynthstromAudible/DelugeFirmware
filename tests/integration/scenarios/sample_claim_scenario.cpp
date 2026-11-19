@@ -181,12 +181,12 @@ constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
 constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
 constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
 constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
-/// The ported slicer's stalled open: a file nothing has loaded, so its load reaches the held card.
+/// The slicer scene's stalled open: a file nothing has loaded, so its load reaches the held card.
 constexpr const char* kShellStallSample = "SAMPLES/SCSLCF.WAV";
 
 /// The kit leg's one-drum kit preset, which the new-kit-track gesture loads.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
-/// The ported slicer's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
+/// The slicer scene's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
 constexpr const char* kShellKitPresetPaths[] = {"KITS/SCSKA.XML", "KITS/SCSKB.XML", "KITS/SCSKC.XML", "KITS/SCSKD.XML"};
 constexpr const char* kKitDrumName = "SCD1";
 
@@ -315,7 +315,7 @@ enum class Leg : uint8_t {
 	Pitch,
 	Kit,
 	AudioClip,
-	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
+	// The slicer scene's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
 	// mode on a first drum that holds no file. Its held open is ShellSliceFail, with the other loader-hold legs.
 	ShellSlice,
 	ShellSliceManual,
@@ -366,7 +366,7 @@ Clip* g_importEmptyClip = nullptr;
 bool g_imEmptyTold = false;
 bool g_imEmptySucceeded = false;
 
-/// The ported slicer's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
+/// The slicer scene's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
 bool g_shellCommitBegun = false;
 bool g_shellEnded = false;
 bool g_shellBackKept = false;
@@ -1234,7 +1234,7 @@ bool openLeg() {
 	case Leg::ShellSliceManual:
 	case Leg::ShellSliceBack:
 	case Leg::ShellSliceFail: {
-		// No browser: the ported slicer's host opens the slicer on the file itself, for the kit's first drum.
+		// No browser: the slicer scene's host opens the slicer on the file itself, for the kit's first drum.
 		SoundDrum* drum = kitDrum();
 		if (drum == nullptr) {
 			return setupFailed(legName(g_leg), "the kit clip has no sound drum");
@@ -1665,7 +1665,7 @@ void sendNextSongDuringSlice() {
 	command = g_nextCommandBefore;
 }
 
-/// The ported slicer's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
+/// The slicer scene's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
 /// leg ends when nothing of the slicer's is out.
 void tickShellSlice() {
 	deluge::gui::ui::pollShellSlicer();
@@ -2783,7 +2783,7 @@ void runTick() {
 		startWait("a browser listing finishing", kMaxListingTicks);
 		g_browseSteps = 0;
 		if (openLeg()) {
-			// The randomizer legs press a pad in the clip view, and the ported slicer's host opens the file itself: no
+			// The randomizer legs press a pad in the clip view, and the slicer scene's host opens the file itself: no
 			// listing, no file to select, no preview to draw.
 			g_step = (isRandomize() || isShellSlice() || isOsc2Claim()) ? Step::Act : Step::Listing;
 		}
