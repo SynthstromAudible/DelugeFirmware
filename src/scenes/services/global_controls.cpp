@@ -560,10 +560,10 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 
 	case ButtonId::ModEnc0:
 	case ButtonId::ModEnc1:
-		// `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this
-		// service: `Router::route`'s `is_mod_or_gold` sends them to `services.mod_knobs` one step
-		// earlier (`shell/router.cpp`), which is where
-		// `View::modEncoderButtonAction` is ported. Listed so the tail's arm census is complete.
+		// `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this service: `Router::route`'s
+		// `is_mod_or_gold` sends them to `services.mod_knobs` one step earlier (`shell/router.cpp`), which is where
+		// `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`) is ported. Listed so the tail's
+		// arm census is complete.
 		return r;
 
 	default:

@@ -18,7 +18,8 @@ namespace deluge::scenes::services {
 bool is_clip_context(const bind::KnobFocus& focus);
 
 /// @brief What one gold-knob turn on a param did, and what finishing it needs (the popup, the MIDI feedback, the
-///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam`.
+///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam`
+///        (`origin/main:src/deluge/gui/views/view.cpp`).
 struct ModTurn {
 	/// The param's kind, as the popup and MIDI follow name it.
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
@@ -38,13 +39,15 @@ struct ModTurn {
 };
 
 /// @brief What a gold knob's indicator reads -- the reads `View::setKnobIndicatorLevel`
-///        makes, from the records and the runtime facts; `ModKnobs::indicator_level` does the arithmetic.
+///        (`origin/main:src/deluge/gui/views/view.cpp`) makes, from the records and the runtime facts;
+///        `ModKnobs::indicator_level` does the arithmetic.
 ///
 /// The three booleans are legacy's own three-way branch: a param the owner holds, a knob with no param (its
 /// non-existent arm), and a cable not made yet, shown at its midpoint.
 ///
-/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`** (declared
-///          in `View::setKnobIndicatorLevel`); `ModKnobs::indicator_level` declares nothing for that knob.
+/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`** (declared in
+///          `View::setKnobIndicatorLevel` (`origin/main:src/deluge/gui/views/view.cpp`)); `ModKnobs::indicator_level`
+///          declares nothing for that knob.
 struct ModIndicatorInfo {
 	/// The knob names a param (or a MIDI lane, shown at 0 until it is made).
 	bool has_auto_param = false;

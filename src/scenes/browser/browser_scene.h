@@ -220,7 +220,7 @@ struct Descriptor {
 	///       `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
-	///       (`SampleBrowser::finishLegacyClaim`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
+	///       (`SampleBrowser::claimCurrentFile`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -397,7 +397,7 @@ inline constexpr int32_t kRowIconX = 1;
 inline constexpr uint32_t kListingPollMs = 10;
 
 /// @brief How long a preview's incomplete render keeps being redrawn with no column newly resolved:
-///        `SampleBrowser::tickPreviewRedraw`'s `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
+///        `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
 inline constexpr uint32_t kWaveformRedrawGiveUpMs = 300;
 
 /// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`) in the default layout, without banks;
@@ -492,7 +492,8 @@ public:
 	/// @brief Which BROWSE blink runs.
 	BrowseBlink browse_blink() const { return browse_blink_; }
 	/// @brief Whether the next `on_enter` is the drum creator's: `InstrumentClipView::enterDrumCreator` opens the
-	///        browser with no `SoundEditor::beginScreen` after it, so only the browser's own blink runs.
+	///        browser with no `SoundEditor::beginScreen` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) after it,
+	///        so only the browser's own blink runs.
 	void set_drum_creator_next(bool from_creator) { drum_creator_next_ = from_creator; }
 	/// @brief Whether the last `on_enter` refused (an id past the table, or a descriptor the context cannot open): the
 	///        `openUI(&sampleBrowser)` that failed, after which legacy's drum creator opens the editor instead.
@@ -523,7 +524,8 @@ public:
 	bool current_is_folder() const;
 	/// @brief `SampleBrowser::qwertyAlwaysVisible`: KEYBOARD keeps the keyboard up through every move.
 	bool keyboard_always_visible() const { return keyboard_always_visible_; }
-	/// @brief `SampleBrowser::autoLoadEnabled`: LOAD has the browser claim each preview that lands.
+	/// @brief `SampleBrowser::autoLoadEnabled` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): LOAD has
+	/// the browser claim each preview that lands.
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
@@ -533,7 +535,7 @@ public:
 	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
 	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
 	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
-	///        `SampleBrowser::showPreview` sets up.
+	///        `SampleBrowser::previewIfPossible` sets up.
 	/// @param sample The sample the slicer opens on.
 	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
 		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
@@ -668,8 +670,9 @@ private:
 	void render_browse_blink(deluge::ui::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
 	void render_waveform(deluge::ui::grid::GridFrame& f);
-	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible` asks for one: the file's
-	///        path, or an empty path for a folder or no selection. Only the sample browser previews.
+	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible`
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) asks for one: the file's path, or an empty
+	///        path for a folder or no selection. Only the sample browser previews.
 	/// @param direction The selection's move: -1, 0 or 1.
 	void file_preview(int8_t direction);
 	/// @brief Replace the edited text with @p s, truncated at `kMaxEnteredChars`.
@@ -710,7 +713,8 @@ private:
 	///              (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	/// @return What the shell should do.
 	deluge::ui::shell::Result enter_key_press(bool shift);
-	/// @brief `SampleBrowser::canImportWholeKit`: a kit whose only drum is the one edited, on source 0.
+	/// @brief `SampleBrowser::canImportWholeKit` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a kit
+	/// whose only drum is the one edited, on source 0.
 	/// @return Whether this kit may take a whole folder or a slice.
 	bool fresh_kit() const;
 	/// @brief `SampleBrowser::timerCallback`'s long-press arm
@@ -799,7 +803,7 @@ private:
 	int8_t waveform_scroll_ = 0;
 	bool preview_outstanding_ = false;
 	/// What the main pads show. Legacy's flags beside it, which the image does not always follow
-	/// (`SampleBrowser::showPreview` scrolls a waveform in over the keys and leaves them "drawn"):
+	/// (`SampleBrowser::previewIfPossible` scrolls a waveform in over the keys and leaves them "drawn"):
 	/// `qwertyVisible` (a pad types rather than reveals), `qwertyCurrentlyDrawnOnscreen`,
 	/// `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
 	BrowserPads pads_ = BrowserPads::Root;

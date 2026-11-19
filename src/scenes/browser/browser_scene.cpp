@@ -143,8 +143,8 @@ char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) ---
 
-/// @brief The file `SoundEditor::getCurrentAudioFileHolder` holds, as the
-///        record names it: an audio clip's own, or the selected range's.
+/// @brief The file `SoundEditor::getCurrentAudioFileHolder` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) holds,
+///        as the record names it: an audio clip's own, or the selected range's.
 /// @param ctx What the browser was opened over.
 /// @return The path (empty for a holder with no file), or nullopt when neither arm resolves.
 std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
@@ -607,8 +607,9 @@ void BrowserScene::preview_settled(bool has_sample) {
 	if (pads_ != before) {
 		pads_changed_ = true;
 	}
-	// `SampleBrowser::tickPreview`'s auto-load: a landed file is claimed as Select would claim it, keeping the browser
-	// open. A claim the user asked for is already in flight then, and the claim drops an auto-load behind it.
+	// The auto-load of `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`):
+	// a landed file is claimed as Select would claim it, keeping the browser open. A claim the user asked for is
+	// already in flight then, and the claim drops an auto-load behind it.
 	if (auto_load_ && !ctx_.is_audio_clip && !preview_path_.empty()) {
 		host().perform(
 		    BrowserChoice{.id = id_, .path = preview_path_, .op = BrowserChoice::Op::Enter, .keep_open = true});
@@ -620,7 +621,8 @@ void BrowserScene::file_preview(int8_t direction) {
 		return;
 	}
 	spare_blink_from_preview_ = std::exchange(first_preview_, false) && browse_blink_ == BrowseBlink::Menu;
-	// `SampleBrowser::previewIfPossible`: a folder or no selection previews nothing, and stops what was previewing.
+	// `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a folder or no
+	// selection previews nothing, and stops what was previewing.
 	PreviewRequest request{.id = id_, .direction = direction};
 	const FileItem* item = item_at(file_index_);
 	if (item != nullptr && !item->isFolder) {
@@ -1464,9 +1466,9 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 }
 
 void BrowserScene::render_browse_blink(deluge::ui::grid::GridFrame& f) {
-	// `SoundEditor::blinkShortcut` on the BROWSE pad of the source being edited (column 0 for an audio clip): every
-	// cycle of legacy's blink counter for the file selector's blink, every other for the browser's, counted from when
-	// the blink was armed.
+	// `SoundEditor::blinkShortcut` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) on the BROWSE pad of the source
+	// being edited (column 0 for an audio clip): every cycle of legacy's blink counter for the file selector's blink,
+	// every other for the browser's, counted from when the blink was armed.
 	const uint32_t now = f.now_ms();
 	if (!blink_anchor_ms_.has_value()) {
 		blink_anchor_ms_ = now;
@@ -1533,7 +1535,7 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 		redraw_given_up_ = false;
 		return;
 	}
-	// `tickPreviewRedraw`: a render the card has not caught up with yet is drawn again as its clusters land, until it
+	// A render the card has not caught up with yet is drawn again as its clusters land, until it
 	// is whole or `kWaveformRedrawGiveUpMs` pass with no column newly resolved.
 	int32_t resolved = 0;
 	for (const uint8_t status : nav_.renderData.colStatus) {

@@ -175,8 +175,8 @@
 /// **`flashPlayRoutine` does not touch the Play LED.** It toggles
 /// `View::clipArmFlashOn` -- the phase armed clips blink at on the *pads*, read
 /// by `SessionView::gridRenderClipColor` and `gridPulseSelectedClip`
-/// (both `session_view.cpp`), `View::drawClipPad`-adjacent
-/// code and `View::renderMacros` -- and then asks for a
+/// (both `session_view.cpp`), `View::getClipMuteSquareColour` and `View::renderMacros`
+/// (`origin/main:src/deluge/gui/views/view.cpp`) -- and then asks for a
 /// render. The only time-driven thing in legacy that *does* set `IndicatorLED::PLAY` is
 /// `View::midiLearnFlash`, which is `services::MidiLearn`'s
 /// (`services/midi_learn.h`). So what this service owns is the
