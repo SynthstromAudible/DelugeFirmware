@@ -220,7 +220,6 @@ void UITimerManager::workOutNextEventTime() {
 // `isSDRoutineActive()`, which stands for main's `sdRoutineLock`, `origin/main:src/deluge/extern.h`; nothing in the
 // tree declares or calls it). `extern "C"` as the scheduler's own declarations are.
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 
 extern "C" double getSystemTime() {
 	return fakelegacyui::system_time_s;

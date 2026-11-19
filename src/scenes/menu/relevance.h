@@ -15,9 +15,10 @@
 ///       `origin/main:src/deluge/gui/menu_item/sample/transpose.h`, ...), so `osc0PulseWidthMenu` asks about source 0
 ///       wherever it is shown. `RelevantFn` takes only a `const MenuContext&` and a `Node` has no per-item payload, so
 ///       the two spellings of each per-source predicate (`osc0_*` / `osc1_*`) are how that member survives. Reading
-///       `MenuContext::source_index` instead would be wrong today: nothing re-resolves the context on the way into
-///       `source1Menu` (legacy did it in `submenu::ActualSource::beginSession` -> `SoundEditor::setCurrentSource`), so
-///       the field would still say 0.
+///       `MenuContext::source_index` instead would be wrong: nothing re-resolves the context on the way into
+///       `source1Menu` (in main, items such as `FileSelector::beginSession`
+///       (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) call `SoundEditor::setCurrentSource` themselves),
+///       so the field would still say 0.
 ///
 /// @note **`name_of`** exists for the menu dump, which has to print *which*
 ///       predicate guards a node, and for the specs, which assert the registry covers every

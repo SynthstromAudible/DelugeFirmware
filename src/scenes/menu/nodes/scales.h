@@ -3,8 +3,8 @@
 /// @file
 /// @brief `ActiveScalesItem` -- the two preset-scale checklists.
 ///
-/// The port of `deluge::gui::menu_item::ActiveScaleMenu` (`gui/menu_item/active_scales.{h,cpp}`),
-/// which legacy instantiates twice (`origin/main:src/deluge/gui/ui/menus.cpp`):
+/// Mirrors main's `deluge::gui::menu_item::ActiveScaleMenu` (`origin/main:src/deluge/gui/menu_item/active_scales.h`),
+/// which main instantiates twice (`origin/main:src/deluge/gui/ui/menus.cpp`):
 ///
 // clang-format off
 /// | node | legacy global | `ActiveScaleMenu::Kind` | the bitset it edits |

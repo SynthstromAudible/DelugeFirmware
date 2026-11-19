@@ -78,7 +78,7 @@ public:
 	/// `mod_knobs` is the port of `View`, and legacy never dispatches to `view` directly for
 	/// either of these two event shapes. `interpretEncoders` calls
 	/// `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
-	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
+	/// (`deluge::hid::encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
 	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp`).
 	/// main's `UI::modEncoderAction` and `UI::modButtonAction` (`origin/main:src/deluge/gui/ui/ui.cpp`) are the
 	/// **base-class** implementations, and both do nothing but forward to `view` (`gui/ui/ui.cpp`'s hooks call

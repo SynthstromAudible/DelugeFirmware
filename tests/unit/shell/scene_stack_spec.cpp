@@ -15,8 +15,8 @@ using namespace deluge::ui::shell;
 
 namespace {
 
-/// The two application kinds the test scenes register under. `FirstApp` is where the scenes plan
-/// starts numbering, so a spec that borrowed a shell kind would collide with a real scene later.
+/// The two application kinds the test scenes register under. `FirstApp` is where the scenes start
+/// numbering, so a spec that borrowed a shell kind would collide with a real scene later.
 constexpr SceneKind kA = SceneKind::FirstApp;
 constexpr SceneKind kB = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
 /// A third opaque kind, so a spec that wants three distinct layers does not have to stack one kind

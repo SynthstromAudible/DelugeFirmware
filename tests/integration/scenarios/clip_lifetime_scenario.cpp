@@ -862,7 +862,8 @@ void deleteLeg() {
 	case Leg::SongClear:
 	case Leg::BurstSong:
 	case Leg::ClearPlaying:
-		// The context menu's accept: ClearSongContextMenu::runAccept(), which with the clock stopped goes through
+		// The context menu's accept: `ClearSong::acceptCurrentOption`'s `runAccept()`
+		// (`gui/context_menu/clear_song.cpp`), which with the clock stopped goes through
 		// deleteOldSongBeforeLoadingNew() and then builds the new song; with an external clock running it arms the
 		// swap, builds the new song, swaps it in and hands the old one over, then frees the temp-recorded Samples.
 		g_step = "clearSong";

@@ -162,7 +162,7 @@ target_include_directories(deluge_scenes PUBLIC
 # archiving its objects -- exactly what deluge_scenes needs to compile against model/**,
 # modulation/**, playback/**, storage/** headers, and nothing more.
 #
-# Consequence: deluge_scenes no longer provides deluge_app's actual symbols to whatever links it.
+# Consequence: deluge_scenes does not provide deluge_app's actual symbols to whatever links it.
 # EVERY CONSUMER OF deluge_scenes MUST ALSO LINK deluge_app ITSELF to get those symbols --
 # deluge_scenes_spec already does this (sim/scenes_spec/CMakeLists.txt: `deluge_scenes deluge_app
 # deluge_scheduler ...`), and so do deluge_host's and the firmware device build's link lines --

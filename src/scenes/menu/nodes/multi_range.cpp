@@ -228,7 +228,8 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	//
 	// `MultiRange::beginSession`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
 	// runs it for every range-dependent descent, which is where legacy runs it too
-	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, ahead of every arm).
+	// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), ahead of every arm).
 	state.walk.range_choice = static_cast<int16_t>(cursor);
 }
 

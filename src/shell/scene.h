@@ -187,7 +187,8 @@ struct UiContext {
 
 	/// @brief Has \p b's current press already been consumed by something else?
 	///
-	/// The legacy `Buttons::ignoreCurrentPress` bit: a scene that acted on a *hold* marks the
+	/// What `Buttons::selectButtonPressUsedUp` / `Buttons::recordButtonPressUsedUp` (`hid/buttons.h`) are for one
+	/// button each, for any button: a scene that acted on a *hold* marks the
 	/// press used up so the release does not also act.
 	/// @param b The button to ask about.
 	/// @return True if the press was consumed; false when `lowering` is null.
@@ -303,7 +304,7 @@ struct Action {
 /// do about it, applied in order. The two are independent: a scene may handle an event and ask for
 /// nothing, or ask for a repaint while letting the event fall through.
 ///
-/// Eight actions is well past what any single event produces (the busiest legacy path is a pop
+/// Eight actions is well past what any single event produces (the busiest path is a pop
 /// plus a push plus a popup); a ninth is dropped by `FixedVector::push_back` rather than growing.
 struct Result {
 	bool handled = false;

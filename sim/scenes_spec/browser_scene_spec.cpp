@@ -1025,7 +1025,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
-		// `showPreview`'s `renderFullScreen`, zoomed all the way out.
+		// The `renderFullScreen` of main's `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), zoomed all the way out.
 		deluge::sample::WaveformNav nav;
 		nav.length_samples = sample->lengthInSamples;
 		nav.opened(0, 0);
@@ -1046,7 +1047,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 	});
 
 	it("offers the slicer the navigator its preview drew, for that sample only", _ {
-		// `main`'s slicer reads `waveformBasicNavigator`, which only `showPreview` sets: the previewed sample's view.
+		// `main`'s slicer reads `waveformBasicNavigator`, which only `SampleBrowser::previewIfPossible` sets
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): the previewed sample's view.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -1217,7 +1219,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 	});
 
 	it("stops the BROWSE blink when a later preview lands", _ {
-		// `showPreview`'s `unsetTimer`: only the open's own first preview is spared.
+		// The `unsetTimer` of main's `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): only the open's own first preview is spared.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -2942,7 +2945,9 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 	});
 
 	it("with auto-load on, a landed preview files a claim that keeps the browser open; a stop files none", _ {
-		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, keeping the browser open.
+		// The auto-load of main's `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): the landed file is claimed as Select would,
+		// keeping the browser open.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -3001,7 +3006,8 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 	});
 
 	it("opens every landed preview zoomed out, even one whose sample sits where the last one did", _ {
-		// `showPreview`'s `waveformBasicNavigator.opened()`: a freed sample's memory can hold the next.
+		// The `waveformBasicNavigator.opened()` of main's `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a freed sample's memory can hold the next.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -3066,7 +3072,8 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 });
 describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal scroll-in", $ {
 	it("files a scroll toward the waveform once a moved-to preview lands and the waveform is drawn", _ {
-		// `showPreview` with a move: the waveform, rendered into the image store, scrolls in.
+		// Main's `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) with a
+		// move: the waveform, rendered into the image store, scrolls in.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();

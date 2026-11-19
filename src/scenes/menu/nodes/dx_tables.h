@@ -134,7 +134,8 @@ int16_t column_param(int16_t current, int32_t op, bool on_page);
 ///        operator's row, else row 1.
 int32_t flash_row(int16_t param);
 
-/// @brief `DxParam::blinkSideColumn`'s alternation: the flash row white for 100 ms, then its own colour for 300.
+/// @brief `DxParam::blinkSideColumn`'s (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`) alternation: the flash row
+/// white for 100 ms, then its own colour for 300.
 inline constexpr uint32_t kColumnFlashOnMs = 100;
 inline constexpr uint32_t kColumnFlashPeriodMs = 400;
 

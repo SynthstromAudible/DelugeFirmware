@@ -284,9 +284,8 @@ void shellImportRangeChosen(int32_t index) {
 	deluge::scenes::menu_scene().import_chose_range(index);
 }
 
-/// @brief `SampleBrowser::requestFolderImport` for a folder menu's choice: the item's
-///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
-///        not.
+/// @brief The folder import for a folder menu's choice: the item's own folder, or the folder it is in, starting
+///        from it. The browser scene closes itself, so the import does not.
 void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {
 	if (deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()) {
 		return; // the gate refuses the presses that would ask; nothing that does is left to answer
@@ -534,8 +533,8 @@ void dxCartridgeReadSettled(DxCartridgeRead::Status status) {
 	}
 }
 
-/// @brief Collect the ported `.syx` browser's read on the guest's tick, as `DxSyxBrowser::browserGraphicsRoutine`
-///        does on the browser's; a browser that has gone takes its read with it (`DxSyxBrowser::close`).
+/// @brief Collect the `.syx` browser scene's read on the guest's tick; a browser that has gone takes its read with
+///        it.
 void pollDxCartridgeRead() {
 	DxCartridgeRead& read = dxCartridgeRead();
 	if (!read.busy()) {
@@ -688,11 +687,12 @@ public:
 		const Performing performing;
 		dispatchChoice(choice);
 	}
-	/// A file is previewed as the legacy browser's `previewFile` does; an empty path stops previewing as its
-	/// `cancelPreview` and `stopAnyPreviewing` do.
+	/// A file is previewed as main's `SampleBrowser::previewIfPossible`
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) does; an empty path stops previewing as
+	/// `AudioEngine::stopAnyPreviewing` does.
 	void preview(const PreviewRequest& request) override {
 		const Performing performing;
-		// A move supersedes an auto-load claim of the file it has left (`previewFile`, `cancelPreview`).
+		// A move supersedes an auto-load claim of the file it has left.
 		claimCancel();
 		SamplePreviewer& previewer = shellPreviewer();
 		if (request.path.empty()) {

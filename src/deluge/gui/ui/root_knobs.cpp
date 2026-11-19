@@ -193,7 +193,7 @@ std::optional<deluge::project::ParamAddress> knob_address(int32_t knob) {
 	}
 	const std::optional<deluge::project::ParamAddress> address = knobs->knob_address(knob);
 	// An engine param its owner always holds, or a cable a paste makes; a MIDI lane only once it is made
-	// (`View::isParamOfKnob`).
+	// (the `autoParam` test of main's `View::modEncoderAction`, `origin/main:src/deluge/gui/views/view.cpp`).
 	if (address && address->space != deluge::project::ParamSpace::ENGINE
 	    && !deluge::scenes::menu::host_runtime_facts().param_value(*address)) {
 		return std::nullopt;

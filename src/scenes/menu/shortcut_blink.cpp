@@ -107,7 +107,8 @@ ParamBlink patched_param_pad(MenuContext::Root root, uint8_t p) {
 }
 
 /// @brief How @p item blinks @p source's pad: its own answer for a bespoke item, and for a patched param every fourth
-///        cycle when the source is patched to it (`PatchedParam::shouldBlinkPatchingSourceShortcut`).
+///        cycle when the source is patched to it (`PatchedParam::shouldBlinkPatchingSourceShortcut`
+///        (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`)).
 uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node& item, PatchSource source,
                       FlashColour& colour) {
 	if (item.custom != nullptr) {
@@ -121,9 +122,9 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	return kNoBlink;
 }
 
-/// @brief `SoundEditor::updateSourceBlinks`: each source pad's first-layer source, then
-///        its second-layer one; the lower frequency wins, a second-layer win flashes yellow, and an equal frequency
-///        alternates.
+/// @brief `SoundEditor::updateSourceBlinks` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): each source pad's
+///        first-layer source, then its second-layer one; the lower frequency wins, a second-layer win flashes yellow,
+///        and an equal frequency alternates.
 void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& item, BlinkPlan& plan) {
 	for (uint8_t sx = 0; sx < 2; sx++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -202,8 +203,8 @@ BlinkPlan plan_blinks(const MenuContext& menu_ctx, const MenuState& state, const
 		const uint8_t p = item->custom != nullptr ? item->custom->patched_param_to_blink(ctx, state) : kNoBlink;
 		plan.param = patched_param_pad(ctx.root, p);
 	}
-	// A source never blinks without a param pad (`SoundEditor::updateSourceBlinks` runs only after a param pad is
-	// found).
+	// A source never blinks without a param pad (`SoundEditor::updateSourceBlinks`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) runs only after a param pad is found).
 	if (plan.param.valid) {
 		plan_sources(ctx, state, *item, plan);
 	}

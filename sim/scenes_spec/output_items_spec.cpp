@@ -196,7 +196,7 @@ struct Rig {
 };
 
 /// @brief @p parent's visible children in the order the scene lists them
-///        (`menu_actions_spec.cpp`'s helper, same two-line rule as `MenuScene::visible_children`).
+///        (`menu_actions_spec.cpp`'s helper, same two-line rule as `menu::visible_children`).
 int32_t visible_index_of(const Node& parent, const Node& child, const MenuContext& ctx) {
 	if (parent.dynamic_children != nullptr) {
 		return -1; // neither parent here has one; a table edit that adds one must be seen.
@@ -431,9 +431,8 @@ describe output_items_mapping("scenes::menu the two output items: the mapping", 
 describe output_items_milestone("scenes::menu the tree has no placeholders left", $ {
 
 	it("reports zero PlaceholderCustom with nothing standing the rule down", _ {
-		// **The milestone this whole plan exists for.** `ValidateOptions` is default-constructed --
-		// there is no `allow_placeholder_custom` any more, so there is no flag that could be hiding
-		// this. The shortcut sweep stays on: this is `kAllRoots`, the one caller for which it means
+		// **No placeholder is left in the tree.** `ValidateOptions` is default-constructed, and it has no flag that
+		// could be hiding this. The shortcut sweep stays on: this is `kAllRoots`, the one caller for which it means
 		// anything.
 		select_language();
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});

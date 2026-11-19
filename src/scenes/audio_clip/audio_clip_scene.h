@@ -380,7 +380,7 @@ public:
 	/// @param dirty What changed.
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
-	/// @brief **True** -- the first scene in this tree for which it is. See the class docstring.
+	/// @brief **True**: this scene is a root. See the class docstring.
 	bool is_root() const override { return true; }
 	/// @brief False: this scene IS the grid base. `AudioClipView` is a `RootUI`, the bottom of
 	///        legacy's `uiNavigationHierarchy`, and it paints every pad including the sidebar.
@@ -415,8 +415,8 @@ public:
 	///     `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm, re-armed at 15 ms
 	///     (`gui/ui_timer_manager.cpp`); `ShellHostUI` is the host that has to decide
 	///     what a zero costs. Its port is therefore
-	///     `0`, "repaint on the next tick" -- the first zero any scene in this tree returns, and
-	///     the case `Scene::next_timer`'s own contract now spells out -- for as long as the cursor
+	///     `0`, "repaint on the next tick" -- the case `Scene::next_timer`'s own contract
+	///     spells out -- for as long as the cursor
 	///     is live; the shell's own
 	///     router arms repaints with exactly `request_repaint_after(0, now_ms)`
 	///     (`Shell::tick`) and the grid flush diffs against `last_sent`, so a tick on
@@ -640,7 +640,7 @@ private:
 
 /// @brief The application's one audio clip view.
 ///
-/// A function-local static, for the reason every other scene singleton in this tree is one.
+/// A function-local static, for the reason every other scene singleton in `src/scenes` is one.
 /// @return The singleton.
 AudioClipScene& audio_clip_scene();
 

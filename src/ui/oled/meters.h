@@ -31,7 +31,8 @@ enum class FilterKind : uint8_t { Lpf, Hpf };
 /// @brief Which stage `envelope_stage` draws: `Number::drawAttack` or `Number::drawRelease`.
 enum class StageKind : uint8_t { Attack, Release };
 
-/// @brief Dispatch tag `meter` takes, mirroring `Number::getRenderingStyle()`'s cases.
+/// @brief Dispatch tag `meter` takes, mirroring `Number::getRenderingStyle()`'s
+/// (`origin/main:src/deluge/gui/menu_item/number.h`) cases.
 ///
 /// @note `None`, `Enum` and `Toggle` all land on `meter`'s `default:` arm (the raw number).
 ///       `Enum`/`Toggle` slots are actually drawn by `columns` via `enum_value` / `toggle`, not by

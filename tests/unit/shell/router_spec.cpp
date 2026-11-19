@@ -173,7 +173,7 @@ describe shell_router("shell::Router", $ {
 	// The two examples below prove the chain consults the top scene BEFORE `mod_knobs`. Legacy is
 	// unambiguous about the order.
 	// `interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
-	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
+	// (`deluge::hid::encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
 	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp`);
 	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp`) are the BASE-class
 	// implementations, whose whole body is a forward to `view`. So the current UI gets first

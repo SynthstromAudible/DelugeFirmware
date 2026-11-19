@@ -542,8 +542,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends a sidebar pad to automation view regardless of the param", _ {
-		// main's `SoundEditor::handleAutomationViewPadAction`: `(x >= kDisplayWidth) || editingParamInAutomationView`
-		// -- the sidebar half needs no param agreement at all.
+		// main's `SoundEditor::handleAutomationViewPadAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`):
+		// `(x >= kDisplayWidth) || editingParamInAutomationView` -- the sidebar half needs no param agreement at all.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		open_menu_node(*fx.song, fx.clip, no_param_node);
@@ -565,8 +565,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("falls through to the tail when the menu shows a different param", _ {
-		// main's `SoundEditor::handleAutomationViewPadAction` returns NOT_DEALT_WITH, and the automation arm of
-		// `SoundEditor::padAction` then does not return -- so main reaches the tail.
+		// main's `SoundEditor::handleAutomationViewPadAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+		// returns NOT_DEALT_WITH, and the automation arm of `SoundEditor::padAction` then does not return -- so main
+		// reaches the tail.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;
@@ -579,8 +580,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("sends a main-grid pad to automation view from a horizontal page whose focused column is the view's param", _ {
-		// `SoundEditor::isEditingAutomationViewParam` asks `getCurrentMenuItem()->getParamKind()`, which on a
-		// horizontal page answers for its focused column (`Submenu::getParamKind`).
+		// `SoundEditor::isEditingAutomationViewParam` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) asks
+		// `getCurrentMenuItem()->getParamKind()`, which on a horizontal page answers for its focused column
+		// (`Submenu::getParamKind`).
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -595,7 +597,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("sends a main-grid pad to automation view from the page of the cable the view shows", _ {
 		// A cable's param kind is `PATCH_CABLE` and its id the cable's descriptor word
-		// (`PatchCableStrength::getModelStack`), as the automation view records a selected cable.
+		// (`PatchCableStrength::getModelStack` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)), as
+		// the automation view records a selected cable.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -1111,8 +1114,9 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			shellHostUI.shell().tick(1);
 			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
 			expect(whichSideRowsNeedRendering).not_().to_equal(0);
-			// `MenuItem::isRangeDependent` is true for the transposes and the loop points only: the file selector
-			// and the recorder check the range on open but do not highlight it.
+			// `MenuItem::isRangeDependent` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) is true for the
+			// transposes and the loop points only: the file selector and the recorder check the range on open but do
+			// not highlight it.
 			for (const Node* item : {&nodes::file0_selector, &nodes::sample0_recorder}) {
 				menu_scene().open(*item, ctx);
 				shellHostUI.shell().tick(1);
@@ -1197,7 +1201,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("selects a keyboard note's range under the picker and highlights the range on the isomorphic keyboard", _ {
-		// `KeyboardScreen::evaluateActiveNote`'s `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
+		// `KeyboardScreen::updateActiveNotes`' `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
 		// +35, each asking the guest when the menu is up over the keyboard.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;

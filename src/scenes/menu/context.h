@@ -124,10 +124,12 @@ struct MenuContext {
 	///        re-root.
 	bool selected_note_row = false;
 	bool is_drum = false;
-	/// @brief `SoundEditor::editingNonAudioDrumRow`: the kit's selected drum is a MIDI or gate drum, whatever the menu
-	///        edits -- set on the kit's own effects too, where `is_drum` is not.
+	/// @brief `SoundEditor::editingNonAudioDrumRow` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the kit's
+	///        selected drum is a MIDI or gate drum, whatever the menu edits -- set on the kit's own effects too, where
+	///        `is_drum` is not.
 	bool non_audio_drum_row = false;
-	/// @brief `SoundEditor::editingGateDrumRow`: the kit's selected drum is a gate drum, whatever the menu edits.
+	/// @brief `SoundEditor::editingGateDrumRow` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the kit's selected
+	/// drum is a gate drum, whatever the menu edits.
 	bool gate_drum_row = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;
@@ -241,7 +243,8 @@ enum class Permission : uint8_t {
 	No,
 	/// @brief Open it -- `MenuPermission::YES`.
 	Yes,
-	/// @brief Push the range picker first -- `MenuPermission::MUST_SELECT_RANGE`.
+	/// @brief Push the range picker first -- `MenuPermission::MUST_SELECT_RANGE`
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	MustSelectRange,
 };
 
@@ -306,8 +309,9 @@ std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 bool ensure_first_range(MenuContext& ctx);
 
 /// @brief The first range of the source @p node's range rule is about (`range_rule_context`), made as main's
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` makes it: in the menu's context when the
-///        rule is about the menu's own source, else in that other source's.
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) makes it: in the menu's context when the rule is about the
+///        menu's own source, else in that other source's.
 ///
 /// The menu runs it where main runs that rule on a range-specific item: a descent or a press on a horizontal item
 /// (`MenuWalk::enter_range_picker_if_needed`), a deep link (`MenuScene::on_enter`) and a page switch, which discards
@@ -342,7 +346,8 @@ void select_range(MenuContext& ctx, int32_t index);
 ///
 /// Three statements of legacy's, plus one of `setup()`'s:
 ///
-///   * `currentSource` / `currentSourceIndex` / `currentSampleControls`, set by `SoundEditor::setCurrentSource`;
+///   * `currentSource` / `currentSourceIndex` / `currentSampleControls`, set by `SoundEditor::setCurrentSource`
+///     (`origin/main:src/deluge/gui/ui/sound_editor.cpp`);
 ///   * adopt the source's first range when none is selected yet, as `setCurrentSource` does;
 ///   * the range reset in `setup()`, which drops a remembered range whenever the source index moves.
 ///     Without it, an item on source 1 could open a scene over source **0**'s `MultiRange` -- the

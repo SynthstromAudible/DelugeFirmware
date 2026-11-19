@@ -468,7 +468,8 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 	}
 	controls::Sink& sink = menu::host_controls_sink();
 
-	if (ctx.shift && on) { // `View::modEncoderButtonAction_deleteAutomation`
+	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
+	if (ctx.shift && on) {
 		const std::optional<ParamAddress> address = knob_address(which_encoder);
 		if (address && menu::host_runtime_facts().param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {

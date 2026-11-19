@@ -1,6 +1,6 @@
 # Level-2 acceptance: a `Kind::SyncLevel` leaf (nodes::delay_sync), opened directly.
 #
-# `Kind::SyncLevel` draws through `MenuScene::render_leaf_sync_level`. This is the only script that
+# `Kind::SyncLevel` draws through `MenuView::render_leaf_sync_level`. This is the only script that
 # renders one.
 #
 # The kind's whole point is that it is an `Enumeration`, not an `Integer` (`SyncLevel` in

@@ -2,7 +2,7 @@
 
 /// @brief `MidiCommandItem` -- the `CustomItem` behind the twelve global-MIDI-command learn items.
 ///
-/// The port of `deluge::gui::menu_item::midi::Command` (`gui/menu_item/midi/command.{h,cpp}`): a
+/// Mirrors main's `deluge::gui::menu_item::midi::Command` (`origin/main:src/deluge/gui/menu_item/midi/command.h`): a
 /// `MenuItem` parameterised by one `GlobalMIDICommand`, whose whole job is to bind the next MIDI
 /// message the user sends to `midiEngine.globalMIDICommands[that command]`.
 ///

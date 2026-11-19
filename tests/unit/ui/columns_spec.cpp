@@ -53,7 +53,7 @@ namespace uitest = deluge::ui::test;
 //    with it.
 //  - `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because legacy's is a `constexpr`
 //    literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is NOT list's
-//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s
+//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`)
 //    `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` and belongs to a different renderer. The two
 //    coincide at 48 and differ by a row at 64, so the oracle below spells legacy's literal
 //    rather than the port's constant -- encoding the port's rule there would make the 64-row
@@ -508,7 +508,7 @@ describe columns_w("ui::oled::columns", $ {
 	it("does not move focus on a turn", _ {
 		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) edits the
 		// focused column's value and never moves focus; `columns` does not walk focus on the turn at all -- the scene
-		// owns the encoder (`MenuScene::render_horizontal`).
+		// owns the encoder (`MenuView::render_horizontal`).
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{};

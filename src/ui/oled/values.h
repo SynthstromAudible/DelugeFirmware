@@ -203,9 +203,9 @@ Response toggle(OledFrame& f, gfx::oled::Rect rect, bool& value, std::string_vie
 /// @brief Which edge of a two-ended range is being edited -- the port of
 ///        `deluge::gui::menu_item::RangeEdit` (`origin/main:src/deluge/gui/menu_item/range.h`).
 ///
-/// Legacy keeps this one enum on `SoundEditor::editingRangeEdge`, a single global shared by every
-/// range item because only one is ever on screen. Here it is a caller-owned in/out parameter, which
-/// is what lets the scene keep it per menu depth beside the rest of the page's state.
+/// Legacy keeps this one enum on `SoundEditor::editingRangeEdge` (`origin/main:src/deluge/gui/ui/sound_editor.h`), a
+/// single global shared by every range item because only one is ever on screen. Here it is a caller-owned in/out
+/// parameter, which is what lets the scene keep it per menu depth beside the rest of the page's state.
 enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
 
 /// @brief What a detent does to the edge that is *not* being edited when the two would cross.

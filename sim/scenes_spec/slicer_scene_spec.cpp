@@ -9,14 +9,14 @@
 ///
 /// @par The reference
 ///
-/// Every comparison here runs a gesture through the `Shell` -- real board events into
-/// `Shell::on_board_event`, rendered into `FakeSurfaceSet` -- and compares what the scene is left
-/// with against what main's `Slicer` was left with after the same gesture through its own public
-/// entry points (`focusRegained`, `selectEncoderAction`, `horizontalEncoderAction`,
-/// `verticalEncoderAction`, `buttonAction`, `renderOLED`, `renderMainPads`), over a navigator
-/// opened the way `SampleBrowser::showPreview` opens it, as `slicer_scene.tsv` and its
-/// `pads/slicer_*` and `pixels/slicer_*` files hold it. The one thing main's run was *told* is the
-/// mode, as the port is told it by `slicer_scene().set_mode(Mode::Manual)`.
+/// Every comparison here runs a gesture through the `Shell` -- real board events into `Shell::on_board_event`, rendered
+/// into `FakeSurfaceSet` -- and compares what the scene is left with against what main's `Slicer` was left with after
+/// the same gesture through its own public entry points (`focusRegained`, `selectEncoderAction`,
+/// `horizontalEncoderAction`, `verticalEncoderAction`, `buttonAction`, `renderOLED`, `renderMainPads`), over a
+/// navigator opened the way `SampleBrowser::previewIfPossible`
+/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) opens it, as `slicer_scene.tsv` and its `pads/slicer_*`
+/// and `pixels/slicer_*` files hold it. The one thing main's run was *told* is the mode, as the port is told it by
+/// `slicer_scene().set_mode(Mode::Manual)`.
 ///
 /// @par What is NOT covered here, and why
 ///
@@ -521,9 +521,10 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("opens on the navigator the browser's preview drew, as main's slicer reads the preview's global", _ {
-		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::showPreview` opened and
-		// scanned for this sample: the columns are already investigated, so the slicer draws the preview's peaks. A
-		// fresh navigator scans again, and on the device that scan reads the overview cache's coarse peaks.
+		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) opened and scanned for this sample: the columns
+		// are already investigated, so the slicer draws the preview's peaks. A fresh navigator scans again, and on the
+		// device that scan reads the overview cache's coarse peaks.
 		Rig r;
 		deluge::sample::WaveformNav shown{};
 		shown.length_samples = r.sample->lengthInSamples;

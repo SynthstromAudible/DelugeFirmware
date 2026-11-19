@@ -94,8 +94,8 @@ namespace deluge::gui::ui {
 /// @brief Which node a caller wants open, for the callers that want something other than the root
 ///        `context_for` resolves.
 ///
-/// An enum rather than a `const deluge::scenes::menu::Node*` so that a legacy view can name a
-/// ported node without including `src/scenes` -- see the file header. Every value other than
+/// An enum rather than a `const deluge::scenes::menu::Node*` so that a view in `src/deluge/gui/views` can
+/// name a menu node without including `src/scenes` -- see the file header. Every value other than
 /// `ContextRoot` is resolved to a stable node id (`scenes/menu/node_id.h`) inside
 /// `openShellMenu`, which is what `SceneId::arg` carries.
 enum class ShellMenuNode : uint8_t {

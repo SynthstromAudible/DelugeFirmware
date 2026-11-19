@@ -765,7 +765,7 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 	}
 }
 
-// Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
+// Card-detect is pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {

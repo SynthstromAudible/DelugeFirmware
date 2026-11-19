@@ -583,11 +583,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// one that moves the value a second time.
 		expect(menu_scene().focused()).to_equal(&nodes::source0_transpose);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
-		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), by
-		// `10^edit_pos` per detent. `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`), so the
-		// script's `Select +1` moves the value 1.00 and its closing `Select +2` moves it 2.00, landing
-		// at `before + 300`. The `GoldUpper` turn between them reaches nobody: it lands on the source
-		// picker the select press opens, which reads no edit encoder.
+		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), by `10^edit_pos` per
+		// detent. `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`
+		// (`origin/main:src/deluge/gui/menu_item/decimal.h`)), so the script's `Select +1` moves the value 1.00 and its
+		// closing `Select +2` moves it 2.00, landing at `before + 300`. The `GoldUpper` turn between them reaches
+		// nobody: it lands on the source picker the select press opens, which reads no edit encoder.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 300, 9600));
 		// `after_select_turn`'s pixel diff against `idle` is a real effect of the Select turn, not only
 		// the cursor's blink. `edit_pos` moves only on the "Horizontal" encoder, which this script never
@@ -746,9 +746,9 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// file's own notes for both.
 		expect(result.snapshots).to_equal(uint32_t{5});
 
-		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
-		// `menu_scene_spec.cpp`'s own shortcut tests. `setup()` opens it on the LPF page, focused on
-		// it (`SoundEditor::maybeGetParentMenu`, `parent->focusChild`).
+		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in `menu_scene_spec.cpp`'s own
+		// shortcut tests. `setup()` opens it on the LPF page, focused on it (`SoundEditor::maybeGetParentMenu`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), `parent->focusChild`).
 		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
 		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))

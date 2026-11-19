@@ -65,7 +65,8 @@ namespace deluge::scenes::menu {
 
 /// @brief The param an automation item edits, as the automation view names its selection: `Clip::lastSelectedParamKind`
 ///        and `lastSelectedParamID` (`MenuItem::getParamKind` and `getParamIndex` on legacy's item). A cable's kind is
-///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack` addresses it.
+///        `PATCH_CABLE` and its id the cable's descriptor word, as `PatchCableStrength::getModelStack`
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) addresses it.
 struct AutomationParam {
 	deluge::modulation::params::Kind kind;
 	int32_t id;
@@ -85,8 +86,9 @@ public:
 	/// (`context_for`) and names the root. `on_enter` re-targets afterwards from `SceneId::arg`,
 	/// so a push whose argument names a deeper node lands there instead.
 	///
-	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`, and both
-	///          of this tree's callers do.** `on_enter` re-roots unconditionally: from
+	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`.**
+	///          `GlobalControls::handle_settings_menu` always does, and `openGuest` (`gui/ui/shell_menu_entry.cpp`)
+	///          does when it is given no `arg` and arms no landing. `on_enter` re-roots unconditionally: from
 	///          `node_by_id(arg)` when `arg != 0`, and otherwise from `ctx_.root` -- the copy this
 	///          function just installed -- so whichever node was passed here is overwritten one
 	///          call later. Measured, not reasoned: mutating
@@ -187,11 +189,11 @@ public:
 
 	/// @brief The value node the select/gold encoders would actually edit right now.
 	///
-	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not
-	/// itself a submenu -- `Submenu::shouldForwardButtons`: legacy's same-param popup test
-	/// (`View::modEncoderAction_existentParam`'s guard) forwards through a horizontal page to
-	/// whichever item the buttons would actually reach, not the page itself. On any other leaf this is `focused()`
-	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
+	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not itself a submenu --
+	/// `Submenu::shouldForwardButtons` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): legacy's same-param popup
+	/// test (`View::modEncoderAction_existentParam`'s (`origin/main:src/deluge/gui/views/view.cpp`) guard) forwards
+	/// through a horizontal page to whichever item the buttons would actually reach, not the page itself. On any other
+	/// leaf this is `focused()` unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
 	///
 	/// Exists for `services::GuestKnobPresentation::suppress_value_popup`'s
@@ -253,8 +255,9 @@ public:
 	/// @param hook The host's adopt, or null for none.
 	void set_context_adopted_hook(void (*hook)()) { context_adopted_hook_ = hook; }
 	/// @brief Run @p hook after a shortcut jump from a scene over the menu (`shortcut_jump`, the marker editor's):
-	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`, whose write to
-	///        `setupKitGlobalFXMenu` is the host's to make.
+	///        legacy re-enters its editor there through `SoundEditor::enterOrUpdateSoundEditor`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), whose write to `setupKitGlobalFXMenu` is the host's
+	///        to make.
 	/// @param hook The host's write, or null for none.
 	void set_reentry_hook(void (*hook)()) { reentry_hook_ = hook; }
 
@@ -338,7 +341,8 @@ public:
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
 	/// @brief Ask the learn node's item to forget what it learned.
 	void unlearn();
-	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
+	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
 	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail (`SoundEditor::updatePadLightsFor`,
 	/// reached from it). Public because the LED is also legacy's own answer in `SoundEditor::buttonAction`,
@@ -393,7 +397,7 @@ public:
 	///
 	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's header
 	///       defines `context` as a macro (`#define context self.context`), so a member of that
-	///       name is unusable from every spec in this tree -- which is precisely where this
+	///       name is unusable from every spec in `sim/scenes_spec` -- which is precisely where this
 	///       accessor is meant to be read.
 	const MenuContext& menu_context() const { return ctx_; }
 
@@ -602,14 +606,16 @@ private:
 	/// @brief `toggleValue()`: write @p node's logical negation. A list row and a horizontal column flip alike.
 	void flip_in_place(const Node& node);
 
-	/// @brief `SoundEditor::markInstrumentAsEdited` after a select turn: the sound's instrument (a synth, a kit row's
-	///        kit) when the menu edits a sound, outside the settings menu, and the focused item edits the instrument
-	///        (`select_turn_edits_instrument`).
+	/// @brief `SoundEditor::markInstrumentAsEdited` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) after a select
+	///        turn: the sound's instrument (a synth, a kit row's kit) when the menu edits a sound, outside the settings
+	///        menu, and the focused item edits the instrument (`select_turn_edits_instrument`).
 	void mark_edited_after_turn();
 
 	/// @brief After a learn or an unlearn: when the focused screen is a value leaf that learns its own value (a follow
 	///        channel, the kit root note), read the value again. `FollowChannel::learnCC`/`learnNoteOn`/`unlearnAction`
-	///        and `FollowKitRootNote::learnNoteOn` call `setValue` as well as storing the input, and redraw.
+	///        and `FollowKitRootNote::learnNoteOn`
+	///        (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`) call `setValue` as well as
+	///        storing the input, and redraw.
 	void read_learned_value_again();
 
 	MenuState st_{};

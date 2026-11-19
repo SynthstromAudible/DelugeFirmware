@@ -170,9 +170,9 @@
 # browser's favourites category finds its bank and writes nothing into the fixture.
 #
 # **Two things this script pins:** `MenuScene::on_enter` runs the `Source::getOrCreateFirstRange()` that main's
-# permission check runs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), or the browser refuses to
-# open at all; and the claim must not read `soundEditor.currentSound`, which nothing the menu opens writes, or it
-# SIGSEGVs.
+# permission check runs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+# (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)), or the browser refuses to open at all; and the claim must not
+# read `soundEditor.currentSound`, which nothing the menu opens writes, or it SIGSEGVs.
 6500   button Back down
 6520   button Back up
 6700   button Back down

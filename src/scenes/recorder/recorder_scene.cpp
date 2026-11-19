@@ -41,8 +41,8 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// The record dot's half-period while recording, and the threshold line's cycle while waiting, lit for its first
-/// 290 ms and from 570 ms on (`AudioRecorder::getThresholdMeterState`).
+/// The record dot's half-period while recording, and the threshold line's cycle while waiting, lit for its first 290 ms
+/// and from 570 ms on (`AudioRecorder::getThresholdMeterState` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`)).
 /// @{
 constexpr uint32_t kRecordDotHalfPeriodMs = 480;
 constexpr uint32_t kThresholdBlinkCycleMs = 750;
@@ -267,9 +267,9 @@ void RecorderScene::attach_sample() {
 	if (ctx_.sink == nullptr) {
 		return;
 	}
-	// `targetStillHeld`: the take lands only on the range it began on, wherever that range now sits, and only while
-	// the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing, with
-	// no popup.
+	// `RuntimeFacts::take_range`: the take lands only on the range it began on, wherever that range now sits, and only
+	// while the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing,
+	// with no popup.
 	const std::optional<uint16_t> range = ctx_.facts != nullptr ? ctx_.facts->take_range(target_) : std::nullopt;
 	if (!range) {
 		return;

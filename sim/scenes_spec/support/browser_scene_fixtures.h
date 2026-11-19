@@ -382,7 +382,8 @@ struct BrowserState {
 ///
 /// If a future fixture gave the audio clip a real sample path, main would enter on that file's folder and the rows
 /// would stop describing it. This fails first. Read off the model, not off either side's dissection of it --
-/// `SoundEditor::getCurrentAudioFileHolder` resolves an audio clip to its own `sampleHolder`.
+/// `SoundEditor::getCurrentAudioFileHolder` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) resolves an audio clip
+/// to its own `sampleHolder`.
 inline bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }

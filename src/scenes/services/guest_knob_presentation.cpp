@@ -37,18 +37,19 @@ using deluge::ui::shell::Result;
 using deluge::ui::shell::SceneId;
 
 bool GuestKnobPresentation::suppress_value_popup(const ModTurn& turn) {
-	// `View::modEncoderAction_existentParam`'s "let's see if we're editing the same param in the menu, if so, don't
-	// show pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is this identity
-	// test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) -- not a `kind()` comparison, which
-	// would only *infer* that the scene on top is that object.
+	// `View::modEncoderAction_existentParam`'s (`origin/main:src/deluge/gui/views/view.cpp`) "let's see if we're
+	// editing the same param in the menu, if so, don't show pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's
+	// `getCurrentUI() == &soundEditor` is this identity test against the one menu interpreter (`scenes/registry.h`'s
+	// `menu_scene()`) -- not a `kind()` comparison, which would only *infer* that the scene on top is that object.
 	//
 	// The other two arms (performance view, the song browser) are the root views', whose presentation answers them.
 	if (&stack_.input_top() != static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
 		return false;
 	}
 	// `focused_value()`, not `focused()`: legacy's same-param test forwards through a horizontal page to the focused
-	// value column (`Submenu::shouldForwardButtons`) -- the page node itself has no `bind.param` to compare against,
-	// so `focused()` alone would never suppress the popup on a horizontal menu at all.
+	// value column (`Submenu::shouldForwardButtons` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`)) -- the page
+	// node itself has no `bind.param` to compare against, so `focused()` alone would never suppress the popup on a
+	// horizontal menu at all.
 	const menu::Node* focused = menu_scene().focused_value();
 	if (focused == nullptr || !focused->bind.param.valid()) {
 		return false;

@@ -327,7 +327,8 @@ fn kit_of_clip(song: &Node, clip: &Node) -> Vec<bool> {
 }
 
 /// The global effectable's filters, as a pre-1.2 kit or song left them: an open LPF's half resonance and an off
-/// HPF's quarter resonance become none (`GlobalEffectable::compensateVolumeForResonance`, its checks as they are).
+/// HPF's quarter resonance become none (`GlobalEffectable::compensateVolumeForResonance`,
+/// `origin/main:src/deluge/model/global_effectable/global_effectable.cpp`, its checks as they are).
 fn zero_filter_resonance(params: &mut Node) {
     let lpf_resonance = params.get("lpf").and_then(|lpf| param(lpf, "resonance"));
     let lpf_frequency = params.get("lpf").and_then(|lpf| param(lpf, "frequency"));

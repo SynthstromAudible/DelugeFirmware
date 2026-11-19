@@ -99,7 +99,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 	// is what makes single flight a property of the shared catalogue rather than of this object --
 	// the browser, marker editor and recorder scenes put three of these seams in the same process, AND legacy's
 	// `Browser::beginListing` claims through the very same call,
-	// so a legacy browser listing and a scenes listing can no longer both believe they are alone
+	// so a legacy browser listing and a scenes listing cannot both believe they are alone
 	// over one `fileItems`. A claim held by anyone -- this instance already in flight, another
 	// seam, or a legacy browser -- is `Busy`.
 	if (!FileCatalogue::claim(this)) {

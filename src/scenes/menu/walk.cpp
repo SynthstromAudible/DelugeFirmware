@@ -164,7 +164,8 @@ bool is_horizontal(const MenuContext& ctx, const Node& node) {
 
 namespace {
 
-/// @brief `MenuItem::isRangeDependent()`: the transposes and the loop points.
+/// @brief `MenuItem::isRangeDependent()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`): the transposes and the
+/// loop points.
 bool is_range_dependent_item(const Node* node) {
 	return node != nullptr && node->range_dependent;
 }
@@ -206,7 +207,8 @@ size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<con
 		cols[i].is_submenu = kid.kind == Kind::Submenu;
 	}
 	if (node.is_group) {
-		// Each member after the first opens its own page (`HorizontalMenuGroup::preparePaging`).
+		// Each member after the first opens its own page (`HorizontalMenuGroup::preparePaging`
+		// (`origin/main:src/deluge/gui/menu_item/horizontal_menu_group.cpp`)).
 		size_t first = 0;
 		for (const Node* member : node.children) {
 			if (member == nullptr) {

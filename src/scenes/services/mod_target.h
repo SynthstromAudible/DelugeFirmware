@@ -32,7 +32,8 @@ struct ModTurn {
 	/// The turn wrote a new value (the `newKnobPos == knobPos` early return of main's
 	/// `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`) is the other case).
 	bool value_changed = false;
-	/// The sound's note tails changed with the value (`View::modEncoderAction_existentParam`): the pads repaint.
+	/// The sound's note tails changed with the value (`View::modEncoderAction_existentParam`
+	/// (`origin/main:src/deluge/gui/views/view.cpp`)): the pads repaint.
 	bool note_tails_changed = false;
 	/// The param shows its middle (`potentiallyMakeItHarderToTurnKnob`'s centre blink).
 	bool should_indicate_middle_value = false;

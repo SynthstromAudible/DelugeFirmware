@@ -179,6 +179,18 @@ level 3): a `.state` mismatch is two texts, directly comparable; a `.pbm` mismat
 PBMs -- pipe either side through `scripts/pbm2png.py` to view it as an image, or diff them as
 text (a P1 PBM's ASCII rows already read as a coarse picture, one character per pixel).
 
+## Two-registry run
+
+`RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
+table. When set, the same script is run twice -- once against the call's own `registry`
+argument, once against `*second_registry` -- into sibling `got/<name>/` and
+`got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
+a recorded golden (there is nothing to record ahead of time when the point is that two
+independent scene tables must agree). A failure names the first file, in sorted order, that
+differs or is missing on either side. It asserts that two scene tables produce identical
+snapshots for one script; `tests/unit/shell/scripts_spec.cpp` runs two identical registries
+to pin the mechanism.
+
 ## Level 3 limitations
 
 The headless app has no shell-level channels and no way to report what it cannot see, so its
@@ -202,18 +214,6 @@ header):
 
 None of this is a gap to close -- it is what the BSP can physically observe. Level 3 exists to
 prove the boundary between the app and the board continues to work exactly as scripted.
-
-## Two-registry run
-
-`RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
-table. When set, the same script is run twice -- once against the call's own `registry`
-argument, once against `*second_registry` -- into sibling `got/<name>/` and
-`got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
-a recorded golden (there is nothing to record ahead of time when the point is that two
-independent scene tables must agree). A failure names the first file, in sorted order, that
-differs or is missing on either side. It asserts that two scene tables produce identical
-snapshots for one script; `tests/unit/shell/scripts_spec.cpp` runs two identical registries
-to pin the mechanism.
 
 ## Deadline (level 3 only)
 

@@ -63,7 +63,7 @@
 ///      the warning on `Action` in `shell/scene.h`.
 ///   3. **A refused dispatch is retried, not lost.** `Listing::request` can answer `Dropped` (the
 ///      owner's queue was full) or `Busy` (something else holds the catalogue -- another seam, or a
-///      legacy `Browser` mid-listing, since the claim now lives on `FileCatalogue`). The scene keeps
+///      legacy `Browser` mid-listing, since the claim lives on `FileCatalogue`). The scene keeps
 ///      the request and retries it on the next tick, which is legacy's own answer to the same return
 ///      (`Browser`'s `listingInProgress_` is cleared so the next HID event retries).
 ///
@@ -537,7 +537,7 @@ public:
 	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
 	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
 	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
-	///        `SampleBrowser::previewIfPossible` sets up.
+	///        `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) sets up.
 	/// @param sample The sample the slicer opens on.
 	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
 		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
@@ -805,9 +805,9 @@ private:
 	int8_t waveform_scroll_ = 0;
 	bool preview_outstanding_ = false;
 	/// What the main pads show. Legacy's flags beside it, which the image does not always follow
-	/// (`SampleBrowser::previewIfPossible` scrolls a waveform in over the keys and leaves them "drawn"):
-	/// `qwertyVisible` (a pad types rather than reveals), `qwertyCurrentlyDrawnOnscreen`,
-	/// `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
+	/// (`SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) scrolls a
+	/// waveform in over the keys and leaves them "drawn"): `qwertyVisible` (a pad types rather than reveals),
+	/// `qwertyCurrentlyDrawnOnscreen`, `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
 	BrowserPads pads_ = BrowserPads::Root;
 	bool keyboard_visible_ = false;
 	bool keys_drawn_ = false;

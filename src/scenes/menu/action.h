@@ -6,7 +6,7 @@
 ///
 /// `MenuWalkState::pending_scene` is the noun half of this seam: an item
 /// names a *scene* and `MenuScene::after_render` turns the request into a `Push`. It works because
-/// every scene a menu wants to open is inside `src/scenes`. Five ported items are not like that --
+/// every scene a menu wants to open is inside `src/scenes`. Five menu items are not like that --
 /// what their select press does is run a piece of legacy root-UI behaviour:
 ///
 // clang-format off

@@ -117,7 +117,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `on_exit` always runs (every scene in this tree is a process
+	/// @brief Tear the stack down, so `on_exit` always runs (every scene in `src/scenes` is a process
 	///        singleton, so a stale stack leaks into the next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {

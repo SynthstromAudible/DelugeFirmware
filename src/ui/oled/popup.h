@@ -140,8 +140,8 @@ inline constexpr int32_t kOptionWindowRows = 2;
 /// layout rules are the ones this window uses:
 ///
 ///  - **Label origin.** Legacy puts the label one pixel inside the highlight's left edge
-///    (`textPixelX = invertStartX + 1`, i.e. canvas x 23), where `list` insets by
-///    `style.inset_x` (`kTextSpacingX`, 6) as `MenuItem::drawItemsForOled` does.
+///    (`textPixelX = invertStartX + 1`, i.e. canvas x 23), where `list` insets by `style.inset_x` (`kTextSpacingX`, 6)
+///    as `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) does.
 ///  - **Right clip.** Legacy clips the label at `panel width - 27` (101) while the highlight runs
 ///    to `panel width - 44 + 22` (106), so the drawn box and the inverted box are *different
 ///    rectangles*; `list` derives both from the one `rect` it is given.

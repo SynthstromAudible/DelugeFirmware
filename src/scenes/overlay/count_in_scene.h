@@ -39,7 +39,7 @@
 ///
 ///   So on the shipped OLED-only build the digit is centred, not right-aligned, and it never
 ///   blinks. This scene reproduces the real, observable behaviour -- centred, static -- not the
-///   two dead call-site arguments; this is an error in the task brief, not a decision made here.
+///   two dead call-site arguments.
 ///
 ///   The other two facts are real:
 ///

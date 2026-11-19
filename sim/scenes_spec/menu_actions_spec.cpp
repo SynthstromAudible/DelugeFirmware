@@ -2511,7 +2511,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 	});
 
 	it("a horizontal-menus write reaches the open menu, so the voice usage page lays out as it now says", _ {
-		// `HorizontalMenu::renderingStyle()` reads the setting on every draw; the port's context holds a copy.
+		// `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the
+		// setting on every draw; the port's context holds a copy.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);

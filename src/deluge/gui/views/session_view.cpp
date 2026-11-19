@@ -533,8 +533,9 @@ moveAfterClipInstance:
 				// open Song FX menu
 				//
 				// Site 2 of `gui/ui/shell_menu_entry.cpp`'s table.
-				// No shift (`:506`) and the session view is the root, so `setup()` picks
-				// `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1802-1805`) and
+				// No shift (this arm's `!Buttons::isShiftButtonPressed()` test) and the session view is the root, so
+				// main's `SoundEditor::setup` picks `soundEditorRootMenuSongView`
+				// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
 				// `!rootUIIsClipMinderScreen()` is true -- the two legacy expressions
 				// `sessionOrArrangerRoot` fuses agree here by construction. `sessionViewRoot` is
 				// the narrower fact, and it is what the two `getRootUI() == &sessionView` items

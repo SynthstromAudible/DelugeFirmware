@@ -64,8 +64,8 @@ int32_t reverb_float_to_menu(float value) {
 /// @brief `stutter::StutterDirection`'s own enumerators.
 enum StutterOption : uint8_t { kUseSong = 0, kForward, kReversed, kForwardPingPong, kReversedPingPong };
 
-/// @brief `StutterDirection::showUseSongOption()`: the song's own
-///        stutter config has nothing to inherit from, so it does not offer "use song". Everything else the
+/// @brief `StutterDirection::showUseSongOption()` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): the
+///        song's own stutter config has nothing to inherit from, so it does not offer "use song". Everything else the
 ///        menu edits a stutter of -- a sound, a kit's or an audio track's chain -- is not the song's.
 bool show_use_song(const MenuContext& ctx) {
 	return ctx.addresses.slot.has_value()

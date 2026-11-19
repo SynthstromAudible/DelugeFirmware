@@ -18,7 +18,8 @@ using gfx::oled::Rect;
 
 namespace {
 
-/// @brief `Decimal::getNumNonZeroDecimals`, exactly: how many of @p value's two fraction places are not trailing zeros.
+/// @brief `Decimal::getNumNonZeroDecimals` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`), exactly: how many of
+/// @p value's two fraction places are not trailing zeros.
 int32_t non_zero_decimals(int32_t value) {
 	const int32_t fraction = std::abs(value % 100);
 	if (fraction == 0) {

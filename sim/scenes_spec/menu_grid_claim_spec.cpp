@@ -58,8 +58,8 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	});
 
 	it("answers None on a settings root", _ {
-		// `SoundEditor::inSettingsMenu()` is one of `padAction`'s three predicates, so
-		// legacy skips the shortcut arm entirely here and every pad falls through.
+		// `SoundEditor::inSettingsMenu()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is one of `padAction`'s
+		// three predicates, so legacy skips the shortcut arm entirely here and every pad falls through.
 		spec::SongFixture fx = spec::make_synth_song();
 		auto& scene = menu_scene();
 		MenuContext ctx = sound_context(fx);

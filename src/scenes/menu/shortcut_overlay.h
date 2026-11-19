@@ -22,8 +22,9 @@ extern const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kShortcut
 ///        picks (`nodes::dx_pad_layout`).
 extern const std::array<std::array<RGB, kShortcutRows>, kShortcutCols> kDxShortcutColours;
 
-/// @brief `SoundEditor::should_render_shortcut_overlay`: the setting is on, @p shift is held (latched or not), and
-///        the menu edits a sound-editor root -- not the settings, note or note-row editor.
+/// @brief `SoundEditor::should_render_shortcut_overlay` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the setting
+///        is on, @p shift is held (latched or not), and the menu edits a sound-editor root -- not the settings, note or
+///        note-row editor.
 bool overlay_shown(const MenuContext& ctx, bool shift);
 
 /// @brief One main-grid pad's colour in the shortcut colour map: `kShortcutColours[x][y]` where the pad's shortcut

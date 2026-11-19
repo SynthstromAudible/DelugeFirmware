@@ -441,7 +441,7 @@ describe frame_context("ui::FrameContext", $ {
 
 	it("does not touch the turn at all, and still masks it out of the focused slot", _ {
 		// `columns` does not move focus on a turn at all, nor claim the turn itself -- a scene reads and claims it
-		// *before* calling `columns`, to edit the focused column's value (`MenuScene::render_horizontal`, the port of
+		// *before* calling `columns`, to edit the focused column's value (`MenuView::render_horizontal`, the port of
 		// `HorizontalMenu::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). The slot
 		// mask is still `none()` for every column but the focused one, and still `{.turn = false}` for that one -- now
 		// so the scene's own edit, already applied above `columns`, cannot also reach the slot's widget a second time

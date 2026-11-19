@@ -18,7 +18,8 @@
 namespace deluge::scenes::menu {
 
 /// @brief True when @p node renders and edits as a horizontal page: a `Layout::Horizontal` submenu with
-///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`).
+///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)).
 bool is_horizontal(const MenuContext& ctx, const Node& node);
 
 /// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
@@ -35,8 +36,8 @@ bool on_horizontal_page(const MenuContext& ctx, const MenuState& st);
 ///             page for, or null for a plain descent and a chained page switch.
 void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left);
 
-/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
-///        focused column (`Submenu::updatePadLights`), else `focused()`.
+/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's focused column
+///        (`Submenu::updatePadLights` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`)), else `focused()`.
 const Node* pad_subject(const MenuContext& ctx, const MenuState& st);
 
 /// @brief Turn @p node's visible children into a `Column` span carrying label, slots,

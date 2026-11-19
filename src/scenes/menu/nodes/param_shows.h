@@ -84,7 +84,9 @@ inline constexpr std::array<std::array<SettingCondition, 1>, 2> kDx7Osc{
 inline constexpr std::array<std::array<Alternatives, 2>, 2> kCarrierFeedbackAny{
     {{kIsFm, kDx7Osc[0]}, {kIsFm, kDx7Osc[1]}}};
 
-// The mod FX type (`mod_fx/{depth,rate,feedback,offset}.h`).
+// The mod FX type, as the `isRelevant` overrides of main's mod FX items gate on it
+// (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/rate.h`,
+// `origin/main:src/deluge/gui/menu_item/mod_fx/feedback.h`, `origin/main:src/deluge/gui/menu_item/mod_fx/offset.h`).
 inline constexpr std::array<int32_t, 1> kModFxNone{effect_choice("modFXType", "none")};
 inline constexpr std::array<int32_t, 6> kModFxWithDepth{
     effect_choice("modFXType", "chorus"),     effect_choice("modFXType", "StereoChorus"),

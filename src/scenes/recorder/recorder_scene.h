@@ -3,11 +3,11 @@
 /// @brief `RecorderScene` -- the audio recorder: arm an input, capture it to a file, and hand the
 ///        finished `Sample` to the oscillator that opened it.
 ///
-/// The port of `AudioRecorder` (`origin/main:src/deluge/gui/ui/audio_recorder.h`), which the sample-recorder page's
-/// two items open (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`; the ported nodes are
+/// Mirrors main's `AudioRecorder` (`origin/main:src/deluge/gui/ui/audio_recorder.h`), which the sample-recorder page's
+/// two items open (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`; the nodes are
 /// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h`).
 ///
-/// @par Legacy's menu item drives the UI, and that is the shape this replaces
+/// @par In main the menu item drives the UI
 ///
 /// `osc::AudioRecorder::beginSession` does **two** things
 /// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`):
@@ -24,7 +24,7 @@
 /// blocking call: no other UI runs, `SoundEditor` is suspended mid-`beginSession`, and the "screen" is two
 /// `OLED::sendMainImage()` calls made from inside the loop rather than from a render hook.
 ///
-/// **The port keeps the state machine and throws the loop away.** Its five statements map like
+/// **`RecorderScene` keeps the state machine and throws the loop away.** Its five statements map like
 /// this:
 ///
 /// - `process()`'s loop body, and where each part goes here:
@@ -54,11 +54,11 @@
 /// without the arm is a dead animation for most scenes, but here it is a recording that
 /// never notices it has finished. See `Scene::next_timer`.
 ///
-/// `AudioRecorder::updatedRecordingStatus` has no member here. Legacy needs it because
-/// `process()` paints imperatively and must not repaint every pass; it is set exactly when
-/// `numSamplesCaptured` first goes non-zero and cleared in `opened()`, so it is
-/// a cache of `numSamplesCaptured != 0`. `render_oled` reads the recorder instead, which also drops
-/// the one-tick lag a cached copy written in `after_render` would have had.
+/// `AudioRecorder::updatedRecordingStatus` (`origin/main:src/deluge/gui/ui/audio_recorder.h`) has no member here.
+/// Legacy needs it because `process()` paints imperatively and must not repaint every pass; it is set exactly when
+/// `numSamplesCaptured` first goes non-zero and cleared in `opened()`, so it is a cache of `numSamplesCaptured != 0`.
+/// `render_oled` reads the recorder instead, which also drops the one-tick lag a cached copy written in `after_render`
+/// would have had.
 ///
 /// @par What this scene is NOT
 ///
@@ -265,7 +265,8 @@ private:
 	///        scene's own test -- `recorder_ != nullptr` is the same fact.
 	/// @return False when no recorder could be allocated (legacy's `INSUFFICIENT_RAM` arm).
 	bool setup_recording();
-	/// @brief `AudioRecorder::getThresholdMeterState`, for a panel @p width wide.
+	/// @brief `AudioRecorder::getThresholdMeterState` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`), for a panel
+	/// @p width wide.
 	deluge::ui::oled::ThresholdMeter meter_state(int32_t width) const;
 	/// @brief `deluge::recording::endRecordingSoon`.
 	void end_recording_soon();

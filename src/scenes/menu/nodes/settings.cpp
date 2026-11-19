@@ -824,7 +824,8 @@ void set_rounded_corners(const MenuContext&, int32_t value) {
 }
 
 void set_horizontal_menus(const MenuContext&, int32_t value) {
-	// `HorizontalMenu::renderingStyle()` reads the setting live; the open menu's context holds the copy it lays out by.
+	// `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the setting
+	// live; the open menu's context holds the copy it lays out by.
 	runtime_feature_set(RuntimeFeatureSettingType::HorizontalMenus, value);
 	menu_scene().set_horizontal_menus(value != 0);
 }
@@ -1205,9 +1206,10 @@ void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
 // ---------------------------------------------------------------------------------------------
 // The three `Kind::Range` items (see `nodes/settings.h`)
 //
-// `IntegerRange::lower`/`upper` and `KeyRange::lower`/`upper` are now references onto
-// `FlashStorage::defaultRanges` (`storage/flash_storage.h`), so these twelve hooks and the legacy
-// menu items address the same six values -- which is what lets the specs drive both sides.
+// `FlashStorage::defaultRanges` (`storage/flash_storage.h`) holds the six values main's
+// `IntegerRange::lower`/`upper` and `KeyRange::lower`/`upper` hold
+// (`origin/main:src/deluge/gui/menu_item/integer_range.h`, `origin/main:src/deluge/gui/menu_item/key_range.h`),
+// and these twelve hooks address them.
 
 namespace {
 
@@ -1310,7 +1312,8 @@ void set_voice_usage_count(const MenuContext&, int32_t) {
 	// `VoiceCount::selectEncoderAction` does nothing (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`).
 }
 bool voice_usage_permitted(const MenuContext&) {
-	return false; // `VoiceCount::selectEncoderActionIsPermitted`
+	// `VoiceCount::selectEncoderActionIsPermitted` (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`).
+	return false;
 }
 
 } // namespace deluge::scenes::menu::nodes

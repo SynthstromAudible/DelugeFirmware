@@ -137,9 +137,9 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 } // namespace
 
 /// Legacy `UnpatchedParam::writeCurrentValue` / `patched_param::Integer::writeCurrentValue` -- write the whole kit
-/// rather than the selected row? `SoundEditor::editingKitRow` is `is_kit && !is_kit_global_fx`; the held-button half
-/// arrives as `affect_entire_held` (see the file header). Declared in `bindings.h` because a couple of the tables' own
-/// `set` hooks branch on it.
+/// rather than the selected row? `SoundEditor::editingKitRow` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is
+/// `is_kit && !is_kit_global_fx`; the held-button half arrives as `affect_entire_held` (see the file header). Declared
+/// in `bindings.h` because a couple of the tables' own `set` hooks branch on it.
 bool writes_whole_kit(const MenuContext& ctx) {
 	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.addresses.kit_output.has_value()
 	       && ctx.addresses.clip.has_value();
@@ -367,10 +367,9 @@ IntRange range(const Node& asked, const MenuContext& ctx) {
 		// forwarded by `Integer::getMaxValue` (`origin/main:src/deluge/gui/menu_item/patched_param/integer.h`) and
 		// `UnpatchedParam::getMaxValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.h`).
 		//
-		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel` land. Each of them
-		// wants its own default -- legacy `menu_item::Bipolar`, `menu_item::Range`,
-		// `origin/main:src/deluge/gui/menu_item/multi_range.h`, `menu_item::Colour`,
-		// `origin/main:src/deluge/gui/menu_item/sync_level.h`. Until one has its own, 0..50 is a placeholder, not a
+		// This arm is also where `Kind::Range` and `Kind::SyncLevel` land. Each wants its own default -- main's
+		// `menu_item::Range` (`origin/main:src/deluge/gui/menu_item/range.h`) and `menu_item::SyncLevel`
+		// (`origin/main:src/deluge/gui/menu_item/sync_level.h`). Until one has its own, 0..50 is a placeholder, not a
 		// claim: no table declares a node that reaches here without one, and every such node carries either a
 		// `fixed_range` from its builder or a `range` hook, both of which are consulted above before this switch is
 		// ever reached. Deliberately not a hard failure -- a `FREEZE` in a library this layer means to keep pure would
@@ -457,7 +456,8 @@ std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext
 }
 
 std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, const MenuContext& ctx) {
-	// `PatchedParam`/`UnpatchedParam::getLearningThing`: the node's param, by its engine id.
+	// `PatchedParam`/`UnpatchedParam::getLearningThing` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`):
+	// the node's param, by its engine id.
 	const std::optional<deluge::project::ControlsAddress> owner = controls_owner(ctx);
 	if (!node.bind.param.valid() || !owner) {
 		return std::nullopt;

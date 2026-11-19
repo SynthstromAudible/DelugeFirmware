@@ -248,7 +248,8 @@ struct MenuWalkState {
 	/// next descent -- which is precisely why legacy has the flag.
 	bool go_up_on_resume = false;
 	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
-	///        `sampleBrowser.menuItemHeadingTo` (`SoundEditor::maybeGetParentMenu`).
+	///        `sampleBrowser.menuItemHeadingTo` (`SoundEditor::maybeGetParentMenu`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)).
 	///
 	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and `pending_after_range`
 	/// above is the *other* one (`MultiRange::menuItemHeadingTo` in
@@ -266,10 +267,11 @@ struct MenuWalkState {
 	/// @brief Where the menu lands when the scene on top closes: this item, focused on the chain page that lists it,
 	///        at depth 0. Null to go up as `go_up_on_resume` says.
 	///
-	/// `osc::AudioRecorder`'s heading pair: `SoundEditor::maybeGetParentMenu` gives a recorder reached on the chain's
-	/// SAMPLE RECORDER page its source's file selector on `sourceMenuGroup`, and `AudioRecorder::beginSession`
-	/// re-roots onto it before it opens the recorder, so the take, however it ends, returns there. Written by
-	/// `AudioRecorderItem::on_focus`, spent by `MenuScene::on_resume`, dropped by `retarget` with the rest of the walk.
+	/// `osc::AudioRecorder`'s heading pair: `SoundEditor::maybeGetParentMenu`
+	/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) gives a recorder reached on the chain's SAMPLE RECORDER page
+	/// its source's file selector on `sourceMenuGroup`, and `AudioRecorder::beginSession` re-roots onto it before it
+	/// opens the recorder, so the take, however it ends, returns there. Written by `AudioRecorderItem::on_focus`, spent
+	/// by `MenuScene::on_resume`, dropped by `retarget` with the rest of the walk.
 	const Node* resume_landing = nullptr;
 	/// @brief Close the whole menu after this tick -- legacy's `soundEditor.exitCompletely()` from an item's
 	///        `selectButtonPress` (the DX7 cartridge page's). Written by a `CustomItem`'s `render`, drained by

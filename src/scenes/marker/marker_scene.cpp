@@ -219,8 +219,8 @@ MarkerType MarkerScene::reverse_remap(MarkerType type) const {
 
 bool MarkerScene::can(const menu::MenuContext& ctx) {
 	// `SampleMarkerEditor::opened`'s refusal, plus the holder test legacy gets from
-	// `LoopPoint::checkPermissionToBeginSession` before it ever opens: no file loaded where the
-	// context points, or nowhere to point.
+	// `LoopPoint::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) before
+	// it ever opens: no file loaded where the context points, or nowhere to point.
 	const std::optional<services::WaveformAddress> address = address_of(ctx);
 	return address && menu::host_waveforms().info(*address).has_value();
 }
@@ -291,10 +291,10 @@ void MarkerScene::forget_modes() {
 // Marker positions
 
 void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
-	// `SampleMarkerEditor::getColsOnScreen`, with its two column mappings inlined:
-	// `getStartColOnScreen` floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen`
-	// floors `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST
-	// sample is in, which is why the two are not the same function.
+	// `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), with its two
+	// column mappings inlined: `getStartColOnScreen` floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen` floors
+	// `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST sample is in, which is why the two are
+	// not the same function.
 	const Zone z = zone();
 	const auto start_col = [this](int32_t pos) {
 		return divide_round_negative(static_cast<int32_t>(pos - nav_.xScroll), static_cast<int32_t>(nav_.xZoom));
@@ -328,18 +328,19 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 	cols[idx(MarkerType::END)].colOnScreen = end_col(cols[idx(MarkerType::END)].pos);
 }
 
-// `SampleMarkerEditor::getStartPosFromCol`.
+// `SampleMarkerEditor::getStartPosFromCol` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 int32_t start_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
 	return static_cast<int32_t>(nav.xScroll + col * nav.xZoom);
 }
 
-// `SampleMarkerEditor::getEndPosFromCol`.
+// `SampleMarkerEditor::getEndPosFromCol` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
 	return static_cast<int32_t>(nav.xScroll + (col + 1) * nav.xZoom);
 }
 
 void MarkerScene::record_scroll_and_zoom() {
-	// `SampleMarkerEditor::recordScrollAndZoom`, into the view-state store.
+	// `SampleMarkerEditor::recordScrollAndZoom` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), into the
+	// view-state store.
 	if (marker_type_ != MarkerType::NONE && view_key_) {
 		services::SampleView v = view();
 		v.scroll = nav_.xScroll;
@@ -651,9 +652,9 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 			return;
 		}
 
-		// Legacy falls out of the bottom here with `markerHeld == NONE` and clears the mode
-		// before writing an UNINITIALISED `value` -- the one path in `padAction` that
-		// reads `value` without having assigned it. Refusing is the port; see the report.
+		// Main's `SampleMarkerEditor::padAction` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) falls out
+		// of the bottom here with `markerHeld == NONE` and clears the mode before writing an UNINITIALISED `value` --
+		// the one path in `padAction` that reads `value` without having assigned it. This scene refuses the press.
 		holding_ = false;
 		return;
 	}

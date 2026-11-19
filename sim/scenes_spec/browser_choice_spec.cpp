@@ -592,7 +592,7 @@ struct MidiRig {
 /// process inside `std::optional::operator->` before the rest of the file has run.
 /// @brief Which column @p item is on @p page, counting only the children @p ctx admits; -1 if none.
 ///
-/// `MenuScene::visible_children`'s filter (`scenes/menu/menu_scene.cpp`) re-derived, deliberately:
+/// `menu::visible_children`'s filter (`scenes/menu/menu_core.cpp`) re-derived, deliberately:
 /// hard-coding "the file selector is column 1" would make the focus assertion agree with a mutant
 /// that renumbered the page, and reading the index back off the scene would make it agree with
 /// itself. `Node::relevant` is public data (`scenes/menu/node.h`), so this is the same rule the
@@ -1059,8 +1059,9 @@ describe browser_choice_claim(
 
 	    it(
 	        "claims with the browser's three detection defaults, as the auto-load does", _ {
-		        // The values the auto-load feature's claim uses (`SampleBrowser::tickPreview`): "load it into the
-		        // instrument as if you had confirmed".
+		        // The values the auto-load feature's claim uses (`SampleBrowser::previewIfPossible`,
+		        // `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): "auto-loaded into the current instrument
+		        // as if you had confirmed".
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoWaveTable).to_equal(1);
@@ -1173,7 +1174,7 @@ describe browser_choice_reroot(
 	    //       `MenuItem::allowToBeginSessionFromHorizontalMenu` (
 	    //       overridden true by `FileSelector`, `origin/main:src/deluge/gui/menu_item/file_selector.h`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
-	    //       notification instead of opening the browser (`MenuScene::render_horizontal`'s
+	    //       notification instead of opening the browser (`MenuView::render_horizontal`'s
 	    //       `column_press`, and `ui/oled/columns.cpp` behind it). The shortcut pad is what is
 	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm).
 
@@ -1288,9 +1289,10 @@ describe browser_choice_reroot(
 	        "refuses a menu that never opened a scene, and leaves its path alone", _ {
 		        // The second control, varying one thing again: the same rig, the same root, the same
 		        // four ticks -- but the menu is opened on `sound_root` rather than on the item that
-		        // pushes the browser, so nothing ever recorded an opener. Legacy's guard is the same
-		        // shape: the re-rooting is inside `if (menuItemHeadingTo != nullptr &&
-		        // parentMenuHeadingTo != nullptr)` (`SampleBrowser::finishLegacyClaim`).
+		        // pushes the browser, so nothing ever recorded an opener. Main's guard is the same
+		        // shape: the re-rooting is inside `if (menuItem != nullptr && parentMenu != nullptr ...)`, the two
+		        // copied from `menuItemHeadingTo` and `parentMenuHeadingTo` (`SampleBrowser::claimCurrentFile`,
+		        // `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -1375,8 +1377,9 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 	});
 
 	it("claims an auto-loaded preview keeping the browser open and the menu where it was", _ {
-		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, and no completion to close or re-root
-		// anything.
+		// The auto-load of main's `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): `ClaimOrigin::AutoLoad`, and no completion to
+		// close or re-root anything.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
@@ -1401,7 +1404,8 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 	});
 
 	it("cancels an auto-load claim whenever the selection asks for another preview", _ {
-		// `SampleBrowser::previewFile` and `cancelPreview`: a move supersedes the auto-load of the file it left.
+		// `ShellBrowserHost::preview` (`gui/ui/shell_choice_dispatch.cpp`): a move supersedes the auto-load of the file
+		// it left.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		CancelSpy cancel;
@@ -1417,8 +1421,9 @@ describe browser_choice_preview("the browser host and the ported browser's previ
 	});
 
 	it("starts legacy's horizontal scroll with the waveform in the image store, the main columns left to it", _ {
-		// `showPreview` with a move: `PadLEDs::horizontal::setupScroll` from the image store, in
-		// `UI_MODE_HORIZONTAL_SCROLL`; the guest sends no main column until `scrollFinished`.
+		// Main's `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) with a
+		// move: `PadLEDs::horizontal::setupScroll` from the image store, in `UI_MODE_HORIZONTAL_SCROLL`; the guest
+		// sends no main column until `scrollFinished`.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;

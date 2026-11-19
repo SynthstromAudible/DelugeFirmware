@@ -188,7 +188,8 @@ public:
 	int64_t x_scroll() const { return nav_.xScroll; }
 	/// @return Samples per column.
 	int64_t x_zoom() const { return nav_.xZoom; }
-	/// @return The blink's phase, 0..3 (`SampleMarkerEditor::blinkPhase`).
+	/// @return The blink's phase, 0..3 (`SampleMarkerEditor::blinkPhase`
+	/// (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`)).
 	int8_t blink_phase() const { return blink_phase_; }
 	/// @return Is a marker pad being held (legacy's `UI_MODE_HOLDING_SAMPLE_MARKER`)?
 	bool holding_marker() const { return holding_; }
@@ -204,7 +205,7 @@ public:
 	/// @}
 
 private:
-	/// @brief `SampleMarkerEditor::getColsOnScreen`.
+	/// @brief `SampleMarkerEditor::getColsOnScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	/// @param[out] cols `kNumMarkerTypes` entries, filled in.
 	void cols_on_screen(MarkerColumn* cols) const;
 	/// @brief `SampleMarkerEditor::writeValue`.
@@ -238,7 +239,7 @@ private:
 
 	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight`.
 	bool allow_extra_scroll_right() const;
-	/// @brief `SampleMarkerEditor::recordScrollAndZoom`.
+	/// @brief `SampleMarkerEditor::recordScrollAndZoom` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	void record_scroll_and_zoom();
 	/// @brief `SampleMarkerEditor::reverseRemap`.
 	/// @param type The marker to remap.
@@ -246,8 +247,9 @@ private:
 	MarkerType reverse_remap(MarkerType type) const;
 	/// @brief `isLoopLocked()`.
 	bool loop_locked() const;
-	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock`: set the lock and, when @p announce, queue their popup
-	///        ("FREE" / "LOCK") in `pending_popup_` for `handle` to file -- the only place that can raise an `Action`.
+	/// @brief `SampleMarkerEditor::loopUnlock` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) / `loopLock`:
+	///        set the lock and, when @p announce, queue their popup ("FREE" / "LOCK") in `pending_popup_` for `handle`
+	///        to file -- the only place that can raise an `Action`.
 	/// @param locked   The new state.
 	/// @param announce False where the lock is written without `loopLock`/`loopUnlock` (the SHIFT halve and double).
 	void set_loop_locked(bool locked, bool announce = true);

@@ -162,7 +162,7 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	//     the scene spent editing the focused one.
 	//   - the focused column is granted everything *but the turn*. The select encoder edits the
 	//     focused column's value, but that edit happens one level up, in the scene that calls
-	//     `columns` (`MenuScene::render_horizontal`, `HorizontalMenu::selectEncoderAction`'s
+	//     `columns` (`MenuView::render_horizontal`, `HorizontalMenu::selectEncoderAction`'s
 	//     port): it reads and claims the turn *before* building the column list, so passing the
 	//     same detent on to the column's own render here would make one detent edit the value
 	//     twice. The gold knobs, the press and the back button do go through: nothing else here
@@ -194,8 +194,8 @@ bool starts_page(std::span<const Column> cols, int32_t i, int32_t acquired, int3
 	return acquired + slots > kPageSlots && cols[i].relevant;
 }
 
-/// Ports legacy `HorizontalMenu::preparePaging`. See `paging_of` in the header for the two legacy
-/// quirks kept.
+/// Ports legacy `HorizontalMenu::preparePaging` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`). See
+/// `paging_of` in the header for the two legacy quirks kept.
 PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 	PageWindow w;
 	const int32_t n = static_cast<int32_t>(cols.size());
@@ -452,7 +452,7 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 
 	// This control does NOT own the select encoder: the scene reads and claims the turn itself,
 	// to edit the focused column's value (`HorizontalMenu::selectEncoderAction`'s port,
-	// `MenuScene::render_horizontal`) -- focus moves by instrument button instead
+	// `MenuView::render_horizontal`) -- focus moves by instrument button instead
 	// (`HorizontalMenu::buttonAction`'s port, `column_under_button`/`page_switch` above). The
 	// *press* is only ours when it enters a submenu -- on a value column it passes through the
 	// slot's mask to the widget in the slot, which claims it there -- so that claim sits with the

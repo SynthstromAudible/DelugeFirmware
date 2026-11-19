@@ -98,13 +98,13 @@
 ///     the scene's own `Remove`. So `count_in.txt` boots onto `AudioClipScene` and the spec pushes
 ///     the overlay over it on the first tick (`CountInHooks`), which is what the missing wiring
 ///     will do. Written down rather than dressed up as a gesture: no user gesture reaches this
-///     scene today, and inventing one would be a push no user could perform.
+///     scene, and inventing one would be a push no user could perform.
 ///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of
-///     `playbackHandler.count_in_visual()`, and the only writer of that number is
-///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in
-///     branch), which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that reason;
-///     `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same stand-in.
-///     The script's own header carries the schedule, so the golden is still readable against something written down.
+///     `playbackHandler.count_in_visual()`, and the only writer of that number is `PlaybackHandler::actionSwungTick`'s
+///     count-in branch, which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that
+///     reason; `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same
+///     stand-in. The script's own header carries the schedule, so the golden is still readable against something
+///     written down.
 ///
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
@@ -373,7 +373,8 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way `SampleBrowser::showPreview` does.
+/// @brief Open the slicer on @p sample, the way main's `SampleBrowser::enterKeyPress` does
+///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 /// @param sample The sample the scene is opened on.
 /// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
@@ -409,13 +410,11 @@ std::function<void(uint32_t)> slicer_seed() {
 /// @brief The `RunOptions::before_tick` hook both count-in scripts run under: push the overlay on
 ///        the first tick, then walk `playbackHandler.count_in_visual()` down on a schedule.
 ///
-/// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands
-/// in for wiring that does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which
-/// `count_in_scene.h` says outright. The schedule stands in for
-/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in branch),
-/// which needs a running `AudioEngine`; `count_in_spec.cpp` writes the same field directly for the
-/// same reason. Both are written into `tests/ui-scripts/shell/count_in.txt`'s header so the golden
-/// can be read against something.
+/// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands in for wiring that
+/// does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which `count_in_scene.h` says outright. The schedule
+/// stands in for `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine`;
+/// `count_in_spec.cpp` writes the same field directly for the same reason. Both are written into
+/// `tests/ui-scripts/shell/count_in.txt`'s header so the golden can be read against something.
 ///
 /// The push happens in `before_tick` rather than in `after_construct` because `after_construct` runs
 /// *before* `Shell::init`, and an overlay pushed onto an empty stack would sit UNDER the root. The
@@ -642,20 +641,18 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
 		// It drew something, and it drew the SECOND value. An empty name is the shape a popup pushed
 		// over a param the target could not resolve would have; a value of "26" here is the shape
-		// the defect below had, and this pair says in words what `popup_moved`'s pixels say.
+		// a missing repaint leaves (below), and this pair says in words what `popup_moved`'s pixels say.
 		expect(std::string(overlay::param_popup_scene().shown_name())).to_equal(std::string("Master level"));
 		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(std::string("45"));
 		// ---------------------------------------------------------------------------------------
-		// **What `popup_moved` guards.** Without that frame a second detent on an already-open popup moved the scene's text from
-		// "26" to "45" and **nothing repainted the panel**, so the golden showed "26" while
-		// `shown_value()` said "45". The narrow cause was the arbitration's immediate-commit arm
-		// alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
-		// `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()`
-		// resolves to `{.oled = true}`, so a *fast* turn repainted itself and only a slow one did
-		// not. `ParamPopupScene::show` now returns whether it committed and
-		// `ModKnobs::mod_encoder_action` files `Action::Kind::Repaint` on `SurfaceRole::Main` when
-		// it did (legacy's `display->displayNotification(...)` in `View::displayModEncoderValuePopup` being a write AND
-		// a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
+		// **What `popup_moved` guards.** A second detent on an already-open popup moves the scene's text from "26" to
+		// "45"; with nothing repainting the panel, the golden would show "26" while `shown_value()` says "45". Only the
+		// arbitration's immediate-commit arm needs its own repaint -- the throttled arm (a turn inside
+		// `kMinUpdateIntervalMs`) arms `pending_flush_remaining_ms_`, which `next_timer()` reports and
+		// `timer_repaints()` resolves to `{.oled = true}`, so a *fast* turn repaints itself. `ParamPopupScene::show`
+		// returns whether it committed and `GuestKnobPresentation::show_value_popup` files `Action::Kind::Repaint` on
+		// `SurfaceRole::Main` when it did (`display->displayNotification(...)` in `View::displayModEncoderValuePopup`
+		// being a write AND a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
 		// into a copy of `popup_shown` and this script fails, and `mod_knobs_spec.cpp`'s
 		// "files an OLED repaint for every committed popup update" example fails with it.
 	});
@@ -742,8 +739,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		expect(bindings::read(nodes::saturation, ctx)).to_equal(before);
 
 		// **`ModKnobs` DOES see the turn now, and shows it.** With `int_value` claiming only the
-		// turn, the two `GoldUpper` steps reach `services::ModKnobs::mod_encoder_action`, the port of
-		// `View::modEncoderAction` -- the `+1` at 100 ms is swallowed
+		// turn, the two `GoldUpper` steps reach `services::ModKnobs::turn_knob`, the counterpart of main's
+		// `View::modEncoderAction` (`origin/main:src/deluge/gui/views/view.cpp`) -- the `+1` at 100 ms is swallowed
 		// exactly as before, and the `+2` at 150 ms edits whatever real
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and

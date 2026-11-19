@@ -104,7 +104,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // kMaxMenuValue -- `DefaultVelocityToLevel::getMaxValue`
+#include "definitions_cxx.hpp" // kMaxMenuValue, for `device_default_velocity_to_level`
 
 #include <cstdint>
 
@@ -161,7 +161,7 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state);
 /// @}
 
-/// @brief `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`).
+/// @brief `mpe::DirectionSelector` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`).
 ///
 /// A `CustomItem` rather than a `Kind::Enum` node for two independent reasons, either of which
 /// would be enough: its value is `MenuWalkState::mpe_direction` (see the file note), which a
@@ -181,7 +181,7 @@ public:
 	                                 MenuState& state) const override;
 };
 
-/// @brief `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`). Same shape as
+/// @brief `mpe::ZoneSelector` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`). Same shape as
 ///        `MpeDirectionItem`, over `MenuWalkState::mpe_zone`, minus the runtime title.
 ///
 /// The node is named `STRING_FOR_MPE`, its parent selector's name, for `validate_tree`'s `MissingTitle` rule and the
@@ -200,7 +200,7 @@ public:
 	                                 MenuState& state) const override;
 };
 
-/// @brief `mpe::ZoneNumMemberChannels` (`gui/menu_item/mpe/zone_num_member_channels.{h,cpp}`).
+/// @brief `mpe::ZoneNumMemberChannels` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.h`).
 ///
 /// The one value editor here, and a `CustomItem` for the same reason the two selectors are: which half of which
 /// `MIDIPort` it addresses is `MenuWalkState::mpe_direction` / `mpe_zone`, and its bounds move with them

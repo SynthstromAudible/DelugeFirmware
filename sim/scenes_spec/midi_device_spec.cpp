@@ -414,8 +414,9 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 	});
 
 	it("writes every synth's and sound row's velocity cable in every clip, in the record, with no undo step", _ {
-		// `DefaultVelocityToLevel::writeCurrentValue`'s tail, `Song::grabVelocityToLevelFromMIDICableAndSetupPatching
-		// ForEverything`: every synth and sound row whose input is the cable takes its default in every clip.
+		// `DefaultVelocityToLevel::writeCurrentValue`'s tail,
+		// `Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`: every synth and sound row whose input
+		// is the cable takes its default in every clip.
 		spec::SongFixture f = spec::make_kit_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
@@ -679,7 +680,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 					   expect(label + "max " + std::to_string(nodes::mpe_zone_channels_range(ctx, st).max))
 					       .to_equal(label + "max " + table().value(path, "max@" + which));
 					   expect(label + "min " + std::to_string(nodes::mpe_zone_channels_range(ctx, st).min))
-					       .to_equal(label + "min 0"); // `Number::getMinValue`
+					       .to_equal(label + "min 0"); // `Number::getMinValue`, `origin/main:src/deluge/gui/menu_item/number.h`
 				   }
 			   }
 		   }
@@ -835,7 +836,7 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 	// that is right on one panel and wrong on the other is exactly what a single golden cannot see
 	// (`tables_3_spec.cpp`'s own note on the same point). Nothing here hand-computes a rect: the two
 	// selectors lay out through `ui::oled::menu_rect(f)` and the member-channel editor through
-	// `f.bounds()`, like `MenuScene::render_leaf_int`.
+	// `f.bounds()`, like `MenuView::render_leaf_int`.
 	//
 	// Every screen is reached by *driving* the scene rather than by poking `MenuState`
 	// (`MenuScene::state()` is const, deliberately), so a golden here is a screen the user can

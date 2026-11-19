@@ -4,8 +4,8 @@
 # to the top scene first (`shell/router.h`'s `route()`, which is legacy's `UI::modEncoderAction` ->
 # `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
 # encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp`), and
-# `ModKnobs::mod_encoder_action` then writes the param and calls `show_popup`, which ends by running
-# `stack_.push(SceneId{kParamPopupSceneKind})` (`ModKnobs::show_popup`). **This script
+# `ModKnobs::turn_knob` then writes the param and calls `show_popup`, whose presentation runs
+# `stack_.push(SceneId{kParamPopupSceneKind})` (`GuestKnobPresentation::show_value_popup`). **This script
 # cannot exist with `Services{}`**: with a null mod-knob service the turn is dropped and no popup
 # frame is ever produced. It is the one script here whose whole subject is a service.
 #
@@ -15,13 +15,13 @@
 #
 # Every gold turn acts, as `main`'s `interpretEncoders` does: one detent writes the param and pushes the popup.
 #
-# **`popup_moved` guards a real defect:** a second detent on an already-open popup moved the scene's text and **nothing
-# repainted the panel**, so the pixels kept the first value until the popup expired. The narrow cause was the
-# arbitration's *immediate-commit* arm alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
+# **`popup_moved` guards the repaint:** a second detent on an already-open popup moves the scene's text, and with
+# nothing repainting the panel the pixels would keep the first value until the popup expired. Only the arbitration's
+# *immediate-commit* arm needs its own repaint -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
 # `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()` resolves to `{.oled = true}`, so a
-# FAST turn repainted itself and only a slow one did not. `ParamPopupScene::show` now reports whether it committed and
-# `ModKnobs::show_popup` passes that up to `mod_encoder_action`, which files `Action::Kind::Repaint` on
-# `SurfaceRole::Main` -- legacy's `display->displayNotification(...)` in `View::displayModEncoderValuePopup`
+# FAST turn repaints itself. `ParamPopupScene::show` reports whether it committed, and
+# `GuestKnobPresentation::show_value_popup` (which `ModKnobs::show_popup` calls) files `Action::Kind::Repaint` on
+# `SurfaceRole::Main` when it did -- the `display->displayNotification(...)` in `View::displayModEncoderValuePopup`
 # (`gui/views/view.cpp`) being a write AND a blit. Deleting that action turns this frame back into a copy of
 # `popup_shown`.
 0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line

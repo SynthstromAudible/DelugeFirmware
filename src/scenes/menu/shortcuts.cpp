@@ -28,12 +28,12 @@
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
 /// directions.
 ///
-/// @note **Both layers are here.** The tables below are the default (`SHORTCUTS_VERSION_3`) layout,
-///       which is what the legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and
-///       `kAudioClipV1Cells` are the pre-3.0 one, and `set_shortcuts_version` selects between them
-///       for every lookup in this file. `nodes::shortcuts_version` is the setting item that calls
-///       it. `SoundEditor::setShortcutsVersion` reaches the same layout by *writing*
-///       into the V3 arrays -- see `menu::set_shortcuts_version` for the two ways that differs.
+/// @note **Both layers are here.** The tables below are the default (`SHORTCUTS_VERSION_3`) layout, which is what the
+///       legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and `kAudioClipV1Cells` are the pre-3.0 one,
+///       and `set_shortcuts_version` selects between them for every lookup in this file. `nodes::shortcuts_version` is
+///       the setting item that calls it. `SoundEditor::setShortcutsVersion`
+///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) reaches the same layout by *writing* into the V3 arrays --
+///       see `menu::set_shortcuts_version` for the two ways that differs.
 
 #include "scenes/menu/shortcuts.h"
 
@@ -274,6 +274,7 @@ constexpr Cells kAudioClipV1Cells = with_cell(
 /// (`x in {14, 15}`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
+	// `SoundEditor::get_basic_shortcut_action` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) for each cell.
 	out[cell_index(4, 7)] = &n::sequence_direction;     // `SoundEditor::get_basic_shortcut_action`
 	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // ditto
 	out[cell_index(15, 2)] = &n::randomizer_lock;       // ditto

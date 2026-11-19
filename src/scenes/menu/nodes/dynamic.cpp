@@ -251,7 +251,7 @@ deluge::ui::shell::Result GateSelectionItem::handle(const deluge::ui::shell::UiE
 }
 
 // ---------------------------------------------------------------------------------------------
-// `midi::Devices` (`gui/menu_item/midi/devices.{h,cpp}`)
+// `midi::Devices` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`)
 
 void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `Devices::beginSession` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): land on the cable the menu is

@@ -2690,8 +2690,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(r.actions.size()).to_equal(size_t(0)); // no shift: no "automation deleted" popup
 
 		// Shift + push deletes the param's automation and raises the popup main's
-		// `View::modEncoderButtonAction_deleteAutomation` raises: there is a param to delete on this fixture, so the
-		// action must be there.
+		// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`) raises: there
+		// is a param to delete on this fixture, so the action must be there.
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};
 			deluge::ui::PadMask pads{};

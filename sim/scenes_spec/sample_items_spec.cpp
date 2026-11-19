@@ -478,7 +478,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
 	it("retires nine placeholders, none of which came back", _ {
 		// The count `validate.h` carries, checked from the other end: none of the nine is a
-		// placeholder any more. The tree has no placeholder anywhere (`nodes/output_items.h`
+		// placeholder. The tree has no placeholder anywhere (`nodes/output_items.h`
 		// holds the last two real items), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is
 		// where that is asserted; this only re-checks these nine.
 		for (const Node* n : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
@@ -670,7 +670,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 
 	it("sample1_recorder gives source 1 its first range and opens the recorder on it, as main's AudioRecorder does", _ {
-		// `osc::AudioRecorder::checkPermissionToBeginSession` asks
+		// `osc::AudioRecorder::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) asks
 		// `checkPermissionToBeginSessionForRangeSpecificParam` about its own `source_id_`, whose first statement is
 		// `getOrCreateFirstRange()`: a square-wave oscillator 2 with no `MultiRange` gets one and records into it. The
 		// menu's context stays on source 0 (`SoundRig::ctx`), so only an item that asks about source 1 itself makes the

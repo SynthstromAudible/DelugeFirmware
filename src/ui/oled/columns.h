@@ -77,8 +77,8 @@ struct Paging {
 
 /// @brief Compute which page \p focused falls on, and where it sits within that page.
 ///
-/// @note Ports legacy `HorizontalMenu::preparePaging` as a pure function of the columns and the
-///       focused index.
+/// @note Ports legacy `HorizontalMenu::preparePaging` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) as a
+///       pure function of the columns and the focused index.
 ///
 /// Columns are packed into pages of four slots, walked in order and accumulating `slots`; a
 /// column starts a new page once the running total would exceed four. Two quirks of that packing

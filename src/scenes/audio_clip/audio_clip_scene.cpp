@@ -749,8 +749,8 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 		// arguments legacy passes are decided by `getCurrentUI() == &automationView`
 		// (`clip_view.cpp`) -- a `scenes-no-root-ui` read this layer may not make and, with
 		// no `AutomationScene`, a question with no answer. Its undo consequence also
-		// `alloc_sdram`s a `ConsequenceClipHorizontalShift`, which plan constraint 6
-		// forbids from library code. The gesture is still **claimed**, because legacy claims it
+		// `alloc_sdram`s a `ConsequenceClipHorizontalShift`, and library code
+		// allocates nothing. The gesture is still **claimed**, because legacy claims it
 		// (the arm's closing `return`): letting it fall through would hand a Y_ENC turn to `GlobalControls`, which
 		// legacy never does.
 		//
@@ -1317,8 +1317,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 
 	// "Section N" when the clip has no name, "N: name" when it has one, with the
 	// section counted from one. Formatted by hand -- `deluge::string::fromInt` lives in `util/`,
-	// which this layer may not include, and there is no allocation in library code (plan
-	// constraint 6).
+	// which this layer may not include, and there is no allocation in library code.
 	std::array<char, 32> buffer{};
 	size_t len = 0;
 	const auto append = [&](std::string_view s) {

@@ -707,8 +707,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
 		expect(static_cast<int>(slot.art.dx)).to_equal(2);
-		// Neither overrides `getColumnLabel` (the MIDI/CV one's base spells the full name, `ArpNonSoundInteger::getColumnLabel`): the two
-		// slots carry the whole name.
+		// Neither overrides `getColumnLabel` (the MIDI/CV one's base spells the full name,
+		// `ArpNonSoundInteger::getColumnLabel`
+		// (`origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/arp_integer.h`)): the two slots carry the whole
+		// name.
 		const std::string rhythm = deluge::l10n::get(String::STRING_FOR_RHYTHM);
 		expect(std::string(col.label)).to_equal(rhythm);
 		menu::present_column(menu::nodes::arp_rhythm_midi, ctx, 5, slot, col);
@@ -2436,9 +2438,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	   "switchVisiblePage",
 	   _ {
 		// `HorizontalMenu::switchVisiblePage` runs `initializeItem` on the landed item, whose
-		// `FileSelector::checkPermissionToBeginSession` asks `checkPermissionToBeginSessionForRangeSpecificParam` about
-		// its own `sourceId_`: that makes the source's first range. The menu's source stays oscillator 1, which nothing
-		// re-resolves on the way into oscillator 2's page, and gets no range.
+		// `FileSelector::checkPermissionToBeginSession` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) asks
+		// `checkPermissionToBeginSessionForRangeSpecificParam` about its own `sourceId_`: that makes the source's first
+		// range. The menu's source stays oscillator 1, which nothing re-resolves on the way into oscillator 2's page,
+		// and gets no range.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2578,7 +2581,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("LEDs: SYNTH/KIT/MIDI/CV light the focused column's slots", _ {
-		// `HorizontalMenu::updateSelectedMenuItemLED`.
+		// `HorizontalMenu::updateSelectedMenuItemLED` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

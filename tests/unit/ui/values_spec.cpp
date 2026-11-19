@@ -678,7 +678,8 @@ describe values_w("ui::oled::values", $ {
 		ListState st;
 		ScrollText sc;
 
-		// Enumeration::wrapAround() is false by default, so the out-of-range turn clamps.
+		// Enumeration::wrapAround() (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`) is false by default, so
+		// the out-of-range turn clamps.
 		int32_t index = 5;
 		r.input.turn = 1;
 		const Response clamped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);

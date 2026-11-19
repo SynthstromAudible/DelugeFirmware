@@ -51,7 +51,7 @@ std::optional<int32_t> ModelReader::read(std::string_view path) const {
 	}
 	const std::optional<int32_t> stored = plugin::stored_value(*row, value->str());
 	// A choice a file gave a word the row has no name for (a MIDI track's Y axis on a CC other than 1 or 74) shows as
-	// the row's default, as legacy's menus do, so it can be chosen again.
+	// the row's default, as main's menu items (`origin/main:src/deluge/gui/menu_item/`) do, so it can be chosen again.
 	return stored || row->kind != plugin::SettingKind::CHOICE ? stored : std::optional<int32_t>{row->default_value};
 }
 

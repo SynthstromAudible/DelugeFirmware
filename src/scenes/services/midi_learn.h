@@ -23,10 +23,10 @@
 /// (`shell/router.cpp`), and this service is deliberately last. Three separate legacy facts say
 /// so, and none of them is "it was the empty slot":
 ///
-///   1. **`View` is the fallback after the current UI in every learn offer.** `UI`'s base learn answers are
-///      `View`'s learn, and `SoundEditor` answers before falling back to them
-///      (`SoundEditor::ccReceivedForMidiLearn`). So the scene gets first refusal, exactly as it does for the other two
-///      services.
+///   1. **`View` is the fallback after the current UI in every learn offer.** `UI`'s base learn answers are `View`'s
+///      learn, and `SoundEditor` answers its own (`SoundEditor::pcReceivedForMidiLearn`,
+///      `SoundEditor::noteOnReceivedForMidiLearn` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`). So the scene
+///      gets first refusal, exactly as it does for the other two services.
 ///   2. **The four button arms live in the same `if`/`else if` chain as `GlobalControls`'s**, so
 ///      their relative order is only observable if both services could claim the same event --
 ///      and they cannot. `GlobalControls::view_button_action` answers `ViewArm::LearnOwns` for

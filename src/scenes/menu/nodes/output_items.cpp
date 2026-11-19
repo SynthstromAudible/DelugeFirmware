@@ -144,8 +144,9 @@ std::optional<uint32_t> recording_from_of(const MenuContext& ctx, uint32_t editi
 	return value >= 0 ? std::optional{static_cast<uint32_t>(value)} : std::nullopt;
 }
 
-/// @brief main's `SpecificSourceOutputSelector::getRecordableOutputIndex`: @p out's position in the song's track list,
-///        or -1 if it is not there or cannot be recorded from.
+/// @brief main's `SpecificSourceOutputSelector::getRecordableOutputIndex`
+///        (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`): @p out's position in
+///        the song's track list, or -1 if it is not there or cannot be recorded from.
 int32_t recordable_index(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
                          std::optional<uint32_t> out) {
 	if (!editing || !out) {
@@ -159,8 +160,9 @@ int32_t recordable_index(std::span<const bind::TrackFact> tracks, std::optional<
 	return -1;
 }
 
-/// @brief main's `SpecificSourceOutputSelector::getOutputFromSelectedIndex`: the track at @p index, or null when the
-///        audio track cannot record from it.
+/// @brief main's `SpecificSourceOutputSelector::getOutputFromSelectedIndex`
+///        (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`): the track at @p index,
+///        or null when the audio track cannot record from it.
 const bind::TrackFact* track_at(std::span<const bind::TrackFact> tracks, std::optional<uint32_t> editing,
                                 int32_t index) {
 	if (!editing || index < 0 || static_cast<size_t>(index) >= tracks.size()) {
@@ -169,13 +171,16 @@ const bind::TrackFact* track_at(std::span<const bind::TrackFact> tracks, std::op
 	return bind::can_record_from(*editing, tracks[index]) ? &tracks[index] : nullptr;
 }
 
-/// @brief main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex`: walk @p offset detents from @p start,
-///        stopping only on rows the audio track can record from and stopping dead at either end.
+/// @brief main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex`
+///        (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`): walk @p offset detents
+///        from @p start, stopping only on rows the audio track can record from and stopping dead at either end.
 int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::TrackFact> tracks,
                               std::optional<uint32_t> editing, int32_t start, int32_t offset) {
 	if (offset == 0) {
-		// Main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex` reads its `outputIndex` member here
-		// rather than `startIndex`; the only caller passes the member as `startIndex`, so the two are the same value.
+		// Main's `SpecificSourceOutputSelector::getNextRecordableOutputIndex`
+		// (`origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`) reads its `outputIndex`
+		// member here rather than `startIndex`; the only caller passes the member as `startIndex`, so the two are the
+		// same value.
 		return track_at(tracks, editing, start) != nullptr
 		           ? start
 		           : recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);

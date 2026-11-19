@@ -24,15 +24,15 @@ using Root = MenuContext::Root;
 
 namespace {
 
-/// @brief An ordinary patched param (LPF frequency) -- the shape the range rule must NOT fire on:
-///        its value lives on the `Sound`, so legacy opens it through the base
-///        `MenuItem::checkPermissionToBeginSession` on a multisampled synth without asking for a
-///        range.
+/// @brief An ordinary patched param (LPF frequency) -- the shape the range rule must NOT fire on: its value lives on
+///        the `Sound`, so legacy opens it through the base `MenuItem::checkPermissionToBeginSession`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) on a multisampled synth without asking for a range.
 constexpr menu::Node param_node =
     menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
 
 /// @brief The same node marked range-specific (and range-dependent) -- an item whose permission routes through
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, the discriminator for the range rule.
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), the discriminator for the range rule.
 constexpr menu::Node range_dependent_node = menu::with_range_dependent(param_node);
 
 /// @brief A node with neither a bound param nor the range flag.

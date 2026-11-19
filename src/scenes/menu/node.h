@@ -63,18 +63,18 @@ namespace deluge::scenes::menu {
 /// declared, `sim/scenes_spec/tables_3_spec.cpp` counts the nodes of each kind across
 /// `nodes::kAllRoots` and fails below three.
 ///
-/// Four kinds that were considered are absent, and one is present on exactly the threshold:
+/// Four shapes have no kind, and one kind is present on exactly the threshold:
 ///
-///   * `Bipolar`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The legacy items that would want them
-///     (`menu_item::Bipolar`, `origin/main:src/deluge/gui/menu_item/multi_range.h`, `menu_item::Colour`) are bespoke,
-///     and every one of those is a `Kind::Custom` because its state lives behind the `gui/` wall. (The six pad colours
+///   * No `Bipolar`, `MultiRange` or `Colour` kind, and no interpreter for one. Main's multi-range and colour items
+///     (`origin/main:src/deluge/gui/menu_item/multi_range.h`, `origin/main:src/deluge/gui/menu_item/colour.h`) are
+///     bespoke, and each is a `Kind::Custom` here because its state lives behind the `gui/` wall. (The six pad colours
 ///     are ordinary `Kind::Enum` nodes.)
 ///   * `Range` is present, with exactly three nodes: `default_tempo`, `default_swing_amount` (`IntegerRange`,
 ///     `defaultTempoMenu` and `defaultSwingAmountMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`) and `default_key`
-///     (`KeyRange`, `defaultKeyMenu`). Three is the threshold, so the kind is warranted and no more nodes were invented
-///     to pad it out: `MultiRange`'s picker is a different editor (`nodes/multi_range.h`, a `CustomItem`) and is
+///     (`KeyRange`, `defaultKeyMenu`). Three is the threshold, so the kind is warranted with no nodes added to pad it
+///     out: `MultiRange`'s picker is a different editor (`nodes/multi_range.h`, a `CustomItem`) and is
 ///     deliberately not counted here.
-///   * `Action` -- zero nodes. Every legacy `MenuItem` whose select press *does* something rather
+///   * No `Action` kind. Every main `MenuItem` whose select press *does* something rather
 ///     than editing a value reaches a UI this layer may not touch, so what they need is not a
 ///     `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
 ///     `MenuWalkState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
@@ -161,7 +161,8 @@ enum class SourceTarget : uint8_t {
 	Range,     ///< A cable's range.
 };
 
-/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s three.
+/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s
+/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`) three.
 enum class SourcePress : uint8_t {
 	/// Nothing happens (`nullptr`): the press stops at this item.
 	Unhandled,
@@ -237,7 +238,7 @@ inline constexpr ValueText kValueTextFallback{.fallback = true};
 /// The port of `getNotificationValue`/`renderInHorizontalMenu`'s own text arm, for the handful of
 /// items whose column and notification are not a plain formatted number: `35%`/`35% ltch` for
 /// probability, `3:4`/`OFF`/`CUSTOM` for iterance, `OFF`/`FILL` (struck through for `NOT_FILL`) for
-/// fill. `MenuScene::render_horizontal`'s column and `MenuScene::notify_column`'s banner both call
+/// fill. `MenuView::render_horizontal`'s column and `MenuScene::notify_column`'s banner both call
 /// this in place of `format_int`/`format_decimal` when it is set.
 ///
 /// @param ctx   What is being edited.
@@ -297,7 +298,8 @@ using LeafDrawFn = void (*)(deluge::ui::oled::OledFrame& f, const MenuContext& c
 
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
-	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
+	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`
+	/// (`origin/main:src/deluge/gui/menu_item/decimal.cpp`)).
 	int16_t coarse = 0;
 	/// The step with SELECT or SHIFT held; 0 for the kind's own (1).
 	int16_t fine = 0;
@@ -372,8 +374,10 @@ inline constexpr size_t kMaxNodes = 1024;
 /// `validate_tree`'s "a value node has something to read" rule keep working on a range node without
 /// a special case.
 struct RangeSpec {
-	/// @brief The upper edge. `IntegerRange::upper` / `KeyRange::upper`, which are now references
-	///        onto `FlashStorage::defaultRanges` (`storage/flash_storage.h`).
+	/// @brief The upper edge: main's `IntegerRange::upper` / `KeyRange::upper`
+	///        (`origin/main:src/deluge/gui/menu_item/integer_range.h`,
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), held in `FlashStorage::defaultRanges`
+	///        (`storage/flash_storage.h`).
 	GetFn get_upper = nullptr;
 	SetFn set_upper = nullptr;
 
@@ -488,8 +492,9 @@ struct Binding {
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
-	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`:
-	///        2 (the units of a two-place value) unless the item overrides it. A detent moves the value `10^place`.
+	/// @brief The place a full-screen `Kind::Decimal`'s cursor starts on -- legacy's `Decimal::getDefaultEditPos`
+	///        (`origin/main:src/deluge/gui/menu_item/decimal.h`): 2 (the units of a two-place value) unless the item
+	///        overrides it. A detent moves the value `10^place`.
 	int8_t default_edit_pos = 2;
 
 	/// @brief Legacy's `getNoteLengthName` override (`defaults::SwingInterval`, `sync_level::RelativeToSong`): the tick
@@ -498,7 +503,8 @@ struct Binding {
 	TickMagnitudeFn sync_name_magnitude = nullptr;
 
 	/// @brief A select turn on this node's horizontal column wraps past the ends instead of stopping
-	///        (`MenuItem::wrapAround` answering true on a horizontal page).
+	///        (`Submenu::wrapAround` answering true on a horizontal page,
+	///        `origin/main:src/deluge/gui/menu_item/submenu.cpp`).
 	bool wrap_in_horizontal = false;
 
 	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
@@ -822,12 +828,14 @@ struct CustomItem {
 	}
 
 	/// @brief What a patching-source pad patches to while this item is focused --
-	///        `MenuItem::getPatchingSourceShortcutTarget`. Read by the SHIFT overlay's source column.
+	///        `MenuItem::getPatchingSourceShortcutTarget` (`origin/main:src/deluge/gui/menu_item/menu_item.h`). Read by
+	///        the SHIFT overlay's source column.
 	/// @param previous_held Another patching-source pad is held.
 	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
 
 	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves --
-	///        `PatchCables::blinkShortcutsSoon`'s throttle, so scrolling a list is not a storm of flashes.
+	///        `PatchCables::blinkShortcutsSoon`'s (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`) throttle,
+	///        so scrolling a list is not a storm of flashes.
 	/// @return Milliseconds; 0 for none.
 	virtual uint16_t blink_delay_ms() const { return 0; }
 
@@ -920,7 +928,8 @@ struct Node {
 
 	uint8_t slots = 1;
 
-	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`.
+	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`
+	/// (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 	///
 	/// The legacy items that override it to true are `sample::Transpose`
 	/// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`) and `LoopPoint`
@@ -933,7 +942,8 @@ struct Node {
 
 	/// @brief Does this item's permission check go through the range rule? The port of the overrides of
 	///        `checkPermissionToBeginSession` that end in
-	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
+	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	///
 	/// This, not "has a `bind.param`", is what makes the menu's permission rule fire
 	/// (`menu::permission_for`), and what allocates a source's first range on open. The distinction matters: an
@@ -947,7 +957,7 @@ struct Node {
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
 	///        range-picker gate and column-press notification? The port of
-	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()`
+	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`)
 	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
 	///
 	/// Six legacy classes override it to true: five scene openers -- `FileSelector`
@@ -1011,10 +1021,10 @@ struct Node {
 	///        `arpeggiator::IncludeInKitArp` and `randomizer::RandomizerLock`.
 	///
 	/// `SoundEditor::buttonAction`'s SELECT arm never enters such an item: it calls its `selectButtonPress`, which
-	/// flips it (`Selection::toggleValue`) and answers `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this
-	/// flag
-	/// (`Toggle::shouldEnterSubmenu`); `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default,
-	/// so their rows open their page. Set beside `selection_is_toggle`, never instead of it.
+	/// flips it (`Selection::toggleValue` (`origin/main:src/deluge/gui/menu_item/selection.h`)) and answers
+	/// `NO_NAVIGATION`. Every `Kind::Toggle` behaves so without this flag (`Toggle::shouldEnterSubmenu`);
+	/// `delay::PingPong` and `sample::PitchSpeed` are toggles too but keep the default, so their rows open their page.
+	/// Set beside `selection_is_toggle`, never instead of it.
 	bool flips_in_list = false;
 
 	/// @brief Does a select press on this horizontal column stay on the page when its `select_chain` answers null?
@@ -1025,9 +1035,10 @@ struct Node {
 	/// `voice::PolyphonyType` falls back to `Selection::selectButtonPress()` (the page stays), which this flag says.
 	bool chain_falls_back_to_selection = false;
 
-	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
-	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
-	///        unpatched param answers true without it (`node_uses_affect_entire`).
+	/// @brief Legacy's `MenuItem::usesAffectEntire()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) for an item
+	///        whose binding does not say so: AFFECT ENTIRE held on it in a kit row's menu is the hold mode that writes
+	///        every drum, not the clip's own toggle. A PATCHED or unpatched param answers true without it
+	///        (`node_uses_affect_entire`).
 	bool uses_affect_entire = false;
 
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
@@ -1047,9 +1058,9 @@ struct Node {
 	///        `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, `HorizontalMenu::renderMenuItems`). A
 	///        vertical list still drops them.
 	bool fixed_columns = false;
-	/// @brief A horizontal page whose children are member pages, listed as one run of columns: legacy's
-	///        `HorizontalMenuGroup` (`horizontal_menu_group.{h,cpp}`). Each member's first column starts a page, and
-	///        the page title is the focused column's member's.
+	/// @brief A horizontal page whose children are member pages, listed as one run of columns: main's
+	///        `HorizontalMenuGroup` (`origin/main:src/deluge/gui/menu_item/horizontal_menu_group.h`). Each member's
+	///        first column starts a page, and the page title is the focused column's member's.
 	bool is_group = false;
 	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
 	bool show_column_label = true;
@@ -1105,8 +1116,9 @@ constexpr Node with_range_specific(Node n) {
 	return n;
 }
 
-/// @brief `n` with `allow_session_from_horizontal` set -- the port of
-///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`, a post-hoc
+/// @brief `n` with `allow_session_from_horizontal` set -- the counterpart of an override of main's
+///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.h`), a post-hoc
 ///        modifier for the same reason `with_range_dependent` is one: a handful of nodes in the whole
 ///        tree set it, so the other builders keep their signatures.
 constexpr Node with_allow_session_from_horizontal(Node n) {

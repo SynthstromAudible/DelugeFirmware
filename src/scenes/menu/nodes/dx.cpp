@@ -72,8 +72,9 @@ void write_patch(const MenuContext& ctx, const deluge::instrument::DxPatchState&
 	}
 }
 
-/// @brief Draw @p names as a list on the focused level's cursor, as `MenuItem::drawItemsForOled` does for the three
-///        DX7 lists, and publish the render's response.
+/// @brief Draw @p names as a list on the focused level's cursor, as `MenuItem::drawItemsForOled`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) does for the three DX7 lists, and publish the render's
+///        response.
 deluge::ui::Response draw_list(deluge::ui::oled::OledFrame& f, MenuState& state,
                                std::span<const std::string_view> names) {
 	constexpr size_t kMaxRows = 32;

@@ -43,9 +43,10 @@
 ///       dynamic for the same reason: the fourth option, NONE, is offered only when a note row was resolved
 ///       (`Direction::getOptions`).
 ///
-/// @note **`sequence::Direction::checkPermissionToBeginSession`** refuses on a kit row
-///       with no selected drum and otherwise latches `soundEditor.selectedNoteRow`. The refusal is
-///       already what `context_for` resolves to `MenuContext::resolved == false`; the latch is the UI state above.
+/// @note **`sequence::Direction::checkPermissionToBeginSession`
+///       (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`)** refuses on a kit row with no selected drum and
+///       otherwise latches `soundEditor.selectedNoteRow`. The refusal is already what `context_for` resolves to
+///       `MenuContext::resolved == false`; the latch is the UI state above.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"

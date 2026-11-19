@@ -57,8 +57,8 @@ uint16_t assigned_node_ids();
 ///
 ///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, flash byte 60 --
 ///     `FlashStorage::shortcutsVersion` itself, which this layer reads where it needs it, so no push is wired.
-///     `FlashStorage::readSettings` fills it at boot, `FlashStorage::resetSettings` resets it (the ported reset menu
-///     reaches that) and `nodes::set_shortcuts_version` writes it from the ported settings item. Covered by
+///     `FlashStorage::readSettings` fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item
+///     reaches that) and `nodes::set_shortcuts_version` writes it from the settings item. Covered by
 ///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
 ///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///
@@ -105,7 +105,7 @@ menu::MenuScene& menu_scene();
 
 // (No `rename_scene()` forwarder here, deliberately. `rename::rename_scene()` already is the
 // singleton accessor, and a same-named function in this namespace would be ambiguous with it for
-// every consumer that writes `using namespace deluge::scenes;` -- which every spec in this tree
+// every consumer that writes `using namespace deluge::scenes;` -- which every spec in `sim/scenes_spec`
 // does. `scene_registry()` below calls the real one.)
 
 /// @brief The application's scene table, viewing storage this library owns.

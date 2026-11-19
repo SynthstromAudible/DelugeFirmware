@@ -133,7 +133,8 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 	if (port == nullptr) {
 		return IntRange{0, 0, 1};
 	}
-	// "This limits it so we don't eat into the other zone" (`ZoneNumMemberChannels::getMaxValue`).
+	// "This limits it so we don't eat into the other zone" (`ZoneNumMemberChannels::getMaxValue`
+	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)).
 	int32_t num_channels_available = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0
 	                                     ? port->mpeUpperZoneLastMemberChannel
 	                                     : 15 - port->mpeLowerZoneLastMemberChannel;
@@ -242,7 +243,7 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`)
+// `mpe::DirectionSelector` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`)
 
 void MpeDirectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
@@ -279,7 +280,7 @@ deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEv
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`)
+// `mpe::ZoneSelector` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`)
 
 void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
@@ -310,7 +311,7 @@ deluge::ui::shell::Result MpeZoneItem::handle(const deluge::ui::shell::UiEvent& 
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::ZoneNumMemberChannels` (`gui/menu_item/mpe/zone_num_member_channels.{h,cpp}`)
+// `mpe::ZoneNumMemberChannels` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)
 
 void MpeZoneChannelsItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `Number::beginSession` -> `readCurrentValue()`. A `Kind::Custom` node's `enter_leaf` does not
@@ -329,7 +330,7 @@ void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 
 	// `IntegerWithOff::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): the huge centred
 	// number, or "OFF" at 0. `f.bounds()`, not `menu_rect(f)`, for the reason
-	// `MenuScene::render_leaf_int` spells out -- `int_value` places its digits at a rect-relative
+	// `MenuView::render_leaf_int` spells out -- `int_value` places its digits at a rect-relative
 	// `kValueY` calibrated for the full panel.
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), state.edit_int, mpe_zone_channels_range(ctx, state),

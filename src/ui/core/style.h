@@ -50,10 +50,10 @@ struct Style {
 	int32_t scrollbar_w;
 	/// How many rows `list` will show at once: legacy's `OLED_HEIGHT_CHARS - 1`.
 	int32_t menu_rows;
-	/// The `list`/`menu_rect` base row, `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS
-	/// == 64) ? 15 : 14` as a profile value. Deliberately *not* `kHorizontalMenuBaseY`, which
-	/// `columns` uses and which is 14 on every panel -- see the note on that constant in
-	/// `core/metrics.h`.
+	/// The `list`/`menu_rect` base row, `MenuItem::drawItemsForOled`'s
+	/// `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) as a profile
+	/// value. Deliberately *not* `kHorizontalMenuBaseY`, which `columns` uses and which is 14 on every panel -- see the
+	/// note on that constant in `core/metrics.h`.
 	int32_t menu_base_y;
 	bool rounded;
 	Highlighting highlighting;

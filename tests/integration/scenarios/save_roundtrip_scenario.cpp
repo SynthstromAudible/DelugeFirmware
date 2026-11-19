@@ -169,10 +169,9 @@ Wait g_wait{g_report, "the free save finishing", kMaxSaveWaitTicks};
 /// across ticks, and collects samples on a second machine beside that. Reading back on the very next
 /// tick would pass only if the save happened to finish inside the keypress.
 bool saveMachineryIdle() {
-	// Three machines now, not two: the sample collection, the staged document write the song save
+	// Three machines: the sample collection, the staged document write the song save
 	// runs on a machine of its own, and the staged-save machine the base class runs. Miss any one of
-	// them and this reads the card while the save is still going, which is how this check failed the
-	// last two times the save was split further.
+	// them and this reads the card while the save is still going.
 	return !saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight();
 }
 

@@ -62,8 +62,9 @@
 /// a `SampleRecorder` whose last cluster write is still out frees the buffer the driver writes from. The slicer's
 /// commit is not that shape:
 ///
-///   1. Only a `SampleRecorder` lends the driver a buffer like that, and `Slicer::doSlice` frees no recorder: its one
-///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.
+///   1. Only a `SampleRecorder` lends the driver a buffer like that, and `Slicer::doSlice`
+///      (`origin/main:src/deluge/gui/ui/slicer.cpp`) frees no recorder: its one `delugeDealloc` releases a `SoundDrum`
+///      it allocated itself, before `kit->addDrum` publishes it.
 ///   2. The commit is input-driven. Legacy refuses the Select from inside a card routine
 ///      (`REMIND_ME_OUTSIDE_CARD_ROUTINE`), and that defer-and-retry gate is `InputLowering::set_sd_busy`, not a
 ///      scene's business -- as `RecorderScene::handle`, `MarkerScene` and `BrowserScene` also hold.
@@ -246,7 +247,7 @@ public:
 	///
 	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason `MarkerScene::open` is.
 	/// Legacy has no equivalent line inside `Slicer` at all: it reads the **`waveformBasicNavigator` global**, which
-	/// the sample browser's preview path set up and scanned (`SampleBrowser::showPreview`,
+	/// the sample browser's preview path set up and scanned (`SampleBrowser::previewIfPossible`,
 	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view, scroll,
 	/// zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens zoomed out on
 	/// a fresh navigator; called again on the sample and file it already shows, it keeps the navigator, as nothing
@@ -443,7 +444,7 @@ private:
 
 /// @brief The application's one slicer.
 ///
-/// A function-local static, for the reason every other scene singleton in this tree is one.
+/// A function-local static, for the reason every other scene singleton in `src/scenes` is one.
 /// @return The singleton.
 SlicerScene& slicer_scene();
 

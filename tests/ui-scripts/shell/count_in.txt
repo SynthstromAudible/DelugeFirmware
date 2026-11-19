@@ -8,12 +8,11 @@
 # over it on the first tick, as that wiring will. It is written down here rather than
 # dressed up as a gesture, because no user gesture reaches this scene today.
 #
-# **The digit's schedule is the spec's too, and for a second, separate reason.** This scene is a
-# POLL of `playbackHandler.count_in_visual()` (`overlay/count_in_scene.h`), and the only writer of
-# that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
-# (`PlaybackHandler::actionSwungTick`'s count-in branch), which needs a running `AudioEngine`. `count_in_spec.cpp` writes
-# the field directly for exactly that reason; this script's fixture does the same through
-# `RunOptions::before_tick`, on this schedule:
+# **The digit's schedule is the spec's too, and for a second, separate reason.** This scene is a POLL of
+# `playbackHandler.count_in_visual()` (`overlay/count_in_scene.h`), and the only writer of that number is
+# `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine`. `count_in_spec.cpp` writes
+# the field directly for exactly that reason; this script's fixture does the same through `RunOptions::before_tick`, on
+# this schedule:
 #
 #     t <  200 ms : 0   (nothing showing)
 #     t in [200, 500) : 4

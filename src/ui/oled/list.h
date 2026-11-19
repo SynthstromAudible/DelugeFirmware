@@ -75,9 +75,9 @@ int64_t select_delta(const OledFrame& f);
 
 /// @brief The vertical menu, as one immediate-mode call.
 ///
-/// @note Ports legacy `MenuItem::drawItemsForOled`, `Submenu::drawSubmenuItemsForOled`,
-///       `Selection::drawPixelsForOled` (the window), and `Submenu::selectEncoderAction` (the
-///       cursor movement).
+/// @note Ports legacy `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`),
+///       `Submenu::drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`),
+///       `Selection::drawPixelsForOled` (the window), and `Submenu::selectEncoderAction` (the cursor movement).
 ///
 /// Everything is laid out inside @p rect, in frame-local coordinates:
 ///   - the first row's top is `rect.y`; rows are `style.row_height` apart and 9 rows tall;

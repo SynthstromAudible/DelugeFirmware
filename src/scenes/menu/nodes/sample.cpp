@@ -130,14 +130,16 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's app-loop job
 	// (`AudioRecorder::slowRoutine`) is the shell's own tick (`recorder_scene.h`).
 	//
-	// The source's first range is already there: `osc::AudioRecorder::checkPermissionToBeginSession` makes it, on the
-	// item's own source, before the item is entered, and the walk's range gate is that check (`range_rule_context`).
+	// The source's first range is already there: `osc::AudioRecorder::checkPermissionToBeginSession`
+	// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) makes it, on the item's own source, before the item
+	// is entered, and the walk's range gate is that check (`range_rule_context`).
 	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
-	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu` gives a recorder on the chain's SAMPLE
-	// RECORDER page its source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens
-	// the recorder, so the take returns to the source page with the selector focused. A recorder opened on the item
-	// alone (the drum creator's take) has no page above it, and the menu goes up as usual.
+	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) gives a recorder on the chain's SAMPLE RECORDER page its
+	// source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens the recorder, so
+	// the take returns to the source page with the selector focused. A recorder opened on the item alone (the drum
+	// creator's take) has no page above it, and the menu goes up as usual.
 	if (state.depth > 0 && state.path[state.depth - 1] == &nodes::recorder
 	    && renders_horizontal(nodes::recorder, ctx)) {
 		state.walk.resume_landing = source_index() == 0 ? &nodes::file0_selector : &nodes::file1_selector;

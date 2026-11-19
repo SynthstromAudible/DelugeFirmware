@@ -20,9 +20,8 @@
 ///   * **7SEG.** Legacy's function has no "7SEG/OLED split".
 ///     `Display::displayNotification` (`hid/display/display.h`) is pure virtual
 ///     with exactly one override, `OLED::displayNotification` (`hid/display/oled.cpp`) --
-///     7SEG support was removed from legacy itself (there is a
-///     `seven_segment_tombstone.cpp` in `hid/display/` and nothing else there answers to the
-///     name), so `displayModEncoderValuePopup` has no 7SEG arm to drop.
+///     `hid/display/` has no 7SEG display (only a `seven_segment_tombstone.cpp`, and nothing
+///     else there answers to the name), so `displayModEncoderValuePopup` has no 7SEG arm to drop.
 ///
 /// @par The arbitration ("juggling ball") system
 ///

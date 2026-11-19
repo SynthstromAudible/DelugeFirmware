@@ -588,8 +588,9 @@ void BrowserScene::preview_settled(bool has_sample) {
 		}
 	}
 	else if ((showing_preview_ || (keys_drawn_ && !keyboard_visible_)) && !keyboard_always_visible_) {
-		// The no-preview arm of `SampleBrowser::previewIfPossible`: a move scrolls the root view in; otherwise it shows
-		// unless the keyboard still claims the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
+		// The no-preview arm of `SampleBrowser::previewIfPossible`
+		// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a move scrolls the root view in; otherwise it
+		// shows unless the keyboard still claims the pads. Its BROWSE pad blinks again (`possiblySetUpBlinking`).
 		showing_preview_ = false;
 		keys_drawn_ = keyboard_visible_;
 		if (direction != 0 || !keyboard_visible_) {

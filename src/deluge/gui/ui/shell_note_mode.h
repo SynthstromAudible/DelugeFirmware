@@ -136,10 +136,9 @@ void noteModeToggleNoteEditorParamMenu(int32_t on);
 
 /// @brief Every legacy call the note mode makes into `instrumentClipView`, as replaceable pointers.
 ///
-/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these
-/// calls are what a spec pins through them. The handlers themselves no longer need standing in for:
-/// each of their navigation-record calls is a gated pair whose port arm is one of the
-/// `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
+/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these calls are what a
+/// spec pins through them. The handlers themselves need no stand-in: each of their navigation-record calls is one of
+/// the `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
 struct NoteModeLegacyCalls {
 	/// `InstrumentClipView::handleNoteEditorButtonAction`.
 	ActionResult (*noteEditorButton)(deluge::hid::Button b, bool on);

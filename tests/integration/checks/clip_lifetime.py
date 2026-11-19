@@ -57,8 +57,9 @@ after it:
                     (deluge_audio_await_block()) and return (returned=1, pending=0) rather than hang. At epoch 0,
                     AudioEngine::retire() would destroy the song on the spot. Run by the golden runner's boot hook, not
                     the step machine.
-    CL-SONGCLEAR    stopped clock, a synth sounding: the context menu's Create New Song (ClearSongContextMenu::runAccept()
-                    -> deleteOldSongBeforeLoadingNew()). CL-CLEARED once it is over.
+    CL-SONGCLEAR    stopped clock, a synth sounding: the context menu's Create New Song
+                    (ClearSong::acceptCurrentOption() -> runAccept() -> deleteOldSongBeforeLoadingNew(),
+                    gui/context_menu/clear_song.cpp). CL-CLEARED once it is over.
     CL-SONGLOAD     stopped clock, a synth sounding: a song the scenario wrote through Song::writeToFile() is loaded
                     through the load browser (LoadSongUI -> deleteOldSongBeforeLoadingNew()). CL-LOADED loaded=1 when
                     the song came off the card.

@@ -12,12 +12,12 @@
 namespace deluge::scenes::menu {
 
 /// @brief The horizontal page a named @p target opens on under @p root, or `nullptr` when it opens
-///        alone -- `SoundEditor::maybeGetParentMenu`.
+///        alone -- `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 ///
-/// Null for the two sample start markers, the audio clip's waveform and the two file selectors,
-/// which open their own scenes. Otherwise the first page of @p root's horizontal-menu chain that
-/// lists it, the chain transcribed from `SoundEditor::getCurrentHorizontalMenusChain`'s (each group
-/// as its member pages; pinned against legacy's search by `shortcuts_spec`).
+/// Null for the two sample start markers, the audio clip's waveform and the two file selectors, which open their own
+/// scenes. Otherwise the first page of @p root's horizontal-menu chain that lists it, the chain transcribed from
+/// `SoundEditor::getCurrentHorizontalMenusChain`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) (each group as
+/// its member pages; pinned against legacy's search by `shortcuts_spec`).
 /// @param root   The menu root.
 /// @param target The named node.
 /// @return The page, or `nullptr`.
@@ -48,8 +48,9 @@ bool page_lists(const Node& page, const Node& column);
 /// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
 ///
 /// The fallback of `MenuScene::reroot_to_scene_opener_page`, which first searches the root's chain as
-/// `SoundEditor::maybeGetParentMenu` does (`find_if(chain, hasItem)`): a root whose chain lists the item nowhere --
-/// the audio clip's, whose `file0_selector` is listed by `audio_clip_sample` -- lands on the page that does.
+/// `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) does
+/// (`find_if(chain, hasItem)`): a root whose chain lists the item nowhere -- the audio clip's, whose `file0_selector`
+/// is listed by `audio_clip_sample` -- lands on the page that does.
 ///
 /// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and none of the roots
 /// reaches either file selector through one.
@@ -69,9 +70,10 @@ std::span<const Node* const> chain_for(MenuContext::Root root);
 ///        asks of a named item before it opens anything (`checkPermissionToBeginSession`; on `NO`
 ///        it shows "PARAMETER NOT APPLICABLE" and opens nothing).
 ///
-/// The base rule is relevance. The file selectors answer for themselves and open on any
-/// subtractive sound whatever their relevance (`FileSelector::checkPermissionToBeginSession`), so
-/// they are let through here and the browser's own check decides.
+/// The base rule is relevance. The file selectors answer for themselves and open on any subtractive sound whatever
+/// their relevance (`FileSelector::checkPermissionToBeginSession`
+/// (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`)), so they are let through here and the browser's own
+/// check decides.
 /// @param target The node the pad names.
 /// @param ctx    What the menu would edit.
 /// @return False where legacy refuses.

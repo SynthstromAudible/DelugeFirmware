@@ -121,9 +121,9 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 	it("stays inside legacy's image when the board's grid is taller, and inside the grid when it is "
 	   "narrower", _ {
-		// Both of `serveGrid`'s clamps need an example that varies the grid's dimensions -- otherwise
-		// both survive mutation, because every board in the file would have legacy's own 16+2 x 8. Unlike `renderOLED`'s size guard (M28), these two are
-		// reachable: `canOpen()` guards the panel's shape and says nothing about the grid.
+		// Both of `serveGrid`'s clamps need an example that varies the grid's dimensions -- otherwise both survive
+		// mutation, because every board in the file would have legacy's own 16+2 x 8. Unlike `renderOLED`'s size guard,
+		// these two are reachable: `canOpen()` guards the panel's shape and says nothing about the grid.
 		Rig r{board_tall_narrow_grid(), deluge_profile()};
 		r.base.occludes = true;
 		expect(r.guest.canOpen()).to_be_true(); // the panel is untouched; only the grid differs

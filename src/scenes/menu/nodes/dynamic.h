@@ -4,15 +4,14 @@
 /// @brief The three pages whose row list is decided at open time rather than declared: the CV and
 ///        gate output selectors, and the MIDI device list.
 ///
-/// The port of `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
+/// Mirrors main's `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
 /// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
-/// (`gui/menu_item/midi/devices.{h,cpp}`) -- the last three items under the settings root that
+/// (`origin/main:src/deluge/gui/menu_item/midi/devices.h`) -- the last three items under the settings root that
 /// legacy implements as bespoke `MenuItem` subclasses rather than as data.
 ///
-/// @note **None of the three is a `Node::dynamic_children` node, and that is a finding, not an
-///       oversight.** The plan expected these to be the tree's first dynamic submenus. They cannot
-///       be, because a submenu's rows are labelled from `Node::name` -- one static `uint16_t` l10n
-///       id (`node.h`, `MenuScene::render_vertical`'s `text_of(kids[i]->name, ...)`) -- and:
+/// @note **None of the three is a `Node::dynamic_children` node.** None can be, because a submenu's rows are labelled
+///       from `Node::name` -- one static `uint16_t` l10n id (`node.h`, `MenuView::render_vertical`'s
+///       `text_of(kids[i]->name, ...)`) -- and:
 ///
 ///         * `midi::Devices` labels every row with `MIDICable::getDisplayName()`
 ///           (`Devices::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime
@@ -77,7 +76,7 @@ inline constexpr int32_t kLowestDeviceNum = -3;
 /// `hostedMIDIDevices` is a `fast_vector` with no fixed bound (`io/midi/midi_device_manager.h`),
 /// and this layer allocates nothing, so the row array is a frame local of exactly the size every
 /// other list page here uses -- `kMaxDynamicChildren` (`node.h`), which is also
-/// `MenuScene::kMaxMenuChildren` and `MultiRangeItem`'s own `kMaxRows`. A rig with more than 64
+/// `kMaxMenuChildren` (`menu_state.h`) and `MultiRangeItem`'s own `kMaxRows`. A rig with more than 64
 /// connected cables loses the tail rather than the stack.
 inline constexpr size_t kMaxDeviceRows = kMaxDynamicChildren;
 

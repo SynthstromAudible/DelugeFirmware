@@ -80,7 +80,8 @@ ValueText cv_volts_word(const MenuContext& ctx, int32_t value, ValueTextUse use,
 ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::sidechain::Volume` (`origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`): AUTO below zero.
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
-/// `defaults::HoldTime::getDisplayValue`/`getUnit`: twentieths of a second, 1..19 as 50..950 ms, 20 as 1 SEC.
+/// `defaults::HoldTime::getDisplayValue` (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`)/`getUnit`:
+/// twentieths of a second, 1..19 as 50..950 ms, 20 as 1 SEC.
 ValueText hold_time_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `defaults::Magnitude::drawPixelsForOled`: the resolution, `96 << value`.
 ValueText default_magnitude_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
@@ -166,8 +167,8 @@ std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext& ctx, in
 /// @{
 /// `FileSelector`'s big folder icon, a row above the region.
 std::optional<deluge::ui::oled::ArtColumn> file_selector_art(const MenuContext& ctx, int32_t value);
-/// `FileSelector::getColumnLabel` for source 1 and 2 (or the audio clip): the loaded sample's folder, "Mult", or the
-/// name.
+/// `FileSelector::getColumnLabel` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) for source 1 and 2 (or the
+/// audio clip): the loaded sample's folder, "Mult", or the name.
 ValueText file0_label(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText file1_label(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// The end markers' label: the end point's name cut to three characters.

@@ -336,8 +336,9 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("says a node uses AFFECT ENTIRE exactly where main's item does", _ {
-		// `MenuItem::usesAffectEntire`: what makes AFFECT ENTIRE a hold in a kit row's menu rather than the clip's
-		// toggle. Leaves only: a submenu's answer depends on its cursor (`menu::uses_affect_entire` ports that).
+		// `MenuItem::usesAffectEntire` (`origin/main:src/deluge/gui/menu_item/menu_item.h`): what makes AFFECT ENTIRE a
+		// hold in a kit row's menu rather than the clip's toggle. Leaves only: a submenu's answer depends on its cursor
+		// (`menu::uses_affect_entire` ports that).
 		std::string wrong;
 		const auto compare = [&wrong](const std::string& path, const Node& node) {
 			const std::string want = table().value(path, "ae");
@@ -606,7 +607,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 
 describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chaining", $ {
 	it("answers what main's item selectButtonPress answers, value by value", _ {
-		// The rows are `MenuItem::selectButtonPress()` on the live items, mapped back to the page each was ported to: a
+		// The rows are `MenuItem::selectButtonPress()` on the live items, mapped to the page each opens: a
 		// wrong condition, a wrong target, or a missing `select_chain` shows up as a mismatch here.
 		Rigged& f = fixture();
 

@@ -927,7 +927,7 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 	using deluge::ui::grid::FlashColour;
 	using deluge::ui::grid::PadFlash;
 
-	// `SoundEditor::blinkShortcut`: the counter's even steps are the
+	// `SoundEditor::blinkShortcut` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the counter's even steps are the
 	// 20 ms source phase, the odd steps the 180 ms param phase; `counter >> 1` is the cycle the
 	// frequency masks are tested against.
 

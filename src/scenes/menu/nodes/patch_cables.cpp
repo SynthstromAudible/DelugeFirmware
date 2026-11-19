@@ -77,8 +77,8 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 	}
 }
 
-/// @brief A menu-unit cable value (-5000..5000) as "-12.34" -- the `floatToString(level / 100, ...,
-///        2, 2)` in `PatchCables::renderOptions`, without the float.
+/// @brief A menu-unit cable value (-5000..5000) as "-12.34" -- the `floatToString(level / 100, ..., 2, 2)` in
+///        `PatchCables::renderOptions` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`), without the float.
 void append_cable_value(char* out, size_t& len, size_t cap, int32_t value) {
 	if (value < 0) {
 		append(out, len, cap, "-");
@@ -512,7 +512,8 @@ PatchSource strength_source(const MenuState& state, PatchCableStrengthItem::Whic
 	return which == PatchCableStrengthItem::Which::Range ? state.walk.patch_range_source : state.walk.patch_source;
 }
 
-/// @brief `PatchCableStrength::getDestinationDescriptor()`.
+/// @brief `PatchCableStrength::getDestinationDescriptor()`
+/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`).
 deluge::synth::CableTarget strength_destination(const MenuState& state, PatchCableStrengthItem::Which which) {
 	return destination_for(state, which == PatchCableStrengthItem::Which::Range);
 }
@@ -534,8 +535,9 @@ deluge::synth::CableTarget PatchCableStrengthItem::learn_descriptor(const MenuCo
 		                                                  state.walk.patch_range_source);
 	}
 	if (which_ == Which::Fixed) {
-		// `Fixed` inherits `Regular::getLearningThing` over the destination and source it installs itself (`on_focus`
-		// below), so its cable is known before its session begins.
+		// `Fixed` inherits `Regular::getLearningThing`
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`) over the destination and source it
+		// installs itself (`on_focus` below), so its cable is known before its session begins.
 		return deluge::synth::CableTarget::depth_of(param_, source_);
 	}
 	// `Regular::getLearningThing` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`).
@@ -998,8 +1000,9 @@ bool source_may_patch(const MenuContext& ctx, PatchSource source, int32_t param)
 }
 
 bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination) {
-	// Main's `SourceSelection::sourceIsAllowed`, patching to another cable's range: a global source can control any
-	// range, a local one only a cable that goes to a local param.
+	// Main's `SourceSelection::sourceIsAllowed` (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`), patching
+	// to another cable's range: a global source can control any range, a local one only a cable that goes to a local
+	// param.
 	if (!destination.is_param()) {
 		if (source < kFirstLocalSource) {
 			return true;

@@ -93,7 +93,7 @@ void write_sync_scaling(::Song* song, int32_t clip_id) {
 }
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every
-///        other scene in this tree spells it.
+///        other scene in `src/scenes` spells it.
 /// @param s The string.
 /// @return Its id.
 constexpr uint16_t sid(String s) {
@@ -418,7 +418,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	case ButtonId::Back:
 		if (on) {
 #ifndef undoButtonX
-			// the `#ifndef undoButtonX` of the BACK arm, and `undoButtonX` is defined nowhere in this tree --
+			// the `#ifndef undoButtonX` of the BACK arm, and `undoButtonX` is defined nowhere in this repository --
 			// see the class doc. This is the live undo/redo; the `#ifdef undoButtonX` branches' dedicated undo
 			// and redo buttons are dead code.
 			if (actionLogger.allowedToDoReversion()) {

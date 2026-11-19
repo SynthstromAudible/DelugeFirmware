@@ -11,8 +11,9 @@
 ///       anywhere under `src/scenes` (`scenes-model-stack-outside-context` and `scenes-model-stack`,
 ///       `scripts/check_layer_rules.py`); `bindings.cpp` reads and writes through `bind::Target` and the write sink.
 ///
-/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends)
-///       is the plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which legacy's menu items use too.
+/// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends) is the
+///       plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which main's menu items
+///       (`origin/main:src/deluge/gui/menu_item/`) use too.
 
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"

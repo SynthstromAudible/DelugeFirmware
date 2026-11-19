@@ -3,7 +3,7 @@
 /// @brief `EditNameItem` -- the `CustomItem` behind the three name-editor menu items, and the one
 ///        that opens `rename::RenameScene`.
 ///
-/// The port of `deluge::gui::menu_item::EditName` (`gui/menu_item/edit_name.{h,cpp}`), which is a
+/// Mirrors main's `deluge::gui::menu_item::EditName` (`origin/main:src/deluge/gui/menu_item/edit_name.h`), which is a
 /// `MenuItem` whose entire body is a `beginSession` override: it points the right `RenameUI` at the
 /// right model object and calls `openUI()` on it. `CustomItem::on_focus` is `beginSession`
 /// (`node.h`), so that is where this does the same thing -- except that a scene may not touch the

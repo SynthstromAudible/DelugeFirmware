@@ -16,14 +16,13 @@ using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 namespace icons = deluge::gfx::oled::icons;
 
-// Every scene below pins the row geometry twice over. First as individual canvas coordinates
-// read off the *legacy* renderers -- `MenuItem::drawItemsForOled` and
-// `Submenu::drawSubmenuItemsForOled` -- so a port that merely agrees with itself fails. Second,
-// for the three plain-geometry scenes, as byte-for-byte equality with the legacy call sequence
-// replayed onto a second canvas of the same geometry through the raw gfx Canvas, with every
-// legacy magic number spelled as a literal (6/9 for the Apple font's textWidth/textHeight, 14/15
-// for baseY, 118 for the icon start) rather than borrowed from the constants the port itself
-// lays out with.
+// Every scene below pins the row geometry twice over. First as individual canvas coordinates read off the *legacy*
+// renderers -- `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) and
+// `Submenu::drawSubmenuItemsForOled` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) -- so a port that merely
+// agrees with itself fails. Second, for the three plain-geometry scenes, as byte-for-byte equality with the legacy call
+// sequence replayed onto a second canvas of the same geometry through the raw gfx Canvas, with every legacy magic
+// number spelled as a literal (6/9 for the Apple font's textWidth/textHeight, 14/15 for baseY, 118 for the icon start)
+// rather than borrowed from the constants the port itself lays out with.
 //
 // Three deliberate departures from a literal reading of the widget's spec, each resolved in the
 // legacy code's favour:

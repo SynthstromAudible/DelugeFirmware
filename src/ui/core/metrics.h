@@ -30,12 +30,12 @@ constexpr int32_t kMenuBaseY48 = 14; // list top for a 48-row panel (+ visible_t
 constexpr int32_t kMenuBaseY64 = 15;
 /// The horizontal menu's box top (+ visible_top).
 ///
-/// @note Deliberately distinct from kMenuBaseY48/64 above, which are the *list* constants.
-///       Legacy hard-codes this one as a literal `14 + OLED_MAIN_TOPMOST_PIXEL`
-///       (`HorizontalMenu::renderMenuItems`) with no panel-height branch, so it is 14 on every
-///       geometry, whereas the list top (`MenuItem::drawItemsForOled`) picks 14 or 15 depending on
-///       panel height. The two coincide on the shipped 48-row panel and diverge by one row on a
-///       64-row one; `columns` follows this constant, `list`/`menu_rect` the pair above.
+/// @note Deliberately distinct from kMenuBaseY48/64 above, which are the *list* constants. Legacy hard-codes this one
+///       as a literal `14 + OLED_MAIN_TOPMOST_PIXEL` (`HorizontalMenu::renderMenuItems`) with no panel-height branch,
+///       so it is 14 on every geometry, whereas the list top (`MenuItem::drawItemsForOled`
+///       (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`)) picks 14 or 15 depending on panel height. The two
+///       coincide on the shipped 48-row panel and diverge by one row on a 64-row one; `columns` follows this constant,
+///       `list`/`menu_rect` the pair above.
 constexpr int32_t kHorizontalMenuBaseY = 14;
 constexpr int32_t kTitleY = 1; // title baseline offset (+ visible_top)
 /// Top row of a `title_badge` icon -- `OLED_MAIN_TOPMOST_PIXEL + 1` (the `lockIcon` draw in main's

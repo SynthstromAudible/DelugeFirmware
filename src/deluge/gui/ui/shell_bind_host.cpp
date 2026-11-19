@@ -441,7 +441,7 @@ bool clipPlaysSlot(const ::Clip& clip, deluge::project::SlotAddress slot) {
 }
 
 std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind::TakeTarget& target) const {
-	// `AudioRecorder::targetStillHeld`, by identity: the clip and what it plays, then the range wherever it now sits.
+	// By identity: the clip and what it plays, then the range wherever it now sits.
 	// Range identities are run-unique and never saved, so a range in another song cannot match.
 	if (currentSong == nullptr || !target.clip || !target.range || target.source >= kNumSources) {
 		return std::nullopt;

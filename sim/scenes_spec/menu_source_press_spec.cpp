@@ -147,8 +147,10 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("opens the volume cable the source already drives, not a new POST_FX one", _ {
-		// `Regular::checkPermissionToBeginSession`: a source POST_FX refuses is retried on POST_REVERB_SEND, then
-		// LOCAL_VOLUME, each asked on its own. The fixture's synth patches VELOCITY to LOCAL_VOLUME.
+		// `Regular::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`): a source POST_FX refuses is
+		// retried on POST_REVERB_SEND, then LOCAL_VOLUME, each asked on its own. The fixture's synth patches VELOCITY
+		// to LOCAL_VOLUME.
 		select_language();
 		Rig r;
 		r.open(nodes::master_volume);

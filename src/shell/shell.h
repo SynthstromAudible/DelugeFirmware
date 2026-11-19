@@ -160,18 +160,17 @@ public:
 
 	/// @brief Install (or replace) the three services, after construction.
 	///
-	/// **This is how an application installs a service at all.** The constructor takes `Services`
-	/// by value, but `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn`
-	/// are each built from a `SceneStack&` -- and the first two also from an `InputLowering&` --
-	/// and the only instances of either in an application are the ones this shell **owns**
-	/// (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three really
-	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack, and
-	/// `ModKnobs::popup_suppressed` and `ModKnobs::mod_encoder_button_action` both read
-	/// `stack_.input_top()`; `GlobalControls::handle` gates its `View::buttonAction` group on
-	/// `stack_.input_top().is_root()`; `MidiLearn::handle` reads the same. So a real service cannot
-	/// be constructed before the shell it serves, and this is how it is installed after it --
-	/// without it an application could only pass `Services{}`, and no gold-knob turn, transport
-	/// button or MIDI-learn press would reach anything outside the scene stack.
+	/// **This is how an application installs a service at all.** The constructor takes `Services` by value, but
+	/// `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn` are each built from a `SceneStack&`
+	/// -- and the first two also from an `InputLowering&` -- and the only instances of either in an application are the
+	/// ones this shell **owns** (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three
+	/// really uses what it is handed: `ModKnobs`' `GuestKnobPresentation` pushes the param popup onto that stack
+	/// (`GuestKnobPresentation::show_value_popup`, `src/scenes/services/guest_knob_presentation.h`), and
+	/// `GuestKnobPresentation::suppress_value_popup` and `ModKnobs::push` both read `stack_.input_top()`;
+	/// `GlobalControls::handle` gates its `View::buttonAction` group on `stack_.input_top().is_root()`;
+	/// `MidiLearn::handle` reads the same. So a real service cannot be constructed before the shell it serves, and this
+	/// is how it is installed after it -- without it an application could only pass `Services{}`, and no gold-knob
+	/// turn, transport button or MIDI-learn press would reach anything outside the scene stack.
 	///
 	/// Build the shell with `Services{}`, construct the services over `stack()`/`lowering()`, then
 	/// call this. Three things move together and this call is what keeps them in step: `services_`
@@ -242,9 +241,10 @@ public:
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms) { screensaver_.note_activity(now_ms); }
 
-	/// @brief Set the host's screensaver inhibitors: stem export running, or a permanent-looking popup up
-	///        (`Screensaver::timerEvent`'s `isPermanentPopupPresent() || stemExport.processStarted` check,
-	///        `hid/display/screensaver.cpp`). The working animation is the shell's own and needs no fact.
+	/// @brief Set the host's screensaver inhibitors: stem export running, or a permanent-looking popup up (legacy
+	///        `Screensaver::timerEvent`'s `isPermanentPopupPresent() || stemExport.processStarted` check,
+	///        `hid/display/screensaver.cpp`), which `shell::Screensaver::tick` (`src/shell/screensaver.cpp`) obeys
+	///        while the shell runs. The working animation is the shell's own and needs no fact.
 	/// @param inhibit Whether either holds now.
 	void set_screensaver_inhibit(bool inhibit) { screensaver_.set_inhibit(inhibit); }
 	/// @brief Whether `tick` drains the notice queue: the host gives it to whichever consumer shows notices now, so

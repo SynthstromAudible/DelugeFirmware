@@ -42,7 +42,8 @@ const Node* focused_value(const MenuContext& ctx, const MenuState& st);
 
 /// @brief `getCurrentMenuItem()->usesAffectEntire()`: a leaf's own answer (`node_uses_affect_entire`); on a horizontal
 ///        page the focused column's; on a vertical list the cursor row's when that row does not enter
-///        (`flips_in_place`), else false (`Submenu::usesAffectEntire`).
+///        (`flips_in_place`), else false (`Submenu::usesAffectEntire`
+///        (`origin/main:src/deluge/gui/menu_item/submenu.cpp`)).
 bool uses_affect_entire(const MenuContext& ctx, const MenuState& st);
 
 /// @brief `getCurrentMenuItem()->selectEncoderActionEditsInstrument()` after a select turn: a leaf whose legacy item

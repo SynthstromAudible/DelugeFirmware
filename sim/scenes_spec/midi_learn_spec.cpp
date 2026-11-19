@@ -1169,8 +1169,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 	it("the root gate: with a NON-root scene on top, LEARN does nothing here", _ {
 		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the header's proof). Main's
-		// LEARN inside a menu is `SoundEditor::buttonAction`'s own arm (`SoundEditor::getGreyoutColsAndRows` in
-		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is `MenuScene`'s to port -- so an ungated
+		// LEARN inside a menu is the `LEARN` arm of `SoundEditor::buttonAction`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is `MenuScene`'s to port -- so an ungated
 		// `MidiLearn` would put a second, wrong owner on the button.
 		LearnRig rig;
 		rig.root.root = false;

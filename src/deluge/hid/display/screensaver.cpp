@@ -106,24 +106,23 @@ void Screensaver::timerEvent() {
 		return;
 	}
 
-	// **Two screensavers, and this is where it is settled (F1 task 9).**
+	// **Two screensavers, and this is where it is settled.**
 	//
-	// F1 task 8 gave `shell::Screensaver` a real timeout (see `settingsChanged()` below), so the
-	// ported service arms and pushes `overlay::ScreensaverScene` on the same idle period this class
+	// `shell::Screensaver` has a real timeout (see `settingsChanged()` below), so the shell's
+	// service arms and pushes `overlay::ScreensaverScene` on the same idle period this class
 	// uses, from the same two settings, woken by the same presses --
 	// `Shell::on_board_event`/`on_encoder_edges` call `note_activity()` exactly where
 	// `dispatchInputEvent` calls `noteActivity()`. Both would draw: this class renders into its own
 	// canvas and calls `OLED::markChanged()`, while the scene renders through the guest's surfaces
-	// into `OLED::main`. That is a visibly wrong screen, not a duplicated no-op. Task 8 recorded it
-	// here as latent because `shell::Screensaver` only advances when the shell ticks, the shell only
-	// ticks from `ShellHostUI::timerCallback`, and nothing opened `shellHostUI`. Task 9's eight
-	// gated entry points are what open it, so the collision is live and this is the adjudication.
+	// into `OLED::main`. That is a visibly wrong screen, not a duplicated no-op.
+	// `shell::Screensaver` advances only when the shell ticks, and the shell ticks only while
+	// `shellHostUI` is open (`ShellHostUI::tickShell`), so the collision is live whenever it is.
 	//
 	// **The guest owns the panel while it is the current UI, so its own service owns the idle
 	// policy there.** The condition is `getCurrentUI()`, not "the guest exists" and not "the guest
 	// is anywhere in the hierarchy": with a legacy UI open *over* the guest, that UI owns the panel
-	// and the shell is not ticking at all (`openUI` unsets `TimerName::UI_SPECIFIC`,
-	// `gui/ui/ui.cpp:233`), so this class is the only screensaver there and must keep running.
+	// and the shell is not ticking at all (`openUI` in `gui/ui/ui.cpp` unsets
+	// `TimerName::UI_SPECIFIC`), so this class is the only screensaver there and must keep running.
 	//
 	// **Re-armed, not disarmed**, and woken first -- the same three lines the inhibitor arm below
 	// uses, in the same order, and for the same reason: a silent `return` would leave
@@ -199,8 +198,8 @@ void Screensaver::timerEvent() {
 }
 
 void Screensaver::settingsChanged() {
-	// **Re-supply the ported screensaver's copy of the same two settings.**
-	// `deluge::ui::shell::Screensaver` is the policy half of this class, ported as a `Service`
+	// **Re-supply the shell screensaver's copy of the same two settings.**
+	// `deluge::ui::shell::Screensaver` is the policy half of this class, as a `Service`
 	// (`shell/screensaver.h`), and `src/shell` may not read `storage/` -- so it holds one number
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
 	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
@@ -210,9 +209,9 @@ void Screensaver::settingsChanged() {
 	// (`gui::ui::reapplyLiveSettingsAfterReset`). A boot call would have covered only the first, and the guest's copy
 	// would go stale the moment the user changed either setting.
 	//
-	// The formula is legacy's own two reads, spelled as one number: `arm()`'s
-	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` (`:79-81`) and the `ScreensaverMode::OFF`
-	// early-outs the port spells as `idle_ms == 0` (`:92-94`, `:102-104`, `:171-174`).
+	// The formula is this class's own two reads, spelled as one number: `arm()`'s
+	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` and the `ScreensaverMode::OFF` early-outs of
+	// `noteActivity()`, `timerEvent()` and this function, which the shell spells as `idle_ms == 0`.
 	//
 	// **The menu's two setters.** `nodes::set_screensaver_mode` and `nodes::set_screensaver_timeout`
 	// (`scenes/menu/nodes/settings.cpp`) write the same two `FlashStorage` globals and call

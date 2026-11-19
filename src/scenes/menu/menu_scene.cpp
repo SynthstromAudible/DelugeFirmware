@@ -156,12 +156,11 @@ bool MenuScene::on_enter(const SceneId& id) {
 			target = column;
 		}
 		// **The allocation legacy's permission check performs before it opens a named item.**
-		// `SoundEditor::setup(clip, item, sourceIndex)` runs
-		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
-		// (`SoundEditor::setup`'s item arm), and for every range-specific item that lands in
-		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
-		// statement** is `source->getOrCreateFirstRange()` -- a *create*, not a read,
-		// which fails only with `INSUFFICIENT_RAM`.
+		// `SoundEditor::setup(clip, item, sourceIndex)` runs `item->checkPermissionToBeginSession(...)` on the item it
+		// was asked for (`SoundEditor::setup`'s item arm), and for every range-specific item that lands in
+		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), whose **first statement** is
+		// `source->getOrCreateFirstRange()` -- a *create*, not a read, which fails only with `INSUFFICIENT_RAM`.
 		//
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So the `file0SelectorMenu` entry of
@@ -202,11 +201,12 @@ bool MenuScene::on_enter(const SceneId& id) {
 				return false;
 			}
 			// The two arms after that allocation in `main`'s
-			// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`. The allocation has already applied the
-			// first -- a kit row or a single range is unambiguous, so it points the range index at range 0. What is
-			// left is `MUST_SELECT_RANGE`: a range-specific item on a source with more than one range and none
-			// remembered. Spelled as "the allocation did not resolve one" rather than by calling `permission_for`,
-			// whose first statement is the relevance fold above.
+			// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+			// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). The allocation has already applied the first -- a kit
+			// row or a single range is unambiguous, so it points the range index at range 0. What is left is
+			// `MUST_SELECT_RANGE`: a range-specific item on a source with more than one range and none remembered.
+			// Spelled as "the allocation did not resolve one" rather than by calling `permission_for`, whose first
+			// statement is the relevance fold above.
 			if (range == Permission::MustSelectRange) {
 				// `SoundEditor::setup`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
@@ -440,7 +440,8 @@ std::optional<int32_t> MenuScene::dx_column_flash(uint32_t now_ms) const {
 }
 
 bool MenuScene::dx_column_flashing() const {
-	// `DxParam::hasSideColumn`: the parameter page over the keyboard screen.
+	// `DxParam::hasSideColumn` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`): the parameter page over the
+	// keyboard screen.
 	return focused() == &nodes::dx_param && ctx_.root_is_keyboard && st_.dx.flash_anchor_ms.has_value();
 }
 
@@ -1106,11 +1107,12 @@ Result MenuScene::after_render_navigation() {
 		pushed_kind_ = st_.walk.pending_scene.kind;
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
-		// `sampleBrowser.menuItemHeadingTo = item` (`SoundEditor::maybeGetParentMenu`), and
-		// `osc::AudioRecorder::menuItemHeadingTo` for the recorder half. Legacy writes it
-		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
-		// own `openUI`. Items with no return affordance record one too and nothing reads it; the
-		// recorder's return is `MenuWalkState::resume_landing`, which its item writes.
+		// `sampleBrowser.menuItemHeadingTo = item` (`SoundEditor::maybeGetParentMenu`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)), and `osc::AudioRecorder::menuItemHeadingTo`
+		// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) for the recorder half. Legacy writes it on the
+		// way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its own `openUI`. Items with
+		// no return affordance record one too and nothing reads it; the recorder's return is
+		// `MenuWalkState::resume_landing`, which its item writes.
 		st_.walk.scene_opener = focused();
 		r.handled = true;
 	}

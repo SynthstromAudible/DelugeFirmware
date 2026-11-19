@@ -598,7 +598,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		AudioFileHolder* holder = r.range->getAudioFileHolder();
 		expect(holder->audioFile).to_equal(static_cast<AudioFile*>(captured));
 		expect(holder->filePath).to_equal(std::string("SAMPLES/RECORD/REC000.WAV"));
-		// `deluge::recording`'s `finishRecording`, and `AudioRecorder::finishInputTake`'s `close()`.
+		// `deluge::recording`'s `finishRecording`, and the `close()` of main's `AudioRecorder::process`
+		// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`).
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
 	});
@@ -1554,8 +1555,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("opens REC 2 from that page on oscillator 2's own range, with oscillator 1 multisampled and none picked", _ {
-		// `osc::AudioRecorder::checkPermissionToBeginSession` asks about its own `source_id_`: oscillator 2 gets its
-		// first range and, having one, needs no picker, whatever oscillator 1 holds.
+		// `osc::AudioRecorder::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) asks about its own `source_id_`: oscillator 2
+		// gets its first range and, having one, needs no picker, whatever oscillator 1 holds.
 		Guards g;
 		Rig r;
 		r.source->ranges.insertMultiRange(1);

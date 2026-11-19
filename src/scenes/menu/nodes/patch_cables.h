@@ -1,9 +1,10 @@
 #pragma once
 
-/// @brief The patch-cable pages: the mod-matrix list, the two source pickers, and the three
-///        cable-strength editors -- the port of `gui/menu_item/patch_cables.{h,cpp}`,
-///        `patch_cable_strength.{h,cpp}` and the four singletons under
-///        `gui/menu_item/source_selection/` and `gui/menu_item/patch_cable_strength/`.
+/// @brief The patch-cable pages: the mod-matrix list, the two source pickers, and the three cable-strength editors --
+///        mirroring main's `origin/main:src/deluge/gui/menu_item/patch_cables.h`,
+///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h` and the four singletons under
+///        `origin/main:src/deluge/gui/menu_item/source_selection/` and
+///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength/`.
 ///
 /// Six legacy globals become six `CustomItem`s and four new `Node`s:
 ///
@@ -207,8 +208,10 @@ public:
 	void commit(const MenuContext& ctx, MenuState& state) const override;
 	void leds(deluge::ui::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
 
-	/// `PatchCableStrength::getLearningThing()` -- `MenuItemWithCCLearning`'s answer, which is a
-	/// function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
+	/// `Regular::getLearningThing()` / `Range::getLearningThing()`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/range.cpp`) -- `MenuItemWithCCLearning`'s answer,
+	/// which is a function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }

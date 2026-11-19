@@ -91,7 +91,7 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node
                       bool kit_global_latched = false);
 
 /// @brief A blink of one pad and nothing else, every other cycle by default --
-/// `SoundEditor::setupExclusiveShortcutBlink`,
+/// `SoundEditor::setupExclusiveShortcutBlink` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`),
 ///        which a scene plays for a pad of its own (the sample browser's slot pads).
 /// @param x         The pad's column.
 /// @param y         The pad's row.

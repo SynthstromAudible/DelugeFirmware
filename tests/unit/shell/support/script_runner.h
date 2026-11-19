@@ -75,13 +75,12 @@ using deluge::ui::shell::ShellConfig;
 ///     loop: construct the three here over `shell.stack()`/`shell.lowering()` and install them
 ///     with `Shell::set_services`, which is what an application's own boot does. See
 ///     `sim/scenes_spec/support/real_services.h`'s `RealServices` for the shape.
-///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
-///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
-///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing
-///     that moves that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
-///     (`PlaybackHandler::actionSwungTick`'s count-in branch), which needs a running `AudioEngine` a spec process does
-///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same
-///     reason; this is that, at level 2.
+///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The stand-in for a model
+///     that moves on its own: `overlay::CountInScene` is a **poll** of `playbackHandler.count_in_visual()`
+///     (`scenes/overlay/count_in_scene.h`), and the only thing that moves that number is
+///     `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine` a spec process does
+///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same reason; this is that, at
+///     level 2.
 struct RunOptions {
 	/// Milliseconds between successive `Shell::tick` calls.
 	uint32_t tick_ms = 10;

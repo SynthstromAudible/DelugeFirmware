@@ -735,7 +735,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		// that pointer -- so on a MIDI or CV clip an unpatched `ParamRef` read would reinterpret a
 		// `MIDIParamCollection`. That is reachable: the MIDI/CV root carries the
 		// randomizer's and the arpeggiator's unpatched params so their `midi_cv` twins can be
-		// siblings. `bindings::holds_unpatched_params` is what refuses it.
+		// siblings. `bindings::read` refuses it: the target resolves to no view (`target_view`), and it answers 0.
 		//
 		// `read()`'s "cannot serve" answer is a literal 0, which no *served* param can produce: a
 		// stored 0 scales to `kMidMenuValue` (25) through `computeCurrentValueForStandardMenuItem`,
@@ -875,9 +875,8 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("uses every declared Kind at least three times", _ {
-		// `node.h`'s `Kind` rule, applied with the whole tree in hand. A kind below three nodes is speculation, and the
-		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
-		// table declares either, were removed from the enum rather than left in.
+		// `node.h`'s `Kind` rule, applied with the whole tree in hand. A kind below three nodes is speculation, so the
+		// enum declares none.
 		// Sized from the enum's own last enumerator and swept in full: a
 		// hand-written list of kinds would let a future enumerator escape the rule silently, and an
 		// oversized array would report a phantom zero-count kind.
@@ -1645,7 +1644,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("from the list, a note-on and a program change learn the row under the cursor as legacy's Submenu does", _ {
-		// `Submenu::learnNoteOn` / `learnProgramChange` forward to the current child when the list is the current item.
+		// `Submenu::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`) / `learnProgramChange` forward to
+		// the current child when the list is the current item.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const CommandSlots saved = CommandSlots::capture();
@@ -1854,10 +1854,10 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("has no param learn target: this is global-command learn, not param learn", _ {
-		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()` -- "which
-		// automatable parameter would a CC bind to". These twelve bind a whole message to a
-		// transport action instead and carry no `ParamRef`, so there is no target. The two
-		// learn paths share a name and nothing else.
+		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()`
+		// (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`) -- "which automatable parameter would a CC bind
+		// to". These twelve bind a whole message to a transport action instead and carry no `ParamRef`, so there is no
+		// target. The two learn paths share a name and nothing else.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		Rig r;
@@ -1974,7 +1974,8 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 
 	it("a learn or unlearn on a follow channel's own screen shows the channel it leaves, as setValue does", _ {
 		// `FollowChannel::learnCC`/`learnNoteOn` and `unlearnAction` set the item's value as well as the learned input,
-		// and redraw when the item is the current one; `FollowKitRootNote::learnNoteOn` the same.
+		// and redraw when the item is the current one; `FollowKitRootNote::learnNoteOn`
+		// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`) the same.
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const FollowSaved saved;
@@ -2016,7 +2017,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	// `midi_cable_choice` write-back `nodes/settings.h` recorded as owed.
 	//
 	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled from
-	// `Node::name`, one static `uint16_t` l10n id (`MenuScene::render_vertical`), and `Devices` labels its rows with
+	// `Node::name`, one static `uint16_t` l10n id (`MenuView::render_vertical`), and `Devices` labels its rows with
 	// `MIDICable::getDisplayName()` (`Devices::drawPixelsForOled` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- a runtime string with no id at all -- while the two
 	// selectors' option lists are static in main (`getOptions` in
@@ -2158,7 +2159,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 
 		// This press does not ascend. `midi_devices` chains to the per-device page
 		// (`Devices::selectButtonPress`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), so the way back
-		// up to the MIDI page is now two BACK presses rather than one select press -- which is a
+		// up to the MIDI page is two BACK presses rather than one select press -- which is a
 		// *stronger* round trip for what this example is about, because `MenuScene::ascend` never
 		// runs `on_focus` and only the re-descent below can put the cursor back.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);

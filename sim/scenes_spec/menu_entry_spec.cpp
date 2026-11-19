@@ -12,7 +12,7 @@
 /// @note **What this file cannot cover, stated rather than implied.** It drives `openShellMenu`,
 ///       which is what the gated sites call; it does **not** drive the sites themselves (site 15's column
 ///       aside), because
-///       reaching `AudioClipView::buttonAction` here would need the whole legacy view stack. So
+///       reaching `AudioClipView::buttonAction` here would need the whole `src/deluge/gui/views` stack. So
 ///       "the site passes the right arguments" is not covered here: like the `deluge/deluge.cpp` boot calls, it is
 ///       left to a level-3 A/B run. Each example names the site whose
 ///       argument shape it replays so the two can be compared by eye in the meantime.
@@ -187,11 +187,12 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// settings root instead.
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
-/// **The site-8 example really opens the ported browser**, because
-/// `MenuScene::on_enter` performs the `Source::getOrCreateFirstRange()` legacy's permission
-/// check performs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`) -- so `browser::sample_can` stops
-/// refusing and the scene reads `SAMPLES/` off the fixture card, which holds a file. The latch keeps the audio
-/// routine still while that listing is built and emptied (`support/card_access.h`).
+/// **The site-8 example really opens the ported browser**, because `MenuScene::on_enter` performs the
+/// `Source::getOrCreateFirstRange()` legacy's permission check performs
+/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)) -- so `browser::sample_can` stops refusing and the scene reads
+/// `SAMPLES/` off the fixture card, which holds a file. The latch keeps the audio routine still while that listing is
+/// built and emptied (`support/card_access.h`).
 ///
 /// Process-scoped, function-local rather than namespace-scope: this binary links every spec and
 /// runs one per invocation, so a namespace-scope instance would silently hold the audio routine

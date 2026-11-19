@@ -2,10 +2,10 @@
 
 /// @brief `MultiRangeItem` -- the note-range picker, and the one node it backs.
 ///
-/// The port of `deluge::gui::menu_item::MultiRange` (`gui/menu_item/multi_range.{h,cpp}`, 435
-/// lines): the page legacy substitutes for a range-dependent item when the source has more than one
-/// `MultiRange` and none is selected yet (`SoundEditor::setup`:
-/// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`).
+/// Mirrors main's `deluge::gui::menu_item::MultiRange` (`origin/main:src/deluge/gui/menu_item/multi_range.h`): the page
+/// main's `SoundEditor` substitutes for a range-dependent item when the source has more than one `MultiRange` and none
+/// is selected yet (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`:
+/// `multiRangeMenu.menuItemHeadingTo = horizontal_menu_child; newItem = &multiRangeMenu;`).
 ///
 /// ## How it is reached
 ///

@@ -827,7 +827,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// `oled::list`'s selected row runs its label through `scroll_text`, which
 		// self-arms the panel's own gate (`request_repaint_after`) whenever the label overflows
 		// its row; `tests/unit/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
-		// mechanics directly. What was untested is the OTHER half: does `MenuScene::render_vertical`
+		// mechanics directly. What was untested is the OTHER half: does `MenuView::render_vertical`
 		// actually reach it with a real, focused, over-long node? Every over-long row the goldens
 		// record is unselected -- legacy truncates that case too, so nothing was
 		// missing there -- and nothing exercised the selected one through the real scene.
@@ -1155,7 +1155,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		}
 		{
 			Rig r;
-			(void)r.open(int_leaf); // a plain `Integer`: `MenuItem::allowsLearnMode()` is false
+			// A plain `Integer`: `MenuItem::allowsLearnMode()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) is false.
+			(void)r.open(int_leaf);
 			r.shell.tick(0);
 			r.button(kLearnX, kLearnY, true, 10);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
@@ -1766,8 +1767,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("lands the start markers, the waveform and the file selectors on themselves, not on their page", _ {
-		// `SoundEditor::maybeGetParentMenu`'s two early answers: these go straight to the marker
-		// editor or the browser, so `setup()` opens the item rather than a page.
+		// `SoundEditor::maybeGetParentMenu`'s (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) two early answers:
+		// these go straight to the marker editor or the browser, so `setup()` opens the item rather than a page.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2540,8 +2541,8 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused()).to_equal(&decimal_leaf);
 
-		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on
-		// `Binding::default_edit_pos` (2, `Decimal::getDefaultEditPos`): one detent is 1.00.
+		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on `Binding::default_edit_pos`
+		// (2, `Decimal::getDefaultEditPos` (`origin/main:src/deluge/gui/menu_item/decimal.h`)): one detent is 1.00.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		r.turn(1, 120);
 		r.shell.tick(130);
@@ -2987,7 +2988,8 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			const std::span<const PadFlash> got = grid.flashes.flashes();
 			return got.size() == 1 ? got[0] : PadFlash{255, 255, FlashColour::Default};
 		};
-		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`SoundEditor::setupShortcutBlink`).
+		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)`
+		// (`SoundEditor::setupShortcutBlink` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		expect(flash_at_param_phase()).to_equal(PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow});
 
 		// The first-layer item on the same pad flashes the default colour.

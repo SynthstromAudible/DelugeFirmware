@@ -143,8 +143,9 @@ void set_follow_channel(const MenuContext&, int32_t value) {
 }
 /// @}
 
-/// @brief `midi::FollowChannel::learnNoteOn` and `learnCC`: a note-on or a CC sets the channel and the cable it came
-///        on. @return Whether it learned: a note-on or a CC with a cable.
+/// @brief `midi::FollowChannel::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`) and
+///        `learnCC`: a note-on or a CC sets the channel and the cable it came on. @return Whether it learned: a note-on
+///        or a CC with a cable.
 bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event);
 /// @brief `midi::FollowChannel::unlearnAction`: the channel goes back to unassigned. @return True.
 bool follow_channel_unlearn(int32_t which);
@@ -178,7 +179,9 @@ void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext&, int
 	follow_channel_draw(Which, f, value, scroll);
 }
 
-/// @brief `midi::FollowKitRootNote::learnNoteOn`: a note-on sets the kit root note. @return Whether it learned.
+/// @brief `midi::FollowKitRootNote::learnNoteOn`
+/// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`): a note-on sets the kit root note.
+/// @return Whether it learned.
 bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event);
 
 int32_t get_follow_kit_root_note(const MenuContext& ctx);
@@ -324,7 +327,8 @@ void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 ///        canvas flag and the guest's panels.
 void set_rounded_corners(const MenuContext& ctx, int32_t value);
 /// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
-///        `HorizontalMenu::renderingStyle()` reads it live.
+///        `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads it
+///        live.
 void set_horizontal_menus(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
 
@@ -358,9 +362,9 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 /// @brief `shortcuts::Version`'s read and write (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`).
 ///
 /// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
-/// (`SoundEditor::setShortcutsVersion`). The port selects a whole layer of its own tables on flash byte 60
-/// (`FlashStorage::shortcutsVersion`) rather than editing one -- see `menu::set_shortcuts_version`. The write is the
-/// byte, which persists it.
+/// (`SoundEditor::setShortcutsVersion` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)). The port selects a whole
+/// layer of its own tables on flash byte 60 (`FlashStorage::shortcutsVersion`) rather than editing one -- see
+/// `menu::set_shortcuts_version`. The write is the byte, which persists it.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);
@@ -860,8 +864,7 @@ inline constexpr Node default_automation = submenu(sid(String::STRING_FOR_AUTOMA
 ///
 /// `defaultTempoMenu` / `defaultSwingAmountMenu` are `IntegerRange`
 /// (`origin/main:src/deluge/gui/ui/menus.cpp`), `defaultKeyMenu` is `KeyRange`. Their `lower`/`upper`
-/// are now `FlashStorage::defaultRanges[...]` (`storage/flash_storage.h`), which both sides address,
-/// so the port and legacy edit the same six values.
+/// are `FlashStorage::defaultRanges[...]` (`storage/flash_storage.h`) here.
 ///
 /// The bounds are the constructor arguments and, for the key, `KeyRange::selectEncoderAction`'s own
 /// `KEY_MIN`/`KEY_MAX` locals (`origin/main:src/deluge/gui/menu_item/key_range.cpp`) -- `KeyRange` has no
