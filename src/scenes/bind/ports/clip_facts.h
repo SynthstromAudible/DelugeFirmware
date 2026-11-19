@@ -35,14 +35,13 @@ public:
 	virtual ~ClipFacts() = default;
 	/// @brief What the audio clip @p clip's view needs of it, or nullopt where the song holds no such audio clip.
 	[[nodiscard]] virtual std::optional<AudioClipFact> audio_clip(project::ClipAddress clip) const = 0;
-	/// @brief Playback: whether @p clip plays now -- the transport runs, the clip is active, and no count-in is
-	/// running. Launch state is the engine's, not the record's.
+	/// @brief Whether @p clip plays now: the transport runs, the clip is active, and no count-in is running.
 	[[nodiscard]] virtual bool clip_playing(project::ClipAddress clip) const = 0;
-	/// @brief Playback: @p clip's play position now, in ticks: the engine's, moved by the clock.
+	/// @brief @p clip's play position now, in ticks.
 	[[nodiscard]] virtual int32_t clip_live_pos(project::ClipAddress clip) const = 0;
 	/// @brief Whether @p clip plays only in the arrangement (a take or an arranger clip), not in the session.
 	[[nodiscard]] virtual bool clip_arrangement_only(project::ClipAddress clip) const = 0;
-	/// @brief Recording: whether @p clip records a take linearly now, which a recorder holds while it captures.
+	/// @brief Whether @p clip records a take linearly now.
 	[[nodiscard]] virtual bool clip_recording_linearly(project::ClipAddress clip) const = 0;
 	/// @brief The view of the audio clip @p clip at @p scroll and @p zoom ticks, in samples: what the waveform scan
 	/// takes. A take recorded without the clock measures from what it has captured.

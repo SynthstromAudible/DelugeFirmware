@@ -4,7 +4,6 @@
 /// @brief The facts a menu needs that the model does not hold.
 
 #include "controls/facts.h"
-#include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
@@ -12,8 +11,6 @@
 #include "effects/state.h"
 
 #include <cstdint>
-#include <optional>
-#include <utility>
 #include <vector>
 
 namespace deluge::scenes::bind {
