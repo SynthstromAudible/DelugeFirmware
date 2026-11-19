@@ -4,7 +4,7 @@
 ///        leaves apiece (minus the row family's velocity, which legacy never gave a row), and the
 ///        two custom-iterance pages a select press on either family's iterance leaf can chain to.
 ///
-/// Each row cites its legacy object in `gui/ui/menus.cpp`. All state
+/// Each row cites its legacy object in `origin/main:src/deluge/gui/ui/menus.cpp`. All state
 /// lives behind `instrumentClipView`, reached through `NoteBridge` (`scenes/menu/note_bridge.h`)
 /// rather than any model read here -- every hook below calls `note_bridge()` and nothing
 /// else.
@@ -12,21 +12,21 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `note_editor_root` | `noteEditorRootMenu` (`:1880`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `note_editor_root` | `noteEditorRootMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`origin/main:src/deluge/gui/menu_item/note/velocity.h`) | Int |
-/// | `note_editor_probability` | `noteProbabilityMenu` | `note::Probability` (`note/probability.h:32`) | Int |
-/// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`note/iterance_preset.h`) | Int |
-/// | `note_fill` | `noteFillMenu` | `note::Fill` (`note/fill.h:32`) | Int |
-/// | `note_custom_iterance_root` | `noteCustomIteranceRootMenu` (`:1859`) | `Submenu` | Submenu (Vertical) |
-/// | `note_iterance_divisor` | `noteCustomIteranceDivisor` | `note::IteranceDivisor` (`note/iterance_divisor.h:28`) | Int |
-/// | `note_iterance_step_1..8` | `noteCustomIteranceStep1..8` | `note::IteranceStepToggle` (`note/iterance_step_toggle.h:26`) | Toggle |
-/// | `note_row_editor_root` | `noteRowEditorRootMenu` (`:1927`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `note_row_probability` | `noteRowProbabilityMenu` | `note_row::Probability` (`note_row/probability.h:31`) | Int |
-/// | `note_row_iterance` | `noteRowIteranceMenu` | `note_row::IterancePreset` (`note_row/iterance_preset.h:36`) | Int |
-/// | `note_row_fill` | `noteRowFillMenu` | `note_row::Fill` (`note_row/fill.h:32`) | Int |
-/// | `note_row_custom_iterance_root` | `noteRowCustomIteranceRootMenu` (`:1907`) | `Submenu` | Submenu (Vertical) |
-/// | `note_row_iterance_divisor` | `noteRowCustomIteranceDivisor` | `note_row::IteranceDivisor` (`note_row/iterance_divisor.h:29`) | Int |
-/// | `note_row_iterance_step_1..8` | `noteRowCustomIteranceStep1..8` | `note_row::IteranceStepToggle` (`note_row/iterance_step_toggle.h:26`) | Toggle |
+/// | `note_editor_probability` | `noteProbabilityMenu` | `note::Probability` (`origin/main:src/deluge/gui/menu_item/note/probability.h`) | Int |
+/// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`) | Int |
+/// | `note_fill` | `noteFillMenu` | `note::Fill` (`origin/main:src/deluge/gui/menu_item/note/fill.h`) | Int |
+/// | `note_custom_iterance_root` | `noteCustomIteranceRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `Submenu` | Submenu (Vertical) |
+/// | `note_iterance_divisor` | `noteCustomIteranceDivisor` | `note::IteranceDivisor` (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`) | Int |
+/// | `note_iterance_step_1..8` | `noteCustomIteranceStep1..8` | `note::IteranceStepToggle` (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) | Toggle |
+/// | `note_row_editor_root` | `noteRowEditorRootMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `note_row_probability` | `noteRowProbabilityMenu` | `note_row::Probability` (`origin/main:src/deluge/gui/menu_item/note_row/probability.h`) | Int |
+/// | `note_row_iterance` | `noteRowIteranceMenu` | `note_row::IterancePreset` (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`) | Int |
+/// | `note_row_fill` | `noteRowFillMenu` | `note_row::Fill` (`origin/main:src/deluge/gui/menu_item/note_row/fill.h`) | Int |
+/// | `note_row_custom_iterance_root` | `noteRowCustomIteranceRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `Submenu` | Submenu (Vertical) |
+/// | `note_row_iterance_divisor` | `noteRowCustomIteranceDivisor` | `note_row::IteranceDivisor` (`origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`) | Int |
+/// | `note_row_iterance_step_1..8` | `noteRowCustomIteranceStep1..8` | `note_row::IteranceStepToggle` (`origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`) | Toggle |
 // clang-format on
 ///
 /// @note **No absolute `set` on velocity, probability, iterance or fill.** Each moves every note
@@ -38,42 +38,46 @@
 ///
 /// @note **The two guards.** `permitted_note`/`permitted_row` port
 ///       `note::SelectedNote::selectEncoderActionIsPermitted()`
-///       (`note/selected_note.h:29-42`) and `note_row::SelectedNoteRow`'s twin
-///       (`note_row/selected_note_row.h:34-43`): each tests the bridge's own selection predicate
-///       and, on refusal, raises legacy's own popup text -- `"Select Note"` / `"Select Row"`,
-///       literally legacy's (`note/selected_note.h`, `note_row/selected_note_row.h:36`). Every
-///       leaf of its family carries the guard **except** the step toggles: `IteranceStepToggle`
-///       derives from `Toggle`, not `SelectedNote`/`SelectedNoteRow`, and overrides no permission
-///       hook (`note/iterance_step_toggle.h:26`, `note_row/iterance_step_toggle.h:26`).
+///       (`origin/main:src/deluge/gui/menu_item/note/selected_note.h`) and `note_row::SelectedNoteRow`'s twin
+///       (`origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`): each tests the bridge's own selection
+///       predicate and, on refusal, raises legacy's own popup text -- `"Select Note"` / `"Select Row"`, literally
+///       legacy's (`origin/main:src/deluge/gui/menu_item/note/selected_note.h`, `SelectedNoteRow::shouldEnterSubmenu`
+///       in `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`). Every leaf of its family carries the
+///       guard **except** the step toggles: `IteranceStepToggle` derives from `Toggle`, not
+///       `SelectedNote`/`SelectedNoteRow`, and overrides no permission hook
+///       (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`,
+///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`).
 ///
 /// @note **The iterance chain.** `IterancePreset::selectButtonPress()`
-///       (`note/iterance_preset.h:59-67`, `note_row/iterance_preset.h:72-80`) opens the matching
-///       custom-iterance root only when the current value is `kCustomIterancePreset`; every other
-///       value ascends. `chain_note_iterance`/`chain_note_row_iterance` port that, and are the one
-///       place in this file a hook is defined in the header rather than the `.cpp` -- the same
-///       choice `nodes/sound_arp.h` makes for `arp_preset_chain`, because the function needs the
-///       address of a `Node` declared alongside it.
+///       (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
+///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`) opens the matching custom-iterance root
+///       only when the current value is `kCustomIterancePreset`; every other value ascends.
+///       `chain_note_iterance`/`chain_note_row_iterance` port that, and are the one place in this file a hook is
+///       defined in the header rather than the `.cpp` -- the same choice `nodes/sound_arp.h` makes for
+///       `arp_preset_chain`, because the function needs the address of a `Node` declared alongside it.
 ///
-/// @note **The "OFF becomes 1of1" conversion.** `IteranceDivisor::readCurrentValue`/
-///       `writeCurrentValue` and `IteranceStepToggle::readCurrentValue`/`writeCurrentValue` all
-///       convert a note or row's `kDefaultIteranceValue` ("OFF") to `kCustomIteranceValue` ("1of1")
-///       before reading or editing from it, so the custom-iterance page always has a concrete
-///       divisor and step set to work with (`note/iterance_divisor.h:45-49,59-63`,
-///       `note/iterance_step_toggle.h:39-43,52-56`, `note_row/iterance_divisor.h:49-53,68-72`,
-///       `note_row/iterance_step_toggle.h:62-66,80-84`). `IteranceStepToggle::isRelevant` is the one
-///       exception in either family: it reads the **unconverted** value, because it tests for
-///       `kDefaultIteranceValue` directly, and returns false outright with no leftmost note (note
-///       family, `note/iterance_step_toggle.h:71-80`, false arm at `:79`) or no note row (row
-///       family, `note_row/iterance_step_toggle.h:98-110`, false arm at `:109`).
+/// @note **The "OFF becomes 1of1" conversion.** `IteranceDivisor::readCurrentValue`/ `writeCurrentValue` and
+///       `IteranceStepToggle::readCurrentValue`/`writeCurrentValue` all convert a note or row's `kDefaultIteranceValue`
+///       ("OFF") to `kCustomIteranceValue` ("1of1") before reading or editing from it, so the custom-iterance page
+///       always has a concrete divisor and step set to work with
+///       (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
+///       `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`,
+///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`,
+///       `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`). `IteranceStepToggle::isRelevant` is
+///       the one exception in either family: it reads the **unconverted** value, because it tests for
+///       `kDefaultIteranceValue` directly, and returns false outright with no leftmost note (note family,
+///       `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`, `isRelevant`'s final `return false`) or no
+///       note row (row family, `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`, `isRelevant`'s
+///       final `return false`).
 ///
 /// @note **`note_editor_probability`, not `note_probability`.** `nodes::note_probability` already
 ///       names `sound_randomizer.h`'s `randomizerNoteProbabilityMenu` (the *randomizer's* per-note
 ///       trigger chance, an unrelated `RandomizerUnpatchedParam`); the two would collide as C++
 ///       identifiers in the same `nodes` namespace. Every other leaf here keeps the plain name
-///       of its legacy menu item -- this is the one substitution a real naming clash forced.
+///       of its menu item in `origin/main` -- this is the one substitution a real naming clash forced.
 ///
 /// @note **`note_editor_root` has no velocity counterpart in the row family.** Legacy's own
-///       `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`) lists `sequenceDirectionMenu`,
+///       `noteRowEditorRootMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) lists `sequenceDirectionMenu`,
 ///       `noteRowProbabilityMenu`, `noteRowIteranceMenu`, `noteRowFillMenu` -- four children, no
 ///       row-velocity item exists anywhere in `gui/menu_item/note_row/`. `sequence_direction` is
 ///       `nodes/sound_actions.h`'s existing node, reused here unchanged: its own note-row bridge
@@ -155,12 +159,12 @@ void adjust_note_row_fill(const MenuContext& ctx, int32_t offset);
 int32_t get_note_row_iterance_divisor(const MenuContext& ctx);
 void set_note_row_iterance_divisor(const MenuContext& ctx, int32_t value);
 
-/// @brief One custom-iterance step toggle, both families -- sixteen distinct symbols (one
-///        `get`/`set`/`relevant` triple per step, per family) because `Node`'s function-pointer
-///        fields need a distinct address each, but every one of the sixteen is a one-line call into
-///        the `.cpp`'s single family-parameterised implementation. A macro for the reason
-///        `nodes/sound_osc.h`'s `DELUGE_OSC_SOURCE` is one: legacy's own `index` constructor
-///        argument (`note/iterance_step_toggle.h:30-32`) has nowhere to live on a plain function
+/// @brief One custom-iterance step toggle, both families -- sixteen distinct symbols (one `get`/`set`/`relevant` triple
+///        per step, per family) because `Node`'s function-pointer fields need a distinct address each, but every one of
+///        the sixteen is a one-line call into the `.cpp`'s single family-parameterised implementation. A macro for the
+///        reason `nodes/sound_osc.h`'s `DELUGE_OSC_SOURCE` is one: legacy's own `index` constructor argument
+///        (`IteranceStepToggle::IteranceStepToggle` in
+///        `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) has nowhere to live on a plain function
 ///        pointer.
 /// @{
 #define DELUGE_ITERANCE_STEP_DECL(prefix, i)                                                                           \
@@ -240,8 +244,9 @@ inline constexpr Node note_fill = with_value_names(
         leaf_text_fill),
     fill_names);
 
-/// `IterancePreset::selectButtonPress()` (`note/iterance_preset.h:59-67`): only `kCustomIterancePreset`
-/// opens anything; every other value ascends. Defined here, not the `.cpp` -- see the file-level note.
+/// `IterancePreset::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`): only
+/// `kCustomIterancePreset` opens anything; every other value ascends. Defined here, not the `.cpp` -- see the
+/// file-level note.
 inline constexpr const Node* kNoteIteranceChain[] = {&note_custom_iterance_root};
 inline const Node* chain_note_iterance(const MenuContext& ctx, const MenuState&) {
 	if (!note_iterance_is_custom(ctx)) {
@@ -314,8 +319,8 @@ inline constexpr Node note_row_fill = with_value_names(
         leaf_text_fill),
     fill_names);
 
-/// `IterancePreset::selectButtonPress()` (`note_row/iterance_preset.h:72-80`). Defined here, not the
-/// `.cpp` -- see the file-level note.
+/// `IterancePreset::selectButtonPress()` (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`). Defined
+/// here, not the `.cpp` -- see the file-level note.
 inline constexpr const Node* kNoteRowIteranceChain[] = {&note_row_custom_iterance_root};
 inline const Node* chain_note_row_iterance(const MenuContext& ctx, const MenuState&) {
 	if (!note_row_iterance_is_custom(ctx)) {

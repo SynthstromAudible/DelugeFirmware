@@ -12,8 +12,8 @@
 ///
 /// Legacy's `soundEditor.shouldGoUpOneLevelOnBegin = true` (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`
 /// `EditName::beginSession`), which makes the menu step back out of the item when the rename UI closes
-/// (`SoundEditor::focusRegained`, `gui/ui/sound_editor.cpp:318-321`), is `MenuWalkState::go_up_on_resume` -- set by the
-/// same `after_render` arm, read by `MenuScene::on_resume`.
+/// (`SoundEditor::focusRegained`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`), is
+/// `MenuWalkState::go_up_on_resume` -- set by the same `after_render` arm, read by `MenuScene::on_resume`.
 ///
 /// @note Legacy also calls `instrumentClipView.cancelAllAuditioning()` on the way
 ///       (`origin/main:src/deluge/gui/menu_item/edit_name.cpp` `EditName::beginSession`) when the clip is an instrument

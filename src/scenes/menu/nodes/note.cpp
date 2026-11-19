@@ -30,9 +30,10 @@ static_assert(FillMode::OFF == 0 && FillMode::NOT_FILL == 1 && FillMode::FILL ==
               "kFillWords is indexed by FillMode");
 
 /// @brief `IteranceDivisor::readCurrentValue`/`writeCurrentValue`'s "OFF becomes 1of1" conversion
-///        (`note/iterance_divisor.h:45-49,59-63`, `note_row/iterance_divisor.h:49-53,68-72`),
-///        shared by both families' divisor and step hooks -- the note version and the row version
-///        read the conversion the same way once each has its own raw `Iterance`.
+///        (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
+///        `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`), shared by both families' divisor and
+///        step hooks -- the note version and the row version read the conversion the same way once each has its own raw
+///        `Iterance`.
 Iterance resolved_iterance(int32_t raw) {
 	Iterance iterance = Iterance::fromInt(raw);
 	if (iterance == kDefaultIteranceValue) {
@@ -96,19 +97,18 @@ bool iterance_has_target(const IteranceFamily& family) {
 }
 
 /// `IterancePreset::readCurrentValue` converts the leftmost note's raw iterance to a preset index
-/// (`note/iterance_preset.h:44-52`, `note_row/iterance_preset.h:48-60`); the bridge hands back the
-/// raw int, so the conversion happens here, with
-/// `Iterance::fromInt(...).toPresetIndex()`.
+/// (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
+/// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`); the bridge hands back the raw int, so the
+/// conversion happens here, with `Iterance::fromInt(...).toPresetIndex()`.
 int32_t get_iterance_preset(const IteranceFamily& family) {
 	return Iterance::fromInt(iterance_raw(family)).toPresetIndex();
 }
 
-/// `IterancePreset::selectButtonPress()`'s own test (`note/iterance_preset.h:59-67`,
-/// `note_row/iterance_preset.h:72-80`), null-bridge-safe: `tables_3_spec.cpp`'s whole-tree
-/// "never lets a select_chain hook name a node outside its own chain_targets" sweep calls every
-/// reachable node's `select_chain` -- `chain_note_iterance`/`chain_note_row_iterance` included --
-/// with no bridge installed at all, because that spec validates the whole sound tree and never
-/// touches the note family.
+/// `IterancePreset::selectButtonPress()`'s own test (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`,
+/// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`), null-bridge-safe: `tables_3_spec.cpp`'s
+/// whole-tree "never lets a select_chain hook name a node outside its own chain_targets" sweep calls every reachable
+/// node's `select_chain` -- `chain_note_iterance`/`chain_note_row_iterance` included -- with no bridge installed at
+/// all, because that spec validates the whole sound tree and never touches the note family.
 bool iterance_is_custom(const IteranceFamily& family) {
 	if (note_bridge() == nullptr) {
 		return false;
@@ -116,8 +116,9 @@ bool iterance_is_custom(const IteranceFamily& family) {
 	return get_iterance_preset(family) == kCustomIterancePreset;
 }
 
-/// `IteranceDivisor::readCurrentValue`/`writeCurrentValue` (`note/iterance_divisor.h:40-69`,
-/// `note_row/iterance_divisor.h:41-78`).
+/// `IteranceDivisor::readCurrentValue`/`writeCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
+/// `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`).
 /// @{
 int32_t get_iterance_divisor(const IteranceFamily& family) {
 	const Iterance iterance = resolved_iterance(iterance_raw(family));
@@ -125,18 +126,24 @@ int32_t get_iterance_divisor(const IteranceFamily& family) {
 }
 void set_iterance_divisor(const IteranceFamily& family, int32_t value) {
 	Iterance iterance = resolved_iterance(iterance_raw(family));
-	const int32_t mask = (1 << value) - 1; // `note/iterance_divisor.h:64`, `note_row/iterance_divisor.h:73`
+	const int32_t mask =
+	    (1 << value)
+	    - 1; // `IteranceDivisor::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/note/iterance_divisor.h`,
+	         // `origin/main:src/deluge/gui/menu_item/note_row/iterance_divisor.h`)
 	const int32_t new_steps = (static_cast<int32_t>(iterance.toInt()) & 0xFF) & mask;
 	iterance_raw_set(family, Iterance{static_cast<uint8_t>(value), new_steps}.toInt());
 }
 /// @}
 
 /// `IteranceStepToggle::readCurrentValue`/`::writeCurrentValue`/`::isRelevant`
-/// (`note/iterance_step_toggle.h:34-80`, `note_row/iterance_step_toggle.h:54-110`), indexed by
-/// @p index. `isRelevant` alone reads the **unconverted** iterance (it tests `kDefaultIteranceValue`
-/// directly, which `resolved_iterance` would already have converted away) and alone returns false
-/// outright with nothing to edit -- legacy's own no-note (`note/iterance_step_toggle.h:79`) / no-row
-/// (`note_row/iterance_step_toggle.h:109`) arm, transcribed here as `iterance_has_target`.
+/// (`origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`,
+/// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`), indexed by
+/// @p index. `isRelevant` alone reads the **unconverted** iterance (it tests `kDefaultIteranceValue` directly, which
+/// `resolved_iterance` would already have converted away) and alone returns false outright with nothing to edit --
+/// legacy's own no-note (`IteranceStepToggle::isRelevant` in
+/// `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) / no-row (`IteranceStepToggle::isRelevant` in
+/// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`) arm, transcribed here as
+/// `iterance_has_target`.
 /// @{
 int32_t iterance_step_get(const IteranceFamily& family, int32_t index) {
 	const Iterance iterance = resolved_iterance(iterance_raw(family));
@@ -176,15 +183,15 @@ bool iterance_step_relevant(const IteranceFamily& family, int32_t index) {
 
 // -------------------------------------------------------------------------------------------
 // The two guards -- `note::SelectedNote::selectEncoderActionIsPermitted()`
-// (`note/selected_note.h:29-42`) and `note_row::SelectedNoteRow`'s twin
-// (`note_row/selected_note_row.h:34-43`).
+// (`origin/main:src/deluge/gui/menu_item/note/selected_note.h`) and `note_row::SelectedNoteRow`'s twin
+// (`origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`).
 // -------------------------------------------------------------------------------------------
 
 bool permitted_note(const MenuContext&) {
 	if (note_bridge() != nullptr && note_bridge()->note_selected()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Note"); // `note/selected_note.h`
+	deluge::notify::notice_text("Select Note"); // `origin/main:src/deluge/gui/menu_item/note/selected_note.h`
 	return false;
 }
 
@@ -192,7 +199,7 @@ bool permitted_row(const MenuContext&) {
 	if (note_bridge() != nullptr && note_bridge()->row_auditioning()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Row"); // `note_row/selected_note_row.h`
+	deluge::notify::notice_text("Select Row"); // `origin/main:src/deluge/gui/menu_item/note_row/selected_note_row.h`
 	return false;
 }
 
@@ -212,10 +219,10 @@ ProbabilityShown probability_shown(int32_t value) {
 	return {.percent = (latching ? value & 127 : value) * 5, .latching = latching};
 }
 
-/// `Probability::getProbabilityValue` (`note/probability.h:93-104`), and its two callers:
-/// `renderInHorizontalMenu` (`:70-79`, column: `"35%"`/`"35L"`) and `getNotificationValue`
-/// (`:81-89`, notification: `"35%"`/`"35% ltch"`). `note_row::Probability` is byte-identical
-/// (`note_row/probability.h:63-110`).
+/// `Probability::getProbabilityValue` (`origin/main:src/deluge/gui/menu_item/note/probability.h`), and its two callers:
+/// `renderInHorizontalMenu` (column: `"35%"`/`"35L"`) and `getNotificationValue`
+/// (notification: `"35%"`/`"35% ltch"`). `note_row::Probability` is byte-identical
+/// (`origin/main:src/deluge/gui/menu_item/note_row/probability.h`).
 ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;
@@ -233,13 +240,12 @@ ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse
 	return ValueText{write_text(std::string_view(buffer, static_cast<size_t>(written)), out), false};
 }
 
-/// `IterancePreset::getIteranceDisplayValue` (`note/iterance_preset.h:87-111`): `OFF`/`CUSTOM` are
-/// the leaf's own literals for the two values `iterancePresets` has no row for; every other value
-/// is the bridge's own label (`iterance_preset_label`, itself
-/// `getIteranceDisplayValue`'s table-lookup half). `compact` chooses the column's `"%d:%d"`
-/// (`renderInHorizontalMenu`, `:74-78`) over the notification's `"%d of %d"`
-/// (`getNotificationValue`, `:80-82`) -- see `note_bridge.h`'s own doc on `iterance_preset_label`.
-/// `note_row::IterancePreset` is byte-identical (`note_row/iterance_preset.h:82-125`).
+/// `IterancePreset::get_iterance_display_value` (`origin/main:src/deluge/gui/menu_item/note/iterance_preset.h`):
+/// `OFF`/`CUSTOM` are the leaf's own literals for the two values `iterancePresets` has no row for; every other value is
+/// the bridge's own label (`iterance_preset_label`, itself `IterancePreset::get_iterance_display_value`'s table-lookup
+/// half). `compact` chooses the column's `"%d:%d"` (`renderInHorizontalMenu`) over the notification's `"%d of %d"`
+/// (`getNotificationValue`) -- see `note_bridge.h`'s own doc on `iterance_preset_label`. `note_row::IterancePreset` is
+/// byte-identical (`origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h`).
 ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;
@@ -257,10 +263,10 @@ ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse us
 	return ValueText{note_bridge()->iterance_preset_label(value, compact, out), false};
 }
 
-/// `Fill::renderInHorizontalMenu` (`note/fill.h:62-80`): the column draws only `"OFF"`/`"FILL"`,
-/// struck through on `NOT_FILL`. `Fill::getNotificationValue` (`:82-84`) and
-/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp`) spell the
-/// notification's three values. `note_row::Fill` is byte-identical (`note_row/fill.h:32-97`).
+/// `Fill::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/note/fill.h`): the column draws only
+/// `"OFF"`/`"FILL"`, struck through on `NOT_FILL`. `Fill::getNotificationValue` and `InstrumentClipView::getFillString`
+/// (`gui/views/instrument_clip_view.cpp`) spell the notification's three values. `note_row::Fill` is byte-identical
+/// (`origin/main:src/deluge/gui/menu_item/note_row/fill.h`).
 ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {
 		return kValueTextFallback;

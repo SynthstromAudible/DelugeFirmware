@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief `EditNameItem`'s three members. See `edit_name.h`.
+/// @brief `EditNameItem`'s three members. See `nodes/edit_name.h`.
 
 #include "scenes/menu/nodes/edit_name.h"
 
@@ -58,7 +58,7 @@ deluge::ui::shell::Result EditNameItem::handle(const deluge::ui::shell::UiEvent&
 void EditNameItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `EditName::beginSession`: on an instrument clip, every audition ends before the editor opens.
 	host_end_audition(AuditionEnd::ClipViewForInstrumentClip);
-	// `EditName::beginSession` (`gui/menu_item/edit_name.cpp:29-54`): point the editor at the model
+	// `EditName::beginSession` (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`): point the editor at the model
 	// and open it. `open()` is the `renameClipUI.clip = clip` / `renameOutputUI.output = ...`
 	// assignment, generalised -- the target table reads whichever member of the context it needs.
 	rename::rename_scene().open(ctx);

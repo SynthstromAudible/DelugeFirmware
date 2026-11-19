@@ -4,8 +4,8 @@
 /// @brief The three pages whose row list is decided at open time rather than declared: the CV and
 ///        gate output selectors, and the MIDI device list.
 ///
-/// The port of `cv::Selection` (`gui/menu_item/cv/selection.h:27-55`), `gate::Selection`
-/// (`gui/menu_item/gate/selection.h:29-72`) and `midi::Devices`
+/// The port of `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`), `gate::Selection`
+/// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
 /// (`gui/menu_item/midi/devices.{h,cpp}`) -- the last three items under the settings root that
 /// legacy implements as bespoke `MenuItem` subclasses rather than as data.
 ///
@@ -15,13 +15,16 @@
 ///       id (`node.h`, `MenuScene::render_vertical`'s `text_of(kids[i]->name, ...)`) -- and:
 ///
 ///         * `midi::Devices` labels every row with `MIDICable::getDisplayName()`
-///           (`devices.cpp:169`), a runtime string with no l10n id at all. No set of static `Node`s
-///           can spell those rows, however many of them a hook hands back.
+///           (`Devices::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime
+///           string with no l10n id at all. No set of static `Node`s can spell those rows, however many of them a hook
+///           hands back.
 ///         * `cv::Selection` and `gate::Selection` have *static* option lists in legacy --
-///           `{CV OUTPUT 1, CV OUTPUT 2}` (`cv/selection.h:47-54`) and
-///           `{GATE OUTPUT 1..4, MINIMUM OFF TIME}` (`gate/selection.h:56-71`). `NUM_CV_CHANNELS`
-///           and `NUM_GATE_CHANNELS` are compile-time constants, so there is nothing about either
-///           list that a hook could decide that the table cannot.
+///           `{CV OUTPUT 1, CV OUTPUT 2}` (`Selection::getOptions` in
+///           `origin/main:src/deluge/gui/menu_item/cv/selection.h`) and
+///           `{GATE OUTPUT 1..4, MINIMUM OFF TIME}` (`Selection::getOptions` in
+///           `origin/main:src/deluge/gui/menu_item/gate/selection.h`). `NUM_CV_CHANNELS` and `NUM_GATE_CHANNELS` are
+///           compile-time constants, so there is nothing about either list that a hook could decide that the table
+///           cannot.
 ///
 ///       So all three are `CustomItem`s that draw their own list, which is also what legacy does.
 ///       The menu dump's fail-closed arm for `dynamic_children` therefore stays
@@ -30,26 +33,26 @@
 ///
 /// ## Writing `MenuContext::source_index`
 ///
-/// `settings.h`'s own note records it -- legacy's two selectors assign
-/// `soundEditor.currentSourceIndex` on their way out (`cv/selection.h:42`, `gate/selection.h:47`),
-/// and a `SelectChainFn` is handed a `const MenuContext&` and cannot. The fix is the shape
-/// `MultiRangeItem` already established for `setCurrentMultiRange` (`MenuWalkState::range_choice`): the
-/// item records its cursor in `MenuWalkState::source_choice` and `MenuScene::after_render` -- which owns
-/// the scene's own mutable `MenuContext` -- applies it, *before* the same tick's select press
-/// consults `select_chain`. `MidiDevicesItem` does the same for `soundEditor.currentMIDICable`
-/// through `MenuWalkState::midi_cable_choice`.
+/// `nodes/settings.h`'s own note records it -- legacy's two selectors assign `soundEditor.currentSourceIndex` on their
+/// way out (`cv::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
+/// `gate::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`), and a
+/// `SelectChainFn` is handed a `const MenuContext&` and cannot. The fix is the shape `MultiRangeItem` already
+/// established for `setCurrentMultiRange` (`MenuWalkState::range_choice`): the item records its cursor in
+/// `MenuWalkState::source_choice` and `MenuScene::after_render` -- which owns the scene's own mutable `MenuContext` --
+/// applies it, *before* the same tick's select press consults `select_chain`. `MidiDevicesItem` does the same for
+/// `soundEditor.currentMIDICable` through `MenuWalkState::midi_cable_choice`.
 ///
-/// With that in place `cv_selection` / `gate_selection` are finished items rather than `kPending`
-/// placeholders: `gate_selection_chain` (`settings.cpp`) now sees the output the user actually
-/// picked, and `gate_mode_names` -- legacy's `gateModeMenu.updateOptions(value)`
-/// (`gate/selection.h:52`) -- offers CLOCK or RUN SIGNAL on the right output.
+/// With that in place `cv_selection` / `gate_selection` are finished items rather than `kPending` placeholders:
+/// `gate_selection_chain` (`nodes/settings.cpp`) now sees the output the user actually picked, and `gate_mode_names` --
+/// legacy's `gateModeMenu.updateOptions(value)` (`Selection::selectButtonPress` in
+/// `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- offers CLOCK or RUN SIGNAL on the right output.
 ///
 /// ## Divergence
 ///
 ///   * **`Devices::current_scroll_`.** Legacy keeps its own top-of-viewport index and its own
-///     `computeScrollForSelected` (`devices.cpp:59-76`). `ui::oled::list` owns the window and the
-///     scroll, so this builds every row and lets the widget pick the slice -- the same
-///     simplification `MultiRangeItem` and `PatchCablesItem` make.
+///     `computeScrollForSelected` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). `ui::oled::list` owns the
+///     window and the scroll, so this builds every row and lets the widget pick the slice -- the same simplification
+///     `MultiRangeItem` and `PatchCablesItem` make.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -62,10 +65,11 @@ class MIDICable;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief The lowest index `Devices::getCable` accepts -- `devices.cpp:36`'s `lowestDeviceNum`.
+/// @brief The lowest index `Devices::getCable` accepts -- `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`'s
+/// `lowestDeviceNum`.
 ///
-/// Negative on purpose, and the reason DIN comes first: -3 is the DIN ports, -2 and -1 the two
-/// upstream USB cables, and 0.. the hosted ones (`Devices::getCable`, `devices.cpp:132-152`).
+/// Negative on purpose, and the reason DIN comes first: -3 is the DIN ports, -2 and -1 the two upstream USB cables, and
+/// 0.. the hosted ones (`Devices::getCable`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
 inline constexpr int32_t kLowestDeviceNum = -3;
 
 /// @brief The most device rows one frame materialises.
@@ -77,18 +81,19 @@ inline constexpr int32_t kLowestDeviceNum = -3;
 /// connected cables loses the tail rather than the stack.
 inline constexpr size_t kMaxDeviceRows = kMaxDynamicChildren;
 
-/// @brief `Devices::getCable(index)` (`devices.cpp:132-152`), with legacy's own out-of-range guard.
+/// @brief `Devices::getCable(index)` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), with legacy's own
+/// out-of-range guard.
 /// @return The cable at @p index, or `nullptr` when @p index names none.
 MIDICable* cable_at(int32_t index);
 
 /// @brief The cables `Devices::drawPixelsForOled` would draw, in its own order.
 ///
-/// Legacy walks `kLowestDeviceNum .. hostedMIDIDevices.size()` and pushes a row only for a cable
-/// with `connectionFlags` set (`Devices::drawPixelsForOled`, `devices.cpp:163-176`); the reason is
-/// spelled out on the same test in `Devices::computeScrollForSelected` -- "Disconnected devices
-/// aren't drawn, so they don't take up a row" (`devices.cpp:70`). So the visible list *is* the
-/// connected cables in index order -- which is also exactly the set
-/// `Devices::selectEncoderAction` skips its way along (`devices.cpp:86-104`).
+/// Legacy walks `kLowestDeviceNum .. hostedMIDIDevices.size()` and pushes a row only for a cable with `connectionFlags`
+/// set (`Devices::drawPixelsForOled`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); the reason is spelled
+/// out on the same test in `Devices::computeScrollForSelected` -- "Disconnected devices aren't drawn, so they don't
+/// take up a row" (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). So
+/// the visible list *is* the connected cables in index order -- which is also exactly the set
+/// `Devices::selectEncoderAction` skips its way along (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
 /// @return How many were written.
 size_t connected_cables(std::span<MIDICable*> out);
 

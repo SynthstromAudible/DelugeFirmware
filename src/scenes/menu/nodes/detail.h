@@ -45,7 +45,7 @@ constexpr Node with_title(Node n, uint16_t title) {
 ///
 /// The port of `Number::getRenderingStyle()` for a kind whose builder takes no `Hint`
 /// (`decimal_item`, `toggle_item`, `enumeration`). Legacy dispatches on that style inside
-/// `Number::renderInHorizontalMenu` whatever the item's kind (`gui/menu_item/number.h:48`), so the
+/// `Number::renderInHorizontalMenu` whatever the item's kind (`origin/main:src/deluge/gui/menu_item/number.h`), so the
 /// fact belongs on the node even where this generation's interpreter does not yet read it.
 constexpr Node with_hint(Node n, Hint hint) {
 	n.hint = hint;
@@ -53,7 +53,7 @@ constexpr Node with_hint(Node n, Hint hint) {
 }
 
 /// @brief @p n occupying @p slots of a horizontal page's four -- `MenuItem::getOccupiedSlots()`
-///        (`gui/menu_item/menu_item.h`).
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.h`).
 /// @param n     The node.
 /// @param slots How many of the page's four slots it occupies.
 /// @return @p n with its slot count set.
@@ -66,9 +66,10 @@ constexpr Node with_slots(Node n, uint8_t slots) {
 ///        `getMinValue`/`getMaxValue` away from the param default.
 ///
 /// `param()` takes no range: the overwhelming majority of param items keep `Param::getMaxValue`'s
-/// `kMinMenuValue`..`kMaxMenuValue` (`gui/menu_item/param.h:34-35`), which `bindings::range` already
-/// supplies. The handful that do not say so here. `bindings::range` prefers `fixed_range` over the
-/// param default (`node.h`'s `range` vs `fixed_range` note), so this is all such a node needs.
+/// `kMinMenuValue`..`kMaxMenuValue` (`Param::getMinValue` and `getMaxValue` in
+/// `origin/main:src/deluge/gui/menu_item/param.h`), which `bindings::range` already supplies. The handful that do not
+/// say so here. `bindings::range` prefers `fixed_range` over the param default (`node.h`'s `range` vs `fixed_range`
+/// note), so this is all such a node needs.
 constexpr Node with_range(Node n, IntRange r) {
 	n.bind.fixed_range = r;
 	return n;
@@ -79,12 +80,13 @@ constexpr Node with_range(Node n, IntRange r) {
 /// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h`) and
 /// `MenuScene::render_leaf_int` hands it `node.bind.style`, but no builder has an argument for one.
 /// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
-/// (`gui/menu_item/integer.cpp:41-50`), which is `off_at_zero`.
+/// (`IntegerWithOff::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/integer.cpp`), which is `off_at_zero`.
 ///
 /// @note Legacy's five `IntegerWithOff` subclasses all carry it: `nodes::device_default_velocity_to_level`,
 ///       `MpeZoneChannelsItem` (which draws its own), `nodes::record_count_in`, `nodes::saturation` and
 ///       `nodes::voice_count`. `ValueStyle` is the leaf's drawing only: `voice::VoiceCount`'s infinity at 0 in the
-///       horizontal menu (`gui/menu_item/voice/polyphony.h:98-104`) is its `Binding::column_art`.
+///       horizontal menu (`VoiceCount::renderInHorizontalMenu` in
+///       `origin/main:src/deluge/gui/menu_item/voice/polyphony.h`) is its `Binding::column_art`.
 /// @param n     The node.
 /// @param style How the leaf draws its value.
 /// @return @p n with its value style set.
@@ -105,11 +107,10 @@ constexpr Node with_relevant(Node n, RelevantFn rel) {
 
 /// @brief @p n with a **learn-only** `ParamRef` beside its `get`/`set` hooks.
 ///
-/// For legacy's four `menu_item::Transpose` derivatives, which read and write outside the param set
-/// but still expose `getParamIndex()` / `getLearningThing()` (`gui/menu_item/transpose.h:37`,
-/// `source/transpose.h:28-32`). `node.h`'s `Binding` precedence note is what makes this safe:
-/// `bindings::read`/`write` prefer `get`/`set`, so the reference is only ever read by
-/// `bindings::learn_target`.
+/// For legacy's four `menu_item::Transpose` derivatives, which read and write outside the param set but still expose
+/// `getParamIndex()` / `getLearningThing()` (`origin/main:src/deluge/gui/menu_item/transpose.h`,
+/// `origin/main:src/deluge/gui/menu_item/source/transpose.h`). `node.h`'s `Binding` precedence note is what makes this
+/// safe: `bindings::read`/`write` prefer `get`/`set`, so the reference is only ever read by `bindings::learn_target`.
 constexpr Node with_learn_param(Node n, ParamRef p) {
 	n.bind.param = p;
 	return n;

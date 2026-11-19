@@ -41,18 +41,22 @@ inline constexpr std::array<int32_t, 1> kHpfOff{effect_choice("hpfMode", "Off")}
 static_assert(kLpfOff[0] >= 0 && kHpfOff[0] >= 0);
 } // namespace detail
 
-/// `voice/polyphony.h:65`: a polyphonic drum's voice count.
+/// `VoiceCount::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/voice/polyphony.h`): a polyphonic drum's
+/// voice count.
 inline constexpr std::array kPolyphonic{plugin::setting_is("polyphonic", detail::kPoly)};
-/// `synth_mode.h:55-56`: a drum whose two oscillators could both be ring-modulated, whatever the mode written.
+/// `SynthModeSelection::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/synth_mode.h`): a drum whose two
+/// oscillators could both be ring-modulated, whatever the mode written.
 inline constexpr std::array kRingable{plugin::setting_is("osc1/type", detail::kRingable),
                                       plugin::setting_is("osc2/type", detail::kRingable)};
-/// `osc/sync.h:45-46`: not FM, and neither oscillator a sample.
+/// `Sync::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/osc/sync.h`): not FM, and neither oscillator a
+/// sample.
 inline constexpr std::array kOscSync{plugin::setting_is_not("mode", detail::kFm),
                                      plugin::setting_is_not("osc1/type", detail::kSample),
                                      plugin::setting_is_not("osc2/type", detail::kSample)};
-/// `modulator/transpose.h:57`, `modulator/destination.h:47`: an FM drum.
+/// `Transpose::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/modulator/transpose.h`),
+/// `Destination::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/modulator/destination.h`): an FM drum.
 inline constexpr std::array kFm{plugin::setting_is("mode", detail::kFm)};
-/// `filter_route.h:49-50`: both filters on.
+/// `FilterRouting::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/filter_route.h`): both filters on.
 inline constexpr std::array kBothFilters{plugin::setting_is_not("lpfMode", detail::kLpfOff),
                                          plugin::setting_is_not("hpfMode", detail::kHpfOff)};
 

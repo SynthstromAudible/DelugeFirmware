@@ -57,7 +57,7 @@ int16_t view_mode_cursor(const MenuContext& ctx) {
 }
 
 /// @brief The node on screen, so an item -- which is handed no `Node` of its own -- can draw its own
-///        title. The same helper `dynamic.cpp` and `settings.cpp` keep.
+///        title. The same helper `dynamic.cpp` and `nodes/settings.cpp` keep.
 void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
@@ -71,13 +71,12 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 // `ActionItem` -- the four pure verbs
 
 void ActionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// **Never reached on the shipped path, and that is the fidelity result, not an oversight.**
-	// `after_render` runs `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's
-	// `ascend()` within the *same* call, so the item is focused for zero renders -- which is exactly
-	// legacy, where `shouldEnterSubmenu() == false` means `SoundEditor` calls `selectButtonPress()`
-	// and never navigates in at all (`gui/ui/sound_editor.cpp:420-423`). (`ContextMenuItem::render`
-	// in `nodes/context_menu_items.cpp`) *is* drawn for one tick, because its request is a scene
-	// push the router applies a tick later.)
+	// **Never reached on the shipped path, and that is the fidelity result, not an oversight.** `after_render` runs
+	// `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's `ascend()` within the *same* call, so the
+	// item is focused for zero renders -- which is exactly legacy, where `shouldEnterSubmenu() == false` means
+	// `SoundEditor` calls `selectButtonPress()` and never navigates in at all (`SoundEditor::buttonAction` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`). (`ContextMenuItem::render` in `nodes/context_menu_items.cpp`)
+	// *is* drawn for one tick, because its request is a scene push the router applies a tick later.)
 	//
 	// It still has to draw something: a caller that opens this node *as a root* -- `open()` directly,
 	// or a `SceneId::arg` deep link -- lands on it at depth 0, where `ascend()` is a no-op, and then
@@ -143,13 +142,14 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 		return;
 	}
 
-	// `EditingMode::selectButtonPress` (`editing_mode.h:50-97`). `currentMode` is whatever
-	// `writeCurrentValue` last stored from the cursor (`:47`), so the cursor is the mode.
+	// `EditingMode::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`). `currentMode` is whatever
+	// `EditingMode::writeCurrentValue` last stored from the cursor, so the cursor is the mode.
 	const auto mode = static_cast<PerformanceEditingMode>(
 	    std::clamp<int32_t>(index, 0, static_cast<int32_t>(PerformanceEditingMode::PARAM)));
 
 	if (mode == PerformanceEditingMode::DISABLED) {
-		// `:50-52` -- `return nullptr`, i.e. go up a level. `render_resp.entered` is left set, and
+		// `DISABLED` is main's `return nullptr`, i.e. go up a level. `render_resp.entered` is left set, and
 		// `MenuScene::after_render`'s leaf arm ascends. No request is filed: legacy does not touch
 		// `performanceView` on this arm either.
 		return;
@@ -160,7 +160,7 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 	state.walk.pending_action =
 	    MenuActionRequest{.action = MenuAction::OpenPerformanceView, .arg = static_cast<uint16_t>(mode)};
 
-	// `:73` -- `return NO_NAVIGATION`. Clearing `entered` is how a `CustomItem` says "I consumed
+	// The other two modes are main's `return NO_NAVIGATION`. Clearing `entered` is how a `CustomItem` says "I consumed
 	// this press" (`actions.h`); leaving it set would ascend out of a page legacy stays on.
 	state.tick.render_resp.entered = false;
 }
