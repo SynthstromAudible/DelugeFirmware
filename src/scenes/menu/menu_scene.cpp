@@ -164,7 +164,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// which fails only with `INSUFFICIENT_RAM`.
 		//
 		// `enter_child` (below) already runs it for a descent, which covers everything
-		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of
+		// reached by walking the menu. A deep link does not descend: it re-roots. So the `file0SelectorMenu` entry of
 		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s auditioning LOAD/KIT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
@@ -182,7 +182,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// `FileSelector::isRelevant` additionally demands `oscType == SAMPLE`.
 		// `permission_for` is the port of the *base* `MenuItem::checkPermissionToBeginSession`
 		// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`, relevance and nothing else) plus the range rule, so
-		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
+		// calling it here would refuse that entry on a default SAW synth that legacy opens. That gap --
 		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
 		// relevance -- is listed in `src/scenes/README.md`'s "Features `main` has that the scenes do not" rather than
 		// half-closed here.

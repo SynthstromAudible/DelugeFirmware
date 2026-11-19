@@ -191,13 +191,13 @@ bool writes_whole_kit(const MenuContext& ctx);
 
 /// @name Value scaling for `get`/`set` items that hold a full-range integer of their own
 ///
-/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But a dozen batch-2 items
-/// are `get`/`set` items that nonetheless store the same INT32-range value a param would (the MIDI/CV arpeggiator and
+/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But some items are
+/// `get`/`set` items that nonetheless store the same INT32-range value a param would (the MIDI/CV arpeggiator and
 /// randomizer settings live on `ArpeggiatorSettings`, not in a param set) and call the same `util/value_scaling.cpp`
 /// helpers themselves (`Rate` in `origin/main:src/deluge/gui/menu_item/arpeggiator/midi_cv/rate.h`, `SpreadGate` in
 /// `origin/main:src/deluge/gui/menu_item/randomizer/midi_cv/spread_gate.h`, ...). Rather than re-transcribing the
-/// arithmetic in each table file, the transcription this file already owns is exposed. The `unsigned` pair is new --
-/// batch 1 needed only the standard, half-precision and pan ones.
+/// arithmetic in each table file, the transcription this file already owns is exposed, including the `unsigned` pair
+/// that only these items use.
 /// @{
 
 /// @brief A STANDARD param's menu value (`plugin::to_menu`): INT32 range -> 0..50.
