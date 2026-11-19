@@ -6,6 +6,8 @@
 
 #include "scenes/bind/ports/ports.h"
 
+class AudioClip;
+
 namespace deluge::gui::shell_host {
 
 /// @brief The host's AudioFacts.
@@ -17,5 +19,11 @@ namespace deluge::gui::shell_host {
 
 /// @brief The host's SoundFacts.
 [[nodiscard]] const scenes::bind::SoundFacts& sound_facts();
+
+/// @brief The host's ClipFacts.
+[[nodiscard]] const scenes::bind::ClipFacts& clip_facts();
+
+/// @brief The audio clip @p clip addresses in the current song, or null: shared by the clip port and the waveforms.
+[[nodiscard]] ::AudioClip* audioClipAt(project::ClipAddress clip);
 
 } // namespace deluge::gui::shell_host

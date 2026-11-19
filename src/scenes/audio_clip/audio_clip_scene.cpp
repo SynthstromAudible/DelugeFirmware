@@ -30,7 +30,6 @@
 #include "ui/oled/misc.h"
 #include "ui/oled/text.h"
 
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveforms.h"
 
@@ -107,10 +106,9 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::So
                           deluge::scenes::bind::WriteSink* sink) {
 	clip_ = song != nullptr ? clip : std::nullopt;
 	song_ = song;
-	// The app's sink and facts act on the song it plays; a scene over any other song binds nothing through them.
+	// The app's sink and ports act on the song it plays; a scene over any other song binds nothing through them.
 	const bool binds = song_ != nullptr && menu::host_binds(*song_);
 	sink_ = sink != nullptr ? sink : (binds ? &menu::host_write_sink() : nullptr);
-	facts_ = binds ? &menu::host_runtime_facts() : nullptr;
 	ports_ = binds ? menu::host_ports() : deluge::scenes::bind::Ports{};
 	render_.xScroll = -1;
 	render_.xZoom = -1;
@@ -136,11 +134,11 @@ int32_t AudioClipScene::loop_length() const {
 }
 
 std::optional<deluge::scenes::bind::AudioClipFact> AudioClipScene::fact() const {
-	return clip_ && facts_ != nullptr ? facts_->audio_clip(*clip_) : std::nullopt;
+	return clip_ && ports_.clips != nullptr ? ports_.clips->audio_clip(*clip_) : std::nullopt;
 }
 
 bool AudioClipScene::recording_linearly() const {
-	return clip_ && facts_ != nullptr && facts_->clip_recording_linearly(*clip_);
+	return clip_ && ports_.clips != nullptr && ports_.clips->clip_recording_linearly(*clip_);
 }
 
 deluge::scenes::services::WaveformAddress AudioClipScene::waveform() const {
@@ -1038,7 +1036,7 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// cursor could move. The condition is `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`):
 	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
 	const bool cursor_live =
-	    flash_cursor() != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
+	    flash_cursor() != FlashCursor::Off && clip_ && ports_.clips != nullptr && ports_.clips->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1061,13 +1059,13 @@ int32_t AudioClipScene::compute_tick_square() {
 	//
 	// The `UI_MODE_AUDIO_CLIP_COLLAPSING` early return, and the two animation
 	// modes, are `PadLEDs` transitions the port does not carry at all -- see the class docstring.
-	if (!clip_ || facts_ == nullptr) {
+	if (!clip_ || ports_.clips == nullptr) {
 		return deluge::ui::grid::kNoTickSquare;
 	}
 
 	const bool recording = recording_linearly();
 	int32_t square = 0;
-	if (!facts_->clip_playing(*clip_)) {
+	if (!ports_.clips->clip_playing(*clip_)) {
 		// `AudioClipView::graphicsRoutine`'s first arm: no playback, or the clip is not active.
 		square = deluge::ui::grid::kNoTickSquare;
 	}
@@ -1099,7 +1097,8 @@ int32_t AudioClipScene::compute_tick_square() {
 		    .clip_unarmed = fact().value_or(deluge::scenes::bind::AudioClipFact{}).unarmed,
 		    .max_length = max_length(),
 		};
-		const timeline::TimelineState::TickSquare tick = timeline_.tick_square(facts_->clip_live_pos(*clip_), gates);
+		const timeline::TimelineState::TickSquare tick =
+		    timeline_.tick_square(ports_.clips->clip_live_pos(*clip_), gates);
 		square = tick.square;
 		if (square < 0 || square >= kMainCols) {
 			square = deluge::ui::grid::kNoTickSquare;
@@ -1135,7 +1134,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// `renderMainPads`' two "just clear the display" arms: no sample, or no clip. The
 	// frame arrives cleared, so there is nothing to erase -- but the two arms still `return`, which
 	// means no waveform, no grey, no markers and (legacy's driver still substitutes) the cursor.
-	if (info && clip_fact && facts_ != nullptr) {
+	if (info && clip_fact && ports_.clips != nullptr) {
 		const int32_t scroll = timeline_.x_scroll;
 		const uint32_t zoom = timeline_.x_zoom;
 
@@ -1147,7 +1146,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 		    timeline::divide_round_negative(0 - scroll, static_cast<int32_t>(zoom == 0 ? 1 : zoom));
 
 		const auto [scroll_samples, zoom_samples] =
-		    facts_->audio_clip_samples(*clip_, scroll, static_cast<int32_t>(zoom));
+		    ports_.clips->audio_clip_samples(*clip_, scroll, static_cast<int32_t>(zoom));
 
 		// `AudioClip::getColour`: the pastel hue its colour offset names.
 		const deluge::project::DocClip* record = doc();

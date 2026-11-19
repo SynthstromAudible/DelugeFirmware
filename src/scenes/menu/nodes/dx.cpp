@@ -555,8 +555,8 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 	// have unset it.
 	const int16_t param = state.dx.param;
 	if (param >= 0 && param < dx::kFirstGlobal && param % dx::kOperatorParams >= 8 && param % dx::kOperatorParams <= 12
-	    && ctx.facts != nullptr) {
-		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.facts->isomorphic_keyboard()) {
+	    && ctx.ports.clips != nullptr) {
+		if (const std::optional<bind::IsomorphicKeyboard> keyboard = ctx.ports.clips->isomorphic_keyboard()) {
 			const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
 			const int32_t breakpoint = param - param % dx::kOperatorParams + 8;
 			const std::optional<dx::Pad> pad =

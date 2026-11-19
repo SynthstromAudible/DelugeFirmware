@@ -206,7 +206,6 @@
 #include "deluge-project/setting_group.h"
 #include "model/sample/waveform_render_data.h"
 #include "scenes/bind/ports/ports.h"
-#include "scenes/bind/runtime_facts.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
 
@@ -586,7 +585,6 @@ private:
 	std::optional<deluge::project::ClipAddress> clip_;
 	::Song* song_ = nullptr;
 	deluge::scenes::bind::WriteSink* sink_ = nullptr;
-	const deluge::scenes::bind::RuntimeFacts* facts_ = nullptr;
 	deluge::scenes::bind::Ports ports_{};
 	/// @}
 

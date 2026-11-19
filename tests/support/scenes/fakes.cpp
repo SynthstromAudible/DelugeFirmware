@@ -43,4 +43,33 @@ CableList FakeSoundFacts::cables(const project::ParamAddress& /*owner*/) const {
 	return list;
 }
 
+std::optional<AudioClipFact> FakeClipFacts::audio_clip(project::ClipAddress clip) const {
+	const auto found = audio_clips.find(clip.clip_id);
+	return found != audio_clips.end() ? std::optional{found->second} : std::nullopt;
+}
+
+bool FakeClipFacts::clip_playing(project::ClipAddress clip) const {
+	return playing_at.contains(clip.clip_id);
+}
+
+int32_t FakeClipFacts::clip_live_pos(project::ClipAddress clip) const {
+	const auto found = playing_at.find(clip.clip_id);
+	return found != playing_at.end() ? found->second : 0;
+}
+
+bool FakeClipFacts::clip_arrangement_only(project::ClipAddress clip) const {
+	const auto found = arrangement_only.find(clip.clip_id);
+	return found != arrangement_only.end() && found->second;
+}
+
+bool FakeClipFacts::clip_recording_linearly(project::ClipAddress clip) const {
+	const auto found = recording_linearly.find(clip.clip_id);
+	return found != recording_linearly.end() && found->second;
+}
+
+std::pair<int64_t, int64_t> FakeClipFacts::audio_clip_samples(project::ClipAddress clip, int32_t /*scroll*/,
+                                                              int32_t /*zoom*/) const {
+	return audio_clips.contains(clip.clip_id) ? samples : std::pair<int64_t, int64_t>{0, 0};
+}
+
 } // namespace deluge::scenes::bind::test

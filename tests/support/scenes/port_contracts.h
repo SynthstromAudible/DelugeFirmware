@@ -42,4 +42,11 @@ namespace deluge::scenes::bind::contract {
 	       && !sound.kit_takes_whole_folder(nowhere);
 }
 
+/// @brief A clip no song holds is no audio clip, does not play, and measures nothing.
+[[nodiscard]] inline bool unknown_clip_is_silent(const ClipFacts& clips, project::ClipAddress nowhere) {
+	const std::pair<int64_t, int64_t> nothing{0, 0};
+	return !clips.audio_clip(nowhere).has_value() && !clips.clip_playing(nowhere)
+	       && !clips.clip_recording_linearly(nowhere) && clips.audio_clip_samples(nowhere, 0, 1) == nothing;
+}
+
 } // namespace deluge::scenes::bind::contract

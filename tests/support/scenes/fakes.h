@@ -66,14 +66,35 @@ struct FakeSoundFacts final : SoundFacts {
 	[[nodiscard]] CableList cables(const project::ParamAddress& owner) const override;
 };
 
+/// @brief ClipFacts a spec sets directly, keyed by clip id.
+struct FakeClipFacts final : ClipFacts {
+	std::map<uint32_t, AudioClipFact> audio_clips; ///< what `audio_clip` answers, by clip id
+	std::map<uint32_t, int32_t> playing_at;        ///< a clip here plays, at this position
+	std::map<uint32_t, bool> arrangement_only;     ///< what `clip_arrangement_only` answers, by clip id
+	std::map<uint32_t, bool> recording_linearly;   ///< what `clip_recording_linearly` answers, by clip id
+	std::pair<int64_t, int64_t> samples{0, 0};     ///< what `audio_clip_samples` answers for a clip in `audio_clips`
+	std::optional<IsomorphicKeyboard> keyboard;    ///< what `isomorphic_keyboard` answers
+	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_playing(project::ClipAddress clip) const override;
+	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_arrangement_only(project::ClipAddress clip) const override;
+	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress clip) const override;
+	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress clip, int32_t scroll,
+	                                                             int32_t zoom) const override;
+	[[nodiscard]] std::optional<IsomorphicKeyboard> isomorphic_keyboard() const override { return keyboard; }
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio; ///< the audio port's fake
 	FakeCardFacts card;   ///< the card port's fake
 	FakeUiFacts ui;       ///< the UI port's fake
 	FakeSoundFacts sound; ///< the sound port's fake
+	FakeClipFacts clips;  ///< the clip port's fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
-	[[nodiscard]] Ports ports() const { return {.audio = &audio, .card = &card, .ui = &ui, .sound = &sound}; }
+	[[nodiscard]] Ports ports() const {
+		return {.audio = &audio, .card = &card, .ui = &ui, .sound = &sound, .clips = &clips};
+	}
 };
 
 } // namespace deluge::scenes::bind::test

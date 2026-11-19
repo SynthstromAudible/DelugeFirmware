@@ -72,12 +72,6 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const project::ParamAddress& address) const override;
 	std::vector<TrackFact> track_list;
 	[[nodiscard]] std::vector<TrackFact> tracks() const override { return track_list; }
-	[[nodiscard]] std::optional<AudioClipFact> audio_clip(project::ClipAddress /*clip*/) const override {
-		return std::nullopt;
-	}
-	[[nodiscard]] bool clip_playing(project::ClipAddress /*clip*/) const override { return false; }
-	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress /*clip*/) const override { return 0; }
-	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress /*clip*/) const override { return false; }
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
 	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
@@ -97,11 +91,6 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress& /*address*/,
 	                                                    uint32_t /*pos*/) const override {
 		return std::nullopt;
-	}
-	[[nodiscard]] bool clip_arrangement_only(project::ClipAddress /*clip*/) const override { return false; }
-	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress /*clip*/, int32_t /*scroll*/,
-	                                                             int32_t /*zoom*/) const override {
-		return {0, 0};
 	}
 };
 

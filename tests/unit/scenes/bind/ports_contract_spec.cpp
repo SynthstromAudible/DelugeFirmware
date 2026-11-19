@@ -38,6 +38,14 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(p.sound->range_identity(deluge::project::SlotAddress{.id = 7}, 0, 2).value_or(0)).to_equal(uint64_t{99});
 		expect(contract::unknown_slot_is_empty(*p.sound, deluge::project::SlotAddress{.id = 12345})).to_be_true();
 	});
+	it("answers a clip's play state as the spec set it, and an unknown clip as silent", _ {
+		test::FakeHost host;
+		host.clips.playing_at[5] = 96;
+		const Ports p = host.ports();
+		expect(p.clips->clip_playing(deluge::project::ClipAddress{.clip_id = 5})).to_be_true();
+		expect(p.clips->clip_live_pos(deluge::project::ClipAddress{.clip_id = 5})).to_equal(96);
+		expect(contract::unknown_clip_is_silent(*p.clips, deluge::project::ClipAddress{.clip_id = 54321})).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

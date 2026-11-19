@@ -13,6 +13,7 @@
 #include "effects/settings.h"
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -275,15 +276,6 @@ private:
 /// tracks, clips and params.
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
-	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (getRootUI() != &keyboardScreen || clip == nullptr
-		    || clip->keyboardState.currentLayout != KeyboardLayoutType::KeyboardLayoutTypeIsomorphic) {
-			return std::nullopt;
-		}
-		return deluge::scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
-		                                                .row_interval = clip->keyboardState.isomorphic.rowInterval};
-	}
 	[[nodiscard]] const deluge::effects::EffectStates*
 	chain_effects(deluge::project::ChainAddress chain) const override;
 	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
@@ -299,15 +291,6 @@ public:
 		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
 	}
 	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override;
-	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>
-	audio_clip(deluge::project::ClipAddress clip) const override;
-	[[nodiscard]] bool clip_playing(deluge::project::ClipAddress clip) const override;
-	[[nodiscard]] int32_t clip_live_pos(deluge::project::ClipAddress clip) const override;
-	[[nodiscard]] bool clip_recording_linearly(deluge::project::ClipAddress clip) const override;
-	[[nodiscard]] bool clip_arrangement_only(deluge::project::ClipAddress clip) const override {
-		const ::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
-		return found != nullptr && found->isArrangementOnlyClip();
-	}
 	[[nodiscard]] bool stutter_active() const override {
 		return currentSong != nullptr && currentSong->live.stutter.active();
 	}
@@ -329,20 +312,12 @@ public:
 		}
 		return std::pair{static_cast<int32_t>(view.modPos()), static_cast<int32_t>(view.modLength())};
 	}
-	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
-	                                                             int32_t zoom) const override;
 
 private:
 	/// What playing_outputs() and sound_rows() answer, rebuilt by each call.
 	mutable std::vector<deluge::controls::PlayingOutput> outputs_;
 	mutable std::vector<deluge::controls::KitRow> rows_;
 };
-
-/// The audio clip @p clip addresses in the current song, or null.
-::AudioClip* audioClipAt(deluge::project::ClipAddress clip) {
-	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
-	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
-}
 
 /// The waveforms of the current song: the sample a sound's source range holds, an audio clip's (its recorder's take
 /// while it records linearly, as legacy's audio clip view draws it), or the preview sound's, which main's
@@ -383,7 +358,7 @@ public:
 		VoiceSample* voiceSample = nullptr;
 		SamplePlaybackGuide* guide = nullptr;
 		if (address.kind == Kind::AUDIO_CLIP) {
-			::AudioClip* clip = audioClipAt(address.clip);
+			::AudioClip* clip = shell_host::audioClipAt(address.clip);
 			if (clip == nullptr) {
 				return std::nullopt;
 			}
@@ -1368,49 +1343,6 @@ std::span<const deluge::controls::KitRow> ShellRuntimeFacts::sound_rows(uint32_t
 	return rows_;
 }
 
-std::optional<deluge::scenes::bind::AudioClipFact>
-ShellRuntimeFacts::audio_clip(deluge::project::ClipAddress clip) const {
-	::AudioClip* audio = audioClipAt(clip);
-	if (audio == nullptr || audio->output == nullptr || !audio->output->id()) {
-		return std::nullopt;
-	}
-	return deluge::scenes::bind::AudioClipFact{
-	    .track_id = *audio->output->id(),
-	    .max_zoom = audio->getMaxZoom(),
-	    .unarmed = audio->armState == ArmState::OFF,
-	    .reversed = audio->sampleControls.isCurrentlyReversed(),
-	    .session_index = currentSong->live.clips.session_clips.getIndexForClip(audio),
-	};
-}
-
-bool ShellRuntimeFacts::clip_playing(deluge::project::ClipAddress clip) const {
-	::AudioClip* audio = audioClipAt(clip);
-	return audio != nullptr && playbackHandler.playbackState != 0u && currentSong->isClipActive(audio)
-	       && playbackHandler.ticksLeftInCountIn == 0u;
-}
-
-int32_t ShellRuntimeFacts::clip_live_pos(deluge::project::ClipAddress clip) const {
-	::AudioClip* audio = audioClipAt(clip);
-	return audio != nullptr ? static_cast<int32_t>(audio->getLivePos()) : 0;
-}
-
-bool ShellRuntimeFacts::clip_recording_linearly(deluge::project::ClipAddress clip) const {
-	::AudioClip* audio = audioClipAt(clip);
-	return audio != nullptr && audio->getCurrentlyRecordingLinearly();
-}
-
-std::pair<int64_t, int64_t> ShellRuntimeFacts::audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
-                                                                  int32_t zoom) const {
-	::AudioClip* audio = audioClipAt(clip);
-	if (audio == nullptr) {
-		return {0, 0};
-	}
-	int64_t scroll_samples = 0;
-	int64_t zoom_samples = 0;
-	audio->getScrollAndZoomInSamples(scroll, zoom, &scroll_samples, &zoom_samples);
-	return {scroll_samples, zoom_samples};
-}
-
 std::vector<deluge::scenes::bind::TrackFact> ShellRuntimeFacts::tracks() const {
 	using deluge::scenes::bind::TrackKind;
 	std::vector<deluge::scenes::bind::TrackFact> list;
@@ -1484,7 +1416,7 @@ deluge::controls::Sink& host_controls_sink() {
 }
 
 void host_grab_tempo(deluge::project::ClipAddress clip) {
-	if (::AudioClip* audio = gui::audioClipAt(clip)) {
+	if (::AudioClip* audio = gui::shell_host::audioClipAt(clip)) {
 		playbackHandler.grabTempoFromClip(audio);
 	}
 }

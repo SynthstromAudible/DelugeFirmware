@@ -9,6 +9,7 @@ const bind::Ports& host_ports() {
 	    .card = &gui::shell_host::card_facts(),
 	    .ui = &gui::shell_host::ui_facts(),
 	    .sound = &gui::shell_host::sound_facts(),
+	    .clips = &gui::shell_host::clip_facts(),
 	};
 	return ports;
 }

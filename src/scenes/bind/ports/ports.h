@@ -6,6 +6,7 @@
 
 #include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/ports/card_facts.h"
+#include "scenes/bind/ports/clip_facts.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/ports/ui_facts.h"
 
@@ -19,6 +20,7 @@ struct Ports {
 	const CardFacts* card{nullptr};   ///< the loads the card is running
 	const UiFacts* ui{nullptr};       ///< the UI's modes, popups and display settings
 	const SoundFacts* sound{nullptr}; ///< what a sound's record does not hold: its loads, state, cables and ranges
+	const ClipFacts* clips{nullptr};  ///< what a clip's record does not hold: its play state and view state
 	bool operator==(const Ports&) const = default;
 };
 

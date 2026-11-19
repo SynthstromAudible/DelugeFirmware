@@ -20,7 +20,7 @@
 ///        MIDI-learn boundary and the full list of what is deliberately not ported.
 
 #include "scenes/services/global_controls.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
@@ -301,12 +301,12 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		if (!clip || !menu::host_binds(*song_)) {
 			return;
 		}
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-		if (facts.clip_arrangement_only(*clip)) {
+		const bind::ClipFacts& clips = *menu::host_ports().clips;
+		if (clips.clip_arrangement_only(*clip)) {
 			refuse();
 			return;
 		}
-		if (facts.clip_recording_linearly(*clip)) {
+		if (clips.clip_recording_linearly(*clip)) {
 			refuse();
 			return;
 		}
