@@ -967,7 +967,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// rather than for the prediction.
 	//
 	// Re-pin the name comparator before searching, as `Browser::predictExtendedText` does by setting
-	// `shouldInterpretNoteNames` and `octaveStartsFromA` from the browser's own setting, through
+	// `shouldInterpretNoteNames` from the browser's setting and `octaveStartsFromA` to false, through
 	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
 	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
 	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
