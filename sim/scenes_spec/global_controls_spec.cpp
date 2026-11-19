@@ -116,8 +116,8 @@ using deluge::ui::shell::SceneStack;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// `playback/playback_handler.cpp` defines this with no declaration in the header, exactly as
-/// `View::buttonAction` itself has to declare it (`gui/views/view.cpp`).
+/// `playback/playback_handler.cpp` defines this with no declaration in the header, as
+/// `gui/views/view.cpp` declares it.
 extern GlobalMIDICommand pendingGlobalMIDICommand;
 /// The `int32_t` twin beside it in `playback/playback_handler.cpp`, which `views/view.cpp` mis-declares as a
 /// `GlobalMIDICommand`. Declared with the defining type here; see `global_controls.cpp`'s note.
@@ -1080,9 +1080,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// **What is observable, and what is not.** The arm calls `playbackHandler.slowRoutine()` in the same statement
 		// sequence, and that function *consumes* the command it was just handed --
 		// `pendingGlobalMIDICommand = GlobalMIDICommand::NONE` (`PlaybackHandler::slowRoutine`) -- unless
-		// `deluge::sync::sd_busy()` is true, which a spec cannot make true (`deluge::sync::sd_busy()` in
-		// `sync/sd_access.cpp` reads the host BSP). So the UNDO-vs-REDO *choice* (the `isShiftButtonPressed()` ternary)
-		// is **uncovered here**: by the time control returns, both spellings read NONE. What IS observable is the
+		// `deluge::sync::sd_busy()` (`sync/sd_access.cpp`) is true, which a spec cannot make true: it reads the host
+		// BSP. So the UNDO-vs-REDO *choice* (the `isShiftButtonPressed()` ternary) is **uncovered here**: by the time
+		// control returns, both spellings read NONE. What IS observable is the
 		// `pendingGlobalMIDICommandNumClustersWritten` assignment, which nothing consumes -- so poisoning it and
 		// watching it come back 0 proves the arm's body ran on each side, and leaving it poisoned proves the
 		// `allowedToDoReversion()` guard held.
@@ -1133,7 +1133,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	it("shift+SELECT_ENC: pushes the menu scene at the settings root", _ {
 		// `View::buttonAction`'s `SELECT_ENC` arm (`views/view.cpp`). `soundEditor.setup()`'s default `clip` is null
 		// (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and shift is held by this arm's
-		// own condition, so legacy always lands on `settingsRootMenu` (`SoundEditor::setup`'s `else` arm).
+		// own condition, so main always lands on `settingsRootMenu` (`SoundEditor::setup`'s `else` arm).
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();

@@ -1153,12 +1153,11 @@ describe browser_choice_claim(
 
 describe browser_choice_reroot(
     "MenuScene::reroot_to_scene_opener_page", $ {
-	    // Legacy's return affordance, in the port's own terms: `parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-	    // menuItemNavigationRecord[0] = parentMenuHeadingTo; navigationDepth =
-	    // 0` (the `!loadWithoutExiting` arm of `SampleBrowser::claimCurrentFile` in
-	    // `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The page is `sourceMenuGroup` focused on
-	    // `source0Menu`'s file selector (`origin/main:src/deluge/gui/ui/menus.cpp`): `nodes::source_group`, whose
-	    // columns run across its five member pages.
+	    // Main's return affordance, in the port's own terms: the `!loadWithoutExiting` arm of
+	    // `SampleBrowser::claimCurrentFile` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) focuses
+	    // `menuItemHeadingTo` on `parentMenuHeadingTo` and sets the sound editor up on that page. The page is
+	    // `sourceMenuGroup` focused on `source0Menu`'s file selector (`origin/main:src/deluge/gui/ui/menus.cpp`):
+	    // `nodes::source_group`, whose columns run across its five member pages.
 	    //
 	    // @par Why the entry point is called by name here, and the claim is not run
 	    //

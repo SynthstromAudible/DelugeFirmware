@@ -420,9 +420,9 @@ struct Rig {
 	///          deleted.
 	///
 	/// @note `actionLogger.deleteAllLogs()` then one throwaway `getNewAction` is deliberate and is itself a finding:
-	///       `ClipView::shortenClip` opens with an **unguarded** `actionLogger.firstAction[BEFORE]->type` (in
-	///       `ClipView::shortenClip`), as does `ClipView::lengthenClip` (`gui/views/clip_view.cpp`), so driving
-	///       legacy's length edits with an empty undo log segfaults rather than failing. One inert `MISC` action puts
+	///       main's `ClipView::shortenClip` and `lengthenClip` (`origin/main:src/deluge/gui/views/clip_view.cpp`) read
+	///       `actionLogger.firstAction[BEFORE]->type` **unguarded** in their `PATTERN_PASTE` tests, so driving
+	///       main's length edits with an empty undo log segfaults rather than failing. One inert `MISC` action puts
 	///       both sides in the state the device is always in by the time a length edit runs, identically, before either
 	///       side moves. `ActionType::MISC` is chosen because neither `lengthenClip`'s `undoing` test (which wants
 	///       `CLIP_LENGTH_DECREASE`) nor either `PATTERN_PASTE` test matches it.

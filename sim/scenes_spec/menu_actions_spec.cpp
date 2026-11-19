@@ -470,10 +470,11 @@ void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
 
 /// @brief Save and restore the `stemExport` fields the `StartStemExport` group reads or moves.
 ///
-/// `exportMixdown` (`processing/stem_export/stem_export.h`) is what legacy's arranger arm branches on
+/// `exportMixdown` (`processing/stem_export/stem_export.h`) is what main's arranger arm branches on
 /// (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) and is a user setting
 /// elsewhere, so an example that moves it must put it back. `processStarted` and `currentStemExportType` are the first
-/// two things `StemExport::runStemExportProcess` writes, and are how the group below says that no export was started.
+/// two things `StemExport::startStemExportProcess` (`processing/stem_export/stem_export.cpp`) writes
+/// (`currentStemExportType`, then `processStarted`), and are how the group below says that no export was started.
 struct StemExportGuard {
 	bool saved_mixdown = stemExport.exportMixdown;
 	bool saved_started = stemExport.processStarted;
@@ -652,10 +653,11 @@ struct DisplayGuard {
 
 /// @brief One `MISC` action in an otherwise empty undo log, and an empty one again afterwards.
 ///
-/// Not a convenience: `ClipView::lengthenClip` opens with an **unguarded** `actionLogger.firstAction[BEFORE]->type`
-/// (`ClipView::lengthenClip`), as does `shortenClip`, so driving a length edit with an empty log segfaults rather than
-/// failing. `audio_clip_scene_spec.cpp` records the same fact and picks the same `ActionType::MISC`, which no test in
-/// either function matches.
+/// Not a convenience: main's `ClipView::lengthenClip` and `shortenClip`
+/// (`origin/main:src/deluge/gui/views/clip_view.cpp`) read `actionLogger.firstAction[BEFORE]->type` **unguarded** in
+/// their `PATTERN_PASTE` tests, so a length edit with an empty log segfaults there rather than failing. One inert
+/// action puts both sides in the state the device is in by the time a length edit runs. `audio_clip_scene_spec.cpp`
+/// picks the same `ActionType::MISC`, which no test in either function matches.
 struct ActionLogGuard {
 	ActionLogGuard(const ActionLogGuard&) = delete;
 	ActionLogGuard& operator=(const ActionLogGuard&) = delete;
@@ -723,7 +725,7 @@ constexpr uint64_t kSampleFrames = 44100 * 4;
 /// @brief An audio song whose one clip carries `kSampleFrames` of sample, seated as `currentSong`.
 ///
 /// @warning **Construct this AFTER the `Rig`**, or the `Rig`'s own `make_synth_song()` takes `currentSong` back and
-///          `Song::getCurrentAudioClip()` answers null inside the callee -- which it dereferences
+///          `getCurrentAudioClip()` (`model/song/song.h`) answers null inside the callee -- which it dereferences
 ///          (`AudioClipView::setClipLengthEqualToSampleLength` in `gui/views/audio_clip_view.cpp`).
 spec::AudioSongFixture seat_audio_clip_with_sample() {
 	spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -852,8 +854,8 @@ std::array<int, 2> both_at(PerformanceEditingMode mode) {
 /// @brief The `ScreensaverMode` values the ported enum item can hold, as the item's own cursor
 ///        indices.
 ///
-/// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE
-/// }` (`definitions_cxx.hpp`), and `nodes::kScreensaverModeNames` (`scenes/menu/nodes/settings.h`) lists the four
+/// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE }`
+/// (`definitions_cxx.hpp`), and `nodes::kScreensaverModeNames` (`scenes/menu/nodes/settings.h`) lists the four
 /// strings in that order, as `ScreensaverModeMenu::getOptions`' own `@warning` requires
 /// (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`). Spelled as cursor indices because what the examples
 /// drive is a cursor.
@@ -1020,7 +1022,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 
 	it("opened as a root, files NOTHING -- there was no press", _ {
 		// **A deep link files nothing, and that is the point.** Filing the action on a `SceneId::arg` deep link onto
-		// one of these items would be the port firing `selectButtonPress` with no press behind it. Legacy cannot: it
+		// one of these items would be the port firing `selectButtonPress` with no press behind it. Main cannot: it
 		// never navigates into these items at all (`shouldEnterSubmenu() == false`, `SoundEditor::buttonAction` in
 		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the only way to reach the body is a press on the
 		// parent's row, and `Toggle` -- the same shape -- guards the other way in explicitly
@@ -1091,7 +1093,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 			Rig r;
 			const MenuActionRequest got = press_child(r, *p.parent, *p.node);
 			expect(got.engaged()).to_be_true();
-			// Legacy's `shouldEnterSubmenu() == false` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the item
+			// Main's `shouldEnterSubmenu() == false` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the item
 			// is never navigated into. The port descends for the width of one `after_render` and
 			// ascends inside it, so by the time the tick is over the parent is focused again.
 			expect(scene().focused()).to_equal(p.parent);
@@ -1183,7 +1185,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 			// The cursor stays on the chosen mode; the dispatcher, not the press, writes the view's two bools.
 			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
 			expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::DISABLED));
-			// `NO_NAVIGATION` (`EditingMode::selectButtonPress`): legacy does not leave this page.
+			// `NO_NAVIGATION` (`EditingMode::selectButtonPress`): main does not leave this page.
 			expect(scene().focused()).to_equal(&nodes::perform_editor);
 		}
 	});
@@ -1587,7 +1589,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 	});
 
 	it("PARAM: writes both bools and opens the view, and does NOT reset it", _ {
-		// Legacy's own reason, at `EditingMode::selectButtonPress`
+		// Main's own reason, at `EditingMode::selectButtonPress`
 		// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`): resetting in param-editing
 		// mode "would reset param assignments to FX columns". This is the half of the guard that an implementation
 		// which simply always resets would still pass the VALUE example with.
@@ -1676,10 +1678,10 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 });
 
 describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
-	// The second arm with a body, and the one `scenes/menu/action.h` deliberately refused to split into four
-	// enumerators, "the choice is made from the root UI, which this layer cannot read". So the fan-out over
-	// `getRootUI()` (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the
-	// whole of what this side of the seam adds, and it is what this group pins.
+	// The second arm with a body, and the one `scenes/menu/action.h` keeps as a single enumerator, because "the choice
+	// is made from the root UI, which this layer cannot read". So the fan-out over `getRootUI()`
+	// (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the whole of what
+	// this side of the seam adds, and it is what this group pins.
 	//
 	// **Why the chooser is driven by name and the arm is not, which is a real limit and not a
 	// preference.** `StemExport::startStemExportProcess` (`processing/stem_export/stem_export.cpp`) stops
@@ -1690,9 +1692,9 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 	// four matching arms are driven through `stemExportTypeForRootUI()`, and the dispatcher's arm is
 	// driven end to end only where the chain falls through -- the branch that starts nothing.
 	//
-	// **The set these examples cover is the whole of legacy's chain**, stated so a reader can check it: `arrangerView`
+	// **The set these examples cover is the whole of main's chain**, stated so a reader can check it: `arrangerView`
 	// twice (`Start::selectButtonPress` is one root with two answers), `sessionView` once, `instrumentClipView` twice
-	// (the `&&` of its arm, once each way), plus the two ways to reach no arm at all -- a root legacy never names, and
+	// (the `&&` of its arm, once each way), plus the two ways to reach no arm at all -- a root main never names, and
 	// no root open. Six root states, five answers, and every `if` in `Start::selectButtonPress`
 	// (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) has an example on both sides of it.
 	//
@@ -1757,7 +1759,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 	});
 
 	it("instrumentClipView over a non-KIT output chooses nothing, which is legacy's fall-through", _ {
-		// The instrument-clip arm's `&&` in the direction that fails, and the end of `Start::selectButtonPress`: legacy
+		// The instrument-clip arm's `&&` in the direction that fails, and the end of `Start::selectButtonPress`: main
 		// returns `NO_NAVIGATION` having started no export. Same root as the example above, different output -- the one
 		// difference.
 		UiStackGuard ui_guard;
@@ -1840,7 +1842,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 
 	it("takes the ported menu off the guest's stack, which is exitCompletely()'s half", _ {
 		// `soundEditor.exitCompletely()` (`Start::selectButtonPress` in
-		// `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the first statement of legacy's body, and
+		// `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the first statement of main's body, and
 		// under the guest what is open is `ShellHostUI` rather than `soundEditor`. The dispatcher's answer is
 		// `SceneStack::remove(SceneKind::FirstApp)` on the guest's own stack -- the same statement `MenuScene::handle`
 		// already uses for the short-Back exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
@@ -1902,7 +1904,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// menus, one legacy *pair* -- so they share a group rather than getting three of their own.
 	//
 	// **All three run the real legacy callee, and none of them needs a decision function.** That
-	// was not obvious: `StartStemExport` had to be split (`stemExportTypeForRootUI`) because its
+	// was not obvious: `StartStemExport` has a separate chooser (`stemExportTypeForRootUI`) because its
 	// acting half arms the recorder and enters `UI_MODE_STEM_EXPORT`. None of these three does anything
 	// comparable -- `setClipLengthEqualToSampleLength` writes the model and shows a popup, and the
 	// two openers move a view mode and push a UI onto `uiNavigationHierarchy`, all of which a spec
@@ -1922,7 +1924,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	//
 	// **The ORDER of the two statements in each context-menu arm.** Swapping them -- `openUI(...)` first,
 	// `setupAndCheckAvailability()` second -- leaves this group green; measured, not assumed. The arms are written in
-	// legacy's order because they are a transcription (`MidiLearn::selectButtonPress` in
+	// main's order because they are a transcription (`MidiLearn::selectButtonPress` in
 	// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h`), and it is worth knowing that no test defends it.
 	//
 	// It is not merely unobserved, though. **It is unobservable**, and the reason is every effect
@@ -2096,7 +2098,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) --
 		// `ConfigureSongMacros::setupAndCheckAvailability` (`gui/context_menu/configure_song_macros.cpp`) ->
 		// `SessionView::enterMacrosConfigMode`, whose one write to state this spec can read is
-		// `currentSong->persistentView.sessionLayout = ...Grid` (`SessionView::enterMacrosConfigMode`). Its other two
+		// `currentSong->persistentView.sessionLayout = ...Grid`. Its other two
 		// writes, `previousLayout` and `gridModeActive`, are private members of `SessionView`.
 		expect(currentSong->persistentView.sessionLayout).to_equal(SessionLayoutType::SessionLayoutTypeGrid);
 		// `ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`).
@@ -2106,7 +2108,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 	it("an arm that opens a UI leaves the guest's timer unarmed, because it is no longer the guest's", _ {
 		// **A hazard only this example can see.** Three arms end in `openUI(...)`, so when they return `getCurrentUI()`
-		// is no longer `ShellHostUI` -- and legacy's `NO_NAVIGATION` semantics correctly leave the menu on the shell
+		// is no longer `ShellHostUI` -- and main's `NO_NAVIGATION` semantics correctly leave the menu on the shell
 		// stack, so `timerCallback`'s `depth() == 0` close does not fire and `rearmTimer` runs.
 		// `TimerName::UI_SPECIFIC` is dispatched to `getCurrentUI()->timerCallback()` (`UITimerManager::routine` in
 		// `gui/ui_timer_manager.cpp`), so re-arming there hands this guest's tick to the UI that was just opened over

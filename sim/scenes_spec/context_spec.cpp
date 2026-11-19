@@ -93,9 +93,10 @@ describe menu_context("scenes::menu::context_for", $ {
 	});
 
 	it("edits the selected row when kit_global_fx is false, even with affect-entire on", _ {
-		// The kit-row grid-shortcut path, where main's `SoundEditor` leaves `setupKitGlobalFXMenu`
-		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)
-		// false while the clip's `affectEntire` is true, and legacy edits the row's params.
+		// The kit-row grid-shortcut path, where main's `SoundEditor` leaves `setupKitGlobalFXMenu` false
+		// (`SoundEditor::exitCompletely` clears it; `SoundEditor::potentialShortcutPadAction` and
+		// `enterOrUpdateSoundEditor` set it, `origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+		// while the clip's `affectEntire` is true, and main edits the row's params.
 		// `affect_entire` still reports the clip's setting; `kit_global_fx` is what chose the branch.
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);

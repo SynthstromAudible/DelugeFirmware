@@ -37,12 +37,12 @@ namespace bindings = deluge::scenes::menu::bindings;
 
 namespace {
 
-/// @brief An ordinary patched param -- legacy `patched_param::Integer`
+/// @brief An ordinary patched param -- main's `patched_param::Integer`
 /// (`origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp`).
 constexpr Node lpf_freq_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
                                            {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
 
-/// @brief An unpatched (sound) param -- legacy `menu_item::UnpatchedParam`
+/// @brief An unpatched (sound) param -- main's `menu_item::UnpatchedParam`
 /// (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`).
 constexpr Node bass_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_BASS),
                                        {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS});
