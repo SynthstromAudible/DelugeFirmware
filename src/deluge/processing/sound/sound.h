@@ -374,12 +374,6 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
-	/// @brief Re-read the record's effects, DX7 patches and ranges from the runtime, as binding seeds them; then
-	/// reproject the snapshot.
-	///
-	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
-	/// another folder).
-	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);

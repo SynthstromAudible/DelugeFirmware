@@ -49,8 +49,8 @@ public:
 	/// @brief Re-seed the bound record's DX7 patch from the native patch; no-op while unbound.
 	///
 	/// The DX7 patch is mutated in place (per-param edits, engine mode, cartridge load) rather than through one
-	/// setter, so the whole optional<DxPatchState> record is re-seeded after any mutation (bind,
-	/// a load's reseedRecord, the dx/ menus, setOscType via ensureDxPatch).
+	/// setter, so the whole optional<DxPatchState> record is re-seeded after any mutation (bind, the dx/ menus,
+	/// setOscType via ensureDxPatch).
 	void seedDocDxPatch();
 
 	/// @brief Copy the DX7 patch into @p d: the 156 params, engineMode and random_detune, or clear it when the

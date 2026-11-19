@@ -138,8 +138,9 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got);
 
-/// @brief @p sound's record re-read from the runtime and its controls record set from its knobs, when it is bound in
-/// @p song.
+/// @brief What loading made of @p sound's oscillators (clamped zones, found files, a made DX7 patch) recorded through
+/// the Edits a gesture would make, its effects reprojected and its controls record set from its knobs, when it is
+/// bound in @p song.
 ///
 /// @param sound The sound.
 /// @param song  The song.

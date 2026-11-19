@@ -207,8 +207,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 		}
 
 		newRange->topNote = 32767;
-		// The range collection just grew from empty: reflect it into the record. Self-guards when unbound (e.g. a
-		// Source being built before adoption); bind or a load's reseedRecord seeds it later in that case.
+		// The range collection just grew from empty: reflect it into the record.
 		seedDocRanges();
 		return newRange;
 	}

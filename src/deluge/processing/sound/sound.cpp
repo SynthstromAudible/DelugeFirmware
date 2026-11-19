@@ -2452,15 +2452,6 @@ void Sound::doneReadingFromFile() {
 	}
 }
 
-void Sound::reseedRecord() {
-	projectModControllableSnapshot();
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].seedDocDxPatch();
-		sources[s].seedDocRanges();
-	}
-	projectSnapshot(); // after the oscillators are in the record: the config derives their settings too
-}
-
 // Setup master transpose
 void Sound::recalculateFineTuner() {
 	config_.voicing.tune = deluge::dsp::fixed::FineTune::of_cents(config_.voicing.cents);
