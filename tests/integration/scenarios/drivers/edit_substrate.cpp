@@ -53,7 +53,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "effects/plugin.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/settings.h"
 #include "io/midi/mapping_index.h"
 #include "model/drum/drum.h"
@@ -786,7 +786,7 @@ void testRecordsOfAbandonedKitRows(deluge::edits::Context& ctx) {
 	auto* row = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
 	static_cast<Kit*>(abandoned)->addDrum(row, &ctx.song); // adopted as a row read into the song is
 	check(row->docDrum_ != nullptr
-	          && row->docDrum_->instrument->state.as<deluge::instrument::DelugeInstrument>() == row->boundState(),
+	          && row->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == row->boundState(),
 	      "abandoned rows: the row plays its record's state");
 	const uint32_t rowId = *row->id();
 	void* abandonedMemory = dynamic_cast<void*>(abandoned);
@@ -808,7 +808,7 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	const deluge::instrument::RangeState* buffer = sound.boundState()->sources[0].ranges.data();
 	ctx.song.addOutput(synth);
 	const deluge::instrument::SoundState* record =
-	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeInstrument>();
+	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeSynth>();
 	check(record == sound.boundState() && record->sources[0].ranges.data() == buffer,
 	      "handover: adoption moves the sound's own state into its record");
 	check(record->effects.compressor.threshold == 12345, "handover: the record holds the sound's effects");
@@ -827,10 +827,10 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	deluge::project::InstrumentSlot& slot = *synth->docOutput_->instrument;
-	check(slot.state.as<deluge::instrument::DelugeInstrument>() == sound.boundState(),
+	check(slot.state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
 	      "ownership: a synth plays its record's state");
 	sound.setTranspose(5);
-	const deluge::instrument::SoundState* record = slot.state.as<deluge::instrument::DelugeInstrument>();
+	const deluge::instrument::SoundState* record = slot.state.as<deluge::instrument::DelugeSynth>();
 	// Deleted as a track is: its record goes now, the sound when the render lets go of it.
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
 	check(sound.boundState() != nullptr && sound.boundState() != record && sound.boundState()->transpose == 5,
@@ -847,8 +847,7 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	kit.addDrum(kept);
 	kit.addDrum(removed);
 	check(removed->docDrum_ != nullptr
-	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeInstrument>()
-	                 == removed->boundState(),
+	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == removed->boundState(),
 	      "ownership: a kit row plays its record's state");
 	removed->setTranspose(-3);
 	kit.removeDrum(removed);
@@ -1264,7 +1263,7 @@ void testTwoOutputsOneIdInFile() {
 		Sound& sound = *synth;
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 		const deluge::project::InstrumentSlot* slot = address ? song->project.resolveSlot(*address) : nullptr;
-		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeInstrument>() == sound.boundState(),
+		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
 		      "read ids: each synth plays its own slot's state");
 	}
 	static_cast<Sound*>(synths[0])->setTranspose(5);

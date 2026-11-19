@@ -1,8 +1,8 @@
 #include "controls_test_plugins.h"
 #include "effects/plugin.h"
 #include "equality/equality.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/params.h"
-#include "instruments/deluge/plugin.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
 
@@ -144,7 +144,7 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, output] : document.outputs) {
 				if (output.instrument) {
-					output.instrument->state.as<deluge::instrument::DelugeInstrument>()->synth_mode =
+					output.instrument->state.as<deluge::instrument::DelugeSynth>()->synth_mode =
 					    deluge::instrument::SynthMode::FM;
 					return;
 				}
@@ -188,7 +188,7 @@ describe equality_sabotage("the model-equality gate", ${
 		faults.on_decoded = [](SongDocument& document) {
 			for (auto& [id, drum] : document.drums) {
 				if (drum.instrument) {
-					drum.instrument->state.as<deluge::instrument::DelugeInstrument>()->synth_mode =
+					drum.instrument->state.as<deluge::instrument::DelugeSynth>()->synth_mode =
 					    deluge::instrument::SynthMode::FM;
 					return;
 				}

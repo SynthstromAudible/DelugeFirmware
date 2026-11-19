@@ -22,7 +22,7 @@
 
 #include "deluge-project/structure_codec.h"
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -44,8 +44,8 @@
 namespace deluge::bridge {
 
 void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSlot>& slot, const ::Song& song) {
-	if (slot && slot->state.as<deluge::instrument::DelugeInstrument>() != nullptr
-	    && slot->state.as<deluge::instrument::DelugeInstrument>() == sound.boundState()) {
+	if (slot && slot->state.as<deluge::instrument::DelugeSynth>() != nullptr
+	    && slot->state.as<deluge::instrument::DelugeSynth>() == sound.boundState()) {
 		return; // the sound plays this slot's state already
 	}
 	// What the sound settled moves into the record, which it then plays: its own state, or a copy of the record it
@@ -53,11 +53,11 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 	if (sound.boundState() == nullptr) {
 		sound.bindState();
 	}
-	slot = deluge::project::InstrumentSlot{
-	    .plugin = std::string(deluge::plugin::kDelugeInstrument.name),
-	    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeInstrument>({}),
-	    .tick_magnitude = song.getInputTickMagnitude()};
-	sound.bindState(*slot->state.as<deluge::instrument::DelugeInstrument>());
+	slot =
+	    deluge::project::InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
+	                                    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>({}),
+	                                    .tick_magnitude = song.getInputTickMagnitude()};
+	sound.bindState(*slot->state.as<deluge::instrument::DelugeSynth>());
 }
 
 namespace {

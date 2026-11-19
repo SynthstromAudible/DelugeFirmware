@@ -167,5 +167,5 @@ src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=15
 src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=11
-src/synth/voice/unison.cpp raw=0 boundary=1
+src/synth/voice/unison.h raw=0 boundary=1
 src/synth/voice/voice.cpp raw=0 boundary=28

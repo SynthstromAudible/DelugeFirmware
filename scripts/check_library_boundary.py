@@ -194,6 +194,10 @@ LIBRARIES: dict[str, Library] = {
             "foundation/panic.h",
             "synth/modulation/patch_source.h",
             "synth/modulation/cable.h",
+            # the synth's config, which the instrument derives from its state (the instrument is the synth's plugin)
+            "synth/voice/sound_config.h",
+            "synth/voice/unison.h",
+            "dsp-next/fixed/pitch/",
         ),
     ),
     "host-chain": Library(

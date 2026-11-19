@@ -24,7 +24,7 @@
 #include "effects/codec.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -133,7 +133,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			                                                 deluge::effects::encode(record.effects, context));
 		}
 	}
-	if (checks.bound && slot->state.as<deluge::instrument::DelugeInstrument>() != &record) {
+	if (checks.bound && slot->state.as<deluge::instrument::DelugeSynth>() != &record) {
 		return "bound: the sound plays a copy of its slot's state";
 	}
 	if (checks.controls) {

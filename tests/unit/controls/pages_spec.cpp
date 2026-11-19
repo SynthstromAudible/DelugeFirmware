@@ -8,7 +8,7 @@
 #include "effects/plugin.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
-#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "support/printers/controls_printer.h"
 #include "support/printers/knob_focus_printer.h"
 #include "support/printers/param_id_printer.h"
@@ -73,7 +73,7 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	instrument::SoundState sound{};
 	sound.synth_mode = synth_mode;
 	output.instrument = project::InstrumentSlot{
-	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeInstrument>(sound)};
+	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(sound)};
 	return song;
 }
 const controls::KnobFocus kSynth{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 3}}};
