@@ -103,8 +103,8 @@ the voice config and per-voice block, the noise stream, and one control struct p
   own. It seeds and randomizes the modulators and works out their increments.
 
 The voice holds **one of each** in an `EngineSet` (`engine_set.h`), whose `for_mode()` is the factory. A sound's mode
-can change under a sounding voice (undo, a preset applied, a reprojection from the record — `Sound::setSynthMode` is
-the only path that stops the voices), so every engine keeps its state while another plays, and the unison parts and
+can change under a sounding voice (undo, a preset applied, a load — only a settings Edit's `bridge::applyChange` stops
+the voices for a new engine), so every engine keeps its state while another plays, and the unison parts and
 the source levels (`SourceLevels`, the de-zipper FM and the dual engines share) stay the voice's, lent per call.
 
 ## What stays in the voice

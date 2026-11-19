@@ -1474,7 +1474,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
-			spec::menu_engine(f.ctx).sound->setSynthMode(before, f.ctx.song);
+			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(before));
 			spec::menu_engine(f.ctx).sound->sources[0].setOscType(osc_before[0]);
 			spec::menu_engine(f.ctx).sound->sources[1].setOscType(osc_before[1]);
 			covered++;

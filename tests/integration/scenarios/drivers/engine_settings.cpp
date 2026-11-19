@@ -20,9 +20,9 @@
 // replaces another. Every legal value of every setting path an Edit maps is set on every bound sound through
 // SetEngineSetting: after each, the slot holds the value, the slot's instrument entries are the encoding of the
 // sound's state (equation 1), and the sound's snapshot is the one its state projects (equation 2); then the old value
-// is restored. Each oscillator keeps its tuning while FM. A kit's affect-entire leg sets one path on all its sound
-// drums at once. Exit: 0 every check holds; 1 the
-// file does not load; 2 usage/IO; 3 a check fails (printed).
+// is restored. Each oscillator keeps its tuning while FM. A loaded sample oscillator's own tuning is in its range
+// and a ring-mod sound's sample oscillator loads as a wavetable one. A kit's affect-entire leg sets one path on all its
+// sound drums at once. Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails (printed).
 
 #include "deluge-project/instrument_slot.h"
 #include "extern.h"
@@ -1066,6 +1066,65 @@ int presetArpLeg(std::string_view bytes, deluge::storage::DocumentFormat format,
 	return 0;
 }
 
+/// A sound as a preset holds it, its first oscillator a sample one (the sample/mono render golden's): @p mode its
+/// engine, @p tuning its own transpose and cents attributes.
+std::string samplePreset(std::string_view mode, std::string_view tuning) {
+	std::string text = R"PRESET(<?xml version="1.0" encoding="UTF-8"?>
+<sound firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" polyphonic="poly" voicePriority="1" mode="@MODE@" lpfMode="24dB" modFXType="none">
+	<osc1 type="sample" loopMode="2" reversed="0" timeStretchEnable="0" timeStretchAmount="0" @TUNING@ fileName="SAMPLES/WT.WAV">
+		<zone startSamplePos="0" endSamplePos="4096" />
+	</osc1>
+	<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
+	<lfo1 type="triangle" syncLevel="0" />
+	<lfo2 type="triangle" />
+	<unison num="1" detune="8" />
+	<delay pingPong="1" analog="0" syncLevel="7" />
+	<defaultParams arpeggiatorGate="0x00000000" portamento="0x80000000" compressorShape="0xDC28F5B2" oscAVolume="0x7FFFFFFF" oscAPulseWidth="0x00000000" oscBVolume="0x80000000" oscBPulseWidth="0x00000000" noiseVolume="0x80000000" volume="0x4CCCCCA8" pan="0x00000000" lpfFrequency="0x7FFFFFFF" lpfResonance="0x80000000" hpfFrequency="0x80000000" hpfResonance="0x80000000" lfo1Rate="0x1999997E" lfo2Rate="0x00000000" modulator1Amount="0x80000000" modulator1Feedback="0x80000000" modulator2Amount="0x80000000" modulator2Feedback="0x80000000" carrier1Feedback="0x80000000" carrier2Feedback="0x80000000" modFXRate="0x00000000" modFXDepth="0x00000000" delayRate="0x00000000" delayFeedback="0x80000000" reverbAmount="0x80000000" arpeggiatorRate="0x00000000" stutterRate="0x00000000" sampleRateReduction="0x80000000" bitCrush="0x80000000" modFXOffset="0x00000000" modFXFeedback="0x00000000" waveFold="0x00000000">
+		<envelope1 attack="0x80000000" decay="0xE6666654" sustain="0x7FFFFFFF" release="0x80000000" />
+		<envelope2 attack="0xE6666654" decay="0xE6666654" sustain="0xFFFFFFE9" release="0xE6666654" />
+		<patchCables>
+			<patchCable source="velocity" destination="volume" amount="0x3FFFFFE8" />
+		</patchCables>
+		<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />
+	</defaultParams>
+</sound>
+)PRESET";
+	text.replace(text.find("@MODE@"), 6, mode);
+	text.replace(text.find("@TUNING@"), 8, tuning);
+	return text;
+}
+
+/// The load-rules leg: a loaded sample oscillator's own tuning is in its range, not on it; a ring-mod sound's sample
+/// oscillator loads as a wavetable one. Each is the record the sound plays. 0 when each holds, else 3 after printing.
+int loadRulesLeg(Song& song) {
+	Instrument* tuned = loadPreset(samplePreset("subtractive", R"(transpose="3" cents="5")"),
+	                               deluge::storage::DocumentFormat::XML, OutputType::SYNTH, song);
+	Instrument* ringmod = loadPreset(samplePreset("ringmod", R"(transpose="0" cents="0")"),
+	                                 deluge::storage::DocumentFormat::XML, OutputType::SYNTH, song);
+	if (tuned == nullptr || ringmod == nullptr) {
+		std::fprintf(io.err, "LOADFAIL load-rules presets\n");
+		return 1;
+	}
+	const deluge::instrument::SoundState* a = static_cast<SoundInstrument*>(tuned)->boundState();
+	const deluge::instrument::SoundState* b = static_cast<SoundInstrument*>(ringmod)->boundState();
+	std::string_view failed;
+	if (a == nullptr || b == nullptr) {
+		failed = "a loaded sound plays no state";
+	}
+	else if (a->sources[0].transpose != 0 || a->sources[0].cents != 0 || a->sources[0].ranges.size() != 1
+	         || a->sources[0].ranges[0].transpose != 3 || a->sources[0].ranges[0].cents != 5) {
+		failed = "a sample oscillator's own tuning is not in its range";
+	}
+	else if (b->sources[0].osc_type != OscType::WAVETABLE) {
+		failed = "a ring-mod sound's sample oscillator is not a wavetable one";
+	}
+	if (!failed.empty()) {
+		std::fprintf(io.err, "load rules: %.*s\n", static_cast<int>(failed.size()), failed.data());
+		return 3;
+	}
+	return 0;
+}
+
 int engine_settings_run(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 3) {
@@ -1151,6 +1210,9 @@ int engine_settings_run(int argc, char** argv, Io driverIo) {
 	}
 	if (type == OutputType::SYNTH) {
 		if (int r = presetArpLeg(bytes, deluge::storage::formatOfPath(argv[1]), *first, *currentSong)) {
+			return r;
+		}
+		if (int r = loadRulesLeg(*currentSong)) {
 			return r;
 		}
 	}

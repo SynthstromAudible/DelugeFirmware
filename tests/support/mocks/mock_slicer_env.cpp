@@ -353,12 +353,9 @@ DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*,
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
 
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
-DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
-DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
-DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
 DELUGE_STUB_FN(stub_intToString, "intToString")
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
@@ -414,14 +411,16 @@ std::vector<deluge::instrument::RangeState> rangesOf(const ::Source& /*source*/)
 Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::instrument::RangeState>& /*ranges*/) {
 	return Error::NONE;
 }
-Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
-                   ::Song& /*song*/) {
-	return Error::NONE;
-}
 void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,
                        deluge::instrument::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
+namespace deluge::edits {
+Error setUnslottedSetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
+                          ::Song& /*song*/) {
+	return Error::NONE;
+}
+} // namespace deluge::edits
 
 namespace deluge::edits {
 Error apply(Context& /*ctx*/, Edit& /*edit*/) {

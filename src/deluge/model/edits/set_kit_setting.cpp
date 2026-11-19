@@ -62,7 +62,7 @@ Error SetKitSetting::apply(Context& ctx) {
 		    || !deluge::instrument::allows_setting(*sound.boundState(), path_, *value)) {
 			continue;
 		}
-		if (commitEngineSetting(sound, *slot, path_, *value, ctx.song) == Error::NONE) {
+		if (commitEngineSetting(sound, slot, path_, *value, ctx.song) == Error::NONE) {
 			drums_written_++;
 		}
 	}

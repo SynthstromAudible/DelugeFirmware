@@ -9,11 +9,11 @@
 describe deluge_instrument_plugin("the Deluge instrument as a plugin", ${
 	it("satisfies the engine contract, and its state round-trips through a handle", _ {
 		static_assert(deluge::plugin::InstrumentPlugin<deluge::instrument::DelugeSynth>);
-		deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
+		deluge::instrument::SoundState state = deluge::instrument::SoundState{};
 		state.transpose = 5;
 		const auto handle = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(state);
 		auto read = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>(
-		    deluge::instrument::new_synth_state());
+		    deluge::instrument::SoundState{});
 		expect(read.decode(handle.encode({.input_tick_magnitude = 1}), {.input_tick_magnitude = 1}).has_value())
 		    .to_be_true();
 		// A file read normalises what it reads, so the state's encoding is what survives the round trip.

@@ -842,8 +842,8 @@ justDontTimeStretch:
 		maySetupCache = false;
 		// We tell the cache setup that we're *not* looping.
 		// We want it to think this, otherwise problems if we've put the end point after the actual waveform end.
-		bool everythingOk = voiceSample->possiblySetUpCache(&sampleControls, &guide, phaseIncrement, timeStretchRatio,
-		                                                    priorityRating, LoopType::NONE);
+		bool everythingOk = voiceSample->possiblySetUpCache(sampleControls.interpolationMode, &guide, phaseIncrement,
+		                                                    timeStretchRatio, priorityRating, LoopType::NONE);
 		if (!everythingOk) {
 			goto doUnassign;
 		}

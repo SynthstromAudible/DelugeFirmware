@@ -2164,7 +2164,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
-		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp:165`).
+		// `Source::getOrCreateFirstRange` gives it the top of the keyboard.
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 

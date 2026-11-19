@@ -37,8 +37,8 @@ const effects::EffectStates* FakeFacts::chain_effects(project::ChainAddress chai
 ModelFixture::ModelFixture() {
 	song.output_structure.getOrCreate(kSynth.id);
 	song.drum_structure.getOrCreate(kDrum.id);
-	set_state(kSynth, instrument::new_synth_state());
-	set_state(kDrum, instrument::new_synth_state());
+	set_state(kSynth, instrument::SoundState{});
+	set_state(kDrum, instrument::SoundState{});
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain}) {
 		song.output_structure.getOrCreate(chain.id).effects = project::FxChain{};
 	}

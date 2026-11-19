@@ -79,8 +79,8 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 			Source& source = sound.sources[s];
 			if (synthMode != SynthMode::FM && source.oscType == OscType::SAMPLE && voice.guides[s].audioFileHolder
 			    && flags.checkSourceEverActive(s)) {
-				source.sampleControls.invertReversed = sound.invertReversed;
-				voice.guides[s].setupPlaybackBounds(source.sampleControls.isCurrentlyReversed());
+				source.invertReversed = sound.invertReversed;
+				voice.guides[s].setupPlaybackBounds(sound.playsReversed(s));
 			}
 		}
 

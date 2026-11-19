@@ -183,10 +183,6 @@ struct SlotChange {
 [[nodiscard]] std::expected<SoundState, plugin::StateError>
 decode_onto(const serialization::Value& element, const SoundState& current, const plugin::CodecContext& context);
 
-/// @brief The state a new synth starts with, before anything is read into it: what a file's reading starts from.
-/// @return The default state of a new synth.
-[[nodiscard]] SoundState new_synth_state();
-
 /// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
 /// and the effects are left out. For comparing two states and for recording what a reader produced.
 /// @param state The state to dump.

@@ -166,7 +166,7 @@ std::vector<std::string> write_setting_disagreements() {
 
 /// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
 SoundState sampled() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	SourceState& sample = state.sources[0];
 	sample.osc_type = OscType::SAMPLE;
 	sample.repeat_mode = SampleRepeatMode::LOOP;
@@ -216,7 +216,7 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 		state.synth_mode = SynthMode::RINGMOD;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded->sources[0].osc_type).to_equal(OscType::SAMPLE);
-		SoundState fresh = new_synth_state();
+		SoundState fresh = SoundState{};
 		expect(decode(encode(state, kContext), fresh, kContext).has_value()).to_be_true();
 		expect(fresh.sources[0].osc_type).to_equal(OscType::WAVETABLE);
 	});

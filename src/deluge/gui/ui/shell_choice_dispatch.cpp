@@ -144,7 +144,7 @@ std::string enteredTextFor(std::string_view name) {
 /// @brief The engine objects the menu's context names by address, resolved in the current song: what
 ///        `SoundEditor::setup` would have resolved for the same visit.
 /// @param menuCtx The menu's context.
-/// @return The sound, its source, range and sample controls, the clip's (or kit row's) params and arp.
+/// @return The sound, its source and range, the clip's (or kit row's) params and arp.
 deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
 	deluge::gui::SoundTarget resolved{.sound = nullptr,
 	                                  .mod = nullptr,
@@ -153,8 +153,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 	                                  .range = nullptr,
 	                                  .rangeIndex = menuCtx.range_index,
 	                                  .sourceIndex = menuCtx.source_index,
-	                                  .source = nullptr,
-	                                  .sampleControls = nullptr};
+	                                  .source = nullptr};
 	if (currentSong == nullptr) {
 		return resolved;
 	}
@@ -175,7 +174,6 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 		resolved.mod = sound;
 		if (sound != nullptr) {
 			resolved.source = &sound->sources[menuCtx.source_index];
-			resolved.sampleControls = &resolved.source->sampleControls;
 			if (menuCtx.range_index >= 0 && menuCtx.range_index < std::ssize(resolved.source->ranges)) {
 				resolved.range = resolved.source->ranges.getElement(menuCtx.range_index);
 			}
@@ -186,9 +184,6 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 				resolved.arp = &drum->arpSettings;
 			}
 		}
-	}
-	else if (menuCtx.is_audio_clip && clip != nullptr) {
-		resolved.sampleControls = &static_cast<AudioClip*>(clip)->sampleControls;
 	}
 	return resolved;
 }

@@ -245,8 +245,9 @@ struct SoundRig {
 	void setup_source(int32_t i, int32_t num_clusters) {
 		source[i] = &sound->sources[i];
 		source[i]->oscType = OscType::SAMPLE;
-		source[i]->repeatMode = SampleRepeatMode::ONCE;
-		source[i]->sampleControls.reversed = false;
+		source[i]->state_->osc_type = OscType::SAMPLE;
+		source[i]->state_->repeat_mode = SampleRepeatMode::ONCE;
+		source[i]->state_->reversed = false;
 		sample[i] = make_sample(num_clusters);
 		range[i] = static_cast<MultisampleRange*>(source[i]->getOrCreateFirstRange());
 		range[i]->sampleHolder.audioFile = sample[i];
@@ -762,7 +763,6 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		const spec::MenuEngine engine = spec::menu_engine(c);
 		expect(engine.source).to_equal(r.source[1]);
 		expect(engine.range).to_equal(r.range[1]);
-		expect(engine.sample_controls).to_equal(&r.source[1]->sampleControls);
 
 		// Re-selecting the source already named keeps the selected range -- `setCurrentSource`'s own
 		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:247`), which is what stops a

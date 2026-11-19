@@ -303,16 +303,16 @@ describe effects_owner("an owner's EffectsOwner", ${
 			expect(int(owner.binding->snapshot().mod_fx_param)).to_equal(int(ModFXParam::DEPTH), "the render's mod FX view");
 		});
 
-		it("keeps the settings in a bound record, which takes those held, until unbound", _ {
+		it("plays a bound record's settings, keeps stores in it, and takes them back when unbound", _ {
 			spec::SongFixture f = spec::make_synth_song();
 			const EffectsOwner owner = *static_cast<SoundInstrument*>(f.instrument)->effectsOwner();
 			deluge::effects::EffectStates held = owner.effects();
 			held.delay.ping_pong = !held.delay.ping_pong;
-			deluge::model::storeEffects(owner, held);
 
-			deluge::effects::EffectStates record{};
+			deluge::effects::EffectStates record = held;
 			deluge::model::bindEffects(owner, &record);
-			expect(record).to_equal(held, "the bound record");
+			expect(owner.effects()).to_equal(held, "the settings it plays");
+			expect(owner.binding->snapshot().effects).to_equal(held, "the render's copy");
 			deluge::effects::EffectStates next = held;
 			next.stutter.quantized = !next.stutter.quantized;
 			deluge::model::storeEffects(owner, next);

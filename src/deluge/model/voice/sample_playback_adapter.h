@@ -22,12 +22,11 @@
 #include <cstdint>
 
 class Sample;
-class Source;
 class VoiceSample;
 class VoiceSamplePlaybackGuide;
 
 /// @brief The firmware adapter behind @ref deluge::synth::SamplePlaybackPort: one pooled @ref VoiceSample reader
-/// for one voice-source. Holds the source's `VoiceSample` + the per-note `::Source`/guide cached at note-on,
+/// for one voice-source. Holds the source's `VoiceSample` + the per-note source settings/guide cached at note-on,
 /// soliciting/releasing from the `AudioEngine` voice-sample pool and answering the library `SampleSource`'s render
 /// queries/ops from that state: the app-coupled half of sample playback (storage, the SD cluster cache,
 /// time-stretch, the pool, `playbackHandler`), behind the library `SampleSource`.
@@ -40,15 +39,14 @@ class SamplePlaybackAdapter final : public deluge::synth::SamplePlaybackPort {
 public:
 	// --- App-side note lifecycle (called directly by the App, not via the port) ------------------------------
 
-	/// The note's source, its settings and its playback guide, which the port's note-on and render read: set before
-	/// each note-on.
-	void bind(::Source* source, const deluge::synth::SourceConfig* settings, VoiceSamplePlaybackGuide* guide) {
-		source_ = source;
+	/// The note's source settings and its playback guide, which the port's note-on and render read: set before each
+	/// note-on.
+	void bind(const deluge::synth::SourceConfig* settings, VoiceSamplePlaybackGuide* guide) {
 		settings_ = settings;
 		guide_ = guide;
 	}
 
-	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held); clear the cached source/guide.
+	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held); clear the cached settings/guide.
 	void unassign(bool deletingSong) override;
 
 	/// React to a sample zone/marker change. Returns false if this source is now out of bounds and should be
@@ -60,7 +58,7 @@ public:
 	[[nodiscard]] VoiceSample* voiceSample() const { return voiceSample_; }
 
 	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part, clone @p from's low-level reader state
-	/// into it, and play @p from's source through its guide. Returns false if none could be solicited.
+	/// into it, and play @p from's settings through its guide. Returns false if none could be solicited.
 	bool cloneVoiceSampleFrom(const SamplePlaybackAdapter& from);
 
 	// --- deluge::synth::SamplePlaybackPort (primitive queries/ops the library SampleSource drives) ------------
@@ -97,9 +95,8 @@ public:
 
 private:
 	VoiceSample* voiceSample_ = nullptr;
-	/// The per-note source config + playback guide, cached at note-on (stable for the note; `sound.sources[s]` /
-	/// `voice.guides[s]` are fixed members). The render queries above read these. Cleared in @ref unassign.
-	::Source* source_ = nullptr;
+	/// The per-note source config + playback guide, cached at note-on (stable for the note; `sound.config().sources[s]`
+	/// / `voice.guides[s]` are fixed members). The render queries above read these. Cleared in @ref unassign.
 	const deluge::synth::SourceConfig* settings_ = nullptr;
 	VoiceSamplePlaybackGuide* guide_ = nullptr;
 };

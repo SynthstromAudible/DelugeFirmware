@@ -106,8 +106,7 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 	if (slot == nullptr || sound == nullptr || !value) {
 		return;
 	}
-	const auto change =
-	    phases.time("change", [&] { return deluge::edits::settingChange(*sound, *slot, path, *value); });
+	const auto change = phases.time("change", [&] { return deluge::edits::settingChange(*sound, path, *value); });
 	if (!change) {
 		return;
 	}

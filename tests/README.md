@@ -84,6 +84,7 @@ builds only `golden-vt-render`.
 | render-kit-filters | integration | scenario | property | gate | a kit's filter chain renders as recorded | pr | render | ~20s |
 | render-audio-track-filters | integration | scenario | property | gate | an audio track's filter chain renders as recorded | pr | render | ~20s |
 | render-master-filters | integration | scenario | property | gate | the song master's filter chain renders as recorded | pr | render | ~20s |
+| render-audio-cents | integration | scenario | property | gate | an audio clip's fine tune renders as recorded, and differs from the clip untuned | pr | render | ~20s |
 | render-audio-track-fx | integration | scenario | property | gate | an audio track's effect chain renders as recorded | pr | render | ~20s |
 | render-master-fx | integration | scenario | property | gate | the song master's effect chain renders as recorded | pr | render | ~20s |
 | render-master-pan-stereo | integration | scenario | property | gate | the song master's pan renders as recorded in stereo, where it applies | pr | render | ~20s |

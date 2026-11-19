@@ -50,13 +50,13 @@ struct ModeReader {
 };
 
 SoundState fmState() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	state.synth_mode = SynthMode::FM;
 	return state;
 }
 
 SoundState sampleState() {
-	SoundState state = new_synth_state();
+	SoundState state = SoundState{};
 	for (SourceState& source : state.sources) {
 		source.osc_type = OscType::SAMPLE;
 		source.ranges.push_back(RangeState{.file_path = "SAMPLES/x.wav"});
@@ -133,7 +133,7 @@ SoundState baseFor(std::string_view path) {
 			return sampleState();
 		}
 	}
-	return new_synth_state();
+	return SoundState{};
 }
 
 /// The values a row allows at its edges: every choice, or the range's ends (and, for a row with a user scale, the
@@ -170,7 +170,7 @@ std::vector<std::string> edges(const deluge::plugin::SettingInfo& row) {
 // clang-format off
 describe settings("the Deluge instrument's settings schema", ${
 	it("covers every setting the instrument writes, in each mode", _ {
-		for (const SoundState& state : {new_synth_state(), fmState(), sampleState()}) {
+		for (const SoundState& state : {SoundState{}, fmState(), sampleState()}) {
 			std::vector<std::string> paths;
 			leafPaths(encode(state, kContext), "", paths);
 			for (const std::string& path : paths) {
@@ -183,7 +183,7 @@ describe settings("the Deluge instrument's settings schema", ${
 		for (const deluge::plugin::SettingInfo& row : kSettings) {
 			for (const std::string& value : edges(row)) {
 				const SoundState base = baseFor(row.path);
-				SoundState read = new_synth_state();
+				SoundState read = SoundState{};
 				expect(decode(withLeaf(encode(base, kContext), row.path, value), read, kContext)).to_have_value();
 				const Value reencoded = encode(read, kContext);
 				const Value* again = leafAt(reencoded, row.path);
@@ -324,13 +324,13 @@ describe settings("the Deluge instrument's settings schema", ${
 	});
 
 	it("reads, for a condition, the value a sound holds where its menu does not show it", _ {
-		SoundState fm = new_synth_state();
+		SoundState fm = SoundState{};
 		fm.synth_mode = SynthMode::FM;
 		fm.sources[0].osc_type = OscType::SAMPLE;
 		expect(setting_value(fm, "osc1/type")).not_().to_have_value();
 		expect(held_setting(fm, "osc1/type").value_or(-1)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
 		expect(held_setting(fm, "mode").value_or(-1)).to_equal(static_cast<int32_t>(SynthMode::FM));
-		const SoundState subtractive = new_synth_state();
+		const SoundState subtractive = SoundState{};
 		expect(setting_value(subtractive, "modulator1/transpose")).not_().to_have_value();
 		expect(held_setting(subtractive, "modulator1/transpose")).to_have_value();
 		expect(held_setting(subtractive, "osc1/sampleRanges")).not_().to_have_value();
@@ -357,8 +357,8 @@ describe settings("the Deluge instrument's settings schema", ${
 
 	it("keeps ring mod to the oscillators it can ring", _ {
 		expect(allows_setting(sampleState(), "mode", Value::makeScalar("ringmod"))).to_be_false();
-		expect(allows_setting(new_synth_state(), "mode", Value::makeScalar("ringmod"))).to_be_true();
-		SoundState ringing = new_synth_state();
+		expect(allows_setting(SoundState{}, "mode", Value::makeScalar("ringmod"))).to_be_true();
+		SoundState ringing = SoundState{};
 		ringing.synth_mode = SynthMode::RINGMOD;
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("sample"))).to_be_false();
 		expect(allows_setting(ringing, "osc1/type", Value::makeScalar("wavetable"))).to_be_true();
@@ -366,12 +366,12 @@ describe settings("the Deluge instrument's settings schema", ${
 	});
 
 	it("starts each instrument row at a new sound's value, in each mode", _ {
-		SoundState sample = new_synth_state();
+		SoundState sample = SoundState{};
 		for (SourceState& source : sample.sources) {
 			source.osc_type = OscType::SAMPLE;
 		}
 		int checked = 0;
-		for (const SoundState& state : {new_synth_state(), fmState(), sample}) {
+		for (const SoundState& state : {SoundState{}, fmState(), sample}) {
 			for (const deluge::plugin::SettingInfo& row : kSettings) {
 				if (row.kind == SettingKind::STRUCTURED
 				    || deluge::plugin::find_setting(deluge::effects::kEffectSettings, row.path) != nullptr) {
@@ -379,7 +379,7 @@ describe settings("the Deluge instrument's settings schema", ${
 				}
 				// The FM and sample states change the mode and the oscillator types themselves.
 				const bool changed = row.path == "mode" || row.path.ends_with("/type");
-				if (changed && !(state == new_synth_state())) {
+				if (changed && !(state == SoundState{})) {
 					continue;
 				}
 				const std::optional<Value> value = setting_value(state, row.path);

@@ -18,6 +18,7 @@
 #include "scenarios/preset_fixture_loader.h"
 
 #include "gui/views/session_view.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -100,6 +101,7 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 		return false;
 	}
 	holder->filePath = samplePath;
+	deluge::edits::recordRanges(*synth, 0); // the set-up synth plays its state, which the save writes
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	if (StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false)
 	    != Error::NONE) {

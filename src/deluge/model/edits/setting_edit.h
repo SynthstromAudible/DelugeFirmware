@@ -65,8 +65,8 @@ inline std::string oscSettingPath(int32_t source, std::string_view name) {
 }
 
 /// @brief A sound editor menu's change of @p sound's setting at @p path to @p value (its file form): an Edit on the
-/// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; the runtime's setter
-/// alone for a sound with no slot in it.
+/// sound's slot when the sound is bound in the current song, so the slot keeps holding its state; for a sound in no
+/// slot (the sample browser's preview), the same rules, write and runtime effects on its own state.
 /// @param sound The sound being edited.
 /// @param path  Settings path of the setting.
 /// @param value The new value, in its file form.
@@ -80,13 +80,8 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 		}
 		return;
 	}
-	const SynthMode from = sound.getSynthMode();
-	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
+	if (setUnslottedSetting(sound, path, value, *currentSong) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
-	}
-	else if (path == "mode") {
-		// No record to remap through: the sound's own knobs follow the mode.
-		deluge::bridge::remapKnobsForMode(sound, *currentSong, from, sound.getSynthMode());
 	}
 }
 

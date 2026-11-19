@@ -33,8 +33,7 @@ encodedChange(const ::Sound& sound, const deluge::instrument::SoundState& before
 } // namespace
 
 std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
-settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slot*/, std::string_view path,
-              const deluge::serialization::Value& value) {
+settingChange(const ::Sound& sound, std::string_view path, const deluge::serialization::Value& value) {
 	const deluge::instrument::SoundState& before = *sound.boundState();
 	// Where the setting's menu reshapes more (an oscillator's type or loop mode, the synth mode), the state it reshapes
 	// to; else the setting's own field, written by its family's writer.
@@ -47,18 +46,18 @@ settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slo
 	return change;
 }
 
-Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
+Error commitEngineSetting(::Sound& sound, const deluge::project::InstrumentSlot* slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
 	const SynthMode from = deluge::instrument::synth_mode(*sound.boundState());
 	if (!deluge::bridge::runtimeTakes(sound, path)) {
 		return Error::UNSPECIFIED; // the sound has no such setting in its engine and types
 	}
-	const auto change = settingChange(sound, slot, path, value);
-	if (deluge::bridge::typedWriteAudit().enabled) {
+	const auto change = settingChange(sound, path, value);
+	if (slot != nullptr && deluge::bridge::typedWriteAudit().enabled) {
 		const deluge::instrument::SoundState& before = *sound.boundState();
 		deluge::bridge::auditSettingWrite(
 		    before, path, value,
-		    encodedChange(sound, before, path, value, {.input_tick_magnitude = slot.tick_magnitude}), change);
+		    encodedChange(sound, before, path, value, {.input_tick_magnitude = slot->tick_magnitude}), change);
 	}
 	Error error = change ? deluge::bridge::commitState(sound, *change, song) : Error::UNSPECIFIED;
 	// The state holds the value, whether or not a file of this sound would (an FM sound's oscillator type), and the
@@ -81,6 +80,16 @@ Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot,
 	return error;
 }
 
+Error setUnslottedSetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value,
+                          ::Song& song) {
+	const std::optional<deluge::serialization::Value> canonical = deluge::instrument::canonical_setting(path, value);
+	if (!canonical || !deluge::instrument::takes_setting(*sound.boundState(), path)
+	    || !deluge::instrument::allows_setting(*sound.boundState(), path, *canonical)) {
+		return Error::UNSPECIFIED;
+	}
+	return commitEngineSetting(sound, nullptr, path, *canonical, song);
+}
+
 Error SetEngineSetting::apply(Context& ctx) {
 	deluge::project::InstrumentSlot* slot = ctx.model.resolveSlot(slot_);
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
@@ -90,7 +99,7 @@ Error SetEngineSetting::apply(Context& ctx) {
 	    || !deluge::instrument::allows_setting(*sound->boundState(), path_, *value)) {
 		return Error::UNSPECIFIED;
 	}
-	return commitEngineSetting(*sound, *slot, path_, *value, ctx.song);
+	return commitEngineSetting(*sound, slot, path_, *value, ctx.song);
 }
 
 } // namespace deluge::edits

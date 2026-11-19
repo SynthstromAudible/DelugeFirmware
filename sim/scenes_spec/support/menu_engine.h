@@ -8,7 +8,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
@@ -33,7 +32,6 @@ struct MenuEngine {
 	ArpeggiatorSettings* arp = nullptr;        ///< the clip's, or the selected drum's
 	Source* source = nullptr;                  ///< the sound's source at the context's index
 	MultiRange* range = nullptr;               ///< the source's range at the context's index
-	SampleControls* sample_controls = nullptr; ///< the source's, or the audio clip's
 	ModControllable* mod = nullptr;            ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };
 
@@ -58,9 +56,6 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 			e.params = &e.clip->paramManager;
 		}
 		e.arp = instrument_clip != nullptr ? &instrument_clip->arpSettings : nullptr;
-		if (ctx.is_audio_clip) {
-			e.sample_controls = &static_cast<AudioClip*>(e.clip)->sampleControls;
-		}
 	}
 	if (ctx.is_drum && e.output != nullptr && e.output->type == OutputType::KIT) {
 		Drum* drum = static_cast<Kit*>(e.output)->selectedDrum;
@@ -82,7 +77,6 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 		e.mod = e.sound;
 		if (e.sound != nullptr) {
 			e.source = &e.sound->sources[ctx.source_index];
-			e.sample_controls = &e.source->sampleControls;
 			if (ctx.range_index >= 0 && ctx.range_index < std::ssize(e.source->ranges)) {
 				e.range = e.source->ranges.getElement(ctx.range_index);
 			}

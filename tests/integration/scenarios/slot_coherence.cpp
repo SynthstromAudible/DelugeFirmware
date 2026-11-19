@@ -48,6 +48,22 @@ namespace {
 
 using deluge::serialization::Value;
 
+/// @p record with what @p sound's runtime still holds of it in its place: the sidechain send and MIDI output, each
+/// oscillator's type, DX7 patch and ranges, and the effects the render plays. The rest the sound plays through its
+/// config, which the snapshot check holds to the record.
+deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
+	record.side_chain_send_level = sound.sideChainSendLevel;
+	record.output_midi_channel = sound.outputMidiChannel;
+	record.output_midi_note_for_drum = sound.outputMidiNoteForDrum;
+	record.effects = sound.modControllableSnapshot().effects;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		record.sources[s].osc_type = sound.sources[s].oscType;
+		sound.sources[s].seedDxPatchInto(record.sources[s]);
+		sound.sources[s].seedRangesInto(record.sources[s]);
+	}
+	return record;
+}
+
 /// Every sound of @p output: a synth's own, or a kit's sound drums.
 void forEachSound(Output& output, const std::function<void(Sound&, const std::string&)>& visit) {
 	if (output.type == OutputType::SYNTH) {
@@ -121,12 +137,13 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		return "slot missing";
 	}
 	if (checks.runtime) {
-		const std::string d = deluge::serialization::first_difference(
-		    deluge::instrument::dump_state(sound.seededState()), deluge::instrument::dump_state(record));
+		const deluge::instrument::SoundState held = heldBy(sound, record);
+		const std::string d = deluge::serialization::first_difference(deluge::instrument::dump_state(held),
+		                                                              deluge::instrument::dump_state(record));
 		if (!d.empty()) {
 			return "runtime at " + d;
 		}
-		if (const deluge::effects::EffectStates played = sound.seededState().effects; !(played == record.effects)) {
+		if (const deluge::effects::EffectStates& played = held.effects; !(played == record.effects)) {
 			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
 			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),

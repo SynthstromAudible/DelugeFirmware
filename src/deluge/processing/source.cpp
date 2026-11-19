@@ -24,7 +24,6 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/ranges_retype.h"
-#include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multi_wave_table_range.h"
@@ -35,16 +34,7 @@
 #include <iterator>
 
 Source::Source() {
-
-	transpose = 0;
-	cents = 0;
-	repeatMode = SampleRepeatMode::CUT;
-
-	// Synth stuff
 	oscType = OscType::SQUARE;
-
-	timeStretchAmount = 0;
-
 	defaultRangeI = -1;
 	dxPatch = nullptr;
 }
@@ -58,30 +48,14 @@ Source::~Source() {
 	}
 }
 
+void Source::attachState(deluge::instrument::SourceState* d) {
+	state_ = d;
+}
+
 void Source::bindState(deluge::instrument::SourceState* d) {
 	state_ = d;
-	seedDocSourceScalars();
 	seedDocDxPatch();
 	seedDocRanges();
-}
-
-// Copy the DOM-owned scalars native->record. Run at bind and again at doneReadingFromFile (a SoundDrum binds before
-// its fields are parsed, so the bind-time seed is stale for drums). dxPatch and ranges are seeded separately.
-void Source::seedScalarsInto(deluge::instrument::SourceState& d) const {
-	d.osc_type = oscType;
-	d.transpose = transpose;
-	d.cents = cents;
-	d.repeat_mode = repeatMode;
-	d.time_stretch_amount = timeStretchAmount;
-	d.interpolation_mode = sampleControls.interpolationMode;
-	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
-	d.reversed = sampleControls.reversed;
-}
-
-void Source::seedDocSourceScalars() {
-	if (state_ != nullptr) {
-		seedScalarsInto(*state_);
-	}
 }
 
 void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
@@ -133,53 +107,6 @@ void Source::seedDocRanges() {
 	}
 }
 
-void Source::reflect(const deluge::instrument::SourceState& state) {
-	transpose = state.transpose;
-	cents = state.cents;
-	repeatMode = state.repeat_mode;
-	timeStretchAmount = state.time_stretch_amount;
-	sampleControls.interpolationMode = state.interpolation_mode;
-	sampleControls.pitchAndSpeedAreIndependent = state.pitch_and_speed_independent;
-	if (sampleControls.reversed != state.reversed) {
-		setReversed(state.reversed); // the zones' ends and the clusters' claims follow the direction
-	}
-}
-
-void Source::setTranspose(int16_t newTranspose) {
-	transpose = newTranspose;
-	if (state_ != nullptr) {
-		state_->transpose = newTranspose;
-	}
-}
-
-void Source::setRepeatMode(SampleRepeatMode newMode) {
-	repeatMode = newMode;
-	if (state_ != nullptr) {
-		state_->repeat_mode = newMode;
-	}
-}
-
-void Source::setTimeStretchAmount(int8_t newAmount) {
-	timeStretchAmount = newAmount;
-	if (state_ != nullptr) {
-		state_->time_stretch_amount = newAmount;
-	}
-}
-
-void Source::setInterpolationMode(InterpolationMode newMode) {
-	sampleControls.interpolationMode = newMode;
-	if (state_ != nullptr) {
-		state_->interpolation_mode = newMode;
-	}
-}
-
-void Source::setPitchAndSpeedIndependent(bool independent) {
-	sampleControls.pitchAndSpeedAreIndependent = independent;
-	if (state_ != nullptr) {
-		state_->pitch_and_speed_independent = independent;
-	}
-}
-
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
@@ -187,13 +114,6 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
 	}
 	return 1; // Why did I put 1?
-}
-
-void Source::setCents(int32_t newCents) {
-	cents = newCents;
-	if (state_ != nullptr) {
-		state_->cents = newCents;
-	}
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
@@ -218,13 +138,13 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
 			return deluge::storage::Walk::Stop;
 		}
 		visitor.demand({.holder = ranges.getElement(e)->getAudioFileHolder(),
-		                .reversed = sampleControls.isCurrentlyReversed(),
+		                .reversed = reversed,
 		                .clusterLoadInstruction = CLUSTER_ENQUEUE,
 		                .makeWaveTableWorkAtAllCosts = true});
 	}
@@ -233,24 +153,19 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-void Source::setReversed(bool newReversed) {
-	sampleControls.reversed = newReversed;
-	if (state_ != nullptr) {
-		state_->reversed = newReversed;
-	}
+void Source::followDirection() {
+	const bool reversed = isCurrentlyReversed();
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
 		if (sample) {
-			if (sampleControls.isCurrentlyReversed() && holder->endPos > sample->lengthInSamples) {
+			if (reversed && holder->endPos > sample->lengthInSamples) {
 				holder->endPos = sample->lengthInSamples;
 			}
-			holder->claimClusterReasons(sampleControls.isCurrentlyReversed());
+			holder->claimClusterReasons(reversed);
 		}
 	}
-	// The endPos fixups above changed range zones: reflect them into the record.
-	seedDocRanges();
 }
 
 MultiRange* Source::getRange(int32_t note) {
@@ -293,7 +208,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 
 		newRange->topNote = 32767;
 		// The range collection just grew from empty: reflect it into the record. Self-guards when unbound (e.g. a
-		// Source being built before adoption); bind/doneReadingFromFile seed it later in that case.
+		// Source being built before adoption); bind or a load's reseedRecord seeds it later in that case.
 		seedDocRanges();
 		return newRange;
 	}
@@ -310,32 +225,6 @@ bool Source::hasAtLeastOneAudioFileLoaded() {
 		}
 	}
 	return false;
-}
-
-void Source::doneReadingFromFile(Sound* sound) {
-
-	SynthMode synthMode = sound->getSynthMode();
-
-	if (synthMode == SynthMode::FM) {
-		oscType = OscType::SINE;
-	}
-	else if (synthMode == SynthMode::RINGMOD) {
-		oscType = std::min(oscType, kLastRingmoddableOscType);
-	}
-	reconcileLiveInputs();
-
-	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
-
-	// A sample oscillator's own tuning moves into each of its ranges
-	if (isActualSampleOscillator) {
-		for (int32_t e = 0; e < std::ssize(ranges); e++) {
-			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
-			range->sampleHolder.transpose += transpose;
-			range->sampleHolder.setCents(range->sampleHolder.cents + cents);
-		}
-		transpose = 0;
-		setCents(0);
-	}
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE

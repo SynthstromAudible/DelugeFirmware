@@ -76,10 +76,12 @@ inline constexpr OscCase kOscCases[] = {
 /// as
 ///        a load does, so the record the menu reads is the sound's truth.
 inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCase& c, int32_t which) {
-	sound.assignSynthMode(c.synth_mode);
+	sound.boundRecord()->synth_mode = c.synth_mode;
+	sound.projectSnapshot();
 	for (int32_t i = 0; i < 2; i++) {
 		Source& s = sound.sources[i];
 		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
+		s.state_->osc_type = s.oscType;
 		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}

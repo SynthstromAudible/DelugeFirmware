@@ -164,18 +164,16 @@ public:
 	///        destroyed when the song is.
 	bool letGoWithSong = false;
 
-	/// @brief The Deluge instrument's settings for this sound, once bound: its record's state from Song::adoptOutput /
-	/// adoptDrum on (its own copy, ownedState_, before adoption and once its record goes), null before it is first
-	/// bound (a sound under preview or audition writes its runtime fields and snapshot directly).
+	/// @brief The Deluge instrument's settings for this sound, from its construction on: its own state (ownedState_)
+	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
 	deluge::instrument::SoundState* state_{nullptr};
-	/// @brief Bind this sound's own state and seed it from the runtime fields, which the reader filled before the state
-	/// was bound.
-	void bindState();
-	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds (binding its
-	/// own state first when unbound), its own state moved in or another record's copied, and from then on every setter
-	/// writes the record.
+	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds, its own state
+	/// moved in or another record's copied, and from then on every setter writes the record.
 	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
 	void bindState(deluge::instrument::SoundState& record);
+	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
+	/// record a drum's kit bound it to, else in the sound's own state, which its record takes when it is adopted.
+	void adoptState(deluge::instrument::SoundState loaded);
 	/// @brief Take the state back from the record the sound is bound into, as the record goes: the state moves into the
 	/// sound's own, which it then plays, and the record is left empty. Nothing when it plays its own state already, or
 	/// none.
@@ -189,29 +187,20 @@ public:
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
 	Error applyState(const deluge::instrument::SoundState& state);
-	/// @brief The state binding would seed from this sound's runtime fields now (bound or not), through the same seeds.
-	/// @return The seeded state.
-	[[nodiscard]] deluge::instrument::SoundState seededState() const;
-	/// @brief Copy the DOM-owned scalars from the runtime fields into the record.
-	///
-	/// @pre state_ is bound.
-	/// @note Run from bindState and again at doneReadingFromFile: a SoundDrum's adoptDrum binds the record before its
-	///       fields are parsed, so the bind-time seed is stale for drums and must be refreshed once parsing has
-	///       finished.
-	void seedDocSoundScalars();
-	/// @brief Copy the scalars seedDocSoundScalars copies, into @p d.
-	/// @param d The record to fill.
-	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
 	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
 	/// doneReadingFromFile and after edits; the render reads it.
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
 	deluge::synth::SoundConfig config_{};
-	/// @brief Re-derive config_ from state_; an unbound sound takes its oscillators' settings from them.
+	/// @brief Re-derive config_ from state_.
 	void projectSnapshot();
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
+	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
+	[[nodiscard]] bool playsReversed(int32_t s) const {
+		return config_.sources[s].reversed != sources[s].invertReversed;
+	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
 	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
@@ -256,44 +245,7 @@ public:
 
 	int32_t lastNoteCode = std::numeric_limits<int32_t>::min();
 
-	/// @brief Set the voice priority.
-	///
-	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
-	/// @param value New priority.
-	void setVoicePriority(VoicePriority value);
-
-	// Setters for the scalar fields the record owns (SoundState). The native fields are kept as caches, seeded at
-	// bind, so the recipe is uniform whether the field is hot like oscillatorSync or cold. Each writes the record
-	// (when bound) and the cache; every runtime write site funnels through these, and save reads the record.
-	void setMaxVoiceCount(uint8_t value);
-	void setSideChainSendLevel(int32_t value);
-	void setOutputMidiChannel(uint8_t value);
-	void setOutputMidiNoteForDrum(uint8_t value);
-	void setOscillatorSync(bool value);
-	// The top-level scalars follow the same recipe; setSynthMode / setNumUnison / setUnison* /
-	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
-	void setPolyphonic(PolyphonyMode value);
-	void setTranspose(int16_t value);
 	[[nodiscard]] int16_t getTranspose() const { return config_.voicing.transpose; }
-	void setModulator1ToModulator0(bool value);
-	void setOscRetriggerPhase(int32_t s, uint32_t value);
-	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
-	// Store a modulator's transpose without setModulatorTranspose()'s phase-increment recalculation — for the load
-	// path.
-	void assignModulatorTranspose(int32_t m, int16_t value);
-	// Store a modulator's cents without setModulatorCents()'s tuner and phase-increment recalculation — for the load
-	// path.
-	void assignModulatorCents(int32_t m, int8_t value);
-	// Store the unison settings without recomputing the unison tables — for the load path and default setup;
-	// doneReadingFromFile() and projectSnapshot() compute the tables.
-	void assignNumUnison(uint8_t value);
-	void assignUnisonDetune(int8_t value);
-	void assignUnisonStereoSpread(uint8_t value);
-	// LFO config: the record is authoritative, the render reads a hot cache. Sync writes both fields together to match
-	// the menu gesture (one sync value sets type and level).
-	void setLfoWaveType(int32_t lfoId, LFOType value);
-	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
 	bool skippingRendering = true;
 
@@ -356,14 +308,9 @@ public:
 	bool hasFilters();
 
 	void sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack);
-	void setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack);
 	/// @brief Give the live voices' sample parts the new unison count: a part that comes plays on from its neighbour,
 	/// a part that goes lets go of its clusters. The count, detunes and level are already the new ones.
 	void revoiceUnison(int32_t oldNum, int32_t newNum, ModelStackWithSoundFlags* modelStack);
-	void setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack);
-	void setUnisonStereoSpread(int32_t newAmount);
-	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
 	/// @param knobsSong   The song whose table holds the sound's learned knobs (the one being saved, or the one a
@@ -397,18 +344,13 @@ public:
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(SynthMode value, Song* song);
 	[[nodiscard]] SynthMode getSynthMode() const { return config_.engine.mode; }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
-	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
-	// effects (voice kill, filter modes, patching) — for the load path.
-	void assignSynthMode(SynthMode value);
 
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	void set_cents(int8_t new_cents);
 	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
 	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
@@ -432,8 +374,8 @@ public:
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
 	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
-	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
-	/// reproject the snapshot. Does nothing when unbound.
+	/// @brief Re-read the record's effects, DX7 patches and ranges from the runtime, as binding seeds them; then
+	/// reproject the snapshot.
 	///
 	/// For what a load makes of a sound after binding (an end clamped to its sample's length, a path found in
 	/// another folder).

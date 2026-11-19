@@ -14,45 +14,45 @@ namespace deluge::instrument::test {
 /// States across what each entry's encoding depends on.
 inline std::vector<std::pair<std::string, SoundState>> matrix() {
 	std::vector<std::pair<std::string, SoundState>> states;
-	states.emplace_back("new", new_synth_state());
+	states.emplace_back("new", SoundState{});
 
-	SoundState fm = new_synth_state();
+	SoundState fm = SoundState{};
 	fm.synth_mode = SynthMode::FM;
 	fm.modulator_transpose = {3, -2};
 	fm.modulator1_to_modulator0 = true;
 	states.emplace_back("fm", fm);
 
-	SoundState ring = new_synth_state();
+	SoundState ring = SoundState{};
 	ring.synth_mode = SynthMode::RINGMOD;
 	ring.sources[1].osc_type = OscType::SAW;
 	states.emplace_back("ringmod", ring);
 
-	SoundState sample = new_synth_state();
+	SoundState sample = SoundState{};
 	sample.sources[0].osc_type = OscType::SAMPLE;
 	sample.sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	sample.sources[0].ranges = {RangeState{.top_note = 60, .file_path = "SAMPLES/a.wav", .end_pos = 100},
 	                            RangeState{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .end_pos = 200}};
 	states.emplace_back("ranged sample", sample);
 
-	SoundState dx = new_synth_state();
+	SoundState dx = SoundState{};
 	dx.sources[1].osc_type = OscType::DX7;
 	dx.sources[1].dx_patch = DxPatchState{.engine_mode = 2, .random_detune = 5};
 	dx.sources[1].dx_patch->params[7] = 42;
 	states.emplace_back("dx7", dx);
 
-	SoundState wavetable = new_synth_state();
+	SoundState wavetable = SoundState{};
 	wavetable.sources[0].osc_type = OscType::WAVETABLE;
 	wavetable.sources[0].ranges = {RangeState{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}};
 	wavetable.oscillator_sync = true;
 	states.emplace_back("wavetable", wavetable);
 
-	SoundState synced = new_synth_state();
+	SoundState synced = SoundState{};
 	synced.lfo_sync_level[1] = deluge::plugin::SyncLevel::EIGHTH;
 	synced.effects.delay.sync_level = deluge::plugin::SyncLevel::QUARTER;
 	synced.effects.sidechain.sync_level = deluge::plugin::SyncLevel::SIXTEENTH;
 	states.emplace_back("synced", synced);
 
-	SoundState nonzero = new_synth_state();
+	SoundState nonzero = SoundState{};
 	nonzero.transpose = 5;
 	nonzero.cents = -7;
 	nonzero.side_chain_send_level = 1234;

@@ -30,7 +30,6 @@ class SampleCache;
 class Sample;
 class VoiceSamplePlaybackGuide;
 class Source;
-class SampleControls;
 
 class VoiceSample final : public SampleLowLevelReader {
 public:
@@ -72,7 +71,7 @@ public:
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);
-	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
+	bool possiblySetUpCache(InterpolationMode interpolationMode, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                        int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType);
 	bool fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                                     int32_t numSamplesTilLoop, int32_t playDirection, int32_t priorityRating);

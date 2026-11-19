@@ -62,12 +62,12 @@ struct DxPatchState {
 
 /// @brief One of a sound's two sources.
 struct SourceState {
-	OscType osc_type{OscType::SINE};
+	OscType osc_type{OscType::SQUARE};
 	int16_t transpose{0}; ///< semitones; non-sample types only
 	int8_t cents{0};      ///< non-sample types only
 	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
 	int8_t time_stretch_amount{0};
-	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::LINEAR};
+	plugin::InterpolationMode interpolation_mode{plugin::InterpolationMode::SMOOTH};
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
 	std::optional<DxPatchState> dx_patch; ///< present iff the source has a DX7 patch
@@ -75,27 +75,28 @@ struct SourceState {
 	bool operator==(const SourceState&) const = default;
 };
 
-/// @brief The Deluge instrument's settings for one sound: everything about it that is not a param.
+/// @brief The Deluge instrument's settings for one sound: everything about it that is not a param. A default state is
+/// a new synth's, but for the two effect settings that follow the song (with_song_defaults).
 struct SoundState {
 	plugin::VoicePriority voice_priority{plugin::VoicePriority::MEDIUM};
-	uint8_t max_voice_count{0};
+	uint8_t max_voice_count{8};
 	int32_t side_chain_send_level{0};
-	uint8_t output_midi_channel{0};
-	uint8_t output_midi_note_for_drum{0};
+	uint8_t output_midi_channel{255};       ///< 255 = none
+	uint8_t output_midi_note_for_drum{255}; ///< 255 = none
 	bool oscillator_sync{false};
-	PolyphonyMode polyphonic{PolyphonyMode::AUTO};
+	PolyphonyMode polyphonic{PolyphonyMode::POLY};
 	SynthMode synth_mode{SynthMode::SUBTRACTIVE};
 	int16_t transpose{0}; ///< semitones
 	int8_t cents{0};      ///< master fine tune, −50..50
-	uint8_t num_unison{0};
-	int8_t unison_detune{0};
+	uint8_t num_unison{1};
+	int8_t unison_detune{8};
 	uint8_t unison_stereo_spread{0};
 	bool modulator1_to_modulator0{false};
-	std::array<int16_t, 2> modulator_transpose{};
+	std::array<int16_t, 2> modulator_transpose{0, -12};
 	std::array<int8_t, 2> modulator_cents{};
-	std::array<uint32_t, 2> osc_retrigger_phase{};       ///< 0xFFFFFFFF = free-running
-	std::array<uint32_t, 2> modulator_retrigger_phase{}; ///< 0xFFFFFFFF = free-running
-	std::array<LFOType, 4> lfo_wave_type{};
+	std::array<uint32_t, 2> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF}; ///< 0xFFFFFFFF = free-running
+	std::array<uint32_t, 2> modulator_retrigger_phase{};                 ///< 0xFFFFFFFF = free-running
+	std::array<LFOType, 4> lfo_wave_type{LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE};
 	std::array<plugin::SyncType, 4> lfo_sync_type{};
 	std::array<plugin::SyncLevel, 4> lfo_sync_level{};
 	deluge::effects::EffectStates effects; ///< the sound's own effects' settings

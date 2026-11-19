@@ -29,6 +29,10 @@ namespace deluge::model {
 /// @brief An effects owner's settings and the render's copy of them. The settings live in a record (a sound's
 /// SoundState, a host chain's FxChain) while one is bound, else here. The render reads only the copy, which project()
 /// replaces with the render excluded, together with the ring, grain and delay memory the settings need.
+/// @brief The effect settings a new owner takes from the song being loaded, or else the current one (with neither, the
+/// stored default tick magnitude).
+[[nodiscard]] deluge::effects::SongDefaults songDefaults();
+
 class EffectsBinding {
 public:
 	/// @brief Default settings: the delay synced at the pre-loaded (else current) song's tick magnitude, the default
@@ -42,7 +46,7 @@ public:
 	/// @param next The new settings.
 	void store(const deluge::effects::EffectStates& next);
 
-	/// @brief Keeps the settings in @p record, which takes the settings held now; nullptr keeps them here again,
+	/// @brief Plays the settings @p record holds, and keeps every later store in it; nullptr keeps them here again,
 	/// copying the record's back. Does not project.
 	/// @param record The record that holds the settings, or nullptr.
 	void bind(deluge::effects::EffectStates* record);

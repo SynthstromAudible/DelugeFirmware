@@ -37,6 +37,7 @@
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/words.h"
 #include "model/edits/setting_edit.h"
 #include "model/fx/mod_fx_names.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -377,6 +378,7 @@ struct Rig {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (Source& source : sound->sources) {
 			source.oscType = OscType::SQUARE;
+			source.state_->osc_type = OscType::SQUARE;
 			source.ranges.clear();
 		}
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -1721,7 +1723,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open_real(menu::nodes::source_group);
-		spec::menu_engine(ctx).sound->setSynthMode(SynthMode::FM, r.song.song);
+		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "mode",
+		                          deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(SynthMode::FM))));
+		expect(spec::menu_engine(ctx).sound->getSynthMode()).to_equal(SynthMode::FM);
 		const Node* listed[menu::kMaxDynamicChildren];
 		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),
 		                                                       listed, menu::bindings::ListFor::Columns);

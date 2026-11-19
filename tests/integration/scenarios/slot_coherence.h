@@ -35,12 +35,12 @@ namespace deluge::harness {
 
 /// @brief Which equations a coherence check holds a sound to.
 struct CoherenceChecks {
-	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
-	bool bound = true;         ///< the sound plays its slot's state: the record's, not a copy of it
-	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
-	bool controls = true;      ///< its controls record == its mod knobs; no learned knob outside the table
-	bool decode = true;        ///< the record encoded at the slot's magnitude, then decoded == the record
-	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
+	bool runtime = true;  ///< what the runtime still holds == the record: host fields, types, patches, ranges, effects
+	bool bound = true;    ///< the sound plays its slot's state: the record's, not a copy of it
+	bool snapshot = true; ///< the snapshot == projectSnapshot() of the record
+	bool controls = true; ///< its controls record == its mod knobs; no learned knob outside the table
+	bool decode = true;   ///< the record encoded at the slot's magnitude, then decoded == the record
+	bool chains = true;   ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
 	/// The leg is expected to break: each break is printed as EXPECTED-INCOHERENT, not FAIL.
 	bool expect_incoherent = false;
