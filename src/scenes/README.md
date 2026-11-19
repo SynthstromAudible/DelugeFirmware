@@ -736,7 +736,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | Shift + a horizontal turn on the DX7 parameter page at the pitch envelope's first rate, every operator off: legacy hangs, the port stays on the param. | `tests/ui-scripts/parity/DIFFERENCES.md` D87 |
 | The DX7 shortcut fallback tests the pad's source on this sound, where legacy tests the source the previous menu left. | `tests/ui-scripts/parity/DIFFERENCES.md` D90 |
 | The marker editor draws the h/m unit letters beside their digits; legacy draws them at a fixed `x = 6`, over the digits, past a minute. | `ui/oled/sample_position.h` |
-| The note leaves' `get`, `adjust`, `permitted` and `value_text` hooks call the note bridge unguarded: a harness that opens a note root without `wireShellNoteBridge()` crashes on the first read. | `menu/nodes/note.cpp` |
 | Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
 
 ## Features `main` has that the scenes do not

@@ -75,6 +75,7 @@
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "notify/dirty_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -2132,6 +2133,56 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		uiTimerManager.unsetTimer(TimerName::DISPLAY_AUTOMATION);
 		view.knobFocus() = savedFocus;
 		view.knobFocusChanged();
+		closeGuest();
+	});
+	it("clears the published owner and params when a song swap resets the menu's context", _ {
+		// `MenuScene::on_model_changed`'s `SongSwapped` arm drops the context, whose addresses named the old song; the
+		// published pair goes with it rather than outliving the song.
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+
+		deluge::notify::DirtySet dirty;
+		dirty.raise(deluge::notify::Dirty::SongSwapped);
+		deluge::scenes::menu_scene().on_model_changed(dirty);
+		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(entry::soundMenuParamManager()).to_be_null();
+		closeGuest();
+	});
+
+	it("clears the published owner and params when the menu forgets its context for a teardown", _ {
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+
+		entry::forgetShellMenuContext();
+		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(entry::soundMenuParamManager()).to_be_null();
+		closeGuest();
+	});
+
+	it("publishes what an open made on the scene itself edits, as every open does", _ {
+		// `MenuScene::open` installs its context through the same hook as a re-root and an adopt, so an open that does
+		// not come through `openShellMenu` publishes too. The guest stays open, so no teardown publishes in between.
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(entry::soundMenuModControllable()).to_equal(static_cast<ModControllable*>(drum));
+
+		deluge::scenes::menu_scene().open(nodes::root_song, menu::MenuContext{});
+		expect(entry::soundMenuModControllable()).to_be_null();
+		expect(entry::soundMenuParamManager()).to_be_null();
 		closeGuest();
 	});
 });

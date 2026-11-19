@@ -193,7 +193,6 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 		else {
 			deluge::scenes::menu_scene().reroot_at(root, ctx, arg, shortcut);
 		}
-		publishShellMenuTarget();
 		shellHostUI.refreshRootFacts();
 		display->cancelPopup();
 		return true;
@@ -201,9 +200,6 @@ bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t ar
 	// A guest torn down without its close (`nullifyUIs`) leaves the creator's drum behind; a new guest is not its.
 	forgetShellDrumCreator();
 	deluge::scenes::menu_scene().open(root, ctx);
-	// The legacy views read the sound menu's owner and params while it is open: the automation view's model stacks and
-	// the automation display.
-	publishShellMenuTarget();
 	if (shortcut != nullptr) {
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);
 	}

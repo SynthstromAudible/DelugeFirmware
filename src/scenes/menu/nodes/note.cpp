@@ -69,11 +69,18 @@ constexpr IteranceFamily kNoteFamily{&NoteBridge::note_iterance, &NoteBridge::se
 constexpr IteranceFamily kRowFamily{&NoteBridge::row_iterance, &NoteBridge::set_row_iterance,
                                     &NoteBridge::row_auditioning};
 
+// Every read through the bridge below answers as if nothing were selected while no bridge is installed (a harness that
+// never wires one, a whole-tree sweep): zero, no write, no target.
 int32_t iterance_raw(const IteranceFamily& family) {
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
 	return (note_bridge()->*family.raw_get)();
 }
 void iterance_raw_set(const IteranceFamily& family, int32_t value) {
-	(note_bridge()->*family.raw_set)(value);
+	if (note_bridge() != nullptr) {
+		(note_bridge()->*family.raw_set)(value);
+	}
 }
 /// @brief Is there a note (row family: a note row) to edit at all? The note family's
 ///        `note_selected()` and the row family's `row_auditioning()` are each already the bridge's
@@ -85,7 +92,7 @@ void iterance_raw_set(const IteranceFamily& family, int32_t value) {
 ///        the bridge does not expose directly; these are the closest answer it has, and the one the
 ///        rest of this file already treats as "a note (row) is selected to edit".
 bool iterance_has_target(const IteranceFamily& family) {
-	return (note_bridge()->*family.has_target)();
+	return note_bridge() != nullptr && (note_bridge()->*family.has_target)();
 }
 
 /// `IterancePreset::readCurrentValue` converts the leftmost note's raw iterance to a preset index
@@ -174,7 +181,7 @@ bool iterance_step_relevant(const IteranceFamily& family, int32_t index) {
 // -------------------------------------------------------------------------------------------
 
 bool permitted_note(const MenuContext&) {
-	if (note_bridge()->note_selected()) {
+	if (note_bridge() != nullptr && note_bridge()->note_selected()) {
 		return true;
 	}
 	deluge::notify::notice_text("Select Note"); // `note/selected_note.h`
@@ -182,10 +189,10 @@ bool permitted_note(const MenuContext&) {
 }
 
 bool permitted_row(const MenuContext&) {
-	if (note_bridge()->row_auditioning()) {
+	if (note_bridge() != nullptr && note_bridge()->row_auditioning()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Row"); // `note_row/selected_note_row.h:36`
+	deluge::notify::notice_text("Select Row"); // `note_row/selected_note_row.h`
 	return false;
 }
 
@@ -242,6 +249,9 @@ ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse us
 	}
 	if (value == kCustomIterancePreset) {
 		return ValueText{write_text("CUSTOM", out), false};
+	}
+	if (note_bridge() == nullptr) {
+		return kValueTextFallback;
 	}
 	const bool compact = use == ValueTextUse::Column;
 	return ValueText{note_bridge()->iterance_preset_label(value, compact, out), false};
@@ -300,35 +310,57 @@ ValueText leaf_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse
 
 int32_t get_note_velocity(const MenuContext&) {
 	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::readCurrentValue`
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
 	return note_bridge()->note_velocity();
 }
 void adjust_note_velocity(const MenuContext&, int32_t offset) {
 	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::selectEncoderAction`
-	note_bridge()->adjust_note_velocity(offset);
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_note_velocity(offset);
+	}
 }
 
 int32_t get_note_probability(const MenuContext&) {
-	return note_bridge()->note_probability(); // `note/probability.h:44-50`
+	// `origin/main:src/deluge/gui/menu_item/note/probability.h` `Probability::readCurrentValue`
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
+	return note_bridge()->note_probability();
 }
 void adjust_note_probability(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_note_probability(offset); // `note/probability.h:52-55`
+	// `origin/main:src/deluge/gui/menu_item/note/probability.h` `Probability::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_note_probability(offset);
+	}
 }
 
 int32_t get_note_iterance(const MenuContext&) {
 	return get_iterance_preset(kNoteFamily);
 }
 void adjust_note_iterance(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_note_iterance(offset); // `note/iterance_preset.h:54-57`
+	// `origin/main:src/deluge/gui/menu_item/note/iterance_preset.h` `IterancePreset::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_note_iterance(offset);
+	}
 }
 bool note_iterance_is_custom(const MenuContext&) {
 	return iterance_is_custom(kNoteFamily);
 }
 
 int32_t get_note_fill(const MenuContext&) {
-	return note_bridge()->note_fill(); // `note/fill.h:44-50`
+	// `origin/main:src/deluge/gui/menu_item/note/fill.h` `Fill::readCurrentValue`
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
+	return note_bridge()->note_fill();
 }
 void adjust_note_fill(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_note_fill(offset); // `note/fill.h:52-55`
+	// `origin/main:src/deluge/gui/menu_item/note/fill.h` `Fill::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_note_fill(offset);
+	}
 }
 
 int32_t get_note_iterance_divisor(const MenuContext&) {
@@ -363,27 +395,44 @@ DELUGE_ITERANCE_STEP_HOOKS(note, kNoteFamily, 8, 7)
 // -------------------------------------------------------------------------------------------
 
 int32_t get_note_row_probability(const MenuContext&) {
-	return note_bridge()->row_probability(); // `note_row/probability.h:43-53`
+	// `origin/main:src/deluge/gui/menu_item/note_row/probability.h` `Probability::readCurrentValue`
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
+	return note_bridge()->row_probability();
 }
 void adjust_note_row_probability(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_row_probability(offset); // `note_row/probability.h:55-61`
+	// `origin/main:src/deluge/gui/menu_item/note_row/probability.h` `Probability::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_row_probability(offset);
+	}
 }
 
 int32_t get_note_row_iterance(const MenuContext&) {
 	return get_iterance_preset(kRowFamily);
 }
 void adjust_note_row_iterance(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_row_iterance(offset); // `note_row/iterance_preset.h:62-70`
+	// `origin/main:src/deluge/gui/menu_item/note_row/iterance_preset.h` `IterancePreset::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_row_iterance(offset);
+	}
 }
 bool note_row_iterance_is_custom(const MenuContext&) {
 	return iterance_is_custom(kRowFamily);
 }
 
 int32_t get_note_row_fill(const MenuContext&) {
-	return note_bridge()->row_fill(); // `note_row/fill.h:44-54`
+	// `origin/main:src/deluge/gui/menu_item/note_row/fill.h` `Fill::readCurrentValue`
+	if (note_bridge() == nullptr) {
+		return 0;
+	}
+	return note_bridge()->row_fill();
 }
 void adjust_note_row_fill(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_row_fill(offset); // `note_row/fill.h:56-65`
+	// `origin/main:src/deluge/gui/menu_item/note_row/fill.h` `Fill::selectEncoderAction`
+	if (note_bridge() != nullptr) {
+		note_bridge()->adjust_row_fill(offset);
+	}
 }
 
 int32_t get_note_row_iterance_divisor(const MenuContext&) {

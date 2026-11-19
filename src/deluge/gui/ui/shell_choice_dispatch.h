@@ -189,8 +189,8 @@ using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
 void setFolderImportDispatch(FolderImportDispatch dispatch);
 
 /// @brief Publish the owner and params of what the ported menu edits now, for `soundMenuModControllable` and
-///        `soundMenuParamManager` (`util/sound_menu_open.h`). The menu's context-adopted hook, and every open and
-///        re-root of the guest, call it.
+///        `soundMenuParamManager` (`util/sound_menu_open.h`). The menu calls it through its context hook whenever its
+///        context changes: every open and re-root, a kit-global adopt, a forget and a song swap.
 void publishShellMenuTarget();
 
 /// @brief The engine objects the ported menu's context names now, resolved in the current song: what a claim, an import

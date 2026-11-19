@@ -104,8 +104,9 @@ public:
 	void open(const Node& root, const MenuContext& ctx);
 
 	/// @brief Forget what the menu was open on, for its host's teardown of every UI: the song may go next, and the
-	///        next `open()` installs a fresh context anyway.
-	void forget_context() { ctx_ = MenuContext{}; }
+	///        next `open()` installs a fresh context anyway. What the host published from the context goes with it
+	///        (`install_context`).
+	void forget_context() { install_context(MenuContext{}); }
 
 	/// @brief Back to what a boot leaves: every submenu's remembered row forgotten (each legacy `Submenu` keeps its
 	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
@@ -243,8 +244,10 @@ public:
 	using KitGlobalShortcutFn = std::optional<MenuContext> (*)(const MenuContext& open);
 	/// @brief Install the host's `KitGlobalShortcutFn`; null answers `nullopt` always.
 	void set_kit_global_shortcut_source(KitGlobalShortcutFn source) { kit_global_shortcut_source_ = source; }
-	/// @brief Run @p hook when a shortcut press moves the menu onto the kit's own effects, before anything else of the
-	///        tick reads the editor's context: legacy's `setup()` re-points its editor there at once.
+	/// @brief Run @p hook whenever the menu's context changes (`install_context`): every `open` and re-root, a shortcut
+	///        press moving the menu onto the kit's own effects, `forget_context` and a song swap. The host republishes
+	///        what the menu edits from it, before anything else of the tick reads the editor's context, as legacy's
+	///        `setup()` re-points its editor at once.
 	/// @param hook The host's adopt, or null for none.
 	void set_context_adopted_hook(void (*hook)()) { context_adopted_hook_ = hook; }
 	/// @brief Run @p hook after a shortcut jump from a scene over the menu (`shortcut_jump`, the marker editor's):
@@ -577,7 +580,8 @@ private:
 	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while
 	///        `kit_global_shortcut_context` answers, else the menu's.
 	MenuContext::Root shortcut_root() const;
-	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`).
+	/// @brief Make @p ctx the menu's context and hand it to the host (`set_context_adopted_hook`). Every write of the
+	///        context goes through here.
 	void install_context(const MenuContext& ctx);
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
@@ -625,7 +629,7 @@ private:
 	MenuContext ctx_{};
 	/// @brief The host's live kit-global answer (`set_kit_global_shortcut_source`).
 	KitGlobalShortcutFn kit_global_shortcut_source_ = nullptr;
-	/// @brief The host's adopt after a press moves the menu (`set_context_adopted_hook`).
+	/// @brief The host's hook, run on every change of the context (`set_context_adopted_hook`).
 	void (*context_adopted_hook_)() = nullptr;
 	/// @brief The host's write after a jump from a scene over the menu (`set_reentry_hook`).
 	void (*reentry_hook_)() = nullptr;

@@ -415,6 +415,39 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		expect(nodes::note_iterance.select_chain(ctx, state)).to_be_null();
 		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_be_null();
 	});
+	it("reads zero, writes nothing and refuses every edit on the note leaves", _ {
+		// A harness that opens a note root without `wireShellNoteBridge()`: every read through the bridge answers as if
+		// nothing were selected, a write goes nowhere, both guards refuse, and the iterance label falls back.
+		select_language();
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		(void)drain_last_notice();
+
+		expect(nodes::get_note_velocity(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_probability(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_fill(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_probability(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_fill(ctx)).to_equal(int32_t(0));
+
+		nodes::adjust_note_velocity(ctx, 1);
+		nodes::adjust_note_probability(ctx, 1);
+		nodes::adjust_note_iterance(ctx, 1);
+		nodes::adjust_note_fill(ctx, 1);
+		nodes::adjust_note_row_probability(ctx, 1);
+		nodes::adjust_note_row_iterance(ctx, 1);
+		nodes::adjust_note_row_fill(ctx, 1);
+		nodes::set_note_iterance_divisor(ctx, 2);
+		nodes::set_note_row_iterance_divisor(ctx, 2);
+
+		expect(nodes::note_velocity.bind.permitted(ctx)).to_be_false();
+		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(nodes::note_row_probability.bind.permitted(ctx)).to_be_false();
+		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
+		expect(value_text_string(nodes::note_iterance.bind.value_text, ctx, 5, ValueTextUse::Column))
+		    .to_equal(std::string{});
+	});
 });
 
 describe note_nodes_select_chain("scenes::menu note editor/note-row editor: the iterance chain", $ {

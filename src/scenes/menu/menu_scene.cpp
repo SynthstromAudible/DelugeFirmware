@@ -85,7 +85,7 @@ int64_t pow10_of(int32_t exponent) {
 // Lifecycle
 
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
-	ctx_ = ctx;
+	install_context(ctx);
 	refused_recorder_landing_ = nullptr;
 	pushed_kind_ = SceneKind::Null;
 	pushed_scene_refused_ = false;
@@ -524,7 +524,7 @@ void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 		const DxState dx = st_.dx;
 		st_ = MenuState{};
 		st_.dx = dx;
-		ctx_ = MenuContext{};
+		install_context(MenuContext{});
 	}
 }
 
