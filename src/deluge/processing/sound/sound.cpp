@@ -2892,11 +2892,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 				return Error::INSUFFICIENT_RAM;
 			}
 			std::ranges::copy(from.dx_patch->params, patch->params.begin());
-			// A file names an engine only when it is not "auto" (0), and only then is the engine chosen again: an auto
-			// patch keeps the engine its new patch was given.
-			if (from.dx_patch->engine_mode != 0) {
-				patch->setEngineMode(from.dx_patch->engine_mode);
-			}
+			// The engine follows the bytes: an auto patch on algorithm 4 or 6 with feedback renders in MkI
+			patch->setEngineMode(from.dx_patch->engine_mode);
 			patch->random_detune = from.dx_patch->random_detune;
 		}
 
