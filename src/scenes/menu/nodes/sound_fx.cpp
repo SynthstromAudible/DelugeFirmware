@@ -34,7 +34,7 @@
 #include "effects/state.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "model/song/song.h"
 #include "modulation/sync.h"
 #include "plugin-api/types/sync.h"
@@ -78,7 +78,7 @@ std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) 
 	}
 	if (ctx.addresses.slot) {
 		const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
-		return state != nullptr ? std::optional{state->effects.stutter} : std::nullopt;
+		return state != nullptr ? std::optional{deluge::instrument::sound_effects(*state).stutter} : std::nullopt;
 	}
 	if (ctx.addresses.chain) {
 		const deluge::effects::EffectStates* effects = ctx.facts->chain_effects(*ctx.addresses.chain);

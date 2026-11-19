@@ -20,6 +20,7 @@
 
 #include "scenes/menu/nodes/multi_range.h"
 #include "deluge-project/song.h"
+#include "instruments/deluge/state_access.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -152,7 +153,8 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 	}
 	const instrument::SoundState* sound =
 	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
-	if (sound == nullptr || sound->sources[source].osc_type != OscType::SAMPLE) {
+	if (sound == nullptr
+	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != OscType::SAMPLE) {
 		return 0;
 	}
 	char* buf = out.data();

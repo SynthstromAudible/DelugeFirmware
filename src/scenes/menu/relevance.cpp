@@ -38,7 +38,7 @@
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/state_access.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
@@ -51,6 +51,9 @@ namespace deluge::scenes::menu::relevance {
 namespace {
 
 using deluge::instrument::OscType;
+using deluge::instrument::source_type;
+using deluge::instrument::SourceId;
+using deluge::instrument::synth_mode;
 using deluge::instrument::SynthMode;
 
 /// @brief The edited sound's state, as its record holds it, or null where the context edits no sound.
@@ -67,8 +70,8 @@ bool loaded(const MenuContext& ctx, uint8_t index) {
 /// @brief `isSampleModeSample` (`gui/menu_item/sample/utils.cpp:9-15`).
 bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
-	return state != nullptr && state->synth_mode == SynthMode::SUBTRACTIVE
-	       && state->sources[index].osc_type == OscType::SAMPLE && loaded(ctx, index);
+	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE
+	       && source_type(*state, static_cast<SourceId>(index)) == OscType::SAMPLE && loaded(ctx, index);
 }
 
 /// @brief `FileSelector::isRelevant` (`gui/menu_item/file_selector.cpp:54-65`): browsing can load a sample even when
@@ -81,8 +84,9 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (state == nullptr) {
 		return false;
 	}
-	return state->synth_mode == SynthMode::SUBTRACTIVE
-	       || (state->synth_mode == SynthMode::RINGMOD && state->sources[index].osc_type == OscType::WAVETABLE);
+	return synth_mode(*state) == SynthMode::SUBTRACTIVE
+	       || (synth_mode(*state) == SynthMode::RINGMOD
+	           && source_type(*state, static_cast<SourceId>(index)) == OscType::WAVETABLE);
 }
 
 /// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h`).
@@ -91,7 +95,7 @@ bool transpose(const MenuContext& ctx, uint8_t index) {
 	if (state == nullptr) {
 		return false;
 	}
-	const OscType type = state->sources[index].osc_type;
+	const OscType type = source_type(*state, static_cast<SourceId>(index));
 	if (type == OscType::SAMPLE || type == OscType::WAVETABLE) {
 		return loaded(ctx, index);
 	}
@@ -105,11 +109,11 @@ bool transpose(const MenuContext& ctx, uint8_t index) {
 
 bool is_fm(const MenuContext& ctx) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
-	return state != nullptr && state->synth_mode == SynthMode::FM;
+	return state != nullptr && synth_mode(*state) == SynthMode::FM;
 }
 bool is_subtractive(const MenuContext& ctx) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
-	return state != nullptr && state->synth_mode == SynthMode::SUBTRACTIVE;
+	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE;
 }
 // ---------------------------------------------------------------------------------------------
 // Per-source
@@ -162,7 +166,7 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 		return false;
 	}
 	if (const deluge::instrument::SoundState* state = sound_state(ctx); state != nullptr) {
-		return !state->effects.stutter.use_song_stutter;
+		return !deluge::instrument::sound_effects(*state).stutter.use_song_stutter;
 	}
 	if (!ctx.addresses.chain) {
 		return false;
