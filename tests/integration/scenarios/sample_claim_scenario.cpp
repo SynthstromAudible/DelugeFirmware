@@ -1781,7 +1781,7 @@ void actLeg() {
 		g_cancelLoadingFired = false;
 		g_cancelLoadingInFlight = false;
 		g_cancelLoadingTicks = 0;
-		// The ported browser's auto-load request (`ShellBrowserHost::preview`, then `BrowserScene::preview_settled`):
+		// The scenes browser's auto-load request (`ShellBrowserHost::preview`, then `BrowserScene::preview_settled`):
 		// the sound its menu resolved, no completion.
 		deluge::gui::sampleClaim.request({.path = legFile(),
 		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,

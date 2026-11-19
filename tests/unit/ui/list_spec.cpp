@@ -98,7 +98,7 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("puts the same pixels on the panel through menu_rect as through the whole frame (D5)", _ {
-		// The rect parameter is new; on the legacy rect it must change nothing. Rendered here
+		// The rect parameter is extra; on the legacy rect it must change nothing. Rendered here
 		// against a rect spelled out in legacy literals rather than through menu_rect, so the
 		// helper cannot mask a shift.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};

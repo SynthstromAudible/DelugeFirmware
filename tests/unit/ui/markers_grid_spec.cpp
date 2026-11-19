@@ -39,7 +39,7 @@ constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kNumMarkerTypes = 4;
 
-// Legacy's four marker colours, in MarkerType order (`SampleMarkerEditor::renderMarkerInCol`,
+// Main's four marker colours, in MarkerType order (`SampleMarkerEditor::renderMarkerInCol`,
 // `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`). Spelled out here rather than reached through
 // `gui/colour/colour.h` so the spec pins the values as well as the arithmetic.
 const std::array<RGB, kNumMarkerTypes> kMarkerColours{

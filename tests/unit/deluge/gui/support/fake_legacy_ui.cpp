@@ -214,10 +214,10 @@ bool UITimerManager::isTimerSet(TimerName which) {
 void UITimerManager::workOutNextEventTime() {
 }
 
-// ---------------------------------------------------------------------------
-// The scheduler's share: the two answers the scheduler gives (`getSystemTime()`, declared in
-// `libdeluge/scheduler.h`, and the card-routine answer `isSDRoutineActive()`, which stands for main's
-// `sdRoutineLock`, `origin/main:src/deluge/extern.h`). `extern "C"` as the scheduler's own declarations are.
+// --------------------------------------------------------------------------- The scheduler's share: the two answers
+// the scheduler gives (`getSystemTime()`, declared in `libdeluge/scheduler.h`, and the card-routine answer
+// `isSDRoutineActive()`, which stands for main's `sdRoutineLock`, `origin/main:src/deluge/extern.h`; nothing in the
+// tree declares or calls it). `extern "C"` as the scheduler's own declarations are.
 // ---------------------------------------------------------------------------
 
 extern "C" double getSystemTime() {

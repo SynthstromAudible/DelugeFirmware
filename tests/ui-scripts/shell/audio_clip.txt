@@ -96,7 +96,6 @@
                                  # files the CLEARED popup
 # Snapshotted BEFORE the X-encoder is released, deliberately: the release arm takes the popup down again
 # (`TimelineView::buttonAction`'s `display->cancelPopup()` in `timeline_view.cpp`, ported as a `CancelPopup` notice), so
-# a frame taken after it records the clear with no popup and says nothing about the popup at all. Written the other way
-# round first, and the golden is what showed it.
+# a frame taken after it records the clear with no popup and says nothing about the popup at all.
 2300  button XEnc up
 2400  quit

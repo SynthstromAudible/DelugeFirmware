@@ -1,7 +1,7 @@
 # Level-2 acceptance: a horizontal Submenu
 # (nodes::lpf), opened directly.
 #
-# Legacy's select turn edits the focused column and never moves focus (`HorizontalMenu::selectEncoderAction`,
+# Main's select turn edits the focused column and never moves focus (`HorizontalMenu::selectEncoderAction`,
 # `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`); focus moves only by instrument button (`buttonAction`'s
 # `select_map`), and the gold knobs never touch a horizontal page at all -- they fall through to
 # `services::ModKnobs`, exactly as they do over any other view.

@@ -653,7 +653,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("timer_repaints() can name the grid alone, and the OLED gates are never armed", _ {
-		// The regression the first cut of the fold introduced: `Shell::flush` diffs the grid
+		// A repaint that names only one surface must not blit the other: `Shell::flush` diffs the grid
 		// against `last_sent` and blits nothing when a repaint changed no pixel, but it blits an
 		// OLED surface unconditionally once it has rendered. `MenuScene::timer_repaints()` returns
 		// `{.oled = false, .grid = true}` for exactly this reason -- its timer is the shortcut/

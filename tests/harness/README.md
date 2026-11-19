@@ -122,8 +122,7 @@ Level 3 runs on `golden_vt_render`'s `ui_script` scenario, through the `ui-scrip
 (`tests/integration/checks/ui_scripts.py`).
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
-on top of level 0. A migrated scene's script is meant to run, unmodified, at level 2
-against both the legacy adapter and the new scene -- see "Migration hook" below.
+on top of level 0. A script that passes at level 2 is meant to run, unmodified, at level 3.
 
 ## Adding a script
 
@@ -201,22 +200,8 @@ header):
   (`which == 0` is the mod-encoder-0 = **lower** gold knob); level 2's `IndicatorId` is ordered
   `{Lower = 0, Upper = 1}` to agree, so both levels name the same physical knob the same way.
 
-None of this is a gap to close -- it is what the BSP can physically observe. A migrated
-scene's script should still pass at level 2 against both the legacy adapter and the new scene
-(the migration hook below); level 3 exists to prove the *legacy* boundary continues to work
-exactly as scripted while that migration is in flight.
-
-## Migration hook
-
-`RunOptions::second_registry` (level 2 only) points `expect_script_goldens` at a second scene
-table. When set, the same script is run twice -- once against the call's own `registry`
-argument, once against `*second_registry` -- into sibling `got/<name>/` and
-`got/<name>-second/` trees, and those two trees are diffed **against each other**, not against
-a recorded golden (there is nothing to record ahead of time when the whole point is that two
-independent sources must agree). A failure names the first file, in sorted order, that
-differs or is missing on either side. This is the acceptance test for a migrated scene:
-the same script against `LegacySceneAdapter` and the new scene must produce identical
-snapshots.
+None of this is a gap to close -- it is what the BSP can physically observe. Level 3 exists to
+prove the boundary between the app and the board continues to work exactly as scripted.
 
 ## Deadline (level 3 only)
 

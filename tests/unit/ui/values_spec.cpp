@@ -267,7 +267,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("applies the select turn only when focused and clamps to the range", _ {
-		// Legacy `Integer::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): add, then clamp.
+		// Main's `Integer::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): add, then clamp.
 		uitest::Rig48 r;
 		int32_t value = 125;
 		r.input.turn = 3;
@@ -474,7 +474,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("moves a decimal by 10^edit_pos per select detent", _ {
-		// Legacy `Decimal::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`).
+		// Main's `Decimal::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`).
 		uitest::Rig48 r;
 		int32_t value = 100;
 		int8_t edit_pos = 1;
@@ -891,7 +891,7 @@ describe values_w("ui::oled::values", $ {
 
 	// ---------------------------------------------------------------- range_value
 
-	// `Range::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/range.cpp`) is a *different* legacy routine
+	// `Range::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/range.cpp`) is a *different* routine
 	// from `Integer::drawPixelsForOled`, and the difference is load-bearing: it centres on
 	// `kTextHugeSpacingX * character_count` -- a monospaced width -- where Integer centres on
 	// `get_string_width_in_pixels`. For "60" the two agree by luck; for the strings below they do
@@ -1027,7 +1027,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("moves the selected range edge on the select turn", _ {
-		// Legacy `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
+		// Main's `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
 		uitest::Rig48 r;
 		int32_t lower = 3, upper = 9;
 		RangeEdge edge = RangeEdge::Left;

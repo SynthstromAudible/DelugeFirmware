@@ -30,7 +30,7 @@
 400   encoder Select -64
 420   snapshot after_negative        # clamped at kMinMenuPatchCableValue: "-50.00", the widest
 #                                      string this page can ever draw, and it fits
-# **Look at these two frames.** Legacy draws the value in the 13px "Big" face right-aligned 3px off the edge
+# **Look at these two frames.** Main draws the value in the 13px "Big" face right-aligned 3px off the edge
 # (`PatchCableStrength::renderOLED` in `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), and so does the
 # port (`ui/oled/values.h`'s `DecimalLayout`). The toolkit's default huge face (18px per glyph) would cut the last digit
 # of any value of magnitude 10 or more, and of every negative one, on the panel's right edge.

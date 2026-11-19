@@ -8,7 +8,7 @@
 #     `MenuScene::after_render` copies it into `MenuContext::midi_cable` (mailbox 3);
 #   * which DIRECTION -- `MpeDirectionItem` republishes `MenuState::mpe_direction` every frame
 #     (`scenes/menu/nodes/midi_device.cpp`, main's `DirectionSelector::writeCurrentValue` in
-#     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`);
+#     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`);
 #   * which ZONE -- `MpeZoneItem` does the same for `MenuState::mpe_zone`;
 #   * which VALUE -- `MpeZoneChannelsItem::commit` turns all three into one `MIDIPort` field
 #     (`ZoneNumMemberChannels::writeCurrentValue` in

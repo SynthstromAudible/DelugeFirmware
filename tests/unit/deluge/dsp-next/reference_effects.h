@@ -20,7 +20,7 @@
 /// replace, copied line for line. The kernels are held bit-exact to it.
 ///
 /// The copies are, in order: `effects::Bitcrush` (`effects/bitcrush.{h,cpp}`), `effects::Equalizer`
-/// (`effects/equalizer.{h,cpp}`), `effects::SendAndVolume` (`effects/send_and_volume.{h,cpp}`), the
+/// (`effects/equalizer.h`), `effects::SendAndVolume` (`effects/send_and_volume.{h,cpp}`), the
 /// track chain's duck level (`TrackChain::begin_block`), the reverb return's duck level (`AudioEngine::renderReverb`),
 /// the metronome's render (`processing/metronome/metronome.cpp`), the output stage's monitoring fold (the output loop
 /// in `AudioEngine`) and an audio track's monitoring loop (`AudioOutput::render`).

@@ -11,7 +11,7 @@
 # four-phase counter every `kBlinkPhaseMs` (200 ms, `definitions_cxx.hpp` `kSampleMarkerBlinkTime`) and phase 3
 # SUPPRESSES the selected marker's column (`SampleMarkerEditor::timerCallback` in
 # `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp` -- not `renderMainPads`' phase >= 1 rule; the class docstring
-# says which of the two legacy disagreements this port follows). The OLED draws no waveform at all, so the two blink
+# says which of the two main disagreements this port follows). The OLED draws no waveform at all, so the two blink
 # frames below are byte-identical `.pbm`s that differ only in their `.state` pad lines -- which is exactly why both
 # halves of a snapshot are compared. `Shell::tick`'s step 8b is what makes them happen: `next_timer()` arms the surfaces
 # `timer_repaints()` names, and this scene names both, so a tick with no input still repaints.

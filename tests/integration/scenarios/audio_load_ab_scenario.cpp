@@ -43,7 +43,7 @@
 #include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_preview.h" // the loader the ported browser previews through
+#include "gui/ui/browser/sample_preview.h" // the loader the scenes browser previews through
 #include "gui/ui/shell_choice_dispatch.h"  // shellPreviewer
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
@@ -739,14 +739,14 @@ Sample* residentSample(const char* path) {
 	return nullptr;
 }
 
-/// The resident sample at @p path when the ported browser has drawn its waveform, else null. The pointer is compared,
+/// The resident sample at @p path when the scenes browser has drawn its waveform, else null. The pointer is compared,
 /// never read through, by the browser.
 Sample* drawnSample(const char* path) {
 	Sample* sample = residentSample(path);
 	return deluge::scenes::browser::browser_scene().shown_waveform(sample) != nullptr ? sample : nullptr;
 }
 
-/// Open the ported browser on the boot song's first synth clip, as a user opens a source's file selector, and let its
+/// Open the scenes browser on the boot song's first synth clip, as a user opens a source's file selector, and let its
 /// own opening listing and preview settle: the stages below then drive only what they mean to.
 /// @return Whether the browser is on top and idle.
 bool openGuestBrowser() {
@@ -789,7 +789,7 @@ bool openGuestBrowser() {
 
 /// Has the preview actually DRAWN its waveform for `kPreviewPath`?
 ///
-/// The ported browser keeps the view it drew a sample's waveform through (`shown_waveform`) only on the
+/// The scenes browser keeps the view it drew a sample's waveform through (`shown_waveform`) only on the
 /// path that renders the waveform, so a view naming this file's sample is direct evidence that
 /// the preview reached the screen -- not merely that the file became resident somewhere. That
 /// distinction is the whole point here: the defect this stage exists for left the file unloaded, the
@@ -813,7 +813,7 @@ bool runOnePreviewTick() {
 			return false;
 		}
 		g_previewTier = markTier();
-		// The ported browser draws a frame after the load lands, by which time the host's fill has already delivered
+		// The scenes browser draws a frame after the load lands, by which time the host's fill has already delivered
 		// this small file's cluster; a short hold keeps the first draw ahead of the card, as the stage needs.
 		deluge_streaming_set_fill_latency_ms(kPreviewFillHoldMs);
 		g_drawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;

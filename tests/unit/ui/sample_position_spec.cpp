@@ -18,7 +18,7 @@ using namespace deluge::ui::oled;
 using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
-// `SampleMarkerEditor::renderOLED`'s body (origin/main:src/deluge/gui/ui/sample_marker_editor.cpp) as a
+// `SampleMarkerEditor::renderOLED`'s body (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) as a
 // component. Every geometry assertion is compared against a transcription of legacy's own body,
 // drawn into the rig's second canvas -- so a port that merely agrees with itself fails.
 
@@ -46,10 +46,11 @@ void int_to_string(uint32_t number, char* buffer, int32_t min_digits) {
 
 // --- SampleMarkerEditor::renderOLED's body, transcribed with its gotos unrolled -----------------
 //
-// `fix_unit_letter_x` selects between legacy's literal behaviour and the port's. Legacy passes `smallTextSpacingX`
-// where the x coordinate belongs (the time-text draws in `SampleMarkerEditor::renderOLED`,
-// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`); the port passes the running cursor. Both are reproduced
-// here so the divergence is pinned by a passing comparison on each side, rather than asserted in prose.
+// `fix_unit_letter_x` selects between main's literal behaviour and the port's. Main passes `smallTextSpacingX` where
+// the x coordinate belongs (the `drawChar('h', ...)` and `drawChar('m', ...)` unit-letter calls in main's
+// `SampleMarkerEditor::renderOLED`, `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`); the port passes the
+// running cursor. Both are reproduced here so the divergence is pinned by a passing comparison on each side, rather
+// than asserted in prose.
 template <typename Canvas>
 void legacy_render_body(Canvas& canvas, int32_t y_first, uint32_t markerPosSamples, uint32_t sampleRate,
                         bool fix_unit_letter_x) {

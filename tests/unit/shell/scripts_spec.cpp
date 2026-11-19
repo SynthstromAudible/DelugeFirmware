@@ -222,9 +222,8 @@ struct FillRegistry {
 	FillRegistry& operator=(const FillRegistry&) = delete;
 };
 
-/// @brief A `DemoScene` twin that draws one extra OLED pixel -- used only to prove the migration
-///        double-run (`RunOptions::second_registry`) catches a real divergence between
-///        two scene tables. Everything else is identical to `DemoScene`.
+/// @brief A `DemoScene` twin that draws one extra OLED pixel -- it shows that two scene
+///        tables that diverge produce different snapshots. Everything else is identical to `DemoScene`.
 class DemoSceneExtraPixel final : public DemoScene {
 public:
 	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {

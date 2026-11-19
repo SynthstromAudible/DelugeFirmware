@@ -3,7 +3,7 @@
 ///
 /// Pure: no model, no `Song`, no `gui/`. The real tables live behind `deluge_scenes`, which this
 /// host suite deliberately never builds (`tests/trees/host/CMakeLists.txt`); `validate_tree` over the
-/// real batch-1 roots is `sim/scenes_spec/tables_1_spec.cpp`'s job, where a real `MenuContext` can
+/// real roots is `sim/scenes_spec/tables_1_spec.cpp`'s job, where a real `MenuContext` can
 /// be resolved, and the real shortcut tables are cross-checked in
 /// `sim/scenes_spec/shortcuts_spec.cpp`. What is checked here is the rule engine itself -- one fake
 /// tree that breaks four rules at once, and one that breaks none -- with the shortcut lookup the

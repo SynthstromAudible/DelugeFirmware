@@ -507,8 +507,8 @@ describe columns_w("ui::oled::columns", $ {
 
 	it("does not move focus on a turn", _ {
 		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) edits the
-		// focused column's value and never moves focus; `columns` no longer walks focus on the turn at all -- the scene
-		// owns the encoder now (`MenuScene::render_horizontal`).
+		// focused column's value and never moves focus; `columns` does not walk focus on the turn at all -- the scene
+		// owns the encoder (`MenuScene::render_horizontal`).
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{};
@@ -670,7 +670,7 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws the second page when focus is on it", _ {
-		// The render check does not depend on the turn focus walk (`columns()` no longer claims or
+		// The render check does not depend on the turn focus walk (`columns()` neither claims nor
 		// walks the select turn -- see this file's own note on the "does not move focus on a turn"
 		// example above): seed `ColumnsState{.focused = 4}` directly, with no turn at all, and
 		// `paging_of` still lands the widget on page 1 for it (`state.page = w.paging.page` in
@@ -787,7 +787,7 @@ describe columns_w("ui::oled::columns", $ {
 		// `HorizontalMenu::renderMenuItems` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp` (the whole
 		// switch): `case MenuHighlighting:: PARTIAL_INVERSION:` falls through into
 		// `case MenuHighlighting::NO_INVERSION:` -- both reaching the same `drawHorizontalLine` call. So `columns` has
-		// no `NoInversion`-specific arm of its own to write -- its `!= FullInversion` branch already *is* legacy's
+		// no `NoInversion`-specific arm of its own to write -- its `!= FullInversion` branch already *is* main's
 		// shared one -- and this pins that down as an example rather than leaving it implicit: NoInversion's pixels
 		// must equal PartialInversion's, byte for byte.
 		uitest::Rig48 r;

@@ -27,7 +27,7 @@ SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
 
 # The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
-# check that each one is a symbol this tree actually has. Every entry below was taken from an
+# check that each one is a symbol the source actually has. Every entry below was taken from an
 # `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h`, `src/deluge/gui/ui/**/*.h` or
 # `src/deluge/gui/context_menu/*.h` whose type is a `UI` subclass -- i.e. from the declarations,
 # not from memory.
@@ -71,7 +71,7 @@ ROOT_UI_GLOBALS = (
 )
 # The `StemExport` PROCESS entry points -- the `scenes-no-stem-export-process` row's alternatives,
 # named here for the same reason `CATALOGUE_DISPATCH_CALLS` is: `--audit-symbols` checks each is a
-# method this tree really declares (`StemExport`, `processing/stem_export/stem_export.h`).
+# method the source really declares (`StemExport`, `processing/stem_export/stem_export.h`).
 #
 # Why this needs a row of its own, and why it is the only arm of `dispatchShellActions` that does.
 # Every other verb's legacy target is already unreachable from `src/scenes`: `performanceView`,
@@ -102,7 +102,7 @@ STEM_EXPORT_PROCESS_CALLS = (
     "abortStemExportProcess",
 )
 # The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
-# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global this tree really declares.
+# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global the source really declares.
 # Both were taken from their `extern` declarations, not from memory:
 # `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`) and
 # `extern WaveformBasicNavigator waveformBasicNavigator` (`gui/waveform/waveform_basic_navigator.h`).
@@ -150,8 +150,8 @@ CATALOGUE_DISPATCH_CALLS = (
 #
 # `currentUIMode` and `isUIModeActive(` are deliberately NOT here, and the reason is measured
 # rather than assumed: `is_comment_line` does not strip a TRAILING comment, so the three
-# `holding_save_ = true;` lines in `services/global_controls.cpp`, whose trailing comment names
-# `currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON`, would give this row a non-zero baseline out of pure
+# `holding_save_`/`holding_load_` assignments in `services/global_controls.cpp`, whose trailing comments name
+# `currentUIMode = ...`, would give this row a non-zero baseline out of pure
 # comment text. They are also a different concern -- reading a mode, not driving an output -- which the
 # ports model as their own booleans.
 LEGACY_HID_DRIVERS = (
@@ -184,7 +184,7 @@ UI_STACK_CALLS = (
     "swapOutRootUILowLevel",
 )
 
-# The legacy files authorised to reach into the ported UI -- the `legacy-includes-port` and
+# The legacy files authorised to reach into the scenes UI -- the `legacy-includes-port` and
 # `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
 # `src/deluge/**` is held to zero.
 #
@@ -234,7 +234,7 @@ LEGACY_PORT_SEAMS = (
     # The sixth arm, `automationView`, is the one arm that cannot be a bare
     # forward: whether the menu is editing an automation-view param is state no legacy object
     # holds, so the question is ported rather than called.
-    # That port is why this `.cpp` now also names `deluge::scenes::menu_scene()`
+    # This `.cpp` also names `deluge::scenes::menu_scene()`
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
@@ -318,9 +318,9 @@ RULES = [
     (
         # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link closures
         # (`src/bsp/rust/build/device.rs`, `src/bsp/rust/build/host_app.rs`, `sim/CMakeLists.txt`), so the link does not
-        # stop a legacy file reaching into the ported UI: this row does.
+        # stop a legacy file reaching into the scenes UI (`src/scenes`, `src/shell`, `src/ui`): this row does.
         #
-        # The rule: the ported UI enters the firmware
+        # The rule: the scenes UI enters the firmware
         # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
         # listed in `LEGACY_PORT_SEAMS` above. Everything else under `src/deluge/**` -- 1,000-odd
         # files, `model/`, `storage/`, `playback/`, and the rest of `gui/` -- is held to zero, so
@@ -339,7 +339,7 @@ RULES = [
     ),
     (
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
-        # a symbol row rather than an include row: this tree routinely names a symbol through a
+        # a symbol row rather than an include row: the source routinely names a symbol through a
         # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
         # `src/scenes/menu/nodes/settings.cpp`). A legacy file that wants
         # `deluge::scenes::scene_registry()` and finds the include row in its way can write
@@ -348,7 +348,7 @@ RULES = [
         #
         # Matched without a trailing `::` so that the namespace-reopening form above counts too,
         # and `\b`-anchored on `deluge::` so it cannot fire on the English words "scenes" and
-        # "shell", which this tree's prose is full of. Same ratchet-not-proof caveat as every
+        # "shell", which the prose of the scanned files is full of. Same ratchet-not-proof caveat as every
         # symbol row here: a `using namespace` plus an unqualified type would slip past, and
         # `is_comment_line` skips only whole-line comments.
         "legacy-names-port",
@@ -656,7 +656,7 @@ RULES = [
         # header -- so an include row alone cannot see the call.
         #
         # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading which root UI is current
-        # is the same coupling as calling into it: legacy's `isRelevant() == (getRootUI() == &sessionView)` predicates
+        # is the same coupling as calling into it: main's `isRelevant() == (getRootUI() == &sessionView)` predicates
         # (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) are ported as `MenuContext` questions, not as
         # root-UI reads.
         #
@@ -664,7 +664,7 @@ RULES = [
         # possible one.
         #
         # The identifier list is `ROOT_UI_GLOBALS` / `UI_STACK_CALLS` below, and `--audit-symbols`
-        # checks every name in it is a symbol this tree declares: a ratchet listing a name that does
+        # checks every name in it is a symbol the source declares: a ratchet listing a name that does
         # not exist (`performanceSessionView` for `performanceView`, say) guards nothing while
         # reading as though it does.
         "scenes-no-root-ui",
@@ -883,7 +883,7 @@ RULES = [
     ),
 ]
 
-# A class declaring itself a `shell::Service`, in any of the spellings this tree uses:
+# A class declaring itself a `shell::Service`, in any of the spellings the source uses:
 # `: public Service`, `: public deluge::ui::shell::Service`, and as the second base
 # (`MidiLearn` is `: public deluge::ui::shell::Service, public LearnMode`).
 SERVICE_DECL_RE = re.compile(r"public\s+(?:\w+\s*::\s*)*Service\b")
@@ -1038,7 +1038,7 @@ AUDITED_SYMBOLS = (
 
 
 def audit_symbols() -> int:
-    """Check every named row's alternatives are symbols this tree actually declares.
+    """Check every named row's alternatives are symbols the source actually declares.
 
     A ratchet row that lists a name nothing declares reads as protection and provides none --
     as a misspelt `performanceView` or `readFileItemsForFolder` would silently be. The test is deliberately crude (does

@@ -304,8 +304,8 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 
 	it("an unregistered screensaver kind latches the service off instead of retrying every tick", _ {
 		deluge::notify::dirty().drain();
-		// No `SceneKind::Screensaver` in the registry -- the branch's documented state until spec
-		// E3 lands the real animation -- with the idle timer switched on, which is what an
+		// No `SceneKind::Screensaver` in the registry -- a state an application can be in --
+		// with the idle timer switched on, which is what an
 		// application setting `screensaver_idle_ms` today actually gets.
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}, /*register_screensaver=*/false};
 		r.shell.init(SceneId{kRoot, 0});

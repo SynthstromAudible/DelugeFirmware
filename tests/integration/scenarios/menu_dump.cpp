@@ -25,8 +25,8 @@
 ///
 /// ## How this dump differs
 ///
-/// `Kind` (`node.h`) has no `MultiMode`/`MultiModeMode` counterpart: the enumerators with no users were dropped once
-/// all eleven roots were declared (`node.h`'s own note), and `MultiModeMenu` is a DSL concept that plain `Node` data
+/// `Kind` (`node.h`) has no `MultiMode`/`MultiModeMode` counterpart: the enumerators with no users are absent
+/// (`node.h`'s own note), and `MultiModeMenu` is a DSL concept that plain `Node` data
 /// has no equivalent of. So `"multimode"`/`"multimode-mode"` never appear in this dump's actual output -- they are
 /// listed above only so the schema this file approximates is documented in full. What this dump actually maps:
 ///

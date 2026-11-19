@@ -706,7 +706,7 @@ describe shell_notices("shell::Notices", $ {
 
 	it("CancelNotification with no sink removes only the banner: a popup, a Console line and a scene "
 	   "above all stay", _ {
-		// Legacy's cancel is guarded on the slot holding a NOTIFICATION (`HorizontalMenu::switchVisiblePage`,
+		// Main's cancel is guarded on the slot holding a NOTIFICATION (`HorizontalMenu::switchVisiblePage`,
 		// `switchHorizontalMenu` and `endSession` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), and
 		// `removePopup` never touches the console (`oled.cpp`).
 		Rig r;
