@@ -12,6 +12,7 @@
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
 #include "effects/setting_params.h"
+#include "effects/words.h"
 #include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -19,7 +20,6 @@
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
 #include "music-theory/note_length.h"
@@ -72,13 +72,13 @@ int32_t tick_magnitude(const project::Song& song) {
 	return song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
 }
 
-const char* filter_type_name(FilterType type) {
+const char* filter_type_name(effects::FilterType type) {
 	switch (type) {
-	case FilterType::LPF:
+	case effects::FilterType::LPF:
 		return text(String::STRING_FOR_LPF);
-	case FilterType::HPF:
+	case effects::FilterType::HPF:
 		return text(String::STRING_FOR_HPF);
-	case FilterType::EQ:
+	case effects::FilterType::EQ:
 		return text(String::STRING_FOR_EQ);
 	default:
 		return text(String::STRING_FOR_NONE);
@@ -115,11 +115,11 @@ const char* hpf_mode_name(effects::FilterMode mode) {
 	}
 }
 
-const char* filter_mode_name(FilterType type, const effects::EffectStates& fx) {
+const char* filter_mode_name(effects::FilterType type, const effects::EffectStates& fx) {
 	switch (type) {
-	case FilterType::LPF:
+	case effects::FilterType::LPF:
 		return lpf_mode_name(fx.filter.lpf_mode);
-	case FilterType::HPF:
+	case effects::FilterType::HPF:
 		return hpf_mode_name(fx.filter.hpf_mode);
 	default:
 		return text(String::STRING_FOR_NONE);
@@ -164,9 +164,9 @@ const char* sidechain_name(const project::Song& song, const effects::EffectState
 	                                                                                  : String::STRING_FOR_FAST);
 }
 
-std::string filter_popup(FilterType type, const effects::EffectStates& fx) {
+std::string filter_popup(effects::FilterType type, const effects::EffectStates& fx) {
 	std::string out = filter_type_name(type);
-	if (type != FilterType::EQ) {
+	if (type != effects::FilterType::EQ) {
 		out += "\n";
 		out += filter_mode_name(type, fx);
 	}
@@ -256,7 +256,7 @@ void say_step(KnobPush& out, const project::Song& song, plugin::ParamId id, cons
 		say(out, inputs, delay_popup(song, after, inputs.pages.alt_delay), notice);
 	}
 	else if (id == setting::kLpfMode || id == setting::kHpfMode) {
-		const FilterType type = id == setting::kLpfMode ? FilterType::LPF : FilterType::HPF;
+		const effects::FilterType type = id == setting::kLpfMode ? effects::FilterType::LPF : effects::FilterType::HPF;
 		say(out, inputs, filter_popup(type, after), filter_mode_name(type, after));
 	}
 	else if (id == setting::kSidechainSyncLevel) {
@@ -313,13 +313,13 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		}
 		out.controls = std::move(after);
 		// The filter cycle's pages are low-pass, high-pass and EQ, on either knob.
-		const auto next = static_cast<FilterType>(page.page_id % kNumFilterTypes);
+		const auto next = static_cast<effects::FilterType>(page.page_id % effects::kNumFilterTypes);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		return;
 	}
 	switch (page.section) {
 	case host_chain::kFilterSection: {
-		const auto next = static_cast<FilterType>(page.page_id);
+		const auto next = static_cast<effects::FilterType>(page.page_id);
 		out.chain_view.emplace("currentFilterType", effects::kFilterTypeWords[page.page_id]);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		out.edited = true;
@@ -536,13 +536,13 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 		const std::optional<plugin::ParamId> bottom = param_at(0);
 		const auto pair = [&](plugin::ParamId upper, plugin::ParamId lower) { return top == upper && bottom == lower; };
 		if (pair(ip::kLpfFrequency, ip::kLpfResonance)) {
-			return filter_popup(FilterType::LPF, fx);
+			return filter_popup(effects::FilterType::LPF, fx);
 		}
 		if (pair(ip::kHpfFrequency, ip::kHpfResonance)) {
-			return filter_popup(FilterType::HPF, fx);
+			return filter_popup(effects::FilterType::HPF, fx);
 		}
 		if (pair(ip::kTreble, ip::kBass)) {
-			return filter_popup(FilterType::EQ, fx);
+			return filter_popup(effects::FilterType::EQ, fx);
 		}
 		if (pair(ip::kDelayRate, ip::kDelayFeedback)) {
 			return delay_popup(song, fx, inputs.pages.alt_delay);
@@ -568,7 +568,8 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	const project::FxChain* chain = chain_of(song, focus);
 	switch (button) {
 	case host_chain::kFilterSection:
-		return filter_popup(chain != nullptr ? static_cast<FilterType>(chain->filter_type) : FilterType::LPF, fx);
+		return filter_popup(
+		    chain != nullptr ? static_cast<effects::FilterType>(chain->filter_type) : effects::FilterType::LPF, fx);
 	case 2: // the envelopes, which a chain has none of
 		return {};
 	case 3: // the delay

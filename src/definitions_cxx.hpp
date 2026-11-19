@@ -444,12 +444,8 @@ enum class Error {
 using deluge::instrument::SampleRepeatMode;
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
 
-enum class FilterType {
-	LPF,
-	HPF,
-	EQ,
-};
-constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
+using FilterType = deluge::effects::FilterType;
+constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
 constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
 

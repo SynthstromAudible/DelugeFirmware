@@ -134,7 +134,7 @@ src/scenes/menu/bindings.cpp	scenes-reads-outside-bind	11
 src/scenes/menu/context.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/learn.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/node.h	scenes-reads-outside-bind	1
-src/scenes/menu/nodes/column_hooks.cpp	scenes-reads-outside-bind	3
+src/scenes/menu/nodes/column_hooks.cpp	scenes-reads-outside-bind	2
 src/scenes/menu/nodes/dx.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/dynamic.cpp	scenes-reads-outside-bind	5
 src/scenes/menu/nodes/midi_command.cpp	scenes-reads-outside-bind	2
@@ -163,7 +163,7 @@ src/scenes/overlay/screensaver_scene.cpp	scenes-reads-outside-bind	1
 src/scenes/recorder/recorder_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/rename/rename_scene.cpp	scenes-reads-outside-bind	1
 src/scenes/services/global_controls.cpp	scenes-reads-outside-bind	8
-src/scenes/services/knob_push.cpp	scenes-reads-outside-bind	3
+src/scenes/services/knob_push.cpp	scenes-reads-outside-bind	2
 src/scenes/services/midi_learn.cpp	scenes-reads-outside-bind	10
 src/scenes/services/mod_knobs.cpp	scenes-reads-outside-bind	6
 src/scenes/services/mod_target.h	scenes-reads-outside-bind	1

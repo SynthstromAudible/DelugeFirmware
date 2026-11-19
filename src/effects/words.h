@@ -35,6 +35,25 @@ enum class FilterMode : uint8_t {
 	OFF,
 };
 
+/// @brief Which filter a chain's filter knob edits, in the order the file words name them (@ref kFilterTypeWords).
+enum class FilterType : uint8_t {
+	LPF,
+	HPF,
+	EQ,
+};
+
+/// @brief How many filter types there are.
+inline constexpr int32_t kNumFilterTypes = std::to_underlying(FilterType::EQ) + 1;
+
+/// @brief A group of filter modes that share one implementation: the modes of a family differ only in a variant
+/// index, and a mode toggle cycles within its family.
+enum class FilterFamily : uint8_t {
+	LP_LADDER,
+	SVF,
+	HP_LADDER,
+	NONE,
+};
+
 /// @brief The order a sound's or chain's low- and high-pass filters run in.
 enum class FilterRoute : uint8_t {
 	HIGH_TO_LOW,
@@ -101,6 +120,26 @@ inline constexpr int32_t kNumHPFModes = std::to_underlying(FilterMode::OFF) - kF
 		}
 	}
 	return FilterMode::OFF;
+}
+
+/// @brief The family a filter mode belongs to.
+/// @param mode The filter mode.
+/// @return The family; NONE for OFF.
+[[nodiscard]] constexpr FilterFamily filter_family(FilterMode mode) noexcept {
+	switch (mode) {
+	case FilterMode::TRANSISTOR_12DB:
+	case FilterMode::TRANSISTOR_24DB:
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
+		return FilterFamily::LP_LADDER;
+	case FilterMode::SVF_BAND:
+	case FilterMode::SVF_NOTCH:
+		return FilterFamily::SVF;
+	case FilterMode::HPLADDER:
+		return FilterFamily::HP_LADDER;
+	case FilterMode::OFF:
+		break;
+	}
+	return FilterFamily::NONE;
 }
 
 /// @brief @p route as a file writes it.

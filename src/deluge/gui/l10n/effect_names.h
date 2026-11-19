@@ -39,4 +39,11 @@ namespace deluge::l10n {
 /// @return The name.
 [[nodiscard]] std::string_view mod_fx_param_name(effects::ModFXType type, effects::ModFxParam param, bool short_name);
 
+/// @brief The name of the filter parameter a mode's morph knob sets, which its family decides.
+/// @param mode       The filter mode.
+/// @param short_name Whether to give the short form the column labels use (only the SVF family has one).
+/// @return "Drive" for the low-pass ladders, "FM" for the high-pass ladder, "Morph" for the SVF modes and "None" for
+///         OFF.
+[[nodiscard]] std::string_view filter_morph_name(effects::FilterMode mode, bool short_name = false);
+
 } // namespace deluge::l10n

@@ -34,7 +34,6 @@
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "model/mod_controllable/filters/filter_config.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
@@ -453,29 +452,32 @@ ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t, ValueTextUse use, 
 
 namespace {
 
-/// @brief The family of the LPF or HPF whose mode @p mode_node reads (`FilterInfo::getMode`,
-/// `origin/main:src/deluge/gui/menu_item/filter/info.h`).
-model::filter::FilterFamily filter_family(const MenuContext& ctx, bool hpf) {
+/// @brief The filter mode the LPF or HPF mode node reads; OFF for a low-pass index past the last low-pass mode.
+deluge::effects::FilterMode filter_mode_of(const MenuContext& ctx, bool hpf) {
+	using deluge::effects::FilterMode;
 	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
-	FilterMode mode = FilterMode::OFF;
 	if (hpf) {
-		mode = static_cast<FilterMode>(index + kFirstHPFMode);
+		return static_cast<FilterMode>(index + deluge::effects::kFirstHPFMode);
 	}
-	else if (index < kNumLPFModes) {
-		mode = static_cast<FilterMode>(index);
-	}
-	return model::filter::SpecificFilter(mode).getFamily();
+	return index < deluge::effects::kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF;
+}
+
+/// @brief The family of the LPF or HPF whose mode node @p ctx reads (`FilterInfo::getMode`,
+/// `origin/main:src/deluge/gui/menu_item/filter/info.h`).
+deluge::effects::FilterFamily filter_family_of(const MenuContext& ctx, bool hpf) {
+	return deluge::effects::filter_family(filter_mode_of(ctx, hpf));
 }
 
 std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, const Node& reso, const Node& morph,
                                           bool hpf) {
-	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::FilterGraph,
-	                            .filter = {.freq_raw = freq,
-	                                       .reso_raw = bindings::read(reso, ctx),
-	                                       .morph_raw = bindings::read(morph, ctx),
-	                                       .morphable = filter_family(ctx, hpf) == model::filter::FilterFamily::SVF,
-	                                       .hpf = hpf},
-	                            .span_next = 1};
+	return ui::oled::DrawColumn{
+	    .shape = ui::oled::DrawColumn::Shape::FilterGraph,
+	    .filter = {.freq_raw = freq,
+	               .reso_raw = bindings::read(reso, ctx),
+	               .morph_raw = bindings::read(morph, ctx),
+	               .morphable = filter_family_of(ctx, hpf) == deluge::effects::FilterFamily::SVF,
+	               .hpf = hpf},
+	    .span_next = 1};
 }
 
 ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> out, bool hpf) {
@@ -484,15 +486,11 @@ ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> o
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
-	FilterMode mode = FilterMode::OFF;
-	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
-	mode = hpf ? static_cast<FilterMode>(index + kFirstHPFMode)
-	           : (index < kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF);
-	return put_string(model::filter::SpecificFilter(mode).getMorphName(use == ValueTextUse::Label), out);
+	return put(deluge::l10n::filter_morph_name(filter_mode_of(ctx, hpf), use == ValueTextUse::Label), out);
 }
 
 std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
-	if (filter_family(ctx, hpf) != model::filter::FilterFamily::SVF) {
+	if (filter_family_of(ctx, hpf) != deluge::effects::FilterFamily::SVF) {
 		return std::nullopt;
 	}
 	const int32_t shown = hpf ? 50 - value : value;
@@ -629,7 +627,7 @@ std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32
 	return morph_draw(ctx, value, true);
 }
 bool hpf_morph_reversed(const MenuContext& ctx) {
-	return filter_family(ctx, true) == model::filter::FilterFamily::SVF;
+	return filter_family_of(ctx, true) == deluge::effects::FilterFamily::SVF;
 }
 
 namespace {

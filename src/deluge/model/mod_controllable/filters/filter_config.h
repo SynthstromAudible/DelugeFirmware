@@ -22,13 +22,6 @@
 #include "util/misc.h"
 #include <cstddef>
 
-// l10n::String is only a return type below (SpecificFilter::getMorphName, defined out-of-line in the .cpp), so
-// forward-declare it rather than pulling gui/l10n/strings.h — this header is included by the synth-side BlockValues
-// and must stay free of gui/.
-namespace deluge::l10n {
-enum class String : size_t;
-}
-
 using deluge::effects::FilterMode;
 constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF) + 1;
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
@@ -49,7 +42,7 @@ FilterMode stringToLPFType(char const* string);
 
 namespace deluge::model::filter {
 
-enum class FilterFamily { LP_LADDER, SVF, HP_LADDER, NONE };
+using FilterFamily = deluge::effects::FilterFamily;
 constexpr uint8_t kNumFamilies = 3;
 enum LpLadderType { LP12, LP24, DRIVE };
 constexpr uint8_t kNumLadders = 3;
@@ -68,33 +61,27 @@ public:
 	SpecificFilter() = default;
 	/// Construct a filtertype from a mode
 	SpecificFilter(FilterMode mode) {
+		family = effects::filter_family(mode);
 		switch (mode) {
 		case FilterMode::OFF:
-			family = FilterFamily::NONE;
 			type = LpLadderType::LP12;
 			break;
 		case FilterMode::HPLADDER:
-			family = FilterFamily::HP_LADDER;
 			type = HPFType::HP12;
 			break;
 		case FilterMode::SVF_BAND:
-			family = FilterFamily::SVF;
 			type = SVFType::BAND;
 			break;
 		case FilterMode::SVF_NOTCH:
-			family = FilterFamily::SVF;
 			type = SVFType::NOTCH;
 			break;
 		case FilterMode::TRANSISTOR_12DB:
-			family = FilterFamily::LP_LADDER;
 			type = LpLadderType::LP12;
 			break;
 		case FilterMode::TRANSISTOR_24DB:
-			family = FilterFamily::LP_LADDER;
 			type = LpLadderType::LP24;
 			break;
 		case FilterMode::TRANSISTOR_24DB_DRIVE:
-			family = FilterFamily::LP_LADDER;
 			type = LpLadderType::DRIVE;
 			break;
 		}
@@ -103,9 +90,6 @@ public:
 	FilterFamily getFamily() { return family; }
 
 	specificFilterType getType() { return type; }
-
-	// Defined out-of-line in filter_config.cpp so this header needn't pull gui/l10n/strings.h (it's synth-included).
-	[[nodiscard]] l10n::String getMorphName(bool shortName = false) const;
 
 	SpecificFilter& incrementMode() {
 		type = (type + 1) % numForVariant[util::to_underlying(family)];

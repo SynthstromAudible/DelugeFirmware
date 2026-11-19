@@ -82,4 +82,19 @@ std::string_view mod_fx_param_name(effects::ModFXType type, effects::ModFxParam 
 	return getView(short_name ? names.short_name : names.long_name);
 }
 
+std::string_view filter_morph_name(effects::FilterMode mode, bool short_name) {
+	using enum String;
+	switch (effects::filter_family(mode)) {
+	case effects::FilterFamily::LP_LADDER:
+		return getView(STRING_FOR_DRIVE);
+	case effects::FilterFamily::HP_LADDER:
+		return getView(STRING_FOR_FM);
+	case effects::FilterFamily::SVF:
+		return getView(short_name ? STRING_FOR_MORPH_SHORT : STRING_FOR_MORPH);
+	case effects::FilterFamily::NONE:
+		break;
+	}
+	return getView(STRING_FOR_NONE);
+}
+
 } // namespace deluge::l10n
