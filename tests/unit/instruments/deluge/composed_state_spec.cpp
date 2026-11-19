@@ -90,13 +90,19 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		expect(recall.sync).to_equal(true);
 	});
 
+	it("keeps the sync for a switch back when the second oscillator is a sample, which the file writes it in", _ {
+		const auto [state, recall] = compose(sound_of(SynthMode::SUBTRACTIVE, OscType::SINE, OscType::SAMPLE));
+		expect(std::get<deluge::synth::SubtractiveState>(state.engine).oscillators.sync).to_equal(false);
+		expect(recall.sync).to_equal(true);
+	});
+
 	it("gives a sample oscillator its ranges' tuning and no pitch of its own", _ {
 		const auto [state, recall] = compose(sound_of(SynthMode::SUBTRACTIVE, OscType::SAMPLE, OscType::SINE));
 		const auto& slot = std::get<deluge::synth::SampleState>(
 		    std::get<deluge::synth::SubtractiveState>(state.engine).oscillators.slots[0]);
 		expect(slot.ranges.size()).to_equal(size_t{2});
 		expect(int{slot.ranges[1].tuning.transpose}).to_equal(2);
-		expect(slot.retrigger.has_value()).to_equal(true);
+		expect(recall.retrigger[0].has_value()).to_equal(true); // the file does not write a sample's retrigger
 		expect(int{recall.slots[0].transpose}).to_equal(5);
 	});
 });

@@ -100,12 +100,11 @@ struct SamplePlayback {
 	bool operator==(const SamplePlayback&) const = default;
 };
 
-/// @brief What a sample oscillator saves: its ranges carry their tuning, so it has no pitch of its own; where its
-/// phase starts a note it still has.
+/// @brief What a sample oscillator saves: how it plays and its ranges, which carry their own tuning, so it has no
+/// pitch of its own.
 struct SampleState {
 	SamplePlayback playback;
 	std::vector<SampleRange> ranges;
-	Retrigger retrigger;
 	bool operator==(const SampleState&) const = default;
 };
 

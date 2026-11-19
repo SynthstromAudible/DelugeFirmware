@@ -203,7 +203,10 @@ synth::VoicingState voicing(const SoundState& state) noexcept {
 
 bool oscillator_sync(const SoundState& state) noexcept {
 	const synth::DualSourceState* slots = slots_of(state.plays);
-	return slots != nullptr ? slots->sync : state.recall.sync;
+	if (slots == nullptr || std::holds_alternative<synth::SampleState>(slots->slots[1])) {
+		return state.recall.sync; // the file writes it in the second oscillator's pitch, which FM and a sample lack
+	}
+	return slots->sync;
 }
 
 synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept {
@@ -211,8 +214,8 @@ synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept
 	if (slot == nullptr) {
 		return std::get_if<synth::FmState>(&state.plays.engine)->carriers[index_of(id)].retrigger;
 	}
-	if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
-		return sample->retrigger;
+	if (std::holds_alternative<synth::SampleState>(*slot)) {
+		return state.recall.retrigger[index_of(id)];
 	}
 	if (const auto* va = std::get_if<synth::VaState>(slot)) {
 		return va->pitch.retrigger;

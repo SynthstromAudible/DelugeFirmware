@@ -44,11 +44,13 @@ struct ComposedState {
 	bool operator==(const ComposedState&) const = default;
 };
 
-/// @brief What a sound keeps of what it does not play, for a switch back: each oscillator's settings its current kind
-/// does not hold (the fields its state holds are left at their defaults here), FM's modulators while another engine
-/// plays, and the oscillators' sync while FM plays.
+/// @brief What a sound keeps of what its file does not write, for a switch back: each oscillator's settings its current
+/// kind does not hold (the fields its state holds are left at their defaults here), a sample oscillator's retrigger
+/// phase, FM's modulators while another engine plays, and the oscillators' sync while FM plays or the second is a
+/// sample.
 struct Recall {
 	std::array<SourceState, 2> slots;
+	std::array<synth::Retrigger, 2> retrigger{}; ///< a sample oscillator's; free-running where its kind holds its own
 	std::array<synth::Pitch, 2> modulators{synth::FmState{}.modulators};
 	bool modulator1_to_modulator0{false};
 	bool sync{false};
