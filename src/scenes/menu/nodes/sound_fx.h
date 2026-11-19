@@ -62,7 +62,7 @@
 ///       song.
 ///
 /// @note **Five dynamic names, two dynamic option lists.** `mod_fx::Depth_Patched`, `Feedback` and `Offset` take their
-///       `getName()` from `modfx::getParamName(type, ...)` (`Depth_Patched::getName` in
+///       `getName()` from `l10n::mod_fx_param_name(type, ...)` (`Depth_Patched::getName` in
 ///       `origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`), and `reverb::RoomSize` / `Width` read "TIME" /
 ///       "DIFFUSION" on the two newer models (`RoomSize::getName` in
 ///       `origin/main:src/deluge/gui/menu_item/reverb/room_size.h`): `column_hooks.h`'s hooks answer the column label

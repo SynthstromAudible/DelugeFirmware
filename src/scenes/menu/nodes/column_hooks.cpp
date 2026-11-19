@@ -29,11 +29,11 @@
 #include "deluge-project/song.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
+#include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
-#include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
@@ -158,7 +158,8 @@ std::string_view formatted_name(const Node& node, const MenuContext& ctx, NodeTe
 	return node_text(node.name, node, ctx, scratch);
 }
 
-ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse use, std::span<char> out) {
+ValueText mod_fx_knob_text(const MenuContext& ctx, deluge::effects::ModFxParam knob, ValueTextUse use,
+                           std::span<char> out) {
 	// The column label is the short name; the name and title the long one (`Depth_Patched::getColumnLabel` and
 	// `getName` in `origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`).
 	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
@@ -166,7 +167,7 @@ ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse
 	}
 	const int32_t shown = bindings::read(mod_fx_type, ctx);
 	const auto type = static_cast<deluge::effects::ModFXType>(choice_of(mod_fx_type, ctx, shown));
-	return put(modfx::getParamName(type, knob, use == ValueTextUse::Label), out);
+	return put(deluge::l10n::mod_fx_param_name(type, knob, use == ValueTextUse::Label), out);
 }
 
 } // namespace
@@ -439,15 +440,15 @@ ValueText modulator1_volume_text(const MenuContext& ctx, int32_t, ValueTextUse u
 }
 
 ValueText mod_fx_depth_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::DEPTH, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::DEPTH, use, out);
 }
 
 ValueText mod_fx_feedback_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::FEEDBACK, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::FEEDBACK, use, out);
 }
 
 ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	return mod_fx_knob_text(ctx, ModFXParam::OFFSET, use, out);
+	return mod_fx_knob_text(ctx, deluge::effects::ModFxParam::OFFSET, use, out);
 }
 
 namespace {
@@ -659,16 +660,13 @@ ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<cha
 	return source_page_title(ctx, page, out, osc1_type, '2');
 }
 ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
-	// main's `modfx::getModNames()`, indexed by type.
-	static constexpr std::array kNames{String::STRING_FOR_DISABLED,      String::STRING_FOR_FLANGER,
-	                                   String::STRING_FOR_CHORUS,        String::STRING_FOR_PHASER,
-	                                   String::STRING_FOR_STEREO_CHORUS, String::STRING_FOR_WARBLE,
-	                                   String::STRING_FOR_DIMENSION,     String::STRING_FOR_GRAIN};
 	if (page == 0) {
 		return kValueTextFallback;
 	}
 	const auto type = static_cast<size_t>(choice_of(mod_fx_type, ctx, bindings::read(mod_fx_type, ctx)));
-	return type < kNames.size() ? put_string(kNames[type], out) : kValueTextFallback;
+	return type < static_cast<size_t>(deluge::effects::kNumModFXTypes)
+	           ? put(deluge::l10n::mod_fx_name(static_cast<deluge::effects::ModFXType>(type)), out)
+	           : kValueTextFallback;
 }
 
 } // namespace deluge::scenes::menu::nodes

@@ -12,13 +12,13 @@
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
 #include "effects/setting_params.h"
+#include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "model/fx/mod_fx_names.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/song/reverb_presets.h"
 #include "modulation/params/param.h"
@@ -194,8 +194,12 @@ std::string comp_reverb_popup(const project::Song& song, const bind::CompView& c
 	return out + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
 }
 
-std::string mod_fx_popup(effects::ModFXType type, ModFXParam param) {
-	return std::string{"Type: "} + modfx::modFXToString(type) + "\nParam: " + modfx::getParamName(type, param);
+/// How many params the mod-FX unit has.
+constexpr auto kNumModFxParams = static_cast<int32_t>(effects::kModFxParamWords.size());
+
+std::string mod_fx_popup(effects::ModFXType type, effects::ModFxParam param) {
+	return std::string{"Type: "} + std::string{l10n::mod_fx_name(type)}
+	       + "\nParam: " + std::string{l10n::mod_fx_param_name(type, param, false)};
 }
 
 /// The chain's record, as the focus names it.
@@ -266,7 +270,7 @@ void say_step(KnobPush& out, const project::Song& song, plugin::ParamId id, cons
 /// The chain's mod FX view, as its record holds it; feedback for no chain.
 uint32_t mod_fx_view(const project::Song& song, const bind::KnobFocus& focus) {
 	const project::FxChain* chain = chain_of(song, focus);
-	return chain != nullptr ? chain->mod_fx_param : std::to_underlying(ModFXParam::FEEDBACK);
+	return chain != nullptr ? chain->mod_fx_param : std::to_underlying(effects::ModFxParam::FEEDBACK);
 }
 
 /// After the mod FX type stepped to @p after's: a view the new type has no param for moves on to the next one it
@@ -276,13 +280,13 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 	const effects::ModFXType type = after.mod_fx.type;
 	const uint32_t view = mod_fx_view(song, focus);
 	uint32_t param = view;
-	for (int32_t tried = 0; tried < kNumModFXParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
-		param = (param + 1) % kNumModFXParams;
+	for (int32_t tried = 0; tried < kNumModFxParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
+		param = (param + 1) % kNumModFxParams;
 	}
 	if (param != view) {
 		out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[param]);
 	}
-	say(out, inputs, mod_fx_popup(type, static_cast<ModFXParam>(param)), modfx::modFXToString(type));
+	say(out, inputs, mod_fx_popup(type, static_cast<effects::ModFxParam>(param)), std::string{l10n::mod_fx_name(type)});
 }
 
 /// A press of knob @p pressed that moved @p focus's section from @p pages's current page to @p page: a sound's filter
@@ -325,11 +329,12 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		return;
 	}
 	case host_chain::kModFxSection: {
-		const auto param = static_cast<ModFXParam>(page.page_id);
+		const auto param = static_cast<effects::ModFxParam>(page.page_id);
 		if (page.page_id != mod_fx_view(song, focus)) {
 			out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[page.page_id]);
 		}
-		say(out, inputs, mod_fx_popup(fx.mod_fx.type, param), modfx::getParamName(fx.mod_fx.type, param));
+		say(out, inputs, mod_fx_popup(fx.mod_fx.type, param),
+		    std::string{l10n::mod_fx_param_name(fx.mod_fx.type, param, false)});
 		out.edited = true;
 		return;
 	}
@@ -574,8 +579,8 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	case host_chain::kCompressorSection:
 		return is_song ? comp_reverb_popup(song, focus.comp) : sidechain_reverb_popup(song, fx);
 	case host_chain::kModFxSection:
-		return mod_fx_popup(fx.mod_fx.type,
-		                    chain != nullptr ? static_cast<ModFXParam>(chain->mod_fx_param) : ModFXParam::FEEDBACK);
+		return mod_fx_popup(fx.mod_fx.type, chain != nullptr ? static_cast<effects::ModFxParam>(chain->mod_fx_param)
+		                                                     : effects::ModFxParam::FEEDBACK);
 	default:
 		return names_popup(song, focus, button, inputs);
 	}

@@ -38,7 +38,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
-#include "model/fx/mod_fx_names.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -1795,16 +1794,16 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("a mod-FX knob's name and title follow the effect, its column label the short form", _ {
 		// `mod_fx::Depth_Patched::getName`/`getTitle` (`origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`):
-		// `modfx::getParamName`.
+		// the flanger's plain "Depth".
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // flanger
 		menu::NodeText scratch;
 		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Name, ctx, scratch)))
-		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DEPTH)));
 		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Title, ctx, scratch)))
-		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DEPTH)));
 	});
 
 	it("the filter morph's name and title are the long morph name for its family", _ {

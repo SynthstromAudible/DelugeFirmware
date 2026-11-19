@@ -15,26 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+// effects::ModFxParam: its enumerators index kModFxParamWords in the order the file words name them.
 
-#include "definitions_cxx.hpp"
-#include "util/containers.h"
+#include "effects/chain.h"
+#include "effects/words.h"
+
+#include <cppspec.hpp>
 
 #include <string_view>
+#include <utility>
 
-/// @brief The mod FX types' and their knobs' display names, for the menus and the OLED.
-namespace modfx {
+using namespace deluge::effects;
 
-/// @brief The name of @p type's knob @p param: the grain names its knobs apart from the delay-line types.
-/// @param type      The mod FX type.
-/// @param param     The knob to name.
-/// @param shortName Whether to give the short form, for a column label.
-/// @return The knob's name.
-[[nodiscard]] const char* getParamName(ModFXType type, ModFXParam param, bool shortName = false);
+// clang-format off
+describe mod_fx_param("the mod-FX params", ${
+	it("are in the order their file words are", _ {
+		expect(kModFxParamWords[std::to_underlying(ModFxParam::DEPTH)]).to_equal(std::string_view{"depth"});
+		expect(kModFxParamWords[std::to_underlying(ModFxParam::FEEDBACK)]).to_equal(std::string_view{"feedback"});
+		expect(kModFxParamWords[std::to_underlying(ModFxParam::OFFSET)]).to_equal(std::string_view{"offset"});
+	});
+});
 
-/// @brief @p type's name.
-/// @param type The mod FX type.
-/// @return The type's name.
-[[nodiscard]] const char* modFXToString(ModFXType type);
-
-} // namespace modfx
+CPPSPEC_SPEC(mod_fx_param)
+// clang-format on

@@ -54,6 +54,13 @@ enum class ModFXType : uint8_t {
 	GRAIN,
 };
 
+/// @brief The mod-FX unit's three params, in the order the file words name them (@ref kModFxParamWords).
+enum class ModFxParam : uint8_t {
+	DEPTH,
+	FEEDBACK,
+	OFFSET,
+};
+
 /// @brief How many modes the low-pass filter cycles through: the modes up to and including SVF_NOTCH.
 inline constexpr int32_t kNumLPFModes = std::to_underlying(FilterMode::SVF_NOTCH) + 1;
 /// @brief The first high-pass mode, as an index.

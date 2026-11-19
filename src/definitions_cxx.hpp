@@ -502,11 +502,7 @@ enum class ArpMpeModSource {
 	MPE_Y,
 };
 
-enum class ModFXParam {
-	DEPTH,
-	FEEDBACK,
-	OFFSET,
-};
+using ModFXParam = deluge::effects::ModFxParam;
 constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class CompParam {
