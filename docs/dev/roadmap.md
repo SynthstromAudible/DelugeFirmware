@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-18 (Track A step 1b-i, instrument events, on `feat/instrument-events`; P3d-1d / params C4 merged into `next`, 77a23d631; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-18 (Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged into `next`, 77a23d631; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -16,8 +16,12 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 - Instrument events (Track A step 1b-i, `feat/instrument-events`): note tails are `Voiced`'s, an expression lane's
   change reaches the clip's instrument or the row's drum by address, and a MIDI instrument sends its own CCs;
   `ModControllable` is the `effectsOwner()` bridge only.
-- Next actions: the ModelStack stage 1 spec (it ends Track A step 1b-ii); the arpeggiator's params vs settings (D7)
-  spec; the C2 spec and the R1 ratchet; the float instrument's voice pool (Track B).
+- Track A step 3 (the Deluge synth's state) runs as five plans, A to E. Plan A is merged: code outside the
+  instrument reads and writes a sound's state through `instruments/deluge/state_access.h`; only `Sound`, `Source`
+  and three bridges still read its fields, and plans B and D replace them.
+- Next actions: step 3 plan B (`DelugeSynth`, its derived config, one apply path; the setters go); the ModelStack
+  stage 1 spec (it ends Track A step 1b-ii); the arpeggiator's params vs settings (D7) spec; the C2 spec and the R1
+  ratchet; the float instrument's voice pool (Track B).
 
 ## Target architecture
 
@@ -125,7 +129,7 @@ budget.
 | 1b-i | Instrument events: note tails are `Voiced`'s; an expression lane's change reaches the clip's instrument or the row's drum by address (`model::expressionReceiverOf`); a MIDI instrument sends its own CCs; `ModControllable` is the `effectsOwner()` bridge only, held there by the `mod-controllable-bridge-only` layer rule (done on `feat/instrument-events`) | 1 |
 | 1b-ii | The ModelStack owner slot goes; the `effectsOwner()` bridge and `ModControllable` are deleted | 1b-i; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address: R1 inventory and ratchet, spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
-| 3 | `Patch` extracted from `Sound`: `VoiceConfig` and `SoundSnapshot` reconciled; the delay, sidechain, stutter and compressor settings ("5b") out of their DSP objects. `Patch` is the state L3 serializes | 1, 2 |
+| 3 | The Deluge synth's state (`DelugeSynth::State`, the state L3 serializes): one state composed of its components' states, one derived render config in place of `SoundSnapshot` and `VoiceConfig`'s settings, a per-block pack, the loaded resources, and one apply path. The effect settings ("5b") are already value types. Five plans: A (query surface) merged; B config and apply; C per-block pack; D resources; E the variant state | 1b-i |
 | 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |
 | 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin-api` on CLAP's types; TODO.md) | can run beside 2 to 4 |
 | 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
