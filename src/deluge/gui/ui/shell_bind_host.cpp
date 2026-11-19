@@ -518,7 +518,7 @@ public:
 			if (newest == nullptr) {
 				return std::nullopt;
 			}
-			const int32_t u = sound->snapshot().num_unison >> 1;
+			const int32_t u = sound->config().voicing.unison.count >> 1;
 			if (!newest->kernel.unison_parts[u].slots[address.source].active) {
 				return std::nullopt;
 			}

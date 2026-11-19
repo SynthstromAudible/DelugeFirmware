@@ -107,9 +107,9 @@ describe synth_engine_spec_body("synth engines", ${
 			auto rig = std::make_unique<Rig>();
 			DroneEngine engine;
 			const NoteSetup setup = note_setup(OscType::SAW);
-			const SoundSnapshot snap = snapshot(SynthMode::SUBTRACTIVE);
+			const SoundConfig snap = snapshot(SynthMode::SUBTRACTIVE);
 			const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
-			expect(engine.note_on({.parts = rig->voice.unison_parts, .setup = &setup, .snapshot = &snap,
+			expect(engine.note_on({.parts = rig->voice.unison_parts, .setup = &setup, .config = &snap,
 			                       .note_code = 60, .velocity = 100, .reset = true, .noise = &rig->noise}))
 			    .to_be_true();
 			expect(rig->voice.unison_parts[0].slots[0].active).to_be_true();

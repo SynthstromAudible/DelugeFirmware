@@ -108,7 +108,9 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		                               ? static_cast<const SampleHolderForVoice*>(voice.guides[s].audioFileHolder)
 		                               : nullptr;
 		out.transpose = sampleHolder != nullptr ? sampleHolder->transpose : source.transpose;
-		out.fine_tuner = sampleHolder != nullptr ? sampleHolder->fineTuner : source.fineTuner;
+		// The holder's and the source's tuners are set from their cents: the same tune, from the same cents
+		out.fine_tuner =
+		    deluge::dsp::fixed::FineTune::of_cents(sampleHolder != nullptr ? sampleHolder->cents : source.cents);
 		out.neutral_phase_increment = sampleHolder != nullptr ? sampleHolder->neutralPhaseIncrement : kMaxSampleValue;
 		if (!forNoteChange && synthMode != SynthMode::FM && source.oscType == OscType::DX7 && out.ever_active) {
 			out.dx_patch = source.ensureDxPatch();
@@ -130,8 +132,8 @@ ReleaseInfo release_info_for(Sound& sound, ParamManagerForTimeline* paramManager
 	ReleaseInfo release{
 	    .note_tails_allowed = noteTailsAllowed,
 	    .synth_mode = sound.getSynthMode(),
-	    .num_unison = sound.snapshot().num_unison,
-	    .voice_priority = sound.snapshot().voice_priority,
+	    .num_unison = sound.config().voicing.unison.count,
+	    .voice_priority = sound.config().voicing.priority,
 	    .num_active_voices = sound.numActiveVoices(),
 	};
 	if (noteTailsAllowed) {

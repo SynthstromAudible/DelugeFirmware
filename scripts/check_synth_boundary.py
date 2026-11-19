@@ -75,7 +75,6 @@ UTIL_ALLOWED = {
     "util/lookuptables/lookuptables.h",
     "util/misc.h",
     "util/param_functions.h",
-    "util/phase_increment_fine_tuner.h",
 }
 MODULATION_ALLOWED = {
     "modulation/params/param.h",

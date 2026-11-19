@@ -42,7 +42,7 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patch_routing.h" // GLOBALITY_*
-#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/sound_config.h"
 #include "util/misc.h"
 #include <atomic>
 #include <bitset>
@@ -201,16 +201,15 @@ public:
 	/// @param d The record to fill.
 	void seedScalarsInto(deluge::instrument::SoundState& d) const;
 
-	/// @brief The engine's derived read-view of the hot Sound render fields, projected from state_ by projectSnapshot()
-	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
+	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
+	/// doneReadingFromFile and after edits; the render reads it.
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
-	deluge::synth::SoundSnapshot snapshot_{};
-	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
+	deluge::synth::SoundConfig config_{};
+	/// @brief Re-derive config_ from state_ (no-op when unbound).
 	void projectSnapshot();
-	/// @brief The derived read-view of the hot render fields.
-	/// @return The snapshot.
-	[[nodiscard]] const deluge::synth::SoundSnapshot& snapshot() const { return snapshot_; }
+	/// @brief The sound's settings as its voices play them.
+	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
 	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
@@ -250,7 +249,7 @@ public:
 	PolyphonyMode polyphonic = PolyphonyMode::POLY;
 	uint8_t maxVoiceCount = 8;
 
-	// The sound's transpose lives in the SoundSnapshot read-view (see snapshot_ / getTranspose()).
+	// The sound's transpose lives in the SoundConfig read-view (see config_ / getTranspose()).
 
 	// For sending MIDI notes for SoundDrums
 	uint8_t outputMidiChannel = MIDI_CHANNEL_NONE;
@@ -279,7 +278,7 @@ public:
 	// setModulator{Transpose,Cents} (below) also do engine-side recalcs.
 	void setPolyphonic(PolyphonyMode value);
 	void setTranspose(int16_t value);
-	[[nodiscard]] int16_t getTranspose() const { return snapshot_.transpose; }
+	[[nodiscard]] int16_t getTranspose() const { return config_.voicing.transpose; }
 	void setModulator1ToModulator0(bool value);
 	void setOscRetriggerPhase(int32_t s, uint32_t value);
 	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
@@ -399,7 +398,7 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synth_mode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return config_.engine.mode; }
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
@@ -531,9 +530,8 @@ private:
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
-	void setupUnisonStereoSpread();
-	void computeUnisonDetuners();
-	void calculateEffectiveVolume();
+	/// @brief The unison layout and level its count, detune and spread make (synth::derive_unison).
+	void refreshUnison();
 	void ensureKnobReferencesCorrectVolume(ModKnob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);

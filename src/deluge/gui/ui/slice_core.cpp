@@ -227,7 +227,7 @@ std::optional<int32_t> SliceCore::play_position() {
 			const Sound::ActiveVoice& voice =
 			    *std::ranges::max_element(valid_voices_view, {}, &SoundVoice::order_sounded);
 
-			const int32_t u = drum->snapshot().num_unison >> 1;
+			const int32_t u = drum->config().voicing.unison.count >> 1;
 			deluge::synth::SourceSlot* part = &voice->kernel.unison_parts[u].slots[0];
 			if (part != nullptr && part->active) {
 				voiceSample = voice->ports(u, 0).sample.voiceSample();

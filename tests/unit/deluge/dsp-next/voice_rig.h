@@ -87,11 +87,12 @@ inline NoteSetup note_setup(OscType osc, int32_t release = kShortRelease) {
 	return setup;
 }
 
-inline SoundSnapshot snapshot(SynthMode mode) {
-	SoundSnapshot snap{};
-	snap.synth_mode = mode;
-	snap.osc_retrigger_phase = {0, 0};
-	snap.modulator_retrigger_phase = {0, 0};
+inline SoundConfig snapshot(SynthMode mode) {
+	SoundConfig snap{};
+	snap.engine.mode = mode;
+	snap.engine.osc_retrigger_phase = {0, 0};
+	snap.engine.modulators[0].retrigger_phase = 0;
+	snap.engine.modulators[1].retrigger_phase = 0;
 	return snap;
 }
 

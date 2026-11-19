@@ -10,17 +10,15 @@ using deluge::synth::detuned_increment;
 
 namespace {
 /// The top unison part's detuner at the widest detune: +25 cents.
-PhaseIncrementFineTuner widest() {
-	PhaseIncrementFineTuner tuner;
-	tuner.setup(1073741800);
-	return tuner;
+deluge::dsp::fixed::FineTune widest() {
+	return deluge::dsp::fixed::FineTune::of_step(1073741800);
 }
 } // namespace
 
 // clang-format off
 describe unison_increment("a unison part's increment", ${
 	it("is the base detuned, below 2^31", _ {
-		PhaseIncrementFineTuner none;
+		const deluge::dsp::fixed::FineTune none;
 		expect(detuned_increment(1 << 28, none)).to_equal(std::optional<uint32_t>{1 << 28});
 		expect(detuned_increment(1 << 30, widest()).value_or(0)).to_be_greater_than(uint32_t{1} << 30);
 	});

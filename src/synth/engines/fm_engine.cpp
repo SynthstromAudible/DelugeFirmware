@@ -27,7 +27,7 @@
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/pitch.h"
 #include "synth/sources/va/va_shapes.h" // va_shape::initial_phase_for_zero
-#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/sound_config.h"
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable
 #include <algorithm>
 #include <utility>
@@ -114,15 +114,15 @@ bool FMEngine::note_on(const EngineNote& note) {
 	if (!SlotEngine::note_on(note)) {
 		return false;
 	}
-	const int32_t num_unison = note.snapshot->num_unison;
-	const std::array<uint32_t, kNumModulators>& retrigger_phase = note.snapshot->modulator_retrigger_phase;
+	const int32_t num_unison = note.config->voicing.unison.count;
 	const bool reset = note.reset;
 	const uint32_t initial_phase = va_shape::initial_phase_for_zero(OscType::SINE);
 	for (int32_t u = 0; u < num_unison; u++) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
-			if (retrigger_phase[m] != kNoRetrigger) {
+			const uint32_t retrigger_phase = note.config->engine.modulators[m].retrigger_phase;
+			if (retrigger_phase != kNoRetrigger) {
 				// The retrigger phase's word is the phase it adds
-				modulator_phase_[u][m] = UQ<32>::from_raw(initial_phase + retrigger_phase[m]);
+				modulator_phase_[u][m] = UQ<32>::from_raw(initial_phase + retrigger_phase);
 			}
 			if (reset) {
 				modulator_feedback_[u][m] = Q<31>{};
@@ -141,22 +141,22 @@ void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
 void FMEngine::calculate_phase_increments(const EngineNote& note) {
 	SlotEngine::calculate_phase_increments(note);
 
-	const SoundSnapshot& snapshot = *note.snapshot;
-	const int32_t note_code_with_master_transpose = note.note_code + snapshot.transpose;
+	const SoundConfig& config = *note.config;
+	const int32_t note_code_with_master_transpose = note.note_code + config.voicing.transpose;
 	const std::array<bool, kNumModulators>& modulator_audible = note.setup->modulator_audible;
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		if (!modulator_audible[m]) {
 			continue;
 		}
 
-		const int32_t transposed_note_code = note_code_with_master_transpose + snapshot.modulator_transpose[m];
+		const int32_t transposed_note_code = note_code_with_master_transpose + config.engine.modulators[m].transpose;
 		const int32_t note_within_octave = (transposed_note_code + 120 - 4) % 12;
 		const int32_t octave = (transposed_note_code + 120 - 4) / 12;
 		const int32_t shift_right_amount = 20 - octave;
 
 		if (shift_right_amount < 0) {
 			// Too high to render (above 22.05 kHz)
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
+			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 				modulator_phase_increment_[u][m] = kInactive;
 			}
 			continue;
@@ -164,17 +164,17 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 		int32_t phase_increment = noteFrequencyTable[note_within_octave] >> shift_right_amount;
 
 		// Cents, then the master transpose's
-		phase_increment = snapshot.modulator_transposers[m].detune(phase_increment);
-		phase_increment = snapshot.fine_tuner.detune(phase_increment);
+		phase_increment = config.engine.modulators[m].tune.apply(phase_increment);
+		phase_increment = config.voicing.tune.apply(phase_increment);
 
 		// The tuners work on signed increments; the bits are the same
-		if (snapshot.num_unison == 1) {
+		if (config.voicing.unison.count == 1) {
 			modulator_phase_increment_[0][m] = UQ<32>::from_raw(phase_increment);
 		}
 		else {
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
+			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 				modulator_phase_increment_[u][m] =
-				    UQ<32>::from_raw(snapshot.unison_detuners[u].detune(phase_increment));
+				    UQ<32>::from_raw(config.voicing.unison.detunes[u].apply(phase_increment));
 			}
 		}
 	}

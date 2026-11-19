@@ -1,0 +1,77 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "definitions_cxx.hpp" // SynthMode, VoicePriority, PolyphonyMode, kNumSources, kNumModulators, LFO_COUNT
+#include "dsp-next/fixed/pitch/fine_tune.h"
+#include "synth/modulation/lfo.h" // LFOConfig
+#include "synth/voice/unison.h"
+
+#include <array>
+#include <cstdint>
+
+/// @file
+/// @brief A sound's settings as its voices play them.
+
+namespace deluge::synth {
+
+/// @brief How a sound's voices are allocated and tuned.
+struct Voicing {
+	VoicePriority priority{VoicePriority::MEDIUM}; ///< ranks the sound's voices for stealing
+	PolyphonyMode polyphony{PolyphonyMode::POLY};
+	uint8_t max_voices{8};
+	int16_t transpose{0};      ///< the master transpose, semitones
+	int8_t cents{0};           ///< the master fine tune, −50..50
+	dsp::fixed::FineTune tune; ///< of @ref cents
+	int8_t unison_detune{8};   ///< cents across the unison parts
+	uint8_t unison_spread{0};  ///< how far the parts spread across the field
+	UnisonLayout unison;
+	bool operator==(const Voicing&) const = default;
+};
+
+/// @brief One FM modulator's tuning and retrigger phase.
+struct ModulatorSettings {
+	int16_t transpose{0};        ///< semitones
+	int8_t cents{0};             ///< −50..50
+	dsp::fixed::FineTune tune;   ///< of @ref cents
+	uint32_t retrigger_phase{0}; ///< the phase a note starts at, a fraction of 2^32; 0xFFFFFFFF = free-running
+	bool operator==(const ModulatorSettings&) const = default;
+};
+
+/// @brief What the engines read: the mode, oscillator sync, each oscillator's retrigger phase, and FM's modulators.
+struct EngineSettings {
+	SynthMode mode{SynthMode::SUBTRACTIVE};
+	bool osc_sync{false};
+	/// Each oscillator's retrigger phase, a fraction of 2^32; 0xFFFFFFFF = free-running
+	std::array<uint32_t, kNumSources> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF};
+	std::array<ModulatorSettings, kNumModulators> modulators{
+	    ModulatorSettings{}, ModulatorSettings{.transpose = -12, .cents = 0, .tune = {}, .retrigger_phase = 0}};
+	bool modulator1_to_modulator0{false}; ///< FM: modulator 1 modulates modulator 0 rather than the carriers
+	bool operator==(const EngineSettings&) const = default;
+};
+
+/// @brief A sound's settings as its voices play them, derived from its state in one place.
+struct SoundConfig {
+	Voicing voicing;
+	EngineSettings engine;
+	std::array<LFOConfig, LFO_COUNT>
+	    lfos{}; ///< each LFO's wave and sync; LFO1 and LFO3 run per sound, 2 and 4 per voice
+	bool operator==(const SoundConfig&) const = default;
+};
+
+} // namespace deluge::synth

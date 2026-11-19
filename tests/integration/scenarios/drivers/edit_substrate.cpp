@@ -610,7 +610,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 
 	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
-	check(sound.snapshot().voice_priority == VoicePriority::HIGH, "setting: the sound takes the value");
+	check(sound.config().voicing.priority == VoicePriority::HIGH, "setting: the sound takes the value");
 	const Value slotNow = *deluge::harness::encodedSlot(ctx.song, *slot);
 	const std::string* held = deluge::serialization::text_of(slotNow.find("voicePriority"));
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
@@ -624,7 +624,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "setting: a refused Edit leaves the slot");
-	check(sound.snapshot().voice_priority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
+	check(sound.config().voicing.priority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
 
 	// An LFO's sync level is the level itself, whatever the song's tick magnitude: every level the sync menu offers
 	// is taken and lands as chosen.
@@ -637,7 +637,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 		for (int32_t level = 0; level <= 9; level++) {
 			deluge::edits::SetEngineSetting sync{*slot, "lfo1/syncLevel", Value::makeNumber(level)};
 			const bool taken = deluge::edits::apply(ctx, sync) == Error::NONE;
-			const bool landed = static_cast<int32_t>(sound.snapshot().lfo_config[0].sync_level) == level;
+			const bool landed = static_cast<int32_t>(sound.config().lfos[0].sync_level) == level;
 			if (!taken || !landed) {
 				std::fprintf(io.err, "setting: lfo1/syncLevel=%d at magnitude %d %s\n", level, magnitude,
 				             taken ? "landed elsewhere" : "refused");

@@ -161,9 +161,9 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		}
 	}
 	if (checks.snapshot) {
-		const deluge::synth::SoundSnapshot before = sound.snapshot();
+		const deluge::synth::SoundConfig before = sound.config();
 		sound.projectSnapshot();
-		if (!(sound.snapshot() == before)) {
+		if (!(sound.config() == before)) {
 			return "snapshot";
 		}
 	}

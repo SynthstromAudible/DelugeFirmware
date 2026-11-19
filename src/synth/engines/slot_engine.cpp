@@ -88,16 +88,16 @@ bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 			}
 			source_ever_active = false;
 		}
-		for (int32_t u = 0; u < note.snapshot->num_unison; u++) {
+		for (int32_t u = 0; u < note.config->voicing.unison.count; u++) {
 			note.parts[u].slots[s].active = source_ever_active;
 		}
 	}
 	return true;
 }
 
-std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const PhaseIncrementFineTuner& detuner) {
+std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const dsp::fixed::FineTune& detuner) {
 	// The tuner works on signed increments: below 2^31 the bits are the same
-	const auto detuned = static_cast<uint32_t>(detuner.detune(static_cast<int32_t>(phase_increment)));
+	const auto detuned = static_cast<uint32_t>(detuner.apply(static_cast<int32_t>(phase_increment)));
 	if (detuned >= (uint32_t{1} << 31)) {
 		return std::nullopt;
 	}
@@ -106,18 +106,18 @@ std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const PhaseI
 
 void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
-	const SoundSnapshot& snapshot = *note.snapshot;
-	const int32_t note_code_with_master_transpose = note.note_code + snapshot.transpose;
+	const SoundConfig& config = *note.config;
+	const int32_t note_code_with_master_transpose = note.note_code + config.voicing.transpose;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const SourceSetup& source = setup.sources[s];
 
 		const std::optional<uint32_t> base =
 		    source.ever_active
-		        ? base_phase_increment(source, snapshot.synth_mode, note_code_with_master_transpose + source.transpose)
+		        ? base_phase_increment(source, config.engine.mode, note_code_with_master_transpose + source.transpose)
 		        : std::nullopt;
 		if (!base.has_value()) { // Not sounding, or too high to render (above 22.05 kHz)
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
+			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 				note.parts[u].slots[s].active = false;
 			}
 			continue;
@@ -125,15 +125,16 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 
 		// Cents, then the master transpose's
 		// The tuners work on signed increments; the bits are the same
-		auto phase_increment = static_cast<uint32_t>(source.fine_tuner.detune(static_cast<int32_t>(*base)));
-		phase_increment = static_cast<uint32_t>(snapshot.fine_tuner.detune(static_cast<int32_t>(phase_increment)));
+		auto phase_increment = static_cast<uint32_t>(source.fine_tuner.apply(static_cast<int32_t>(*base)));
+		phase_increment = static_cast<uint32_t>(config.voicing.tune.apply(static_cast<int32_t>(phase_increment)));
 
-		if (snapshot.num_unison == 1) {
+		if (config.voicing.unison.count == 1) {
 			note.parts[0].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(phase_increment);
 		}
 		else {
-			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				const std::optional<uint32_t> part = detuned_increment(phase_increment, snapshot.unison_detuners[u]);
+			for (int32_t u = 0; u < config.voicing.unison.count; u++) {
+				const std::optional<uint32_t> part =
+				    detuned_increment(phase_increment, config.voicing.unison.detunes[u]);
 				if (part.has_value()) {
 					note.parts[u].slots[s].phase_increment_stored_value = dsp::UQ<32>::from_raw(*part);
 				}
@@ -147,17 +148,17 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 
 bool SlotEngine::start_sources(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
-	const SoundSnapshot& snapshot = *note.snapshot;
+	const SoundConfig& config = *note.config;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (!setup.sources[s].ever_active) [[unlikely]] {
 			continue;
 		}
-		for (int32_t u = 0; u < snapshot.num_unison; u++) {
+		for (int32_t u = 0; u < config.voicing.unison.count; u++) {
 			// Only a part marked active: among other things, a SAMPLE source then has a sample loaded
 			SourceSlot& slot = note.parts[u].slots[s];
 			if (slot.active
-			    && !slot.note_on(setup.sources[s], note.samples_late, snapshot.osc_retrigger_phase[s], note.reset,
-			                     snapshot.synth_mode, note.note_code, note.velocity, note.priority_rating, *note.noise))
+			    && !slot.note_on(setup.sources[s], note.samples_late, config.engine.osc_retrigger_phase[s], note.reset,
+			                     config.engine.mode, note.note_code, note.velocity, note.priority_rating, *note.noise))
 			    [[unlikely]] {
 				return false;
 			}
