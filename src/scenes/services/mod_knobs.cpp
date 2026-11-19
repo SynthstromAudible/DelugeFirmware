@@ -551,13 +551,13 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 			knob_pos = controls::fold_cable(knob_pos);
 		}
 		out.declared = true;
-		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the E4 final
-		// review asked for the argument at the code rather than only on `IndicatorLevel::level`.
+		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the argument is
+		// made here at the code rather than only on `IndicatorLevel::level`.
 		// `View::setKnobIndicatorLevel` carries `int32_t knobPos` right to its last line and hands
-		// it to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`
-		// (`View::setKnobIndicatorLevel` calling `indicator_leds::setKnobIndicatorLevel`), so the value is
-		// truncated by an implicit conversion at exactly this point. The `>> 5` and `& 31` the
-		// review cites (`indicator_leds::actuallySetKnobIndicatorLevel`) run on that already-truncated
+		// it to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`,
+		// so the value is
+		// truncated by an implicit conversion at exactly this point. The `>> 5` and `& 31` of
+		// `indicator_leds::actuallySetKnobIndicatorLevel` run on that already-truncated
 		// parameter, not on the `int32_t` -- there is no wider legacy arithmetic to be faithful to.
 		// An explicit cast where legacy has an implicit one is the same value and a visible one.
 		out.level = static_cast<uint8_t>(knob_pos);

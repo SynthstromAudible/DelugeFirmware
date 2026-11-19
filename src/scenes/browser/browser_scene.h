@@ -613,7 +613,7 @@ private:
 		/// `browser.cpp`).
 		NotFound,
 		/// The cached window cannot answer -- the folder has to be read again around the search
-		/// string. Legacy loops synchronously (`doNewRead` in `Browser::predictExtendedText`); this scene dispatches.
+		/// string. Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); this scene dispatches.
 		NeedsRead,
 	};
 

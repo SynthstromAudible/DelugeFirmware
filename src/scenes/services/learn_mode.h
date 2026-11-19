@@ -10,10 +10,10 @@
 /// split is how `View` reached 2,908 lines in the first place.
 ///
 /// The rule: **the service that owns the MODE owns the arm, and the other asks it.** `MidiLearn` owns
-/// `UI_MODE_MIDI_LEARN` (`View::startMIDILearn` `gui/views/view.cpp`, `View::endMIDILearn`), so it owns every arm whose
-/// *whole body* is learn work -- the `TAP_TEMPO` learn branch, the `LEARN` button itself, and the `PLAY` and `RECORD`
-/// arms that exist only under learn (`View::buttonAction` in `gui/views/view.cpp`). `GlobalControls` owns the rest and
-/// asks `active()` before running the transport arms those two share a button with.
+/// `UI_MODE_MIDI_LEARN` (`View::startMIDILearn` in `gui/views/view.cpp`, `View::endMIDILearn`), so it owns every arm
+/// whose *whole body* is learn work -- the `TAP_TEMPO` learn branch, the `LEARN` button itself, and the `PLAY` and
+/// `RECORD` arms that exist only under learn (`View::buttonAction` in `gui/views/view.cpp`). `GlobalControls` owns the
+/// rest and asks `active()` before running the transport arms those two share a button with.
 ///
 /// @note `services::MidiLearn` implements this (`services/midi_learn.h`). `MidiLearn` is routed one
 ///       step after `GlobalControls` so that the arms this service declines are claimed rather than dropped.

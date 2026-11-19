@@ -286,7 +286,7 @@ public:
 	///
 	/// The `ViewState` injection pattern `ModKnobs` and `GlobalControls` use, reduced to its one
 	/// field: there is exactly one root-UI fact on this path. **Nothing sets it yet** -- the root
-	/// scenes that would are E5/E6's -- so the default (`false`, meaning `UI_MODE_NONE`) holds and
+	/// scenes that would do not exist yet -- so the default (`false`, meaning `UI_MODE_NONE`) holds and
 	/// the spec is the only caller.
 	/// @param active Whether a mode other than `UI_MODE_NONE`/`UI_MODE_MIDI_LEARN` is active.
 	void set_other_mode_active(bool active) { other_mode_active_ = active; }

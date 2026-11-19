@@ -36,13 +36,12 @@ namespace deluge::scenes::context_menu {
 ///
 /// Every legacy context menu the ported scenes open: the five `reset_settings::Reset` items
 /// (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`, `nodes::reset_flash` .. `nodes::reset_all`),
-/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two
-/// long-press menus (`gui/context_menu/sample_browser/{kit,synth}.cpp`), which `BrowserScene` opens.
-/// The others are opened from views or browsers not ported yet -- `clearSong` from `gui/views/view.cpp`,
-/// `clipSettings` / `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` /
-/// `deleteFile` / `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport`
-/// from the views -- and `midiLearnMode` and `configureSongMacros` go through the action seam
-/// (`scenes/menu/action.h`) to the legacy objects.
+/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two long-press menus
+/// (`origin/main:src/deluge/gui/context_menu/sample_browser/{kit,synth}.cpp`), which `BrowserScene` opens. The others
+/// are opened from views or browsers not ported yet -- `clearSong` from `gui/views/view.cpp`, `clipSettings` /
+/// `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
+/// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the views -- and
+/// `midiLearnMode` and `configureSongMacros` go through the action seam (`scenes/menu/action.h`) to the legacy objects.
 ///
 /// @note `padAction` and `getGreyoutColsAndRows` are not descriptor business for `AudioSource`:
 ///       `AudioInputSelector`'s read the session view (`audio_input_selector.cpp`),

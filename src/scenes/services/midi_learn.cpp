@@ -182,12 +182,10 @@ void MidiLearn::end() {
 // -- The pressed thing ---------------------------------------------------------------------------
 
 void MidiLearn::end_press_session(LearnTarget new_thing) {
-	// `View::endMidiLearnPressSession` (`gui/views/view.cpp`).
-	//
-	// 's switch calls `playbackHandler.setLedStates()` for the three button kinds and
-	// nothing for the other six. In a declarative LED model that call is not a state change at
-	// all: `leds()` recomposes from scratch every tick and stops declaring the flash the moment
-	// `pressed_.kind` stops naming a button. Nothing to port, and it is named rather than dropped.
+	// `View::endMidiLearnPressSession` (`gui/views/view.cpp`): its switch calls `playbackHandler.setLedStates()` for
+	// the three button kinds and nothing for the other six. In a declarative LED model that call is not a state change
+	// at all: `leds()` recomposes from scratch every tick and stops declaring the flash the moment `pressed_.kind`
+	// stops naming a button. Nothing to port, and it is named rather than dropped.
 	pressed_ = new_thing; // `View::endMidiLearnPressSession`'s `learnedThing = nullptr` and the new kind, as one write
 	unported_[static_cast<size_t>(UnportedCall::SpecificDeviceHook)]++;
 }
@@ -284,7 +282,8 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 	delete_on_release_ = false; // Something was learned, so the release must not wipe it.
 
 	// A note learned on an input brings its cable's bend ranges and velocity default
-	// (`View::noteOnReceivedForMidiLearn`'s `DRUM_INPUT` and `INSTRUMENT_INPUT` arms), which the learn takes with it.
+	// (`View::noteOnReceivedForMidiLearn`'s `DRUM_INPUT` and `INSTRUMENT_INPUT` arms commit with `inputFromNote`),
+	// which the learn takes with it.
 	std::optional<deluge::scenes::bind::LearnInput> input;
 	switch (pressed_.kind) {
 	case ::MidiLearn::DRUM_INPUT:
@@ -297,7 +296,7 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 		break;
 	case ::MidiLearn::INSTRUMENT_INPUT:
 		input = deluge::scenes::bind::LearnInput{.cable = &cable, .channel_or_zone = channel_or_zone};
-		// `clearMelodicInstrumentMonoExpression()` -- not ported, see the class doc.
+		// `clearMelodicInstrumentMonoExpressionIfPossible()` -- not ported, see the class doc.
 		unported_[static_cast<size_t>(UnportedCall::ClearMonoExpression)]++;
 		break;
 	default:
@@ -309,7 +308,7 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 	if (!pressed_.mapping && pressed_.thing == nullptr) {
 		return;
 	}
-	// The write every arm makes -- the `default` arm's `recordDetailsOfLearnedThing` for the shared path, and again
+	// The write every arm makes -- the `default` arm's `commitLearnedThing` for the shared path, and again
 	// inside the `INSTRUMENT_INPUT` arm, which is the same three fields in a different order.
 	::LearnedMIDI learned;
 	learned.cable = &cable;

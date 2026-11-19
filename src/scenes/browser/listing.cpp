@@ -226,9 +226,9 @@ Error Listing::run_action(ListingResult& out) {
 
 	case ListingAction::ByPath: {
 		// `setFileByFullPathImpl`.
-		// TODO(conflation-batch-4): legacy treats an unknown `fileExists` as absent here and carries
-		// the same marker; whatever legacy's load/browse/favourites site decides, this port
-		// inherits.
+		// TODO(conflation-batch-4): an unknown `fileExists` is treated as absent here, the same conflation
+		// `AudioFileManager` marks with `TODO(conflation-batch-5)` (`storage/audio/audio_file_manager.cpp`);
+		// whatever the load/browse/favourites sites decide, this port inherits.
 		if (!StorageManager::fileExists(request_.path.c_str()).value_or(false)) {
 			return Error::FILE_NOT_FOUND;
 		}

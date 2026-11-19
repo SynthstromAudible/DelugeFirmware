@@ -94,7 +94,7 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		// leaves this one alone (the `Shell` constructor), so this entry is the one that makes
 		// that service's push succeed.
 		table[static_cast<size_t>(overlay::kScreensaverSceneKind)] = &overlay::screensaver_scene();
-		// M1: numbered here as well as in `menu_scene()`, so building the table is enough on its
+		// Numbered here as well as in `menu_scene()`, so building the table is enough on its
 		// own -- `menu_scene()` already ran above, this is the belt to that braces and costs one
 		// load of an initialised static.
 		(void)assigned_node_ids();

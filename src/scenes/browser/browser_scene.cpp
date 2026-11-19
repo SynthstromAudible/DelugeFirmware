@@ -137,7 +137,8 @@ std::string_view row_label(std::string_view name, bool is_folder) {
 // ---------------------------------------------------------------------------------------------
 // The three descriptors. Each block is one legacy `Browser` subclass, virtual for virtual.
 
-/// @brief `SampleBrowser::allowedFileExtensionsAudio` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
+/// @brief `allowedFileExtensionsAudio`, the namespace-scope array in
+/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`.
 char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) ---
@@ -813,12 +814,12 @@ Result BrowserScene::apply(const ListingResult& out) {
 		return repaint_all();
 	}
 
-	// The second pass of `predictExtendedText`'s `doNewRead` arm (`Browser::continuePrediction` in `browser.cpp`), one
+	// The second pass of `Browser::continuePrediction`'s `doNewRead` arm (`browser.cpp`), one
 	// tick later: the folder has been re-read around the typed text, so run the search again.
 	if (searching_) {
 		searching_ = false;
 		if (search_for_entered_text() != SearchOutcome::Found) {
-			// `notFound` with `mayDefaultToBrandNewNameOnEntry` false (`Browser::predictExtendedText` in
+			// `notFound` with `mayDefaultToBrandNewNameOnEntry` false (`Browser::continuePrediction` in
 			// `gui/ui/browser/browser.cpp`): put the selected file's name back, and undo the cursor advance the
 			// keystroke made (`QwertyUI::padAction` in `qwerty_ui.cpp`). This is the same pair
 			// `run_search_after_typing` applies on the synchronous miss; the only difference is that the cursor had to
@@ -861,7 +862,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 	if (count == 0) {
-		// "Or if no files found at all..." with `mayDefaultToBrandNewNameOnEntry` false
+		// "No files found at all." with `mayDefaultToBrandNewNameOnEntry` false
 		// (`Browser::applyListingSelection` in `browser.cpp`): no text, no selection, top of the list.
 		entered_len_ = 0;
 		file_index_ = -1;
@@ -974,7 +975,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
 
 	const int32_t i = FileCatalogue::searchFileItems(search.c_str());
-	// "If that search takes us off the right-hand end of the list..." (`Browser::predictExtendedText`): the cached
+	// "If that search takes us off the right-hand end of the list..." (`Browser::continuePrediction`): the cached
 	// window cannot answer, so the folder has to be read again around the search string.
 	if (i >= count) {
 		return SearchOutcome::NeedsRead;
@@ -983,12 +984,12 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const FileItem& item = FileCatalogue::fileItems[static_cast<size_t>(i)];
 	if (!case_prefix_equal(item.displayName(), search, search.size())) {
 		// "If the search landed on the first cached item, the folder cache may be missing earlier
-		// entries" (`Browser::predictExtendedText`, issue #4584).
+		// entries" (`Browser::continuePrediction`, issue #4584).
 		if (i == 0) {
 			return SearchOutcome::NeedsRead;
 		}
 		// Legacy's remaining arm appends up to four '0's to the search string and tries again
-		// (`Browser::predictExtendedText`), a slot-browser behaviour whose comment says "this code is original but I
+		// (`Browser::continuePrediction`), a slot-browser behaviour whose comment says "this code is original but I
 		// don't know what it does". None of this scene's three descriptors is a slot browser --
 		// each was split off `Browser` directly, and `filePrefix` is null for all three -- so the arm is
 		// deliberately not ported rather than transcribed unexercised.
@@ -998,7 +999,7 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	const bool moved = i != file_index_;
 	file_index_ = i;
 	// "Typing/prediction can land on a cached item without needing to move the viewport unless it is
-	// offscreen" (`Browser::predictExtendedText`).
+	// offscreen" (`Browser::continuePrediction`).
 	clamp(visible_rows_);
 	// Replaces the typed text with the found entry's name and leaves the cursor where the typing
 	// left it -- which is what `text_edit` draws as the prediction highlight.
@@ -1015,7 +1016,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 	case SearchOutcome::Found:
 		break;
 	case SearchOutcome::NotFound:
-		// The `notFound` arm of `Browser::predictExtendedText`, with `mayDefaultToBrandNewNameOnEntry` false for every
+		// The `notFound` arm of `Browser::continuePrediction`, with `mayDefaultToBrandNewNameOnEntry` false for every
 		// descriptor: put the selected file's name back and undo the cursor advance (`QwertyUI::padAction` in
 		// `qwerty_ui.cpp`).
 		if (file_index_ >= 0) {
@@ -1024,7 +1025,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		edit_.cursor = static_cast<int16_t>(revert_cursor_to);
 		break;
 	case SearchOutcome::NeedsRead: {
-		// Legacy loops synchronously (`doNewRead` in `Browser::predictExtendedText`); the seam cannot, so the read is
+		// Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); the seam cannot, so the read is
 		// dispatched and the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
 		// legacy's own direction for this read.
 		//

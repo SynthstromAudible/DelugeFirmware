@@ -32,9 +32,9 @@
 ///          it. So if a listing overlaps with any other `Kind::Working` raiser, whichever finishes
 ///          first takes the other's animation down. This is not a hypothetical future collision:
 ///          `PlaybackHandler::doSongSwap` raises one today through the same queue
-///          (`PlaybackHandler::doSongSwap`, via `notice_working`, `util/notify.h`), and a
+///          (via `notice_working`, `util/notify.h`), and a
 ///          song swap can be in progress while a browser lists. The seam does not fix it -- a fix
-///          is a refcount or an owner token on `WorkingScene`, which is E1's to make -- but nothing
+///          is a refcount or an owner token on `WorkingScene` -- but nothing
 ///          here should be read as assuming the animation it raised is the animation it clears.
 ///
 /// @par Delivery contract (read this before using the seam)
