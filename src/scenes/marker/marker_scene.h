@@ -3,24 +3,23 @@
 /// @brief `MarkerScene` -- the sample marker editor: a waveform on the pads, four markers over it,
 ///        and the position of the selected one on the OLED.
 ///
-/// The port of `SampleMarkerEditor` (`gui/ui/sample_marker_editor.{h,cpp}`), which the sample
-/// menu's start/end items and the audio clip's waveform item open. `SceneId::arg` is the
-/// `MarkerType` to start on -- `MarkerType::START` or `MarkerType::END`, which are the only two
-/// legacy ever opens with (`gui/menu_item/sample/start.h:23`, `end.h:23`,
-/// `gui/menu_item/audio_clip/sample_marker_editor.h:33`); the loop markers are reached from
+/// The port of `SampleMarkerEditor` (`gui/ui/sample_marker_editor.{h,cpp}`), which the sample menu's start/end items
+/// and the audio clip's waveform item open. `SceneId::arg` is the `MarkerType` to start on -- `MarkerType::START` or
+/// `MarkerType::END`, which are the only two legacy ever opens with
+/// (`origin/main:src/deluge/gui/menu_item/sample/start.h`, `origin/main:src/deluge/gui/menu_item/sample/end.h`,
+/// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`); the loop markers are reached from
 /// *inside*, by holding a marker and tapping another column.
 ///
 /// **What draws what.** Nothing here calls an `OledFrame` or `GridFrame` primitive
 /// (`check_layer_rules.py`, `scenes-no-frame-primitives`):
 ///
-///   * `renderMainPads`' `waveformRenderer.renderFullScreen`
-///     (`gui/ui/sample_marker_editor.cpp:1369`) -> `services::paint_full` (the scan through the waveform's
-///     address, then `ui::grid::waveform_full`).
-///   * `renderColumn` / `renderMarkerInCol` (`:1268`, `:1058`) -> `ui::grid::marker_column` /
+///   * `renderMainPads`' `waveformRenderer.renderFullScreen` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`)
+///     -> `services::paint_full` (the scan through the waveform's address, then `ui::grid::waveform_full`).
+///   * `renderColumn` / `renderMarkerInCol` -> `ui::grid::marker_column` /
 ///     `marker_tint`.
-///   * `renderOLED`'s `drawScreenTitle` (`:1128`) -> `ui::oled::title`.
-///   * its lock icon + `invertArea` (`:1130-1133`) -> `ui::oled::title_badge`.
-///   * its time and sample-count lines (`:1135-1222`) -> `ui::oled::sample_position`.
+///   * `renderOLED`'s `drawScreenTitle` -> `ui::oled::title`.
+///   * its lock icon + `invertArea` -> `ui::oled::title_badge`.
+///   * its time and sample-count lines -> `ui::oled::sample_position`.
 ///
 /// The scan and the navigation are not widgets: the scan reads the card through the waveform
 /// service (`scenes/services/waveforms.h`), and the navigation arithmetic lives in
@@ -55,18 +54,18 @@
 /// @par The zoom slide and the playhead
 ///
 /// A zoom slides from what the pads showed to the new view's bare waveform over `ui::grid::kZoomSpeed`, as
-/// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::grid::ZoomTransition`); every
-/// input is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
-/// `graphicsRoutine`'s (`:977-1027`): the column the newest voice plays, on every row, painted with the flash cursor
-/// Slow and flashed by the PIC with it Fast.
+/// `WaveformBasicNavigator::zoom` hands `PadLEDs::renderZoom` the two images (`ui::grid::ZoomTransition`); every input
+/// is refused while it slides, as legacy's `UI_MODE_HORIZONTAL_ZOOM` refuses it. The playhead is
+/// `SampleMarkerEditor::graphicsRoutine`'s: the column the newest voice plays, on every row, painted with the flash
+/// cursor Slow and flashed by the PIC with it Fast.
 ///
 /// @par The blink, and a disagreement inside legacy
 ///
 /// Legacy runs a four-phase blink on `TimerName::UI_SPECIFIC` at `kSampleMarkerBlinkTime`
-/// (`:1402`, `:866`) and **renders it two different ways**. `timerCallback` (`:771`) redraws only
+/// and **renders it two different ways**. `SampleMarkerEditor::timerCallback` redraws only
 /// the affected columns: phase 1 paints the selected column as one solid marker bar, phase 3
 /// suppresses the selected marker (and, when the loop is locked, its partner), and phases 0 and 2
-/// draw normally. `renderMainPads` (`:1362`) -- which runs on a *full* redraw, not on the timer --
+/// draw normally. `renderMainPads` -- which runs on a *full* redraw, not on the timer --
 /// suppresses whenever `blinkPhase >= 1`, so a full redraw landing on phase 2 hides the marker
 /// where the timer would have shown it.
 ///
@@ -78,7 +77,7 @@
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
 ///          on `Action` in `shell/scene.h`: it is one bare global bool, it *drops* events rather
 ///          than deferring them, and `on_exit()` cannot give it back. Legacy's own gate here is
-///          `isSDRoutineActive()` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE` (`:341`, `:731`), which
+///          `isSDRoutineActive()` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which
 ///          defers and retries; its port is `InputLowering::set_sd_busy`, which is not an `Action`
 ///          and is not this scene's to file.
 
@@ -115,12 +114,12 @@ namespace deluge::scenes::marker {
 inline constexpr deluge::ui::shell::SceneKind kMarkerSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 4);
 
-/// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime` (`definitions_cxx.hpp:161`).
+/// @brief How long one blink phase lasts. Legacy's `kSampleMarkerBlinkTime` (`definitions_cxx.hpp`).
 inline constexpr uint32_t kBlinkPhaseMs = static_cast<uint32_t>(kSampleMarkerBlinkTime);
 
 /// @brief The four marker colours, in `MarkerType` order.
 ///
-/// `SampleMarkerEditor::renderMarkerInCol`'s switch (`sample_marker_editor.cpp:1065-1083`), lifted
+/// `SampleMarkerEditor::renderMarkerInCol`'s switch (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), lifted
 /// out because `ui::grid::marker_column` takes colours rather than marker types -- it may not
 /// include `definitions_cxx.hpp` and so cannot know what a `MarkerType` is.
 /// @return A span of `kNumMarkerTypes` colours: green, cyan, magenta, red.
@@ -140,10 +139,10 @@ public:
 	/// @brief May the editor open on @p ctx at all?
 	///
 	/// The survivable spelling of `SampleMarkerEditor::opened`'s two refusals: no file loaded where
-	/// the context points (`:121-124`, which pops up `STRING_FOR_NO_SAMPLE` and returns false) and --
+	/// the context points (which pops up `STRING_FOR_NO_SAMPLE` and returns false) and --
 	/// an addition, because this layer resolves the address itself -- no range or clip to point at.
 	/// Legacy gets the second for free from `LoopPoint::checkPermissionToBeginSession`
-	/// (`gui/menu_item/sample/loop_point.cpp:47-49`), which refuses before opening.
+	/// (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`), which refuses before opening.
 	/// @param ctx The context to test.
 	/// @return True if `on_enter` will succeed.
 	static bool can(const menu::MenuContext& ctx);
@@ -160,7 +159,7 @@ public:
 
 	/// @brief True: the waveform covers the main pads, and the sidebar beneath keeps showing.
 	///
-	/// `SampleMarkerEditor::renderMainPads` fills every main column; `renderSidebar` (`:891`)
+	/// `SampleMarkerEditor::renderMainPads` fills every main column; `renderSidebar`
 	/// returns false unless the root UI is the keyboard screen, in which case it delegates -- a root
 	/// UI read this layer may not make, so the sidebar is left to the host (`pad_regions()`).
 	bool is_grid_overlay() const override { return true; }
@@ -175,7 +174,7 @@ public:
 	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
 		return deluge::ui::shell::GridPadClaim::AllButClipAudition;
 	}
-	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows` (`:106-109`): `*cols = 0b10`, rows 0.
+	/// @brief `SampleMarkerEditor::getGreyoutColsAndRows`: `*cols = 0b10`, rows 0.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b10, 0}; }
 	/// @brief `SampleMarkerEditor::opened`: over the keyboard screen the greyout is shown at once
 	///        (`PadLEDs::skipGreyoutFade`), elsewhere it fades in.
@@ -206,22 +205,22 @@ public:
 	/// @}
 
 private:
-	/// @brief `SampleMarkerEditor::getColsOnScreen` (`:236`).
+	/// @brief `SampleMarkerEditor::getColsOnScreen`.
 	/// @param[out] cols `kNumMarkerTypes` entries, filled in.
 	void cols_on_screen(MarkerColumn* cols) const;
-	/// @brief `SampleMarkerEditor::writeValue` (`:148`).
+	/// @brief `SampleMarkerEditor::writeValue`.
 	/// @param value The new position, in samples.
 	/// @param which Which marker to write, or `NOT_AVAILABLE` for the selected one.
 	void write_value(uint32_t value, MarkerType which = MarkerType::NOT_AVAILABLE);
-	/// @brief `SampleMarkerEditor::selectEncoderAction` (`:268`).
+	/// @brief `SampleMarkerEditor::selectEncoderAction`.
 	/// @param offset Signed detents.
 	void select_encoder(int32_t offset);
-	/// @brief `SampleMarkerEditor::padAction`'s main-pad arms (`:367-641`).
+	/// @brief `SampleMarkerEditor::padAction`'s main-pad arms.
 	/// @param x  Pad column.
 	/// @param y  Pad row.
 	/// @param on True on press.
 	void pad_action(int32_t x, int32_t y, bool on);
-	/// @brief `SampleMarkerEditor::horizontalEncoderAction` (`:687`).
+	/// @brief `SampleMarkerEditor::horizontalEncoderAction`.
 	/// @param offset  Signed detents.
 	/// @param zooming Is the horizontal encoder's button held?
 	/// @param shift   Is shift held?
@@ -233,20 +232,20 @@ private:
 	/// auditioning).
 	bool mode_up() const { return holding_ || xenc_held_ || sliding() || auditioning(); }
 	/// @brief Legacy's `HOLDING_SAMPLE_MARKER | AUDITIONING`, under which a main-pad press and the held pad's release
-	/// are refused (`:368-370`, `:632`).
+	/// are refused.
 	bool holding_and_auditioning() const { return holding_ && auditioning() && !audition_under_hold_; }
 	/// @brief Drop every UI mode and the slide, as legacy's `currentUIMode` is dropped on the way in and out.
 	void forget_modes();
 
-	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
+	/// @brief `SampleMarkerEditor::shouldAllowExtraScrollRight`.
 	bool allow_extra_scroll_right() const;
-	/// @brief `SampleMarkerEditor::recordScrollAndZoom` (`:140`).
+	/// @brief `SampleMarkerEditor::recordScrollAndZoom`.
 	void record_scroll_and_zoom();
-	/// @brief `SampleMarkerEditor::reverseRemap` (`:83`).
+	/// @brief `SampleMarkerEditor::reverseRemap`.
 	/// @param type The marker to remap.
 	/// @return Its mirror when the sample is reversed, else @p type unchanged.
 	MarkerType reverse_remap(MarkerType type) const;
-	/// @brief `isLoopLocked()` (`:79`).
+	/// @brief `isLoopLocked()`.
 	bool loop_locked() const;
 	/// @brief `SampleMarkerEditor::loopUnlock` / `loopLock`: set the lock and, when @p announce, queue their popup
 	///        ("FREE" / "LOCK") in `pending_popup_` for `handle` to file -- the only place that can raise an `Action`.
@@ -263,7 +262,7 @@ private:
 	};
 
 	/// @brief The waveform the markers sit on: the audio clip's, or the selected range's
-	///        (`getCurrentSampleHolder`, `:62`).
+	///        (`getCurrentSampleHolder` in `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 	/// @param ctx The context to resolve.
 	/// @return The address, or nullopt when the context names neither.
 	static std::optional<services::WaveformAddress> address_of(const menu::MenuContext& ctx);
@@ -300,7 +299,7 @@ private:
 	int8_t blink_phase_ = 0;
 	uint32_t blink_accum_ms_ = 0;
 
-	/// Legacy's `UI_MODE_HOLDING_SAMPLE_MARKER` plus `pressX`/`pressY` (`:538-540`), as members
+	/// Legacy's `UI_MODE_HOLDING_SAMPLE_MARKER` plus `pressX`/`pressY`, as members
 	/// rather than a global UI mode.
 	/// @{
 	bool holding_ = false;
@@ -330,7 +329,7 @@ private:
 	/// @}
 
 	/// True while the last `render_grid` saw a marker inside the display, which is legacy's
-	/// condition for re-arming the blink timer (`:1400-1403`).
+	/// condition for re-arming the blink timer.
 	///
 	/// @note **Two different widths decide "on screen" in this scene, and they can disagree.**
 	///       This one is `render_grid`'s `main.bounds().w` -- the frame it was actually given. The

@@ -52,9 +52,9 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// `SampleMarkerEditor::kInvalidColumn` (`sample_marker_editor.h:75`): the column a marker that is
-/// not set at all reports. Deliberately the most negative `int32_t` rather than -1, so every
-/// `colOnScreen <= x` comparison in `pad_action` refuses on it without a separate test.
+/// `SampleMarkerEditor::kInvalidColumn` (`origin/main:src/deluge/gui/ui/sample_marker_editor.h`): the column a marker
+/// that is not set at all reports. Deliberately the most negative `int32_t` rather than -1, so every `colOnScreen <= x`
+/// comparison in `pad_action` refuses on it without a separate test.
 constexpr int32_t kInvalidColumn = -2147483648;
 
 /// `divide_round_negative` (`util/functions.cpp`), inlined: `src/scenes` may not include `util/`
@@ -72,7 +72,8 @@ int32_t idx(MarkerType t) {
 	return static_cast<int32_t>(t);
 }
 
-/// `sample_marker_editor.cpp:1065-1083`, in `MarkerType` order.
+/// `SampleMarkerEditor::renderMarkerInCol`'s switch (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), in
+/// `MarkerType` order.
 const std::array<RGB, kNumMarkerTypes> kMarkerColours{
     deluge::gui::colours::green,
     deluge::gui::colours::cyan,
@@ -80,7 +81,7 @@ const std::array<RGB, kNumMarkerTypes> kMarkerColours{
     deluge::gui::colours::red,
 };
 
-/// The body's first line: legacy's `OLED_MAIN_TOPMOST_PIXEL + 17` (`:1137`). The frame's origin
+/// The body's first line: legacy's `OLED_MAIN_TOPMOST_PIXEL + 17`. The frame's origin
 /// already accounts for the bezel, so this is `title_height + 5` -- and reading it off the style
 /// rather than hard-coding 17 is what keeps the two lines under the separator on a panel whose
 /// title face is taller.
@@ -98,8 +99,8 @@ std::span<const RGB> marker_colours() {
 // Context
 
 std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
-	// `getCurrentSampleHolder` (`sample_marker_editor.cpp`): the audio clip's own sample, else the
-	// selected multisample range's.
+	// `getCurrentSampleHolder` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): the audio clip's own sample,
+	// else the selected multisample range's.
 	if (ctx.is_audio_clip) {
 		if (!ctx.addresses.clip) {
 			return std::nullopt;
@@ -140,7 +141,7 @@ int64_t MarkerScene::audio_clip_row(std::string_view path) const {
 
 MarkerScene::Zone MarkerScene::zone() const {
 	if (ctx_.is_audio_clip) {
-		// An audio clip has no loop markers at all (`:255-261`).
+		// An audio clip has no loop markers at all.
 		return {.start = static_cast<uint64_t>(audio_clip_row("startSamplePos")),
 		        .end = static_cast<uint64_t>(audio_clip_row("endSamplePos"))};
 	}
@@ -191,12 +192,12 @@ void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
 }
 
 bool MarkerScene::loop_locked() const {
-	// `isLoopLocked()` (`:79`): only a sound's range has a loop to lock.
+	// `isLoopLocked()`: only a sound's range has a loop to lock.
 	return !ctx_.is_audio_clip && view().loop_locked;
 }
 
 MarkerType MarkerScene::reverse_remap(MarkerType type) const {
-	// `SampleMarkerEditor::reverseRemap` (`:83`).
+	// `SampleMarkerEditor::reverseRemap`.
 	if (!reversed()) {
 		return type;
 	}
@@ -217,7 +218,7 @@ MarkerType MarkerScene::reverse_remap(MarkerType type) const {
 }
 
 bool MarkerScene::can(const menu::MenuContext& ctx) {
-	// `SampleMarkerEditor::opened`'s refusal (`:121-124`), plus the holder test legacy gets from
+	// `SampleMarkerEditor::opened`'s refusal, plus the holder test legacy gets from
 	// `LoopPoint::checkPermissionToBeginSession` before it ever opens: no file loaded where the
 	// context points, or nowhere to point.
 	const std::optional<services::WaveformAddress> address = address_of(ctx);
@@ -236,10 +237,11 @@ bool MarkerScene::on_enter(const SceneId& id) {
 		return false;
 	}
 
-	// `SceneId::arg` is the `MarkerType` to start on. Legacy's two openers set
-	// `sampleMarkerEditor.markerType` (`sample/loop_point.cpp:69`) immediately before `openUI`
-	// (`:71`; and `audio_clip/sample_marker_editor.cpp` does the same); here it travels with the id instead of through
-	// a member the caller has to remember to write.
+	// `SceneId::arg` is the `MarkerType` to start on. Legacy's two openers set `sampleMarkerEditor.markerType`
+	// immediately before `openUI`: `LoopPoint::beginSession` in
+	// `origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp` and the opener in
+	// `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`; here it travels with the id instead
+	// of through a member the caller has to remember to write.
 	const auto requested = static_cast<MarkerType>(static_cast<int16_t>(id.arg));
 	marker_type_ = (requested == MarkerType::START || requested == MarkerType::LOOP_START
 	                || requested == MarkerType::LOOP_END || requested == MarkerType::END)
@@ -253,9 +255,9 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	waveform_identity_ = 0;
 	follow_waveform(*waveforms().info(where_));
 	const services::SampleView remembered = view();
-	nav_.opened(remembered.scroll, remembered.zoom); // `:126`
+	nav_.opened(remembered.scroll, remembered.zoom);
 
-	blink_phase_ = 0; // `:128`
+	blink_phase_ = 0;
 	blink_accum_ms_ = 0;
 	press_x_ = -1;
 	press_y_ = -1;
@@ -265,7 +267,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 }
 
 void MarkerScene::on_exit() {
-	// Legacy has no `close()` hook of its own -- `exitUI` just calls `close()` (`:680`). The one
+	// Legacy has no `close()` hook of its own -- `exitUI` just calls `close()`. The one
 	// thing worth dropping is the held-marker gesture, which must not survive into the next entry:
 	// `currentUIMode` is a global legacy clears on the way out of every UI, and this scene's copy
 	// of it is a member.
@@ -289,9 +291,9 @@ void MarkerScene::forget_modes() {
 // Marker positions
 
 void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
-	// `SampleMarkerEditor::getColsOnScreen` (`:236`), with its two column mappings inlined:
-	// `getStartColOnScreen` (`:218`) floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen`
-	// (`:223`) floors `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST
+	// `SampleMarkerEditor::getColsOnScreen`, with its two column mappings inlined:
+	// `getStartColOnScreen` floors `(pos - xScroll) / xZoom`, and `getEndColOnScreen`
+	// floors `(pos - 1 - xScroll) / xZoom` -- an end marker names the column its LAST
 	// sample is in, which is why the two are not the same function.
 	const Zone z = zone();
 	const auto start_col = [this](int32_t pos) {
@@ -315,7 +317,7 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 		    cols[idx(MarkerType::LOOP_END)].pos != 0 ? end_col(cols[idx(MarkerType::LOOP_END)].pos) : kInvalidColumn;
 	}
 	else {
-		// An audio clip has no loop markers at all (`:255-261`).
+		// An audio clip has no loop markers at all.
 		cols[idx(MarkerType::LOOP_START)].pos = 0;
 		cols[idx(MarkerType::LOOP_START)].colOnScreen = kInvalidColumn;
 		cols[idx(MarkerType::LOOP_END)].pos = 0;
@@ -326,16 +328,18 @@ void MarkerScene::cols_on_screen(MarkerColumn* cols) const {
 	cols[idx(MarkerType::END)].colOnScreen = end_col(cols[idx(MarkerType::END)].pos);
 }
 
+// `SampleMarkerEditor::getStartPosFromCol`.
 int32_t start_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
-	return static_cast<int32_t>(nav.xScroll + col * nav.xZoom); // `:228`
+	return static_cast<int32_t>(nav.xScroll + col * nav.xZoom);
 }
 
+// `SampleMarkerEditor::getEndPosFromCol`.
 int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
-	return static_cast<int32_t>(nav.xScroll + (col + 1) * nav.xZoom); // `:232`
+	return static_cast<int32_t>(nav.xScroll + (col + 1) * nav.xZoom);
 }
 
 void MarkerScene::record_scroll_and_zoom() {
-	// `SampleMarkerEditor::recordScrollAndZoom` (`:140`), into the view-state store.
+	// `SampleMarkerEditor::recordScrollAndZoom`, into the view-state store.
 	if (marker_type_ != MarkerType::NONE && view_key_) {
 		services::SampleView v = view();
 		v.scroll = nav_.xScroll;
@@ -345,7 +349,7 @@ void MarkerScene::record_scroll_and_zoom() {
 }
 
 bool MarkerScene::allow_extra_scroll_right() const {
-	// `SampleMarkerEditor::shouldAllowExtraScrollRight` (`:1044`).
+	// `SampleMarkerEditor::shouldAllowExtraScrollRight`.
 	if (marker_type_ == MarkerType::NONE || reversed()) {
 		return false;
 	}
@@ -375,7 +379,7 @@ void MarkerScene::set_loop_locked(bool locked, bool announce) {
 // Writing
 
 void MarkerScene::write_value(uint32_t value, MarkerType which) {
-	// `SampleMarkerEditor::writeValue` (`:148`).
+	// `SampleMarkerEditor::writeValue`.
 	if (which == MarkerType::NOT_AVAILABLE) {
 		which = marker_type_;
 	}
@@ -396,7 +400,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 
 	// A sound's markers are its range's zone: the new zone is built from the source's ranges and written as one
 	// request, which the app applies to the record and the clusters a moved zone needs, then lets a sounding voice
-	// follow the moved marker (`:203-215`).
+	// follow the moved marker.
 	const deluge::instrument::SourceState* source = source_state();
 	if (source == nullptr || where_.range >= source->ranges.size()) {
 		return;
@@ -444,7 +448,7 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 // Input
 
 void MarkerScene::select_encoder(int32_t offset) {
-	// `SampleMarkerEditor::selectEncoderAction` (`:268`): refused under any mode but auditioning (`:269`).
+	// `SampleMarkerEditor::selectEncoderAction`: refused under any mode but auditioning.
 	if (holding_ || xenc_held_ || sliding()) {
 		return;
 	}
@@ -508,12 +512,12 @@ void MarkerScene::select_encoder(int32_t offset) {
 }
 
 void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
-	// `SampleMarkerEditor::padAction`'s main-pad arms (`:367-641`). The two sidebar arms are not
-	// here: the audition column (`:353`) delegates to `instrumentClipView`, a root UI this layer
-	// may not name, and the mute column (`:361`) exits -- which `handle()` files as an action,
+	// `SampleMarkerEditor::padAction`'s main-pad arms. The two sidebar arms are not
+	// here: the audition column delegates to `instrumentClipView`, a root UI this layer
+	// may not name, and the mute column exits -- which `handle()` files as an action,
 	// since only it can return one.
 	if (!on) {
-		// Release (`:635-641`): the held-marker gesture ends when its own pad goes up.
+		// Release: the held-marker gesture ends when its own pad goes up.
 		if (holding_ && !holding_and_auditioning() && x == press_x_ && y == press_y_) {
 			holding_ = false;
 		}
@@ -523,7 +527,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	MarkerColumn cols[kNumMarkerTypes];
 	cols_on_screen(cols);
 
-	// See which one we pressed (`:381-394`), including legacy's toggle between two markers that
+	// See which one we pressed, including legacy's toggle between two markers that
 	// share a column.
 	MarkerType marker_pressed = MarkerType::NONE;
 	for (int32_t m = 0; m < kNumMarkerTypes; m++) {
@@ -540,14 +544,14 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 	}
 
 	if (holding_) {
-		// `:399-529`. An audio clip has no loop markers, so legacy's whole held-marker arm sits
-		// inside `if (getCurrentClip()->type == ClipType::INSTRUMENT)` (`:401`) and simply falls
+		// An audio clip has no loop markers, so legacy's whole held-marker arm of `SampleMarkerEditor::padAction` sits
+		// inside `if (getCurrentClip()->type == ClipType::INSTRUMENT)` and simply falls
 		// out of the bottom on an audio clip -- leaving `currentUIMode` set and doing nothing.
 		if (ctx_.is_audio_clip) {
 			return;
 		}
 
-		// See which one we were holding down (`:403-408`).
+		// See which one we were holding down.
 		MarkerType marker_held = MarkerType::NONE;
 		for (int32_t m = 0; m < kNumMarkerTypes; m++) {
 			if (cols[m].colOnScreen == press_x_) {
@@ -556,7 +560,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		}
 
 		if (marker_held == MarkerType::START) {
-			// Unless we actually just tapped the already existing loop point (`:418-426`): remove it.
+			// Unless we actually just tapped the already existing loop point: remove it.
 			if (x == cols[idx(MarkerType::LOOP_START)].colOnScreen) {
 				marker_type_ = MarkerType::LOOP_START;
 				set_loop_locked(false);
@@ -564,7 +568,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 				marker_type_ = MarkerType::START;
 				return;
 			}
-			// Limit position (`:429-438`).
+			// Limit position.
 			if (cols[idx(MarkerType::START)].colOnScreen >= x) {
 				return;
 			}
@@ -617,13 +621,13 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		}
 
 		if (marker_held == MarkerType::LOOP_START && marker_pressed == MarkerType::LOOP_END) {
-			// Toggle loop lock (`:480-489`).
+			// Toggle loop lock.
 			set_loop_locked(!loop_locked());
 			return;
 		}
 
 		if (marker_held == MarkerType::LOOP_START) {
-			// Or if a loop point and they pressed the end marker, remove the loop point (`:492-509`).
+			// Or if a loop point and they pressed the end marker, remove the loop point.
 			if (x == cols[idx(MarkerType::START)].colOnScreen) {
 				set_loop_locked(false);
 				write_value(0);
@@ -648,15 +652,15 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		}
 
 		// Legacy falls out of the bottom here with `markerHeld == NONE` and clears the mode
-		// (`:525-527`) before writing an UNINITIALISED `value` -- the one path in `padAction` that
+		// before writing an UNINITIALISED `value` -- the one path in `padAction` that
 		// reads `value` without having assigned it. Refusing is the port; see the report.
 		holding_ = false;
 		return;
 	}
 
-	// Or if user not already holding a marker down (`:532-627`)...
+	// Or if user not already holding a marker down...
 	if (marker_pressed >= MarkerType::START) {
-		// If we tapped a marker (`:535-541`).
+		// If we tapped a marker.
 		blink_phase_ = (marker_type_ == marker_pressed) ? 0 : 1;
 		blink_accum_ms_ = 0;
 		marker_type_ = marker_pressed;
@@ -667,7 +671,7 @@ void MarkerScene::pad_action(int32_t x, int32_t y, bool on) {
 		return;
 	}
 
-	// Otherwise, move the current marker to where we tapped (`:544-626`). Make sure it doesn't go
+	// Otherwise, move the current marker to where we tapped. Make sure it doesn't go
 	// past any other markers it shouldn't.
 	if (marker_type_ == MarkerType::START) {
 		if (cols[idx(MarkerType::LOOP_START)].pos != 0 && cols[idx(MarkerType::LOOP_START)].colOnScreen <= x) {
@@ -744,7 +748,7 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 	Result r;
 	r.handled = true;
 
-	// `SampleMarkerEditor::horizontalEncoderAction`'s shift arm (`:688-728`): halve or double the
+	// `SampleMarkerEditor::horizontalEncoderAction`'s shift arm: halve or double the
 	// locked loop.
 	if (loop_locked() && shift) {
 		const Zone z = zone();
@@ -792,14 +796,14 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 	}
 
 	// Zoom with X_ENC held, scroll without, and either only with no mode up but X_ENC held and auditioning
-	// (`zoomUIModes`, `:697`, `:752-770`): never while a marker is held. X_ENC cannot be held with a marker (each
-	// refuses the other), so only the scroll asks.
+	// (`SampleMarkerEditor::horizontalEncoderAction`'s `zoomUIModes`): never while a marker is held. X_ENC cannot be
+	// held with a marker (each refuses the other), so only the scroll asks.
 	bool success = false;
 	if (sliding()) {
 		// `UI_MODE_HORIZONTAL_ZOOM` is in neither of `zoomUIModes`' ranges: a turn while a zoom slides is dropped.
 	}
 	else if (zooming) {
-		// `WaveformBasicNavigator::zoom` (`:30-69`): the arithmetic, then the slide from the old view to the new one,
+		// `WaveformBasicNavigator::zoom`: the arithmetic, then the slide from the old view to the new one,
 		// pinned at the square whose position both views share.
 		const uint32_t old_scroll = nav_.xScroll;
 		const uint32_t old_zoom = nav_.xZoom;
@@ -856,9 +860,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
 			// Legacy zooms while the horizontal encoder's own BUTTON is held
-			// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, set by `buttonAction`'s `X_ENC` arm at
-			// `:661-671`); the shell tracks held buttons for us, so the mode is a question rather
-			// than a member.
+			// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, set by `SampleMarkerEditor::buttonAction`'s `X_ENC` arm);
+			// the shell tracks held buttons for us, so the mode is a question rather than a member.
 			return horizontal_encoder(event.delta, xenc_held_, ctx.shift);
 		}
 		// A vertical turn is the host's (`forwardMarkerVertical`), which reaches the clip view this layer may not
@@ -868,7 +871,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
 		if (event.button == deluge::ui::shell::ButtonId::Back) {
-			// `buttonAction`'s BACK arm (`sample_marker_editor.cpp:661-668`): a press with no UI mode up exits.
+			// `SampleMarkerEditor::buttonAction`'s BACK arm (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`):
+			// a press with no UI mode up exits.
 			r.handled = true;
 			if (event.on && !mode_up()) {
 				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
@@ -876,7 +880,8 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.button == deluge::ui::shell::ButtonId::XEnc) {
-			// `buttonAction`'s X_ENC arm (`:672-681`): held only from no mode or auditioning alone; released always.
+			// `SampleMarkerEditor::buttonAction`'s X_ENC arm: held only from no mode or auditioning alone; released
+			// always.
 			r.handled = true;
 			if (!event.on) {
 				xenc_held_ = false;
@@ -891,7 +896,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Pad: {
 		const int32_t x = event.x;
 		if (x == kDisplayWidth) {
-			// The mute column: legacy exits on a press with no UI mode up (`:366-370`).
+			// The mute column: legacy exits on a press with no UI mode up.
 			if (event.on && !mode_up()) {
 				r.handled = true;
 				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
@@ -927,7 +932,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 			return r;
 		}
-		// A press under any mode but a held marker or auditioning is refused (`:376-380`).
+		// A press under any mode but a held marker or auditioning is refused.
 		if (event.on && (xenc_held_ || sliding() || holding_and_auditioning())) {
 			r.handled = true;
 			return r;
@@ -961,7 +966,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 void MarkerScene::tick(uint32_t dt_ms) {
 	if (!marker_on_screen_ || sliding()) {
-		// `timerCallback`'s early return (`:797-800`): no marker visible, no blink; and `WaveformBasicNavigator::zoom`
+		// `timerCallback`'s early return: no marker visible, no blink; and `WaveformBasicNavigator::zoom`
 		// unsets its timer for the slide.
 		return;
 	}
@@ -1000,7 +1005,7 @@ void MarkerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	cols_on_screen(cols);
 	const uint32_t pos = static_cast<uint32_t>(cols[idx(marker_type_)].pos);
 
-	// `renderOLED`'s title switch (`:1107-1126`), through `reverseRemap` -- so a reversed sample's
+	// `renderOLED`'s title switch, through `reverseRemap` -- so a reversed sample's
 	// START marker is labelled "End point".
 	std::string_view label;
 	switch (reverse_remap(marker_type_)) {
@@ -1074,7 +1079,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 
-	// `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`). A column the scan could not load paints black,
+	// `renderMainPads`' `waveformRenderer.renderFullScreen`. A column the scan could not load paints black,
 	// which is legacy's own fallback, so the scan's result is not consulted.
 	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, f.bounds().h}, [&](deluge::ui::grid::GridFrame& main) {
 		(void)services::paint_full(main, waveforms(), where_, *info, nav_);
@@ -1086,8 +1091,8 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		MarkerColumn cols[kNumMarkerTypes];
 		cols_on_screen(cols);
 
-		// The blink, as `timerCallback` (`:806-862`) draws it rather than as `renderMainPads`
-		// (`:1376-1387`) does -- see the class docstring for why the two disagree.
+		// The blink, as `timerCallback` draws it rather than as `renderMainPads`
+		// does -- see the class docstring for why the two disagree.
 		uint32_t suppress = 0;
 		if (blink_phase_ == 3) {
 			suppress |= 1u << idx(marker_type_);
@@ -1113,7 +1118,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 		for (int32_t col = 0; col < main_cols; col++) {
 			if (col == selected_col && blink_phase_ == 1) {
-				// Phase 1: the whole column flashes the selected marker's colour (`:815`).
+				// Phase 1: the whole column flashes the selected marker's colour.
 				deluge::ui::grid::marker_tint(main, col, 0, main.bounds().h,
 				                              colours[static_cast<size_t>(idx(marker_type_))], false);
 				continue;
@@ -1133,7 +1138,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			    colours);
 		}
 
-		// `renderMainPads`' timer re-arm (`:1400-1403`): the blink only runs while the selected
+		// `renderMainPads`' timer re-arm: the blink only runs while the selected
 		// marker is actually inside the display.
 		marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
 		if (marker_on_screen_) {
@@ -1157,7 +1162,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 
-	// `graphicsRoutine`'s playhead (`:977-1027`): nothing with the flash cursor Off; else the column the newest voice
+	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
 	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
 	playing_ = false;

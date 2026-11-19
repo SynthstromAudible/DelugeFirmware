@@ -18,30 +18,31 @@
 ///
 /// @par This is not a root scene
 ///
-/// `class Slicer final : public UI` (`gui/ui/slicer.h`) is a plain `UI`, opened with `openUI(&slicer)`; the only
-/// `RootUI`s are `TimelineView` and `KeyboardScreen` (`shell/scene.h`). So `is_root()` is false, and
-/// `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it: with the
-/// slicer up, those arms are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`
-/// without forwarding to `view` (`gui/ui/ui.h:98-100`). It does not consume `scenes::timeline::TimelineState` either:
-/// legacy's slicer navigates a *sample*, through `waveformBasicNavigator`, not a timeline.
+/// `class Slicer final : public UI` (`origin/main:src/deluge/gui/ui/slicer.h`) is a plain `UI`, opened with
+/// `openUI(&slicer)`; the only `RootUI`s are `TimelineView` and `KeyboardScreen` (`shell/scene.h`). So `is_root()` is
+/// false, and `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it:
+/// with the slicer up, those arms are unreachable in legacy too, because `UI::buttonAction`'s base returns
+/// `NOT_DEALT_WITH` without forwarding to `view` (`gui/ui/ui.h`). It does not consume
+/// `scenes::timeline::TimelineState` either: legacy's slicer navigates a *sample*, through `waveformBasicNavigator`,
+/// not a timeline.
 ///
 /// @par The composition predicates
 ///
 ///   * **`is_root()` -> false**, above.
 ///   * **`oled_transparent(role) -> true`.** `Slicer()` sets `oledShowsUIUnderneath = true`
-///     (`gui/ui/slicer.h`), and `renderOLED` then clears only its own window.
+///     (`origin/main:src/deluge/gui/ui/slicer.h`), and `renderOLED` then clears only its own window.
 ///   * **`is_grid_overlay() -> true`.** `renderMainPads` returns true unconditionally, so this is drawn over whatever
 ///     root is beneath and is not the grid base.
 ///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and
-///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:177-180`), so legacy's top-down grid walk keeps going and
+///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h`), so legacy's top-down grid walk keeps going and
 ///     the sidebar beneath paints -- `MarkerScene`'s situation. The predicate means "covers the grid completely, so
 ///     scenes beneath need not render" (`shell/scene.h`), and `Shell::tick_stack` stops advancing clocks beneath a
 ///     scene that claims it; claiming it here would stop the clock of the scene that owns the sidebar.
 ///
-/// `Slicer::canSeeViewUnderneath()` returns false (`gui/ui/slicer.h:38`), the one legacy predicate that points the
-/// other way. Neither of its consumers is about grid composition: `UI::graphicsRoutine` forwards the per-tick redraw
-/// to the root only when it is true, which `Slicer` overrides anyway, and `Session::armingChanged` uses it to decide
-/// whether the session view's OLED is on screen.
+/// `Slicer::canSeeViewUnderneath()` returns false (`origin/main:src/deluge/gui/ui/slicer.h`), the one legacy predicate
+/// that points the other way. Neither of its consumers is about grid composition: `UI::graphicsRoutine` forwards the
+/// per-tick redraw to the root only when it is true, which `Slicer` overrides anyway, and `Session::armingChanged` uses
+/// it to decide whether the session view's OLED is on screen.
 ///
 /// @par What draws what
 ///
@@ -72,11 +73,11 @@
 ///
 /// @par `on_resume()` and popups
 ///
-/// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), because `closeUI` calls `focusRegained()` on
-/// whatever it leaves on top (`gui/ui/ui.cpp:223-229`). A legacy popup is a display overlay, not a UI, while a shell
-/// popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an
-/// `input_transparent()` overlay never holds it, so a popup the scene raises coming and going does not reset its
-/// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
+/// `on_resume()` is `Slicer::focusRegained` (`origin/main:src/deluge/gui/ui/slicer.cpp`), because `closeUI` calls
+/// `focusRegained()` on whatever it leaves on top (`gui/ui/ui.cpp`). A legacy popup is a display overlay, not a
+/// UI, while a shell popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()`
+/// changes hands, and an `input_transparent()` overlay never holds it, so a popup the scene raises coming and going
+/// does not reset its slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
 /// `sim/scenes_spec/slicer_scene_spec.cpp`.
 ///
 /// @par Two legacy hazards
@@ -121,11 +122,11 @@ class RuntimeFacts;
 
 namespace deluge::scenes::slicing {
 
-/// @brief Legacy's `SLICER_MODE_REGION` / `SLICER_MODE_MANUAL` (`gui/ui/slicer.h:24-25`), as an
+/// @brief Legacy's `SLICER_MODE_REGION` / `SLICER_MODE_MANUAL` (`origin/main:src/deluge/gui/ui/slicer.h`), as an
 ///        enum rather than two `#define`s.
 ///
 /// The values are legacy's, because `Slicer::buttonAction`'s `X_ENC` arm advances the mode with
-/// `slicerMode++; slicerMode %= 2` (`slicer.cpp:285-286`).
+/// `slicerMode++; slicerMode %= 2` (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 enum class Mode : uint8_t {
 	/// Cut the sample into `num_clips()` equal regions. The OLED shows that count; the pads show
 	/// the whole waveform.
@@ -135,27 +136,29 @@ enum class Mode : uint8_t {
 	Manual = 1,
 };
 
-/// @brief Legacy's `MAX_MANUAL_SLICES` (`gui/ui/slicer.h`).
+/// @brief Legacy's `MAX_MANUAL_SLICES` (`origin/main:src/deluge/gui/ui/slicer.h`).
 inline constexpr int32_t kMaxManualSlices = 64;
 
-/// @brief One manual slice: legacy's `SliceItem` (`gui/ui/slicer.h:28-31`).
+/// @brief One manual slice: legacy's `SliceItem` (`origin/main:src/deluge/gui/ui/slicer.h`).
 struct SlicePoint {
 	/// Sample-frame position where this slice starts.
 	int32_t start_pos = 0;
-	/// Semitones to transpose the slice by, `-24 .. 24` (`slicer.cpp:237-240`).
+	/// Semitones to transpose the slice by, `-24 .. 24` (`Slicer::verticalEncoderAction` in
+	/// `origin/main:src/deluge/gui/ui/slicer.cpp`).
 	int32_t transpose = 0;
 	bool operator==(const SlicePoint&) const = default;
 };
 
 /// @brief One pad-hold/tap audition request, snapshotted at trigger time.
 ///
-/// Legacy's `Slicer::PreviewTarget` (`gui/ui/slicer.h`), field for field, and for its reason:
-/// all plain values, so nothing points into `manualSlicePoints[]` or any other live state once the
+/// The arguments of main's `Slicer::preview` (`origin/main:src/deluge/gui/ui/slicer.cpp`), field for
+/// field, held as plain values so nothing points into `manualSlicePoints[]` or any other live state once the
 /// request has been queued.
 struct PreviewRequest {
 	/// Sample-frame position where the audition slice starts.
 	int64_t start_point = 0;
-	/// Sample-frame position where it ends; -1 leaves the current end alone (`gui/ui/slicer.h:57`).
+	/// Sample-frame position where it ends; -1 leaves the current end alone (`Slicer::preview` in
+	/// `origin/main:src/deluge/gui/ui/slicer.cpp`).
 	int64_t end_point = 0;
 	/// Semitones.
 	int32_t transpose = 0;
@@ -170,7 +173,8 @@ struct PreviewRequest {
 /// Plain data: the slice runs when its load lands, and an encoder turn or pad press while it is out
 /// must not change what gets sliced or painted.
 struct SliceCommit {
-	/// Was the slicer in MANUAL mode at press time (`Slicer::buttonAction`'s Select arm, `slicer.cpp`)?
+	/// Was the slicer in MANUAL mode at press time (`Slicer::buttonAction`'s Select arm,
+	/// `origin/main:src/deluge/gui/ui/slicer.cpp`)?
 	bool is_manual = false;
 	/// `numManualSlice` (MANUAL) or `numClips` (REGION) at press time (the same arm).
 	int32_t slice_count = 0;
@@ -240,21 +244,22 @@ class SlicerScene final : public deluge::ui::shell::Scene {
 public:
 	/// @brief Point the scene at the sample the browser previewed.
 	///
-	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason
-	/// `MarkerScene::open` is. Legacy has no equivalent line inside `Slicer` at all: it reads the
-	/// **`waveformBasicNavigator` global**, which the sample browser's preview path set up and scanned
-	/// (`SampleBrowser::showPreview`, `gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view,
-	/// scroll, zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens
-	/// zoomed out on a fresh navigator; called again on the sample and file it already shows, it keeps the navigator,
-	/// as nothing resets legacy's global between two slicer opens.
+	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason `MarkerScene::open` is.
+	/// Legacy has no equivalent line inside `Slicer` at all: it reads the **`waveformBasicNavigator` global**, which
+	/// the sample browser's preview path set up and scanned (`SampleBrowser::showPreview`,
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes that view, scroll,
+	/// zoom and the columns the preview read, so it draws the preview's peaks. Without it the scene opens zoomed out on
+	/// a fresh navigator; called again on the sample and file it already shows, it keeps the navigator, as nothing
+	/// resets legacy's global between two slicer opens.
 	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
 	/// @param shown  The navigator the browser's preview drew @p sample through, or null.
 	void open(Sample* sample, const deluge::sample::WaveformNav* shown = nullptr);
 
 	/// @brief Switch between REGION and MANUAL.
 	///
-	/// The state half of `Slicer::buttonAction`'s `X_ENC` arm (`slicer.cpp:283-294`), for specs that set a mode
-	/// without the button; the button's arm also silences the preview and the first drum (`button_action`).
+	/// The state half of `Slicer::buttonAction`'s `X_ENC` arm (`origin/main:src/deluge/gui/ui/slicer.cpp`), for specs
+	/// that set a mode without the button; the button's arm also silences the preview and the first drum
+	/// (`button_action`).
 	/// @param mode The mode to switch to.
 	void set_mode(Mode mode);
 
@@ -286,7 +291,7 @@ public:
 	/// loop in the spec.
 	/// @param sample_pos Where the previewing drum is playing, in sample frames.
 	/// @return True if a slice was placed -- legacy's `samplePos < lengthInSamples &&
-	///         numManualSlice < MAX_MANUAL_SLICES` (`:535`).
+	///         numManualSlice < MAX_MANUAL_SLICES`.
 	bool add_slice_at(int32_t sample_pos);
 
 	deluge::ui::shell::SceneKind kind() const override { return kSlicerSceneKind; }
@@ -322,13 +327,13 @@ public:
 		return mode_ == Mode::Region ? deluge::ui::shell::GridPadClaim::AllButAudition
 		                             : deluge::ui::shell::GridPadClaim::All;
 	}
-	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`gui/ui/slicer.h`), so
+	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`origin/main:src/deluge/gui/ui/slicer.h`), so
 	///        `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`) walks past it to the UI below
 	///        and this page composites over what that drew.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 
 	/// @name Observable state
-	/// Legacy's four public members (`gui/ui/slicer.h:62-65, 69`), for specs.
+	/// Legacy's public members (`origin/main:src/deluge/gui/ui/slicer.h`), for specs.
 	/// @{
 	/// @return REGION or MANUAL (`slicerMode`).
 	Mode mode() const { return mode_; }
@@ -356,17 +361,17 @@ public:
 	static constexpr uint32_t kPlayheadMs = 15;
 
 private:
-	/// @brief `Slicer::horizontalEncoderAction` (`slicer.cpp:205-231`).
+	/// @brief `Slicer::horizontalEncoderAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 	/// @param offset Signed detents.
-	/// @param shift  Is shift held? Legacy's `Buttons::isShiftButtonPressed()` (`:209`), which
+	/// @param shift  Is shift held? Legacy's `Buttons::isShiftButtonPressed()`, which
 	///               makes one detent 10 samples instead of 100.
-	/// @return Always handled, in both modes, as legacy always returns `DEALT_WITH` (`:230`).
+	/// @return Always handled, in both modes, as legacy always returns `DEALT_WITH`.
 	deluge::ui::shell::Result horizontal_encoder(int32_t offset, bool shift);
-	/// @brief `Slicer::verticalEncoderAction` (`slicer.cpp:233-246`).
+	/// @brief `Slicer::verticalEncoderAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 	/// @param offset Signed detents.
-	/// @return Always handled, in both modes (`:245`).
+	/// @return Always handled, in both modes.
 	deluge::ui::shell::Result vertical_encoder(int32_t offset);
-	/// @brief `Slicer::selectEncoderAction` (`slicer.cpp:248-274`).
+	/// @brief `Slicer::selectEncoderAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`).
 	/// @param offset Signed detents.
 	/// @return Handled, with the repaint legacy files as `uiNeedsRendering` + `renderUIsForOled`.
 	deluge::ui::shell::Result select_encoder(int32_t offset);
@@ -375,17 +380,17 @@ private:
 	/// @param x        Absolute pad column.
 	/// @param y        Absolute pad row.
 	/// @param velocity Legacy's third parameter, which it names `on`; zero is a release.
-	/// @return Handled in MANUAL mode (`:563-565`); unhandled in REGION, where legacy delegates to
-	///         `sampleBrowser.padAction` (`:567`) -- see the note at the definition.
+	/// @return Handled in MANUAL mode; unhandled in REGION, where legacy delegates to
+	///         `sampleBrowser.padAction` -- see the note at the definition.
 	deluge::ui::shell::Result pad_action(int32_t x, int32_t y, int32_t velocity);
 
-	/// @brief `Slicer::buttonAction` (`slicer.cpp:276-398`), press edges only.
+	/// @brief `Slicer::buttonAction` (`origin/main:src/deluge/gui/ui/slicer.cpp`), press edges only.
 	/// @param b   Which button.
 	/// @param ctx The world around the press -- the held-pad set the SAVE arm asks about.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result button_action(deluge::ui::shell::ButtonId b, const deluge::ui::shell::UiContext& ctx);
 
-	/// @brief `buttonAction`'s SAVE arm (`slicer.cpp:306-332`), past its held-pad test.
+	/// @brief `buttonAction`'s SAVE arm (`origin/main:src/deluge/gui/ui/slicer.cpp`), past its held-pad test.
 	void delete_current_slice();
 
 	/// @brief `Slicer::focusRegained`'s reset: one slice, slot 0, REGION, the table cleared.
@@ -406,8 +411,8 @@ private:
 	/// The file `nav_` was opened on: a reopen keeps the navigator only for the same sample on the same file.
 	std::string nav_path_{};
 
-	/// `int16_t`, as legacy declares it (`gui/ui/slicer.h:69`) -- the wrap in `selectEncoderAction`
-	/// is written against exactly 257 and 1, so the width is part of the behaviour.
+	/// `int16_t`, as legacy declares it (`Slicer::numClips` in `origin/main:src/deluge/gui/ui/slicer.h`) -- the wrap in
+	/// `selectEncoderAction` is written against exactly 257 and 1, so the width is part of the behaviour.
 	int16_t num_clips_ = 16;
 	int32_t num_manual_slices_ = 1;
 	int32_t current_slice_ = 0;

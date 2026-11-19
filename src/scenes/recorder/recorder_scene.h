@@ -4,25 +4,25 @@
 ///        finished `Sample` to the oscillator that opened it.
 ///
 /// The port of `AudioRecorder` (`gui/ui/audio_recorder.{h,cpp}`), which the sample-recorder page's
-/// two items open (`gui/menu_item/osc/audio_recorder.h:36 beginSession`; the ported nodes are
+/// two items open (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h` `beginSession`; the ported nodes are
 /// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h`).
 ///
 /// @par Legacy's menu item drives the UI, and that is the shape this replaces
 ///
-/// `osc::AudioRecorder::beginSession` does **two** things (`osc/audio_recorder.h:50-57`):
+/// `osc::AudioRecorder::beginSession` does **two** things
+/// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`):
 ///
 /// ```
 ///     if (bool success = openUI(&audioRecorder); !success) { ...; return ...; }
 ///     audioRecorder.process();
 /// ```
 ///
-/// `openUI` runs `AudioRecorder::opened()`, which allocates the
-/// `SampleRecorder`; `AudioRecorder::process()` (`gui/ui/audio_recorder.cpp`) is then an **infinite loop inside the
-/// menu item's own stack frame** that pumps the audio engine, the UI timers, the display and the button/pad scan by
-/// hand, polls `recorder->status` every pass, and only returns after it has called `close()`. The
-/// whole recorder UI is therefore a blocking call: no other UI runs, `SoundEditor` is suspended
-/// mid-`beginSession`, and the "screen" is two `OLED::sendMainImage()` calls made from inside the
-/// loop rather than from a render hook.
+/// `openUI` runs `AudioRecorder::opened()`, which allocates the `SampleRecorder`; `AudioRecorder::process()`
+/// (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`) is then an **infinite loop inside the menu item's own stack
+/// frame** that pumps the audio engine, the UI timers, the display and the button/pad scan by hand, polls
+/// `recorder->status` every pass, and only returns after it has called `close()`. The whole recorder UI is therefore a
+/// blocking call: no other UI runs, `SoundEditor` is suspended mid-`beginSession`, and the "screen" is two
+/// `OLED::sendMainImage()` calls made from inside the loop rather than from a render hook.
 ///
 /// **The port keeps the state machine and throws the loop away.** Its five statements map like
 /// this:
@@ -56,7 +56,7 @@
 ///
 /// `AudioRecorder::updatedRecordingStatus` has no member here. Legacy needs it because
 /// `process()` paints imperatively and must not repaint every pass; it is set exactly when
-/// `numSamplesCaptured` first goes non-zero (`:234-239`) and cleared in `opened()` (`:64`), so it is
+/// `numSamplesCaptured` first goes non-zero and cleared in `opened()`, so it is
 /// a cache of `numSamplesCaptured != 0`. `render_oled` reads the recorder instead, which also drops
 /// the one-tick lag a cached copy written in `after_render` would have had.
 ///
@@ -90,12 +90,10 @@
 /// clears once the recorder has settled; and `can()` reads it for legacy's own "already recording"
 /// refusal in `AudioRecorder::opened`.
 ///
-/// The first version of this scene did none of that: it guessed at legacy's refusal with
-/// `AudioEngine::isAnyInternalRecordingHappening()` (which does not see an external recording at
-/// all) and published nothing, so **input monitoring was dead for the entire recording** -- the
-/// user would have heard silence while recording from mic or line -- and shift+RECORD could have
-/// started an output recording over the top. The split line above ("output recording is not a UI")
-/// was right; the guard's respelling was not.
+/// `AudioEngine::isAnyInternalRecordingHappening()` is not the predicate: it does not see an external
+/// recording at all. Guarding with it, and publishing nothing, would leave **input monitoring dead for the
+/// entire recording** -- the user would hear silence while recording from mic or line -- and shift+RECORD
+/// could start an output recording over the top.
 ///
 /// `recorder_ != nullptr` remains as a second, scene-local test in `on_enter`: it is the same fact
 /// once the publication exists, kept because it is the one this scene can assert about *itself*.
@@ -107,12 +105,12 @@
 ///
 /// @par What is deliberately not ported
 ///
-///   * **`instrumentClipView.cancelAllAuditioning()`** (`:109-111`), a root-UI call this layer may
+///   * **`instrumentClipView.cancelAllAuditioning()`**, a root-UI call this layer may
 ///     not make (`scenes-no-root-ui`).
-///   * **`checkPermissionToBeginSession`'s FM refusal** (`osc/audio_recorder.h:65-74`). It is
-///     unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
-///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only
-///     ever fired on legacy's shortcut-pad path, which `MenuScene` owns.
+///   * **`checkPermissionToBeginSession`'s FM refusal** (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`).
+///     It is unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
+///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only ever fired on legacy's
+///     shortcut-pad path, which `MenuScene` owns.
 ///
 /// @par The completion poll runs under this scene's own popup
 ///
@@ -207,11 +205,11 @@ public:
 
 	/// @brief May the recorder open on @p ctx at all?
 	///
-	/// The survivable spelling of `AudioRecorder::opened`'s two refusals (`:69-71`, `:81-85`) plus
-	/// the context reads `process()`'s completion arm makes unchecked (`:213-217`): a sound, a
+	/// The survivable spelling of `AudioRecorder::opened`'s two refusals plus
+	/// the context reads `process()`'s completion arm makes unchecked: a sound, a
 	/// source and a range to attach the finished sample to. Legacy gets the last of those from
 	/// `soundEditor.checkPermissionToBeginSessionForRangeSpecificParam`
-	/// (`osc/audio_recorder.h`), which refuses before opening.
+	/// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), which refuses before opening.
 	/// @param ctx The context to test.
 	/// @return True if `on_enter` will get as far as trying to allocate a recorder.
 	static bool can(const menu::MenuContext& ctx);
@@ -276,10 +274,10 @@ private:
 	/// @brief End a running take with its screen gone: its file stays on the card, attached to nothing
 	///        (`deluge::recording::orphanInputTake`). Forgets the target and the stop either way.
 	void orphan_take();
-	/// @brief `opened()`'s kit arm (`:74-88`): name the drum being recorded into "REC".
+	/// @brief `opened()`'s kit arm: name the drum being recorded into "REC".
 	/// @return False on the error legacy shows and refuses on.
 	bool name_drum();
-	/// @brief `process()`'s success arm (`:212-218`): hand the finished sample to the source.
+	/// @brief `process()`'s success arm: hand the finished sample to the source.
 	void attach_sample();
 	/// @brief `opened()`'s `target_`: what the take is for, each part by its identity.
 	bind::TakeTarget take_target() const;
@@ -291,7 +289,7 @@ private:
 	SampleRecorder* recorder_ = nullptr;
 
 	/// Legacy has no member for this: `endRecordingSoon` is idempotent by testing
-	/// `recorder->status == CAPTURING_DATA` (`:162`). Kept here only so `stopping()` can be
+	/// `recorder->status == CAPTURING_DATA`. Kept here only so `stopping()` can be
 	/// observed and so the "Working" notice is raised exactly once.
 	bool stopping_ = false;
 	/// Whether the next `leds()` restarts both shared blinks: the recording began (`blinkLed(BACK)`,

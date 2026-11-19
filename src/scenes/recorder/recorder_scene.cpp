@@ -62,7 +62,7 @@ constexpr std::string_view kWaiting = "Waiting";
 constexpr std::string_view kRecording = "Recording";
 /// @}
 
-/// `display->displayLoadingAnimationText("Working")` (`:163`), raised the way `browser::Listing`
+/// `display->displayLoadingAnimationText("Working")`, raised the way `browser::Listing`
 /// raises the same thing: `Notices::drain` turns a `Working` notice into `SceneKind::Working` over
 /// this scene (`shell/notices.cpp`), and `ClearWorking` takes it away again.
 constexpr std::string_view kWorking = "Working";
@@ -80,8 +80,8 @@ constexpr int32_t kMaxRecNumber = 1000;
 
 bool RecorderScene::can(const menu::MenuContext& ctx) {
 	// `process()`'s success arm dereferences `soundEditor.currentSound`, `currentSource` and
-	// `currentMultiRange` with no null test at all (`:213-217`), and `opened()` dereferences
-	// `soundEditor.currentSound` as a `SoundDrum*` on a kit (`:76`). Legacy gets away with it
+	// `currentMultiRange` with no null test at all, and `opened()` dereferences
+	// `soundEditor.currentSound` as a `SoundDrum*` on a kit. Legacy gets away with it
 	// because `checkPermissionToBeginSessionForRangeSpecificParam` refused first; this layer
 	// resolves the context itself, so it asks here.
 	if (!ctx.addresses.slot || ctx.range_index < 0) {
@@ -91,9 +91,8 @@ bool RecorderScene::can(const menu::MenuContext& ctx) {
 	// is exactly `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`: the same
 	// storage every recording publishes to.
 	//
-	// Fix round 1: this used to be `AudioEngine::isAnyInternalRecordingHappening()`, which is NOT
-	// the same predicate -- it misses an external (mic/line) recording entirely, and, far worse,
-	// the port that went with it never *published* one either. See the class docstring.
+	// `AudioEngine::isAnyInternalRecordingHappening()` is NOT the same predicate: it misses an external
+	// (mic/line) recording entirely. See the class docstring.
 	return AudioEngine::foregroundRecordingSource() <= AudioInputChannel::NONE;
 }
 
@@ -105,7 +104,7 @@ void RecorderScene::open(const menu::MenuContext& ctx) {
 }
 
 bool RecorderScene::name_drum() {
-	// `opened()`'s kit arm (`:74-88`): the row is named "REC" and the first number from 1 no other row's
+	// `opened()`'s kit arm: the row is named "REC" and the first number from 1 no other row's
 	// name has (`Kit::makeDrumNameUnique(&name, 1)`). The sink refuses a name another row holds.
 	if (!ctx_.is_kit) {
 		return true;
@@ -130,39 +129,39 @@ bool RecorderScene::name_drum() {
 			return true;
 		}
 	}
-	// `display->displayError(error); return false;` (`:82-84`).
+	// `display->displayError(error); return false;`.
 	notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	return false;
 }
 
 bool RecorderScene::setup_recording() {
 	// `deluge::recording`'s `setupRecordingToFile`, for the one call `AudioRecorder::opened` makes
-	// (`:94-95`): stereo when something is plugged in, mono otherwise, into `RECORD`.
+	// makes: stereo when something is plugged in, mono otherwise, into `RECORD`.
 	//
-	// Legacy's `ALPHA_OR_BETA_VERSION` freeze at `:124` guards `recordingSource > NONE`; the
+	// Main's `AudioRecorder::setupRecordingToFile` (`origin/main:src/deluge/gui/ui/audio_recorder.cpp`) freezes
+	// under `ALPHA_OR_BETA_VERSION` when `recordingSource > NONE`; the
 	// equivalent here is that `on_enter` never reaches this with `recorder_` already set.
 	const bool in_stereo = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
 	const AudioInputChannel mode = in_stereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT;
 	recorder_ = AudioEngine::getNewRecorder(in_stereo ? 2 : 1, AudioRecordingFolder::RECORD, mode, false, false,
 	                                        kInternalButtonPressLatency, false, nullptr, {false});
 	if (recorder_ == nullptr) {
-		// `display->displayError(Error::INSUFFICIENT_RAM); return false;` (`:130-133`).
+		// `display->displayError(Error::INSUFFICIENT_RAM); return false;`.
 		notify::notice_error_code(static_cast<int16_t>(Error::INSUFFICIENT_RAM));
 		return false;
 	}
 	recorder_->allowFileAlterationAfter = true;
-	// `shouldNormalize` defaults true and `opened()` does not pass it (`:94`).
+	// `shouldNormalize` defaults true and `opened()` does not pass it.
 	recorder_->allowNormalization = true;
 	// `recorder->monitorInputLevels = display->haveOLED() && isThresholdRecording()`: the render keeps measuring the
 	// input for the meter after the threshold has triggered. Every panel this scene draws on is an OLED.
 	recorder_->monitorInputLevels.store(threshold_take(), std::memory_order_relaxed);
 
-	// `recordingSource = newMode` (`:138`, "This sets recording to begin happening even as the file
-	// is created"). **This is not bookkeeping.** Nine subsystems read the pair
-	// (`recorder`, `recordingSource`) as "a foreground recording is live" -- most consequentially
-	// `AudioEngine::setMonitoringMode` (`audio_engine.cpp`), which enables input
-	// monitoring ONLY for `STEREO`/`stereo`-or-`LEFT`, i.e. exactly the two channels this line
-	// arms, and derives `monitoringAction` from the recorder pointer. A port that skipped it would
+	// `recordingSource = newMode` (main's `AudioRecorder::setupRecordingToFile`, "This sets recording to begin
+	// happening even as the file is created"). **This is not bookkeeping.** Nine subsystems read the pair (`recorder`,
+	// `recordingSource`) as "a foreground recording is live" -- most consequentially `AudioEngine::setMonitoringMode`
+	// (`audio_engine.cpp`), which enables input monitoring ONLY for `STEREO`/`stereo`-or-`LEFT`, i.e. exactly the two
+	// channels this line arms, and derives `monitoringAction` from the recorder pointer. A port that skipped it would
 	// record correctly and leave the user hearing nothing while they did it.
 	AudioEngine::setForegroundRecording(recorder_, mode);
 	return true;
@@ -181,7 +180,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 		return false;
 	}
 	if (recorder_ != nullptr) {
-		// The other half of legacy's "already recording" refusal (`:69-71`) -- this scene's own
+		// The other half of legacy's "already recording" refusal -- this scene's own
 		// recorder still being armed. A `Scene` is a singleton, so a second entry really can find
 		// one.
 		return false;
@@ -191,7 +190,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	blink_anchor_ms_.reset();
 	blink_fired_step_ = UINT32_MAX;
 
-	// `opened()`'s first two statements (`:64-66`). `updatedRecordingStatus` has no member here
+	// `opened()`'s first two statements. `updatedRecordingStatus` has no member here
 	// (see the class docstring); the log wipe does, because the recording is about to make every
 	// undo step meaningless.
 	actionLogger.deleteAllLogs();
@@ -263,7 +262,7 @@ void RecorderScene::end_recording_soon() {
 }
 
 void RecorderScene::attach_sample() {
-	// `process()`'s success arm (`:212-218`), as one request: the app stops the sound's voices, makes the
+	// `process()`'s success arm, as one request: the app stops the sound's voices, makes the
 	// source a sample source and puts the take, found in memory by its path, on the range.
 	if (ctx_.sink == nullptr) {
 		return;
@@ -356,7 +355,7 @@ Result RecorderScene::after_render() {
 		                                 .popup_string = sid(String::STRING_FOR_CLIPPING_OCCURRED),
 		                                 .popup_if_free = true});
 	}
-	// The `Waiting` -> `Recording` flip is legacy's third arm (`:234-239`). Nothing to do here:
+	// The `Waiting` -> `Recording` flip is legacy's third arm. Nothing to do here:
 	// `render_oled` reads `capturing()` on every frame, and the repaint gate it arms is what makes
 	// the next frame happen.
 	return r;
@@ -369,7 +368,7 @@ Result RecorderScene::handle(const UiEvent& event, const UiContext& ctx) {
 	(void)ctx;
 	Result r;
 
-	// `AudioRecorder::buttonAction` (`:255-280`): BACK, SELECT_ENC and RECORD all mean "stop", on
+	// `AudioRecorder::buttonAction`: BACK, SELECT_ENC and RECORD all mean "stop", on
 	// press only, and everything else falls through to whatever is beneath. Applied here, before the
 	// tick's render, so the frame that follows already shows the recorder stopped.
 	const bool is_button = event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton;
@@ -380,7 +379,7 @@ Result RecorderScene::handle(const UiEvent& event, const UiContext& ctx) {
 		return Result::unhandled();
 	}
 
-	// Legacy answers `REMIND_ME_OUTSIDE_CARD_ROUTINE` while the card routine is running (`:270-272`)
+	// Legacy answers `REMIND_ME_OUTSIDE_CARD_ROUTINE` while the card routine is running
 	// so the press is retried rather than dropped. That deferral is `InputLowering::set_sd_busy`'s,
 	// not a scene's, and emphatically not `Action::Kind::LockInput`'s -- see the class docstring.
 	end_recording_soon();
@@ -475,18 +474,17 @@ void RecorderScene::render_grid(deluge::ui::grid::GridFrame& f) {
 }
 
 void RecorderScene::leds(deluge::ui::LedFrame& f) {
-	// `opened()`'s LED tail (`:100-106`), all seven of it. `LedId` values are `ButtonId` values by
+	// `opened()`'s LED tail, all seven of it. `LedId` values are `ButtonId` values by
 	// the contract in `shell/profiles/deluge.h`, and legacy's own `IndicatorLED` values are the
-	// same button matrix coordinates (`hid/led/indicator_leds.h:36-65`), so each of these is the
+	// same button matrix coordinates (`hid/led/indicator_leds.h`), so each of these is the
 	// same lamp.
 	//
-	// SYNTH and KIT are declared here and NOT left to `MenuScene` beneath, even though that scene
-	// also names them: `SoundEditor::setLedStates` turns **both** off (`sound_editor.cpp:344-345`)
-	// and this UI then lights exactly one of them, by `soundEditor.editingKit()`
-	// (`sound_editor.cpp:199-201`, which is `getCurrentOutputType() == OutputType::KIT` -- the
-	// context's own `is_kit`). `LedCompose::compose` runs the stack bottom to top and the last
-	// writer wins (`shell/leds.h`), so declaring them here is what makes the recorder's answer the
-	// one that shows.
+	// SYNTH and KIT are declared here and NOT left to `MenuScene` beneath, even though that scene also names them:
+	// `SoundEditor::setLedStates` turns **both** off (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) and this UI
+	// then lights exactly one of them, by `soundEditor.editingKit()` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`,
+	// which is `getCurrentOutputType() == OutputType::KIT` -- the context's own `is_kit`). `LedCompose::compose` runs
+	// the stack bottom to top and the last writer wins (`shell/leds.h`), so declaring them here is what makes the
+	// recorder's answer the one that shows.
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 	if (blink_restart_) {
