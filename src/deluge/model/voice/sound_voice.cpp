@@ -29,8 +29,8 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
+using deluge::synth::BlockValues;
 using deluge::synth::SourceSlot;
-using deluge::synth::VoiceConfig;
 
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
@@ -125,21 +125,22 @@ void SoundVoice::expression_event_immediate(int32_t voice_level_value, int32_t s
 	                                  voice_level_value, s);
 }
 
-bool SoundVoice::render(const deluge::synth::matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+bool SoundVoice::render(const deluge::synth::matrix::MatrixBlock& control_block,
+                        const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg,
                         const deluge::synth::VoiceRenderArgs& args) {
 	if (!just_created) {
 		just_created = true;
 		return true;
 	}
 	checkStack("SoundVoice::render");
-	const bool keep = kernel.render(control_block, cfg, block(), args);
+	const bool keep = kernel.render(control_block, config, cfg, block(), args);
 	deluge::param_dump::plane(GLOBALITY_LOCAL, &sound, this, kernel.param_final_values());
-	dump_sources(control_block, cfg);
+	dump_sources(control_block, config, cfg);
 	return keep;
 }
 
 void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
-                              const deluge::synth::VoiceConfig& cfg) const {
+                              const deluge::synth::SoundConfig& config, const deluge::synth::BlockValues& cfg) const {
 #if defined(DELUGE_PARAM_DUMP)
 	std::array<deluge::param_dump::SourceState, kMaxNumVoicesUnison * kNumSources> states{};
 	size_t n = 0;
@@ -158,6 +159,7 @@ void SoundVoice::dump_sources(const deluge::synth::matrix::MatrixBlock& control_
 	deluge::param_dump::voice_sources(&sound, this, std::span{states}.first(n));
 #else
 	(void)control_block;
+	(void)config;
 	(void)cfg;
 #endif
 }

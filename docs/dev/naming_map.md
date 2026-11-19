@@ -24,6 +24,8 @@ for routing edges and summing buffers.
 | `Kit::renderGlobalEffectableForClip`, `AudioOutput::renderGlobalEffectableForClip` | `renderContent` | done | the content a track's channel renders around |
 | `getThingWithMostReverb` | `Output::reverbCandidate` | done | |
 | `synth::SoundSnapshot` | `synth::SoundConfig` (`Voicing`, `EngineSettings`, `lfos`) | done | derived by `DelugeSynth::derive` |
+| `synth::VoiceConfig` | the sound's `SoundConfig` plus `synth::BlockValues` | done | the block values are what changes each block: host facts, the transport's, what the params make of it |
+| a sound render's param reads | `synth::param_view` (concept) over `ParamManagerView` | done | |
 | `instrument::DelugeInstrument` | `instrument::DelugeSynth` | done | the plugin id `kDelugeInstrument` is a file word and stays |
 | `PhaseIncrementFineTuner` | `dsp::fixed::FineTune` | the synth library: done; the app's sample holders: DelugeSynth state plan D | |
 | `instrument::SoundState` | `DelugeSynth::State`, composed of its components' states | DelugeSynth state plan E | |

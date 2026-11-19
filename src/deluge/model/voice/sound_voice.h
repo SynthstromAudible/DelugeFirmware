@@ -85,8 +85,8 @@ public:
 	/// A sample's zone moved under the playing note. @return false if the voice must be unassigned now.
 	bool sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
 	/// Renders one block of the voice. @return false once it has ended and must be unassigned.
-	bool render(const deluge::synth::matrix::MatrixBlock& control_block, const deluge::synth::VoiceConfig& cfg,
-	            const deluge::synth::VoiceRenderArgs& args);
+	bool render(const deluge::synth::matrix::MatrixBlock& control_block, const deluge::synth::SoundConfig& config,
+	            const deluge::synth::BlockValues& cfg, const deluge::synth::VoiceRenderArgs& args);
 
 	// --- Releases, stamped by the engine's voice clock. Each returns whether the voice still sounds.
 	bool do_fast_release(uint32_t release_increment);
@@ -105,6 +105,6 @@ private:
 	/// What differs between the sound's voices for this voice's render.
 	[[nodiscard]] deluge::synth::VoiceBlock block() const;
 	/// The voice's sources as this block left them, to the parameter dump (a host render's only).
-	void dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
-	                  const deluge::synth::VoiceConfig& cfg) const;
+	void dump_sources(const deluge::synth::matrix::MatrixBlock& control_block, const deluge::synth::SoundConfig& config,
+	                  const deluge::synth::BlockValues& cfg) const;
 };

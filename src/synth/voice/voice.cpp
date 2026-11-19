@@ -303,8 +303,8 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 }
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
-                                const VoiceBlock& block, const VoiceRenderArgs& args) {
+[[gnu::hot]] bool Voice::render(const matrix::MatrixBlock& control_block, const SoundConfig& config,
+                                const BlockValues& cfg, const VoiceBlock& block, const VoiceRenderArgs& args) {
 	spare_buffers_ = args.spare_buffers; // the render helpers read these
 	sync_scratch_ = args.sync_scratch;
 	noise_ = args.noise;
@@ -316,13 +316,13 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 
 	bool did_stereo_temp_buffer = false;
 
-	bool unassign_voice_after = render_modulation(control_block, cfg, block, num_samples, args.sources_changed);
+	bool unassign_voice_after = render_modulation(control_block, config, cfg, block, num_samples, args.sources_changed);
 
 	const Q<24> overall_pitch_adjust = pitch_adjust(cfg, num_samples, external_pitch_adjust);
 
 	// Auto-release for a play-once sample. Despite this being envelope-related, meaning we'd ideally prefer to do it
 	// before patching, we can only do it after because we need to know pitch
-	auto_release_if_due(cfg, block, overall_pitch_adjust);
+	auto_release_if_due(config, cfg, block, overall_pitch_adjust);
 
 	if (!done_first_render_ && matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values) > 245632) {
 		engines_.fm().set_levels(modulator_volumes());
@@ -345,7 +345,7 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	const bool allow_oversampling = cfg.cpu_direness < 14;
 	const Q<28> filter_gain = Q<28>::from_raw(filter_set_.configure(
 	    // The filter set takes the gain's word
-	    scale_shl_wrap<1>(cfg.volume_neutral_value_for_unison).raw(),
+	    scale_shl_wrap<1>(config.voicing.unison.level).raw(),
 	    {
 	        .frequency = matrix::param_value<params::LOCAL_LPF_FREQ>(params_.param_final_values),
 	        .resonance = matrix::param_value<params::LOCAL_LPF_RESONANCE>(params_.param_final_values),
@@ -361,7 +361,7 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	    },
 	    cfg.high_pass, cfg.filter_route));
 
-	SynthMode synth_mode = cfg.synth_mode;
+	SynthMode synth_mode = config.engine.mode;
 
 	Q<31> overall_oscillator_amplitude_increment{};
 	const bool first_render = !done_first_render_;
@@ -372,8 +372,8 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 		// The amplitude times the unison's neutral (2^27 for one part): the rounded high word, Q30 of the amplitude's
 		// units, ×8
 		// The Q30 product's word is the amplitude the carriers take
-		overall_osc_amplitude = dsp::reinterpret_bits<Q<31>>(
-		    scale_shl_wrap<3>(mul_r(overall_osc_amplitude, cfg.volume_neutral_value_for_unison)));
+		overall_osc_amplitude =
+		    dsp::reinterpret_bits<Q<31>>(scale_shl_wrap<3>(mul_r(overall_osc_amplitude, config.voicing.unison.level)));
 	}
 	else {
 		if (first_render && matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values) > 245632) {
@@ -387,7 +387,8 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	done_first_render_ = true;
 
 	// whether stereo unison actually is active. if stereo is being vetoed from higher up, don't do it.
-	bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && sound_rendering_in_stereo;
+	bool stereo_unison =
+	    (config.voicing.unison_spread != 0u) && config.voicing.unison.count > 1 && sound_rendering_in_stereo;
 
 	const VoicePan pan = voice_pan(cfg, applying_pan_at_voice_level);
 
@@ -399,7 +400,8 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	    .num_samples = num_samples,
 	    .parts = unison_parts,
 	    .levels = &source_levels_,
-	    .cfg = &cfg,
+	    .config = &config,
+	    .values = &cfg,
 	    .voice_block = &block,
 	    .spare_buffers = spare_buffers_,
 	    .sync_scratch = sync_scratch_,
@@ -412,7 +414,7 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 		    fm_controls(overall_osc_amplitude, filter_gain, overall_pitch_adjust, first_render, stereo_unison);
 	}
 	else {
-		engine_block.dual = dual_source_controls(control_block, cfg, block, filter_gain, overall_pitch_adjust,
+		engine_block.dual = dual_source_controls(control_block, config, cfg, block, filter_gain, overall_pitch_adjust,
 		                                         first_render, stereo_unison);
 	}
 	const EngineRenderResult result = engines_.for_mode(synth_mode).render(engine_block);
@@ -469,8 +471,9 @@ dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge
 	return !unassign_voice_after;
 }
 
-bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
-                              int32_t num_samples, uint32_t sources_changed) {
+bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const SoundConfig& config,
+                              const BlockValues& cfg, const VoiceBlock& block, int32_t num_samples,
+                              uint32_t sources_changed) {
 	// Do envelopes - if they're patched to something (always do the first one though)
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 		if (e == 0
@@ -513,8 +516,8 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
 		    lfo2_
-		        .render(num_samples, cfg.lfo2_config,
-		                get_local_lfo_phase_increment(cfg.lfo2_config, params::LOCAL_LFO_LOCAL_FREQ_1,
+		        .render(num_samples, config.lfos[LFO2_ID],
+		                get_local_lfo_phase_increment(config.lfos[LFO2_ID], params::LOCAL_LFO_LOCAL_FREQ_1,
 		                                              cfg.lfo2_synced_phase_increment),
 		                *noise_)
 		        .raw();
@@ -529,8 +532,8 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
 		    lfo4_
-		        .render(num_samples, cfg.lfo4_config,
-		                get_local_lfo_phase_increment(cfg.lfo4_config, params::LOCAL_LFO_LOCAL_FREQ_2,
+		        .render(num_samples, config.lfos[LFO4_ID],
+		                get_local_lfo_phase_increment(config.lfos[LFO4_ID], params::LOCAL_LFO_LOCAL_FREQ_2,
 		                                              cfg.lfo4_synced_phase_increment),
 		                *noise_)
 		        .raw();
@@ -566,7 +569,7 @@ Q<24> pitch_product(Q<24> a, Q<24> b) {
 }
 } // namespace
 
-Q<24> Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, Q<24> external_pitch_adjust) {
+Q<24> Voice::pitch_adjust(const BlockValues& cfg, int32_t num_samples, Q<24> external_pitch_adjust) {
 	// Sort out pitch
 	Q<24> overall_pitch_adjust = matrix::param_value<params::LOCAL_PITCH_ADJUST>(params_.param_final_values);
 
@@ -603,7 +606,7 @@ Q<24> Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, Q<24> ext
 	return overall_pitch_adjust;
 }
 
-Voice::VoicePan Voice::voice_pan(const VoiceConfig& cfg, bool applying_pan_at_voice_level) const {
+Voice::VoicePan Voice::voice_pan(const BlockValues& cfg, bool applying_pan_at_voice_level) const {
 	// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
 	if (!applying_pan_at_voice_level || !cfg.engine_rendering_in_stereo) {
 		return {};
@@ -687,7 +690,7 @@ void Voice::write_mono(const VoiceOutput& output) {
 	} while (++osc_buffer_pos != osc_buffer_end);
 }
 
-void Voice::smooth_expression(const VoiceConfig& cfg, int32_t num_samples) {
+void Voice::smooth_expression(const BlockValues& cfg, int32_t num_samples) {
 	expression_sources_currently_smoothing_ |= cfg.expression_sources_changed_at_synth_level;
 
 	if (expression_sources_currently_smoothing_.any()) {
@@ -713,7 +716,7 @@ void Voice::smooth_expression(const VoiceConfig& cfg, int32_t num_samples) {
 	}
 }
 
-uint32_t Voice::play_once_sample_sources(const VoiceConfig& cfg, const VoiceBlock& block) {
+uint32_t Voice::play_once_sample_sources(const BlockValues& cfg, const VoiceBlock& block) {
 	uint32_t which_sources_need_attention = 0;
 
 	// Only if all active sources are play-once samples
@@ -747,9 +750,10 @@ bool Voice::end_with_parts() {
 
 // A voice whose every active source is a play-once sample starts its release so that it ends with the sample: once the
 // highest-pitched unison part has less left than the release takes.
-void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, Q<24> overall_pitch_adjust) {
+void Voice::auto_release_if_due(const SoundConfig& config, const BlockValues& cfg, const VoiceBlock& block,
+                                Q<24> overall_pitch_adjust) {
 	// Not if already releasing, or with no release set, or a noise source
-	if (cfg.synth_mode == SynthMode::FM || envelopes_[0].stage() >= Envelope::Stage::RELEASE || !has_release_stage()
+	if (config.engine.mode == SynthMode::FM || envelopes_[0].stage() >= Envelope::Stage::RELEASE || !has_release_stage()
 	    || cfg.noise_volume_contains_something) {
 		return;
 	}
@@ -771,7 +775,7 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		}
 
 		// Calculated for the last unison part, which has the highest pitch, so ends soonest
-		SourceSlot* slot = &unison_parts[cfg.num_unison - 1].slots[s];
+		SourceSlot* slot = &unison_parts[config.voicing.unison.count - 1].slots[s];
 		if (!slot->active) {
 			continue;
 		}
@@ -830,16 +834,17 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	stamp_envelope0_stage_entry(block.clock);
 }
 
-DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
-                                               const VoiceBlock& block, Q<28> filter_gain, Q<24> overall_pitch_adjust,
-                                               bool first_render, bool stereo_unison) const {
+DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& control_block, const SoundConfig& config,
+                                               const BlockValues& cfg, const VoiceBlock& block, Q<28> filter_gain,
+                                               Q<24> overall_pitch_adjust, bool first_render,
+                                               bool stereo_unison) const {
 	DualSourceControls controls{
 	    .noise_volume = matrix::param_value<params::LOCAL_NOISE_VOLUME>(params_.param_final_values),
 	    .env0_attack = matrix::param_value<params::LOCAL_ENV_0_ATTACK>(params_.param_final_values),
 	    .filter_gain = filter_gain,
 	    .overall_pitch_adjust = overall_pitch_adjust,
 	    .porta_envelope_pos = porta_envelope_pos_,
-	    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
+	    .priority_rating = static_cast<int32_t>(priority_rating(config.voicing.priority, block.num_active_voices)),
 	    .note_code = note_code_after_arpeggiation_,
 	    .first_render = first_render,
 	    .stereo_unison = stereo_unison,
@@ -888,7 +893,7 @@ FmControls Voice::fm_controls(Q<31> overall_osc_amplitude, Q<28> filter_gain, Q<
 	return controls;
 }
 
-bool Voice::pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+bool Voice::pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const BlockValues& cfg,
                                       int32_t s) const {
 	// A sample is not cached when a source that can change during the note modulates its pitch: only the two pitch
 	// destinations' cables are scanned.

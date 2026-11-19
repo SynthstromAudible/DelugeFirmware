@@ -6,7 +6,7 @@
  */
 
 // synth::Voice played on the host, with nothing of the app: notes through the kernel's lifecycle, rendered from a
-// VoiceConfig, with fake ports behind its sources.
+// RenderConfig, with fake ports behind its sources.
 
 #include "voice_rig.h"
 
@@ -24,7 +24,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 	it("plays a virtual-analog note and releases it to silence", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
-		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
+		const RenderConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
 		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		for (int32_t i = 0; i < 4; i++) {
@@ -38,7 +38,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 	it("plays an FM note", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SINE);
-		const VoiceConfig cfg = config(SynthMode::FM, OscType::SINE);
+		const RenderConfig cfg = config(SynthMode::FM, OscType::SINE);
 		expect(rig->voice.note_on(setup, snapshot(SynthMode::FM), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		for (int32_t i = 0; i < 4; i++) {
@@ -51,7 +51,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		rig->samples[0][0] = FakeSamplePort{4000};
 		const NoteSetup setup = note_setup(OscType::SAMPLE);
-		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
+		const RenderConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
 		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		int64_t peak = 0;
 		int64_t loudest = 0;
@@ -73,7 +73,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 		auto rig = std::make_unique<Rig>();
 		rig->samples[0][0] = FakeSamplePort{4000};
 		const NoteSetup setup = note_setup(OscType::SAMPLE);
-		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
+		const RenderConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAMPLE);
 		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		for (int32_t i = 0; i < 20; i++) {
 			render_block(*rig, setup, cfg, nullptr, false);
@@ -84,7 +84,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 	it("fast-releases to silence", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
-		const VoiceConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
+		const RenderConfig cfg = config(SynthMode::SUBTRACTIVE, OscType::SAW);
 		expect(rig->voice.note_on(setup, snapshot(SynthMode::SUBTRACTIVE), note(60), rig->clock(), 1, rig->noise)).to_be_true();
 		render_block(*rig, setup, cfg);
 		render_block(*rig, setup, cfg);
