@@ -100,6 +100,12 @@ class HistoryTest(unittest.TestCase):
         self.assertEqual(kinds("// Important: the clock runs first."), [])
         self.assertEqual(kinds("// a batch of events drains per tick"), [])
         self.assertEqual(kinds("// the first cutoff the filter reaches"), [])
+        self.assertEqual(
+            kinds(
+                "// TODO(conflation-batch-4): an unknown answer is treated as absent"
+            ),
+            [],
+        )
 
     def test_reads_comments_only(self):
         self.assertEqual(kinds('const char* s = "Task 7";\n'), [])

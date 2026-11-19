@@ -10,8 +10,8 @@ line, because a line moves with every edit above it. Three kinds of finding:
 
 - ``history``: a task, review or workstream breadcrumb (``Task 7``, ``Fix round 1``, ``Minor 2``, ``Important 3``,
   ``F1 task 11``, ``WS4b``, ``spec D §7``, ``spec E3``, ``shell spec §15.1``, ``task-3 ruling``, ``the brief``,
-  ``this plan's``, ``batch 3``, ``first cut`` -- the plans and specs live outside the tree), a date, or
-  rename/former narration (``used to``, ``was renamed``).
+  ``this plan's``, ``batch 3`` (not a hyphen-joined tag such as ``conflation-batch-4``), ``first cut`` -- the plans
+  and specs live outside the tree), a date, or rename/former narration (``used to``, ``was renamed``).
 - ``line-number``: a line number in a citation -- ``path.cpp:N`` (also after ``origin/main:``) or a bare ``:N`` or
   ``:N-M``. Cite the file and the symbol instead.
 - ``dangling-path``: a backticked path that names no tracked file, or more than one (write enough of the path to
@@ -106,7 +106,7 @@ HISTORY = re.compile(
     r"|\b[Rr]eview round\b|\(Kate,|\b20\d\d-\d\d-\d\d\b"
     r"|(?<!\bis )(?<!\bare )(?<!\bbe )(?<!\bbeen )\bused to\b"
     r"|\bwas renamed\b|\brenamed from\b|\bthe old name\b"
-    r"|\bbatch[ -]?\d+\b|\bfirst cut\b"
+    r"|(?<![-\w])batch[ -]?\d+\b|\bfirst cut\b"
 )
 # The file types a line citation names: every type a citation in these trees was written against.
 LINE_EXTENSIONS = (
@@ -120,7 +120,8 @@ LINE_NUMBER = re.compile(
 EXTENSIONS = r"(?:h|hpp|c|cpp|inc|py|rs|txt|md|toml)"
 # A whole backticked path, optionally `origin/main:`-prefixed.
 PATH = re.compile(rf"`((?:{MAIN}:)?[A-Za-z0-9_][A-Za-z0-9_./+-]*\.{EXTENSIONS})`")
-# A backticked brace path, optionally `origin/main:`-prefixed: `dir/x.{h,cpp}` or `dir/{a,b}.cpp`.
+# A backticked brace path, optionally `origin/main:`-prefixed: `dir/x.{h,cpp}` or `dir/{a,b}.cpp`. A path with two
+# brace groups, or one with an expansion that is not a citable path, is not checked.
 BRACE_PATH = re.compile(
     rf"`((?:{MAIN}:)?)([A-Za-z0-9_./+-]*)\{{([A-Za-z0-9_./+-]+(?:,[A-Za-z0-9_./+-]+)+)\}}([A-Za-z0-9_./+-]*)`"
 )
