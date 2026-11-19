@@ -138,13 +138,13 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
 			return deluge::storage::Walk::Stop;
 		}
 		visitor.demand({.holder = ranges.getElement(e)->getAudioFileHolder(),
-		                .reversed = isCurrentlyReversed(),
+		                .reversed = reversed,
 		                .clusterLoadInstruction = CLUSTER_ENQUEUE,
 		                .makeWaveTableWorkAtAllCosts = true});
 	}

@@ -2926,7 +2926,7 @@ deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisito
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			if (sources[s].walkSampleDemands(visitor) == deluge::storage::Walk::Stop) {
+			if (sources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
 				return deluge::storage::Walk::Stop;
 			}
 		}

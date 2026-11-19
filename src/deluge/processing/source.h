@@ -94,9 +94,12 @@ public:
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
 	/// @brief Report each range's file to @p visitor, with a checkpoint before each. Loads nothing.
-	/// @param visitor Receives a demand for each range's audio file and a checkpoint before each one.
+	/// @param visitor  Receives a demand for each range's audio file and a checkpoint before each one.
+	/// @param reversed The direction the source plays, from its sound's config: a walk can reach a sound whose record
+	///                 has gone (a kit read into a song it was never added to, walked after that song), so it reads no
+	///                 record.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
-	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor, bool reversed);
 	/// @brief Play the ranges in the direction isCurrentlyReversed() names: a reversed range's end is clamped to its
 	/// sample's length, and every range's clusters are claimed for the direction. Writes no record.
 	void followDirection();
