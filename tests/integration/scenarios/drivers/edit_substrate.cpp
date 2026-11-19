@@ -829,14 +829,18 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	deluge::project::InstrumentSlot& slot = *synth->docOutput_->instrument;
 	check(slot.state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
 	      "ownership: a synth plays its record's state");
-	sound.setTranspose(5);
+	deluge::edits::SetEngineSetting toFive{*deluge::bridge::slotAddressOf(sound), "transpose",
+	                                       serialization::Value::makeNumber(5)};
+	check(deluge::edits::apply(ctx, toFive) == Error::NONE, "ownership: a setting Edit reaches the synth");
 	const deluge::instrument::SoundState* record = slot.state.as<deluge::instrument::DelugeSynth>();
 	// Deleted as a track is: its record goes now, the sound when the render lets go of it.
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
 	check(sound.boundState() != nullptr && sound.boundState() != record && sound.boundState()->transpose == 5,
 	      "ownership: a synth whose record goes keeps its state");
-	sound.setTranspose(6);
-	check(sound.boundState()->transpose == 6, "ownership: and its setters still write it");
+	check(deluge::edits::setUnslottedSetting(sound, "transpose", serialization::Value::makeNumber(6), ctx.song)
+	              == Error::NONE
+	          && sound.boundState()->transpose == 6 && sound.getTranspose() == 6,
+	      "ownership: and a setting still writes it");
 
 	ParamManagerForTimeline kitParams;
 	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
@@ -849,7 +853,9 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	check(removed->docDrum_ != nullptr
 	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == removed->boundState(),
 	      "ownership: a kit row plays its record's state");
-	removed->setTranspose(-3);
+	deluge::edits::SetEngineSetting rowTranspose{*deluge::bridge::slotAddressOf(*removed), "transpose",
+	                                             serialization::Value::makeNumber(-3)};
+	check(deluge::edits::apply(ctx, rowTranspose) == Error::NONE, "ownership: a setting Edit reaches the kit row");
 	kit.removeDrum(removed);
 	check(removed->boundState() != nullptr && removed->boundState()->transpose == -3,
 	      "ownership: a removed kit row keeps its state");
@@ -1244,7 +1250,7 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 		const std::optional<deluge::project::FxChain> chainBefore =
 		    chain != nullptr ? std::optional{*chain} : std::nullopt;
 		const int32_t level = static_cast<int32_t>(o.owner->effectsOwner()->effects().delay.sync_level);
-		check(applied("delay/syncLevel", Value::makeNumber(level)) == Error::NONE,
+		check(applied("delay/syncLevel", serialization::Value::makeNumber(level)) == Error::NONE,
 		      (name + ": the delay's sync level applied").c_str());
 		check(chain != nullptr && chainBefore && *chain == *chainBefore,
 		      (name + ": the same sync level leaves the chain as it was").c_str());
@@ -1310,8 +1316,13 @@ void testTwoOutputsOneIdInFile() {
 		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
 		      "read ids: each synth plays its own slot's state");
 	}
-	static_cast<Sound*>(synths[0])->setTranspose(5);
-	static_cast<Sound*>(synths[1])->setTranspose(-3);
+	deluge::edits::Context readCtx{*song, song->project};
+	deluge::edits::SetEngineSetting first{*deluge::bridge::slotAddressOf(*synths[0]), "transpose",
+	                                      serialization::Value::makeNumber(5)};
+	deluge::edits::SetEngineSetting second{*deluge::bridge::slotAddressOf(*synths[1]), "transpose",
+	                                       serialization::Value::makeNumber(-3)};
+	check(deluge::edits::apply(readCtx, first) == Error::NONE && deluge::edits::apply(readCtx, second) == Error::NONE,
+	      "read ids: a setting Edit on each synth applies");
 	check(synths[0]->boundState()->transpose == 5 && synths[1]->boundState()->transpose == -3,
 	      "read ids: a write to one synth reaches only its own record");
 }

@@ -308,6 +308,12 @@ MenuContext sound_context(spec::SongFixture& f) {
 	return ctx;
 }
 
+/// @brief Make @p sound a ring-mod synth before the browser opens on it: its state, and the config derived from it.
+void ring_mod(Sound& sound) {
+	sound.boundRecord()->synth_mode = ::SynthMode::RINGMOD;
+	sound.projectSnapshot();
+}
+
 /// @brief Press Select on the next tick.
 /// @return When it went down.
 uint32_t press_select(Rig& r) {
@@ -2540,7 +2546,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		ring_mod(*static_cast<SoundInstrument*>(f.instrument));
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		select_folder(r, true);
@@ -2554,7 +2560,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		ring_mod(*static_cast<SoundInstrument*>(f.instrument));
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		select_folder(r, false);

@@ -963,7 +963,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		const uint32_t saved_light_shift = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
 		const uint32_t saved_corners = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
 
-		{ // --- synth_mode: `Sound::setSynthMode` on the target, not just a stored int ------------
+		{ // --- synth_mode: the mode Edit on the target, not just a stored int --------------------
 			const TablesRoot& sound = installed_root("sound");
 			const SynthMode before = spec::menu_engine(sound.ctx).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
@@ -976,7 +976,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
-			spec::menu_engine(sound.ctx).sound->setSynthMode(before, sound.ctx.song);
+			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(before));
 			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(before_osc[0]);
 			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(before_osc[1]);
 			covered.insert(&nodes::synth_mode);
