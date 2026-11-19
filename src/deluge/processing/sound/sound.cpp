@@ -2746,15 +2746,29 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	return Error::NONE;
 }
 
+MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
+	const bool had = !sources[s].ranges.empty();
+	MultiRange* range = sources[s].getOrCreateFirstRange();
+	if (range != nullptr && !had) {
+		recordHeldRanges(s);
+	}
+	return range;
+}
+
+void Sound::recordHeldRanges(int32_t s) {
+	sources[s].seedRangesInto(state_->sources[s]);
+}
+
+void Sound::recordHeldDxPatch(int32_t s) {
+	sources[s].seedDxPatchInto(state_->sources[s]);
+}
+
 void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	// A drum plays the record its kit adopted it into; any other sound its own state
 	deluge::instrument::SoundState& home = (state_ == nullptr || state_ == &ownedState_) ? ownedState_ : *state_;
 	home = std::move(loaded);
 	state_ = &home;
 	bindEffects(&home.effects);
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].attachState(&home.sources[s]);
-	}
 	projectSnapshot();
 }
 
@@ -2771,9 +2785,6 @@ void Sound::bindState(deluge::instrument::SoundState& record) {
 	}
 	state_ = &record;
 	bindEffects(&record.effects); // copies the effects it played, which the move left in place
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].bindState(&record.sources[s]);
-	}
 	if (own) {
 		ownedState_ = {}; // no second copy stays behind
 	}
@@ -2787,9 +2798,6 @@ void Sound::unbindState() {
 	ownedState_ = std::move(*state_); // the record goes now
 	state_ = &ownedState_;
 	bindEffects(&ownedState_.effects);
-	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].bindState(&ownedState_.sources[s]);
-	}
 	projectSnapshot();
 }
 

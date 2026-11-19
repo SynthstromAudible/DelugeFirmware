@@ -99,8 +99,7 @@ inline AudioFile* fake_file() {
 }
 /// Give source @p source of the sound @p ctx edits a loaded file.
 inline void load_file(const MenuContext& ctx, int32_t source) {
-	spec::menu_engine(ctx).sound->sources[source].getOrCreateFirstRange()->getAudioFileHolder()->audioFile =
-	    fake_file();
+	spec::menu_engine(ctx).sound->getOrCreateFirstRange(source)->getAudioFileHolder()->audioFile = fake_file();
 }
 /// Take every fake file off the sound @p ctx edits, before its oscillator types change again.
 inline void unload_files(const MenuContext& ctx) {

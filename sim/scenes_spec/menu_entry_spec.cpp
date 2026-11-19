@@ -293,10 +293,10 @@ Sample* make_marker_sample() {
 /// @brief Give @p sound's source 0 one range holding @p sample, recorded as a load records it.
 void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
 	Source& source = sound.sources[0];
-	source.state_->osc_type = OscType::SAMPLE;
-	source.state_->repeat_mode = SampleRepeatMode::ONCE;
+	sound.state_->sources[0].osc_type = OscType::SAMPLE;
+	sound.state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	sound.projectSnapshot();
-	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+	auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(0));
 	range->sampleHolder.audioFile = sample;
 	range->sampleHolder.startPos = 0;
 	range->sampleHolder.endPos = sample->lengthInSamples;

@@ -94,7 +94,7 @@ int source_memory_main(int /*argc*/, char** /*argv*/, Io io) {
 	}
 	auto& synth = *static_cast<SoundInstrument*>(instrument);
 	deluge::test::setOscType(synth, 0, OscType::SAMPLE);
-	if (MultiRange* range = synth.sources[0].getOrCreateFirstRange(); range != nullptr) {
+	if (MultiRange* range = synth.getOrCreateFirstRange(0); range != nullptr) {
 		range->getAudioFileHolder()->filePath = "SAMPLES/SM/TONE.WAV";
 	}
 	song->live.param_backup.backUp(synth, nullptr, &paramManager, true);

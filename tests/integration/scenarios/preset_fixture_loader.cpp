@@ -96,7 +96,7 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	auto* synth = static_cast<SoundInstrument*>(instrument);
 	synth->setupAsBlankSynth(&paramManager, false);
 	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
-	MultiRange* range = synth->sources[0].getOrCreateFirstRange();
+	MultiRange* range = synth->getOrCreateFirstRange(0);
 	AudioFileHolder* holder = (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 	if (holder == nullptr) {
 		return false;

@@ -43,7 +43,7 @@ namespace {
 /// @brief Make source 0 of @p sound a sample source with one range, recorded as a gesture records it.
 void give_sample_range(::Sound& sound) {
 	deluge::edits::settingFor(sound, "osc1/type", Value::makeScalar("sample"));
-	(void)sound.sources[0].getOrCreateFirstRange();
+	(void)sound.getOrCreateFirstRange(0);
 	deluge::edits::recordRanges(sound, 0);
 }
 

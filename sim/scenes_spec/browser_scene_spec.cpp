@@ -265,7 +265,7 @@ Sample* make_overview_sample(int32_t investigated_clusters = 32) {
 struct PreviewHeld {
 	MultisampleRange* range;
 	explicit PreviewHeld(Sample* sample)
-	    : range(static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange())) {
+	    : range(static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->getOrCreateFirstRange(0))) {
 		range->sampleHolder.audioFile = sample;
 	}
 	~PreviewHeld() { range->sampleHolder.audioFile = nullptr; }

@@ -187,6 +187,6 @@ extern SampleClaim sampleClaim;
 /// @param drum     The drum that took the sample.
 /// @param source   The source holding the sample; only a ONCE repeat mode qualifies.
 /// @param fileName The sample's file name or path.
-void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
+void autoDetectSideChainSending(SoundDrum* drum, int32_t s, char const* fileName);
 
 } // namespace deluge::gui

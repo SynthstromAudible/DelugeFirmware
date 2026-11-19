@@ -137,8 +137,8 @@ void countResidents(int32_t& samples, int32_t& referenced) {
 	}
 }
 
-AudioFileHolder* firstHolder(Source& source) {
-	MultiRange* range = source.getOrCreateFirstRange();
+AudioFileHolder* firstHolder(Sound& sound, int32_t s) {
+	MultiRange* range = sound.getOrCreateFirstRange(s);
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
@@ -178,7 +178,7 @@ bool buildFixture() {
 		return false;
 	}
 	deluge::test::setOscType(*synth, 0, OscType::SAMPLE);
-	AudioFileHolder* surviveHolder = firstHolder(synth->sources[0]);
+	AudioFileHolder* surviveHolder = firstHolder(*synth, 0);
 	if (surviveHolder == nullptr) {
 		g_report.fail("the synth's source has no range");
 		return false;

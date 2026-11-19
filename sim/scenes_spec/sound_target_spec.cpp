@@ -37,7 +37,7 @@ struct SourceRig {
 
 	SourceRig(int32_t count, int16_t index) {
 		deluge::test::setOscType(*sound, 0, OscType::SAMPLE);
-		(void)source->getOrCreateFirstRange();
+		(void)sound->getOrCreateFirstRange(0);
 		while (std::ssize(source->ranges) < count) {
 			(void)source->ranges.insertMultiRange(std::ssize(source->ranges));
 		}

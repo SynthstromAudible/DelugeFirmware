@@ -88,7 +88,7 @@ struct PreviewSound {
 	PreviewSound& operator=(const PreviewSound&) = delete;
 	/// Put @p sample in the preview's range, as `SampleBrowser::showPreview`'s load does.
 	void hold(Sample* sample) {
-		static_cast<MultisampleRange*>(drum->sources[0].getOrCreateFirstRange())->sampleHolder.audioFile = sample;
+		static_cast<MultisampleRange*>(drum->getOrCreateFirstRange(0))->sampleHolder.audioFile = sample;
 	}
 };
 
@@ -109,7 +109,7 @@ describe waveforms("a waveform by its address", ${
 		Source& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
 		sound->projectSnapshot();
-		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
 		const auto info = waveforms.info(range);
@@ -145,7 +145,7 @@ describe waveforms("a waveform by its address", ${
 		Source& source = sound->sources[0];
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
 		sound->projectSnapshot();
-		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
 		const WaveformAddress range{.kind = WaveformAddress::Kind::RANGE,

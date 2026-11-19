@@ -100,7 +100,7 @@ void SliceCore::audition(const Sample& sample, const AuditionTarget& target) {
 
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
-	MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+	MultisampleRange* range = (MultisampleRange*)drum->getOrCreateFirstRange(0);
 	deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar("1"));
 	deluge::edits::settingFor(*drum, "osc1/loopMode",
 	                          deluge::serialization::Value::makeNumber(std::to_underlying(SampleRepeatMode::ONCE)));
@@ -130,7 +130,7 @@ void SliceCore::audition(const Sample& sample, const AuditionTarget& target) {
 void SliceCore::sound_audition(const AuditionTarget& target) {
 	if (target.on) {
 		SoundDrum* drum = (SoundDrum*)getCurrentKit()->firstDrum;
-		(void)drum->sources[0].getOrCreateFirstRange();
+		(void)drum->getOrCreateFirstRange(0);
 		std::vector<deluge::instrument::RangeState> ranges = drum->boundState()->sources[0].ranges;
 		ranges[0].start_pos = target.startPoint;
 		if (target.endPoint != -1) {
@@ -191,7 +191,7 @@ void SliceCore::kill_voices() {
 bool SliceCore::restore_full_range() {
 	kill_voices();
 	SoundDrum* soundDrum = static_cast<SoundDrum*>(getCurrentKit()->firstDrum);
-	MultisampleRange* range = static_cast<MultisampleRange*>(soundDrum->sources[0].getOrCreateFirstRange());
+	MultisampleRange* range = static_cast<MultisampleRange*>(soundDrum->getOrCreateFirstRange(0));
 	const Sample* sample = static_cast<const Sample*>(range->sampleHolder.audioFile);
 	// A first drum that never held a file (manual mode left with nothing auditioned on a fresh kit) has no whole
 	// file to give back.
@@ -215,7 +215,7 @@ std::optional<int32_t> SliceCore::play_position() {
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 	if (getCurrentClip()->type == ClipType::INSTRUMENT && drum->hasActiveVoices()) {
-		range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+		range = (MultisampleRange*)drum->getOrCreateFirstRange(0);
 
 		auto valid_voices_view = drum->voices() | std::views::filter([&](const Sound::ActiveVoice& voice) {
 			                         // Ensure correct MultisampleRange.
@@ -261,7 +261,7 @@ void SliceCore::begin_slice(const Target& target, std::string_view path, Preview
 	slice_load_.request(
 	    deluge::storage::SampleDemand{
 	        .holder = holder,
-	        .reversed = target_.source->isCurrentlyReversed(),
+	        .reversed = target_.sound->playsReversed(target_.sourceIndex),
 	        .manuallySelected = true,
 	        .clusterLoadInstruction = CLUSTER_ENQUEUE,
 	    },
@@ -289,12 +289,12 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 		if (pending_.isManual) {
 			// The drums do_slice() made, in order: the loop indexes them, so it runs only once they all exist.
 			Kit* kit = getCurrentKit();
-			const auto* first = static_cast<MultisampleRange*>(
-			    static_cast<SoundDrum*>(kit->firstDrum)->sources[0].getOrCreateFirstRange());
+			const auto* first =
+			    static_cast<MultisampleRange*>(static_cast<SoundDrum*>(kit->firstDrum)->getOrCreateFirstRange(0));
 			const uint32_t length = static_cast<const Sample*>(first->sampleHolder.audioFile)->lengthInSamples;
 			for (int32_t i = 0; i < pending_.sliceCount; i++) {
 				SoundDrum* soundDrum = static_cast<SoundDrum*>(kit->getDrumFromIndex(i));
-				(void)soundDrum->sources[0].getOrCreateFirstRange();
+				(void)soundDrum->getOrCreateFirstRange(0);
 				std::vector<deluge::instrument::RangeState> ranges = soundDrum->boundState()->sources[0].ranges;
 				ranges[0].start_pos = pending_.manualPoints[i].startPos;
 				ranges[0].end_pos = (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
@@ -343,7 +343,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 			deluge::edits::laneSettingFor(*firstDrum, "name", deluge::serialization::Value::makeScalar("1"));
 		}
 
-		MultisampleRange* firstRange = (MultisampleRange*)firstDrum->sources[0].getOrCreateFirstRange();
+		MultisampleRange* firstRange = (MultisampleRange*)firstDrum->getOrCreateFirstRange(0);
 
 		Sample* sample = (Sample*)firstRange->sampleHolder.audioFile;
 
@@ -373,7 +373,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		ranges[0].start_pos = 0;
 		ranges[0].end_pos = nextDrumStart;
 		deluge::edits::rangesFor(*firstDrum, 0, std::move(ranges));
-		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].isCurrentlyReversed(), CLUSTER_ENQUEUE);
+		firstRange->sampleHolder.claimClusterReasons(firstDrum->playsReversed(0), CLUSTER_ENQUEUE);
 		if (doEnvelopes) {
 			setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
 		}
@@ -395,7 +395,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
-			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
+			MultisampleRange* range = (MultisampleRange*)newDrum->getOrCreateFirstRange(0);
 			if (!range) {
 				AudioEngine::retire(newDrum);
 				return Error::INSUFFICIENT_RAM;

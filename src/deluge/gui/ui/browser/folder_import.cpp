@@ -820,7 +820,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath = thisSample->filePath;
-		range->sampleHolder.setAudioFile(thisSample, request_.target.source->isCurrentlyReversed(), true);
+		range->sampleHolder.setAudioFile(thisSample, request_.target.sound->playsReversed(request_.target.sourceIndex),
+		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, rangeCoversJustOneNote, topNote);
 
@@ -905,15 +906,13 @@ bool FolderImport::finishKit() {
 			Sample* thisSample = sortArea[s];
 
 			SoundDrum* drum;
-			Source* source;
 			MultiRange* range;
 
 			// If the first sample...
 			if (s == 0) {
 
 				drum = firstDrum;
-				source = &drum->sources[0];
-				range = source->getOrCreateFirstRange();
+				range = drum->getOrCreateFirstRange(0);
 				if (!range) {
 getOut:
 					display->displayError(Error::INSUFFICIENT_RAM);
@@ -970,9 +969,8 @@ getOut:
 				}
 
 				drum = new (drumMemory) SoundDrum();
-				source = &drum->sources[0];
 
-				range = source->getOrCreateFirstRange();
+				range = drum->getOrCreateFirstRange(0);
 				if (!range) {
 					AudioEngine::retire(drum);
 					goto getOut;
@@ -990,11 +988,11 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(nullptr);
 			holder->filePath = thisSample->filePath;
-			holder->setAudioFile(thisSample, source->isCurrentlyReversed(), true);
+			holder->setAudioFile(thisSample, drum->playsReversed(0), true);
 
 			deluge::edits::recordRanges(*drum, 0);
 
-			deluge::gui::autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
+			deluge::gui::autoDetectSideChainSending(drum, 0, thisSample->filePath.c_str());
 
 			std::string newName;
 			newName = &thisSample->filePath.c_str()[prefixAndDirLength];

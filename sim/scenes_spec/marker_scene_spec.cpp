@@ -509,7 +509,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound->sources[1].getOrCreateFirstRange();
+		(void)sound->getOrCreateFirstRange(1);
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
 		const std::vector<deluge::instrument::RangeState>& first =
 		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
@@ -1573,14 +1573,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		const std::string forwards = r.oled();
 
-		r.source->state_->reversed = true;
+		r.sound->state_->sources[0].reversed = true;
 		r.open(MarkerType::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
 		expect(forwards).not_().to_equal(reversed);
 
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
-		r.source->state_->reversed = false;
+		r.sound->state_->sources[0].reversed = false;
 		r.range->sampleHolder.endPos = 3 * kZoomMax;
 		r.open(MarkerType::END);
 		r.tick(20);
@@ -1871,13 +1871,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// `reverseRemap` (`sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
-		r.source->state_->reversed = true;
+		r.sound->state_->sources[0].reversed = true;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
-		r.source->state_->reversed = false;
+		r.sound->state_->sources[0].reversed = false;
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

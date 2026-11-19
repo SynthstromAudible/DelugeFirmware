@@ -290,7 +290,7 @@ struct KitRig {
 	KitRig() {
 		currentSong = song.song;
 		drum = spec::add_drum<SoundDrum>(song);
-		(void)drum->sources[0].getOrCreateFirstRange();
+		(void)drum->getOrCreateFirstRange(0);
 	}
 	~KitRig() {
 		while (shell.stack().depth() > 0) {
@@ -1271,7 +1271,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		spec::SongFixture other = spec::make_synth_song();
 		other.instrument->setId(r.slot().id); // another song's first track can have the same output id
 		auto* other_sound = other.instrument->toModControllable()->effectsOwner()->sound;
-		(void)other_sound->sources[0].getOrCreateFirstRange();
+		(void)other_sound->getOrCreateFirstRange(0);
 		const OscType before = other_sound->config().sources[0].osc_type;
 		currentSong = other.song;
 		rec->status = RecorderStatus::COMPLETE;

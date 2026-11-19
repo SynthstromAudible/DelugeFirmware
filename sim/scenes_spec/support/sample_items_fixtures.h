@@ -80,9 +80,9 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	sound.projectSnapshot();
 	for (int32_t i = 0; i < 2; i++) {
 		Source& s = sound.sources[i];
-		s.state_->osc_type = i == which ? c.osc_type : OscType::SQUARE;
+		sound.state_->sources[i].osc_type = i == which ? c.osc_type : OscType::SQUARE;
 		sound.projectSnapshot();
-		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
+		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}
 	deluge::bridge::recordLoadedSound(sound, song);

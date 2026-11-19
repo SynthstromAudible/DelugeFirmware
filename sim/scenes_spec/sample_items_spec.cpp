@@ -244,12 +244,12 @@ struct SoundRig {
 
 	void setup_source(int32_t i, int32_t num_clusters) {
 		source[i] = &sound->sources[i];
-		source[i]->state_->osc_type = OscType::SAMPLE;
-		source[i]->state_->repeat_mode = SampleRepeatMode::ONCE;
-		source[i]->state_->reversed = false;
+		sound->state_->sources[i].osc_type = OscType::SAMPLE;
+		sound->state_->sources[i].repeat_mode = SampleRepeatMode::ONCE;
+		sound->state_->sources[i].reversed = false;
 		sound->projectSnapshot();
 		sample[i] = make_sample(num_clusters);
-		range[i] = static_cast<MultisampleRange*>(source[i]->getOrCreateFirstRange());
+		range[i] = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(i));
 		range[i]->sampleHolder.audioFile = sample[i];
 		range[i]->sampleHolder.filePath = i == 0 ? "SAMPLES/OSC_A/A1.WAV" : "SAMPLES/OSC_B/B1.WAV";
 		sample[i]->filePath = range[i]->sampleHolder.filePath; // the record names the range's file by its sample

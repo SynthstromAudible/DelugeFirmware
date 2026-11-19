@@ -430,11 +430,11 @@ Sample* make_sample() {
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
 	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	Source& source = sound->sources[0];
-	source.state_->osc_type = OscType::SAMPLE;
-	source.state_->repeat_mode = SampleRepeatMode::ONCE;
-	source.state_->reversed = false;
+	sound->state_->sources[0].osc_type = OscType::SAMPLE;
+	sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
+	sound->state_->sources[0].reversed = false;
 	sound->projectSnapshot();
-	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+	auto* range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 	if (sample != nullptr) {
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.startPos = 0;

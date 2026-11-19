@@ -134,7 +134,7 @@ void SamplePreviewer::start(Target target) {
 	generation_++;
 
 	AudioEngine::stopAnyPreviewing(); // Also unbinds the preview's holder, so the load looks the new path up.
-	MultisampleRange* range = (MultisampleRange*)AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange();
+	MultisampleRange* range = (MultisampleRange*)AudioEngine::sampleForPreview->getOrCreateFirstRange(0);
 	if (range == nullptr) {
 		load_.cancel();
 		display->displayError(Error::INSUFFICIENT_RAM);

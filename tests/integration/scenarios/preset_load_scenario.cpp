@@ -569,8 +569,8 @@ bool runPendingFixture() {
 	return true;
 }
 
-AudioFileHolder* firstHolder(Source& source) {
-	MultiRange* range = source.getOrCreateFirstRange();
+AudioFileHolder* firstHolder(Sound& sound, int32_t s) {
+	MultiRange* range = sound.getOrCreateFirstRange(s);
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
@@ -668,7 +668,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	drum->setName(name);
 	drum->setupAsSample(&paramManager);
 	deluge::test::setOscType(*drum, 0, OscType::SAMPLE);
-	AudioFileHolder* holder = firstHolder(drum->sources[0]);
+	AudioFileHolder* holder = firstHolder(*drum, 0);
 	if (holder == nullptr) {
 		setupFailed(legName(g_leg), "a drum has no sample range");
 		return nullptr;
@@ -844,7 +844,7 @@ void prepareLeg() {
 		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
 		g_revertName = instrument->name;
 		AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
-		                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
+		                              ? firstHolder(*static_cast<SoundInstrument*>(instrument), 0)
 		                              : nullptr;
 		g_revertSample = (holder != nullptr) ? holder->filePath : "";
 		if (g_leg == Leg::RevertMemory) {
@@ -1068,9 +1068,8 @@ bool boundTo(AudioFileHolder* holder, const char* path) {
 /// The revert legs: what the exit put back, and who read it.
 void checkRevert() {
 	auto* instrument = static_cast<Instrument*>(g_synthClip->output);
-	AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
-	                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
-	                              : nullptr;
+	AudioFileHolder* holder =
+	    (instrument->type == OutputType::SYNTH) ? firstHolder(*static_cast<SoundInstrument*>(instrument), 0) : nullptr;
 	const bool reverted = instrument->name == g_revertName;
 	const bool bound = boundTo(holder, g_revertSample.c_str());
 	const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
@@ -1143,8 +1142,7 @@ void checkLeg() {
 	case Leg::Race: {
 		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
 		const bool isSynth = instrument->type == OutputType::SYNTH;
-		AudioFileHolder* holder =
-		    isSynth ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]) : nullptr;
+		AudioFileHolder* holder = isSynth ? firstHolder(*static_cast<SoundInstrument*>(instrument), 0) : nullptr;
 		const bool renamed = instrument->name != kRaceName && instrument->name.starts_with(kRaceName);
 		const bool bound = boundTo(holder, kRaceSample);
 		printf("PL-PROBE leg=race name=%s edited=%d\n", instrument->name.c_str(), instrument->editedByUser ? 1 : 0);
@@ -1197,7 +1195,7 @@ void checkLeg() {
 		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
 		const bool swapped = instrument->name == kStallName;
 		AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
-		                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
+		                              ? firstHolder(*static_cast<SoundInstrument*>(instrument), 0)
 		                              : nullptr;
 		const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
@@ -1216,8 +1214,7 @@ void checkLeg() {
 	case Leg::Clone: {
 		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
 		const bool isSynth = instrument->type == OutputType::SYNTH;
-		AudioFileHolder* holder =
-		    isSynth ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]) : nullptr;
+		AudioFileHolder* holder = isSynth ? firstHolder(*static_cast<SoundInstrument*>(instrument), 0) : nullptr;
 		const char* wantSample = (g_leg == Leg::Synth) ? kSynthSample : kCloneSample;
 		const bool bound = boundTo(holder, wantSample);
 		printf("PL-PROBE leg=%s name=%s path=%s outputs=%d\n", legName(g_leg), instrument->name.c_str(),
@@ -1260,7 +1257,7 @@ void checkLeg() {
 				continue;
 			}
 			auto* soundDrum = static_cast<SoundDrum*>(drum);
-			AudioFileHolder* holder = firstHolder(soundDrum->sources[0]);
+			AudioFileHolder* holder = firstHolder(*soundDrum, 0);
 			printf("PL-PROBE leg=kit drum=%d name=%s path=%s bound=%d\n", drums, soundDrum->name().c_str(),
 			       holder != nullptr ? holder->filePath.c_str() : "",
 			       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0);
@@ -1299,7 +1296,7 @@ void checkLeg() {
 		    (g_rowIndex >= 0 && g_rowIndex < std::ssize(clip->noteRows)) ? clip->noteRows[g_rowIndex].drum : nullptr;
 		SoundDrum* drum =
 		    (rowDrum != nullptr && rowDrum->type == DrumType::SOUND) ? static_cast<SoundDrum*>(rowDrum) : nullptr;
-		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const bool named = drum != nullptr && drum->name() == kRowName;
 		const bool bound = boundTo(holder, kRowSample);
 		printf("PL-PROBE leg=row name=%s path=%s\n", drum != nullptr ? drum->name().c_str() : "",
@@ -2127,8 +2124,7 @@ int32_t kitDrumsBound(Output* output, const char* const* samples, int32_t drums)
 	int32_t index = 0;
 	for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr && index < drums;
 	     drum = drum->next, index++) {
-		if (drum->type == DrumType::SOUND
-		    && boundTo(firstHolder(static_cast<SoundDrum*>(drum)->sources[0]), samples[index])) {
+		if (drum->type == DrumType::SOUND && boundTo(firstHolder(*static_cast<SoundDrum*>(drum), 0), samples[index])) {
 			bound++;
 		}
 	}
@@ -2137,7 +2133,7 @@ int32_t kitDrumsBound(Output* output, const char* const* samples, int32_t drums)
 
 bool synthBoundTo(Output* output, const char* sample) {
 	return output != nullptr && output->type == OutputType::SYNTH
-	       && boundTo(firstHolder(static_cast<SoundInstrument*>(output)->sources[0]), sample);
+	       && boundTo(firstHolder(*static_cast<SoundInstrument*>(output), 0), sample);
 }
 
 /// Check the gesture's outcome, once its acquisition has ended.
@@ -2362,9 +2358,8 @@ void checkAcquireAct() {
 		deluge_audio_load_set_latency_ms(0);
 		Output* synth = g_synthClip->output;
 		const bool named = synth->name == kAqStallName;
-		AudioFileHolder* holder = (synth->type == OutputType::SYNTH)
-		                              ? firstHolder(static_cast<SoundInstrument*>(synth)->sources[0])
-		                              : nullptr;
+		AudioFileHolder* holder =
+		    (synth->type == OutputType::SYNTH) ? firstHolder(*static_cast<SoundInstrument*>(synth), 0) : nullptr;
 		const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
 		const int32_t giveUps = deluge::gui::instrumentLoad.giveUps() - g_aqGiveUpsBefore;
 		printf("AQ-STALL named=%d holderEmpty=%d giveUps=%d before=%s name=%s runs=%d\n", named ? 1 : 0,
@@ -2867,7 +2862,7 @@ bool blankBound() {
 	if (instrument == nullptr || instrument->type != OutputType::SYNTH) {
 		return false;
 	}
-	AudioFileHolder* holder = firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]);
+	AudioFileHolder* holder = firstHolder(*static_cast<SoundInstrument*>(instrument), 0);
 	return holder != nullptr && !holder->filePath.empty();
 }
 

@@ -47,16 +47,6 @@ Source::~Source() {
 	}
 }
 
-void Source::attachState(deluge::instrument::SourceState* d) {
-	state_ = d;
-}
-
-void Source::bindState(deluge::instrument::SourceState* d) {
-	state_ = d;
-	seedDocDxPatch();
-	seedDocRanges();
-}
-
 void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	if (dxPatch != nullptr) {
 		deluge::instrument::DxPatchState p;
@@ -69,12 +59,6 @@ void Source::seedDxPatchInto(deluge::instrument::SourceState& d) const {
 	}
 	else {
 		d.dx_patch.reset();
-	}
-}
-
-void Source::seedDocDxPatch() {
-	if (state_ != nullptr) {
-		seedDxPatchInto(*state_);
 	}
 }
 
@@ -97,12 +81,6 @@ void Source::seedRangesInto(deluge::instrument::SourceState& d) const {
 			dr.cents = range->sampleHolder.cents;
 		}
 		d.ranges.push_back(std::move(dr));
-	}
-}
-
-void Source::seedDocRanges() {
-	if (state_ != nullptr) {
-		seedRangesInto(*state_);
 	}
 }
 
@@ -152,8 +130,7 @@ deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisit
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-void Source::followDirection() {
-	const bool reversed = isCurrentlyReversed();
+void Source::followDirection(bool reversed) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -206,8 +183,6 @@ MultiRange* Source::getOrCreateFirstRange() {
 		}
 
 		newRange->topNote = 32767;
-		// The range collection just grew from empty: reflect it into the record.
-		seedDocRanges();
 		return newRange;
 	}
 

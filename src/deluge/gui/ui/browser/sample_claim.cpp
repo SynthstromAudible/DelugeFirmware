@@ -101,9 +101,9 @@ void openGate() {
 
 } // namespace
 
-void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
+void autoDetectSideChainSending(SoundDrum* drum, int32_t s, char const* fileName) {
 	// A one-shot that looks like a kick sends to the sidechain. Otherwise, no change.
-	if (source->state_->repeat_mode == SampleRepeatMode::ONCE
+	if (drum->state_->sources[s].repeat_mode == SampleRepeatMode::ONCE
 	    && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
 	}
@@ -272,7 +272,7 @@ bool SampleClaim::stepPrepareSample() {
 	}
 	else {
 		setOscTypeFor(current_.target, OscType::SAMPLE);
-		reversed = current_.target.source->isCurrentlyReversed();
+		reversed = current_.target.sound->playsReversed(current_.target.sourceIndex);
 	}
 	AudioFileHolder* holder = prepareHolder(current_.target, current_.path);
 	load_.request(
@@ -385,7 +385,8 @@ bool SampleClaim::stepDecideSample() {
 	}
 
 	// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-	if (const SampleRepeatMode repeatMode = current_.target.source->state_->repeat_mode;
+	if (const SampleRepeatMode repeatMode =
+	        current_.target.sound->state_->sources[current_.target.sourceIndex].repeat_mode;
 	    repeatMode == SampleRepeatMode::STRETCH || repeatMode == SampleRepeatMode::LOOP) {}
 
 	// Otherwise...
@@ -411,7 +412,7 @@ bool SampleClaim::stepDecideSample() {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		SoundDrum* drum = (SoundDrum*)current_.target.sound;
 
-		autoDetectSideChainSending(drum, current_.target.source, current_.enteredText.c_str());
+		autoDetectSideChainSending(drum, current_.target.sourceIndex, current_.enteredText.c_str());
 
 		// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
 		deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar(""));
@@ -487,7 +488,8 @@ bool SampleClaim::stepDecideWavetable() {
 	}
 
 	if (waveTableFile_ != nullptr) {
-		waveTableHolder_->setAudioFile(waveTableFile_, current_.target.source->isCurrentlyReversed(),
+		waveTableHolder_->setAudioFile(waveTableFile_,
+		                               current_.target.sound->playsReversed(current_.target.sourceIndex),
 		                               /*manuallySelected=*/true, CLUSTER_ENQUEUE);
 		recordClaimRanges(current_.target);
 	}

@@ -112,9 +112,9 @@ struct Rig {
 		currentSong = song.song; // the app's sink resolves addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		source->state_->osc_type = OscType::SQUARE; // so "became SAMPLE" is a real observation
+		sound->state_->sources[0].osc_type = OscType::SQUARE; // so "became SAMPLE" is a real observation
 		sound->projectSnapshot();
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
+		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		deluge::edits::recordRanges(*sound, 0); // the range made here is the record's, as a gesture records it
 	}
 

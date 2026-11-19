@@ -685,7 +685,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	}
 	deluge::edits::SetEngineSetting sample{*slot, "osc1/type", Value::makeScalar("sample")};
 	check(deluge::edits::apply(ctx, sample) == Error::NONE, "ranges: osc1 plays samples");
-	sound.sources[0].getOrCreateFirstRange();
+	sound.getOrCreateFirstRange(0);
 	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	check(ranges.size() == 1, "ranges: one range");
 	if (ranges.size() != 1) {

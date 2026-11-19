@@ -188,6 +188,10 @@ MultiRange* Source::getOrCreateFirstRange() {
 	return g_range.get();
 }
 
+MultiRange* Sound::getOrCreateFirstRange(int32_t /*s*/) {
+	return g_range.get();
+}
+
 namespace deluge::storage {
 
 /// The one seam that matters: a load of one holder, whose every tick answers `deluge::test::loadAnswer`. A load that

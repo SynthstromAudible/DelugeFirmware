@@ -43,7 +43,7 @@ namespace {
 /// @brief Give source @p s of @p sound three sample ranges, recorded as a gesture records them.
 void give_three_ranges(::Sound& sound, int32_t s) {
 	deluge::edits::settingFor(sound, s == 0 ? "osc1/type" : "osc2/type", Value::makeScalar("sample"));
-	(void)sound.sources[s].getOrCreateFirstRange();
+	(void)sound.getOrCreateFirstRange(s);
 	sound.sources[s].ranges.getElement(0)->topNote = 40;
 	sound.sources[s].ranges.insertMultiRange(1)->topNote = 60;
 	sound.sources[s].ranges.insertMultiRange(2)->topNote = 32767;
@@ -138,7 +138,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", Value::makeScalar("sample"));
-		auto* range = sound.sources[0].getOrCreateFirstRange();
+		auto* range = sound.getOrCreateFirstRange(0);
 		range->getAudioFileHolder()->filePath = "SAMPLES/KICKS/K1.WAV";
 		deluge::edits::recordRanges(sound, 0);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);

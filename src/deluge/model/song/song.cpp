@@ -1377,6 +1377,11 @@ void Song::adoptDrum(Drum* drum) {
 		// A drum read from a file is adopted before its element is read, and adopts what that read settles then.
 		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		d.controls = deluge::bridge::controlsOf(*sound); // its knobs are its record's from now on
+		if (!readingFromFile_) {
+			// A row added to a running song (a kit row's preset) brings the files it loaded: what loading made of them
+			// reaches its record, as a song's load records its rows
+			deluge::bridge::recordLoadedSound(*sound, *this);
+		}
 	}
 	// A row added to a running song brings the bindings its preset read. A song's own read leaves them to the sweep
 	// once every id is final.

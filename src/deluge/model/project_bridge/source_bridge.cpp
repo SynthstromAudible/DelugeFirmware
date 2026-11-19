@@ -62,12 +62,12 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	::Source& source = sound.sources[s];
 	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
 	if (now == ranges) {
-		source.seedDocRanges(); // a gesture changed the runtime itself and records the result
+		sound.recordHeldRanges(s); // a gesture changed the runtime itself and records the result
 		return Error::NONE;
 	}
 	if (now.empty() && ranges.size() == 1 && ranges[0].file_path.empty()) {
 		// A source's first range, which an editor of its zone makes before any file is loaded into it.
-		if (source.getOrCreateFirstRange() == nullptr) {
+		if (sound.getOrCreateFirstRange(s) == nullptr) {
 			return Error::INSUFFICIENT_RAM;
 		}
 		return applyRanges(sound, s, ranges);
@@ -137,9 +137,9 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 	// A claim reaches the sample reserve, which must not run while the render is excluded. Only a playing sample
 	// source's zones are claimed.
 	for (SampleHolderForVoice* holder : moved) {
-		holder->claimClusterReasons(source.isCurrentlyReversed(), CLUSTER_ENQUEUE);
+		holder->claimClusterReasons(sound.playsReversed(s), CLUSTER_ENQUEUE);
 	}
-	source.seedDocRanges();
+	sound.recordHeldRanges(s);
 	return Error::NONE;
 }
 
@@ -164,7 +164,7 @@ Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchS
 		runtime->random_detune = patch.random_detune;
 		source.dxPatchChanged = true;
 	}
-	source.seedDocDxPatch();
+	sound.recordHeldDxPatch(s);
 	return Error::NONE;
 }
 

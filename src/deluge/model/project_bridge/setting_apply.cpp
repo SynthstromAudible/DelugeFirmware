@@ -234,8 +234,9 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		}
 		if (before.sources[s].reversed != after.sources[s].reversed) {
 			// A new direction re-claims the ranges' clusters; the zone ends it clamps go back into the record
-			source.followDirection();
-			source.seedDocRanges();
+			source.followDirection(after.sources[s].reversed
+			                       != source.invertReversed); // the config is not yet the new one
+			sound.recordHeldRanges(s);
 		}
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];

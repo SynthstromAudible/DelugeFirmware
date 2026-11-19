@@ -156,7 +156,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[0].getOrCreateFirstRange(); // the range a zone editor makes, recorded as a gesture does
+		(void)sound.getOrCreateFirstRange(0); // the range a zone editor makes, recorded as a gesture does
 		deluge::edits::recordRanges(sound, 0);
 		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
 		expect(state).not_().to_be_null();
@@ -179,7 +179,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(synth.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[0].getOrCreateFirstRange();
+		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
 		std::vector<deluge::instrument::RangeState> ranges = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
 		ranges[0].start_pos = 100;
@@ -208,7 +208,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		expect(std::ssize(sound.sources[0].ranges)).to_equal(1);
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
-		(void)sound.sources[1].getOrCreateFirstRange();
+		(void)sound.getOrCreateFirstRange(1);
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound.sources[1]);
 		const std::vector<deluge::instrument::RangeState> recorded =
 		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
