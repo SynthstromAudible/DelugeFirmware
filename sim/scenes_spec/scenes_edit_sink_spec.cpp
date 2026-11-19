@@ -18,8 +18,8 @@
 #include "effects/settings.h"
 #include "gui/ui/shell_bind_host.h"
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/params.h"
-#include "instruments/deluge/plugin.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
 #include "model/clip/instrument_clip.h"
@@ -382,8 +382,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
 		expect(slot).not_().to_be_null();
-		expect(slot->state.as<deluge::instrument::DelugeInstrument>()).to_equal(drum->boundState());
-		const auto voices = deluge::instrument::setting_value(*slot->state.as<deluge::instrument::DelugeInstrument>(), "maxVoices");
+		expect(slot->state.as<deluge::instrument::DelugeSynth>()).to_equal(drum->boundState());
+		const auto voices = deluge::instrument::setting_value(*slot->state.as<deluge::instrument::DelugeSynth>(), "maxVoices");
 		expect(voices.has_value()).to_be_true();
 		if (voices.has_value()) {
 			expect(voices->str()).to_equal("7");
