@@ -33,6 +33,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_node.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -966,10 +967,18 @@ bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 
 void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
-	if (length && modelStack->timelineCounterIsSet()) {
+	using namespace deluge::modulation::params;
+	auto layer = controlLayer(modelStack->paramCollection->getParamKind(),
+	                          modelStack->paramCollection->getClipValueStorage(modelStack->paramId) != nullptr,
+	                          ParamCollection::controlsEditClipValue(modelStack),
+	                          ParamCollection::getLinkedOutput(modelStack) != nullptr,
+	                          (length != 0) && modelStack->timelineCounterIsSet());
+	if (layer == ControlLayer::REGION) {
 		setValueForRegion(pos, length, value, modelStack);
 	}
-
+	else if (layer == ControlLayer::PRESET) {
+		modelStack->paramCollection->setValueFromControl(value, modelStack);
+	}
 	else {
 		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
 	}

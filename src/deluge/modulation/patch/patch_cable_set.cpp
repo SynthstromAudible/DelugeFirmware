@@ -1309,10 +1309,15 @@ ClipParamValue* PatchCableSet::getClipValueStorage(int32_t paramId) {
 }
 
 int32_t PatchCableSet::getValueForControl(int32_t paramId, ModelStackWithThreeMainThings const* modelStack) {
-
+	if ((getLinkedOutput(modelStack) != nullptr) && (presetValues_ != nullptr)) {
+		return *presetValues_->find(paramId);
+	}
 	auto* clip = getClipValueStorage(paramId);
 	if (clip == nullptr) {
 		return 0;
+	}
+	if (getLinkedOutput(modelStack) != nullptr) {
+		return clip->getPresetValue();
 	}
 	return controlsEditClipValue(modelStack) ? clip->getValue() : getParam(paramId)->getCurrentValue();
 }

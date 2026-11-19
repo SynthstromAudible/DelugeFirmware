@@ -44,9 +44,10 @@ build/host-tests/unit/UnitTests -g ParameterValueTests -v
 The existing x86 PR workflow builds and runs both binaries through CTest.
 
 `parameter_control_tests.cpp` tests the production layer-selection, automation
-transition policies used by the firmware callers. It covers
-expression/live input, recording/region exceptions,
-inactive MIDI automation removal and tempo-clock refresh selection. Value tests exercise full-width detachment/rebinding
+transition, and undo-action policies used by the firmware callers. It covers
+expression/live input, linked controls and feedback, recording/region exceptions,
+inactive MIDI automation removal, tempo-clock refresh selection, and linked
+sound-menu undo eligibility. Value tests exercise full-width detachment/rebinding
 and MIDI backup destruction with the real storage classes. AutoParam tests cover
 effective-tempo edits with positive and negative automation offsets.
 

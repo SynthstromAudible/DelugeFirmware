@@ -46,7 +46,7 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
 
 int32_t ParamSet::getValueForControl(int32_t p, ModelStackWithThreeMainThings const* modelStack) {
 	auto layer = params::controlLayer(getParamKind(), true, controlsEditClipValue(modelStack),
-	                                  false);
+	                                  getLinkedOutput(modelStack) != nullptr);
 	if (layer == params::ControlLayer::PRESET) {
 		return getPresetValue(p);
 	}

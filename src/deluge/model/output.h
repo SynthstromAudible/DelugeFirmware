@@ -104,6 +104,11 @@ public:
 	bool inValidState;
 	bool wasCreatedForAutoOverdub;
 	bool armedForRecording;
+	// Output settings are public throughout the existing firmware model.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+	bool trackLink{false};
+	Error setPresetParameter(Song* song, ModControllable* owner, deluge::modulation::params::Kind kind, int32_t id,
+	                         int32_t value, bool recordUndo = true);
 	int16_t colour{0};
 
 	uint8_t modKnobMode;

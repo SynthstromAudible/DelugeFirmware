@@ -51,11 +51,20 @@ bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const*
 	return !recording_automation;
 }
 
+Output* ParamCollection::getLinkedOutput(ModelStackWithThreeMainThings const* modelStack) {
+	auto* timeline = modelStack->getTimelineCounterAllowNull();
+	if ((timeline == nullptr) || timeline == modelStack->song || !controlsEditClipValue(modelStack)) {
+		return nullptr;
+	}
+	auto* output = static_cast<Clip*>(timeline)->output;
+	return (output != nullptr) && output->trackLink ? output : nullptr;
+}
+
 int32_t ParamCollection::getValueForControl(ModelStackWithAutoParam const* modelStack) {
 	using namespace deluge::modulation::params;
 	auto* clip = getClipValueStorage(modelStack->paramId);
 	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack),
-	                          false);
+	                          getLinkedOutput(modelStack) != nullptr);
 	if (layer == ControlLayer::PRESET) {
 		return clip->getPresetValue();
 	}
@@ -65,7 +74,16 @@ int32_t ParamCollection::getValueForControl(ModelStackWithAutoParam const* model
 void ParamCollection::setValueFromControl(int32_t value, ModelStackWithAutoParam const* modelStack) {
 	using namespace deluge::modulation::params;
 	auto* clip = getClipValueStorage(modelStack->paramId);
-	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack), false);
+	auto* output = getLinkedOutput(modelStack);
+	auto layer = controlLayer(getParamKind(), clip != nullptr, controlsEditClipValue(modelStack), output != nullptr);
+	if (layer == ControlLayer::PRESET) {
+		Error error = output->setPresetParameter(modelStack->song, modelStack->modControllable, getParamKind(),
+		                                         modelStack->paramId, value);
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		return;
+	}
 	if (layer == ControlLayer::LIVE || !modelStack->autoParam->isAutomated()) {
 		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
 		return;

@@ -1096,7 +1096,9 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 		}
 		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
+			currentValue = (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr)
+			                   ? modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam)
+			                   : modelStackWithParam->autoParam->getCurrentValue();
 		}
 
 		// convert current value to knobPos to compare to cc value being received
@@ -1345,7 +1347,10 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}
 					else {
-						currentValue = modelStackWithParam->autoParam->getCurrentValue();
+						currentValue =
+						    (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr)
+						        ? modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam)
+						        : modelStackWithParam->autoParam->getCurrentValue();
 					}
 
 					// convert current value to a knob position

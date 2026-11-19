@@ -33,6 +33,11 @@ constexpr ControlLayer controlLayer(Kind kind, bool hasScalar, bool editScalar, 
 	return linked ? ControlLayer::PRESET : ControlLayer::CLIP;
 }
 
+// Non-automatable controls still need the timeline for ordinary linked edits.
+constexpr bool retainControlTimeline(bool allowsAutomation, bool linked, bool region) {
+	return allowsAutomation || (linked && !region);
+}
+
 struct AutomationTransition {
 	bool before;
 	bool after;

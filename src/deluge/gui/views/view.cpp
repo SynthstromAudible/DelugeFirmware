@@ -75,7 +75,9 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
@@ -914,7 +916,9 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	// Hack to make it so stutter can't be automated
 	if (modelStackWithParam->timelineCounterIsSet()
-	    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
+	    && !params::retainControlTimeline(
+	        modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam),
+	        ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr, editing_region)) {
 		copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
 		modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
 		modelStackWithParam->setTimelineCounter(nullptr);
@@ -1447,16 +1451,37 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 	int32_t knob_pos = kKnobPosOffset;
 	bool isBipolar = false;
-	auto* paramCollection = modelStackWithParam->paramCollection;
-	auto kind = paramCollection ? paramCollection->getParamKind() : params::Kind::NONE;
-	bool editingRegion = modLength && modelStackWithParam->timelineCounterIsSet();
-	bool showControlValue = !editingRegion && !playbackHandler.isEitherClockActive();
-	if (modelStackWithParam->autoParam) {
-		int32_t value = showControlValue
-		                    ? paramCollection->getValueForControl(modelStackWithParam)
-		                    : modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	auto* param_collection = modelStackWithParam->paramCollection;
+	auto kind = (param_collection != nullptr) ? param_collection->getParamKind() : params::Kind::NONE;
+	bool editing_region = (modLength != 0u) && modelStackWithParam->timelineCounterIsSet();
+	bool show_linked_preset = !editing_region && kind != params::Kind::EXPRESSION
+	                          && (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr);
+	bool show_control_value = show_linked_preset || (!editing_region && !playbackHandler.isEitherClockActive());
+	bool missing_linked_param = show_linked_preset && (kind == params::Kind::MIDI || kind == params::Kind::PATCH_CABLE);
+
+	if (param_collection != nullptr && ((modelStackWithParam->autoParam != nullptr) || missing_linked_param)) {
+		int32_t value = 0;
+		if (show_control_value) {
+			// Stopped controls show the clip scalar; linked controls show the shared
+			// baseline. Neither should inherit the last automation value.
+			if (modelStackWithParam->autoParam != nullptr) {
+				value = param_collection->getValueForControl(modelStackWithParam);
+			}
+			else if (kind == params::Kind::MIDI) {
+				auto* instrument = static_cast<MIDIInstrument*>(modelStackWithParam->modControllable);
+				value = (instrument != nullptr) ? instrument->getPresetMidiValue(modelStackWithParam->paramId) : 0;
+			}
+			else {
+				value = static_cast<PatchCableSet*>(param_collection)
+				            ->getValueForControl(modelStackWithParam->paramId, modelStackWithParam);
+			}
+		}
+		else {
+			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(modPos),
+			                                                              modelStackWithParam);
+		}
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
-		knob_pos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+		knob_pos = param_collection->paramValueToKnobPos(value, modelStackWithParam);
 		int32_t lowerLimit;
 
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -1511,15 +1536,15 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 /// if you're dealing with a patch cable which has a -128 to +128 range
 /// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
-int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knob_pos) {
-	int32_t newKnobPos = (knob_pos + kMaxKnobPos) >> 1;
-	// adjustment to make sure that when knob_pos returned is 64, it's really 64
+int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
+	int32_t newKnobPos = (knobPos + kMaxKnobPos) >> 1;
+	// adjustment to make sure that when knobPos returned is 64, it's really 64
 	// the knob LED indicator is centred around 64
 	// so the knob pos returned from this function is used to blink the LED when it reaches 64
 	// so to make sure it doesn't blink twice (e.g. when the value is 64 and in between 64 and 65)
 	// we adjust it here so it only returns 64 once
-	if (newKnobPos == 64 && knob_pos != 0) {
-		newKnobPos += knob_pos;
+	if (newKnobPos == 64 && knobPos != 0) {
+		newKnobPos += knobPos;
 	}
 
 	return newKnobPos;
