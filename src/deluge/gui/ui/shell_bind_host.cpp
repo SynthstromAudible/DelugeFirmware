@@ -782,7 +782,7 @@ bool ShellEditSink::write_ranges(deluge::project::SlotAddress slot, uint8_t sour
 bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t source,
                                    const deluge::instrument::DxPatchState& patch) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
+	if (sound == nullptr || source >= kNumSources || sound->config().sources[source].osc_type != OscType::DX7) {
 		return false;
 	}
 	// The `SetDxPatch` Edit legacy's DX7 pages write through (`DxParam::setValue`, `gui/menu_item/dx/param.cpp:59-73`),
@@ -794,8 +794,8 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 	DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
-	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
-	    || program < 0 || program >= bank->numPatches()) {
+	if (sound == nullptr || bank == nullptr || source >= kNumSources
+	    || sound->config().sources[source].osc_type != OscType::DX7 || program < 0 || program >= bank->numPatches()) {
 		return false;
 	}
 	deluge::gui::loadDxProgram(*sound, source, *bank, program);

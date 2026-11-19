@@ -162,10 +162,10 @@ struct Rig {
 		    song.song); // the app's sink and waveforms resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		source->oscType = OscType::SAMPLE;
 		source->state_->osc_type = OscType::SAMPLE;
 		source->state_->repeat_mode = SampleRepeatMode::ONCE;
 		source->state_->reversed = false;
+		sound->projectSnapshot();
 		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
 		range->sampleHolder.audioFile = sample;
 		range->sampleHolder.startPos = 0;

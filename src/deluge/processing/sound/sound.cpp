@@ -274,9 +274,6 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	deluge::model::changeEffects(
 	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
-	sources[0].oscType = OscType::SAMPLE;
-	sources[1].oscType = OscType::SAMPLE;
-
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -357,8 +354,6 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
 	}); // Good for samples, I think
 
-	sources[0].oscType = OscType::SAW;
-
 	doneReadingFromFile();
 	adoptState(deluge::instrument::as_default_synth(before));
 }
@@ -395,7 +390,6 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
 	                                                           2147483647);
 	if (is_dx) {
-		sources[0].oscType = OscType::DX7;
 		sources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
@@ -2437,10 +2431,6 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 void Sound::doneReadingFromFile() {
 	recalculateFineTuner();
-
-	for (Source& source : sources) {
-		source.reconcileLiveInputs();
-	}
 
 	setupUnisonDetuners(nullptr);
 	refreshUnison();

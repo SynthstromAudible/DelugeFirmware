@@ -69,8 +69,6 @@ public:
 	/// @param d The record to fill.
 	void seedRangesInto(deluge::instrument::SourceState& d) const;
 
-	OscType oscType;
-
 	/// @brief Whether the note last set up on this sample source plays against the record's direction (the
 	/// arpeggiator's reverse step); cleared when a voice of the sound releases.
 	bool invertReversed = false;
@@ -112,7 +110,7 @@ public:
 
 	DxPatch* ensureDxPatch();
 
-	/// @brief Makes or frees the live histories to match the type, handing them to the render inside an
+	/// @brief Makes or frees the live histories @p type plays from, handing them to the render inside an
 	/// audio-excluded section. [task]
-	void reconcileLiveInputs();
+	void reconcileLiveInputs(OscType type);
 };

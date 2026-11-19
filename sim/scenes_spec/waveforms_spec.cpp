@@ -76,8 +76,8 @@ struct PreviewSound {
 	SoundDrum* const saved = AudioEngine::sampleForPreview;
 	SoundDrum* drum = new (memory) SoundDrum();
 	PreviewSound() {
-		drum->sources[0].oscType = OscType::SAMPLE;
 		drum->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
+		drum->projectSnapshot();
 		AudioEngine::sampleForPreview = drum;
 	}
 	~PreviewSound() {
@@ -107,8 +107,8 @@ describe waveforms("a waveform by its address", ${
 
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		Source& source = sound->sources[0];
-		source.oscType = OscType::SAMPLE;
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
+		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;
@@ -143,8 +143,8 @@ describe waveforms("a waveform by its address", ${
 		currentSong = synth.song;
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		Source& source = sound->sources[0];
-		source.oscType = OscType::SAMPLE;
 		sound->boundRecord()->sources[0].osc_type = OscType::SAMPLE;
+		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
 		Sample* sample = make_sample();
 		multisample->sampleHolder.audioFile = sample;

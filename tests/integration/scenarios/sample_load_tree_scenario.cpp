@@ -610,7 +610,7 @@ void checkLiveZoneMove() {
 		}
 		auto* synth = static_cast<SoundInstrument*>(output);
 		const auto address = deluge::bridge::slotAddressOf(*synth);
-		if (!address || synth->sources[0].oscType != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
+		if (!address || synth->config().sources[0].osc_type != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
 			continue;
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -646,7 +646,7 @@ void checkSong() {
 	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
-			if (synth->sources[0].oscType != OscType::SAMPLE) {
+			if (synth->config().sources[0].osc_type != OscType::SAMPLE) {
 				continue;
 			}
 			sawSynth = true;

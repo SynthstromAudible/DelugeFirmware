@@ -80,8 +80,8 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	sound.projectSnapshot();
 	for (int32_t i = 0; i < 2; i++) {
 		Source& s = sound.sources[i];
-		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
-		s.state_->osc_type = s.oscType;
+		s.state_->osc_type = i == which ? c.osc_type : OscType::SQUARE;
+		sound.projectSnapshot();
 		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
 	}

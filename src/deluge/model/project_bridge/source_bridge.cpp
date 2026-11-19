@@ -81,7 +81,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 			holder.loopEndPos = ranges[i].loop_end_pos;
 			holder.transpose = ranges[i].transpose;
 			holder.setCents(ranges[i].cents);
-			if (zoneMoved && holder.audioFile != nullptr && source.oscType == OscType::SAMPLE) {
+			if (zoneMoved && holder.audioFile != nullptr && sound.config().sources[s].osc_type == OscType::SAMPLE) {
 				moved.push_back(&holder);
 			}
 		}
@@ -103,7 +103,7 @@ std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::Source& source
 
 Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
 	::Source& source = sound.sources[s];
-	if (source.oscType != OscType::DX7) {
+	if (sound.config().sources[s].osc_type != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}
 	if (dxPatchOf(source) != patch) {

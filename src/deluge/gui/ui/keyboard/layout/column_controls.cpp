@@ -162,7 +162,7 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	}
 	ColumnControlState& state = getState().columnControl;
 	auto* sound = (SoundInstrument*)newInstrument;
-	bool is_dx = (sound->sources[0].oscType == OscType::DX7);
+	bool is_dx = (sound->config().sources[0].osc_type == OscType::DX7);
 	if (!is_dx) {
 		if (state.rightColFunc == DX) {
 			state.rightColSetAtRuntime = false;

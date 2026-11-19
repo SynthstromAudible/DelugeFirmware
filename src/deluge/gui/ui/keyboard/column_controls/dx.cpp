@@ -34,7 +34,7 @@ DxPatch* getCurrentDxPatch() {
 	auto* inst = getCurrentInstrument();
 	if (inst->type == OutputType::SYNTH) {
 		auto* sound = (SoundInstrument*)inst;
-		if (sound->sources[0].oscType == OscType::DX7) {
+		if (sound->config().sources[0].osc_type == OscType::DX7) {
 			return sound->sources[0].dxPatch;
 		}
 	}

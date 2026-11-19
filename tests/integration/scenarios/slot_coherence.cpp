@@ -57,7 +57,6 @@ deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::
 	record.output_midi_note_for_drum = sound.outputMidiNoteForDrum;
 	record.effects = sound.modControllableSnapshot().effects;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		record.sources[s].osc_type = sound.sources[s].oscType;
 		sound.sources[s].seedDxPatchInto(record.sources[s]);
 		sound.sources[s].seedRangesInto(record.sources[s]);
 	}

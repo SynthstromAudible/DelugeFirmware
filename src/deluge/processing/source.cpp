@@ -34,7 +34,6 @@
 #include <iterator>
 
 Source::Source() {
-	oscType = OscType::SQUARE;
 	defaultRangeI = -1;
 	dxPatch = nullptr;
 }
@@ -255,8 +254,6 @@ doChangeType:
 				goto doChangeType; // Can't fail now it's empty.
 			}
 
-			oscType = newType;
-
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 			RangesRetypeWatch::rangesRetyped(*this, cleared);
@@ -267,18 +264,17 @@ doChangeType:
 		goto possiblyDeleteRanges;
 	}
 
-	oscType = newType;
-	if (oscType == OscType::DX7) {
+	if (newType == OscType::DX7) {
 		ensureDxPatch();
 	}
-	reconcileLiveInputs();
+	reconcileLiveInputs(newType);
 }
 
-void Source::reconcileLiveInputs() {
-	if (liveInputs.holds_for(oscType)) {
+void Source::reconcileLiveInputs(OscType type) {
+	if (liveInputs.holds_for(type)) {
 		return;
 	}
-	deluge::synth::LiveInputStore next = deluge::synth::LiveInputStore::for_type(oscType);
+	deluge::synth::LiveInputStore next = deluge::synth::LiveInputStore::for_type(type);
 	{
 		AudioExcludedSection section; // the render reads the histories each block
 		liveInputs.swap(next);

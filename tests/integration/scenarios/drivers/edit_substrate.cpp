@@ -939,7 +939,7 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	check(state != nullptr && state->sources[0].osc_type == OscType::DX7 && state->sources[0].dx_patch.has_value()
 	          && state->sources[0].dx_patch->params == deluge::instrument::kDx7InitVoice,
 	      "blank dx: its state holds a DX7 oscillator on the init voice");
-	check(sound.sources[0].oscType == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
+	check(sound.config().sources[0].osc_type == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
 	      "blank dx: its runtime plays a DX7 oscillator");
 	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	ctx.song.addOutput(synth);

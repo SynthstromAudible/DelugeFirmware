@@ -244,10 +244,10 @@ struct SoundRig {
 
 	void setup_source(int32_t i, int32_t num_clusters) {
 		source[i] = &sound->sources[i];
-		source[i]->oscType = OscType::SAMPLE;
 		source[i]->state_->osc_type = OscType::SAMPLE;
 		source[i]->state_->repeat_mode = SampleRepeatMode::ONCE;
 		source[i]->state_->reversed = false;
+		sound->projectSnapshot();
 		sample[i] = make_sample(num_clusters);
 		range[i] = static_cast<MultisampleRange*>(source[i]->getOrCreateFirstRange());
 		range[i]->sampleHolder.audioFile = sample[i];

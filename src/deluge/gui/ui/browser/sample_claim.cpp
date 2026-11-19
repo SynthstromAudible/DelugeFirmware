@@ -252,7 +252,9 @@ bool SampleClaim::stepStart() {
 	makeWaveTable_ = (current_.mayDoWaveTable == 2) || (current_.mayDoSingleCycle == 2)
 	                 || (current_.target.sound->getSynthMode() == SynthMode::RINGMOD);
 
-	if (makeWaveTable_ || (current_.mayDoWaveTable == 1 && current_.target.source->oscType == OscType::WAVETABLE)) {
+	if (makeWaveTable_
+	    || (current_.mayDoWaveTable == 1
+	        && current_.target.sound->config().sources[current_.target.sourceIndex].osc_type == OscType::WAVETABLE)) {
 		phase_ = Phase::PrepareWavetable;
 	}
 	else {
@@ -449,7 +451,7 @@ bool SampleClaim::stepDecideSample() {
 
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
-	oldOscType_ = current_.target.source->oscType;
+	oldOscType_ = current_.target.sound->config().sources[current_.target.sourceIndex].osc_type;
 	setOscTypeFor(current_.target, OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.target, current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's

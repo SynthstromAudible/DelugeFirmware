@@ -969,8 +969,8 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			const SynthMode before = spec::menu_engine(sound.ctx).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
 			// relevance does; SAW on both, and the fixture's own types put back after.
-			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->sources[0].oscType,
-			                              spec::menu_engine(sound.ctx).sound->sources[1].oscType};
+			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->config().sources[0].osc_type,
+			                              spec::menu_engine(sound.ctx).sound->config().sources[1].osc_type};
 			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 0, OscType::SAW);
 			deluge::test::setOscType(*spec::menu_engine(sound.ctx).sound, 1, OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));

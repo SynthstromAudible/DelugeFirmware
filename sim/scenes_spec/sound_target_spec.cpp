@@ -65,7 +65,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over Source::setOscT
 	it("re-points the range by its index after a retype that reallocates the ranges", _ {
 		SourceRig r{2, 1};
 		deluge::gui::setOscTypeFor(r.target, OscType::WAVETABLE);
-		expect(r.source->oscType).to_equal(OscType::WAVETABLE);
+		expect(r.sound->config().sources[0].osc_type).to_equal(OscType::WAVETABLE);
 		expect(static_cast<int32_t>(r.target.rangeIndex)).to_equal(1);
 		expect(r.target.range).to_equal(r.source->ranges.getElement(1));
 	});

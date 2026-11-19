@@ -319,7 +319,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 	// Do the first Drum
 
 	// Ensure osc type is "sample"
-	if (target_.source->oscType != OscType::SAMPLE) {
+	if (target_.sound->config().sources[target_.sourceIndex].osc_type != OscType::SAMPLE) {
 		target_.sound->killAllVoices();
 		deluge::edits::settingFor(*target_.sound, deluge::edits::oscSettingPath(target_.sourceIndex, "type"),
 		                          deluge::serialization::Value::makeScalar("sample"));

@@ -377,10 +377,10 @@ struct Rig {
 	SoundInstrument* without_ranges() {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
 			source.state_->osc_type = OscType::SQUARE;
 			source.ranges.clear();
 		}
+		sound->projectSnapshot();
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		return sound;
 	}
