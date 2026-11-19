@@ -1485,6 +1485,18 @@ variants = ["asan"]
 variant_fields = { asan = { runtime_s = 20 } }
 
 [[harness]]
+name = "edit-cost"
+template = "scenario-driver"
+override = ["status"]
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it times SetEngineSetting on a new synth for a re-voicing scalar, a retuning scalar, an oscillator type switch and an engine switch"
+scenario = "edit_cost"
+tier = "manual"
+job = "model"
+runtime_s = 5
+
+[[harness]]
 name = "edit-substrate"
 template = "scenario-driver"
 kind = "unit"
