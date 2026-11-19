@@ -6,6 +6,7 @@
 
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
+#include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
@@ -40,9 +41,10 @@ struct ChoiceName {
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
 /// @param facts  The host's runtime facts.
+/// @param audio  The audio facts: plugged inputs.
 /// @return The view, or nullopt when the target does not resolve (no slot, or one that is gone).
 [[nodiscard]] std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where,
-                                       const RuntimeFacts& facts);
+                                       const RuntimeFacts& facts, const AudioFacts& audio);
 
 /// @brief A target's list entries in menu order. A CHOICE row's: the choices that apply, plus the stored one, marked,
 /// when it no longer applies. A BOOL or INTEGER row a menu shows as a list: the name table's name for each menu value
@@ -51,10 +53,11 @@ struct ChoiceName {
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
 /// @param facts  The host's runtime facts.
+/// @param audio  The audio facts: plugged inputs.
 /// @param out    Where the entries go.
 /// @return How many entries were written; 0 for a target that does not resolve or has no choices.
 size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const RuntimeFacts& facts,
-                    std::span<ChoiceName> out);
+                    const AudioFacts& audio, std::span<ChoiceName> out);
 
 /// @brief The write a menu value @p menu asks for: a CHOICE row's position becomes the descriptor's menu value of the
 /// choice listed there.
@@ -62,9 +65,11 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
 /// @param facts  The host's runtime facts.
+/// @param audio  The audio facts: plugged inputs.
 /// @param menu   The menu value the user chose.
 /// @return The request, or nullopt for the stale entry, a value outside the range, or a target that does not resolve.
 [[nodiscard]] std::optional<WriteRequest> request_for(const Target& target, const project::Song& model,
-                                                      const Addresses& where, const RuntimeFacts& facts, int32_t menu);
+                                                      const Addresses& where, const RuntimeFacts& facts,
+                                                      const AudioFacts& audio, int32_t menu);
 
 } // namespace deluge::scenes::bind

@@ -1000,7 +1000,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
 	if (playing_
-	    || (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Off
+	    || (menu::host_ports().ui->flash_cursor() != bind::FlashCursor::Off
 	        && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
@@ -1180,7 +1180,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	const bind::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
 	playing_ = false;
 	if (cursor == bind::FlashCursor::Off) {
 		return;

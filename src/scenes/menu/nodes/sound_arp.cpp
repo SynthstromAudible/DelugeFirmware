@@ -37,11 +37,11 @@ int32_t get_arp_preset(const MenuContext& ctx) {
 	return address ? static_cast<int32_t>(ctx.facts->arp_preset(*address)) : 0;
 }
 void set_arp_preset(const MenuContext& ctx, int32_t value) {
-	if (ctx.sink == nullptr || ctx.model == nullptr || ctx.facts == nullptr) {
+	if (ctx.sink == nullptr || ctx.model == nullptr || ctx.facts == nullptr || ctx.ports.audio == nullptr) {
 		return;
 	}
-	if (const std::optional<bind::WriteRequest> request =
-	        bind::request_for(arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, *ctx.facts, value)) {
+	if (const std::optional<bind::WriteRequest> request = bind::request_for(
+	        arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio, value)) {
 		ctx.sink->write(*request);
 	}
 }

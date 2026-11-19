@@ -748,12 +748,12 @@ private:
 	///        RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
 	bool mode_up() const {
 		return holding_ || xenc_held_ || backspace_due_ms_.has_value()
-		       || (ctx_.facts != nullptr && ctx_.facts->auditioning());
+		       || (ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning());
 	}
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
 	///        folder import is running, and every button and key is refused until it ends.
 	bool load_running() const {
-		return id_ == BrowserId::Sample && ctx_.facts != nullptr && ctx_.facts->sample_load_in_flight();
+		return id_ == BrowserId::Sample && ctx_.ports.card != nullptr && ctx_.ports.card->sample_load_in_flight();
 	}
 
 	/// `QwertyUI::padAction`'s `UI_MODE_HOLDING_BACKSPACE`: set by a backspace press, holding the tick the next repeat

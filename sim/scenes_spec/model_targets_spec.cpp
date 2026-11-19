@@ -264,7 +264,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::OUTPUT,
 		                                              *synth.instrument->id()};
 		expect(facts.kit_takes_whole_folder(synth_slot)).to_be_false();
-		expect(facts.sample_load_in_flight()).to_be_false();
+		expect(menu::host_ports().card->sample_load_in_flight()).to_be_false();
 	});
 });
 

@@ -343,7 +343,7 @@ ahead of the shell from the same file, as are the sound editor's KEYBOARD, SESSI
 (`forwardMenuViewButton`); `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
 
 `nodes::PerformEditorItem` shows the performance view's editing mode, which it reads as
-`RuntimeFacts::performance_editing_mode()`; the host answers it from `performanceView`'s two bools
+`UiFacts::performance_editing_mode()`; the host answers it from `performanceView`'s two bools
 (`gui/ui/shell_bind_host.cpp`), and the item's press files `MenuAction::OpenPerformanceView`, whose dispatcher writes
 them.
 
@@ -731,7 +731,7 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
 * **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+  `UiFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
   paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware

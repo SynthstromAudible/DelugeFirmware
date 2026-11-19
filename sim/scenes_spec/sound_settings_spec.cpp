@@ -72,7 +72,7 @@ std::vector<const Node*> target_nodes(std::optional<bind::Target::Kind> kind = b
 /// Where a target node disagrees with the binding library on @p ctx: its read, its range, or a write at its ends and
 /// middle that does not round-trip through the descriptor. Empty when it agrees.
 std::string disagreements(const Node& node, MenuContext ctx) {
-	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio);
 	if (!shown) {
 		return std::string(node.bind.target.path) + " unresolved ";
 	}

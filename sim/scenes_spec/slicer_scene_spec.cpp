@@ -71,7 +71,7 @@
 #include "model/song/song.h"
 #include "storage/cluster/cluster.h"
 
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/slicer_scene_fixtures.h"
@@ -880,14 +880,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
-		const deluge::scenes::spec::ForwardingFacts auditioning{deluge::scenes::menu::host_runtime_facts(),
-		                                                        {.auditioning = true}};
-		slicer_scene().set_facts(&auditioning);
+		deluge::scenes::spec::HeldPorts auditioning;
+		auditioning.ui.auditioning_now = true;
+		slicer_scene().set_ports(auditioning.ports());
 		r.open();
 		r.tick(0);
 		r.pad(kDisplayWidth, 3, 64, 10);
 		r.settle(10);
-		slicer_scene().set_facts(nullptr);
+		slicer_scene().set_ports({});
 		expect(r.on_stack()).to_be_true();
 		expect(ops.stop_previewing_calls).to_equal(0);
 	});

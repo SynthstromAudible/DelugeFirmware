@@ -7,6 +7,7 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/song.h"
 #include "plugin-api/types/setting.h"
+#include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 
@@ -17,10 +18,11 @@ namespace deluge::scenes::bind {
 /// an instrument slot. context_is_coherent holds for every context this builds.
 /// @param model The song.
 /// @param slot  The sound's slot.
-/// @param facts The host's runtime facts: plugged inputs and loaded sources.
+/// @param facts The host's runtime facts: loaded sources.
+/// @param audio The audio facts: plugged inputs.
 /// @return The context.
 [[nodiscard]] plugin::SettingContext setting_context(const project::Song& model, project::SlotAddress slot,
-                                                     const RuntimeFacts& facts);
+                                                     const RuntimeFacts& facts, const AudioFacts& audio);
 
 /// @brief The context a host passes for the chain at @p chain (the host contract in plugin-api/types/setting.h): a
 /// kit's chain is a KIT playing a KIT, an audio track's a TRACK playing AUDIO, the master's the SONG playing NONE. No
@@ -38,10 +40,10 @@ namespace deluge::scenes::bind {
 /// @param model      The song.
 /// @param address    The group and owner.
 /// @param instrument What plays the track or clip.
-/// @param facts      The host's runtime facts: plugged inputs.
+/// @param audio      The audio facts: plugged inputs.
 /// @return The context.
 [[nodiscard]] plugin::SettingContext setting_context(const project::Song& model, const project::SettingAddress& address,
                                                      plugin::SettingContext::Instrument instrument,
-                                                     const RuntimeFacts& facts);
+                                                     const AudioFacts& audio);
 
 } // namespace deluge::scenes::bind

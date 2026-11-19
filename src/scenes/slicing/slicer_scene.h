@@ -103,6 +103,7 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
 
+#include "scenes/bind/ports/ports.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
@@ -274,6 +275,10 @@ public:
 	///        cannot be put into on demand; null goes back to the host's.
 	void set_facts(const bind::RuntimeFacts* facts) { facts_ = facts; }
 
+	/// @brief Answer the ports from @p ports instead of the host's, for a spec that needs a state the host cannot be
+	///        put into on demand; a null port goes back to the host's.
+	void set_ports(const bind::Ports& ports) { ports_ = ports; }
+
 	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
 	///
 	/// A landed slice removes the slicer on the next `after_render` (the host closes the menu and the browser beneath,
@@ -427,6 +432,10 @@ private:
 	const bind::RuntimeFacts* facts_ = nullptr;
 	/// @brief The runtime facts the scene reads: the installed ones, or the host's.
 	[[nodiscard]] const bind::RuntimeFacts& facts() const;
+	/// The ports `set_ports` installed; each null one is the host's.
+	bind::Ports ports_{};
+	/// @brief The ports the scene reads: the installed ones, each null one filled from the host's.
+	[[nodiscard]] bind::Ports ports() const;
 
 	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};

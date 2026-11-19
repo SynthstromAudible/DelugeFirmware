@@ -172,7 +172,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	last_enter_refused_ = true; // until the take has begun
 	// `opened()`'s first refusal, ahead of the undo-log wipe so a refused take leaves the history intact: a load is
 	// running that may swap out what the take would attach to.
-	if (ctx_.facts != nullptr && ctx_.facts->output_may_be_replaced()) {
+	if (ctx_.ports.card != nullptr && ctx_.ports.card->output_may_be_replaced()) {
 		notify::notice_text(kLoading);
 		return false;
 	}

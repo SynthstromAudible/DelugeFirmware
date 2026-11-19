@@ -92,7 +92,7 @@
 /// is the driver-side substitution this widget is the port of.
 ///
 /// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
-///       `RuntimeFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
+///       `UiFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
 ///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
 ///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
 ///       colourless for a muted row.
@@ -205,6 +205,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "model/sample/waveform_render_data.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
@@ -586,6 +587,7 @@ private:
 	::Song* song_ = nullptr;
 	deluge::scenes::bind::WriteSink* sink_ = nullptr;
 	const deluge::scenes::bind::RuntimeFacts* facts_ = nullptr;
+	deluge::scenes::bind::Ports ports_{};
 	/// @}
 
 	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
@@ -625,8 +627,8 @@ private:
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
-	/// @brief The flash-cursor setting, from the host (`RuntimeFacts::flash_cursor`); the factory's Slow with none.
-	FlashCursor flash_cursor() const { return facts_ != nullptr ? facts_->flash_cursor() : FlashCursor::Slow; }
+	/// @brief The flash-cursor setting, from the host (`UiFacts::flash_cursor`); the factory's Slow with none.
+	FlashCursor flash_cursor() const { return ports_.ui != nullptr ? ports_.ui->flash_cursor() : FlashCursor::Slow; }
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.

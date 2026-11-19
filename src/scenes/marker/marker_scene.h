@@ -228,7 +228,7 @@ private:
 	/// @return Actions to file (the loop-length popups).
 	deluge::ui::shell::Result horizontal_encoder(int32_t offset, bool zooming, bool shift);
 	/// @brief Whether a note is auditioned: legacy's `UI_MODE_AUDITIONING`, from the host.
-	bool auditioning() const { return ctx_.facts != nullptr && ctx_.facts->auditioning(); }
+	bool auditioning() const { return ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning(); }
 	/// @brief Whether any UI mode is up: legacy's `currentUIMode != 0` (a held marker, X_ENC held, a zoom sliding,
 	/// auditioning).
 	bool mode_up() const { return holding_ || xenc_held_ || sliding() || auditioning(); }

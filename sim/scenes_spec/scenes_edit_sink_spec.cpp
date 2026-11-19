@@ -120,7 +120,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		bindings::write(kMaxVoices, ctx, 4);
 		expect(recorded.requests.size()).to_equal(size_t(1));
 		expect(recorded.requests[0].menu_value).to_equal(4);
-		const auto shown = bind::view(kOsc2Type.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+		const auto shown = bind::view(kOsc2Type.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio);
 		expect(shown.has_value()).to_be_true();
 		if (shown.has_value()) {
 			expect(shown->stale.has_value()).to_be_true();
@@ -410,7 +410,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		add_drum_without_note_row(f);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.resolved).to_be_false();
-		expect(bind::view(kMaxVoices.bind.target, *ctx.model, ctx.addresses, *ctx.facts).has_value()).to_be_false();
+		expect(bind::view(kMaxVoices.bind.target, *ctx.model, ctx.addresses, *ctx.facts, *ctx.ports.audio).has_value()).to_be_false();
 		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();
 	});
 });

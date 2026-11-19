@@ -70,7 +70,7 @@
 ///     (`nodes::AudioRecorderItem::on_focus`). Shift+select on a file does not diverge --
 ///     `BrowserScene` decides it with the press, as legacy's `editingKit() && shift` branch does.
 ///  3. **`perform_editor` shows the performance view's own mode.** It reads
-///     `RuntimeFacts::performance_editing_mode()`, which the host answers from `PerformanceView`'s two bools, so the
+///     `UiFacts::performance_editing_mode()`, which the host answers from `PerformanceView`'s two bools, so the
 ///     item and the view cannot disagree.
 ///  4. **The settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make

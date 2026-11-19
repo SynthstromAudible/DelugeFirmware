@@ -111,6 +111,7 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::So
 	const bool binds = song_ != nullptr && menu::host_binds(*song_);
 	sink_ = sink != nullptr ? sink : (binds ? &menu::host_write_sink() : nullptr);
 	facts_ = binds ? &menu::host_runtime_facts() : nullptr;
+	ports_ = binds ? menu::host_ports() : deluge::scenes::bind::Ports{};
 	render_.xScroll = -1;
 	render_.xZoom = -1;
 	if (song_ != nullptr) {

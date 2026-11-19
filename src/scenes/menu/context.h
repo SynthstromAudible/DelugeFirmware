@@ -17,6 +17,7 @@
 ///       mapping and for what stayed behind.
 
 #include "definitions_cxx.hpp"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
@@ -195,6 +196,7 @@ struct MenuContext {
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
 	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
+	deluge::scenes::bind::Ports ports{}; ///< the host's ports; a spec's fakes
 	deluge::scenes::bind::WriteSink* sink = nullptr;
 	/// The same host's controls sink: the gold knobs' writes and an effect setting's exact word.
 	deluge::controls::Sink* controls_sink = nullptr;

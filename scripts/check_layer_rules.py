@@ -313,6 +313,12 @@ LEGACY_PORT_SEAMS = (
     # The one declaration of the shared `ModKnobs` (`sharedModKnobs()`), defined in `shell_guest_services.cpp`. Its
     # own header because it names the port's type, which `shell_guest_services.h` must not.
     "src/deluge/gui/ui/shell_guest_knobs.h",
+    # The ports' host half: one file per port the scenes read or write through (`scenes/bind/ports/`), and the one
+    # `host_ports()` built from them. They name the port types because they ARE their implementations on this side of
+    # the wall, and the legacy runtime objects the ports answer from (the audio engine, the card's loads, the UI
+    # modes) because this is the only side that may. The whole directory is the seam, so a port's host file needs no
+    # entry of its own.
+    "src/deluge/gui/ui/shell_host/*",
 )
 
 RULES = [

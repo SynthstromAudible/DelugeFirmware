@@ -360,7 +360,7 @@ Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
 /// The browser's gate (`SampleBrowser::buttonAction`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a
 /// claim or a folder import the menu started is still running.
 bool sample_load_busy(const menu::MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();
+	return ctx.ports.card != nullptr && ctx.ports.card->sample_load_in_flight();
 }
 
 /// `DeleteFile::acceptCurrentOption`: the browser's file is deleted by the host, which removes it from the browser's
@@ -567,7 +567,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// view's) is not one of them. Every other button falls through, as in main.
 	const bool back_or_select = (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
 	                            && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc);
-	if (desc.pad != nullptr && ctx_.facts != nullptr && ctx_.facts->auditioning()
+	if (desc.pad != nullptr && ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning()
 	    && (back_or_select || event.kind == UiEvent::Kind::Pad)) {
 		Result r;
 		r.handled = true;

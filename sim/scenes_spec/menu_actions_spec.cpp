@@ -376,7 +376,7 @@ MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
 }
 
 /// @brief The spec's transcription of main's `EditingMode::readCurrentValue`, the mapping the host's
-///        `RuntimeFacts::performance_editing_mode()` must answer.
+///        `UiFacts::performance_editing_mode()` must answer.
 ///
 /// Written here rather than read from the host, so the host's answer is compared with a second copy of the rule. The
 /// "maps the performance view's two bools" example checks this copy against main's answers in the reference table.
@@ -834,15 +834,14 @@ void enter_perform_view(bool default_mode, bool editing_param) {
 	performanceView.editingParam = editing_param;
 }
 
-/// @brief The host's `RuntimeFacts::performance_editing_mode()` and `readCurrentValue`'s answer for the view as it
+/// @brief The host's `UiFacts::performance_editing_mode()` and `readCurrentValue`'s answer for the view as it
 ///        stands, as one value.
 ///
 /// Both, deliberately, and each example compares the pair against a LITERAL mode: the two agreeing says nothing about
 /// what they agree on, and stays green with `VALUE` and `PARAM` swapped on both sides. A free function rather than two
 /// `expect` calls in a helper, because `expect` is `ItBase::expect` and only exists inside an example.
 std::array<int, 2> fact_and_view() {
-	return {static_cast<int>(menu::host_runtime_facts().performance_editing_mode()),
-	        static_cast<int>(mode_from_view())};
+	return {static_cast<int>(menu::host_ports().ui->performance_editing_mode()), static_cast<int>(mode_from_view())};
 }
 
 /// @brief `fact_and_view()`'s answer when both halves are @p mode -- the expected value.
@@ -1643,7 +1642,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		// settle tick to say that tick files nothing. That drain cannot affect what follows -- the
 		// press it would have to eat is two lines later.
 		// `GuestRig` has no encoder helper, so the cursor is placed by the view's mode instead of walked:
-		// `PerformEditorItem::on_focus` seeds it from `RuntimeFacts::performance_editing_mode()`,
+		// `PerformEditorItem::on_focus` seeds it from `UiFacts::performance_editing_mode()`,
 		// which is `EditingMode::beginSession` -> `readCurrentValue`.
 		// VALUE rather than DISABLED, because DISABLED is the arm that files nothing.
 		{
@@ -2177,9 +2176,9 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	});
 });
 
-describe menu_action_perform_fact("RuntimeFacts::performance_editing_mode over the real performanceView", $ {
+describe menu_action_perform_fact("UiFacts::performance_editing_mode over the real performanceView", $ {
 	// What `PerformEditorItem` reads (`menu/nodes/actions.cpp`), answered by the host from `performanceView`'s two
-	// bools (`ShellRuntimeFacts::performance_editing_mode`, `gui/ui/shell_bind_host.cpp`). The first example pins the
+	// bools (`ShellUiFacts::performance_editing_mode`, `gui/ui/shell_bind_host.cpp`). The first example pins the
 	// mapping on every pair of the bools. The rest drive the view's own gestures, with no menu and no `Shell`, and
 	// check the fact follows each: `PerformanceView::buttonAction`'s BACK arm, its shift+KEYBOARD exit and cycle, and
 	// the four callers of the private `PerformanceView::releaseViewOnExit` (`buttonAction`'s CLIP_VIEW arm, its

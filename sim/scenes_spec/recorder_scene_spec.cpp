@@ -87,7 +87,7 @@
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/menu_engine.h"
 #include "support/oracle_files.h"
 #include "support/recorder_scene_fixtures.h"
@@ -1192,8 +1192,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 
 		MenuContext c = r.ctx();
-		const deluge::scenes::spec::ForwardingFacts loading{*c.facts, {.output_may_be_replaced = true}};
-		c.facts = &loading;
+		deluge::scenes::spec::HeldPorts loading{c};
+		loading.card.replacing = true;
 		r.open_on(c); // `on_enter` runs as the scene is pushed
 		expect(drained_notice(deluge::notify::Notice::Kind::Text, "Loading")).to_be_true();
 		r.tick(0);

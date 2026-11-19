@@ -86,7 +86,7 @@
 ///         `origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.h`).
 ///         * `perform_editor` is a `nodes::PerformEditorItem` that renders the three-option list and files
 ///           `MenuAction::OpenPerformanceView`; the mode it shows is the host's
-///           `bind::RuntimeFacts::performance_editing_mode()`.
+///           `bind::UiFacts::performance_editing_mode()`.
 ///         * `active_scales` is a `nodes::ActiveScalesItem` (`nodes/scales.h`): one row per preset scale with a
 ///           checkbox, over `ui::oled::list`, which already ports the renderer legacy's own
 ///           `drawSubmenuItemsForOled` was adapted from.

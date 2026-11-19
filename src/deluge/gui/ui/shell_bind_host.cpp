@@ -281,37 +281,8 @@ private:
 /// state, found by its slot in the current song, and each host chain's effects, found by its address.
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
-	[[nodiscard]] bool audio_inputs_present() const override;
-	[[nodiscard]] int32_t live_voice_count() const override;
 	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override;
-	[[nodiscard]] bool sample_load_in_flight() const override {
-		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
-		       || deluge::gui::ui::shellSlicerBusy();
-	}
-	[[nodiscard]] bool output_may_be_replaced() const override { return deluge::gui::anOutputMayBeReplaced(); }
 	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override;
-	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
-	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
-		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
-	}
-	[[nodiscard]] deluge::scenes::bind::PerformanceEditing performance_editing_mode() const override {
-		// `EditingMode::readCurrentValue`: `defaultEditingMode` first, then `editingParam`.
-		using deluge::scenes::bind::PerformanceEditing;
-		if (!performanceView.defaultEditingMode) {
-			return PerformanceEditing::Disabled;
-		}
-		return performanceView.editingParam ? PerformanceEditing::Param : PerformanceEditing::Value;
-	}
-	[[nodiscard]] bool popup_showing() const override {
-		// `display->hasPopup()` for the guest: its popups and notifications are scenes on its stack.
-		for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
-			if (scene->kind() == deluge::ui::shell::SceneKind::Popup
-			    || scene->kind() == deluge::ui::shell::SceneKind::Notification) {
-				return true;
-			}
-		}
-		return false;
-	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::IsomorphicKeyboard> isomorphic_keyboard() const override {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (getRootUI() != &keyboardScreen || clip == nullptr
@@ -320,9 +291,6 @@ public:
 		}
 		return deluge::scenes::bind::IsomorphicKeyboard{.scroll_offset = clip->keyboardState.isomorphic.scrollOffset,
 		                                                .row_interval = clip->keyboardState.isomorphic.rowInterval};
-	}
-	[[nodiscard]] bool dx7_engine_enabled() const override {
-		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
 	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
 		DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
@@ -1217,14 +1185,6 @@ void ShellEditSink::apply(const WriteRequest& request) {
 	refusals_++;
 	D_PRINTLN("menu write refused: %.*s has no slot or chain", static_cast<int>(request.target.path.size()),
 	          request.target.path.data());
-}
-
-bool ShellRuntimeFacts::audio_inputs_present() const {
-	return AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
-}
-
-int32_t ShellRuntimeFacts::live_voice_count() const {
-	return AudioEngine::getNumVoices() + (currentSong != nullptr ? currentSong->countAudioVoices() : 0);
 }
 
 bool ShellRuntimeFacts::kit_takes_whole_folder(deluge::project::SlotAddress slot) const {

@@ -259,7 +259,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	}
 	list_state.freeze_cursor = false;
 	if (const int32_t t = f.turn(); t != 0) {
-		if (ctx.facts != nullptr && ctx.facts->popup_showing()) {
+		if (ctx.ports.ui != nullptr && ctx.ports.ui->popup_showing()) {
 			// `selectEncoderAction` does nothing at all while a popup is up
 			// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::selectEncoderAction`).
 			list_state.freeze_cursor = true;
@@ -402,7 +402,8 @@ std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument:
 
 void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
-	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off || (ctx.facts != nullptr && ctx.facts->popup_showing())) {
+	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off
+	    || (ctx.ports.ui != nullptr && ctx.ports.ui->popup_showing())) {
 		return;
 	}
 	deluge::ui::ListState& list = state.list[depth_of(state)];

@@ -9,6 +9,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "effects/state.h"
+#include "fakes.h"
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 
@@ -48,10 +49,9 @@ inline constexpr project::NoteRowAddress kSoundRow{
 inline constexpr int32_t kDeviceBendRange = 7;
 inline constexpr int32_t kDeviceBendRangeMpe = 30;
 
-/// Runtime facts a spec sets directly: plugged inputs, loaded sources and each sound's typed state.
+/// Runtime facts a spec sets directly: loaded sources and each sound's typed state.
 class FakeFacts final : public RuntimeFacts {
 public:
-	bool inputs{false};
 	std::map<uint32_t, uint8_t> loaded;                ///< by slot id
 	std::map<uint32_t, instrument::SoundState> states; ///< by slot id
 	mutable std::vector<project::SlotAddress> asked{}; ///< every slot loaded_sources was asked about
@@ -60,7 +60,6 @@ public:
 	/// A chain's key in chains: its output id, or UINT32_MAX for the master's.
 	[[nodiscard]] static uint32_t chain_key(project::ChainAddress chain);
 
-	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] uint8_t loaded_sources(project::SlotAddress slot) const override;
 	[[nodiscard]] const instrument::SoundState* sound_state(project::SlotAddress slot) const override;
 	[[nodiscard]] const effects::EffectStates* chain_effects(project::ChainAddress chain) const override;
@@ -120,6 +119,7 @@ public:
 struct ModelFixture {
 	project::Song song;
 	FakeFacts facts;
+	FakeAudioFacts audio; ///< the plugged inputs the contexts are built with
 	ModelFixture();
 	/// Set @p slot's state and re-encode its slot from it, as a coherent song holds them.
 	void set_state(project::SlotAddress slot, const instrument::SoundState& state);

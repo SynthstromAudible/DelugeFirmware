@@ -1709,7 +1709,7 @@ Result BrowserScene::after_render() {
 	//    `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
 		hold_deadline_ms_.reset();
-		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
+		if (ctx_.ports.card == nullptr || !ctx_.ports.card->sample_load_in_flight()) {
 			holding_ = false;
 			return long_press();
 		}

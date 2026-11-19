@@ -1174,7 +1174,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const MenuContext ctx =
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		// `on_focus` seeds the cursor from the performance view's mode (`RuntimeFacts::performance_editing_mode`), so
+		// `on_focus` seeds the cursor from the performance view's mode (`UiFacts::performance_editing_mode`), so
 		// the view's two bools are put at DISABLED, and put back afterwards like any other global.
 		const bool saved_default = performanceView.defaultEditingMode;
 		const bool saved_param = performanceView.editingParam;

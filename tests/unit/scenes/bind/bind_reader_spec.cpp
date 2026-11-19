@@ -90,13 +90,13 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 
 	it("builds the host contract's context from the slot's kind and the runtime facts", _ {
 		ModelFixture fixture;
-		fixture.facts.inputs = true;
+		fixture.audio.inputs = true;
 		fixture.facts.loaded[kDrum.id] = 0b10;
-		const SettingContext synth = setting_context(fixture.song, kSynth, fixture.facts);
+		const SettingContext synth = setting_context(fixture.song, kSynth, fixture.facts, fixture.audio);
 		expect(synth.owner).to_equal(SettingContext::Owner::TRACK);
 		expect(synth.instrument).to_equal(SettingContext::Instrument::SYNTH);
 		expect(synth.audio_inputs_present).to_be_true();
-		const SettingContext lane = setting_context(fixture.song, kDrum, fixture.facts);
+		const SettingContext lane = setting_context(fixture.song, kDrum, fixture.facts, fixture.audio);
 		expect(lane.owner).to_equal(SettingContext::Owner::KIT_LANE);
 		expect(lane.instrument).to_equal(SettingContext::Instrument::SOUND_DRUM);
 		expect(static_cast<int32_t>(lane.loaded_sources)).to_equal(0b10);

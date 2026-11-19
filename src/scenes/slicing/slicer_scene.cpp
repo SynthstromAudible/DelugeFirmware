@@ -371,6 +371,13 @@ const bind::RuntimeFacts& SlicerScene::facts() const {
 	return facts_ != nullptr ? *facts_ : menu::host_runtime_facts();
 }
 
+bind::Ports SlicerScene::ports() const {
+	const bind::Ports& host = menu::host_ports();
+	return {.audio = ports_.audio != nullptr ? ports_.audio : host.audio,
+	        .card = ports_.card != nullptr ? ports_.card : host.card,
+	        .ui = ports_.ui != nullptr ? ports_.ui : host.ui};
+}
+
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	Result r;
 	const bool on = velocity != 0;
@@ -455,7 +462,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
 	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
 	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
-	if (x == kDisplayWidth && on && !facts().auditioning()) {
+	if (x == kDisplayWidth && on && !ports().ui->auditioning()) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
 		}
@@ -676,7 +683,7 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 	}
-	const bind::FlashCursor cursor = facts().flash_cursor();
+	const bind::FlashCursor cursor = ports().ui->flash_cursor();
 	if (cursor == bind::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}

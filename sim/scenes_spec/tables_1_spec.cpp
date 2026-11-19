@@ -33,7 +33,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "unit/ui/support/frames.h"
 
 #include "shell/profiles/deluge.h"
@@ -826,8 +826,8 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		menu::MenuState state{};
 		state.list[0].cursor = 2;
 		MenuContext gated = f.ctx;
-		const spec::ForwardingFacts popup{*f.ctx.facts, {.popup_showing = true}};
-		gated.facts = &popup;
+		spec::HeldPorts popup{gated};
+		popup.ui.popup = true;
 		nodes::range_delete_press(gated, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
 		state.edit_edge = deluge::ui::oled::RangeEdge::Left;

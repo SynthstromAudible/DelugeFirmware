@@ -569,7 +569,7 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 }
 
 bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
-	if (ctx.facts == nullptr || !ctx.facts->dx7_engine_enabled()) {
+	if (ctx.ports.ui == nullptr || !ctx.ports.ui->dx7_engine_enabled()) {
 		return false;
 	}
 	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
@@ -582,7 +582,7 @@ bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t
 }
 
 bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
-	return focused_of(state) == &dx_param && ctx.facts != nullptr && ctx.facts->dx7_engine_enabled();
+	return focused_of(state) == &dx_param && ctx.ports.ui != nullptr && ctx.ports.ui->dx7_engine_enabled();
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
