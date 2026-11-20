@@ -144,9 +144,9 @@ void clear() {
 }
 
 void sound_block(bool reference) {
-	effects::FxSection& chain = *rig.sound;
+	effects::FxSection& section = *rig.sound;
 	const effects::FxSectionInputs in{
-	    .fx = fx_inputs(chain.core(), dsp::q<31>(0.03125)),
+	    .fx = fx_inputs(section.core(), dsp::q<31>(0.03125)),
 	    .bitcrush = kBitcrush,
 	    .post_fx_volume = kVolume,
 	    .post_reverb_volume = kVolume,
@@ -158,10 +158,10 @@ void sound_block(bool reference) {
 	};
 	const effects::ReverbSend send{rig.send.data(), rig.work.size()};
 	if (reference) {
-		std::ignore = chain_reference::sound(chain.core(), in, rig.work, send);
+		std::ignore = chain_reference::sound(section.core(), in, rig.work, send);
 	}
 	else {
-		std::ignore = chain.process(rig.work, in, send);
+		std::ignore = section.process(rig.work, in, send);
 	}
 }
 

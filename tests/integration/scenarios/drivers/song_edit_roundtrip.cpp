@@ -334,11 +334,11 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		expect(snap.voicing.cents == instrument::voicing(d()).master.cents, "cents");
 		expect(sameTuning(snap.voicing.tune, centsTuner(instrument::voicing(d()).master.cents)), "fine_tuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
-			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_config.shape");
+			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_state.shape");
 			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instrument::lfo(d(), l).sync_type),
-			       "lfo_config.sync_type");
+			       "lfo_state.sync_type");
 			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instrument::lfo(d(), l).sync_level),
-			       "lfo_config.sync_level");
+			       "lfo_state.sync_level");
 		}
 		for (int32_t i = 0; i < 2; i++) {
 			expect(snap.engine.modulators[i].cents == instrument::modulators(d())[i].tuning.cents, "modulator_cents");

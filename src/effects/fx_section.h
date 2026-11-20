@@ -27,7 +27,7 @@
 
 namespace deluge::effects {
 
-/// @brief What a sound's post-voice chain reads for one block, as the sound resolved it from its patcher's finals and
+/// @brief What a sound's FxSection reads for one block, as the sound resolved it from its patcher's finals and
 /// its unpatched params.
 struct FxSectionInputs {
 	FxInputs fx;
@@ -46,8 +46,8 @@ struct FxSectionInputs {
 /// patch source the sound renders before its voices.
 class FxSection {
 public:
-	/// @brief Builds a sound's chain. A sound's entry into GRAIN clears the granular, and its first block ramps from
-	/// its own post-reverb volume.
+	/// @brief Builds a sound's FxSection. A sound's entry into GRAIN clears the granular, and its first block ramps
+	/// from its own post-reverb volume.
 	/// @param mod_fx_allocator   Where the mod-FX unit's storage comes from.
 	/// @param granular_allocator Where the granular's storage comes from.
 	/// @param arena              Where the delay's tapes come from.
@@ -56,14 +56,14 @@ public:
 	[[nodiscard]] ChainCore& core() { return core_; }
 	[[nodiscard]] const ChainCore& core() const { return core_; }
 
-	/// @brief Renders the chain over @p block (the voices' sum) in place.
+	/// @brief Renders the effects over @p block (the voices' sum) in place.
 	/// @param block The voices' sum, rendered in place.
 	/// @param in    The block's resolved inputs.
 	/// @param send  The reverb send, one value per frame.
 	/// @return Whether the block fed the reverb.
 	bool process(std::span<dsp::StereoSample> block, const FxSectionInputs& in, ReverbSend send);
 
-	/// @return The effects the chain renders, in order (chain.h's names).
+	/// @return The effects it renders, in order (the names of `effects/chain.h`).
 	[[nodiscard]] static std::span<const std::string_view> order();
 
 private:

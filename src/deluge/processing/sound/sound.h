@@ -127,7 +127,7 @@ public:
 	}
 
 	/// @brief The sound's effects after its voices.
-	/// @return The sound's chain.
+	/// @return The sound's FxSection.
 	[[nodiscard]] deluge::effects::FxSection& fxSection() { return fxSection_; }
 	[[nodiscard]] deluge::effects::ChainCore& core() { return fxSection_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const { return fxSection_.core(); }

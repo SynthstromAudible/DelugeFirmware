@@ -58,7 +58,7 @@ public:
 
 	int16_t defaultRangeI; // -1 means none yet
 
-	/// Whether this source renders in stereo. Static + fully parameterised (no `Sound`/`Source` reach) so the
+	/// Whether this source renders in stereo. Static + fully parameterised (no `Sound` reach) so the
 	/// voice kernel can call it straight off its per-block config. Still reads `AudioEngine` stereo/input globals.
 	static bool renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
 	                           SampleHolder* sampleHolder);

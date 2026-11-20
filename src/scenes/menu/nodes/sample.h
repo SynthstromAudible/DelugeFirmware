@@ -73,7 +73,7 @@ namespace deluge::scenes::menu::nodes {
 /// `beginSession`. The derived classes add exactly the `openUI` target.
 class SampleSceneItem : public CustomItem {
 public:
-	/// @brief Which of `Sound::sources` this item is about, or negative for an item with no source
+	/// @brief Which of `Sound::sourceResources` this item is about, or negative for an item with no source
 	///        (the audio clip's waveform view). Exposed so a spec can assert the item-to-source
 	///        mapping by identity rather than re-deriving it.
 	int8_t source_index() const { return source_index_; }

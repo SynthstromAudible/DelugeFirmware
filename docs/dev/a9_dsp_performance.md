@@ -619,7 +619,7 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 
 - **The call layer costs nothing measurable.** The track chain's tap and the master's between are template parameters,
   inlined; the runtimes make the same component calls as the sequence.
-- **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
+- **The `FxSection` is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
 
 ## Effects components

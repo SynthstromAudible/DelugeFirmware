@@ -329,7 +329,7 @@ constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
 constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
-/** Integer index into Sound::lfoConfig[].
+/** Integer index into a sound's four LFOs (`SoundConfig::lfos`, the record's in file order).
  *
  * LFO1 is global to the clip (Sound): it is running continuously, and shared by all voices
  * in the clip use it. Despite not being shared between clips, when synchronized using

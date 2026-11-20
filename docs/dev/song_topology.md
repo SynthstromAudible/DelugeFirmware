@@ -71,7 +71,7 @@ Song
 - **Clip values stay** (Kate, 2026-10-16), generalised as the value layer above.
 - **The arp is split by where its modulation lives.** A synth's arp stays inside the Deluge instrument: its rate
   and gate are patched params the mod matrix drives, and anything the patcher drives stays inside the instrument
-  (as the sound chain does). MIDI and CV tracks and kits use a host note-device arp.
+  (as the Deluge synth does). MIDI and CV tracks and kits use a host note-device arp.
 - **Kit rows are full chains**, not drum-only slots.
 - **One mapping table** for all learn.
 

@@ -115,9 +115,9 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
 	                                    .stereo = stereo});
 }
 
-/// @brief A sound's chain, from the prime to the compressor.
+/// @brief A sound's FxSection, from the prime to the compressor.
 /// @param c            The chain components.
-/// @param in           The sound chain inputs.
+/// @param in           The FxSection inputs.
 /// @param sound_stereo The sound's block, processed in place.
 /// @param reverbBuffer The reverb send.
 /// @return Whether anything was sent to the reverb.
