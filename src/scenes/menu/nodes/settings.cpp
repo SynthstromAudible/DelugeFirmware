@@ -215,7 +215,8 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
 }
 
-void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll) {
+void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
+                         deluge::ui::ScrollText& scroll) {
 	using deluge::l10n::String;
 	// Legacy's canvas rows 20 / 29 / 38 at the Apple face's height 7, laid out as `MidiCommandItem` lays the same rows
 	// (`ui/core/metrics.h`).
@@ -235,8 +236,8 @@ void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t 
 	                       ts);
 
 	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	const std::string_view device = input.cable != nullptr
-	                                    ? std::string_view{input.cable->getDisplayName()}
+	const std::string_view device = input.cable != nullptr && ctx.ports.midi != nullptr
+	                                    ? ctx.ports.midi->name(deluge::midi::id_of(*input.cable))
 	                                    : deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
 	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 

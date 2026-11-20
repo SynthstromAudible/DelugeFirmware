@@ -14,36 +14,39 @@
 ///   - `mpe_direction` -- legacy `mpe::DirectionSelector directionSelectorMenu`; writes its own
 ///     `whichDirection`.
 ///   - `device_default_velocity_to_level` -- legacy `midi::DefaultVelocityToLevel
-///     defaultVelocityToLevelMenu`; writes `MIDICable::defaultVelocityToLevel`.
+///     defaultVelocityToLevelMenu`; writes the cable's `defaultVelocityToLevel`.
 ///   - `device_send_clock` -- legacy `midi::DeviceSendClock device_send_clock_menu`; writes
-///     `MIDICable::sendClock`.
+///     the cable's `sendClock`.
 ///   - `device_receive_clock` -- legacy `midi::DeviceReceiveClock device_receive_clock_menu`; writes
-///     `MIDICable::receiveClock`.
+///     the cable's `receiveClock`.
 ///   - `device_is_relative` -- legacy `midi::DeviceIsRelative device_is_relative_menu`; writes
-///     `MIDICable::is_relative`.
+///     the cable's `is_relative`.
 ///   - `device_send_thru` -- legacy `midi::DeviceSendThru device_send_thru_menu`; writes
-///     `MIDICable::midi_thru`.
+///     the cable's `midi_thru`.
 ///
-/// ## The per-cable binding family
+/// ## The per-device binding family
 ///
 /// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose `get`/`set` hooks read and
-/// write **`MenuContext::midi_cable`**. Every other hook reads a device-wide global (`FlashStorage`, `midiEngine`,
-/// `playbackHandler`, `cvEngine`) or the context's song/sound. `midi_cable` is the one `MenuContext` member
-/// `context_for()` never assigns -- the device list publishes it, through `MenuWalkState::midi_cable_choice` and
+/// write the device **`MenuContext::midi_device`** names, through the MIDI devices port (`bind::MidiDevices`). Every
+/// other hook reads a device-wide global (`FlashStorage`, `midiEngine`, `playbackHandler`, `cvEngine`) or the context's
+/// song/sound. `midi_device` is the one `MenuContext` member `context_for()` never assigns -- the device list publishes
+/// it, through `MenuWalkState::midi_device_choice` and
 /// `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so these five are the first nodes in the tree whose value
 /// depends on a *selection the user made two pages up*. Legacy spells the same dependency as
-/// `soundEditor.currentMIDICable->...` in each of the five `readCurrentValue`/`writeCurrentValue` pairs.
+/// a read or write through `soundEditor`'s current cable in each of the five `readCurrentValue`/`writeCurrentValue`
+/// pairs.
 ///
-/// A null `ctx.midi_cable` reads 0 and writes nothing. Legacy dereferences unconditionally, because its own navigation
-/// cannot reach the page without `Devices::beginSession` having assigned the pointer first
-/// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); this port can be pointed at the node directly by a
-/// `SceneId` deep link or a spec, so the guard is the port's, in the same spirit as `cable_at`'s (`nodes/dynamic.cpp`).
+/// A `ctx.midi_device` naming none (or a device the host does not know) reads 0 and writes nothing. Legacy dereferences
+/// unconditionally, because its own navigation cannot reach the page without `Devices::beginSession` having assigned
+/// the pointer first (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); this port can be pointed at the node
+/// directly by a `SceneId` deep link or a spec, so the guard is the port's.
 ///
-/// Every one of the four also raises `MIDIDeviceManager::anyChangesToSave` on write, exactly where legacy does; the
-/// velocity one additionally re-patches the song
-/// (`Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`, `DefaultVelocityToLevel::writeCurrentValue`
-/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`)), through `MenuContext::song` rather than
-/// the `currentSong` global.
+/// Each write hands the device's whole settings, one field changed, to `MidiDevices::write`; the host marks the devices
+/// to be saved (`MIDIDeviceManager::anyChangesToSave`, where legacy marks it). The velocity one additionally re-patches
+/// the song (the `Song` call that sets up every input's velocity patching, in
+/// `DefaultVelocityToLevel::writeCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`)), through the sound port's
+/// `velocity_to_level_everywhere`.
 ///
 /// ## The MPE arm
 ///
@@ -73,21 +76,21 @@
 ///
 /// **Where `whichDirection` and `whichZone` live in the port: `MenuState`.** Both are members of a legacy *menu item*
 /// singleton that a **different page** reads -- `ZoneNumMemberChannels::getPort()` is
-/// `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]` (`ZoneNumMemberChannels::getPort` in
+/// the current cable's `ports[directionSelectorMenu.whichDirection]` (`ZoneNumMemberChannels::getPort` in
 /// `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`) and its read/write branch on
 /// `zoneSelectorMenu.whichZone` (`ZoneNumMemberChannels::getMaxValue`, `readCurrentValue` and `writeCurrentValue`).
 /// That is precisely the shape `MenuWalkState::patching_param` / `patch_source` / `patch_range_source` already have
 /// (`menu_scene.h`: legacy's `source_selection::regularMenu.s`, read by four pages).
 ///
 /// **The rule is two questions, not "where did legacy keep it".** "Legacy stores it on a menu item,
-/// so it is `MenuState`" is only a proxy, and `MenuContext::midi_cable` is the counterexample that
+/// so it is `MenuState`" is only a proxy, and `MenuContext::midi_device` is the counterexample that
 /// breaks it: a `soundEditor.current*` member -- so context -- that is nonetheless *written* by a
-/// menu item, through `MenuWalkState::midi_cable_choice` and `MenuScene::after_render`. What actually
+/// menu item, through `MenuWalkState::midi_device_choice` and `MenuScene::after_render`. What actually
 /// decides is:
 ///
 ///   1. **Does a `Binding::get`/`set` -- handed only a `const MenuContext&` -- ever need to see
 ///      it?** If yes it must be a `MenuContext` field, whatever legacy called it and whoever writes
-///      it. `midi_cable` answers yes (this page's four data nodes read it), `source_index` answers
+///      it. `midi_device` answers yes (this page's four data nodes read it), `source_index` answers
 ///      yes (`gate_mode`'s hooks read it).
 ///   2. **Does it die when the walk is re-rooted?** If yes it is `MenuState`, and `retarget` clears
 ///      it with the rest of the walk.
@@ -95,7 +98,7 @@
 /// `mpe_direction` / `mpe_zone` answer *no* to (1) -- the only readers are `CustomItem`s, which get
 /// `MenuState` too -- and *yes* to (2). So they are `MenuState`, `retarget` drops them, and the
 /// three items are `CustomItem`s. A future port of a menu-item member that a **data** node has to
-/// read fails (1) and belongs in `MenuContext` with a mailbox, exactly as `midi_cable` does.
+/// read fails (1) and belongs in `MenuContext` with a mailbox, exactly as `midi_device` does.
 ///
 /// @note `mpe_direction` and `mpe_zone` share the name `STRING_FOR_MPE` and are **not** siblings
 ///       (`mpe_zone` is reached only through `mpe_direction`'s `chain_targets`), so
@@ -110,9 +113,9 @@
 
 namespace deluge::scenes::menu::nodes {
 
-/// @name The per-cable binding family -- `MenuContext::midi_cable`, and nothing else.
+/// @name The per-device binding family -- the device `MenuContext::midi_device` names, and nothing else.
 ///
-/// Bodies in the `.cpp`, one legacy citation each. All eight tolerate a null `ctx.midi_cable`; see
+/// Bodies in the `.cpp`, one legacy citation each. All ten tolerate a `ctx.midi_device` naming none; see
 /// the file note.
 /// @{
 
@@ -148,7 +151,7 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value);
 /// `MpeZoneChannelsItem` is the only caller in this library, but both are transcriptions of a
 /// legacy `MenuItem` override that a spec has to compare against directly -- and neither is
 /// reachable through `bindings::` (the item has no `Binding` at all: its value depends on
-/// `MenuState`). Same reason `connected_cables` is exposed from `nodes/dynamic.h`.
+/// `MenuState`).
 /// @{
 
 /// @brief `ZoneNumMemberChannels::getMaxValue()`

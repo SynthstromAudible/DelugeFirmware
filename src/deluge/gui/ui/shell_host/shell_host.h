@@ -42,6 +42,9 @@ namespace deluge::gui::shell_host {
 /// @brief The host's LearnSink: the learns, applied to the current song.
 [[nodiscard]] scenes::bind::LearnSink& learn_sink();
 
+/// @brief The host's MidiDevices: the cables `MIDIDeviceManager` keeps, and their own settings.
+[[nodiscard]] scenes::bind::MidiDevices& midi_devices();
+
 /// @brief Apply @p edit to the current song: the one way the write ports apply an Edit.
 /// @param edit The edit. The caller has checked that a song is loaded.
 /// @return Whether the edit applied (`Error::NONE`).

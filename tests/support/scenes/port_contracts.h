@@ -84,4 +84,19 @@ namespace deluge::scenes::bind::contract {
 	return !learns.learn_knob(nowhere, midi::kDin, 74, 3) && !learns.learn_knob(nowhere, midi::DeviceId{}, 1, 255);
 }
 
+/// @brief Every connected device has a name and settings, and no device names none.
+[[nodiscard]] inline bool connected_devices_are_known(const MidiDevices& midi) {
+	for (const midi::DeviceId d : midi.connected()) {
+		if (!d || midi.name(d).empty() || !midi.settings(d).has_value()) {
+			return false;
+		}
+	}
+	return !midi.settings(midi::DeviceId{}).has_value();
+}
+
+/// @brief A write to no device is refused.
+[[nodiscard]] inline bool write_to_no_device_is_refused(MidiDevices& midi) {
+	return !midi.write(midi::DeviceId{}, MidiDeviceSettings{.send_clock = true});
+}
+
 } // namespace deluge::scenes::bind::contract

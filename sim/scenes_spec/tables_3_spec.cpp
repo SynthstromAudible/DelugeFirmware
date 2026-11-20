@@ -128,10 +128,12 @@ namespace bindings = deluge::scenes::menu::bindings;
 using t3::CableFixture;
 using t3::CommandSlots;
 using t3::cv_fixture;
+using t3::device_name;
 using t3::fake_cable;
 using t3::follow_state;
 using t3::FollowSaved;
 using t3::install;
+using t3::listed_devices;
 using t3::roots;
 using t3::shown;
 using t3::TablesRoot;
@@ -2042,7 +2044,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`) and `midi::Devices`
 	// (`origin/main:src/deluge/gui/menu_item/midi/devices.h`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
 	// The port is three `CustomItem`s (`menu/nodes/dynamic.h`) plus the `MenuWalkState::source_choice` /
-	// `midi_cable_choice` write-back `nodes/settings.h` recorded as owed.
+	// `midi_device_choice` write-back `nodes/settings.h` recorded as owed.
 	//
 	// **These are NOT `Node::dynamic_children` nodes**, as one might expect them to be. A submenu row is labelled by
 	// `display_text` (`MenuView::render_vertical`; `present.cpp`) -- a `Binding::name_text` hook with no row index, or
@@ -2058,38 +2060,39 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		CableFixture cables;
 		cables.set(/*din=*/1, /*up1=*/1, /*up2=*/1, {"ALPHA", "BETA"});
 
-		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
-		const size_t n = nodes::connected_cables(got);
+		const std::vector<deluge::midi::DeviceId> got = listed_devices();
+		const size_t n = got.size();
 		const std::vector<std::string>* want = table().find("devices/all", "list");
 		expect(want).not_().to_be_null();
 
 		expect(n).to_equal(size_t(5)); // DIN, upstream 1, upstream 2, ALPHA, BETA
 		expect(want == nullptr ? size_t(0) : want->size()).to_equal(n);
 		for (size_t i = 0; i < n && want != nullptr && i < want->size(); i++) {
-			expect(std::string{got[i]->getDisplayName()}).to_equal((*want)[i]);
+			expect(device_name(got[i])).to_equal((*want)[i]);
 		}
 		// DIN really is first, and it is first because `lowestDeviceNum` is -3.
 		expect(n).to_be_greater_than(0);
 		if (n > 0) {
-			expect(got[0]).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+			expect(got[0].value).to_equal(deluge::midi::kDin.value);
+			expect(device_name(got[0])).to_equal(std::string{MIDIDeviceManager::dinMIDIPorts.getDisplayName()});
 		}
-		expect(std::string{got[0]->getDisplayName()})
-		    .to_equal(std::string{MIDIDeviceManager::dinMIDIPorts.getDisplayName()});
 	});
 
 	it("drops the disconnected ones, and yields DIN alone when nothing else is connected", _ {
 		CableFixture cables;
 		cables.set(/*din=*/1, /*up1=*/0, /*up2=*/0, {});
 
-		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
-		size_t n = nodes::connected_cables(got);
+		std::vector<deluge::midi::DeviceId> got = listed_devices();
+		size_t n = got.size();
 		const std::vector<std::string>* din_only = table().find("devices/din_only", "list");
 		expect(din_only).not_().to_be_null();
 		if (din_only != nullptr) {
 			expect(din_only->size()).to_equal(n);
 		}
 		expect(n).to_equal(size_t(1));
-		expect(got[0]).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		if (n > 0) {
+			expect(got[0].value).to_equal(deluge::midi::kDin.value);
+		}
 
 		// A disconnected *hosted* device is dropped too -- main's own "Disconnected devices aren't drawn, so they
 		// don't take up a row". Adding one must not move the count.
@@ -2098,7 +2101,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		ghost->name = "GHOST";
 		ghost->connectionFlags = 0;
 		MIDIDeviceManager::hostedMIDIDevices.push_back(ghost.get());
-		n = nodes::connected_cables(got);
+		n = listed_devices().size();
 		const std::vector<std::string>* with_ghost = table().find("devices/ghost", "list");
 		expect(with_ghost).not_().to_be_null();
 		if (with_ghost != nullptr) {
@@ -2117,13 +2120,13 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 
-		MIDICable* listed[deluge::scenes::menu::nodes::kMaxDeviceRows];
-		const size_t n = nodes::connected_cables(listed);
+		const std::vector<deluge::midi::DeviceId> listed = listed_devices();
+		const size_t n = listed.size();
 		expect(n).to_equal(size_t(5));
 
 		for (size_t seed = 0; seed < n; seed++) {
 			MenuContext ctx = settings.ctx;
-			ctx.midi_cable = listed[seed];
+			ctx.midi_device = listed[seed];
 			Rig r;
 			r.open(nodes::midi_devices, ctx);
 			r.shell.tick(0);
@@ -2131,7 +2134,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		}
 
 		MenuContext none = settings.ctx;
-		none.midi_cable = nullptr;
+		none.midi_device = {};
 		Rig r;
 		r.open(nodes::midi_devices, none);
 		r.shell.tick(0);
@@ -2141,14 +2144,14 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	it("remembers the cable the user moved onto, through the context, on the next visit", _ {
 		// The write-back half: `Devices::selectEncoderAction` assigns `soundEditor.currentMIDICable` on every move
 		// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), and the next `beginSession` reads it back to
-		// reselect that device. The port routes the same fact through `MenuWalkState::midi_cable_choice` ->
-		// `MenuScene::after_render` -> `MenuContext::midi_cable` -> `MidiDevicesItem::on_focus`, so the round trip is
+		// reselect that device. The port routes the same fact through `MenuWalkState::midi_device_choice` ->
+		// `MenuScene::after_render` -> `MenuContext::midi_device` -> `MidiDevicesItem::on_focus`, so the round trip is
 		// what proves it: descend, move, leave, come back, and the cursor is where it was left.
 		CableFixture cables;
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
 		const TablesRoot& settings = roots().back();
 		MenuContext ctx = settings.ctx;
-		ctx.midi_cable = nullptr;
+		ctx.midi_device = {};
 		install(ctx, settings.song);
 
 		// Which row `midi_devices` is on: its position among the children `relevant` admits here,
@@ -2222,7 +2225,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		// `Devices::beginSession` assigns unconditionally (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`),
 		// and `getCable(lowestDeviceNum)` is the DIN cable whatever its `connectionFlags` say --
 		// the guard in `Devices::getCable` rejects out-of-range *indices*, not disconnection. So an empty
-		// row list still resolves to DIN; it must not leave `MenuContext::midi_cable` pointing at
+		// row list still resolves to DIN; it must not leave `MenuContext::midi_device` naming
 		// the previous visit's cable.
 		//
 		// Read before the first tick on purpose: `MenuScene::open` -> `retarget` -> `enter_leaf`
@@ -2232,14 +2235,13 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 
-		MIDICable* none[deluge::scenes::menu::nodes::kMaxDeviceRows];
-		expect(nodes::connected_cables(none)).to_equal(size_t(0));
+		expect(listed_devices().size()).to_equal(size_t(0));
 
 		MenuContext ctx = settings.ctx;
-		ctx.midi_cable = &MIDIDeviceManager::upstreamUSBMIDICable2; // the stale one
+		ctx.midi_device = deluge::midi::kUpstreamUsb2; // the stale one
 		Rig r;
 		r.open(nodes::midi_devices, ctx);
-		expect(menu_scene().state().walk.midi_cable_choice).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		expect(menu_scene().state().walk.midi_device_choice.value).to_equal(deluge::midi::kDin.value);
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
@@ -2458,7 +2460,7 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		cables.set(1, 1, 1, {"ALPHA", "BETA"});
 		const TablesRoot& settings = roots().back();
 		MenuContext ctx = settings.ctx;
-		ctx.midi_cable = nullptr;
+		ctx.midi_device = {};
 		install(ctx, settings.song);
 
 		{
@@ -2532,17 +2534,19 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 		// here the MIDI routine reports the BSP's configured state through `notePeripheralConnected`.
 		CableFixture cables;
 		cables.set(1, 0, 0, {});
-		MIDICable* rows[nodes::kMaxDeviceRows];
-		expect(nodes::connected_cables(rows)).to_equal(size_t{1});
+		expect(listed_devices().size()).to_equal(size_t{1});
 
 		MIDIDeviceManager::notePeripheralConnected(0, true);
-		expect(nodes::connected_cables(rows)).to_equal(size_t{3});
-		expect(rows[1]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
-		expect(rows[2]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable2);
+		const std::vector<deluge::midi::DeviceId> rows = listed_devices();
+		expect(rows.size()).to_equal(size_t{3});
+		if (rows.size() == 3) {
+			expect(rows[1].value).to_equal(deluge::midi::kUpstreamUsb1.value);
+			expect(rows[2].value).to_equal(deluge::midi::kUpstreamUsb2.value);
+		}
 		expect(connectedUSBMIDIDevices[0][0].cable[0]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
 
 		MIDIDeviceManager::notePeripheralConnected(0, false);
-		expect(nodes::connected_cables(rows)).to_equal(size_t{1});
+		expect(listed_devices().size()).to_equal(size_t{1});
 		expect(connectedUSBMIDIDevices[0][0].cable[0]).to_be_null();
 	});
 

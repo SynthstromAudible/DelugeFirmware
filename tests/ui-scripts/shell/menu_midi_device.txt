@@ -4,8 +4,8 @@
 # The whole point of this script is that four *selections* made on four different pages have to
 # still be true when the fifth page finally writes a byte:
 #
-#   * which CABLE  -- `MidiDevicesItem` publishes `MenuState::midi_cable_choice`, and
-#     `MenuScene::after_render` copies it into `MenuContext::midi_cable` (mailbox 3);
+#   * which CABLE  -- `MidiDevicesItem` publishes `MenuState::midi_device_choice`, and
+#     `MenuScene::after_render` copies it into `MenuContext::midi_device` (mailbox 3);
 #   * which DIRECTION -- `MpeDirectionItem` republishes `MenuState::mpe_direction` every frame
 #     (`scenes/menu/nodes/midi_device.cpp`, main's `DirectionSelector::writeCurrentValue` in
 #     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`);

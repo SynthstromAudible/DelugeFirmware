@@ -169,7 +169,7 @@ it reads no pads, no shift and no held Select (`FrameInput::covered`).
 A hook with no `Result` of its own — a `CustomItem`'s `on_focus`, `handle` or `render`, a widget's
 response — asks for something by writing a field on `MenuState`, and `MenuScene::after_render`
 performs it and clears the slot. The six mailboxes are `range_choice`, `source_choice`,
-`midi_cable_choice`, the `value_changed`/`value_node` pair, `pending_action` and `pending_scene`;
+`midi_device_choice`, the `value_changed`/`value_node` pair, `pending_action` and `pending_scene`;
 `range_picker_pending` is a two-tick handshake, not a mailbox; `pending_after_range` is the picker's memory of
 its item, kept until the next substitution or re-root, as `main`'s `menuItemHeadingTo` is.
 

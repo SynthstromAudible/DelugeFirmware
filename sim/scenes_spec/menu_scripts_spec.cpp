@@ -1221,11 +1221,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 
 		const SavedCables saved = SavedCables::capture();
-		// `connected_cables` walks `kLowestDeviceNum..hostedMIDIDevices.size()` and keeps every cable
-		// whose `connectionFlags` is non-zero (`connected_cables` in `nodes/dynamic.cpp`). With no hosted devices
-		// the walk is the three built-in cables, so lighting two of them is a two-row list -- and two
-		// is the number that matters: a page that read a *global* cable rather than
-		// `MenuContext::midi_cable` would pass a one-row list.
+		// The host's device list (`MidiDevices::connected`) walks DIN, the two upstream cables and the hosted ones, and
+		// keeps every cable whose `connectionFlags` is non-zero. With no hosted devices the walk is the three built-in
+		// cables, so lighting two of them is a two-row list -- and two is the number that matters: a page that read a
+		// *global* cable rather than `MenuContext::midi_device` would pass a one-row list.
 		MIDICable& din = MIDIDeviceManager::dinMIDIPorts;
 		MIDICable& usb = MIDIDeviceManager::upstreamUSBMIDICable1;
 		din.connectionFlags = 1;

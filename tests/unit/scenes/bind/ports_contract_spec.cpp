@@ -150,6 +150,31 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.learn.accept = false;
 		expect(contract::unknown_owner_knob_is_refused(*p.learn, knob)).to_be_true();
 	});
+	it("answers the MIDI devices as the spec set them, and keeps a write to a known device", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(contract::connected_devices_are_known(*p.midi)).to_be_true();
+		expect(p.midi->connected().size()).to_equal(size_t{1});
+		expect(std::string{p.midi->name(deluge::midi::kDin)}).to_equal(std::string{"DIN"});
+
+		std::optional<MidiDeviceSettings> din = p.midi->settings(deluge::midi::kDin);
+		expect(din.has_value()).to_be_true();
+		if (din) {
+			expect(din->send_clock).to_be_false();
+			din->send_clock = true;
+			expect(p.midi->write(deluge::midi::kDin, *din)).to_be_true();
+		}
+		const std::optional<MidiDeviceSettings> back = p.midi->settings(deluge::midi::kDin);
+		expect(back.has_value()).to_be_true();
+		if (back) {
+			expect(back->send_clock).to_be_true();
+		}
+		expect(host.midi.writes.size()).to_equal(size_t{1});
+
+		expect(contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
+		expect(host.midi.writes.size()).to_equal(size_t{2});
+		expect(p.midi->name(deluge::midi::kUpstreamUsb1).empty()).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(ports_contract)

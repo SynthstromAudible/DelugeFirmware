@@ -13,7 +13,7 @@
 ///       by `display_text(*kids[i], ValueTextUse::Name, ...)` (`MenuView::render_vertical`; `present.cpp`): the
 ///       node's `Binding::name_text` hook, which gets no row index, or else its `Node::name` l10n id -- and:
 ///
-///         * `midi::Devices` labels every row with `MIDICable::getDisplayName()`
+///         * `midi::Devices` labels every row with its cable's `getDisplayName()`
 ///           (`Devices::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), a runtime
 ///           string with no l10n id at all. No set of static `Node`s can spell those rows, however many of them a hook
 ///           hands back.
@@ -39,7 +39,7 @@
 /// established for `setCurrentMultiRange` (`MenuWalkState::range_choice`): the item records its cursor in
 /// `MenuWalkState::source_choice` and `MenuScene::after_render` -- which owns the scene's own mutable `MenuContext` --
 /// applies it, *before* the same tick's select press consults `select_chain`. `MidiDevicesItem` does the same for
-/// `soundEditor.currentMIDICable` through `MenuWalkState::midi_cable_choice`.
+/// `soundEditor`'s current MIDI cable through `MenuWalkState::midi_device_choice`.
 ///
 /// With that in place `cv_selection` / `gate_selection` are finished items rather than `kPending` placeholders:
 /// `gate_selection_chain` (`nodes/settings.cpp`) now sees the output the user actually picked, and `gate_mode_names` --
@@ -58,43 +58,16 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <span>
-
-class MIDICable;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief The lowest index `Devices::getCable` accepts -- `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`'s
-/// `lowestDeviceNum`.
-///
-/// Negative on purpose, and the reason DIN comes first: -3 is the DIN ports, -2 and -1 the two upstream USB cables, and
-/// 0.. the hosted ones (`Devices::getCable`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
-inline constexpr int32_t kLowestDeviceNum = -3;
-
 /// @brief The most device rows one frame materialises.
 ///
-/// `hostedMIDIDevices` is a `fast_vector` with no fixed bound (`io/midi/midi_device_manager.h`),
-/// and this layer allocates nothing, so the row array is a frame local of exactly the size every
-/// other list page here uses -- `kMaxDynamicChildren` (`node.h`), which is also
-/// `kMaxMenuChildren` (`menu_state.h`) and `MultiRangeItem`'s own `kMaxRows`. A rig with more than 64
-/// connected cables loses the tail rather than the stack.
+/// The host's device list has no fixed bound, and this layer allocates nothing, so the row array is a frame local of
+/// exactly the size every other list page here uses -- `kMaxDynamicChildren` (`node.h`), which is also
+/// `kMaxMenuChildren` (`menu_state.h`) and `MultiRangeItem`'s own `kMaxRows`. A rig with more than 64 connected
+/// devices loses the tail rather than the stack.
 inline constexpr size_t kMaxDeviceRows = kMaxDynamicChildren;
-
-/// @brief `Devices::getCable(index)` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`), with legacy's own
-/// out-of-range guard.
-/// @return The cable at @p index, or `nullptr` when @p index names none.
-MIDICable* cable_at(int32_t index);
-
-/// @brief The cables `Devices::drawPixelsForOled` would draw, in its own order.
-///
-/// Legacy walks `kLowestDeviceNum .. hostedMIDIDevices.size()` and pushes a row only for a cable with `connectionFlags`
-/// set (`Devices::drawPixelsForOled`, `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); the reason is spelled
-/// out on the same test in `Devices::computeScrollForSelected` -- "Disconnected devices aren't drawn, so they don't
-/// take up a row" (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). So
-/// the visible list *is* the connected cables in index order -- which is also exactly the set
-/// `Devices::selectEncoderAction` skips its way along (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`).
-/// @return How many were written.
-size_t connected_cables(std::span<MIDICable*> out);
 
 /// `cv::Selection::getOptions`: one row per physical CV output. The page draws these and the menu dump lists them.
 inline constexpr uint16_t kCvOutputNames[] = {

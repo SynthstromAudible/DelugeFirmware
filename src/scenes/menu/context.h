@@ -17,6 +17,7 @@
 ///       mapping and for what stayed behind.
 
 #include "definitions_cxx.hpp"
+#include "midi/device_id.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
@@ -25,7 +26,6 @@
 #include <cstdint>
 #include <vector>
 
-class MIDICable;
 class Song;
 
 namespace deluge::project {
@@ -89,15 +89,15 @@ struct MenuContext {
 	/// @brief The sound source the menu edits.
 	int8_t source_index = 0;
 
-	/// @brief `soundEditor.currentMIDICable`. `setup()` never assigns it (the MIDI-device menus do,
-	///        from their own selection), so `context_for()` always leaves it null.
-	MIDICable* midi_cable = nullptr;
+	/// @brief `soundEditor`'s current MIDI cable, by its handle. `setup()` never assigns it (the MIDI-device menus do,
+	///        from their own selection), so `context_for()` always leaves it naming none.
+	deluge::midi::DeviceId midi_device{};
 
 	/// @brief Is the AFFECT-ENTIRE button held right now? Legacy's
 	///        `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`
 	///        (`UnpatchedParam::writeCurrentValue` and the 20-odd items that spell the same test).
 	///
-	/// A UI fact, so -- like `midi_cable` -- `context_for()` never assigns it: the caller sets it,
+	/// A UI fact, so -- like `midi_device` -- `context_for()` never assigns it: the caller sets it,
 	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments.
 	/// `bindings::write()` is its only reader; with it set on a kit row, a param write goes to every
 	/// `SoundDrum` in the kit instead of just the selected one.

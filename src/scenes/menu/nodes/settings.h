@@ -44,7 +44,7 @@
 ///           page rather than committing a value) and `midi_devices` (`Devices` in
 ///           `origin/main:src/deluge/gui/menu_item/midi/devices.h`, a scrolling device list) are the real items
 ///           `CvSelectionItem`, `GateSelectionItem` and `MidiDevicesItem`
-///           (`nodes/dynamic.h`), with a `MenuWalkState::source_choice` / `midi_cable_choice` write-back.
+///           (`nodes/dynamic.h`), with a `MenuWalkState::source_choice` / `midi_device_choice` write-back.
 ///           The five `reset_*` items are a real `ResetItem` opening `context_menu::ContextMenuScene`
 ///           through `MenuWalkState::pending_scene` (see "1. Actions" below). The twelve `midi_command_*`
 ///           (`origin/main:src/deluge/gui/menu_item/midi/command.h`, MIDI-learn items) are a real `MidiCommandItem`:
@@ -171,14 +171,16 @@ std::optional<int32_t> turn_follow_channel(const MenuContext& ctx, int32_t value
 /// @brief `midi::FollowChannel::drawInteger`: the input-differentiation line, the device and the channel or zone, in
 ///        the MIDI command screen's three rows.
 /// @param which  The `MIDIFollowChannelType` the node edits.
+/// @param ctx    The menu's context, whose MIDI devices port names the device.
 /// @param f      The frame the item draws in.
 /// @param value  The channel or zone after this tick's edit.
 /// @param scroll The side-scroll state of the device's name.
-void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll);
+void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
+                         deluge::ui::ScrollText& scroll);
 template <int Which>
-void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext&, int32_t value,
+void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
                          deluge::ui::ScrollText& scroll) {
-	follow_channel_draw(Which, f, value, scroll);
+	follow_channel_draw(Which, ctx, f, value, scroll);
 }
 
 /// @brief `midi::FollowKitRootNote::learnNoteOn`

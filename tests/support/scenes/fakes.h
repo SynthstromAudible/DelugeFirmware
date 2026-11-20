@@ -241,6 +241,20 @@ struct RecordingLearnSink final : LearnSink {
 	                int32_t midi_channel) override;
 };
 
+/// @brief MidiDevices a spec sets directly: DIN alone, connected, with default settings, until the spec says otherwise.
+struct FakeMidiDevices final : MidiDevices {
+	std::vector<midi::DeviceId> list{midi::kDin};                        ///< what `connected` answers, in order
+	std::map<uint32_t, std::string> names{{midi::kDin.value, "DIN"}};    ///< what `name` answers, by handle
+	std::map<uint32_t, MidiDeviceSettings> kept{{midi::kDin.value, {}}}; ///< what `settings` answers, by handle
+	std::vector<std::pair<midi::DeviceId, MidiDeviceSettings>> writes;   ///< every write, in order, known or not
+	[[nodiscard]] std::span<const midi::DeviceId> connected() const override { return list; }
+	[[nodiscard]] std::string_view name(midi::DeviceId device) const override;
+	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override;
+	/// @brief Records the write, and keeps @p settings when @p device is in @ref kept.
+	/// @return Whether @p device is in @ref kept.
+	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
 	FakeAudioFacts audio;              ///< the audio port's fake
@@ -253,6 +267,7 @@ struct FakeHost {
 	RecordingClipWrites clip_writes;   ///< the clip port's recorder
 	RecordingSoundWrites sound_writes; ///< the sound port's recorder
 	RecordingLearnSink learn;          ///< the learn port's recorder
+	FakeMidiDevices midi;              ///< the MIDI devices port's fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
@@ -264,7 +279,8 @@ struct FakeHost {
 		        .controls = &controls,
 		        .clip_writes = &clip_writes,
 		        .sound_writes = &sound_writes,
-		        .learn = &learn};
+		        .learn = &learn,
+		        .midi = &midi};
 	}
 };
 

@@ -353,7 +353,7 @@ public:
 	enum class DrainBand : uint8_t {
 		RangeChoice,
 		SourceChoice,
-		MidiCableChoice,
+		MidiDeviceChoice,
 		ValueCommit,
 		Navigation,
 		PendingAction,

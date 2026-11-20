@@ -21,6 +21,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.clip_writes).not_().to_be_null();
 		expect(p.sound_writes).not_().to_be_null();
 		expect(p.learn).not_().to_be_null();
+		expect(p.midi).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
@@ -61,6 +62,12 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			                         {deluge::project::ControlsAddress::Kind::OUTPUT, 0xFFFF'FFF0},
 			                         deluge::project::engine_target(3)}))
 			    .to_be_true();
+		}
+		if (p.midi != nullptr) {
+			// DIN is always listed on the default card's rig.
+			expect(p.midi->connected().empty()).to_be_false();
+			expect(bind::contract::connected_devices_are_known(*p.midi)).to_be_true();
+			expect(bind::contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
 		}
 		if (p.tracks != nullptr) {
 			// An output id no song holds.

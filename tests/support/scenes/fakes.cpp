@@ -210,4 +210,24 @@ bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, mid
 	return accept;
 }
 
+std::string_view FakeMidiDevices::name(midi::DeviceId device) const {
+	const auto at = names.find(device.value);
+	return at != names.end() ? std::string_view{at->second} : std::string_view{};
+}
+
+std::optional<MidiDeviceSettings> FakeMidiDevices::settings(midi::DeviceId device) const {
+	const auto at = kept.find(device.value);
+	return at != kept.end() ? std::optional{at->second} : std::nullopt;
+}
+
+bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& settings) {
+	writes.emplace_back(device, settings);
+	const auto at = kept.find(device.value);
+	if (at == kept.end()) {
+		return false;
+	}
+	at->second = settings;
+	return true;
+}
+
 } // namespace deluge::scenes::bind::test

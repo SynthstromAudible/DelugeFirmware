@@ -17,6 +17,7 @@ const bind::Ports& host_ports() {
 	    .clip_writes = &gui::shell_host::clip_writes(),
 	    .sound_writes = &gui::shell_host::sound_writes(),
 	    .learn = &gui::shell_host::learn_sink(),
+	    .midi = &gui::shell_host::midi_devices(),
 	};
 	return ports;
 }

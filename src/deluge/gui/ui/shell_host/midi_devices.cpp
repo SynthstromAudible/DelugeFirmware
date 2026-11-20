@@ -1,0 +1,139 @@
+#include "gui/ui/shell_host/shell_host.h"
+
+#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_device_cable.h"
+#include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_registry.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+
+#include <cstddef>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+namespace deluge::gui::shell_host {
+namespace {
+
+using scenes::bind::MidiDeviceSettings;
+using scenes::bind::MidiDirection;
+
+// The ports' own indices, which `MidiDeviceSettings::zones` is ordered by.
+static_assert(std::to_underlying(MidiDirection::IN) == MIDI_DIRECTION_INPUT_TO_DELUGE);
+static_assert(std::to_underlying(MidiDirection::OUT) == MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
+
+/// The MIDI devices: the cables `MIDIDeviceManager` keeps, by their session handles.
+class HostMidiDevices final : public scenes::bind::MidiDevices {
+public:
+	[[nodiscard]] std::span<const midi::DeviceId> connected() const override {
+		// `Devices::getCable` and `Devices::drawPixelsForOled`
+		// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`): DIN, the first two upstream USB cables, then the
+		// hosted ones in their own order, keeping only those with a connection ("Disconnected devices aren't drawn, so
+		// they don't take up a row", `computeScrollForSelected`). The third upstream cable carries sysex only and is
+		// never listed.
+		listed_.clear();
+		const auto keep = [this](const ::MIDICable& cable) {
+			if (cable.connectionFlags != 0u) {
+				if (const midi::DeviceId id = midi::id_of(cable)) {
+					listed_.push_back(id);
+				}
+			}
+		};
+		keep(MIDIDeviceManager::dinMIDIPorts);
+		keep(MIDIDeviceManager::upstreamUSBMIDICable1);
+		keep(MIDIDeviceManager::upstreamUSBMIDICable2);
+		for (const ::MIDICableUSBHosted* cable : MIDIDeviceManager::hostedMIDIDevices) {
+			if (cable != nullptr) {
+				keep(*cable);
+			}
+		}
+		return listed_;
+	}
+
+	[[nodiscard]] std::string_view name(midi::DeviceId device) const override {
+		::MIDICable* const cable = midi::cable_of(device);
+		if (cable == nullptr) {
+			return {};
+		}
+		// Static or cable-owned storage, so the view outlives the call.
+		const char* const text = cable->getDisplayName();
+		return text != nullptr ? std::string_view{text} : std::string_view{};
+	}
+
+	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override {
+		const ::MIDICable* const cable = midi::cable_of(device);
+		if (cable == nullptr) {
+			return std::nullopt;
+		}
+		return settings_of(*cable);
+	}
+
+	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override {
+		::MIDICable* const cable = midi::cable_of(device);
+		if (cable == nullptr) {
+			return false;
+		}
+		const MidiDeviceSettings was = settings_of(*cable);
+		if (settings == was) {
+			return true;
+		}
+		// The per-device items' `writeCurrentValue`s (`origin/main:src/deluge/gui/menu_item/midi/`): each assigns its
+		// field and marks the devices to be saved.
+		cable->defaultVelocityToLevel = settings.velocity_to_level;
+		cable->sendClock = settings.send_clock;
+		cable->receiveClock = settings.receive_clock;
+		cable->is_relative = settings.relative;
+		cable->midi_thru = settings.thru;
+		for (size_t dir = 0; dir < settings.zones.size(); dir++) {
+			cable->ports[dir].mpeLowerZoneLastMemberChannel = settings.zones[dir].lower_last_member;
+			cable->ports[dir].mpeUpperZoneLastMemberChannel = settings.zones[dir].upper_last_member;
+		}
+		// `ZoneNumMemberChannels::writeCurrentValue`
+		// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`): the zone, the recount, the save
+		// mark, then -- for an output -- the MCM that tells the device its zone.
+		if (settings.zones != was.zones) {
+			MIDIDeviceManager::recountSmallestMPEZones();
+		}
+		MIDIDeviceManager::anyChangesToSave = true;
+		const auto out = static_cast<size_t>(std::to_underlying(MidiDirection::OUT));
+		const scenes::bind::MpeZones& now = settings.zones[out];
+		const scenes::bind::MpeZones& before = was.zones[out];
+		if (now.lower_last_member != before.lower_last_member) {
+			cable->sendRPN(0, 0, 6, now.lower_last_member);
+		}
+		if (now.upper_last_member != before.upper_last_member) {
+			cable->sendRPN(15, 0, 6, 15 - now.upper_last_member);
+		}
+		return true;
+	}
+
+private:
+	[[nodiscard]] static MidiDeviceSettings settings_of(const ::MIDICable& cable) {
+		MidiDeviceSettings s{
+		    .velocity_to_level = cable.defaultVelocityToLevel,
+		    .send_clock = cable.sendClock,
+		    .receive_clock = cable.receiveClock,
+		    .relative = cable.is_relative,
+		    .thru = cable.midi_thru,
+		};
+		for (size_t dir = 0; dir < s.zones.size(); dir++) {
+			s.zones[dir] = {.lower_last_member = cable.ports[dir].mpeLowerZoneLastMemberChannel,
+			                .upper_last_member = cable.ports[dir].mpeUpperZoneLastMemberChannel};
+		}
+		return s;
+	}
+
+	/// What `connected` last answered.
+	mutable std::vector<midi::DeviceId> listed_;
+};
+
+} // namespace
+
+scenes::bind::MidiDevices& midi_devices() {
+	static HostMidiDevices devices;
+	return devices;
+}
+
+} // namespace deluge::gui::shell_host

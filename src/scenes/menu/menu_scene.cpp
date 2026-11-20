@@ -861,7 +861,7 @@ Result MenuScene::after_render_navigation() {
 	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
 	// (`cv::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/cv/selection.h`,
 	// `gate::Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`) -- and the
-	// device list's `soundEditor.currentMIDICable = getCable(...)` (`Devices::beginSession` in
+	// device list's assignment of `soundEditor`'s current MIDI cable from `getCable(...)` (`Devices::beginSession` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`, `Devices::selectEncoderAction`). Same shape as
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns `currentSourceIndex` on the
 	// way through `selectButtonPress`, so `gate_selection_chain` and `gate_mode_names` must both see the output the
@@ -871,10 +871,10 @@ Result MenuScene::after_render_navigation() {
 		ctx_.source_index = st_.walk.source_choice;
 		st_.walk.source_choice = -1;
 	}
-	if (st_.walk.midi_cable_choice != nullptr) {
-		trace_drain(DrainBand::MidiCableChoice);
-		ctx_.midi_cable = st_.walk.midi_cable_choice;
-		st_.walk.midi_cable_choice = nullptr;
+	if (st_.walk.midi_device_choice) {
+		trace_drain(DrainBand::MidiDeviceChoice);
+		ctx_.midi_device = st_.walk.midi_device_choice;
+		st_.walk.midi_device_choice = {};
 	}
 
 	if (st_.tick.value_changed && st_.tick.value_node != nullptr) {
