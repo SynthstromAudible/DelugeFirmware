@@ -501,10 +501,10 @@ std::optional<Target> concrete(const Target& target, const Addresses& where) {
 	if (!target.source_indexed) {
 		return target;
 	}
-	if (where.source_index < 0) {
+	if (!where.source_index) {
 		return std::nullopt;
 	}
-	const auto index = static_cast<size_t>(where.source_index);
+	const size_t index = *where.source_index;
 	for (const plugin::SettingInfo& row : rows_named_by(target)) {
 		if (plugin::index_in(target.path, row.path) == index) {
 			Target named = target;

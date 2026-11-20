@@ -91,10 +91,12 @@ bool readable(const deluge::scenes::bind::Target& target, const MenuContext& ctx
 }
 
 /// The addresses @p ctx's targets resolve against: the context's, with the output its selector chose for a
-/// source-indexed target.
+/// source-indexed target, where it chose one.
 deluge::scenes::bind::Addresses addresses_of(const MenuContext& ctx) {
 	deluge::scenes::bind::Addresses where = ctx.addresses;
-	where.source_index = ctx.source_index;
+	if (ctx.source_index >= 0) {
+		where.source_index = static_cast<uint8_t>(ctx.source_index);
+	}
 	return where;
 }
 

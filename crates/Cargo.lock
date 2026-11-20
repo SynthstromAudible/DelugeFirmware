@@ -514,3 +514,27 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[patch.unused]]
+name = "deluge-audio-format"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "deluge-board"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "deluge-bsp"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "deluge-simulator"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "deluge-usb-classes"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "rza1-hal"
+version = "0.2.0"

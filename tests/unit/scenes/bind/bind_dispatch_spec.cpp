@@ -211,7 +211,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		if (shown) {
 			expect(shown->value).to_equal(250);
 		}
-		const auto first = view(transpose, nullptr, Addresses{}, host.ports());
+		const auto first = view(transpose, nullptr, Addresses{.source_index = 0}, host.ports());
 		expect(first.has_value()).to_be_true();
 		if (first) {
 			expect(first->value).to_equal(0);
@@ -223,8 +223,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 			expect(std::string{request->target.path}).to_equal("cv/1/transpose");
 		}
 
-		// An output the table has no row for, a negative index, or a pattern with no `*`: nothing, as any unresolved
-		// target.
+		// An output the table has no row for, or a pattern with no `*`: nothing, as any unresolved target.
 		const Addresses sixth{.source_index = 5};
 		expect(concrete(transpose, sixth).has_value()).to_be_false();
 		expect(view(transpose, nullptr, sixth, host.ports()).has_value()).to_be_false();
@@ -235,7 +234,9 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		                  .source_indexed = true,
 		                  .group = deluge::project::SettingGroupId::DEVICE};
 		expect(choice_names(mode, nullptr, sixth, host.ports(), out)).to_equal(size_t{0});
-		expect(concrete(transpose, Addresses{.source_index = -1}).has_value()).to_be_false();
+		// Addresses that name no output (a caller that is no selector's menu) resolve it to nothing too.
+		expect(concrete(transpose, Addresses{}).has_value()).to_be_false();
+		expect(view(transpose, nullptr, Addresses{}, host.ports()).has_value()).to_be_false();
 		Target unpatterned = transpose;
 		unpatterned.path = deluge::project::device_path::kGateMinOffTime;
 		expect(concrete(unpatterned, second).has_value()).to_be_false();

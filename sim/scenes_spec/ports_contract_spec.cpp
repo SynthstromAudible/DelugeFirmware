@@ -565,10 +565,9 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		using device_path = deluge::project::device_path;
 		const CVChannel cv_channel = cvEngine.cvChannels[1];
 		const uint8_t off_time = cvEngine.minGateOffTime;
-		const GateType run_mode = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode;
-		const bool run_on = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on;
-		const GateType clock_mode = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode;
-		const bool clock_on = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on;
+		const GateChannel first_gate = cvEngine.gateChannels[0];
+		const GateChannel run_gate = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN];
+		const GateChannel clock_gate = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK];
 		const bool clock_scheduled = playbackHandler.triggerClockOutTickScheduled;
 		// Nothing is waiting to go out of a gate in a spec; take anything that is, so the case starts clean.
 		(void)cvEngine.takePendingGateOutputs(true);
@@ -611,16 +610,36 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on).to_be_false();
 		expect(p.device->read(run).value_or(-1)).to_equal(int32_t{std::to_underlying(GateType::SPECIAL)});
 
+		// A gate with no third choice holding the special mode (a flash byte the menu cannot write) reads clamped to its
+		// last choice, and its page shows S-Trig, as main's list clamps it; reading heals nothing.
+		cvEngine.gateChannels[0].mode = GateType::SPECIAL;
+		const deluge::project::DevicePath first = device_path::gate_mode(0).value();
+		expect(p.device->read(first).value_or(-1)).to_equal(int32_t{std::to_underlying(GateType::S_TRIG)});
+		{
+			menu::MenuContext on_device{};
+			on_device.ports = menu::host_ports();
+			on_device.source_index = 0;
+			const int32_t shown = menu::bindings::read(menu::nodes::gate_mode, on_device);
+			std::array<std::string_view, menu::kMaxDynamicNames> names{};
+			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+			const size_t count = menu::bindings::names(menu::nodes::gate_mode, on_device, names, scratch);
+			expect(count).to_equal(size_t{2});
+			expect(shown).to_equal(1);
+			if (shown >= 0 && static_cast<size_t>(shown) < count) {
+				expect(std::string{names[static_cast<size_t>(shown)]}).to_equal(std::string{"S-Trig"});
+			}
+		}
+		expect(static_cast<int>(cvEngine.gateChannels[0].mode)).to_equal(static_cast<int>(GateType::SPECIAL));
+
 		// The minimum off-time is one plain store, which the gate tick reads.
 		(void)p.device->write(device_path::kGateMinOffTime, 42);
 		expect(static_cast<int>(cvEngine.minGateOffTime)).to_equal(42);
 
 		cvEngine.cvChannels[1] = cv_channel;
 		cvEngine.minGateOffTime = off_time;
-		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode = run_mode;
-		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on = run_on;
-		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode = clock_mode;
-		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clock_on;
+		cvEngine.gateChannels[0] = first_gate;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN] = run_gate;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK] = clock_gate;
 		playbackHandler.triggerClockOutTickScheduled = clock_scheduled;
 		(void)cvEngine.takePendingGateOutputs(true);
 	});

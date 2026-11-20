@@ -59,7 +59,8 @@ struct Target {
 	std::string_view path;
 	/// Whether @ref path holds one `*` segment for the output the menu edits: the dispatch fills it with
 	/// Addresses::source_index and resolves the row of that path in the table @ref kind and @ref group name. A path
-	/// with no `*`, or an index the table has no row at, resolves to nothing, as any unresolved target does.
+	/// with no `*`, addresses that name no output, or an index the table has no row at resolve to nothing, as any
+	/// unresolved target does.
 	bool source_indexed{false};
 	/// Whether a write with affect-entire held on a kit reaches the kit's sound drums. False for the settings legacy
 	/// edits on the selected drum alone (an oscillator's type, a retrigger phase).
@@ -126,8 +127,9 @@ struct Addresses {
 	std::optional<project::NoteRowAddress> note_row; ///< the note row edited: a kit row's bend range
 	/// What plays the track or clip, which the model does not hold: the host's root knows it.
 	plugin::SettingContext::Instrument instrument{plugin::SettingContext::Instrument::NONE};
-	/// The output a source-indexed target's `*` names: the menu's selector's choice (`MenuContext::source_index`).
-	int8_t source_index{0};
+	/// The output a source-indexed target's `*` names: the menu's selector's choice (`MenuContext::source_index`); none
+	/// resolves a source-indexed target to nothing.
+	std::optional<uint8_t> source_index{};
 	bool operator==(const Addresses&) const = default;
 };
 

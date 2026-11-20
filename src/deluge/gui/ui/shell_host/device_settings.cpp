@@ -265,9 +265,8 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 
 /// The device's own settings where the device keeps them: the flash settings, the pad controller's play cursor, the
 /// community features, the audio engine's, USB audio's and the clocks' settings, the CV and gate outputs', and the
-/// stem export's options. A store
-/// writes the value as the menu's own item does, with that item's side effects; none saves (the settings menu saves on
-/// its close).
+/// stem export's options. A store writes the value as the menu's own item does, with that item's side effects; none
+/// saves (the settings menu saves on its close).
 class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		const std::string_view path = row.path;
