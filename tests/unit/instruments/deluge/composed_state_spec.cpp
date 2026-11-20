@@ -1,9 +1,18 @@
 #include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/dx7_init_voice.h"
 #include "support/flat_state.h"
+#include "support/golden_update.h"
+#include "support/record_reference.h"
 
 #include <cppspec.hpp>
+#include <cstddef>
+#include <format>
+#include <map>
+#include <sstream>
+#include <string>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include "support/spec_main.h"
 
@@ -64,20 +73,96 @@ FlatSoundState varied_sound_of(SynthMode mode, OscType a, OscType b) {
 	return s;
 }
 
-/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it.
+/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it, named.
 template <class Check>
-void for_each_sound(const Check& check) {
+void for_each_named_sound(const Check& check) {
 	const OscType kinds[] = {OscType::SINE, OscType::SAW,     OscType::SUPERSAW, OscType::WAVETABLE,   OscType::SAMPLE,
 	                         OscType::DX7,  OscType::INPUT_L, OscType::INPUT_R,  OscType::INPUT_STEREO};
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
 		for (const OscType a : kinds) {
 			for (const OscType b : kinds) {
-				check(sound_of(mode, a, b));
-				check(varied_sound_of(mode, a, b));
+				const std::string name =
+				    std::format("{} {} {}", std::to_underlying(mode), std::to_underlying(a), std::to_underlying(b));
+				check(name + " plain", sound_of(mode, a, b));
+				check(name + " varied", varied_sound_of(mode, a, b));
 			}
 		}
 	}
-	check(FlatSoundState{});
+	check(std::string{"default"}, FlatSoundState{});
+}
+
+/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it.
+template <class Check>
+void for_each_sound(const Check& check) {
+	for_each_named_sound([&](const std::string&, const FlatSoundState& sound) { check(sound); });
+}
+
+constexpr const char* kReferenceGolden = "instrument/record_reference.tsv";
+
+/// The reference table: a header naming each family, then one line per sound of the matrix with each answer's hash.
+std::string reference_table() {
+	std::string table;
+	bool header = true;
+	for_each_named_sound([&](const std::string& name, const FlatSoundState& sound) {
+		const std::vector<deluge::test::ReferenceAnswer> answers = deluge::test::reference_answers(SoundState(sound));
+		if (header) {
+			table += "sound";
+			for (const deluge::test::ReferenceAnswer& answer : answers) {
+				table += "\t" + answer.family;
+			}
+			table += "\n";
+			header = false;
+		}
+		table += name;
+		for (const deluge::test::ReferenceAnswer& answer : answers) {
+			table += "\t" + deluge::test::reference_hash(answer.text);
+		}
+		table += "\n";
+	});
+	return table;
+}
+
+std::vector<std::string> split(const std::string& line, char separator) {
+	std::vector<std::string> fields;
+	std::string field;
+	std::istringstream in(line);
+	while (std::getline(in, field, separator)) {
+		fields.push_back(field);
+	}
+	return fields;
+}
+
+/// Where @p got's table and @p want's first differ, as "<sound>: <family>"; empty where they agree.
+std::string first_reference_difference(const std::string& got, const std::string& want) {
+	const std::vector<std::string> got_lines = split(got, '\n');
+	const std::vector<std::string> want_lines = split(want, '\n');
+	if (got_lines.empty() || want_lines.empty()) {
+		return "an empty table";
+	}
+	if (got_lines.front() != want_lines.front()) {
+		return "the families: " + got_lines.front();
+	}
+	const std::vector<std::string> families = split(got_lines.front(), '\t');
+	std::map<std::string, std::vector<std::string>> recorded;
+	for (size_t i = 1; i < want_lines.size(); i++) {
+		std::vector<std::string> fields = split(want_lines[i], '\t');
+		if (!fields.empty()) {
+			recorded[fields.front()] = std::move(fields);
+		}
+	}
+	for (size_t i = 1; i < got_lines.size(); i++) {
+		const std::vector<std::string> fields = split(got_lines[i], '\t');
+		const auto found = recorded.find(fields.front());
+		if (found == recorded.end()) {
+			return fields.front() + ": not recorded";
+		}
+		for (size_t f = 1; f < fields.size(); f++) {
+			if (f >= found->second.size() || fields[f] != found->second[f]) {
+				return fields.front() + ": " + families[f];
+			}
+		}
+	}
+	return got_lines.size() == want_lines.size() ? std::string{} : std::string{"a recorded sound the matrix lacks"};
 }
 
 } // namespace
@@ -110,6 +195,17 @@ describe composed_state("a sound's flat record as the state it plays and what it
 
 	it("encodes the record as the flat codec encodes the flat layout", _ {
 		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::encode_difference(sound)).to_equal(std::string{}); });
+	});
+
+	it("answers every question about every engine with every pair of oscillator kinds as recorded", _ {
+		const std::string path = std::string(GOLDEN_ROOT) + "/" + kReferenceGolden;
+		const std::string table = reference_table();
+		if (deluge::test::golden::updating()) {
+			deluge::test::golden::write_if_changed(path, table);
+		}
+		const std::optional<std::string> recorded = deluge::test::golden::read(path);
+		expect(recorded.has_value()).to_equal(true);
+		expect(first_reference_difference(table, recorded.value_or(std::string{}))).to_equal(std::string{});
 	});
 
 	it("plays an FM sound's tuning and sync on its carriers, and keeps its oscillators' kinds to recall", _ {
