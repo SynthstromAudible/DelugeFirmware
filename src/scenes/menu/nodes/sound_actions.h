@@ -87,13 +87,17 @@ inline constexpr Node sequence_direction =
 // `OutputMidiChannel::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/midi/sound/channel.h`) and
 // `OutputMidiNoteForDrum`'s (`origin/main:src/deluge/gui/menu_item/midi/sound/note_for_drum.h`). The channel's
 // `drawInteger` names 0 Off (the l10n string, `off_at_zero_text`); the note draws a plain number.
-inline constexpr Node output_midi_channel = with_leaf_text(
-    with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
-                                    {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"})),
-    off_at_zero_text);
-inline constexpr Node output_midi_note = with_affect_entire(
-    setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/noteForDrum"}));
+inline constexpr Node output_midi_channel =
+    with_leaf_text(with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
+                                                   {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                    .path = "midiOutput/channel",
+                                                    .group = deluge::project::SettingGroupId::SOUND_ROUTING})),
+                   off_at_zero_text);
+inline constexpr Node output_midi_note =
+    with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_NOTE), Kind::Int,
+                                    {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                     .path = "midiOutput/noteForDrum",
+                                     .group = deluge::project::SettingGroupId::SOUND_ROUTING}));
 
 inline constexpr const Node* kOutputMidiChildren[] = {&output_midi_channel, &output_midi_note};
 inline constexpr Node output_midi = submenu(sid(deluge::l10n::String::STRING_FOR_MIDI), kOutputMidiChildren);

@@ -169,14 +169,14 @@ describe setting_groups_owners("the owner setting groups", $ {
 		    .to_equal(std::string{});
 	});
 
-	it("reads a new sound's routing as no send, no channel (255) and no note, and keeps none in the record", _ {
+	it("reads a new sound's routing as no send, no channel and no note (each 255), and keeps none in the record", _ {
 		Song song;
 		DocDrum& drum = song.drum_structure.getOrCreate(5);
 		drum.instrument.emplace();
 		const SettingAddress lane{SettingGroupId::SOUND_ROUTING, LaneAddress{.kit_id = 7, .drum_id = 5}};
 		expect(read_setting(song, lane, "sideChainSend")->str()).to_equal(std::string{"0"});
 		expect(read_setting(song, lane, "midiOutput/channel")->str()).to_equal(std::string{"255"});
-		expect(read_setting(song, lane, "midiOutput/noteForDrum").has_value()).to_be_false();
+		expect(read_setting(song, lane, "midiOutput/noteForDrum")->str()).to_equal(std::string{"255"});
 		expect(write_setting(song, lane, "midiOutput/channel", Value::makeScalar("3"))).to_be_true();
 		expect(drum.instrument->routing.midi_channel).to_equal(std::optional<uint8_t>{3});
 		expect(write_setting(song, lane, "midiOutput/channel", Value::makeScalar("255"))).to_be_true();

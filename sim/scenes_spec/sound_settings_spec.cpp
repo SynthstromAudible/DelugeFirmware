@@ -141,8 +141,7 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 			paths.insert(std::string(node->bind.target.path));
 		}
 		const std::set<std::string> want{
-		    "maxVoices", "polyphonic", "mode", "transpose", "sideChainSend", "midiOutput/channel",
-		    "midiOutput/noteForDrum", "unison/num", "unison/detune", "unison/spread", "osc1/type", "osc2/type",
+		    "maxVoices", "polyphonic", "mode", "transpose", "unison/num", "unison/detune", "unison/spread", "osc1/type", "osc2/type",
 		    "osc1/retrigPhase", "osc2/retrigPhase", "osc1/reversed", "osc2/reversed", "osc1/loopMode", "osc2/loopMode",
 		    "osc1/timeStretchAmount", "osc2/timeStretchAmount", "osc2/oscillatorSync", "modulator1/transpose",
 		    "modulator2/transpose", "modulator1/retrigPhase", "modulator2/retrigPhase", "modulator2/toModulator1",

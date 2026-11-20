@@ -107,7 +107,7 @@ void autoDetectSideChainSending(SoundDrum* drum, int32_t s, char const* fileName
 	if (deluge::instrument::sample_playback(*drum->state_, static_cast<deluge::instrument::SourceId>(s)).repeat_mode
 	        == SampleRepeatMode::ONCE
 	    && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
-		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
+		deluge::edits::routingSettingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
 	}
 }
 

@@ -207,4 +207,21 @@ void forget_setting(Song& song, const SettingAddress& address, std::string_view 
 /// @copydoc sound_routing
 [[nodiscard]] SoundRouting* sound_routing(Song& song, const SettingOwner& owner);
 
+/// @brief @p routing's value at @p path, a SOUND_ROUTING row, in its file form: an unset note reads 255, outside the
+/// row, which its menu shows as its default.
+/// @param routing The routing.
+/// @param path    A path of the group's table.
+/// @return The value, or nullopt for a path the group has no row for.
+[[nodiscard]] std::optional<serialization::Value> read_routing_setting(const SoundRouting& routing,
+                                                                       std::string_view path);
+
+/// @brief Set @p routing's value at @p path, a SOUND_ROUTING row, checked against the row: a routing no record holds
+/// (a sound outside the song) takes a write as its owner's record would.
+/// @param routing The routing.
+/// @param path    A path of the group's table.
+/// @param value   The new value, in its file form.
+/// @return True when written; false, with nothing changed, when the row refuses the path or the value.
+[[nodiscard]] bool write_routing_setting(SoundRouting& routing, std::string_view path,
+                                         const serialization::Value& value);
+
 } // namespace deluge::project

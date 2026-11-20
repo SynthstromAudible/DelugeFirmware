@@ -32,6 +32,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
 
@@ -277,6 +278,34 @@ inline void trackSettingFor(::Output& output, std::string_view path, deluge::ser
 	if (deluge::bridge::applyTrackSetting(output, path, value) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
 	}
+}
+
+/// @brief A menu's change of @p sound's routing at @p path (its sidechain send, its MIDI output): an Edit on its
+///        track's or kit row's routing when the sound is bound in the current song; for a sound outside it (the sample
+///        preview), the row's write on the routing it holds itself, then projected.
+/// @param sound The sound.
+/// @param path  The setting's path in the sound routing group.
+/// @param value The new value, in its file form.
+inline void routingSettingFor(::Sound& sound, std::string_view path, deluge::serialization::Value value) {
+	if (const std::optional<deluge::project::SlotAddress> slot =
+	        currentSong != nullptr ? songSlotOf(sound) : std::nullopt) {
+		std::optional<deluge::project::SettingOwner> owner;
+		if (slot->kind == deluge::project::SlotAddress::Kind::OUTPUT) {
+			owner = deluge::project::TrackAddress{.output_id = slot->id};
+		}
+		else if (const auto lane = deluge::bridge::laneAddressOf(static_cast<::SoundDrum&>(sound), *currentSong)) {
+			owner = *lane;
+		}
+		if (owner) {
+			applySettingEdit({deluge::project::SettingGroupId::SOUND_ROUTING, *owner}, path, std::move(value));
+			return;
+		}
+	}
+	if (!deluge::project::write_routing_setting(sound.routingRecord(), path, value)) {
+		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+		return;
+	}
+	sound.applyRouting();
 }
 
 /// @brief A gesture's change of @p drum's lane setting at @p path (its name): an Edit when the drum is in one of the

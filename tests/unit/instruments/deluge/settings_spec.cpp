@@ -84,6 +84,10 @@ void leafPaths(const Value& node, const std::string& prefix, std::vector<std::st
 
 /// Whether @p path is a row of the schema or lies under a STRUCTURED row.
 bool covered(const std::string& path) {
+	// The sound's routing is the host's: its own rows (project::SettingGroupId::SOUND_ROUTING) cover it
+	if (path == "sideChainSend" || path.starts_with("midiOutput/")) {
+		return true;
+	}
 	for (const deluge::plugin::SettingInfo& row : kSettings) {
 		if (row.path == path) {
 			return true;

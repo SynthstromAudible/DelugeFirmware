@@ -64,9 +64,6 @@ constexpr auto kOscTypes = names_of<OscType, static_cast<size_t>(OscType::INPUT_
 constexpr auto kLfoTypes = names_of<LFOType, 7>();
 /// A synced rate's type, as its stored number (even, triplet, dotted).
 constexpr std::array<std::string_view, 3> kSyncTypes{"0", "10", "19"};
-/// A sound's MIDI output channel as a file writes it: 0–15, or 255 for none. Nothing between is a channel.
-constexpr std::array<std::string_view, 17> kMidiChannels{"0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",
-                                                         "9", "10", "11", "12", "13", "14", "15", "255"};
 
 constexpr int32_t kTransposeRange = 96; ///< semitones either way: the transpose menus' ±9600 cents
 constexpr int32_t kCentsRange = 50;
@@ -81,17 +78,13 @@ constexpr int32_t kMaxVoicesMenu = 16;
 /// The max-voices menu's 0 is "off", stored as kMaxVoicesOff.
 constexpr std::array<plugin::SettingSentinel, 1> kMaxVoicesSentinels{{{.user = 0, .stored = kMaxVoicesOff}}};
 
-/// The note an unset drum note (stored 255, past the row) plays and shows as.
-constexpr int32_t kUnsetDrumNoteShownAs = 60;
-
 /// A sample's repeat mode as its stored number, in SampleRepeatMode's order (cut, once, loop, stretch).
 constexpr std::array<std::string_view, 4> kLoopModes{"0", "1", "2", "3"};
 static_assert(std::to_underlying(SampleRepeatMode::STRETCH) + 1 == kLoopModes.size());
 
 /// The owners a kit lane stands for.
 constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(plugin::SettingContext::Owner::KIT_LANE)};
-/// A kit lane: it alone offers choke (which shares a kit's voices among its lanes), a send to the kit's sidechain and
-/// a drum note.
+/// A kit lane: it alone offers choke (which shares a kit's voices among its lanes).
 constexpr std::array kOnKitLane{plugin::owner_is(kKitLaneOwner)};
 constexpr std::array kPolyphonyWhen{
     plugin::ChoiceCondition{.choice = std::to_underlying(PolyphonyMode::CHOKE), .when = kOnKitLane}};
@@ -148,11 +141,6 @@ constexpr std::array kPolyConditions{plugin::setting_is("polyphonic", kPolyValue
 constexpr plugin::SettingDescriptorExtras kMaxVoicesExtras{
     .mapping = {.kind = plugin::DisplayMappingKind::CLAMP_HIGH, .clamp_to = 0}, .applies_when = kPolyConditions};
 
-/// A drum note's menu: an unset note shows as the one it plays; only a kit lane has one.
-constexpr plugin::SettingDescriptorExtras kNoteForDrumExtras{
-    .mapping = {.kind = plugin::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs},
-    .applies_when = kOnKitLane};
-
 /// An oscillator's sample playback rows: a subtractive sound's sample source with a file loaded.
 constexpr std::array<int32_t, 1> kSampleValue{std::to_underlying(OscType::SAMPLE)};
 constexpr std::array<std::array<plugin::SettingCondition, 3>, 2> kSamplePlaybackConditions{{
@@ -174,10 +162,6 @@ constexpr plugin::SettingDescriptorExtras kOscSyncExtras{.applies_when = kOscSyn
 /// The modulators play in FM alone.
 constexpr std::array kFmConditions{plugin::setting_is("mode", kFmValue)};
 constexpr plugin::SettingDescriptorExtras kFmExtras{.applies_when = kFmConditions};
-
-/// The sidechain send menu: fiftieths of the whole send, rounded to the nearest.
-constexpr plugin::SettingDescriptorExtras kSendExtras{.mapping = {.kind = plugin::DisplayMappingKind::FIFTIETHS},
-                                                      .applies_when = kOnKitLane};
 
 /// Each oscillator's type row, and the conditions on it and on its file that its tuning, phase and interpolation menus
 /// show under: an oscillator playing a file shows them only once the file is loaded.
@@ -241,10 +225,6 @@ constexpr std::array kInterpolationExtras{
         .mapping = kInterpolationMapping, .applies_when = kSubtractiveConditions, .applies_any = kInterpolationAny[0]},
     plugin::SettingDescriptorExtras{
         .mapping = kInterpolationMapping, .applies_when = kSubtractiveConditions, .applies_any = kInterpolationAny[1]}};
-/// The MIDI output channel menu lists none first, then channels 1–16 (stored 0–15).
-constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-constexpr plugin::SettingDescriptorExtras kMidiChannelExtras{
-    .mapping = {.kind = plugin::DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder}};
 
 /// A transpose menu: one value in cents over its semitones and its cents row, @p partner.
 constexpr plugin::SettingDescriptorExtras transpose_extras(std::string_view partner,
@@ -265,7 +245,6 @@ constexpr std::array kModulatorTransposeExtras{transpose_extras("modulator1/cent
 
 /// A new sound's settings (a default SoundState's), as the rows store them.
 constexpr int32_t kDefaultMaxVoices = 8;
-constexpr int32_t kDefaultMidiChannel = 16; // "255": none
 constexpr int32_t kDefaultUnisonDetune = 8;
 constexpr std::array<int32_t, 2> kDefaultModulatorTranspose{0, -12};
 /// A new sound's oscillators run free; its modulators retrigger at 0.
@@ -361,7 +340,6 @@ constexpr std::array kRows{
                 .kind = CHOICE,
                 .choices = plugin::kVoicePriorityWords,
                 .default_value = std::to_underlying(plugin::VoicePriority::MEDIUM)},
-    SettingInfo{.path = "sideChainSend", .min = 0, .max = std::numeric_limits<int32_t>::max(), .extras = &kSendExtras},
     SettingInfo{.path = "mode", .kind = CHOICE, .choices = kSynthModes, .extras = &kModeExtras},
     SettingInfo{.path = "transpose",
                 .min = -kTransposeRange,
@@ -393,18 +371,6 @@ constexpr std::array kRows{
     SettingInfo{.path = "unison/num", .min = 1, .max = kMaxUnisonVoices, .default_value = 1},
     SettingInfo{.path = "unison/detune", .min = 0, .max = kMaxUnisonDetune, .default_value = kDefaultUnisonDetune},
     SettingInfo{.path = "unison/spread", .min = 0, .max = kMaxUnisonSpread},
-    SettingInfo{.path = "midiOutput/channel",
-                .kind = CHOICE,
-                .choices = kMidiChannels,
-                .default_value = kDefaultMidiChannel,
-                .extras = &kMidiChannelExtras},
-    // A new sound's note is unset (255, outside the row): its menu shows kUnsetDrumNoteShownAs there, and no menu
-    // value stores it.
-    SettingInfo{.path = "midiOutput/noteForDrum",
-                .min = 0,
-                .max = 127,
-                .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
-                .extras = &kNoteForDrumExtras},
 };
 
 #undef OSC_ROWS
@@ -487,9 +453,6 @@ Answer top_level_value(const SoundState& state, std::string_view path) {
 	}
 	if (path == "voicePriority") {
 		return number(std::to_underlying(v.priority));
-	}
-	if (path == "sideChainSend") {
-		return number(host_fields(state).side_chain_send_level);
 	}
 	if (path == "mode") {
 		return word(to_string(synth_mode(state)));
@@ -614,18 +577,6 @@ Answer unison_value(const SoundState& state, std::string_view path) {
 	return std::nullopt;
 }
 
-Answer midi_output_value(const SoundState& state, std::string_view path) {
-	const HostFields host = host_fields(state);
-	const std::string_view rest = path.substr(11);
-	if (rest == "channel") {
-		return number(host.output_midi_channel);
-	}
-	if (rest == "noteForDrum") {
-		return number(host.output_midi_note_for_drum);
-	}
-	return std::nullopt;
-}
-
 /// A row's answer, by the family its path's prefix names (an effect's row by the effects' own reader).
 Answer any_value(const SoundState& state, std::string_view path, bool held = false) {
 	const SettingInfo* row = plugin::find_setting(kSettings, path);
@@ -647,9 +598,6 @@ Answer any_value(const SoundState& state, std::string_view path, bool held = fal
 	if (path.starts_with("unison/")) {
 		return unison_value(state, path);
 	}
-	if (path.starts_with("midiOutput/")) {
-		return midi_output_value(state, path);
-	}
 	return top_level_value(state, path);
 }
 
@@ -661,9 +609,6 @@ bool write_top_level(SoundState& state, std::string_view path, const serializati
 	}
 	else if (path == "voicePriority") {
 		v.priority = static_cast<plugin::VoicePriority>(n);
-	}
-	else if (path == "sideChainSend") {
-		state.plays.side_chain_send_level = n;
 	}
 	else if (path == "mode") {
 		set_engine(state, parse_synth_mode(value.str()));
@@ -801,29 +746,10 @@ bool write_unison(SoundState& state, std::string_view path, const serialization:
 	return true;
 }
 
-bool write_midi_output(SoundState& state, std::string_view path, const serialization::Value& value) {
-	const std::string_view rest = path.substr(11);
-	const int32_t n = intOf(value);
-	if (rest == "channel") {
-		state.plays.output_midi_channel = static_cast<uint8_t>(n);
-	}
-	else if (rest == "noteForDrum") {
-		state.plays.output_midi_note_for_drum = static_cast<uint8_t>(n);
-	}
-	else {
-		return false;
-	}
-	return true;
-}
-
 } // namespace
 
 std::optional<serialization::Value> setting_value(const SoundState& state, std::string_view path) {
-	Answer value = any_value(state, path);
-	if (value && path == "midiOutput/noteForDrum" && value->str() == "255") {
-		return std::nullopt; // unset: the menu shows its default there and writes only a note
-	}
-	return value;
+	return any_value(state, path);
 }
 
 std::optional<int32_t> held_setting(const SoundState& state, std::string_view path) {
@@ -875,9 +801,6 @@ std::vector<std::string_view> write_setting(SoundState& state, std::string_view 
 	}
 	else if (path.starts_with("unison/")) {
 		(void)write_unison(state, path, value);
-	}
-	else if (path.starts_with("midiOutput/")) {
-		(void)write_midi_output(state, path, value);
 	}
 	else {
 		(void)write_top_level(state, path, value);

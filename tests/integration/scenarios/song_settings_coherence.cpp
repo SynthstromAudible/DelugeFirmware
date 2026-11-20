@@ -202,10 +202,7 @@ std::string settingIncoherence(::Song& song, const SettingAddress& address, uint
 		const auto engine = deluge::bridge::engineSettingValue(song, address, path);
 		const std::string a = record ? record->str() : "<none>";
 		const std::string b = engine ? engine->str() : "<none>";
-		// An unset MIDI output note reads as none in both: the one path with no value to compare
-		const bool both_unset =
-		    !record && !engine && address.group == SettingGroupId::SOUND_ROUTING && path == "midiOutput/noteForDrum";
-		if (!both_unset && (!record || !engine || a != b)) {
+		if (!record || !engine || a != b) {
 			return std::string{groupName(address.group)} + " " + std::to_string(owner) + " " + std::string{path}
 			       + ": record=" + a + " engine=" + b;
 		}

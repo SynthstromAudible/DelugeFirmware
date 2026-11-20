@@ -954,9 +954,7 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		if (path == "midiOutput/channel") {
 			return Value::makeScalar(std::to_string(sound->outputMidiChannel));
 		}
-		return sound->outputMidiNoteForDrum != MIDI_NOTE_NONE
-		           ? std::optional<Value>{Value::makeNumber(sound->outputMidiNoteForDrum)}
-		           : std::nullopt;
+		return Value::makeNumber(sound->outputMidiNoteForDrum);
 	}
 	if (address.group == SettingGroupId::AUDIO_INPUT) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);

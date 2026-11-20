@@ -70,10 +70,10 @@ inline void osc_types(const MenuContext& ctx, OscType first, OscType second) {
 	set_word(*spec::menu_engine(ctx).sound, "osc2/type", deluge::instrument::to_string(second));
 }
 
-inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::EFFECT,      Family::ARP,
-                                                Family::ARP_HOST,   Family::CLIP_VALUES, Family::CLIP};
-inline const std::vector<Family> kLaneFamilies{Family::INSTRUMENT, Family::EFFECT, Family::ARP, Family::ARP_HOST,
-                                               Family::NOTE_ROW};
+inline const std::vector<Family> kSoundFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT, Family::ARP,
+                                                Family::ARP_HOST,   Family::CLIP_VALUES,   Family::CLIP};
+inline const std::vector<Family> kLaneFamilies{Family::INSTRUMENT, Family::SOUND_ROUTING, Family::EFFECT,
+                                               Family::ARP,        Family::ARP_HOST,      Family::NOTE_ROW};
 inline const std::vector<Family> kNonSoundLaneFamilies{Family::ARP, Family::ARP_HOST, Family::NOTE_ROW};
 inline const std::vector<Family> kWholeKitFamilies{Family::EFFECT, Family::ARP, Family::ARP_HOST, Family::CLIP_VALUES,
                                                    Family::CLIP};

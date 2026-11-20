@@ -49,14 +49,10 @@ namespace {
 
 using deluge::serialization::Value;
 
-/// @p record with what @p sound's runtime still holds of it in its place: the sidechain send and MIDI output, each
-/// oscillator's type, DX7 patch and ranges, and the effects the render plays. The rest the sound plays through its
-/// config, which the snapshot check holds to the record.
+/// @p record with what @p sound's runtime still holds of it in its place: each oscillator's type, DX7 patch and
+/// ranges, and the effects the render plays. The rest the sound plays through its config, which the snapshot check
+/// holds to the record; its routing's runtime copies the song-settings check holds to the routing's record.
 deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
-	record = deluge::instrument::with_host_fields(std::move(record),
-	                                              {.side_chain_send_level = sound.sideChainSendLevel,
-	                                               .output_midi_channel = sound.outputMidiChannel,
-	                                               .output_midi_note_for_drum = sound.outputMidiNoteForDrum});
 	deluge::instrument::sound_effects(record) = sound.modControllableSnapshot().effects;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);

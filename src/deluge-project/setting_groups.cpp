@@ -511,10 +511,10 @@ std::optional<Value> read_routing(const SoundRouting& routing, std::string_view 
 	if (path == "midiOutput/channel") {
 		return Value::makeScalar(std::to_string(routing.midi_channel.value_or(kNoneWord)));
 	}
-	if (routing.midi_note) {
-		return number(*routing.midi_note);
+	if (path == "midiOutput/noteForDrum") {
+		return number(routing.midi_note.value_or(kNoneWord));
 	}
-	return std::nullopt; // unset: the menu shows its default there and writes only a note
+	return std::nullopt;
 }
 
 void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
@@ -1043,11 +1043,7 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 	}
 	case SettingGroupId::SOUND_ROUTING: {
 		SoundRouting* routing = routing_of(song, address.owner);
-		if (routing == nullptr) {
-			return false;
-		}
-		write_routing(*routing, path, v);
-		return true;
+		return routing != nullptr && write_routing_setting(*routing, path, value);
 	}
 	}
 	return false;
@@ -1122,6 +1118,19 @@ const SoundRouting* sound_routing(const Song& song, const SettingOwner& owner) {
 
 SoundRouting* sound_routing(Song& song, const SettingOwner& owner) {
 	return routing_of(song, owner);
+}
+
+std::optional<Value> read_routing_setting(const SoundRouting& routing, std::string_view path) {
+	return plugin::find_setting(kSoundRoutingTable, path) != nullptr ? read_routing(routing, path) : std::nullopt;
+}
+
+bool write_routing_setting(SoundRouting& routing, std::string_view path, const Value& value) {
+	const std::string* text_value = serialization::text_of(&value);
+	if (text_value == nullptr || !plugin::check_setting_text(kSoundRoutingTable, path, *text_value)) {
+		return false;
+	}
+	write_routing(routing, path, integer_of(value).value_or(0));
+	return true;
 }
 
 } // namespace deluge::project

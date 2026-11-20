@@ -40,10 +40,12 @@ describe codec_encode("the Deluge instrument writes its state", ${
 		expect(text(p.head, "polyphonic")).to_equal(std::string("poly"));
 		expect(text(p.head, "voicePriority")).to_equal(std::string("1"));
 		expect(text(p.head, "mode")).to_equal(std::string("subtractive"));
-		deluge::test::set(s, "sideChainSend", "5");
 		deluge::test::set(s, "transpose", "-12");
 		deluge::test::set(s, "cents", "7");
-		expect(keys(encode_pieces(s, {}).head))
+		// The send is the host's, placed among the instrument's own
+		Value host = Value::makeMap();
+		host.set("sideChainSend", Value::makeNumber(5));
+		expect(keys(encode_pieces(s, {}, std::nullopt, &host).head))
 		    .to_equal(std::vector<std::string>{"polyphonic", "voicePriority", "sideChainSend", "mode", "transpose",
 		                                       "cents"});
 	});
@@ -146,8 +148,13 @@ describe codec_encode("the Deluge instrument writes its state", ${
 	it("writes max voices and the MIDI output as their own pieces", _ {
 		SoundState s;
 		deluge::test::set(s, "maxVoices", "8");
-		deluge::test::set(s, "midiOutput/channel", "3");
-		SoundPieces p = encode_pieces(s, {});
+		// The MIDI output is the host's, placed between the body and the delay
+		Value host = Value::makeMap();
+		Value midi = Value::makeMap();
+		midi.set("channel", Value::makeNumber(3));
+		midi.set("noteForDrum", Value::makeNumber(255));
+		host.set("midiOutput", std::move(midi));
+		SoundPieces p = encode_pieces(s, {}, std::nullopt, &host);
 		expect(text(p.max_voices, "maxVoices")).to_equal(std::string("8"));
 		expect(keys(*p.midi_output.find("midiOutput"))).to_equal(std::vector<std::string>{"channel", "noteForDrum"});
 	});

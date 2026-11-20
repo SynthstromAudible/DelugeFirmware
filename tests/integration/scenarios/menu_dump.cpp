@@ -149,7 +149,12 @@ bool target_is_conditional(const deluge::scenes::bind::Target& target) {
 	if (!target.valid()) {
 		return false;
 	}
-	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(deluge::instrument::kSettings, target.path);
+	// A sound's routing rows are its group's; every other setting's the dump names by the instrument's table
+	const bool routing = target.kind == deluge::scenes::bind::Target::Kind::MODEL
+	                     && target.group == deluge::project::SettingGroupId::SOUND_ROUTING;
+	const std::span<const deluge::plugin::SettingInfo> table =
+	    routing ? deluge::project::table_of(target.group) : deluge::instrument::kSettings;
+	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(table, target.path);
 	return row != nullptr && row->extras != nullptr
 	       && (!row->extras->applies_when.empty() || !row->extras->applies_any.empty());
 }
