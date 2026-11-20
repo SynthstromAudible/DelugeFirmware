@@ -334,8 +334,10 @@ deluge::midi::DeviceId spec_device() {
 
 /// @brief The focused item's own learn hooks, for an example that reads whether the item learned (which
 ///        `offer_while_learning`'s "used" answer does not say) or that must not open learn mode around the learn.
-const deluge::scenes::menu::CustomItem& focused_item() {
-	return *menu_scene().focused()->custom;
+/// @return The item, or null when nothing is focused or the focused node has no item.
+const deluge::scenes::menu::CustomItem* focused_item() {
+	const deluge::scenes::menu::Node* at = menu_scene().focused();
+	return at == nullptr ? nullptr : at->custom;
 }
 
 /// @brief Offer the menu one MIDI message in learn mode: LEARN held for it, Shift up.
@@ -1726,8 +1728,12 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   focus_command_row(pc_rig, settings.ctx, i);
 			   const std::string want = table().value("learn_own/" + std::to_string(i) + "/pgm", "slot");
 			   const bool is_fill = want == "refused";
-			   expect(focused_item().learn_program_change(spec_device(), 2, static_cast<int32_t>(7 + i)))
-			       .to_equal(!is_fill); // FILL refuses
+			   const deluge::scenes::menu::CustomItem* item = focused_item();
+			   expect(item).not_().to_be_null();
+			   if (item != nullptr) {
+				   expect(item->learn_program_change(spec_device(), 2, static_cast<int32_t>(7 + i)))
+				       .to_equal(!is_fill); // FILL refuses
+			   }
 			   const std::string pc_got = CommandSlots::capture().describe();
 			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
 			   size_t refusals = 0;
@@ -1778,7 +1784,11 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(focused_item().learn_cc(spec_device(), 3, 42, 0)).to_be_false();
+		const deluge::scenes::menu::CustomItem* item = focused_item();
+		expect(item).not_().to_be_null();
+		if (item != nullptr) {
+			expect(item->learn_cc(spec_device(), 3, 42, 0)).to_be_false();
+		}
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 0)).to_be_true();
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
@@ -2624,7 +2634,11 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		focus_command_row(r, settings.ctx, 0);
 		// Channel 3 + `IS_A_CC`, CC 42: the readout is the cable's display name, "CHANNEL 4"
 		// (1-based, with the CC band subtracted back off) and "CC 42".
-		expect(focused_item().learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+		const deluge::scenes::menu::CustomItem* item = focused_item();
+		expect(item).not_().to_be_null();
+		if (item != nullptr) {
+			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
 		saved.restore();
@@ -2640,7 +2654,11 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(focused_item().learn_note_on(spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+		const deluge::scenes::menu::CustomItem* item = focused_item();
+		expect(item).not_().to_be_null();
+		if (item != nullptr) {
+			expect(item->learn_note_on(spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
 		saved.restore();
@@ -2652,7 +2670,11 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r{board_64(), profile_64()};
 		focus_command_row(r, settings.ctx, 0);
-		expect(focused_item().learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+		const deluge::scenes::menu::CustomItem* item = focused_item();
+		expect(item).not_().to_be_null();
+		if (item != nullptr) {
+			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
 		saved.restore();

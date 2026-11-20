@@ -1050,7 +1050,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::midi_command_play, ctx);
 		// Channel 3 + `IS_A_CC`, CC 42 -- the same binding `tables_3_spec`'s learned-readout golden
 		// uses, so the three-line shape in `entered` is the one that file already pins at unit level.
-		expect(menu_scene().focused()->custom->learn_cc(deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
+		const deluge::scenes::menu::Node* play = menu_scene().focused();
+		expect(play).not_().to_be_null();
+		expect(play == nullptr ? nullptr : play->custom).not_().to_be_null();
+		if (play != nullptr && play->custom != nullptr) {
+			expect(play->custom->learn_cc(deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
+		}
 		menu_scene().open(nodes::midi_commands, ctx);
 
 		const uitest::RunResult result =

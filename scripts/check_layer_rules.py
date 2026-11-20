@@ -446,9 +446,9 @@ RULES = [
     (
         # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/**,
         # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) and midi/** (the
-        # dependency-free MIDI protocol library, whose `midi::DeviceId` a MIDI `UiEvent` carries) may be included --
-        # never model/, gui/, hid/, or the root headers (definitions*, board_config.h,
-        # board_layout.hpp) that would pull the model layer in by the back door.
+        # dependency-free MIDI protocol library, whose `midi::DeviceId` a MIDI `UiEvent` carries)
+        # may be included -- never model/, gui/, hid/, or the root headers (definitions*,
+        # board_config.h, board_layout.hpp) that would pull the model layer in by the back door.
         "shell-includes-outside",
         "src/shell/**",
         "include",
@@ -478,13 +478,14 @@ RULES = [
     (
         # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
         # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
-        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol library), and -- being the first UI layer
-        # allowed to reach into the model -- model/**, modulation/**, playback/**, processing/**,
-        # storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the
-        # sole exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not
-        # the trailing catch-all group, unlike shell-includes-outside's `definitions.*`, which
-        # shell must NOT reach): scenes is deliberately the first model-aware UI layer, so the
-        # header that pulls in `params::Kind` and friends is expected, not a back door.
+        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol library),
+        # and -- being the first UI layer allowed to reach into the model -- model/**,
+        # modulation/**, playback/**, processing/**, storage/**, gui/l10n/**, definitions_cxx.hpp.
+        # Never gui/ otherwise (gui/l10n/ is the sole exception), never hid/. `definitions_cxx.hpp`
+        # sits in the allow-list itself (not the trailing catch-all group, unlike
+        # shell-includes-outside's `definitions.*`, which shell must NOT reach): scenes is
+        # deliberately the first model-aware UI layer, so the header that pulls in `params::Kind`
+        # and friends is expected, not a back door.
         #
         # `io/**` is on the list on the argument made for `processing/**` below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
         # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root needs it -- `midiEngine`

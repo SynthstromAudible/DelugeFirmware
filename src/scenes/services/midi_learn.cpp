@@ -366,7 +366,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	//
 	// In learn mode only, as the dispatchers reach `View` only then; there, a note-on, a CC and a program change are
 	// used up whatever they learned (`View::pcReceivedForMIDILearn` learns nothing), and a pitch bend is never used. A
-	// device naming no cable is the "no message" value `UiEvent` documents and is dropped.
+	// null device (or one naming no cable) is the "no message" value `UiEvent` documents and is dropped.
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:

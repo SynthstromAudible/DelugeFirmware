@@ -5,6 +5,10 @@
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
@@ -56,6 +60,29 @@ describe device_registry("the host's MIDI device handles", ${
 		const DeviceId second = id_of(other);
 		expect(second.value).not_().to_equal(first.value);
 		expect(cable_of(second)).to_equal(static_cast<::MIDICable*>(&other));
+	});
+
+	// Last in the file: it fills the session's table, which is this process's alone (one spec file per process).
+	it("gives no handle once every hosted handle is taken, and keeps the ones it gave", _ {
+		static std::array<SpecCable, kMaxHostedDevices + 1> cables;
+		const DeviceId kept = id_of(cables[0]);
+		expect(static_cast<bool>(kept)).to_be_true();
+		size_t refused_at = cables.size();
+		for (size_t i = 1; i < cables.size(); i++) {
+			if (!id_of(cables[i])) {
+				refused_at = i;
+				break;
+			}
+		}
+		// The table holds kMaxHostedDevices cables, so the last of these is refused at the latest.
+		expect(refused_at).to_be_less_than(cables.size());
+		if (refused_at == cables.size()) {
+			return;
+		}
+		expect(id_of(cables[refused_at]).value).to_equal(DeviceId{}.value);
+		expect(id_of(cables[0]).value).to_equal(kept.value);
+		expect(cable_of(kept)).to_equal(static_cast<::MIDICable*>(&cables[0]));
+		expect(cable_of(DeviceId{static_cast<uint16_t>(kFirstHosted.value + kMaxHostedDevices)})).to_be_null();
 	});
 });
 

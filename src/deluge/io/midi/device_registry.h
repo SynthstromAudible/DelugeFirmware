@@ -37,7 +37,9 @@ inline constexpr uint16_t kMaxHostedDevices = 64;
 
 /// @brief @p cable's handle: a fixed port's constant, or a hosted device's, given the first time it is asked for.
 /// @param cable The cable to name.
-/// @return The handle; none once every hosted handle is taken (@ref kMaxHostedDevices).
+/// @return The handle; none once every hosted handle is taken (@ref kMaxHostedDevices). A learn offer whose event
+///         names none is not taken by any scene: `ShellHostUI` passes it on to the base `UI` learn answer, and when
+///         that does not use it either, `PlaybackHandler` handles the message as usual.
 [[nodiscard]] DeviceId id_of(const ::MIDICable& cable);
 
 /// @brief The cable @p id names.

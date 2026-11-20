@@ -4,6 +4,7 @@
 ///        from defaults.
 
 #include "gui/ui/menu_view_of.h"
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -80,9 +81,11 @@ struct Rig {
 		                         /*kit_global_fx=*/false);
 	}
 	/// @brief Open @p root, landing on @p at (the root itself when it is the root).
-	void open(const Node& root, const Node& at) {
+	void open(const Node& root, const Node& at) { open(root, at, menu_context()); }
+	/// @brief Open @p root on @p ctx, landing on @p at.
+	void open(const Node& root, const Node& at, const MenuContext& ctx) {
 		(void)menu::assign_node_ids(MenuScene::roots());
-		menu_scene().open(root, menu_context());
+		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(at)});
 	}
 };
@@ -381,8 +384,10 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		(void)button(ButtonId::Learn, true);
+		// From the DIN ports and from the first upstream USB port: a fixed port's handle comes back as that port's
+		// reference in the learned mapping.
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
-		                    .device = deluge::midi::id_of(spec_cable())})
+		                    .device = deluge::midi::kDin})
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* cc = ctx.model->mappings.find(*target);
@@ -390,6 +395,10 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		if (cc != nullptr) {
 			expect(int(cc->source.channel_or_zone)).to_equal(2);
 			expect(int(cc->source.note_or_cc)).to_equal(74);
+			expect(cc->source.device.has_value()).to_be_true();
+			if (cc->source.device) {
+				expect(int(cc->source.device->port)).to_equal(int(deluge::project::MidiDeviceRef::Port::DIN));
+			}
 		}
 		(void)button(ButtonId::Learn, false);
 		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true); // unlearn
@@ -397,7 +406,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 
 		(void)button(ButtonId::Learn, true);
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5, .data1 = 0, .data2 = 64,
-		                    .device = deluge::midi::id_of(spec_cable())})
+		                    .device = deluge::midi::kUpstreamUsb1})
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* bend = ctx.model->mappings.find(*target);
@@ -405,8 +414,48 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		if (bend != nullptr) {
 			expect(int(bend->source.channel_or_zone)).to_equal(5);
 			expect(int(bend->source.note_or_cc)).to_equal(128);
+			expect(bend->source.device.has_value()).to_be_true();
+			if (bend->source.device) {
+				expect(int(bend->source.device->port))
+				    .to_equal(int(deluge::project::MidiDeviceRef::Port::UPSTREAM_USB_1));
+			}
 		}
 		(void)button(ButtonId::Learn, false);
+	});
+
+	it("hands the sink no device for a gold knob's learn, and the message's device for a MIDI knob's", _ {
+		select_language();
+		Rig r;
+		deluge::scenes::bind::RecordingSink recording;
+		MenuContext ctx = r.menu_context();
+		ctx.sink = &recording;
+		r.open(nodes::sound_root, nodes::lpf_res, ctx);
+		r.shell.tick(0);
+		expect(menu_scene().learn_target().has_value()).to_be_true();
+		const deluge::midi::DeviceId device = deluge::midi::id_of(spec_cable());
+
+		(void)button(ButtonId::Learn, true);
+		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		expect(send(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64, .device = device})
+		           .handled)
+		    .to_be_true();
+		(void)button(ButtonId::Learn, false);
+
+		std::vector<deluge::scenes::bind::GestureRequest> knobs;
+		for (const deluge::scenes::bind::GestureRequest& g : recording.gestures) {
+			if (g.kind == deluge::scenes::bind::GestureRequest::Kind::LEARN_KNOB) {
+				knobs.push_back(g);
+			}
+		}
+		expect(knobs.size()).to_equal(size_t{2});
+		if (knobs.size() != 2) {
+			return;
+		}
+		expect(knobs[0].device.value).to_equal(deluge::midi::DeviceId{}.value); // the gold knob
+		expect(knobs[0].value).to_equal(int64_t{1});
+		expect(knobs[1].device.value).to_equal(device.value); // the CC
+		expect(knobs[1].value).to_equal(int64_t{74});
+		expect(knobs[1].midi_channel).to_equal(int32_t{2});
 	});
 
 	it("outside learn mode leaves a gold turn to the knobs", _ {

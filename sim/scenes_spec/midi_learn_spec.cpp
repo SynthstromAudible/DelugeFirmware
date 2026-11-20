@@ -1421,10 +1421,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("a MIDI event naming no device is dropped", _ {
-		// `UiEvent::device`'s documented "no message" value. The service is the only thing in the
-		// tree that turns it back into a cable, so it is the only thing that can refuse -- and it refuses
-		// by reporting the event unhandled, which lets `Router` count it rather than silently
-		// swallowing it.
+		// `UiEvent::device`'s documented "no message" value: the service reports the event unhandled, so
+		// `Router` counts it as dropped, and the learn slot keeps its poison value.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		const SectionSlot slot{*fixture.song, 8};
 		expect(poison(slot)).to_be_true();
