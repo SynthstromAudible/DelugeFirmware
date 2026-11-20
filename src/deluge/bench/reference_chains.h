@@ -27,9 +27,9 @@
 #include "dsp-next/core/detail/raw_ops.h"
 #include "effects/chain_core.h"
 #include "effects/filter.h"
+#include "effects/fx_section.h"
 #include "effects/master_chain.h"
 #include "effects/saturation.h"
-#include "effects/sound_chain.h"
 #include "effects/track_chain.h"
 
 #include <algorithm>
@@ -121,7 +121,7 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
 /// @param sound_stereo The sound's block, processed in place.
 /// @param reverbBuffer The reverb send.
 /// @return Whether anything was sent to the reverb.
-inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<StereoSample> sound_stereo,
+inline bool sound(fx::ChainCore& c, const fx::FxSectionInputs& in, std::span<StereoSample> sound_stereo,
                   fx::ReverbSend reverbBuffer) {
 	const fx::EffectStates& settings = *in.fx.settings;
 	int32_t postFXVolume = in.post_fx_volume.raw();

@@ -1668,7 +1668,7 @@ block's inputs from its params and makes one call.
   also holds the stage they share, `render_fx`: the mod FX (or the grain, when
   the type in effect is GRAIN), then the EQ, then the delay. A host chain's soft
   off of a GRAIN it holds (`soft_off_grain`) is here too.
-- **`SoundChain`** (`sound_chain.{h,cpp}`) is a sound's effects after its
+- **`FxSection`** (`fx_section.{h,cpp}`) is a sound's effects after its
   voices: bitcrush, mod FX or grain, EQ, delay, stutter, send and volume,
   compressor. The per-voice filter and saturation stay in `Sound`. The sidechain
   is a patch source, and the sound renders it before its voices.
@@ -1693,7 +1693,7 @@ block's inputs from its params and makes one call.
 
   The master's saturation and sidechain are saved with the song and not
   rendered.
-- **Inputs are values.** Each inputs struct (`FxInputs`, `SoundChainInputs`,
+- **Inputs are values.** Each inputs struct (`FxInputs`, `FxSectionInputs`,
   `TrackChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
   - param finals and knobs;
   - the owner's render copy of its settings (`const EffectStates*`);
@@ -1702,9 +1702,9 @@ block's inputs from its params and makes one call.
   - the song's stutter and its rate while this owner is the one stuttering.
 
   No `ParamManager`, song or engine state enters the library.
-- **The adapters sit with the params that feed them.** `soundChainInputs`
-  (`processing/sound/sound_chain_inputs`) reads a sound's patcher finals, so it
-  travels with `Sound` when the synth becomes a plugin. Its `SoundChain` is the
+- **The adapters sit with the params that feed them.** `fxSectionInputs`
+  (`processing/sound/fx_section_inputs`) reads a sound's patcher finals, so it
+  travels with `Sound` when the synth becomes a plugin. Its `FxSection` is the
   synth's own FX section, which the mod matrix modulates.
   - `trackChainInputs`, `masterChainInputs` and `masterPostInputs`
     (`model/fx/chain_inputs`) read unpatched params and automation. Those

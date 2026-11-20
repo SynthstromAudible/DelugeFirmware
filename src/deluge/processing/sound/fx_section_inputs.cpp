@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/sound/sound_chain_inputs.h"
+#include "processing/sound/fx_section_inputs.h"
 #include "util/synth_noise.h"
 
 #include "model/fx/effect_reads.h"
@@ -29,9 +29,9 @@
 
 namespace params = deluge::modulation::params;
 
-deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
-                                                   const deluge::effects::Delay::State& delay, bool anyVoices,
-                                                   deluge::dsp::Q<31> reverbSendAmount) {
+deluge::effects::FxSectionInputs fxSectionInputs(Sound& sound, ParamManager& paramManager,
+                                                 const deluge::effects::Delay::State& delay, bool anyVoices,
+                                                 deluge::dsp::Q<31> reverbSendAmount) {
 	using deluge::synth::matrix::global_param_value;
 	const auto& finals = sound.params.param_final_values;
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();

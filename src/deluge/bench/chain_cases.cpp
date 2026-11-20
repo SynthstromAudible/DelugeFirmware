@@ -1,6 +1,6 @@
 /// @file
 /// @brief The effect chain cases' rig, setup and blocks.
-/// @details Each block is one home's chain over the block in place: its runtime (effects::SoundChain, TrackChain or
+/// @details Each block is one home's chain over the block in place: its runtime (effects::FxSection, TrackChain or
 /// MasterChain) or the same sequence written out over its components (bench/reference_chains.h), at the settings and
 /// inputs its owner would hand it, with the owner's delay working state set up first. The rings and tapes come from the
 /// app's allocators and delay arena, as an owner's do.
@@ -9,8 +9,8 @@
 
 #include "bench/reference_chains.h"
 #include "definitions_cxx.hpp"
+#include "effects/fx_section.h"
 #include "effects/master_chain.h"
-#include "effects/sound_chain.h"
 #include "effects/track_chain.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -37,7 +37,7 @@ constexpr uint32_t kTickInverse = 18'700'000;
 /// @brief What every effect chain case renders with: the home's chain, its settings, the work block and the reverb
 /// send. The cases run one after another, so they share it; each case's setup makes its chain anew.
 struct FxChainRig {
-	std::optional<effects::SoundChain> sound;
+	std::optional<effects::FxSection> sound;
 	std::optional<effects::TrackChain> clip;
 	std::optional<effects::MasterChain> master;
 	effects::EffectStates settings{};
@@ -144,8 +144,8 @@ void clear() {
 }
 
 void sound_block(bool reference) {
-	effects::SoundChain& chain = *rig.sound;
-	const effects::SoundChainInputs in{
+	effects::FxSection& chain = *rig.sound;
+	const effects::FxSectionInputs in{
 	    .fx = fx_inputs(chain.core(), dsp::q<31>(0.03125)),
 	    .bitcrush = kBitcrush,
 	    .post_fx_volume = kVolume,

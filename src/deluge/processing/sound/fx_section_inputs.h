@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 
 #include <cstdint>
 
@@ -33,6 +33,6 @@ class Sound;
 /// @param anyVoices Whether the sound has voices.
 /// @param reverbSendAmount The sound's reverb send amount.
 /// @return The inputs for the sound's chain for this block.
-[[nodiscard]] deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
-                                                                 const deluge::effects::Delay::State& delay,
-                                                                 bool anyVoices, deluge::dsp::Q<31> reverbSendAmount);
+[[nodiscard]] deluge::effects::FxSectionInputs fxSectionInputs(Sound& sound, ParamManager& paramManager,
+                                                               const deluge::effects::Delay::State& delay,
+                                                               bool anyVoices, deluge::dsp::Q<31> reverbSendAmount);

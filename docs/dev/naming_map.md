@@ -30,7 +30,7 @@ for routing edges and summing buffers.
 | `PhaseIncrementFineTuner` | `dsp::fixed::FineTune` | the synth library: done; the app's sample holders: DelugeSynth state plan D | |
 | `instrument::SoundState` | `DelugeSynth::State`, composed of its components' states | DelugeSynth state plan E | |
 | app `Source` (`processing/source.h`) | dissolved into the state, the config and `Resources` | DelugeSynth state plan D | `synth::Source` keeps its name |
-| `effects::SoundChain` | `effects::FxSection` | DelugeSynth state plan E | "chain" means a host list of devices |
+| `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
 | `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |
 
 ## Slot

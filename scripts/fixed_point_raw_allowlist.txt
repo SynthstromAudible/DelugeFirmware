@@ -132,6 +132,7 @@ src/deluge/util/param_functions.cpp raw=0 boundary=2
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 boundary=8
+src/effects/fx_section.cpp raw=0 boundary=1
 src/effects/granular.cpp raw=0 boundary=4
 src/effects/master_chain.cpp raw=0 boundary=1
 src/effects/mod_fx.cpp raw=0 boundary=4
@@ -140,7 +141,6 @@ src/effects/reverb.cpp raw=0 boundary=3
 src/effects/send_and_volume.h raw=0 boundary=1
 src/effects/sidechain.cpp raw=0 boundary=7
 src/effects/sidechain.h raw=0 boundary=2
-src/effects/sound_chain.cpp raw=0 boundary=1
 src/effects/track_chain.cpp raw=0 boundary=3
 src/instruments/deluge/composed_state.cpp raw=0 boundary=2
 src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5

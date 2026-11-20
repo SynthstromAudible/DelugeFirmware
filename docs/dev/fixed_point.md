@@ -271,7 +271,7 @@ operation: on the x86 host through SIMDe, and under qemu on the A9's own instruc
   synced rate the Q24 rate times it, rounded, Q23; the sync levels' run-time shifts and the sync types' 3/2 and 2/3 stay
   integer. The grain send is the Q27 volume times the Q31 send, moved to Q31; the master's pan amplitudes are Q30, and
   it halves its volume into the compressor's 4.27 gains and takes an eighth of the song volume as its 3.29 final volume
-  (`scale_shr_floor`). The chains' inputs are typed (`SoundChainInputs`, `TrackChainInputs`, `MasterChainInputs`,
+  (`scale_shr_floor`). The chains' inputs are typed (`FxSectionInputs`, `TrackChainInputs`, `MasterChainInputs`,
   `MasterPostInputs`: Q27 volumes, Q31 sends, pans and thresholds, the Q29 duck depth, Q30 pan gains), as are the send
   and volume's params, the duck block and the reverb's return duck; a chain's running post-FX volume is Q27 too: the
   bitcrush lowers it by a run-time `scale_shr_floor`, and the mod FX and grain scale it in place. The bench's chain and

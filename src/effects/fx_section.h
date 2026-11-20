@@ -29,29 +29,29 @@ namespace deluge::effects {
 
 /// @brief What a sound's post-voice chain reads for one block, as the sound resolved it from its patcher's finals and
 /// its unpatched params.
-struct SoundChainInputs {
+struct FxSectionInputs {
 	FxInputs fx;
 	BitcrushParams bitcrush;
-	dsp::Q<27> post_fx_volume;       ///< GLOBAL_VOLUME_POST_FX's final, Q27: 2^27 unity.
-	dsp::Q<27> post_reverb_volume;   ///< GLOBAL_VOLUME_POST_REVERB_SEND's final, Q27: 2^27 unity.
-	dsp::Q<31> reverb_send;          ///< The reverb send amount, Q31.
-	bool sound;                      ///< Whether the sound has voices.
-	dsp::Q<31> compressor_threshold; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
-	Stutter* stutter;                ///< The song's stutter while this sound is the one stuttering, else null.
-	uint32_t stutter_rate;           ///< The stutter's rate on the delay's rate scale (16777216 neutral).
+	dsp::Q<27> post_fx_volume{};       ///< GLOBAL_VOLUME_POST_FX's final, Q27: 2^27 unity.
+	dsp::Q<27> post_reverb_volume{};   ///< GLOBAL_VOLUME_POST_REVERB_SEND's final, Q27: 2^27 unity.
+	dsp::Q<31> reverb_send{};          ///< The reverb send amount, Q31.
+	bool sound{};                      ///< Whether the sound has voices.
+	dsp::Q<31> compressor_threshold{}; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
+	Stutter* stutter{};                ///< The song's stutter while this sound is the one stuttering, else null.
+	uint32_t stutter_rate{};           ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };
 
 /// @brief A sound's effects after its voices: bitcrush, mod FX or grain, EQ, delay, stutter, reverb send and volume,
 /// then the compressor, in that order. The per-voice filter and saturation stay with the sound, and its sidechain is a
 /// patch source the sound renders before its voices.
-class SoundChain {
+class FxSection {
 public:
 	/// @brief Builds a sound's chain. A sound's entry into GRAIN clears the granular, and its first block ramps from
 	/// its own post-reverb volume.
 	/// @param mod_fx_allocator   Where the mod-FX unit's storage comes from.
 	/// @param granular_allocator Where the granular's storage comes from.
 	/// @param arena              Where the delay's tapes come from.
-	SoundChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena);
+	FxSection(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena);
 
 	[[nodiscard]] ChainCore& core() { return core_; }
 	[[nodiscard]] const ChainCore& core() const { return core_; }
@@ -61,7 +61,7 @@ public:
 	/// @param in    The block's resolved inputs.
 	/// @param send  The reverb send, one value per frame.
 	/// @return Whether the block fed the reverb.
-	bool process(std::span<dsp::StereoSample> block, const SoundChainInputs& in, ReverbSend send);
+	bool process(std::span<dsp::StereoSample> block, const FxSectionInputs& in, ReverbSend send);
 
 	/// @return The effects the chain renders, in order (chain.h's names).
 	[[nodiscard]] static std::span<const std::string_view> order();

@@ -83,9 +83,9 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
+#include "processing/sound/fx_section_inputs.h"
 #include "processing/sound/param_dump.h"
 #include "processing/sound/param_manager_view.h"
-#include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -175,7 +175,7 @@ void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages
 } // namespace
 
 Sound::Sound()
-    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+    : fxSection_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
@@ -2084,9 +2084,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	checkStack("delay");
-	if (chain_.process(sound_stereo,
-	                   soundChainInputs(*this, *paramManager, delayWorkingState, !voices_.empty(), reverbSendAmount),
-	                   {reverbBuffer, sound_stereo.size()})) {
+	if (fxSection_.process(sound_stereo,
+	                       fxSectionInputs(*this, *paramManager, delayWorkingState, !voices_.empty(), reverbSendAmount),
+	                       {reverbBuffer, sound_stereo.size()})) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 

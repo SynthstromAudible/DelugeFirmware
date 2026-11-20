@@ -67,7 +67,7 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 #include "instruments/deluge/sound_state.h"
 #include <optional>
 #include <utility>
@@ -129,9 +129,9 @@ public:
 
 	/// @brief The sound's effects after its voices.
 	/// @return The sound's chain.
-	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const { return chain_.core(); }
+	[[nodiscard]] deluge::effects::FxSection& fxSection() { return fxSection_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() { return fxSection_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const { return fxSection_.core(); }
 	/// @brief The sound's effect settings: its bound record's, else its binding's own.
 	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
@@ -150,7 +150,7 @@ public:
 	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
 		return deluge::model::EffectsOwner{
-		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
+		    .core = &fxSection_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
@@ -507,7 +507,7 @@ private:
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
-	deluge::effects::SoundChain chain_;
+	deluge::effects::FxSection fxSection_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
 	/// @brief Set by a read whose element held an arpeggiator.

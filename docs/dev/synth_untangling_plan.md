@@ -444,7 +444,7 @@ boundary will be ready for it.
 
 ### Explicitly out of scope (for this effort)
 
-- The Sound-level FX chain (`SoundChain`, which `Sound` owns through its
+- The Sound-level FX chain (`FxSection`, which `Sound` owns through its
   `ModControllableAudio` base) — a second, separate untangling. The host's
   chains already have their own owners (`TrackChannel`, `MasterChannel`).
 - The arpeggiator — note-event domain; could later become an L3 event

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 
 #include <array>
 
@@ -25,11 +25,11 @@ namespace {
 constexpr std::array<std::string_view, 6> kOrder{"bitcrush", "mod_fx", "eq", "delay", "stutter", "compressor"};
 } // namespace
 
-SoundChain::SoundChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena)
+FxSection::FxSection(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena)
     : core_{mod_fx_allocator, granular_allocator, EnterGrain::CLEAR, arena, -1} {
 }
 
-bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInputs& in, ReverbSend send) {
+bool FxSection::process(std::span<dsp::StereoSample> block, const FxSectionInputs& in, ReverbSend send) {
 	const EffectStates& settings = *in.fx.settings;
 	core_.send_and_volume().prime(in.post_reverb_volume);
 
@@ -64,7 +64,7 @@ bool SoundChain::process(std::span<dsp::StereoSample> block, const SoundChainInp
 	return sent;
 }
 
-std::span<const std::string_view> SoundChain::order() {
+std::span<const std::string_view> FxSection::order() {
 	return kOrder;
 }
 

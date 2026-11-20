@@ -603,7 +603,7 @@ in cycles, worst size.
 
 ## Chains
 
-Each home's effect chain runtime (`effects::SoundChain`, `TrackChain`, `MasterChain`) against the same sequence written
+Each home's effect chain runtime (`effects::FxSection`, `TrackChain`, `MasterChain`) against the same sequence written
 out over the same components (`bench/reference_chains.h`), in one image (`DELUGE_DSP_BENCH_CASES=fx_chains`), on
 2026-10-13. Settings: chorus, a ringing digital delay (feedback `0x30000000`, unsynced), EQ off flat, bitcrush and
 sample-rate reduction on, compressor on (threshold `0x40000000`); a track chain's saturation and both filters and the
