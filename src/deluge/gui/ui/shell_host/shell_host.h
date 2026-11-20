@@ -110,7 +110,7 @@ private:
 
 /// @brief How many menu writes the host's edit sink has refused since start-up. Each is also logged.
 /// @return HostEditSink::refusals of @ref edit_sink.
-[[nodiscard]] uint32_t shellEditRefusals();
+[[nodiscard]] uint32_t edit_refusals();
 
 /// @brief Apply @p edit to the current song: the one way the write ports apply an Edit.
 /// @param edit The edit. The caller has checked that a song is loaded.

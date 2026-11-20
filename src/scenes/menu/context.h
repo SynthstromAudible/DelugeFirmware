@@ -194,8 +194,9 @@ struct MenuContext {
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
-	deluge::scenes::bind::Ports ports{}; ///< the host's ports; a spec's fakes
-	                                     /// @}
+	/// The host's ports; a spec's fakes.
+	deluge::scenes::bind::Ports ports{};
+	/// @}
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,

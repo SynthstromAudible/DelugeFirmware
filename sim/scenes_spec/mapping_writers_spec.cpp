@@ -515,7 +515,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 			expect(played[0].cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
 		}
 
-		// The menu unlearns through the song's table (ShellEditSink::learn with no command).
+		// The menu unlearns through the song's table (`HostLearnSink::learn` in `shell_host/learn_sink.cpp`, with no command).
 		deluge::midi::takeoverStore().at(knob, source).previous = 31;
 		deluge::edits::unlearnMappingFor(knob);
 		expect(storeSaw(knob, source, 31)).to_be_false();

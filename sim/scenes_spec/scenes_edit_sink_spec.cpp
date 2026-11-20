@@ -174,11 +174,11 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		deluge::edits::settingFor(*saw, "osc1/type", Value::makeScalar("saw"));
 		static_cast<Kit*>(f.instrument)->selectedDrum = first;
 		const MenuContext ctx = whole_kit(f);
-		const uint32_t refused = deluge::gui::shell_host::shellEditRefusals();
+		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
 		sink_write(menu::nodes::sample0_reverse, ctx, 1);
 		expect(first->boundState()->sources[0].reversed).to_be_true();
 		expect(unloaded->boundState()->sources[0].reversed).to_be_true();
-		expect(deluge::gui::shell_host::shellEditRefusals()).to_equal(refused);
+		expect(deluge::gui::shell_host::edit_refusals()).to_equal(refused);
 	});
 
 	it("leaves a drum with a sample oscillator in its synth mode under affect-entire, whatever the mode written", _ {
@@ -397,12 +397,12 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		f.song->setCurrentClip(f.clip);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		const int before = spec::menu_engine(ctx).sound->boundState()->max_voice_count;
-		const uint32_t refused = deluge::gui::shell_host::shellEditRefusals();
+		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
 		menu::host_ports().writes->write(bind::WriteRequest{
 		    .target = kMaxVoices.bind.target,
 		    .where = bind::Addresses{.slot = deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::DRUM, 9999}},
 		    .menu_value = 2});
-		expect(deluge::gui::shell_host::shellEditRefusals()).to_equal(refused + 1);
+		expect(deluge::gui::shell_host::edit_refusals()).to_equal(refused + 1);
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(before);
 	});
 

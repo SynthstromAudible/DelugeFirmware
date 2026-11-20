@@ -159,7 +159,7 @@ bool name_taken(const project::SettingAddress& owner, std::string_view name) {
 /// @param song  The song.
 /// @param focus The knobs' focus.
 /// @return The instrument, or null.
-Instrument* knob_instrument_of(::Song& song, const scenes::bind::KnobFocus& focus) {
+Instrument* knob_instrument_of(::Song& song, const controls::KnobFocus& focus) {
 	namespace bind = scenes::bind;
 	std::optional<uint32_t> id;
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
@@ -205,7 +205,7 @@ HostEditSink& edit_sink() {
 	return sink;
 }
 
-uint32_t shellEditRefusals() {
+uint32_t edit_refusals() {
 	return edit_sink().refusals();
 }
 
@@ -533,12 +533,12 @@ bool HostEditSink::write_controls(project::ControlsAddress owner, std::vector<pr
 	return counted_apply(edit);
 }
 
-bool HostEditSink::stutter(const scenes::bind::KnobFocus& focus, bool begin) {
+bool HostEditSink::stutter(const controls::KnobFocus& focus, bool begin) {
 	const std::optional<project::ParamAddress> owner = scenes::bind::knob_owner(focus);
 	return currentSong != nullptr && owner && bridge::stutterAt(*currentSong, *owner, begin);
 }
 
-bool HostEditSink::grab_region(const scenes::bind::KnobFocus& focus, uint32_t pos) {
+bool HostEditSink::grab_region(const controls::KnobFocus& focus, uint32_t pos) {
 	const std::optional<project::ParamAddress> owner = scenes::bind::knob_owner(focus);
 	return currentSong != nullptr && owner && bridge::grabRegionAt(*currentSong, *owner, pos);
 }
@@ -556,7 +556,7 @@ bool HostEditSink::write_effect(const scenes::bind::EffectOwner& owner, std::str
 	return counted_apply(edit);
 }
 
-bool HostEditSink::midi_cc_select(const scenes::bind::KnobFocus& focus, int32_t knob, bool on) {
+bool HostEditSink::midi_cc_select(const controls::KnobFocus& focus, int32_t knob, bool on) {
 	if (!on) {
 		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 			currentUIMode = UI_MODE_NONE;
@@ -600,7 +600,7 @@ bool HostEditSink::delete_knob_automation(const project::ParamAddress& address) 
 	return currentSong != nullptr && counted_apply(edit);
 }
 
-bool HostEditSink::instrument_edited(const scenes::bind::KnobFocus& focus) {
+bool HostEditSink::instrument_edited(const controls::KnobFocus& focus) {
 	Instrument* instrument = currentSong != nullptr ? knob_instrument_of(*currentSong, focus) : nullptr;
 	if (instrument == nullptr) {
 		return false;
