@@ -67,8 +67,8 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
 	const deluge::music::NoteName name = deluge::music::note_name(note_code, FlashStorage::defaultUseSharps);
 	append(out, len, cap, std::string_view{&name.letter, 1});
-	if (name.accidental != deluge::music::Accidental::None) {
-		const char sign = name.accidental == deluge::music::Accidental::Sharp ? '#' : deluge::gfx::oled::kFlatGlyph;
+	if (name.accidental != deluge::music::Accidental::NONE) {
+		const char sign = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
 		append(out, len, cap, std::string_view{&sign, 1});
 	}
 	// The octave as `intToString(octave, buffer, 1)` writes it: at least one digit, '-' first when negative.

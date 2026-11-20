@@ -30,8 +30,8 @@ describe note_names("note names", ${
 			const NoteName flat = note_name(note, false);
 			expect(sharp.letter).to_equal(static_cast<char>(kSharpLetters[pc]));
 			expect(flat.letter).to_equal(static_cast<char>(kFlatLetters[pc]));
-			expect(sharp.accidental).to_equal(kBlackKeys[pc] ? Accidental::Sharp : Accidental::None);
-			expect(flat.accidental).to_equal(kBlackKeys[pc] ? Accidental::Flat : Accidental::None);
+			expect(sharp.accidental).to_equal(kBlackKeys[pc] ? Accidental::SHARP : Accidental::NONE);
+			expect(flat.accidental).to_equal(kBlackKeys[pc] ? Accidental::FLAT : Accidental::NONE);
 		}
 	});
 	it("numbers the octave so that MIDI note 60 is C3", _ {

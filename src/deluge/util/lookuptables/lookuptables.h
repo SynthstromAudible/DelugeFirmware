@@ -52,19 +52,27 @@ inline constexpr const auto& releaseRateTable = deluge::plugin::kSidechainReleas
 
 // The note-name tables are music-theory's (music-theory/note_names.h), laid out by pitch class under the names the
 // app's callers index.
-template <typename T, typename Of>
-constexpr std::array<T, 12> pitchClassTable(Of of) {
-	std::array<T, 12> table{};
+inline constexpr std::array<char, 12> noteCodeToNoteLetter = [] {
+	std::array<char, 12> letters{};
 	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
-		table[pitchClass] = of(pitchClass);
+		letters[pitchClass] = deluge::music::note_letter(pitchClass, true);
 	}
-	return table;
-}
-inline constexpr auto noteCodeToNoteLetter =
-    pitchClassTable<char>([](int32_t note) { return deluge::music::note_letter(note, true); });
-inline constexpr auto noteCodeToNoteLetterFlats =
-    pitchClassTable<char>([](int32_t note) { return deluge::music::note_letter(note, false); });
-inline constexpr auto noteCodeIsSharp = pitchClassTable<bool>(deluge::music::is_accidental);
+	return letters;
+}();
+inline constexpr std::array<char, 12> noteCodeToNoteLetterFlats = [] {
+	std::array<char, 12> letters{};
+	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
+		letters[pitchClass] = deluge::music::note_letter(pitchClass, false);
+	}
+	return letters;
+}();
+inline constexpr std::array<bool, 12> noteCodeIsSharp = [] {
+	std::array<bool, 12> black{};
+	for (int32_t pitchClass = 0; pitchClass < 12; pitchClass++) {
+		black[pitchClass] = deluge::music::is_accidental(pitchClass);
+	}
+	return black;
+}();
 
 // iterancePresets -> util/lookuptables/preset_tables.h (needs Iterance)
 

@@ -39,9 +39,11 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/display.h"
+#include "storage/flash_storage.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -600,6 +602,27 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 			expect(path + " " + label_of(f.ctx, i)).to_equal(path + " " + table().value(path, "label"));
 		}
 		expect(label_of(f.ctx, 1)).to_equal(std::string("B-4    - B-3"));
+	});
+
+	it("names a black-key top note with the flat glyph when the device spells with flats", _ {
+		// With the device spelling in flats, a black key's name is the next letter up and the font's flat glyph; the
+		// spelling is a process-wide setting, so the guard puts it back however the example ends.
+		struct SharpsGuard {
+			bool saved = FlashStorage::defaultUseSharps;
+			~SharpsGuard() { FlashStorage::defaultUseSharps = saved; }
+		} guard;
+		RangeFixture f{3};
+		const int16_t tops[] = {46, 70, 32767}; // A#1/Bb1, A#3/Bb3, the top
+		f.set_tops(tops);
+
+		const std::string flat_b3 = std::string{"B"} + deluge::gfx::oled::kFlatGlyph + "3";
+		FlashStorage::defaultUseSharps = false;
+		const std::string flats = label_of(f.ctx, 1);
+		expect(flats.substr(flats.size() - flat_b3.size())).to_equal(flat_b3);
+		FlashStorage::defaultUseSharps = true;
+		const std::string sharps = label_of(f.ctx, 1);
+		expect(sharps.substr(sharps.size() - 3)).to_equal(std::string{"A#3"});
+		expect(flats.size()).to_equal(sharps.size());
 	});
 
 	it("chains to the node it stood in for, and its chain_targets are the range-specific set", _ {

@@ -12,9 +12,9 @@ namespace deluge::music {
 
 /// @brief The sign a note's name carries after its letter.
 enum class Accidental : uint8_t {
-	None,  ///< a white key: the letter alone
-	Sharp, ///< a black key named with sharps
-	Flat,  ///< a black key named with flats
+	NONE,  ///< a white key: the letter alone
+	SHARP, ///< a black key named with sharps
+	FLAT,  ///< a black key named with flats
 };
 
 /// @brief One pitch class's spellings.
@@ -75,7 +75,7 @@ inline constexpr std::array<PitchClassName, 12> kPitchClassNames{{
 /// @brief A note's name in its parts.
 struct NoteName {
 	char letter;           ///< the pitch class's letter, 'A' to 'G'
-	Accidental accidental; ///< the sign after the letter, None on a white key
+	Accidental accidental; ///< the sign after the letter, NONE on a white key
 	int32_t octave;        ///< the octave number, on which MIDI note 60 is C3
 };
 
@@ -84,11 +84,11 @@ struct NoteName {
 /// @param sharps Whether to name a black key with sharps or with flats.
 /// @return The name's parts.
 [[nodiscard]] constexpr NoteName note_name(int32_t note, bool sharps) {
-	return {
-	    .letter = note_letter(note, sharps),
-	    .accidental = !is_accidental(note) ? Accidental::None : (sharps ? Accidental::Sharp : Accidental::Flat),
-	    .octave = note_octave(note),
-	};
+	Accidental accidental = Accidental::NONE;
+	if (is_accidental(note)) {
+		accidental = sharps ? Accidental::SHARP : Accidental::FLAT;
+	}
+	return {.letter = note_letter(note, sharps), .accidental = accidental, .octave = note_octave(note)};
 }
 
 } // namespace deluge::music
