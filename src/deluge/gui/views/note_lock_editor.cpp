@@ -150,6 +150,9 @@ std::optional<NoteLockEditor::PressedRow> NoteLockEditor::getRowOfPress(int32_t 
 
 void NoteLockEditor::arm(int32_t i, bool samePress) {
 	const EditPadPress& press = clipView_.editPadPresses[i];
+	if (!samePress) {
+		notLockableNoticeDue_ = true;
+	}
 	std::optional<PressedRow> pressed = press.isActive ? getRowOfPress(i) : std::nullopt;
 	if (!pressed) {
 		note_locks::liveEdits.disarm(i);
@@ -247,9 +250,14 @@ bool NoteLockEditor::editsHeldNotes(ModelStackWithAutoParam const* modelStack) {
 	return clip != nullptr && modelStack->getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(clip);
 }
 
+bool NoteLockEditor::automatesHeldNotes(ModelStackWithAutoParam const* modelStack) {
+	return editsHeldNotes(modelStack)
+	       && (modelStack->paramCollection->getParamKind() != params::Kind::PATCHED
+	           || !note_locks::isLockableParam(modelStack->paramId));
+}
+
 int32_t NoteLockEditor::findPressesFor(ModelStackWithAutoParam const* modelStack, bool* matches) {
-	if (!editsHeldNotes(modelStack) || modelStack->paramCollection->getParamKind() != params::Kind::PATCHED
-	    || !note_locks::isLockableParam(modelStack->paramId)) {
+	if (!editsHeldNotes(modelStack) || automatesHeldNotes(modelStack)) {
 		return -1;
 	}
 	int32_t primary = -2;

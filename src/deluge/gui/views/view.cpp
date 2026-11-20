@@ -869,7 +869,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	if (!noteLock) {
 		value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 	}
-	HeldPadEdit heldPadEdit = noteLock ? HeldPadEdit::NOTE_LOCK : HeldPadEdit::NONE;
+	HeldPadEdit heldPadEdit = noteLock ? HeldPadEdit::NOTE_LOCK
+	                          : instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
+	                              ? HeldPadEdit::AUTOMATING
+	                              : HeldPadEdit::NONE;
 	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
 
@@ -1122,6 +1125,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	static PatchSource last_source1 = PatchSource::NONE;
 	static PatchSource last_source2 = PatchSource::NONE;
 	static HeldPadEdit last_held_pad_edit = HeldPadEdit::NONE;
+	static uint32_t not_lockable_notice_time = 0; // When the "not lockable" notice went up
 
 	// Display arbitration for multiple mod encoders ("juggling ball" system)
 	static params::Kind display_owner_kind = params::Kind::NONE;
@@ -1150,6 +1154,10 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 		if (heldPadEdit == HeldPadEdit::NOTE_LOCK) {
 			parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_LOCK_POPUP));
+			parameter_name.append(" ");
+		}
+		else if (heldPadEdit == HeldPadEdit::AUTOMATING) {
+			parameter_name.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_AUTOMATING_POPUP));
 			parameter_name.append(" ");
 		}
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -1245,6 +1253,31 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 
 	// Check if we need to update the notification (avoid excessive updates)
 	if (display->haveOLED()) {
+		// The first turn of a param that can't be locked, on each held pad, says so - and that it's being automated
+		// instead - for long enough to read before the values take over
+		constexpr uint32_t kNotLockableNoticeTime = kSampleRate;
+		if (heldPadEdit == HeldPadEdit::AUTOMATING) {
+			if (instrumentClipView.noteLocks.takeNotLockableNotice()) {
+				display->displayNotification(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_NOT_LOCKABLE),
+				                             std::nullopt);
+				not_lockable_notice_time = current_time;
+				last_param_kind = params::Kind::NONE; // So the next value is shown, whatever it is
+			}
+			uint32_t time_since_notice = current_time - not_lockable_notice_time;
+			if (time_since_notice < kNotLockableNoticeTime) {
+				hasPendingModEncoderValuePopup = true;
+				pendingPopupKind = kind;
+				pendingPopupParamID = paramID;
+				pendingPopupKnobPos = newKnobPos;
+				pendingPopupSource1 = source1;
+				pendingPopupSource2 = source2;
+				pendingPopupHeldPadEdit = heldPadEdit;
+				uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_FLUSH,
+				                               kNotLockableNoticeTime - time_since_notice);
+				return;
+			}
+		}
+
 		// Check if notification popup is active and if the parameter info has changed
 		bool has_param_info_changed = true;
 		bool has_min_time_elapsed = true;

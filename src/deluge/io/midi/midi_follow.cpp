@@ -1156,9 +1156,12 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			// mode don't display popup if you're currently editing the same param
 			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, PatchSource::NONE,
-				                                 PatchSource::NONE,
-				                                 noteLock ? View::HeldPadEdit::NOTE_LOCK : View::HeldPadEdit::NONE);
+				view.displayModEncoderValuePopup(
+				    kind, modelStackWithParam->paramId, newKnobPos, PatchSource::NONE, PatchSource::NONE,
+				    noteLock ? View::HeldPadEdit::NOTE_LOCK
+				    : isStepEditing && instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
+				        ? View::HeldPadEdit::AUTOMATING
+				        : View::HeldPadEdit::NONE);
 			}
 		}
 	}

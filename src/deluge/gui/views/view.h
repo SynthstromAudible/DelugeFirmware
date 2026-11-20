@@ -138,7 +138,8 @@ public:
 	/// What a knob turn on held note pads is doing to the param, shown in the value popup
 	enum class HeldPadEdit : uint8_t {
 		NONE,
-		NOTE_LOCK, // Locking it on the held notes
+		NOTE_LOCK,  // Locking it on the held notes
+		AUTOMATING, // It can't be locked, so step-automating it over the held notes
 	};
 	void displayModEncoderValuePopup(deluge::modulation::params::Kind kind, int32_t paramID, int32_t newKnobPos,
 	                                 PatchSource source1 = PatchSource::NONE, PatchSource source2 = PatchSource::NONE,

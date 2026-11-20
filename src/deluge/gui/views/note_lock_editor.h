@@ -20,6 +20,7 @@
 #include "model/note/note_locks.h"
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 class InstrumentClipView;
 class ModelStackWithAutoParam;
@@ -56,6 +57,11 @@ public:
 	/// Sets this param's lock, uncommitted, on every held note playing its Sound, and makes it heard. False if no
 	/// held note plays its Sound.
 	bool setHeldValue(ModelStackWithAutoParam* modelStack, int32_t value);
+	/// While note pads are held, a param of this clip that can't be locked (e.g. a patch cable's depth) is
+	/// step-automated over the held notes as before, and the knob popup says so
+	[[nodiscard]] bool automatesHeldNotes(ModelStackWithAutoParam const* modelStack);
+	/// True once per pad press: show the "not lockable" notice before the automated value
+	bool takeNotLockableNotice() { return std::exchange(notLockableNoticeDue_, false); }
 
 	// Edit pad presses
 
@@ -102,4 +108,5 @@ private:
 	bool changeMenuLocks(Change change);
 
 	InstrumentClipView& clipView_;
+	bool notLockableNoticeDue_{false};
 };
