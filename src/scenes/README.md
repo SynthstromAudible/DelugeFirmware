@@ -60,7 +60,7 @@ nothing.
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
-  host applies as an Edit (`bind::WriteSink` and the write ports), so the layer names no `model/edits/` header
+  host applies as an Edit (`bind::WriteSink`, the edit sink, and the other write ports), so the layer names no `model/edits/` header
   (`scenes-no-edits`) and holds no `Sound*`, `ParamManager*`, `Output*`, `AudioClip*`, …
   (`scenes-no-engine-pointers`). `currentSong` is never named (`scenes-currentSong`): the song
   arrives through `MenuContext` or `Services`.

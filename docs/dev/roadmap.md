@@ -118,9 +118,13 @@ engine and device manager. `python3 scripts/check_layer_rules.py --list` prints 
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = rack of lanes). The scenes' calls do not change, because addresses are already the API | P5 topology |
 | R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
 
-R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor, equalizer, filter, granular, mod-FX, stutter, send-and-volume, chain, master-chain, track-chain, LFO, live-input and sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definitions_cxx.hpp`; and `etl/string.h` through `util/etl_string.h`.
+R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached
+through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor,
+equalizer, filter, granular, mod-FX, stutter, send-and-volume, chain, master-chain, track-chain, LFO, live-input and
+sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definitions_cxx.hpp`; and `etl/string.h` through
+`util/etl_string.h`.
 
-Stage placement is **(proposed)**. Exit for R2: the scene specs run against a fake reader, and no file in
+Stage placement is **(proposed)**. Exit for R2: the scene specs run against fake ports, and no file in
 `src/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.
 
 ### Root-view program
