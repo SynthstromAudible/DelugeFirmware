@@ -29,9 +29,8 @@
 /// once per type in a binary.
 namespace deluge::scenes::bind {
 
-/// @brief Prints a binding as its device's handle (or any), its channel or zone (or none) and its number (or none),
-/// e.g.
-///        `{device 1, channel_or_zone 21, note_or_cc 42}`.
+/// @brief Prints a binding as its device's handle (or any), its channel or zone (or none) and its number (or none):
+///        `{device 1, channel_or_zone 21, note_or_cc 42}`, for example.
 /// @param os The stream to print to.
 /// @param b  The binding.
 /// @return @p os.
