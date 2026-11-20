@@ -1599,7 +1599,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			                                .samplesLate = samplesLate,
 			                                .fromMIDIChannel = fromMIDIChannel,
 			                                .invertReversed = instruction.invertReversed,
-			                                .locks = deluge::note_locks::pending.ref,
+			                                // With the arp on, the note it starts may be another held one
+			                                .locks = instruction.arpNoteOn->locks,
 			                            });
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
@@ -2406,7 +2407,8 @@ void Sound::startArpNoteOns(ModelStackWithSoundFlags* modelStack, ArpReturnInstr
 		        .samplesLate = 0,
 		        .fromMIDIChannel = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)],
 		        .invertReversed = instruction.invertReversed,
-		        .locks = deluge::note_locks::pending.ref,
+		        // The locks of the sequenced note that's holding this arp note
+		        .locks = arpNote->locks,
 		    });
 		arpNote->noteStatus[n] = ArpNoteStatus::PLAYING;
 	}
