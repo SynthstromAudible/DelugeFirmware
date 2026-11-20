@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
+#include <vector>
 
 class Song;
 
@@ -66,8 +67,25 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) override;
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
 	            bool useActualPosForParamManagers = true) override;
-	void replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack);
-	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey);
+	/// Accidental rows follow their display anchor if accidentalsFollowAnchor, else keep their pitch. Rows which end up
+	/// on the same pitch are merged.
+	void replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
+	                        bool accidentalsFollowAnchor, int32_t pendingTranspose = 0);
+	/// The per-note part of replaceMusicalMode, also used to nudge by scale degrees. Doesn't touch yScroll.
+	/// pendingTranspose is a uniform semitone shift the caller will apply to every row (and the key root) afterwards.
+	/// Markers are chosen against that final key.
+	void regroupNotes(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack,
+	                  bool accidentalsFollowAnchor, int32_t pendingTranspose = 0);
+	/// Sorts rows by y again and merges rows with equal y. wasInScale is per row, parallel to noteRows.
+	bool sortAndMergeNoteRows(ModelStackWithTimelineCounter* modelStack, std::vector<uint8_t>& wasInScale);
+	/// Adds the notes-within-octave used by this clip. If excludeOutOf is set, rows whose pitch is not in that key
+	/// (accidentals) are not counted. Also deletes empty rows.
+	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey, const MusicalKey* excludeOutOf = nullptr);
+	/// An accidental row is a row of a scale-mode clip holding a pitch outside key. It is derived, not stored.
+	bool isAccidentalRow(const NoteRow* row, const MusicalKey& key);
+	/// The yNote whose row an accidental is drawn on (below it in a sharp key, above it in a flat key); yNote itself
+	/// if it is in key or the clip isn't in scale mode.
+	int32_t getDisplayAnchorYNote(int32_t yNote, Song* song);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	/// Returns false, changing nothing, if the transpose would leave the playable note range.
 	bool nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);

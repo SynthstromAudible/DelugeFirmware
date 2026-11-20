@@ -580,11 +580,13 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 
 void InstrumentClipMinder::cycleThroughScales() {
 	displayScaleName(currentSong->cycleThroughScales());
+	currentSong->clearUndoIfNoteRowsRestructured();
 }
 
 // Returns if the scale could be changed or not
 bool InstrumentClipMinder::setScale(Scale newScale) {
 	Scale result = currentSong->setScale(newScale);
+	currentSong->clearUndoIfNoteRowsRestructured();
 	if (result == NO_SCALE) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
 		return false;

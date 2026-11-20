@@ -139,6 +139,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setLift(oldNote->getLift());
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
+						newNote->anchorOffset = oldNote->anchorOffset;
 					}
 				}
 
@@ -156,6 +157,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorOffset = oldNote->anchorOffset;
 				}
 			}
 
@@ -184,6 +186,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorOffset = oldNote->anchorOffset;
 				}
 			}
 		}
@@ -1085,6 +1088,7 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			int8_t anchorOffset = note->anchorOffset;
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1093,6 +1097,7 @@ modifyNote:
 			note->setVelocity(noteOnVelocity);
 			note->setIterance(iterance);
 			note->setFill(fill);
+			note->anchorOffset = anchorOffset;
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -2903,6 +2908,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorOffset = oldNote->anchorOffset;
 
 					highestNoteIndex = iNew;
 				}
@@ -2953,6 +2959,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->anchorOffset = oldNote->anchorOffset;
 
 					highestNoteIndex = iNew;
 				}
@@ -3536,6 +3543,33 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		// Accidental lineage markers, one signed byte per note, written after the notes. Ignored unless they match.
+		else if (!strcmp(tagName, "noteAnchors")) {
+			if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+				if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+					int32_t numMarkers = 0;
+					while (true) {
+						char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (!hexChars) {
+							break;
+						}
+						int8_t marker = (int8_t)hexToIntFixedLength(hexChars, 2);
+						if (numMarkers < notes.getNumElements()) {
+							notes.getElement(numMarkers)->anchorOffset = marker;
+						}
+						numMarkers++;
+					}
+					// If this doesn't match the notes we read, drop it all
+					if (numMarkers != notes.getNumElements()) {
+						for (int32_t n = 0; n < notes.getNumElements(); n++) {
+							notes.getElement(n)->anchorOffset = 0;
+						}
+					}
+				}
+			}
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3617,6 +3651,25 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		// Accidental lineage markers (see model/scale/accidentals.h), only if any note has one
+		bool anyAnchors = false;
+		for (int32_t n = 0; n < notes.getNumElements(); n++) {
+			anyAnchors = anyAnchors || notes.getElement(n)->anchorOffset != 0;
+		}
+		if (anyAnchors) {
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.writeTagNameAndSeperator("noteAnchors");
+			writer.write("\"0x");
+			for (int32_t n = 0; n < notes.getNumElements(); n++) {
+				char buffer[9];
+				intToHex((uint8_t)notes.getElement(n)->anchorOffset, buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();

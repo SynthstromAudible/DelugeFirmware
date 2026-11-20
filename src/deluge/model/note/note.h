@@ -59,6 +59,10 @@ public:
 	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;
+	/// Accidental lineage: this note's anchor pitch = row y + anchorOffset; 0 = derive from the row (see
+	/// model/scale/accidentals.h). Set only by scale changes that merge rows; cleared by any explicit pitch edit.
+	/// Sits in what was trailing padding. Notes live in raw NoteVector memory, so NoteVector zeroes it on insert.
+	int8_t anchorOffset;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.
 	// So take the rightmost 7 bits. If that's greater than kNumProbabilityValues (20),

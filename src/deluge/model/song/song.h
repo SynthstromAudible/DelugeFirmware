@@ -110,8 +110,12 @@ public:
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
-	void rotateMusicalMode(int8_t change);
-	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
+	/// pendingTranspose is the uniform semitone shift the caller applies afterwards (the new root), so that accidental
+	/// markers are chosen against the final key.
+	void rotateMusicalMode(int8_t change, int32_t pendingTranspose = 0);
+	/// Accidentals follow their display anchor if accidentalsFollowAnchor, else keep their pitch.
+	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose, bool accidentalsFollowAnchor,
+	                        int32_t pendingTranspose = 0);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
 	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const;
@@ -143,15 +147,22 @@ public:
 	/// Changes scale to the requested notes. Returns true if successful. If the notes are not a preset
 	/// scale, defines the scale as the new user scale.
 	bool setScaleNotes(NoteSet newScale);
+	/// Set when a scale change moved notes between NoteRows or merged rows, so undo entries made before it may be
+	/// stale. UI code that changed the scale calls clearUndoIfNoteRowsRestructured().
+	bool noteRowsRestructured = false;
+	void clearUndoIfNoteRowsRestructured();
 	/// Learns a user scale from notes in scale mode clips.
 	void learnScaleFromCurrentNotes();
 	/// Returns true if the song has a user scale.
 	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
-	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);
-	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
-	NoteSet notesInScaleModeClips();
+	/// Accidentals (notes outside the old key) are not counted, except in clipEnteringScaleMode, if given.
+	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr,
+	                 InstrumentClip* clipEnteringScaleMode = nullptr);
+	/// Returns a NoteSet with all notes currently in used in scale mode clips. If excludeOutOf is set, notes outside
+	/// that key (accidentals) are skipped, in all clips except includeAllOf.
+	NoteSet notesInScaleModeClips(const MusicalKey* excludeOutOf = nullptr, InstrumentClip* includeAllOf = nullptr);
 
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();

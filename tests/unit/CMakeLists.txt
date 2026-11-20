@@ -46,6 +46,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
+        ../../src/deluge/model/scale/accidentals.cpp
         ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
         ../../src/deluge/model/scale/preset_scales.cpp
@@ -81,6 +82,7 @@ add_executable(UnitTests
         scheduler_tests.cpp
         lfo_tests.cpp
         scale_tests.cpp
+        accidentals_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
         function_tests.cpp

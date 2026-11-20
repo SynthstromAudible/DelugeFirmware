@@ -46,11 +46,15 @@ class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 
+// EditPadPress::yNoteOverride value meaning "the NoteRow shown at yDisplay"
+constexpr int16_t kNoYNoteOverride = INT16_MIN;
+
 struct EditPadPress {
 	bool isActive;
 	uint8_t yDisplay;
 	uint8_t xDisplay;
-	bool deleteOnDepress; // Can also mean to delete tail
+	int16_t yNoteOverride; // If not kNoYNoteOverride, the press is on this yNote (an accidental hidden behind yDisplay)
+	bool deleteOnDepress;  // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
 	Iterance intendedIterance;
@@ -135,7 +139,9 @@ public:
 	                                                       InstrumentClip* clip, Output* output, OutputType outputType,
 	                                                       bool isKit, bool inSoundEditor, bool currentClipIsActive,
 	                                                       bool renderDisplay, bool updateDrumSelection);
-	void scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit);
+	void scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit,
+	                                      bool keepYNoteOverride = false);
+	void nudgeHeldNotesBySemitone(int32_t offset);
 
 	/// OTHER uncategorized (yet)
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
@@ -252,6 +258,7 @@ public:
 	// made these public so they can be accessed by the automation clip view
 	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]{}; // 255 seems to mean none
+	int16_t auditionedYNoteOverride[kDisplayHeight];          // kNoYNoteOverride unless auditioning a hidden accidental
 	uint8_t auditionPadIsPressed[kDisplayHeight]{};
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight]{};
 	uint8_t lastAuditionedYDisplay{};
@@ -277,6 +284,10 @@ public:
 	std::span<EditPadPress> get_note_edit_targets();
 	void exitNoteEditor();
 	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
+	ModelStackWithNoteRow* getNoteRowForEditPadPress(const EditPadPress& press,
+	                                                 ModelStackWithTimelineCounter* modelStack);
+	NoteRow* getNoteRowForEditPadPress(const EditPadPress& press, int32_t* getIndex = nullptr);
+	bool getHiddenYNotesForYDisplay(int32_t yDisplay, int32_t& first, int32_t& last);
 	void deselectNoteAndGoUpOneLevel();
 	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);

@@ -38,6 +38,7 @@ public:
 	uint8_t lift;
 	Iterance iterance;
 	int8_t fill;
+	int8_t anchorOffset;
 
 	ExistenceChangeType type;
 };

@@ -448,6 +448,48 @@ TEST(MusicalKeyTest, degreeOf) {
 	}
 }
 
+TEST(MusicalKeyTest, prefersFlats) {
+	auto flats = [](int root, NoteSet notes) {
+		MusicalKey k;
+		k.rootNote = root;
+		k.modeNotes = notes;
+		return k.prefersFlats();
+	};
+	CHECK_FALSE(flats(0, presetScaleNotes[MAJOR_SCALE]));      // C major
+	CHECK_TRUE(flats(5, presetScaleNotes[MAJOR_SCALE]));       // F major
+	CHECK_TRUE(flats(10, presetScaleNotes[MAJOR_SCALE]));      // Bb major
+	CHECK_FALSE(flats(7, presetScaleNotes[MAJOR_SCALE]));      // G major
+	CHECK_TRUE(flats(2, presetScaleNotes[MINOR_SCALE]));       // D minor
+	CHECK_FALSE(flats(9, presetScaleNotes[MINOR_SCALE]));      // A minor
+	CHECK_FALSE(flats(4, presetScaleNotes[MINOR_SCALE]));      // E minor
+	CHECK_TRUE(flats(0, presetScaleNotes[MINOR_SCALE]));       // C minor
+	CHECK_FALSE(flats(2, presetScaleNotes[DORIAN_SCALE]));     // D dorian (parent C)
+	CHECK_FALSE(flats(7, presetScaleNotes[MIXOLYDIAN_SCALE])); // G mixolydian (parent C)
+	CHECK_FALSE(flats(6, presetScaleNotes[MAJOR_SCALE]));      // F# major
+	CHECK_TRUE(flats(1, presetScaleNotes[MAJOR_SCALE]));       // Db major
+	CHECK_TRUE(flats(10, NoteSet({0, 3, 5, 7, 10})));          // Bb pentatonic minor (parent Db)
+	CHECK_TRUE(flats(0, NoteSet({0, 2, 3, 5, 7, 8, 11})));     // C harmonic minor
+	// rootNote isn't normalised: -7 and 65 are both F
+	CHECK_TRUE(flats(-7, presetScaleNotes[MAJOR_SCALE]));
+	CHECK_TRUE(flats(65, presetScaleNotes[MAJOR_SCALE]));
+}
+
+TEST(MusicalKeyTest, accidentalAnchor) {
+	MusicalKey key; // C major
+	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	CHECK_EQUAL(60, key.accidentalAnchor(61, false));
+	CHECK_EQUAL(62, key.accidentalAnchor(61, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(70, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(71, true));
+	CHECK_EQUAL(71, key.accidentalAnchor(71, false));
+
+	key.modeNotes = NoteSet({0, 3, 5, 7, 10}); // C pentatonic minor
+	CHECK_EQUAL(60, key.accidentalAnchor(61, false));
+	CHECK_EQUAL(60, key.accidentalAnchor(62, false));
+	CHECK_EQUAL(63, key.accidentalAnchor(61, true));
+	CHECK_EQUAL(72, key.accidentalAnchor(71, true));
+}
+
 TEST_GROUP(UtilTest){};
 
 TEST(UtilTest, isSameNote) {

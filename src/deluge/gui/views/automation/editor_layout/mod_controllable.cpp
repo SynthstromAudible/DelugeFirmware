@@ -647,6 +647,7 @@ bool AutomationEditorLayoutModControllable::recordAutomationSinglePadPress(int32
 		instrumentClipView.editPadPresses[i].isActive = true;
 		instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
 		instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
+		instrumentClipView.editPadPresses[i].yNoteOverride = kNoYNoteOverride;
 		instrumentClipView.numEditPadPresses++;
 		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
 		enterUIMode(UI_MODE_NOTES_PRESSED);

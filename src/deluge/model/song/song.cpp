@@ -506,7 +506,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		int8_t newModeRoot = key.modeNotes[rootIndex];
 
 		semitones = 12 * octaves + newModeRoot;
-		rotateMusicalMode(offset);
+		rotateMusicalMode(offset, semitones);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -584,24 +584,28 @@ bool Song::anyScaleModeClips() {
 	return false;
 }
 
-NoteSet Song::notesInScaleModeClips() {
+NoteSet Song::notesInScaleModeClips(const MusicalKey* excludeOutOf, InstrumentClip* includeAllOf) {
 	NoteSet notes;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key);
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key,
+			                                                   instrumentClip == includeAllOf ? nullptr : excludeOutOf);
 		}
 	}
 	return notes;
 }
 
-void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
+void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor,
+                       InstrumentClip* clipEnteringScaleMode) {
 	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
 	// so we need to do it before anything else.
 	int32_t oldRootNote = key.rootNote;
+	// Accidentals (notes outside the old key) must not influence the new scale
+	MusicalKey oldKey = key;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips(&oldKey, clipEnteringScaleMode);
 
 	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
@@ -645,7 +649,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
     intervals rotated    [2 1 2 2 2 1  2]
     new mode (Dorian)=  [0,2,3,5,7,9,10](12)
     */
-void Song::rotateMusicalMode(int8_t change) {
+void Song::rotateMusicalMode(int8_t change, int32_t pendingTranspose) {
 	int8_t j;
 	int16_t newRoot;
 	uint8_t noteCount = key.modeNotes.count();
@@ -662,12 +666,13 @@ void Song::rotateMusicalMode(int8_t change) {
 	}
 
 	changes.target = changes.applyTo(changes.source);
-	replaceMusicalMode(changes, false);
+	replaceMusicalMode(changes, false, true, pendingTranspose);
 }
 
 /* Changes the musical mode of all scale mode clips, by
    supplying an array of deltas in semitones */
-void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose) {
+void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose, bool accidentalsFollowAnchor,
+                              int32_t pendingTranspose) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -680,7 +685,8 @@ void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspo
 		}
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter);
+		instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter, accidentalsFollowAnchor,
+		                                   pendingTranspose);
 	}
 
 	key.modeNotes = changes.applyTo(key.modeNotes);
@@ -694,7 +700,8 @@ void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 	changes[yVisualWithinOctave] += change;
 	changes.target = changes.applyTo(changes.source);
 
-	replaceMusicalMode(changes, true);
+	// Accidentals keep their pitch
+	replaceMusicalMode(changes, true, false);
 }
 
 bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
@@ -3067,7 +3074,7 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
 	// when transforming between scales of same size - otherwise scale transformations don't necessarily
 	// remain reversible across sizes, even if the user didn't change the notes used.
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips(&key);
 	notesWithinOctavePresent.add(0);
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
@@ -3076,9 +3083,11 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	}
 
 	ScaleChange changes;
-	scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes);
+	if (!scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes)) {
+		return false;
+	}
 
-	replaceMusicalMode(changes, true);
+	replaceMusicalMode(changes, true, true);
 
 	key.modeNotes = newScaleNotes;
 
@@ -3088,6 +3097,13 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	}
 
 	return true;
+}
+
+void Song::clearUndoIfNoteRowsRestructured() {
+	if (noteRowsRestructured) {
+		actionLogger.deleteAllLogs(); // Can't undo past this: notes changed NoteRow, and undo finds rows by y
+		noteRowsRestructured = false;
+	}
 }
 
 bool Song::hasUserScale() {
