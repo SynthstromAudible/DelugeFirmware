@@ -100,8 +100,11 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	draw_title_for(f, state);
 
 	// A context with no MIDI devices port has no binding to show: the command reads as unassigned.
-	const std::optional<bind::LearnedBinding> command =
+	std::optional<bind::LearnedBinding> command =
 	    ctx.ports.midi != nullptr ? ctx.ports.midi->global_command(command_) : std::nullopt;
+	if (command && !command->channel_or_zone) {
+		command.reset(); // a command is learned only with its channel, as `LearnedMIDI::containsSomething` has it
+	}
 	const int32_t row0_y = command_row0_y(f);
 	const int32_t row_h = f.style.row_height;
 	const int32_t spacing = deluge::ui::oled::spacing_x_for(f.style.row_font);
@@ -142,7 +145,7 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// does store `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` here. A CC's channel is resolved the same way.
 		deluge::ui::shell::TextScratch channel_scratch;
 		std::string_view channel_text;
-		const int32_t channel = command->channel_or_zone;
+		const int32_t channel = *command->channel_or_zone;
 		if (channel == project::kMidiChannelLowerZone) {
 			channel_text = text_of(String::STRING_FOR_MPE_LOWER_ZONE, channel_scratch);
 		}

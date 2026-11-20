@@ -523,9 +523,8 @@ enum class PatchCableAcceptance {
 
 enum class OverDubType { Normal, ContinuousLayering };
 
-/// The global MIDI commands as legacy indexes `MidiEngine::globalMIDICommands`. NONE and LAST are legacy's own; the
-/// commands between are `deluge::project::GlobalCommand`'s, held equal where the host converts them
-/// (`gui/ui/shell_host/midi_devices.cpp`).
+/// The global MIDI commands, indexing `MidiEngine::globalMIDICommands`. NONE and LAST are legacy's own; the rest equal
+/// `deluge::project::GlobalCommand`'s, asserted in `gui/ui/shell_host/midi_devices.cpp`.
 enum class GlobalMIDICommand {
 	NONE = -1,
 	PLAYBACK_RESTART,
@@ -552,8 +551,8 @@ enum class MIDITakeoverMode : uint8_t {
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::RELATIVE) + 1;
 
-/// The MIDI follow inputs as legacy indexes `MidiEngine::midiFollowChannelType`. A to Track16 are
-/// `deluge::project::FollowInput`'s, held equal where the host converts them (`gui/ui/shell_host/midi_devices.cpp`).
+/// The MIDI follow inputs, indexing `MidiEngine::midiFollowChannelType`. NONE and INVALID are legacy's own; A to
+/// Track16 equal `deluge::project::FollowInput`'s, asserted in `gui/ui/shell_host/midi_devices.cpp`.
 enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,

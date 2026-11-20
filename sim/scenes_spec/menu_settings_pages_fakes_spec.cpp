@@ -847,6 +847,35 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		}
 	});
 
+	it("names a follow input's device with no channel, as main draws it, and keeps the device on a turn", _ {
+		using deluge::project::FollowInput;
+		// A settings file can set the device and leave the channel unassigned.
+		const LearnedBinding device_only{.device = deluge::midi::kDin};
+		const auto panel = [](std::optional<LearnedBinding> binding, std::string name) {
+			Rig r;
+			r.fakes.host.midi.names.insert_or_assign(deluge::midi::kDin.value, std::move(name));
+			if (binding) {
+				r.fakes.host.midi.follows.insert_or_assign(FollowInput::TRACK_1, *binding);
+			}
+			r.open(nodes::midi_follow_track1);
+			r.shell.tick(40);
+			return r.surfaces.pbm(0);
+		};
+		const std::string unassigned = panel(std::nullopt, "DIN");
+		const std::string named = panel(device_only, "DIN");
+		expect(named).not_().to_equal(unassigned);
+		expect(panel(device_only, "OTHER")).not_().to_equal(named);
+
+		Rig r;
+		r.fakes.host.midi.follows.insert_or_assign(FollowInput::TRACK_1, device_only);
+		const MenuContext ctx = r.open(nodes::midi_follow_track1);
+		expect(menu::bindings::read(nodes::midi_follow_track1, ctx)).to_equal(int32_t{MIDI_CHANNEL_NONE});
+		// A turn up from unassigned lands on channel 1 and keeps the device.
+		r.turn(1, 60);
+		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1))
+		    .to_equal(std::optional{LearnedBinding{.device = deluge::midi::kDin, .channel_or_zone = 0}});
+	});
+
 	it("shows the chord transpose method, which the menu does not offer, as chromatic, as main's list clamps it", _ {
 		Rig r;
 		// The device's third method: the menu lists the first two.

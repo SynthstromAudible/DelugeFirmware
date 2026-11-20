@@ -295,6 +295,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::unknown_device_learn_is_refused(*p.learn, *p.midi)).to_be_true();
 		// Two learns, two unlearns and two restores, then the two refused learns, each recorded.
 		expect(host.learn.calls.size()).to_equal(size_t{8});
+		expect(contract::follow_device_without_channel_reads_back(*p.learn, *p.midi, deluge::midi::kDin)).to_be_true();
 		if (host.learn.calls.size() == 8) {
 			expect(host.learn.calls[0].kind).to_equal(test::RecordingLearnSink::Call::Kind::LEARN_GLOBAL);
 			expect(host.learn.calls[0].global).to_equal(deluge::project::GlobalCommand::TAP);

@@ -1,5 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 
+#include "definitions_cxx.hpp"
 #include "deluge-project/device_settings.h"
 #include "deluge-project/midi_command.h"
 #include "io/midi/device_registry.h"
@@ -36,7 +37,7 @@ void store(::LearnedMIDI& learned, const std::optional<LearnedBinding>& binding)
 		}
 	}
 	learned.cable = cable;
-	learned.channelOrZone = binding->channel_or_zone;
+	learned.channelOrZone = binding->channel_or_zone.value_or(MIDI_CHANNEL_NONE);
 	learned.noteOrCC = binding->note_or_cc.value_or(project::MidiCommand::kNone);
 }
 

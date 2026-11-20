@@ -29,7 +29,8 @@
 /// once per type in a binary.
 namespace deluge::scenes::bind {
 
-/// @brief Prints a binding as its device's handle (or any), its channel or zone and its number (or none), e.g.
+/// @brief Prints a binding as its device's handle (or any), its channel or zone (or none) and its number (or none),
+/// e.g.
 ///        `{device 1, channel_or_zone 21, note_or_cc 42}`.
 /// @param os The stream to print to.
 /// @param b  The binding.
@@ -42,7 +43,14 @@ inline std::ostream& operator<<(std::ostream& os, const LearnedBinding& b) {
 	else {
 		os << "any";
 	}
-	os << ", channel_or_zone " << static_cast<int>(b.channel_or_zone) << ", note_or_cc ";
+	os << ", channel_or_zone ";
+	if (b.channel_or_zone) {
+		os << static_cast<int>(*b.channel_or_zone);
+	}
+	else {
+		os << "none";
+	}
+	os << ", note_or_cc ";
 	if (b.note_or_cc) {
 		os << static_cast<int>(*b.note_or_cc);
 	}

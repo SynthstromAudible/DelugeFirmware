@@ -173,34 +173,51 @@ namespace deluge::scenes::bind::contract {
 ///        device, and a nullopt learn unlearns each. Puts back what it found: the host spec shares its process.
 /// @param known A device @p midi knows.
 [[nodiscard]] inline bool learns_read_back(LearnSink& learns, const MidiDevices& midi, midi::DeviceId known) {
-	constexpr project::GlobalCommand command = project::GlobalCommand::TAP;
-	constexpr project::FollowInput input = project::FollowInput::TRACK_2;
-	const std::optional<LearnedBinding> command_was = midi.global_command(command);
-	const std::optional<LearnedBinding> input_was = midi.follow_input(input);
+	constexpr project::GlobalCommand kCommand = project::GlobalCommand::TAP;
+	constexpr project::FollowInput kInput = project::FollowInput::TRACK_2;
+	const std::optional<LearnedBinding> command_was = midi.global_command(kCommand);
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
 	const LearnedBinding cc{
 	    .device = known, .channel_or_zone = static_cast<uint8_t>(project::kFirstCcChannel + 3), .note_or_cc = 42};
 	const LearnedBinding channel{.channel_or_zone = 5};
-	learns.learn_global(command, cc);
-	learns.learn_follow(input, channel);
-	const bool learned = midi.global_command(command) == cc && midi.follow_input(input) == channel;
-	learns.learn_global(command, std::nullopt);
-	learns.learn_follow(input, std::nullopt);
-	const bool forgot = !midi.global_command(command).has_value() && !midi.follow_input(input).has_value();
-	learns.learn_global(command, command_was);
-	learns.learn_follow(input, input_was);
-	return learned && forgot && midi.global_command(command) == command_was && midi.follow_input(input) == input_was;
+	learns.learn_global(kCommand, cc);
+	learns.learn_follow(kInput, channel);
+	const bool learned = midi.global_command(kCommand) == cc && midi.follow_input(kInput) == channel;
+	learns.learn_global(kCommand, std::nullopt);
+	learns.learn_follow(kInput, std::nullopt);
+	const bool forgot = !midi.global_command(kCommand).has_value() && !midi.follow_input(kInput).has_value();
+	learns.learn_global(kCommand, command_was);
+	learns.learn_follow(kInput, input_was);
+	return learned && forgot && midi.global_command(kCommand) == command_was && midi.follow_input(kInput) == input_was;
 }
 
 /// @brief A global command's or a follow input's learn from a device @p midi does not know stores nothing.
 [[nodiscard]] inline bool unknown_device_learn_is_refused(LearnSink& learns, const MidiDevices& midi) {
-	constexpr project::GlobalCommand command = project::GlobalCommand::PLAY;
-	constexpr project::FollowInput input = project::FollowInput::A;
-	constexpr midi::DeviceId unknown{0xFFFF'FFF0};
-	const std::optional<LearnedBinding> command_was = midi.global_command(command);
-	const std::optional<LearnedBinding> input_was = midi.follow_input(input);
-	learns.learn_global(command, LearnedBinding{.device = unknown, .channel_or_zone = 1, .note_or_cc = 60});
-	learns.learn_follow(input, LearnedBinding{.device = unknown, .channel_or_zone = 2});
-	return midi.global_command(command) == command_was && midi.follow_input(input) == input_was;
+	constexpr project::GlobalCommand kCommand = project::GlobalCommand::PLAY;
+	constexpr project::FollowInput kInput = project::FollowInput::A;
+	constexpr midi::DeviceId kUnknown{0xFFFF'FFF0};
+	const std::optional<LearnedBinding> command_was = midi.global_command(kCommand);
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
+	learns.learn_global(kCommand, LearnedBinding{.device = kUnknown, .channel_or_zone = 1, .note_or_cc = 60});
+	learns.learn_follow(kInput, LearnedBinding{.device = kUnknown, .channel_or_zone = 2});
+	return midi.global_command(kCommand) == command_was && midi.follow_input(kInput) == input_was;
+}
+
+/// @brief A follow input learned to a device and no channel, as a settings file can leave it, reads back with its
+///        device, and a channel written over it keeps the device. Puts back what it found.
+/// @param known A device @p midi knows.
+[[nodiscard]] inline bool follow_device_without_channel_reads_back(LearnSink& learns, const MidiDevices& midi,
+                                                                   midi::DeviceId known) {
+	constexpr project::FollowInput kInput = project::FollowInput::B;
+	const std::optional<LearnedBinding> input_was = midi.follow_input(kInput);
+	const LearnedBinding device_only{.device = known};
+	learns.learn_follow(kInput, device_only);
+	const bool kept = midi.follow_input(kInput) == device_only;
+	const LearnedBinding with_channel{.device = known, .channel_or_zone = 0};
+	learns.learn_follow(kInput, with_channel);
+	const bool channel_kept = midi.follow_input(kInput) == with_channel;
+	learns.learn_follow(kInput, input_was);
+	return kept && channel_kept && midi.follow_input(kInput) == input_was;
 }
 
 /// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with

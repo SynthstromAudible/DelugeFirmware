@@ -132,6 +132,9 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			if (p.learn != nullptr && !p.midi->connected().empty()) {
 				expect(bind::contract::learns_read_back(*p.learn, *p.midi, p.midi->connected().front())).to_be_true();
 				expect(bind::contract::unknown_device_learn_is_refused(*p.learn, *p.midi)).to_be_true();
+				expect(bind::contract::follow_device_without_channel_reads_back(*p.learn, *p.midi,
+				                                                                p.midi->connected().front()))
+				    .to_be_true();
 			}
 		}
 		if (p.writes != nullptr) {

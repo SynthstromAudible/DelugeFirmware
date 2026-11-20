@@ -70,9 +70,9 @@ std::optional<bind::LearnedBinding> follow_binding(const MenuContext& ctx, proje
 
 int32_t follow_channel_get(const MenuContext& ctx, project::FollowInput input) {
 	// `FollowChannel::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`): an
-	// input with nothing learned is unassigned.
+	// input with no channel learned is unassigned, whatever its device.
 	const std::optional<bind::LearnedBinding> binding = follow_binding(ctx, input);
-	return binding ? binding->channel_or_zone : MIDI_CHANNEL_NONE;
+	return binding && binding->channel_or_zone ? *binding->channel_or_zone : MIDI_CHANNEL_NONE;
 }
 
 void follow_channel_set(const MenuContext& ctx, project::FollowInput input, int32_t value) {

@@ -59,14 +59,12 @@ static_assert(std::to_underlying(FollowInput::TRACK_16) == util::to_underlying(M
 static_assert(project::kFirstCcChannel == IS_A_CC);
 static_assert(project::kFirstProgramChangeChannel == IS_A_PC);
 
-/// @brief @p learned as a binding: none when it holds nothing (`LearnedMIDI::containsSomething`).
-std::optional<LearnedBinding> binding_of(const ::LearnedMIDI& learned) {
-	if (!learned.containsSomething()) {
-		return std::nullopt;
-	}
+/// @brief @p learned as a binding, whatever it holds: its cable as a device, and its channel and number, each none
+///        when unset.
+LearnedBinding binding_of(const ::LearnedMIDI& learned) {
 	return LearnedBinding{
 	    .device = learned.cable != nullptr ? std::optional{midi::id_of(*learned.cable)} : std::nullopt,
-	    .channel_or_zone = learned.channelOrZone,
+	    .channel_or_zone = learned.containsSomething() ? std::optional<uint8_t>{learned.channelOrZone} : std::nullopt,
 	    .note_or_cc =
 	        learned.noteOrCC != project::MidiCommand::kNone ? std::optional<uint8_t>{learned.noteOrCC} : std::nullopt,
 	};
@@ -158,11 +156,20 @@ public:
 	}
 
 	[[nodiscard]] std::optional<LearnedBinding> global_command(GlobalCommand command) const override {
-		return binding_of(midiEngine.globalMIDICommands[std::to_underlying(command)]);
+		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) shows a command as
+		// learned only when its channel is (`containsSomething`).
+		const ::LearnedMIDI& learned = midiEngine.globalMIDICommands[std::to_underlying(command)];
+		return learned.containsSomething() ? std::optional{binding_of(learned)} : std::nullopt;
 	}
 
 	[[nodiscard]] std::optional<LearnedBinding> follow_input(FollowInput input) const override {
-		return binding_of(midiEngine.midiFollowChannelType[std::to_underlying(input)]);
+		// `FollowChannel::drawInteger` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`) names the
+		// cable whatever the channel, and the settings file can set either alone.
+		const ::LearnedMIDI& learned = midiEngine.midiFollowChannelType[std::to_underlying(input)];
+		if (learned.cable == nullptr && !learned.containsSomething()) {
+			return std::nullopt;
+		}
+		return binding_of(learned);
 	}
 
 private:
