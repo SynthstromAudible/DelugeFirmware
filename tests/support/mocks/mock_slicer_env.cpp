@@ -16,6 +16,7 @@
  */
 
 #include "mock_slicer_env.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
@@ -142,8 +143,9 @@ void resetSlicerEnv() {
 	// The drum's record, which the slicer's zone edits copy, change and hand to applyRanges: one range, as the mock's
 	// first range is.
 	static deluge::instrument::SoundState record;
-	record = deluge::instrument::SoundState{};
-	record.sources[0].ranges = {deluge::instrument::RangeState{}};
+	deluge::instrument::FlatSoundState flat;
+	flat.sources[0].ranges = {deluge::instrument::RangeState{}};
+	record = deluge::instrument::SoundState(flat);
 	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the

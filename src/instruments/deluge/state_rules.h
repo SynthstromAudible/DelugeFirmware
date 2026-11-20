@@ -29,15 +29,17 @@
 namespace deluge::instrument {
 
 /// @brief @p state with its engine set to @p mode. Into FM both filters go off; out of it a filter that is off comes
-/// back on (the low-pass as the 24 dB transistor ladder, the high-pass as the ladder).
-[[nodiscard]] SoundState with_mode(SoundState state, SynthMode mode);
+/// back on (the low-pass as the 24 dB transistor ladder, the high-pass as the ladder). What leaves is kept for a switch
+/// back; what arrives comes from what was kept.
+[[nodiscard]] SoundState switch_engine(SoundState state, SynthMode mode);
 
 /// @brief @p state with slot @p id's oscillator set to @p type. When the ranges change kind (sample to wavetable or
 /// back) the record's ranges keep only their top notes, and a slot left with none gains one open range; otherwise the
-/// slot takes the ranges it holds now. A DX7 slot without a patch gains the init voice.
+/// slot takes the ranges it holds now. A DX7 slot without a patch gains the init voice. What the new kind does not
+/// hold is kept for a switch back.
 /// @param held The ranges the slot plays now (the runtime holds them until it holds no ranges of its own).
 /// @param held_are_wavetable Whether those ranges are a wavetable's.
-[[nodiscard]] SoundState with_osc_type(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
+[[nodiscard]] SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
                                        bool held_are_wavetable);
 
 /// @brief @p state with slot @p id's loop mode set: stretching to note length makes pitch and speed independent, and

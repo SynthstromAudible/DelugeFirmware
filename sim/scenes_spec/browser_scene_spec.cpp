@@ -89,6 +89,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
 #include <cstdint>
@@ -310,7 +311,8 @@ MenuContext sound_context(spec::SongFixture& f) {
 
 /// @brief Make @p sound a ring-mod synth before the browser opens on it: its state, and the config derived from it.
 void ring_mod(Sound& sound) {
-	sound.boundRecord()->synth_mode = ::SynthMode::RINGMOD;
+	deluge::test::change_flat(*sound.boundRecord(),
+	                          [&](deluge::instrument::FlatSoundState& f) { f.synth_mode = ::SynthMode::RINGMOD; });
 	sound.projectSnapshot();
 }
 

@@ -72,14 +72,14 @@ namespace deluge::scenes::menu {
 namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
-std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
+std::vector<deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
 	if (ctx.facts == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
 		return {};
 	}
 	const deluge::instrument::SoundState* state = ctx.facts->sound_state(*ctx.addresses.slot);
 	return state != nullptr
 	           ? deluge::instrument::source_ranges(*state, static_cast<deluge::instrument::SourceId>(ctx.source_index))
-	           : std::span<const deluge::instrument::RangeState>{};
+	           : std::vector<deluge::instrument::RangeState>{};
 }
 
 } // namespace
@@ -90,7 +90,7 @@ int32_t range_count(const MenuContext& ctx) {
 }
 
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx) {
-	const std::span<const deluge::instrument::RangeState> ranges = edited_ranges(ctx);
+	const std::vector<deluge::instrument::RangeState> ranges = edited_ranges(ctx);
 	return {ranges.begin(), ranges.end()};
 }
 

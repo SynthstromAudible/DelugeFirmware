@@ -142,6 +142,7 @@ src/effects/sidechain.cpp raw=0 boundary=7
 src/effects/sidechain.h raw=0 boundary=2
 src/effects/sound_chain.cpp raw=0 boundary=1
 src/effects/track_chain.cpp raw=0 boundary=3
+src/instruments/deluge/composed_state.cpp raw=0 boundary=2
 src/scenes/menu/nodes/sound_compressor.cpp raw=0 boundary=5
 src/scenes/services/knob_push.cpp raw=0 boundary=5
 src/synth/engines/block_controls.h raw=0 boundary=2

@@ -28,6 +28,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include "support/spec_main.h"
 
@@ -231,8 +232,10 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		const MenuContext on_synth = at(*synth.song, synth.clip);
 		expect(bind::setting_address(nodes::voice_priority.bind.target, on_synth.addresses).has_value()).to_be_false();
 		menu::bindings::write(nodes::voice_priority, on_synth, 2);
-		expect(static_cast<int>(static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument))
-		                            ->boundState()->voice_priority))
+		expect(static_cast<int>(
+		           deluge::test::flat_of(
+		               static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument))->boundState())
+		               ->voice_priority))
 		    .to_equal(2);
 	});
 });

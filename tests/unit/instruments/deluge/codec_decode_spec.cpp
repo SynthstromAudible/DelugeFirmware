@@ -4,6 +4,7 @@
 #include "serialization/tree.h"
 #include "support/printers/plugin_result_printer.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <fstream>
 #include <sstream>
@@ -31,7 +32,7 @@ std::string differenceFor(const std::string& fixture) {
 	if (!doc || !expected) {
 		return "the fixture does not parse";
 	}
-	SoundState state = SoundState{};
+	FlatSoundState state = FlatSoundState{};
 	if (!decode(*doc->find("sound"), state, kNewSong)) {
 		return "decode failed";
 	}
@@ -45,7 +46,7 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound ringMod="1" mode="fm" oscillatorReset="0" polyphonic="2"><oscillatorA type="square" note="72"/>)"
 		    R"(<fileName>SAMPLES/A.WAV</fileName></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		expect(decode(*doc->find("sound"), state, kNewSong)).to_have_value();
 		expect(state.synth_mode).to_equal(SynthMode::FM);
 		expect(state.osc_retrigger_phase[1]).to_equal(uint32_t{0}); // as every decode starts it: not freed
@@ -57,7 +58,7 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		    R"(<sound mode="subtractive"><continuous>1</continuous><reversed>1</reversed>)"
 		    R"(<osc1 type="sample" fileName="SAMPLES/B.WAV"><zone startSeconds="1" startMilliseconds="20" )"
 		    R"(endMilliseconds="80" startSamplePos="5" endSamplePos="900"/></osc1></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		expect(decode(*doc->find("sound"), state, kNewSong)).to_have_value();
 		expect(state.sources[0].ranges.size()).to_equal(size_t{1});
 		expect(state.sources[0].ranges[0].file_path).to_equal(std::string("SAMPLES/B.WAV"));
@@ -67,7 +68,7 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 	});
 	it("clamps unison to what a sound can play", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound><unison num="20" detune="70" spread="-3"/></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(static_cast<int32_t>(state.num_unison)).to_equal(8);
 		expect(static_cast<int32_t>(state.unison_detune)).to_equal(50);
@@ -76,7 +77,7 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 	it("holds every tune's cents to a quarter tone either way", _ {
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound cents="99"><osc1 type="square" cents="-120"/><osc2 type="sine" cents="51"/></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(static_cast<int32_t>(state.cents)).to_equal(50);
 		expect(static_cast<int32_t>(state.sources[0].cents)).to_equal(-50);
@@ -85,25 +86,25 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 	it("holds a sample range's cents, its source's moved in, to a quarter tone", _ {
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound><osc1 type="sample" cents="40"><sampleRanges><sampleRange rangeTopNote="127" cents="30"/></sampleRanges></osc1></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(state.sources[0].ranges.empty()).to_be_false();
 		expect(static_cast<int32_t>(state.sources[0].ranges[0].cents)).to_equal(50);
 	});
 	it("reads back a wavetable split into ranges", _ {
-		SoundState written = SoundState{};
+		FlatSoundState written = FlatSoundState{};
 		written.modulator_transpose[1] = 0; // a subtractive sound's file holds no modulators; a read starts them at 0
 		written.sources[0].osc_type = OscType::WAVETABLE;
 		written.sources[0].ranges = {RangeState{.top_note = 48, .file_path = "WAVETABLES/A.WAV"},
 		                             RangeState{.top_note = 32767, .file_path = "WAVETABLES/B.WAV"}};
-		SoundState read = SoundState{};
+		FlatSoundState read = FlatSoundState{};
 		(void)decode(encode(written, kNewSong), read, kNewSong);
 		expect(deluge::serialization::first_difference(dump_state(read), dump_state(written))).to_equal(std::string{});
 	});
 	it("reads a factory preset's compressor tag as the sidechain", _ {
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound mode="subtractive"><compressor attack="11" release="22" syncLevel="0"/></sound>)");
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(state.effects.sidechain.attack).to_equal(11);
 		expect(state.effects.sidechain.release).to_equal(22);
@@ -111,15 +112,15 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 	});
 	it("reads a filter mode and mod-FX type only where the latest release writes them", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound mode="subtractive"><lpf mode="12dB"/><fx type="flanger"/></sound>)");
-		SoundState state = SoundState{};
-		const SoundState fresh = state;
+		FlatSoundState state = FlatSoundState{};
+		const FlatSoundState fresh = state;
 		(void)decode(*doc->find("sound"), state, kNewSong);
 		expect(state.effects.filter.lpf_mode).to_equal(fresh.effects.filter.lpf_mode);
 		expect(state.effects.mod_fx.type).to_equal(fresh.effects.mod_fx.type);
 	});
 	it("refuses two ranges with the same top note", _ {
 		auto doc = deluge::serialization::parseXml(read("duplicate_range.XML"));
-		SoundState state = SoundState{};
+		FlatSoundState state = FlatSoundState{};
 		auto decoded = decode(*doc->find("sound"), state, kNewSong);
 		expect(decoded).to_have_error();
 		expect(decoded.error_or(deluge::plugin::StateError::NOT_A_MAP)).to_equal(deluge::plugin::StateError::DUPLICATE_RANGE);

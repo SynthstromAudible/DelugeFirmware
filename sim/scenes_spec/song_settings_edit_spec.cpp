@@ -42,6 +42,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <string>
 
@@ -687,8 +688,8 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
-		expect(state).not_().to_be_null();
+		const deluge::test::FlatView state = deluge::test::flat_of(spec::menu_engine(ctx).sound->boundState());
+		expect(state.has_value()).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::polyphony, ctx, static_cast<int32_t>(PolyphonyMode::LEGATO));
 		expect(state->polyphonic).to_equal(PolyphonyMode::LEGATO);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::voice_count, ctx, 5);
@@ -705,8 +706,8 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const deluge::instrument::SoundState* state = spec::menu_engine(ctx).sound->boundState();
-		expect(state).not_().to_be_null();
+		const deluge::test::FlatView state = deluge::test::flat_of(spec::menu_engine(ctx).sound->boundState());
+		expect(state.has_value()).to_be_true();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
 		expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(61);
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiNoteForDrum)).to_equal(61);
@@ -721,8 +722,8 @@ describe song_settings_edit("SetSetting", $ {
 		ctx.addresses.affect_entire = deluge::scenes::menu::bindings::writes_whole_kit(ctx);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
 		for (SoundDrum* drum : {first, second}) {
-			const deluge::instrument::SoundState* state = drum->boundState();
-			expect(state).not_().to_be_null();
+			const deluge::test::FlatView state = deluge::test::flat_of(drum->boundState());
+			expect(state.has_value()).to_be_true();
 			expect(static_cast<int>(state->output_midi_note_for_drum)).to_equal(72);
 		}
 	});

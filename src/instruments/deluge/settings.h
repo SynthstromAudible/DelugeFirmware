@@ -70,6 +70,7 @@ extern const std::span<const plugin::SettingInfo> kClipScopedSettings;
 ///         word is none of its choices, or another row whose held text is not a whole number (both states the schema
 ///         cannot describe).
 [[nodiscard]] std::optional<int32_t> held_setting(const SoundState& state, std::string_view path);
+
 /// @brief Whether a sound in @p state may take @p value at @p path, beyond what the schema allows: ring mod rings only
 /// the oscillators up to a wavetable, so it is not chosen while either oscillator is past one, nor such an oscillator
 /// while it is chosen.
@@ -78,6 +79,13 @@ extern const std::span<const plugin::SettingInfo> kClipScopedSettings;
 /// @param value The candidate value.
 /// @return True when the sound may take the value.
 [[nodiscard]] bool allows_setting(const SoundState& state, std::string_view path, const serialization::Value& value);
+
+/// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
+/// value is unset (a sound drum's MIDI note before one is chosen).
+/// @param state The sound's state.
+/// @param path  The setting's path.
+/// @return True when the sound takes a setting there.
+[[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);
 
 /// @brief Write @p value (canonical, in an Edit's form: an LFO's sync level as the level itself) at @p path into
 /// @p state, the inverse of setting_value: the field the path names, whether or not a file holds it in this state.
@@ -89,12 +97,5 @@ extern const std::span<const plugin::SettingInfo> kClipScopedSettings;
 /// @return The instrument entries the write changed: the path's own, or none when it held the value already.
 [[nodiscard]] std::vector<std::string_view> write_setting(SoundState& state, std::string_view path,
                                                           const serialization::Value& value);
-
-/// @brief Whether a sound in @p state takes a setting at @p path at all: where setting_value answers, or where the
-/// value is unset (a sound drum's MIDI note before one is chosen).
-/// @param state The sound's state.
-/// @param path  The setting's path.
-/// @return True when the sound takes a setting there.
-[[nodiscard]] bool takes_setting(const SoundState& state, std::string_view path);
 
 } // namespace deluge::instrument

@@ -94,9 +94,10 @@ encode_entry(const SoundState& state, std::string_view key, const plugin::CodecC
              std::optional<int32_t> compressor_threshold = std::nullopt);
 
 /// @brief Read a whole sound element into @p state, which holds the state of the sound being read into (a new sound's,
-/// for a file). Each entry is applied in the element's order, older
-/// formats included; anything the element lacks keeps its value. Params, mod knobs and the effects are not the
-/// instrument's to read here, and its cables are read and written by the cable codec (decode_cables, encode_cables).
+/// for a file). Each entry is applied in the element's order, older formats included, in the file's layout (its keys
+/// may come in any order), and the result composed once; anything the element lacks keeps its value. Params, mod
+/// knobs and the effects are not the instrument's to read here, and its cables are read and written by the cable codec
+/// (decode_cables, encode_cables).
 /// @param element The sound element.
 /// @param state   The state read into; entries the element lacks keep their value.
 /// @param context The file context.
@@ -104,20 +105,25 @@ encode_entry(const SoundState& state, std::string_view key, const plugin::CodecC
 [[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, SoundState& state,
                                                              const plugin::CodecContext& context);
 
-/// @brief The fields of @p from that @p state's encoding does not write, copied into @p state: an FM sound's sources'
-/// types, sample playback, ranges and DX patches; a non-FM sound's modulators; a sample source's own transpose and
-/// cents and its retrigger phase (and for source 2 the oscillator sync); a non-sample source's sample playback, its
-/// ranges unless it is a wavetable, and its DX patch unless it is a DX7; and whether its stutter uses the song's.
-/// @param state The state to copy into.
-/// @param from  The state the fields are copied from.
-void keep_unwritten(SoundState& state, const SoundState& from);
-
-/// @brief What a sound's slot says once it is changed: the state it decodes to, and its instrument entries the change
+/// @brief What a sound's slot says once it is changed: the record it decodes to, and its instrument entries the change
 /// touched, in file order.
 struct SlotChange {
 	SoundState state;
 	std::vector<std::string_view> changed;
 };
+
+/// @brief The instrument's top-level keys whose typed fields differ between @p a and @p b, in file order: what
+/// differing_entries tells without encoding, a field no file holds in its state included.
+/// @param a One state.
+/// @param b The other.
+/// @return The keys.
+[[nodiscard]] std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b);
+
+/// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
+/// and the effects are left out. For comparing two states and for recording what a reader produced.
+/// @param state The state to dump.
+/// @return A Map of the fields by name.
+[[nodiscard]] serialization::Value dump_state(const SoundState& state);
 
 /// @brief @p element (a sound's changed slot) decoded onto @p current, whose slot was @p previous: a fresh read of it,
 /// as a file is read but without the ring-mod clamp only a file read applies, with every field the encoding does not
@@ -138,8 +144,7 @@ struct SlotChange {
 /// source's and a modulator's reading depends on), are encoded and read.
 /// @param state   The sound's state.
 /// @param path    The setting's path: not one whose menu reshapes more than its leaf (an oscillator's type or loop
-/// mode,
-///                or the synth mode).
+///                mode, or the synth mode).
 /// @param value   The value in its Edit form (canonical; a sync level as the level itself).
 /// @param context The file context: the slot's tick magnitude.
 /// @return The new state and the entries touched, or why the entry cannot be read.
@@ -155,13 +160,6 @@ struct SlotChange {
 /// @return The keys.
 [[nodiscard]] std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
                                                               const plugin::CodecContext& context);
-
-/// @brief The instrument's top-level keys whose typed fields differ between @p a and @p b, in file order: what
-/// differing_entries tells without encoding, a field no file holds in its state included.
-/// @param a One state.
-/// @param b The other.
-/// @return The keys.
-[[nodiscard]] std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b);
 
 /// @brief decode_change of @p next's encoding of @p keys onto @p state, whose encoding of them is the slot before: what
 /// a slot changed to say @p next there reads as, the entries read as a file holds them (and refused as a file's would
@@ -182,11 +180,5 @@ struct SlotChange {
 /// @return The new state, or why the element cannot be read.
 [[nodiscard]] std::expected<SoundState, plugin::StateError>
 decode_onto(const serialization::Value& element, const SoundState& current, const plugin::CodecContext& context);
-
-/// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
-/// and the effects are left out. For comparing two states and for recording what a reader produced.
-/// @param state The state to dump.
-/// @return A Map of the fields by name.
-[[nodiscard]] serialization::Value dump_state(const SoundState& state);
 
 } // namespace deluge::instrument

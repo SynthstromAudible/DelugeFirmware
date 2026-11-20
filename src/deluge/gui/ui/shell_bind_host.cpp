@@ -809,13 +809,17 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::selectEncoderAction`'s insert: a range with no file at @p at, the one below it narrowed
-	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	const auto id = static_cast<deluge::instrument::SourceId>(source);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(*sound->boundState(), id);
 	if (at > ranges.size()) {
 		return false;
 	}
-	// A new range's end is unset until a file gives it one, as a runtime range starts
-	ranges.insert(ranges.begin() + at,
-	              deluge::instrument::RangeState{.top_note = top_note, .end_pos = deluge::instrument::kUnsetEndPos});
+	// A new sample range's end is unset until a file gives it one, as a runtime range starts; a wavetable range has
+	// no zone
+	const bool sample = deluge::instrument::source_type(*sound->boundState(), id) == OscType::SAMPLE;
+	ranges.insert(
+	    ranges.begin() + at,
+	    deluge::instrument::RangeState{.top_note = top_note, .end_pos = sample ? deluge::instrument::kUnsetEndPos : 0});
 	if (previous_top && at > 0) {
 		ranges[at - 1].top_note = *previous_top;
 	}
@@ -833,7 +837,8 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 		return false;
 	}
 	// `MultiRange::deletePress`: the range goes, the one below it widened
-	std::vector<deluge::instrument::RangeState> ranges = sound->boundState()->sources[source].ranges;
+	std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source));
 	if (index >= ranges.size()) {
 		return false;
 	}
@@ -965,7 +970,7 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 		namespace instrument = deluge::instrument;
 		const instrument::SoundState& state = *sound->boundState();
 		const auto id = static_cast<instrument::SourceId>(source);
-		const std::span<const instrument::RangeState> held = instrument::source_ranges(state, id);
+		const std::vector<instrument::RangeState> held = instrument::source_ranges(state, id);
 		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
 		    && instrument::source_type(state, id) == instrument::OscType::SAMPLE) {
 			std::vector<instrument::RangeState> ranges{held.begin(), held.end()};

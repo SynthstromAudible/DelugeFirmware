@@ -110,6 +110,7 @@
 // the headers above that name util:: from inside namespace deluge.
 #include "deluge/util/retire_list.h"
 #include "deluge/util/spsc_ring.h"
+#include "instruments/deluge/state_access.h"
 #include "processing/engines/render_domain.h"
 
 namespace params = deluge::modulation::params;
@@ -557,7 +558,10 @@ void init() {
 
 	// The preview sends all of itself to the sidechain: its state, and the runtime's copy the render reads
 	constexpr int32_t kFullSend = 2147483647;
-	sampleForPreview->boundRecord()->side_chain_send_level = kFullSend;
+	deluge::instrument::SoundState& record = *sampleForPreview->boundRecord();
+	deluge::instrument::HostFields host = deluge::instrument::host_fields(record);
+	host.side_chain_send_level = kFullSend;
+	record = deluge::instrument::with_host_fields(std::move(record), host);
 	sampleForPreview->sideChainSendLevel = kFullSend;
 
 	// Before the first render reads it.

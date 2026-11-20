@@ -47,25 +47,23 @@ SourceResources::~SourceResources() {
 	}
 }
 
-void SourceResources::seedDxPatchInto(deluge::instrument::SourceState& d) const {
-	if (dxPatch != nullptr) {
-		deluge::instrument::DxPatchState p;
-		for (int32_t b = 0; b < 156; b++) {
-			p.params[b] = dxPatch->params[b];
-		}
-		p.engine_mode = dxPatch->engineMode;
-		p.random_detune = dxPatch->random_detune;
-		d.dx_patch = p;
+std::optional<deluge::instrument::DxPatchState> SourceResources::heldDxPatch() const {
+	if (dxPatch == nullptr) {
+		return std::nullopt;
 	}
-	else {
-		d.dx_patch.reset();
+	deluge::instrument::DxPatchState p;
+	for (int32_t b = 0; b < 156; b++) {
+		p.params[b] = dxPatch->params[b];
 	}
+	p.engine_mode = dxPatch->engineMode;
+	p.random_detune = dxPatch->random_detune;
+	return p;
 }
 
-void SourceResources::seedRangesInto(deluge::instrument::SourceState& d) const {
-	d.ranges.clear();
+std::vector<deluge::instrument::RangeState> SourceResources::heldRanges() const {
+	std::vector<deluge::instrument::RangeState> held;
 	int32_t numRanges = std::ssize(ranges);
-	d.ranges.reserve(numRanges);
+	held.reserve(numRanges);
 	for (int32_t e = 0; e < numRanges; e++) {
 		const auto* range = static_cast<const MultisampleRange*>(ranges.getElement(e));
 		deluge::instrument::RangeState dr;
@@ -80,8 +78,9 @@ void SourceResources::seedRangesInto(deluge::instrument::SourceState& d) const {
 			dr.transpose = range->sampleHolder.transpose;
 			dr.cents = range->sampleHolder.cents;
 		}
-		d.ranges.push_back(std::move(dr));
+		held.push_back(std::move(dr));
 	}
+	return held;
 }
 
 // Only for a sample oscillator (its sound's oscType is SAMPLE)

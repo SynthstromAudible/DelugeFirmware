@@ -13,6 +13,7 @@
 #include "processing/sound/source_resources.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "support/flat_state.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -76,11 +77,14 @@ inline constexpr OscCase kOscCases[] = {
 /// as
 ///        a load does, so the record the menu reads is the sound's truth.
 inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCase& c, int32_t which) {
-	sound.boundRecord()->synth_mode = c.synth_mode;
+	deluge::test::change_flat(*sound.boundRecord(),
+	                          [&](deluge::instrument::FlatSoundState& f) { f.synth_mode = c.synth_mode; });
 	sound.projectSnapshot();
 	for (int32_t i = 0; i < 2; i++) {
 		SourceResources& s = sound.sources[i];
-		sound.state_->sources[i].osc_type = i == which ? c.osc_type : OscType::SQUARE;
+		deluge::test::change_flat(*sound.state_, [&](deluge::instrument::FlatSoundState& f) {
+			f.sources[i].osc_type = i == which ? c.osc_type : OscType::SQUARE;
+		});
 		sound.projectSnapshot();
 		auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(i));
 		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;

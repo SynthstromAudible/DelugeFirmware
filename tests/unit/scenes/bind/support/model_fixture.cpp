@@ -1,4 +1,5 @@
 #include "support/model_fixture.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "deluge-project/doc_note_row.h"
 #include "instruments/deluge/codec.h"
@@ -37,8 +38,8 @@ const effects::EffectStates* FakeFacts::chain_effects(project::ChainAddress chai
 ModelFixture::ModelFixture() {
 	song.output_structure.getOrCreate(kSynth.id);
 	song.drum_structure.getOrCreate(kDrum.id);
-	set_state(kSynth, instrument::SoundState{});
-	set_state(kDrum, instrument::SoundState{});
+	set_state(kSynth, instrument::FlatSoundState{});
+	set_state(kDrum, instrument::FlatSoundState{});
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain}) {
 		song.output_structure.getOrCreate(chain.id).effects = project::FxChain{};
 	}
@@ -66,10 +67,11 @@ ModelFixture::ModelFixture() {
 	row.drum_id = kDrum.id;
 }
 
-void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
-	facts.states[slot.id] = state;
+void ModelFixture::set_state(project::SlotAddress slot, const instrument::FlatSoundState& state) {
+	facts.states[slot.id] = instrument::SoundState(state);
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
-	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
+	                             .state =
+	                                 plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(state)),
 	                             .tick_magnitude = 1};
 	if (slot.kind == project::SlotAddress::Kind::OUTPUT) {
 		song.output_structure.getOrCreate(slot.id).instrument = std::move(made);

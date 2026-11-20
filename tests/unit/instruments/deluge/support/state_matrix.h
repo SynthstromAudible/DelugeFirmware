@@ -4,6 +4,7 @@
 /// @brief Sound states across what each instrument entry's encoding and reading depend on, for the codec's specs.
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include <string>
 #include <utility>
@@ -12,47 +13,47 @@
 namespace deluge::instrument::test {
 
 /// States across what each entry's encoding depends on.
-inline std::vector<std::pair<std::string, SoundState>> matrix() {
-	std::vector<std::pair<std::string, SoundState>> states;
-	states.emplace_back("new", SoundState{});
+inline std::vector<std::pair<std::string, FlatSoundState>> matrix() {
+	std::vector<std::pair<std::string, FlatSoundState>> states;
+	states.emplace_back("new", FlatSoundState{});
 
-	SoundState fm = SoundState{};
+	FlatSoundState fm = FlatSoundState{};
 	fm.synth_mode = SynthMode::FM;
 	fm.modulator_transpose = {3, -2};
 	fm.modulator1_to_modulator0 = true;
 	states.emplace_back("fm", fm);
 
-	SoundState ring = SoundState{};
+	FlatSoundState ring = FlatSoundState{};
 	ring.synth_mode = SynthMode::RINGMOD;
 	ring.sources[1].osc_type = OscType::SAW;
 	states.emplace_back("ringmod", ring);
 
-	SoundState sample = SoundState{};
+	FlatSoundState sample = FlatSoundState{};
 	sample.sources[0].osc_type = OscType::SAMPLE;
 	sample.sources[0].repeat_mode = SampleRepeatMode::ONCE;
 	sample.sources[0].ranges = {RangeState{.top_note = 60, .file_path = "SAMPLES/a.wav", .end_pos = 100},
 	                            RangeState{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .end_pos = 200}};
 	states.emplace_back("ranged sample", sample);
 
-	SoundState dx = SoundState{};
+	FlatSoundState dx = FlatSoundState{};
 	dx.sources[1].osc_type = OscType::DX7;
 	dx.sources[1].dx_patch = DxPatchState{.engine_mode = 2, .random_detune = 5};
 	dx.sources[1].dx_patch->params[7] = 42;
 	states.emplace_back("dx7", dx);
 
-	SoundState wavetable = SoundState{};
+	FlatSoundState wavetable = FlatSoundState{};
 	wavetable.sources[0].osc_type = OscType::WAVETABLE;
 	wavetable.sources[0].ranges = {RangeState{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}};
 	wavetable.oscillator_sync = true;
 	states.emplace_back("wavetable", wavetable);
 
-	SoundState synced = SoundState{};
+	FlatSoundState synced = FlatSoundState{};
 	synced.lfo_sync_level[1] = deluge::plugin::SyncLevel::EIGHTH;
 	synced.effects.delay.sync_level = deluge::plugin::SyncLevel::QUARTER;
 	synced.effects.sidechain.sync_level = deluge::plugin::SyncLevel::SIXTEENTH;
 	states.emplace_back("synced", synced);
 
-	SoundState nonzero = SoundState{};
+	FlatSoundState nonzero = FlatSoundState{};
 	nonzero.transpose = 5;
 	nonzero.cents = -7;
 	nonzero.side_chain_send_level = 1234;

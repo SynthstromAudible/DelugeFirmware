@@ -21,8 +21,14 @@
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
+#include "synth/modulation/lfo_state.h"
+#include "synth/sources/source_state.h"
+#include "synth/voice/voicing_state.h"
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -39,22 +45,16 @@ enum class SourceId : uint8_t {
 	B = 1, ///< the second oscillator ("osc2")
 };
 
-/// @brief An oscillator's own tuning. A sample oscillator's is zero: its ranges carry theirs.
-struct Tuning {
-	int16_t transpose{0}; ///< semitones
-	int8_t cents{0};      ///< −50..50
-	bool operator==(const Tuning&) const = default;
-};
+/// @brief An oscillator's own tuning. A sample oscillator plays its ranges' and keeps this one for the other kinds.
+using synth::Tuning;
 
 /// @brief How a sample oscillator plays its ranges.
-struct SamplePlayback {
-	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
-	int8_t time_stretch_amount{0};
-	plugin::InterpolationMode interpolation{plugin::InterpolationMode::SMOOTH};
-	bool pitch_and_speed_independent{false};
-	bool reversed{false};
-	bool operator==(const SamplePlayback&) const = default;
-};
+using synth::SamplePlayback;
+
+/// @brief Slot @p id's index in a sound's two slots.
+[[nodiscard]] constexpr size_t slot_index(SourceId id) noexcept {
+	return static_cast<size_t>(id);
+}
 
 /// @brief Which engine renders the sound: subtractive, ring mod or FM.
 /// @param state The sound's state.
@@ -78,8 +78,14 @@ struct SamplePlayback {
 /// @brief An oscillator slot's key-split ranges, by top note: a sample slot's samples, a wavetable slot's files.
 /// @param state The sound's state.
 /// @param id The slot.
-/// @return The ranges, valid while @p state is unchanged; empty for a slot that plays none.
-[[nodiscard]] std::span<const RangeState> source_ranges(const SoundState& state, SourceId id) noexcept;
+/// @return The ranges; empty for a slot that plays none.
+[[nodiscard]] std::vector<RangeState> source_ranges(const SoundState& state, SourceId id);
+
+/// @brief Whether an oscillator slot's ranges are the same in @p a and @p b, without copying them.
+/// @param a One state.
+/// @param b The other.
+/// @param id The slot.
+[[nodiscard]] bool same_ranges(const SoundState& a, const SoundState& b, SourceId id);
 
 /// @brief An oscillator slot's DX7 patch.
 /// @param state The sound's state.
@@ -91,6 +97,57 @@ struct SamplePlayback {
 /// @param state The sound's state.
 [[nodiscard]] const effects::EffectStates& sound_effects(const SoundState& state) noexcept;
 
+/// @brief The settings of the sound's own effects, to change in place: what the effects binding plays.
+/// @param state The sound's state.
+[[nodiscard]] effects::EffectStates& sound_effects(SoundState& state) noexcept;
+
+/// @brief How many unison parts each voice plays, how far apart and how wide.
+/// @param state The sound's state.
+[[nodiscard]] synth::UnisonState unison(const SoundState& state) noexcept;
+
+/// @brief How the sound's voices are allocated and tuned as a whole, its unison included.
+/// @param state The sound's state.
+[[nodiscard]] synth::VoicingState voicing(const SoundState& state) noexcept;
+
+/// @brief Whether the second oscillator is hard-synced to the first (kept while FM plays).
+/// @param state The sound's state.
+[[nodiscard]] bool oscillator_sync(const SoundState& state) noexcept;
+
+/// @brief Where an oscillator slot's phase starts a note: none for one that runs free. An FM sound's is its carrier's.
+/// @param state The sound's state.
+/// @param id The slot.
+[[nodiscard]] synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept;
+
+/// @brief FM's two modulators' pitches (kept while another engine plays).
+/// @param state The sound's state.
+[[nodiscard]] std::array<synth::Pitch, 2> modulators(const SoundState& state) noexcept;
+
+/// @brief Whether FM's second modulator modulates the first rather than the carriers.
+/// @param state The sound's state.
+[[nodiscard]] bool modulator1_to_modulator0(const SoundState& state) noexcept;
+
+/// @brief One of the sound's four LFOs, in file order: LFO1 and LFO3 one per sound, LFO2 and LFO4 one per voice.
+/// @param state The sound's state.
+/// @param index 0..3.
+[[nodiscard]] synth::LfoState lfo(const SoundState& state, size_t index) noexcept;
+
+/// @brief The settings the sound's host owns in its state: its sidechain send and, as a kit row, its MIDI output.
+struct HostFields {
+	int32_t side_chain_send_level{0};
+	uint8_t output_midi_channel{255};       ///< 255 = none
+	uint8_t output_midi_note_for_drum{255}; ///< 255 = none
+	bool operator==(const HostFields&) const = default;
+};
+
+/// @brief The host's fields of @p state.
+/// @param state The sound's state.
+[[nodiscard]] HostFields host_fields(const SoundState& state) noexcept;
+
+/// @brief @p state with the host's fields replaced.
+/// @param state The sound's state.
+/// @param fields The host's new fields.
+[[nodiscard]] SoundState with_host_fields(SoundState state, const HostFields& fields);
+
 /// @brief @p state with one oscillator slot's ranges replaced.
 /// @param state The sound's state.
 /// @param id The slot.
@@ -100,7 +157,7 @@ struct SamplePlayback {
 /// @brief @p state with one oscillator slot's DX7 patch replaced.
 /// @param state The sound's state.
 /// @param id The slot.
-/// @param patch Its new patch.
-[[nodiscard]] SoundState with_dx_patch(SoundState state, SourceId id, const DxPatchState& patch);
+/// @param patch Its new patch; none drops the one it has.
+[[nodiscard]] SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch);
 
 } // namespace deluge::instrument

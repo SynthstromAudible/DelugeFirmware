@@ -25,6 +25,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
 #include "support/spec_main.h"
@@ -48,13 +49,14 @@ void give_sample_range(::Sound& sound) {
 }
 
 /// @brief The sound's state, by its slot.
-const deluge::instrument::SoundState* state_of(const MenuContext& ctx) {
-	return ctx.addresses.slot ? menu::host_runtime_facts().sound_state(*ctx.addresses.slot) : nullptr;
+deluge::test::FlatView state_of(const MenuContext& ctx) {
+	return deluge::test::flat_of(ctx.addresses.slot ? menu::host_runtime_facts().sound_state(*ctx.addresses.slot)
+	                                                : nullptr);
 }
 
 /// @brief The sound at @p slot.
-const deluge::instrument::SoundState* state_at(deluge::project::SlotAddress slot) {
-	return menu::host_runtime_facts().sound_state(slot);
+deluge::test::FlatView state_at(deluge::project::SlotAddress slot) {
+	return deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot));
 }
 
 } // namespace
@@ -77,12 +79,12 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		}
 
 		menu::bindings::write(nodes::source0_transpose, ctx, 250);
-		const deluge::instrument::SoundState* state = state_of(ctx);
-		expect(state).not_().to_be_null();
-		if (state != nullptr) {
+		const deluge::test::FlatView state = state_of(ctx);
+		expect(state.has_value()).to_be_true();
+		if (state.has_value()) {
 			expect(state->sources[0].ranges.size()).to_equal(1);
 		}
-		if (state != nullptr && !state->sources[0].ranges.empty()) {
+		if (state.has_value() && !state->sources[0].ranges.empty()) {
 			// 250 cents up is legacy's 3 semitones less 50 cents (`computeFinalValuesForTranspose`).
 			expect(static_cast<int32_t>(state->sources[0].ranges[0].transpose)).to_equal(3);
 			expect(static_cast<int32_t>(state->sources[0].ranges[0].cents)).to_equal(-50);
@@ -103,17 +105,17 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::source0_transpose, ctx, 300);
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
-		const deluge::instrument::SoundState* a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a).not_().to_be_null();
-		if (a != nullptr) {
+		const deluge::test::FlatView a = state_at(sampled_slot);
+		const deluge::test::FlatView b = state_at(synth_slot);
+		expect(a.has_value()).to_be_true();
+		if (a.has_value()) {
 			expect(a->sources[0].ranges.empty()).to_be_false();
 			if (!a->sources[0].ranges.empty()) {
 				expect(a->sources[0].ranges[0].transpose).to_equal(3);
 			}
 		}
-		expect(b).not_().to_be_null();
-		if (b != nullptr) {
+		expect(b.has_value()).to_be_true();
+		if (b.has_value()) {
 			expect(b->sources[0].transpose).to_equal(3);
 		}
 	});
@@ -143,9 +145,9 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		to_be_at_least(expect(recording.requests.size()), size_t{3});
 
 		menu::bindings::write(nodes::stutter_direction, ctx, 0);
-		const deluge::instrument::SoundState* state = state_of(ctx);
-		expect(state).not_().to_be_null();
-		if (state != nullptr) {
+		const deluge::test::FlatView state = state_of(ctx);
+		expect(state.has_value()).to_be_true();
+		if (state.has_value()) {
 			expect(state->effects.stutter.use_song_stutter).to_be_true();
 			expect(state->effects.stutter.quantized).to_be_true();
 			expect(state->effects.stutter.reversed).to_be_true();
@@ -228,15 +230,15 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
 		expect(menu::bindings::read(nodes::sample0_interpolation, ctx)).to_equal(1); // SMOOTH, the default
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0);                  // LINEAR
-		const deluge::instrument::SoundState* a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a).not_().to_be_null();
-		if (a != nullptr) {
+		const deluge::test::FlatView a = state_at(sampled_slot);
+		const deluge::test::FlatView b = state_at(synth_slot);
+		expect(a.has_value()).to_be_true();
+		if (a.has_value()) {
 			expect(a->sources[0].interpolation_mode).to_equal(deluge::plugin::InterpolationMode::LINEAR);
 		}
 		// A synth source takes no interpolation: legacy's per-drum setting write refuses it too.
-		expect(b).not_().to_be_null();
-		if (b != nullptr) {
+		expect(b.has_value()).to_be_true();
+		if (b.has_value()) {
 			expect(b->sources[0].interpolation_mode).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
 		}
 	});
@@ -256,15 +258,15 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::project::SlotAddress sampled_slot{deluge::project::SlotAddress::Kind::DRUM, *sampled->id()};
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
 		menu::bindings::write(nodes::stutter_direction, ctx, 2); // reversed
-		const deluge::instrument::SoundState* a = state_at(sampled_slot);
-		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a).not_().to_be_null();
-		if (a != nullptr) {
+		const deluge::test::FlatView a = state_at(sampled_slot);
+		const deluge::test::FlatView b = state_at(synth_slot);
+		expect(a.has_value()).to_be_true();
+		if (a.has_value()) {
 			expect(a->effects.stutter.reversed).to_be_true();
 			expect(a->effects.stutter.use_song_stutter).to_be_false();
 		}
-		expect(b).not_().to_be_null();
-		if (b != nullptr) {
+		expect(b.has_value()).to_be_true();
+		if (b.has_value()) {
 			expect(b->effects.stutter.reversed).to_be_true();
 			expect(b->effects.stutter.use_song_stutter).to_be_false();
 		}

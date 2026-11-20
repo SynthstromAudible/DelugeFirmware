@@ -29,20 +29,20 @@ class DxPatch;
 
 #include "instruments/deluge/sound_state.h"
 
+#include <optional>
+#include <vector>
+
 class SourceResources {
 public:
 	SourceResources();
 	~SourceResources();
 
-	/// @brief Copy the DX7 patch into @p d: the 156 params, engineMode and random_detune, or clear it when the
-	/// engine patch is absent (non-DX7 osc).
-	/// @param d The record to fill.
-	void seedDxPatchInto(deluge::instrument::SourceState& d) const;
+	/// @brief The DX7 patch it holds: the 156 params, engine mode and random detune; none when it holds none.
+	[[nodiscard]] std::optional<deluge::instrument::DxPatchState> heldDxPatch() const;
 
-	/// @brief Copy the ranges into @p d: each one's top note and file, and while they are sample ranges (whatever the
-	/// type now) their zones and tuning, which a type change and back keeps.
-	/// @param d The record to fill.
-	void seedRangesInto(deluge::instrument::SourceState& d) const;
+	/// @brief The ranges it holds: each one's top note and file, and while they are sample ranges (whatever the type
+	/// now) their zones and tuning, which a type change and back keeps.
+	[[nodiscard]] std::vector<deluge::instrument::RangeState> heldRanges() const;
 
 	/// @brief Whether the note last set up on this sample source plays against the record's direction (the
 	/// arpeggiator's reverse step); cleared when a voice of the sound releases.

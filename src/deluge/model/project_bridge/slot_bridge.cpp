@@ -27,6 +27,7 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -263,13 +264,15 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	// (a source whose record already holds what it loaded takes no Edit)
 	deluge::edits::Context ctx{song, song.project};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		const deluge::instrument::SourceState& recorded = sound.boundState()->sources[s];
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		const deluge::instrument::DxPatchState* recordedPatch = deluge::instrument::dx_patch(*sound.boundState(), id);
 		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sources[s]);
-		    patch && patch != recorded.dx_patch) {
+		    patch && (recordedPatch == nullptr || *patch != *recordedPatch)) {
 			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
 			(void)deluge::edits::apply(ctx, dx);
 		}
-		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sources[s]); held != recorded.ranges) {
+		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sources[s]);
+		    !std::ranges::equal(held, deluge::instrument::source_ranges(*sound.boundState(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
 			(void)deluge::edits::apply(ctx, ranges);
 		}

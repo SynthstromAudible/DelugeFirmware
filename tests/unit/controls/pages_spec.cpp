@@ -14,6 +14,7 @@
 #include "support/printers/param_id_printer.h"
 #include <algorithm>
 #include <array>
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdlib>
@@ -70,10 +71,10 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	output.mod_knob_mode = mode;
 	output.controls = {{.control = {.button = mode, .knob = 0}, .target = ip::kLpfFrequency},
 	                   {.control = {.button = mode, .knob = 1}, .target = ip::kLpfResonance}};
-	instrument::SoundState sound{};
+	instrument::FlatSoundState sound{};
 	sound.synth_mode = synth_mode;
 	output.instrument = project::InstrumentSlot{
-	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(sound)};
+	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(sound))};
 	return song;
 }
 const controls::KnobFocus kSynth{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 3}}};

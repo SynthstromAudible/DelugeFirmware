@@ -174,6 +174,7 @@
 #include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -430,9 +431,13 @@ Sample* make_sample() {
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
 	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	SourceResources& source = sound->sources[0];
-	sound->state_->sources[0].osc_type = OscType::SAMPLE;
-	sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
-	sound->state_->sources[0].reversed = false;
+	deluge::test::change_flat(*sound->state_,
+	                          [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
+	deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
+		f.sources[0].repeat_mode = SampleRepeatMode::ONCE;
+	});
+	deluge::test::change_flat(*sound->state_,
+	                          [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = false; });
 	sound->projectSnapshot();
 	auto* range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 	if (sample != nullptr) {

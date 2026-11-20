@@ -29,9 +29,7 @@
 namespace deluge::bridge {
 
 std::vector<deluge::instrument::RangeState> rangesOf(const ::SourceResources& source) {
-	deluge::instrument::SourceState into;
-	source.seedRangesInto(into);
-	return std::move(into.ranges);
+	return source.heldRanges();
 }
 
 namespace {
@@ -173,9 +171,7 @@ Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrumen
 }
 
 std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResources& source) {
-	deluge::instrument::SourceState into;
-	source.seedDxPatchInto(into);
-	return into.dx_patch;
+	return source.heldDxPatch();
 }
 
 Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {

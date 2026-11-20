@@ -1,6 +1,7 @@
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/params.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;
@@ -10,18 +11,19 @@ using deluge::plugin::SyncLevel;
 
 namespace {
 
-SoundState subtractive() {
-	SoundState state;
+FlatSoundState subtractive() {
+	FlatSoundState state;
 	state.synth_mode = SynthMode::SUBTRACTIVE;
 	return state;
 }
 
-bool allowed(PatchSource source, ParamId destination, const SoundState& state = subtractive(), bool is_drum = false) {
+bool allowed(PatchSource source, ParamId destination, const FlatSoundState& state = subtractive(),
+             bool is_drum = false) {
 	return cable_allowed(source, destination, state, is_drum);
 }
 
-SoundState with_filters(FilterMode lpf, FilterMode hpf) {
-	SoundState state = subtractive();
+FlatSoundState with_filters(FilterMode lpf, FilterMode hpf) {
+	FlatSoundState state = subtractive();
 	state.effects.filter.lpf_mode = lpf;
 	state.effects.filter.hpf_mode = hpf;
 	return state;
@@ -48,9 +50,9 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 	});
 
 	it("follows the synth mode", _ {
-		SoundState fm = subtractive();
+		FlatSoundState fm = subtractive();
 		fm.synth_mode = SynthMode::FM;
-		SoundState ringmod = subtractive();
+		FlatSoundState ringmod = subtractive();
 		ringmod.synth_mode = SynthMode::RINGMOD;
 		expect(allowed(PatchSource::VELOCITY, param::kOscAPhaseWidth, fm)).to_be_false();
 		expect(allowed(PatchSource::VELOCITY, param::kOscAPhaseWidth)).to_be_true();
@@ -71,7 +73,7 @@ describe cable_acceptance("which sources a Deluge sound lets patch to which para
 	});
 
 	it("lets a synced LFO's rate take no cable", _ {
-		SoundState synced = subtractive();
+		FlatSoundState synced = subtractive();
 		synced.lfo_sync_level[0] = SyncLevel::QUARTER;
 		expect(allowed(PatchSource::LFO_GLOBAL_2, param::kLfo1Rate, synced)).to_be_false();
 		expect(allowed(PatchSource::LFO_GLOBAL_2, param::kLfo3Rate, synced)).to_be_true();

@@ -27,6 +27,7 @@
 #include "scenes/menu/present.h"
 #include "scenes/profile.h"
 
+#include "support/flat_state.h"
 #include "support/oracle_tree.h"
 #include "support/tables_2_fixtures.h"
 #include "support/tables_3_fixtures.h"
@@ -134,7 +135,9 @@ struct UnsetProbe {
 
 void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
 	Sound& sound = *spec::menu_engine(ctx).sound;
-	sound.boundRecord()->output_midi_note_for_drum = MIDI_NOTE_NONE;
+	deluge::test::change_flat(*sound.boundRecord(), [&](deluge::instrument::FlatSoundState& f) {
+		f.output_midi_note_for_drum = MIDI_NOTE_NONE;
+	});
 	sound.outputMidiNoteForDrum = MIDI_NOTE_NONE;
 }
 

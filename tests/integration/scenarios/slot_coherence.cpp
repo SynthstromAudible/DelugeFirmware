@@ -25,6 +25,7 @@
 #include "effects/plugin.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
+#include "instruments/deluge/state_access.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -52,13 +53,15 @@ using deluge::serialization::Value;
 /// oscillator's type, DX7 patch and ranges, and the effects the render plays. The rest the sound plays through its
 /// config, which the snapshot check holds to the record.
 deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
-	record.side_chain_send_level = sound.sideChainSendLevel;
-	record.output_midi_channel = sound.outputMidiChannel;
-	record.output_midi_note_for_drum = sound.outputMidiNoteForDrum;
-	record.effects = sound.modControllableSnapshot().effects;
+	record = deluge::instrument::with_host_fields(std::move(record),
+	                                              {.side_chain_send_level = sound.sideChainSendLevel,
+	                                               .output_midi_channel = sound.outputMidiChannel,
+	                                               .output_midi_note_for_drum = sound.outputMidiNoteForDrum});
+	deluge::instrument::sound_effects(record) = sound.modControllableSnapshot().effects;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		sound.sources[s].seedDxPatchInto(record.sources[s]);
-		sound.sources[s].seedRangesInto(record.sources[s]);
+		const auto id = static_cast<deluge::instrument::SourceId>(s);
+		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sources[s].heldDxPatch());
+		record = deluge::instrument::with_ranges(std::move(record), id, sound.sources[s].heldRanges());
 	}
 	return record;
 }
@@ -142,11 +145,13 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (!d.empty()) {
 			return "runtime at " + d;
 		}
-		if (const deluge::effects::EffectStates& played = held.effects; !(played == record.effects)) {
+		if (const deluge::effects::EffectStates& played = deluge::instrument::sound_effects(held);
+		    !(played == deluge::instrument::sound_effects(record))) {
 			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
-			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),
-			                                                 deluge::effects::encode(record.effects, context));
+			       + deluge::serialization::first_difference(
+			           deluge::effects::encode(played, context),
+			           deluge::effects::encode(deluge::instrument::sound_effects(record), context));
 		}
 	}
 	if (checks.bound && slot->state.as<deluge::instrument::DelugeSynth>() != &record) {
@@ -170,7 +175,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (!decoded) {
 			return "decode refused";
 		}
-		if (!(*decoded == record)) {
+		if (!(deluge::instrument::SoundState(*decoded) == record)) {
 			return "decode at "
 			       + deluge::serialization::first_difference(deluge::instrument::dump_state(*decoded),
 			                                                 deluge::instrument::dump_state(record));

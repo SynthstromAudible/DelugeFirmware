@@ -6,6 +6,7 @@
 #include "scenes/bind/target.h"
 #include "support/model_fixture.h"
 
+#include "support/flat_state.h"
 #include <array>
 #include <cppspec.hpp>
 #include <limits>
@@ -168,10 +169,10 @@ describe bind_param("a param target", ${
 			const auto shown = view(t, f.song, where, f.facts);
 			return shown.has_value() && shown->applies;
 		};
-		f.facts.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE;
+		deluge::test::change_flat(f.facts.states[kSynth.id], [](deluge::instrument::FlatSoundState& s) { s.synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE; });
 		expect(applies(kFmOnly, kOnSynth)).to_be_false();
 		expect(applies(kWithFm, kOnSynth)).to_be_false();
-		f.facts.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::FM;
+		deluge::test::change_flat(f.facts.states[kSynth.id], [](deluge::instrument::FlatSoundState& s) { s.synth_mode = deluge::instrument::SynthMode::FM; });
 		expect(applies(kFmOnly, kOnSynth)).to_be_true();
 		expect(applies(kWithFm, kOnSynth)).to_be_true();
 		f.facts.chains[FakeFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::OFF;

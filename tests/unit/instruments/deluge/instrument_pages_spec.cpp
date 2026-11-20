@@ -6,6 +6,7 @@
 #include "support/printers/param_id_printer.h"
 #include "support/printers/plugin_id_printer.h"
 #include "support/printers/remote_controls_printer.h"
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 
 #include <array>
@@ -222,9 +223,9 @@ describe instrument_pages("the Deluge instrument's pages", ${
 	});
 	it("decorates a param as slot_for does, reading FM from the owner's state and alt delay from the context", _{
 		const auto& record = instrument::kRemoteControls;
-		instrument::SoundState fm_state;
+		instrument::FlatSoundState fm_state;
 		fm_state.synth_mode = instrument::SynthMode::FM;
-		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(fm_state);
+		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(fm_state));
 		const auto subtractive = plugin::StateHandle::of<instrument::DelugeSynth>({});
 		const auto lfo_pitch = *instrument::cable_depth_id(instrument::PatchSource::LFO_GLOBAL_1, ip::kPitch);
 		const auto sidechain = *instrument::cable_depth_id(instrument::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);

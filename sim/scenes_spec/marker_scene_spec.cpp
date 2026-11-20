@@ -100,6 +100,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
 
 #include <array>
@@ -485,7 +486,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty();
+		const bool had_none = deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot))->sources[0].ranges.empty();
 
 		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
@@ -505,14 +506,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot))->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
-		const std::vector<deluge::instrument::RangeState>& first =
-		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
+		const std::vector<deluge::instrument::RangeState> first =
+		    deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot))->sources[0].ranges;
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -540,7 +541,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(menu::host_runtime_facts().sound_state(r.slot())->sources[0].ranges[0].file_path)
+		expect(deluge::test::flat_of(menu::host_runtime_facts().sound_state(r.slot()))->sources[0].ranges[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);
@@ -1573,14 +1574,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		const std::string forwards = r.oled();
 
-		r.sound->state_->sources[0].reversed = true;
+		deluge::test::change_flat(*r.sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = true; });
 		r.open(MarkerType::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
 		expect(forwards).not_().to_equal(reversed);
 
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
-		r.sound->state_->sources[0].reversed = false;
+		deluge::test::change_flat(*r.sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = false; });
 		r.range->sampleHolder.endPos = 3 * kZoomMax;
 		r.open(MarkerType::END);
 		r.tick(20);
@@ -1871,13 +1872,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// `reverseRemap` (`sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
-		r.sound->state_->sources[0].reversed = true;
+		deluge::test::change_flat(*r.sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = true; });
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
 		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
-		r.sound->state_->sources[0].reversed = false;
+		deluge::test::change_flat(*r.sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = false; });
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

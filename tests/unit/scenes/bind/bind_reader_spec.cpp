@@ -5,6 +5,7 @@
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <string>
 
@@ -47,7 +48,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 
 	it("reads a changed state: a choice, a number, an LFO's sync level and an FM sound's oscillator type", _ {
 		ModelFixture fixture;
-		deluge::instrument::SoundState state = fixture.facts.states.at(kSynth.id);
+		deluge::instrument::FlatSoundState state(fixture.facts.states.at(kSynth.id));
 		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
 		state.num_unison = 4;
 		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{5};

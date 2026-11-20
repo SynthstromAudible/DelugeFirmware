@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "instruments/deluge/state_access.h"
 #include "io/debug/log.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/edit.h"
@@ -120,7 +121,8 @@ inline Error rangesFor(::Sound& sound, int32_t s, std::vector<deluge::instrument
 /// @return Error::NONE when it landed; UNSPECIFIED when the source has no range @p i.
 template <class Change>
 Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
-	std::vector<deluge::instrument::RangeState> ranges = sound.boundState()->sources[s].ranges;
+	std::vector<deluge::instrument::RangeState> ranges =
+	    deluge::instrument::source_ranges(*sound.boundState(), static_cast<deluge::instrument::SourceId>(s));
 	if (i >= ranges.size()) {
 		return Error::UNSPECIFIED;
 	}

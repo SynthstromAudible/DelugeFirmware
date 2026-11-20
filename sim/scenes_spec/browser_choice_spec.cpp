@@ -99,6 +99,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -348,8 +349,11 @@ struct SongRig {
 	SongRig() {
 		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		sound->state_->sources[0].osc_type = OscType::SAMPLE;
-		sound->state_->sources[0].repeat_mode = SampleRepeatMode::ONCE;
+		deluge::test::change_flat(
+		    *sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
+		deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
+			f.sources[0].repeat_mode = SampleRepeatMode::ONCE;
+		});
 		sound->projectSnapshot();
 		Sample* sample = make_sample();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));

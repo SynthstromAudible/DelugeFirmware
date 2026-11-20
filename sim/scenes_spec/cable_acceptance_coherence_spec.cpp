@@ -20,6 +20,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/flat_state.h"
 
 #include "support/spec_main.h"
 
@@ -38,8 +39,8 @@ namespace {
 /// @p first.
 int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::SlotAddress slot, bool is_drum,
                       std::string& first) {
-	const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
-	if (state == nullptr) {
+	const deluge::test::FlatView state = deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot));
+	if (!state) {
 		first = "no sound state";
 		return 1;
 	}
@@ -69,7 +70,7 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 /// @return Whether the Edit applied.
 template <class Change>
 bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path, Change change) {
-	deluge::instrument::SoundState wanted = *sound.boundState();
+	deluge::instrument::FlatSoundState wanted(*sound.boundState());
 	change(wanted);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
 	if (!value) {
@@ -85,9 +86,9 @@ void set_lfo_sync(Sound& sound, Song& song, deluge::project::SlotAddress slot, i
 	const std::string prefix = "lfo" + std::to_string(lfo) + "/";
 	const size_t l = static_cast<size_t>(lfo - 1);
 	set_setting(sound, song, slot, prefix + "syncType",
-	            [&](deluge::instrument::SoundState& d) { d.lfo_sync_type[l] = SyncType::EVEN; });
+	            [&](deluge::instrument::FlatSoundState& d) { d.lfo_sync_type[l] = SyncType::EVEN; });
 	set_setting(sound, song, slot, prefix + "syncLevel",
-	            [&](deluge::instrument::SoundState& d) { d.lfo_sync_level[l] = level; });
+	            [&](deluge::instrument::FlatSoundState& d) { d.lfo_sync_level[l] = level; });
 }
 
 /// Sets @p sound into every combination of the settings acceptance reads, and counts disagreements over them all.
@@ -98,13 +99,14 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 	for (const char* path : {"osc1/type", "osc2/type"}) {
 		const size_t s = path[3] == '1' ? 0 : 1;
 		if (!set_setting(sound, song, slot, path,
-		                 [&](deluge::instrument::SoundState& d) { d.sources[s].osc_type = OscType::SAW; })) {
+		                 [&](deluge::instrument::FlatSoundState& d) { d.sources[s].osc_type = OscType::SAW; })) {
 			first = std::string(path) + " refused";
 			return 1;
 		}
 	}
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
-		if (!set_setting(sound, song, slot, "mode", [&](deluge::instrument::SoundState& d) { d.synth_mode = mode; })) {
+		if (!set_setting(sound, song, slot, "mode",
+		                 [&](deluge::instrument::FlatSoundState& d) { d.synth_mode = mode; })) {
 			first = "mode " + std::to_string(static_cast<int>(mode)) + " refused";
 			return found + 1;
 		}

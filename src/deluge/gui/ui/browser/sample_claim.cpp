@@ -25,6 +25,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/pages.h"
+#include "instruments/deluge/state_access.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/edits/set_mod_knob_mode.h"
@@ -103,7 +104,8 @@ void openGate() {
 
 void autoDetectSideChainSending(SoundDrum* drum, int32_t s, char const* fileName) {
 	// A one-shot that looks like a kick sends to the sidechain. Otherwise, no change.
-	if (drum->state_->sources[s].repeat_mode == SampleRepeatMode::ONCE
+	if (deluge::instrument::sample_playback(*drum->state_, static_cast<deluge::instrument::SourceId>(s)).repeat_mode
+	        == SampleRepeatMode::ONCE
 	    && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
 	}
@@ -386,7 +388,9 @@ bool SampleClaim::stepDecideSample() {
 
 	// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
 	if (const SampleRepeatMode repeatMode =
-	        current_.target.sound->state_->sources[current_.target.sourceIndex].repeat_mode;
+	        deluge::instrument::sample_playback(*current_.target.sound->state_,
+	                                            static_cast<deluge::instrument::SourceId>(current_.target.sourceIndex))
+	            .repeat_mode;
 	    repeatMode == SampleRepeatMode::STRETCH || repeatMode == SampleRepeatMode::LOOP) {}
 
 	// Otherwise...
