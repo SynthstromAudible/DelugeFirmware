@@ -169,6 +169,23 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			expect(host.writes.gestures[1].kind).to_equal(test::RecordingWrites::Gesture::Kind::DEFAULT_INPUT_CHANNEL);
 			expect(host.writes.gestures[1].value).to_equal(int64_t{3});
 		}
+		host.writes.accept = false;
+		expect(contract::unknown_slot_write_is_refused(
+		           *p.writes, deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 54321},
+		           deluge::project::ClipAddress{.clip_id = 54321}))
+		    .to_be_true();
+	});
+	it("answers a param's value as the spec set it, and a param no song holds as having none", _ {
+		test::FakeHost host;
+		const deluge::project::ParamAddress lpf = deluge::project::ParamAddress::of(
+		    deluge::project::OwnerId::instrument(7), deluge::project::engine_target(3));
+		host.controls.param_values.emplace_back(lpf, 42);
+		const Ports p = host.ports();
+		expect(p.controls->param_value(lpf).value_or(0)).to_equal(42);
+		expect(contract::unknown_param_has_no_value(
+		           *p.controls, deluge::project::ParamAddress::of(deluge::project::OwnerId::instrument(54321),
+		                                                         deluge::project::engine_target(3))))
+		    .to_be_true();
 	});
 	it("records each knob write in order with its arguments, and answers take_for as the spec set", _ {
 		test::FakeHost host;
@@ -196,6 +213,11 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.controls_sink.take_answer = 12;
 		expect(p.controls_sink->take_for(9).value_or(0)).to_equal(uint32_t{12});
 		expect(host.controls_sink.take_requests.size()).to_equal(size_t{1});
+		host.controls_sink.accept = false;
+		expect(contract::unknown_param_write_is_refused(
+		           *p.controls_sink, deluge::project::ParamAddress::of(deluge::project::OwnerId::clip(54321),
+		                                                              deluge::project::engine_target(3))))
+		    .to_be_true();
 	});
 	it("answers the MIDI devices as the spec set them, and keeps a write to a known device", _ {
 		test::FakeHost host;

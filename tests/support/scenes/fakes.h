@@ -259,7 +259,7 @@ struct FakeMidiDevices final : MidiDevices {
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 };
 
-/// @brief WriteSink that records every request, in order, and takes each.
+/// @brief WriteSink that records every request, in order, and answers each with @ref accept.
 struct RecordingWrites final : WriteSink {
 	/// @brief A text or default-input-channel request, as recorded.
 	struct Gesture {
@@ -277,13 +277,15 @@ struct RecordingWrites final : WriteSink {
 	std::vector<WriteRequest> requests;         ///< every write, in order
 	std::vector<project::ParamAddress> deletes; ///< every delete_automation's param, in order
 	std::vector<Gesture> gestures;              ///< every text and default-input-channel request, in order
+	bool accept{true}; ///< what each request answers (set_default_audio_input_channel answers nothing)
 	bool write(const WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
 };
 
-/// @brief controls::Sink that records every request, in order, and takes each; take_for answers @ref take_answer.
+/// @brief controls::Sink that records every request, in order, and answers each with @ref accept; take_for answers
+///        @ref take_answer.
 struct RecordingControlsSink final : controls::Sink {
 	/// @brief A param write by address, as recorded.
 	struct ParamWrite {
@@ -329,6 +331,7 @@ struct RecordingControlsSink final : controls::Sink {
 	std::vector<std::pair<project::OwnerParamTarget, project::MidiCommand>> absolutes; ///< every knob_absolute
 	std::vector<Gesture> gestures;       ///< every other request, in order
 	std::optional<uint32_t> take_answer; ///< what take_for answers
+	bool accept{true};                   ///< what each request that answers a bool answers
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
 	                 controls::Resolution resolution) override;
 	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;

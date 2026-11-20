@@ -22,6 +22,8 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.sound_writes).not_().to_be_null();
 		expect(p.learn).not_().to_be_null();
 		expect(p.midi).not_().to_be_null();
+		expect(p.writes).not_().to_be_null();
+		expect(p.controls_sink).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
@@ -68,6 +70,22 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			expect(p.midi->connected().empty()).to_be_false();
 			expect(bind::contract::connected_devices_are_known(*p.midi)).to_be_true();
 			expect(bind::contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
+		}
+		if (p.writes != nullptr) {
+			// A sound and a clip no song holds.
+			expect(bind::contract::unknown_slot_write_is_refused(
+			           *p.writes, deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 0xFFFF'FFF0},
+			           deluge::project::ClipAddress{.clip_id = 0xFFFF'FFF0}))
+			    .to_be_true();
+		}
+		// A param of an output no song holds.
+		const deluge::project::ParamAddress nowhere = deluge::project::ParamAddress::of(
+		    deluge::project::OwnerId::instrument(0xFFFF'FFF0), deluge::project::engine_target(3));
+		if (p.controls != nullptr) {
+			expect(bind::contract::unknown_param_has_no_value(*p.controls, nowhere)).to_be_true();
+		}
+		if (p.controls_sink != nullptr) {
+			expect(bind::contract::unknown_param_write_is_refused(*p.controls_sink, nowhere)).to_be_true();
 		}
 		if (p.tracks != nullptr) {
 			// An output id no song holds.

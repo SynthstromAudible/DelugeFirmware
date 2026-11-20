@@ -36,7 +36,9 @@ namespace deluge::scenes::bind::contract {
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.
 [[nodiscard]] inline bool unknown_slot_is_empty(const SoundFacts& sound, project::SlotAddress nowhere) {
-	const project::ParamAddress param{.owner = project::OwnerId::instrument(nowhere.id)};
+	const project::ParamAddress param{.owner = nowhere.kind == project::SlotAddress::Kind::DRUM
+	                                               ? project::OwnerId::drum(nowhere.id)
+	                                               : project::OwnerId::instrument(nowhere.id)};
 	return sound.sound_state(nowhere) == nullptr && sound.cables(param).empty() && sound.loaded_sources(nowhere) == 0
 	       && !sound.default_range(nowhere, 0).has_value() && !sound.range_identity(nowhere, 0, 0).has_value()
 	       && !sound.kit_takes_whole_folder(nowhere);
@@ -78,10 +80,38 @@ namespace deluge::scenes::bind::contract {
 	return !writes.velocity_to_level_everywhere(midi::DeviceId{});
 }
 
-/// @brief A knob learned onto a param of an owner no song holds is refused, a MIDI knob's and a mod knob's alike. A
-///        fake that accepts everything is set to refuse first.
+/// @brief A knob learned onto a param of an owner no song holds is refused, a MIDI knob's and a mod knob's alike, and
+///        so is a learn of a MIDI command onto that param. A fake that accepts everything is set to refuse first.
 [[nodiscard]] inline bool unknown_owner_knob_is_refused(LearnSink& learns, const project::OwnerParamTarget& nowhere) {
-	return !learns.learn_knob(nowhere, midi::kDin, 74, 3) && !learns.learn_knob(nowhere, midi::DeviceId{}, 1, 255);
+	return !learns.learn_knob(nowhere, midi::kDin, 74, 3) && !learns.learn_knob(nowhere, midi::DeviceId{}, 1, 255)
+	       && !learns.learn(project::MappingTarget{nowhere},
+	                        project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, std::nullopt);
+}
+
+/// @brief A menu write on a sound no song holds, and a text write and an automation delete on a clip no song holds,
+///        are refused: the host refuses each by resolving its owner. A recording fake refuses only with `accept`
+///        false, so set that first.
+[[nodiscard]] inline bool unknown_slot_write_is_refused(WriteSink& writes, project::SlotAddress nowhere,
+                                                        project::ClipAddress nowhere_clip) {
+	const WriteRequest transpose{
+	    .target = {.kind = Target::Kind::SOUND, .path = "osc1/transpose"}, .where = {.slot = nowhere}, .menu_value = 1};
+	const Target name{.kind = Target::Kind::MODEL, .path = "name", .group = project::SettingGroupId::CLIP};
+	const project::ParamAddress param =
+	    project::ParamAddress::of(project::OwnerId::clip(nowhere_clip.clip_id), project::engine_target(3));
+	return !writes.write(transpose) && !writes.write_text(name, Addresses{.clip = nowhere_clip}, "NOWHERE")
+	       && !writes.delete_automation(param);
+}
+
+/// @brief A param of an owner no song holds has no value and is not automated.
+[[nodiscard]] inline bool unknown_param_has_no_value(const controls::Facts& controls,
+                                                     const project::ParamAddress& nowhere) {
+	return !controls.param_value(nowhere).has_value() && !controls.param_automated(nowhere);
+}
+
+/// @brief A knob's write to, and the making of, a param of an owner no song holds are refused. A recording fake
+///        refuses only with `accept` false, so set that first.
+[[nodiscard]] inline bool unknown_param_write_is_refused(controls::Sink& sink, const project::ParamAddress& nowhere) {
+	return !sink.write_param(nowhere, 1, 0, 0, controls::Resolution::KNOB) && !sink.make_param(nowhere);
 }
 
 /// @brief Every connected device has a name and settings, and no device names none.
