@@ -63,8 +63,7 @@ void play_dual(ComposedState& plays, SynthMode mode, synth::DualSourceState dual
 
 SlotEdit begin_slot_edit(const SoundState& state, size_t s) {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
-		SlotEdit edit{
-		    .full = state.recall.slots[s], .phase = phase_word(fm->carriers[s].retrigger), .sync = state.recall.sync};
+		SlotEdit edit{.full = state.recall.slots[s], .phase = phase_word(fm->carriers[s].retrigger), .sync = fm->sync};
 		edit.full.transpose = fm->carriers[s].tuning.transpose;
 		edit.full.cents = fm->carriers[s].tuning.cents;
 		return edit;
@@ -83,7 +82,7 @@ void end_slot_edit(SoundState& state, size_t s, const SlotEdit& edit) {
 		kept.transpose = 0;
 		kept.cents = 0;
 		state.recall.slots[s] = std::move(kept);
-		state.recall.sync = edit.sync;
+		fm->sync = edit.sync;
 		return;
 	}
 	synth::DualSourceState& dual = dual_of(state.plays);
@@ -120,13 +119,14 @@ void set_engine(SoundState& state, SynthMode mode) {
 		}
 		recall.modulators = synth::FmState{}.modulators;
 		recall.modulator1_to_modulator0 = false;
-		recall.sync = sync;
+		fm.sync = sync;
+		recall.sync = false;
 		state.plays.engine = fm;
 		return;
 	}
 	// Out of FM: the carriers' pitches go back to the slots, which take their kept kinds; FM's modulators are kept
 	const synth::FmState fm = *std::get_if<synth::FmState>(&state.plays.engine);
-	const bool sync = recall.sync;
+	const bool sync = fm.sync;
 	synth::DualSourceState dual{.slots = {}, .sync = false};
 	for (size_t s = 0; s < 2; s++) {
 		SourceState full = recall.slots[s];

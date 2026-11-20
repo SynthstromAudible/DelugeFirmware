@@ -320,7 +320,7 @@ Value slot_entry(const synth::SlotState& slot, OscType type, size_t s, bool sync
 Value oscillator_entry(const SoundState& state, size_t s) {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
 		auto map = Value::makeMap();
-		pitch_entries(map, fm->carriers[s], s, state.recall.sync);
+		pitch_entries(map, fm->carriers[s], s, fm->sync);
 		return map;
 	}
 	const auto* sub = std::get_if<synth::SubtractiveState>(&state.plays.engine);

@@ -120,13 +120,13 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		expect(deluge::test::encode_difference(FlatSoundState{})).to_equal(std::string{});
 	});
 
-	it("plays an FM sound's tuning on its carriers, and keeps its oscillators' kinds to recall", _ {
+	it("plays an FM sound's tuning and sync on its carriers, and keeps its oscillators' kinds to recall", _ {
 		const auto [state, recall] = compose(sound_of(SynthMode::FM, OscType::SAMPLE, OscType::DX7));
 		const auto& fm = std::get<deluge::synth::FmState>(state.engine);
 		expect(int{fm.carriers[0].tuning.transpose}).to_equal(5);
 		expect(recall.slots[0].osc_type).to_equal(OscType::SAMPLE);
 		expect(recall.slots[0].ranges.size()).to_equal(size_t{2});
-		expect(recall.sync).to_equal(true);
+		expect(fm.sync).to_equal(true); // the file writes it in the second carrier's pitch
 	});
 
 	it("keeps the sync for a switch back when the second oscillator is a sample, which the file writes it in", _ {

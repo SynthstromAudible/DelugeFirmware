@@ -251,7 +251,7 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 			recall.slots[s].transpose = 0;
 			recall.slots[s].cents = 0;
 		}
-		recall.sync = f.oscillator_sync;
+		fm.sync = f.oscillator_sync;
 		state.engine = fm;
 	}
 	else {
@@ -311,7 +311,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 			f.sources[s].cents = fm->carriers[s].tuning.cents;
 			f.osc_retrigger_phase[s] = phase_word(fm->carriers[s].retrigger);
 		}
-		f.oscillator_sync = recall.sync;
+		f.oscillator_sync = fm->sync;
 		return f;
 	}
 	const synth::DualSourceState& dual = std::holds_alternative<synth::RingModState>(state.engine)

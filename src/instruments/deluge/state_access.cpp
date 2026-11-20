@@ -202,9 +202,12 @@ synth::VoicingState voicing(const SoundState& state) noexcept {
 }
 
 bool oscillator_sync(const SoundState& state) noexcept {
+	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		return fm->sync;
+	}
 	const synth::DualSourceState* slots = slots_of(state.plays);
-	if (slots == nullptr || std::holds_alternative<synth::SampleState>(slots->slots[1])) {
-		return state.recall.sync; // the file writes it in the second oscillator's pitch, which FM and a sample lack
+	if (std::holds_alternative<synth::SampleState>(slots->slots[1])) {
+		return state.recall.sync; // the file writes it in the second oscillator's pitch, which a sample lacks
 	}
 	return slots->sync;
 }
