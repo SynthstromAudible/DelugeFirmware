@@ -512,9 +512,10 @@ void run_all(auto& self) {
 // ---------------------------------------------------------------------------------------------
 // The nodes no row reaches.
 
-/// @brief The device settings: the value nodes under the settings root, which hold a device's state (FlashStorage, a
-/// runtime feature, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a sound's, so no engine
-/// or model row holds them. Each is named by the names from the root to it, with how many nodes carry that path.
+/// @brief The device settings: the hooked value nodes under the settings root, which hold a device's state
+/// (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a
+/// sound's, so no engine or model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds
+/// it. Each is named by the names from the root to it, with how many nodes carry that path.
 struct DeviceNode {
 	std::string_view path;
 	size_t count;
@@ -549,7 +550,6 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > Recording > Loop margins", 1},
     {"Settings > Recording > Quantization", 1},
     {"Settings > Recording > Count-in bars", 1},
-    {"Settings > Play-Cursor", 1},
     {"Settings > Sample Preview", 1},
     {"Settings > Pads > Colours > Once", 1},
     {"Settings > Pads > Colours > Fill", 1},
@@ -566,7 +566,6 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > Defaults > Sample Slice Mode", 1},
     {"Settings > Defaults > Pad Brightness", 1},
     {"Settings > Defaults > Startup Song", 1},
-    {"Settings > Defaults > Patch cable polarity", 1},
     {"Settings > Defaults > Metronome", 1},
     {"Settings > Defaults > Bend range", 1},
     {"Settings > Defaults > Resolution", 1},
