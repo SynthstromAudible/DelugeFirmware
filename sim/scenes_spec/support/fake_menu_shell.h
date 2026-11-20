@@ -1,0 +1,164 @@
+#pragma once
+
+/// @file
+/// @brief `FakeMenuShell`: a real `Shell` and `MenuScene` over fake surfaces, with the menu's contexts over
+///        `FakeHostRig`'s fakes, and the walk's read-backs a fake-only menu spec asserts on.
+
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/present.h"
+#include "scenes/profile.h"
+#include "scenes/registry.h"
+
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
+#include "notify/dirty_set.h"
+#include "notify/notice_queue.h"
+#include "shell/profiles/deluge.h"
+#include "shell/scene.h"
+#include "shell/shell.h"
+
+#include "support/fake_host_rig.h"
+#include "support/mocks/fake_surfaces.h"
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string>
+
+namespace deluge::scenes::spec {
+
+/// @brief A `Shell` over fake surfaces with the app's scene registry, and the menu's contexts over a `FakeHostRig`.
+///        Each one starts the menu as a boot leaves it and pops every scene when it goes, so examples do not see
+///        each other's walk.
+struct FakeMenuShell {
+	/// Board encoder 3 is Select (`kDelugeEncoders`); the matrix buttons are `kMatrix`'s (`shell/profiles/deluge.cpp`).
+	/// @{
+	static constexpr uint8_t kSelectEncoder = 3;
+	static constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+	static constexpr uint8_t kBackX = 7, kBackY = 1;
+	static constexpr uint8_t kShiftX = 8, kShiftY = 0;
+	static constexpr uint8_t kSynthX = 5, kSynthY = 0;
+	static constexpr uint8_t kKitX = 5, kKitY = 1;
+	static constexpr uint8_t kCrossScreenX = 6, kCrossScreenY = 2;
+	/// @}
+
+	FakeHostRig fakes; ///< the ports' fakes and the model song every context reads
+	ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet surfaces{ui::shell::kDelugeBoard, deluge_profile()};
+	ui::shell::Shell shell{surfaces, deluge_profile(), reg, ui::shell::Services{}, ui::shell::ShellConfig{}};
+
+	FakeMenuShell() {
+		l10n::chosenLanguage = &l10n::built_in::english;
+		notify::Notice discard;
+		while (notify::notices().pop(discard)) {}
+		(void)notify::dirty().drain();
+		menu_scene().reset_process_state();
+	}
+	FakeMenuShell(const FakeMenuShell&) = delete;
+	FakeMenuShell& operator=(const FakeMenuShell&) = delete;
+	~FakeMenuShell() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(ui::shell::SceneKind::Null);
+		}
+		menu_scene().reset_process_state();
+	}
+
+	/// @brief Open @p page on @p ctx as the one application scene, and render it once.
+	/// @param page The node the menu opens on.
+	/// @param ctx  The context it opens in; one of `fakes`' contexts.
+	/// @param at_ms The tick's time.
+	/// @return @p ctx.
+	menu::MenuContext open(const menu::Node& page, const menu::MenuContext& ctx, uint32_t at_ms = 0) {
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
+		menu_scene().open(page, ctx);
+		shell.init(ui::shell::SceneId{ui::shell::SceneKind::FirstApp, menu::node_id(page)});
+		shell.tick(at_ms);
+		return ctx;
+	}
+	/// @brief Open @p page on the synth clip's context (`FakeHostRig::synth_context`).
+	/// @param page The node the menu opens on.
+	/// @return The context it opened in.
+	menu::MenuContext open_synth(const menu::Node& page) { return open(page, fakes.synth_context()); }
+	/// @brief Open @p page on the settings root's context with no model (`FakeHostRig::settings_context`).
+	/// @param page The node the menu opens on.
+	/// @return The context it opened in.
+	menu::MenuContext open_settings(const menu::Node& page) {
+		return open(page, fakes.settings_context(/*with_model=*/false));
+	}
+
+	/// @brief @p detents clicks of the select encoder (two edges a click), and the two ticks that render and commit
+	///        the edit.
+	void turn(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+		shell.tick(at_ms + 5);
+		shell.tick(at_ms + 10);
+	}
+	/// @brief One edge of matrix button (@p x, @p y).
+	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
+	/// @brief A press and release of matrix button (@p x, @p y), each settled by a tick.
+	void press(uint8_t x, uint8_t y, uint32_t at_ms) {
+		button(x, y, true, at_ms);
+		shell.tick(at_ms + 5);
+		button(x, y, false, at_ms + 10);
+		shell.tick(at_ms + 15);
+	}
+	/// @brief Press and release the select encoder.
+	void select(uint32_t at_ms) { press(kSelectEncButtonX, kSelectEncButtonY, at_ms); }
+	/// @brief A short press of BACK.
+	void back(uint32_t at_ms) { press(kBackX, kBackY, at_ms); }
+	/// @brief The main OLED as the last tick drew it, as P1 PBM text.
+	[[nodiscard]] std::string oled() { return surfaces.pbm(0); }
+};
+
+/// @brief The focused page's title, as the open menu draws it.
+inline std::string page_title() {
+	menu::NodeText scratch;
+	return std::string{menu_scene().page_title(scratch)};
+}
+
+/// @brief The English text of string @p id.
+inline std::string text_of(l10n::String id) {
+	return std::string{l10n::get(id)};
+}
+
+/// @brief The open menu's walk depth.
+inline int32_t walk_depth() {
+	return menu_scene().state().depth;
+}
+
+/// @brief The row the cursor stands on at the walk's current depth.
+inline int32_t cursor_row() {
+	const auto& st = menu_scene().state();
+	return st.list[st.depth].cursor;
+}
+
+/// @brief Where @p node is listed on @p page in @p ctx.
+/// @return Its row, or nothing when @p page does not list it.
+inline std::optional<int32_t> row_of(const menu::Node& page, const menu::Node& node, const menu::MenuContext& ctx) {
+	std::array<const menu::Node*, menu::kMaxDynamicChildren> rows{};
+	const size_t count = menu::bindings::listed_children(page, ctx, rows, menu::bindings::ListFor::Rows);
+	for (size_t i = 0; i < count; ++i) {
+		if (rows[i] == &node) {
+			return static_cast<int32_t>(i);
+		}
+	}
+	return std::nullopt;
+}
+
+/// @brief The node @p page lists at @p row in @p ctx.
+/// @return It, or null past the list's end.
+inline const menu::Node* listed_at(const menu::Node& page, size_t row, const menu::MenuContext& ctx) {
+	std::array<const menu::Node*, menu::kMaxDynamicChildren> rows{};
+	const size_t count = menu::bindings::listed_children(page, ctx, rows, menu::bindings::ListFor::Rows);
+	return row < count ? rows[row] : nullptr;
+}
+
+} // namespace deluge::scenes::spec

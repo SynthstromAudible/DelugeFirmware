@@ -10,15 +10,15 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
-#include "instruments/deluge/codec.h"
+#include "instruments/deluge/codec.h" // new_synth_state
 #include "instruments/deluge/sound_state.h"
 #include "serialization/value.h"
 
 #include "support/fake_host_rig.h"
+#include "support/fake_menu_shell.h"
 
 #include "cppspec.hpp"
 
-#include <array>
 #include <cstdint>
 #include <string>
 
@@ -36,14 +36,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief Is @p node listed on @p page in @p ctx?
 bool listed(const Node& page, const Node& node, const MenuContext& ctx) {
-	std::array<const Node*, menu::kMaxDynamicChildren> rows{};
-	const size_t count = menu::bindings::listed_children(page, ctx, rows, menu::bindings::ListFor::Rows);
-	for (size_t i = 0; i < count; ++i) {
-		if (rows[i] == &node) {
-			return true;
-		}
-	}
-	return false;
+	return spec::row_of(page, node, ctx).has_value();
 }
 
 /// @brief The synth's state in the sound fake, which the spec edits in place.

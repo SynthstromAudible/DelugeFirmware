@@ -16,15 +16,24 @@
 
 #include "fakes.h"
 
+#include <cstdint>
+
 namespace deluge::scenes::spec {
 
 /// @brief A fake of every port (`bind::test::FakeHost`) and a model song, and the contexts a menu reads them through.
 ///        The ports are the fakes', never the host's (`menu::host_ports()`).
 struct FakeHostRig {
-	/// The synth track a synth context edits: its slot, its track and its clip.
-	static constexpr project::SlotAddress kSynthSlot{project::SlotAddress::Kind::OUTPUT, 4};
-	static constexpr project::TrackAddress kSynthTrack{kSynthSlot.id};
-	static constexpr project::ClipAddress kSynthClip{35};
+	/// The synth output's durable id. Any id works: the rig's song holds no other output. It is the bind specs'
+	/// `ModelFixture` synth's, so a case reads the same on either rig.
+	static constexpr uint32_t kSynthOutputId = 4;
+	/// The synth clip's durable id; any id no other clip of the rig's song takes, and `ModelFixture`'s synth clip's.
+	static constexpr uint32_t kSynthClipId = 35;
+	/// The synth track a synth context edits: its slot (the output's own instrument), its track and its clip.
+	/// @{
+	static constexpr project::SlotAddress kSynthSlot{project::SlotAddress::Kind::OUTPUT, kSynthOutputId};
+	static constexpr project::TrackAddress kSynthTrack{kSynthOutputId};
+	static constexpr project::ClipAddress kSynthClip{kSynthClipId};
+	/// @}
 
 	bind::test::FakeHost host; ///< the ports' fakes, which the spec sets and reads back
 	/// The song a context's model names; empty, as a new song's record is, until a synth context adds the synth.
@@ -49,16 +58,18 @@ struct FakeHostRig {
 		return ctx;
 	}
 
-	/// @brief Give the synth track @p state: the sound fake answers it, and the model's slot holds it encoded, as a
-	///        coherent song holds them.
+	/// @brief Give the synth track @p state, in both places a sound target reads it.
+	///
+	/// - The sound fake answers it: relevance and the hook-bound nodes read `SoundFacts::sound_state`.
+	/// - The model's slot holds it encoded: a SOUND, EFFECT or PARAM target reads the slot (`bind::SlotReader`). The
+	///   slot keeps the default tick magnitude, a new song's, so its sync levels read as written.
+	///
+	/// The clip gets no arp record: the sound root's arpeggiator page lists the same rows without one.
 	/// @param state The synth's state.
 	void hold_synth(const instrument::SoundState& state) {
 		host.sound.states[kSynthSlot.id] = state;
-		model.output_structure.getOrCreate(kSynthSlot.id).instrument =
-		    project::InstrumentSlot{.plugin = "deluge.instrument",
-		                            .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
-		                            .tick_magnitude = 1};
-		(void)model.clip_structure.getOrCreate(kSynthClip.clip_id).values.arp.emplace();
+		model.output_structure.getOrCreate(kSynthSlot.id).instrument = project::InstrumentSlot{
+		    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(state)};
 	}
 
 	/// @brief The sound root's context over the synth clip, as `menu::context_for` resolves one opened from a synth
