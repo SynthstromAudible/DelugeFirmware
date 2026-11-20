@@ -8,6 +8,7 @@
 #include "support/printers/plugin_result_printer.h"
 #include "support/printers/value_printer.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>

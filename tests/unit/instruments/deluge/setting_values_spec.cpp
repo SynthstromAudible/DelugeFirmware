@@ -2,6 +2,7 @@
 #include "instruments/deluge/settings.h"
 #include "serialization/tree.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <string>
 #include <vector>

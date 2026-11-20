@@ -77,10 +77,7 @@ struct DelugeSynth {
 	/// @brief Read @p value into @p state (instrument::decode).
 	static std::expected<void, plugin::StateError> decode(const serialization::Value& value, State& state,
 	                                                      const plugin::CodecContext& context) {
-		FlatSoundState flat(state);
-		auto result = instrument::decode(value, flat, context);
-		state = SoundState(flat);
-		return result;
+		return instrument::decode(value, state, context);
 	}
 	/// @brief The config @p state makes: every value a sound's voices read, derived here and only here.
 	[[nodiscard]] static synth::SoundConfig derive(const State& state) noexcept;

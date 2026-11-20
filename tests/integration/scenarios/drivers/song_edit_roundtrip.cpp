@@ -18,6 +18,7 @@
 #include "deluge-project/codec.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
+#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/settings.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"

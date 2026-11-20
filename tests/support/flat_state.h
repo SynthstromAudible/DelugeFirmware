@@ -23,6 +23,7 @@
 #undef context
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/state_access.h"

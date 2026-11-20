@@ -4,6 +4,7 @@
 #include "serialization/tree.h"
 #include "support/printers/plugin_result_printer.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <fstream>
 #include <sstream>

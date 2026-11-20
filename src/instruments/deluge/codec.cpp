@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/state_access.h"
 
 #include "effects/codec.h"

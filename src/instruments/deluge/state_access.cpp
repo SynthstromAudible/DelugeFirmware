@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/state_access.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include <utility>
 #include <variant>

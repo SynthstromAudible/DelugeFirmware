@@ -4,6 +4,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/deluge_synth.h"
+#include "instruments/deluge/flat_layout.h"
 
 namespace deluge::project::test {
 

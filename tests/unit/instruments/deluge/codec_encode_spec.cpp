@@ -1,5 +1,6 @@
 #include "instruments/deluge/codec.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <string>
 #include <vector>

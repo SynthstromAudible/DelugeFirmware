@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/composed_state.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include <algorithm>
 #include <utility>
@@ -398,6 +399,16 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 	}
 	f.oscillator_sync = std::holds_alternative<synth::SampleState>(dual.slots[1]) ? recall.sync : dual.sync;
 	return f;
+}
+
+SoundState::SoundState(const FlatSoundState& flat) {
+	auto [composed, kept] = compose(flat);
+	plays = std::move(composed);
+	recall = std::move(kept);
+}
+
+SoundState::operator FlatSoundState() const {
+	return flatten(plays, recall);
 }
 
 } // namespace deluge::instrument

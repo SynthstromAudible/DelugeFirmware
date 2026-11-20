@@ -4,6 +4,7 @@
 /// @brief Sound states across what each instrument entry's encoding and reading depend on, for the codec's specs.
 
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include <string>
 #include <utility>

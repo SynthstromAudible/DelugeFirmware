@@ -16,6 +16,7 @@
  */
 
 #include "instruments/deluge/deluge_synth.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "dsp-next/fixed/pitch/fine_tune.h"
 #include "instruments/deluge/state_access.h"

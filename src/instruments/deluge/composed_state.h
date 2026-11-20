@@ -18,7 +18,6 @@
 #pragma once
 
 #include "effects/state.h"
-#include "instruments/deluge/flat_sound_state.h"
 #include "synth/engines/engine_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"
@@ -67,39 +66,10 @@ struct Recall {
 	bool operator==(const Recall&) const = default;
 };
 
-/// @brief The memory of a playing slot whose kind does not hold @p kept (the slot's other fields in the file's layout,
-/// the kind's own at their defaults) and @p retrigger (a sample's).
-[[nodiscard]] SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger);
-
-/// @brief The kept fields and retrigger @p memory holds for a playing slot, in the file's layout.
-[[nodiscard]] SourceState recalled(const SlotMemory& memory, synth::Retrigger& retrigger);
-
-/// @brief The memory of a slot parked while FM plays: @p kept is its whole source but for its pitch (the carrier's).
-[[nodiscard]] SlotMemory remember_parked(const SourceState& kept);
-
-/// @brief The whole source @p memory parks while FM plays, its pitch left at zero (the carrier's).
-[[nodiscard]] SourceState recalled_parked(const SlotMemory& memory);
-
 /// @brief The retrigger a file's 32-bit phase word means: none for 0xFFFFFFFF (free-running).
 [[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);
 
-/// @brief The kind state slot source @p full plays, its phase word @p phase; what the kind does not hold goes to
-/// @p kept and @p kept_retrigger (the fields the kind holds are left at their defaults there).
-[[nodiscard]] synth::SlotState pack_slot(const SourceState& full, uint32_t phase, SourceState& kept,
-                                         synth::Retrigger& kept_retrigger);
-
-/// @brief The slot source a kind state and what it keeps are, its phase word into @p phase.
-[[nodiscard]] SourceState unpack_slot(const synth::SlotState& slot, const SourceState& kept,
-                                      const synth::Retrigger& kept_retrigger, uint32_t& phase);
-
 /// @brief The file's 32-bit phase word for @p retrigger: the phase a note starts at, 0xFFFFFFFF for free-running.
 [[nodiscard]] uint32_t phase_word(const synth::Retrigger& retrigger) noexcept;
-
-/// @brief The flat record @p flat as the state it plays and what it keeps for a switch back.
-[[nodiscard]] std::pair<ComposedState, Recall> compose(const FlatSoundState& flat);
-
-/// @brief The flat record a composed state and its recall are: `flatten(compose(f)) == f` for every record a file
-/// decodes to or a rule makes.
-[[nodiscard]] FlatSoundState flatten(const ComposedState& state, const Recall& recall);
 
 } // namespace deluge::instrument

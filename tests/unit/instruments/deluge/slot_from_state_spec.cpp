@@ -2,6 +2,7 @@
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;

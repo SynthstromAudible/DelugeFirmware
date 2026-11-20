@@ -7,6 +7,7 @@
 #include "scenes/bind/setting_context.h"
 #include "support/model_fixture.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <string>
 #include <vector>

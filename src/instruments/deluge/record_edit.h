@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "instruments/deluge/flat_sound_state.h"
 #include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "synth/modulation/lfo_state.h"

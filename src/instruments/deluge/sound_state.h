@@ -18,9 +18,11 @@
 #pragma once
 
 #include "instruments/deluge/composed_state.h"
-#include "instruments/deluge/flat_sound_state.h"
+#include "instruments/deluge/range_state.h"
 
 namespace deluge::instrument {
+
+struct FlatSoundState; // the file's flat layout: flat_layout.h, inside the library
 
 /// @brief The Deluge instrument's settings for one sound, everything about it that is not a param: what it plays, and
 /// what it keeps of what it does not play for a switch back. A default state is a new synth's, but for the two effect
@@ -32,13 +34,9 @@ struct SoundState {
 	SoundState() = default;
 	/// @brief The record a flat state is (`flatten(SoundState{f}) == f` for every state a file decodes to or a rule
 	/// makes).
-	explicit SoundState(const FlatSoundState& flat) {
-		auto [composed, kept] = compose(flat);
-		plays = std::move(composed);
-		recall = std::move(kept);
-	}
+	explicit SoundState(const FlatSoundState& flat);
 	/// @brief The record in the file's flat layout.
-	explicit operator FlatSoundState() const { return flatten(plays, recall); }
+	explicit operator FlatSoundState() const;
 	bool operator==(const SoundState&) const = default;
 };
 

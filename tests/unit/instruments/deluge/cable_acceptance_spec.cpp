@@ -1,6 +1,7 @@
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/params.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;

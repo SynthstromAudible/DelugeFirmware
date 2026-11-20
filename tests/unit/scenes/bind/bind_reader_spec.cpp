@@ -5,6 +5,7 @@
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
 
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <string>
 

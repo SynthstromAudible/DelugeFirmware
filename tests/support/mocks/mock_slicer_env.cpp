@@ -16,6 +16,7 @@
  */
 
 #include "mock_slicer_env.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"

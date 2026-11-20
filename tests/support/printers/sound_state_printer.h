@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/sound_state.h"
 #include "support/printers/effect_states_printer.h"
 #include "support/printers/list_printer.h"

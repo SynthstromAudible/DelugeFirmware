@@ -14,6 +14,7 @@
 #include "support/printers/param_id_printer.h"
 #include <algorithm>
 #include <array>
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdlib>

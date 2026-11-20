@@ -1,4 +1,5 @@
 #include "support/model_fixture.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "deluge-project/doc_note_row.h"
 #include "instruments/deluge/codec.h"

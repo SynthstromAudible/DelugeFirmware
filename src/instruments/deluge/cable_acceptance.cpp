@@ -1,4 +1,5 @@
 #include "instruments/deluge/cable_acceptance.h"
+#include "instruments/deluge/flat_layout.h"
 
 #include "effects/words.h"
 #include "instruments/deluge/params.h"

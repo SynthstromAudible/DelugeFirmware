@@ -6,6 +6,7 @@
 #include "support/printers/param_id_printer.h"
 #include "support/printers/plugin_id_printer.h"
 #include "support/printers/remote_controls_printer.h"
+#include "instruments/deluge/flat_layout.h"
 #include <cppspec.hpp>
 
 #include <array>
