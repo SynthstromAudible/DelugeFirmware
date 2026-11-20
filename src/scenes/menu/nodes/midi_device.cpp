@@ -52,9 +52,18 @@ using bind::MidiDirection;
 using bind::MpeZones;
 using deluge::l10n::String;
 
-/// @brief `MenuWalkState::mpe_zone`'s lower zone, legacy's `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h`);
-///        1 is the upper.
-constexpr uint8_t kLowerZone = 0;
+/// @brief The zone `MenuWalkState::mpe_zone` holds: legacy's `MPE_ZONE_LOWER_NUMBERED_FROM_0` and
+///        `MPE_ZONE_UPPER_NUMBERED_FROM_0` (`origin/main:src/deluge/io/midi/midi_device.h`), the zone selector's
+///        option order.
+enum class MpeZone : uint8_t {
+	LOWER = 0, ///< the lower zone, numbered from channel 0
+	UPPER = 1, ///< the upper zone, its master on channel 15
+};
+
+/// @brief Whether the walk's zone is the lower one.
+bool lower_zone(const MenuState& state) {
+	return state.walk.mpe_zone == std::to_underlying(MpeZone::LOWER);
+}
 
 /// @brief The settings of the device the context names.
 /// @return None when it names none, or one the host does not know, or there is no MIDI devices port.
@@ -172,8 +181,7 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 	}
 	// "This limits it so we don't eat into the other zone" (`ZoneNumMemberChannels::getMaxValue`
 	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)).
-	int32_t num_channels_available =
-	    state.walk.mpe_zone == kLowerZone ? port->upper_last_member : 15 - port->lower_last_member;
+	int32_t num_channels_available = lower_zone(state) ? port->upper_last_member : 15 - port->lower_last_member;
 
 	int32_t num_member_channels_available = num_channels_available - 1;
 	if (num_member_channels_available < 0) {
@@ -192,7 +200,7 @@ int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) 
 	if (!port) {
 		return 0;
 	}
-	return state.walk.mpe_zone == kLowerZone ? port->lower_last_member : 15 - port->upper_last_member;
+	return lower_zone(state) ? port->lower_last_member : 15 - port->upper_last_member;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -305,7 +313,7 @@ deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEv
 void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
 	// `ZoneSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`).
-	state.walk.mpe_zone = kLowerZone;
+	state.walk.mpe_zone = std::to_underlying(MpeZone::LOWER);
 }
 
 void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -377,7 +385,7 @@ void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const
 	const size_t direction = direction_of(state);
 	(void)edit_device(ctx, [&](MidiDeviceSettings& s) {
 		MpeZones& port = s.zones[direction];
-		if (state.walk.mpe_zone == kLowerZone) {
+		if (lower_zone(state)) {
 			port.lower_last_member = static_cast<uint8_t>(state.edit_int);
 		}
 		else {

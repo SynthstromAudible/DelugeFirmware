@@ -5,6 +5,7 @@
 ///        `save_state` keeps.
 
 #include "instruments/deluge/cables.h"
+#include "midi/device_id.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"

@@ -56,10 +56,12 @@ public:
 	/// @return Its settings; none for a device the host does not know.
 	[[nodiscard]] virtual std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const = 0;
 	/// @brief Make @p settings @p device's. The host applies what changed: an output's MPE zones are announced to the
-	///        device, the smallest zones are recounted, and the devices are marked to be saved.
+	///        device, the smallest zones are recounted, and the devices are marked to be saved. Settings equal to the
+	///        device's own change nothing, and the write applies nothing.
 	/// @param device   The device.
 	/// @param settings Its new settings, whole.
-	/// @return Whether it was taken: false for a device the host does not know.
+	/// @return Whether it was taken: false for a device the host does not know; true for a known one, a write that
+	///         changes nothing included.
 	virtual bool write(midi::DeviceId device, const MidiDeviceSettings& settings) = 0;
 };
 

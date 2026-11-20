@@ -41,12 +41,14 @@
 /// the pointer first (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); this port can be pointed at the node
 /// directly by a `SceneId` deep link or a spec, so the guard is the port's.
 ///
-/// Each write hands the device's whole settings, one field changed, to `MidiDevices::write`; the host marks the devices
-/// to be saved (`MIDIDeviceManager::anyChangesToSave`, where legacy marks it). The velocity one additionally re-patches
-/// the song (the `Song` call that sets up every input's velocity patching, in
-/// `DefaultVelocityToLevel::writeCurrentValue`
-/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`)), through the sound port's
-/// `velocity_to_level_everywhere`.
+/// Each write hands the device's whole settings, one field changed, to `MidiDevices::write`; the host applies what
+/// changed and marks the devices to be saved (`MIDIDeviceManager::anyChangesToSave`, where legacy marks it). The
+/// velocity one additionally re-patches the song
+/// (`Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`,
+/// `origin/main:src/deluge/model/song/song.cpp`, from `DefaultVelocityToLevel::writeCurrentValue` in
+/// `origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`), through the sound port's
+/// `velocity_to_level_everywhere`. A write that changes nothing applies nothing but is still taken, so the velocity
+/// write re-patches on an unchanged value too, as legacy does.
 ///
 /// ## The MPE arm
 ///

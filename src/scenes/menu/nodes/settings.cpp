@@ -236,9 +236,12 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	                       ts);
 
 	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	const std::string_view device = input.cable != nullptr && ctx.ports.midi != nullptr
-	                                    ? ctx.ports.midi->name(deluge::midi::id_of(*input.cable))
-	                                    : deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
+	// A learned cable with no MIDI devices port to name it (a spec's fakes) shows no name.
+	std::string_view device = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
+	if (input.cable != nullptr) {
+		device =
+		    ctx.ports.midi != nullptr ? ctx.ports.midi->name(deluge::midi::id_of(*input.cable)) : std::string_view{};
+	}
 	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 
 	std::string_view channel_text;

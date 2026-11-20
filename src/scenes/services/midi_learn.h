@@ -108,11 +108,11 @@
 ///     `unported_calls(UnportedCall::ClearMonoExpression)` rather than silently dropped, following
 ///     `GlobalControls::unported_opens`'s precedent: the counter exists so a spec can prove the arm reached the point
 ///     legacy makes the call at, which is the only part of it this layer can assert.
-///   * **`iterateAndCallSpecificDeviceHook(Hook::HOOK_ON_MIDI_LEARN)`**
+///   * **`iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_MIDI_LEARN)`**
 ///     (`View::endMidiLearnPressSession`'s tail). Counted the same way
 ///     (`UnportedCall::SpecificDeviceHook`) -- it is a `io/midi/cable_types/usb_hosted.h` walk
-///     over the hosted-device list whose only in-tree implementation is
-///     the hosted USB cable's `hookOnMIDILearn`, and nothing in this layer's model reach can observe
+///     over the hosted-device list whose only in-tree implementation is `MIDICableUSBHosted::hookOnMIDILearn`
+///     (`origin/main:src/deluge/io/midi/cable_types/usb_hosted.h`), and nothing in this layer's model reach can observe
 ///     whether it ran.
 ///   * **`playbackHandler.setLedStates()`** (`View::endMIDILearn`, `View::endMidiLearnPressSession`). Not a gap: in a
 ///   declarative
