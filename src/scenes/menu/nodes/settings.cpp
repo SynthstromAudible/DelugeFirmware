@@ -62,19 +62,10 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
-#include <version.h> // kFirmwareVersionString
-
 #include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstdint>
-
-// `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this file's own
-// relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets (`src/deluge/deluge.cpp`) --
-// declared bare and at global scope, exactly as `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s
-// `extern uint16_t batteryMV` and `origin/main:src/deluge/gui/menu_item/battery/level.h` both do (a namespaced `extern`
-// here would name a *different*, unlinked variable rather than referring to the one `src/deluge/deluge.cpp` defines).
-extern uint16_t batteryMV;
 
 // `PadLEDs::flashCursor` (`hid/led/pad_leds.h`), the one byte the play-cursor item edits. Named
 // rather than included for the reason `nodes/settings.h` gives: it is a plain namespace-scope `uint8_t`,
@@ -1084,11 +1075,12 @@ void draw_readout(deluge::ui::oled::OledFrame& f, std::string_view text) {
 }
 } // namespace
 
-void FirmwareVersionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
+void FirmwareVersionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 	// `firmware::Version::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/firmware/version.h`): the build's
 	// own version string, a build-time constant with nothing to format.
-	draw_readout(f, kFirmwareVersionString);
+	// A context with no UI facts has no version to show: the readout is empty.
+	draw_readout(f, ctx.ports.ui != nullptr ? ctx.ports.ui->firmware_version() : std::string_view{});
 	// The select press leaves the item, same as every other leaf's arm (`menu_scene.cpp`'s
 	// `render_leaf_sync_level`, for one) -- `Kind::Custom`'s own dispatch draws nothing else, so
 	// this item claims it itself.
@@ -1103,8 +1095,11 @@ deluge::ui::shell::Result FirmwareVersionItem::handle(const deluge::ui::shell::U
 	return {}; // `firmware::Version` has no `buttonAction` override; nothing to consume here either
 }
 
-void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
+void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
+
+	// A context with no UI facts has no reading: 0 mV, which draws as an empty battery.
+	const int32_t battery_mv = ctx.ports.ui != nullptr ? ctx.ports.ui->battery_millivolts() : 0;
 
 	// Charging heuristic, ported from `battery::Level::timerCallback`
 	// (`origin/main:src/deluge/gui/menu_item/battery/level.h`): every 4 timer ticks at 500 ms (= 2000 ms), check
@@ -1114,15 +1109,15 @@ void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	constexpr uint32_t kChargeCheckMs = 2000;
 	const uint32_t now = f.now_ms();
 	if (!checked_once_) {
-		last_check_mv_ = ::batteryMV;
+		last_check_mv_ = static_cast<uint16_t>(battery_mv);
 		last_check_ms_ = now;
 		checked_once_ = true;
 	}
 	else if (now - last_check_ms_ >= kChargeCheckMs) {
-		const int32_t diff = static_cast<int32_t>(::batteryMV) - static_cast<int32_t>(last_check_mv_);
+		const int32_t diff = battery_mv - static_cast<int32_t>(last_check_mv_);
 		// `Level::timerCallback` (`origin/main:src/deluge/gui/menu_item/battery/level.h`)'s own threshold
 		charging_ = diff > 5;
-		last_check_mv_ = ::batteryMV;
+		last_check_mv_ = static_cast<uint16_t>(battery_mv);
 		last_check_ms_ = now;
 	}
 
@@ -1131,8 +1126,8 @@ void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	constexpr int32_t kMinMv = 2600;
 	constexpr int32_t kMaxMv = 4200;
 	int32_t percentage = 0;
-	if (::batteryMV > kMinMv) {
-		percentage = (static_cast<int32_t>(::batteryMV) - kMinMv) * 100 / (kMaxMv - kMinMv);
+	if (battery_mv > kMinMv) {
+		percentage = (battery_mv - kMinMv) * 100 / (kMaxMv - kMinMv);
 		percentage = std::clamp(percentage, 0, 100);
 	}
 
@@ -1151,7 +1146,7 @@ void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 
 	append_int(percentage);
 	append("% (");
-	append_int(static_cast<int32_t>(::batteryMV));
+	append_int(battery_mv);
 	append("mV)");
 	// `Level::getBatteryString` (`origin/main:src/deluge/gui/menu_item/battery/level.h`): FULL takes precedence over
 	// CHG -- a battery reading 99%+ is reported full even if the charging heuristic above still thinks it is rising.

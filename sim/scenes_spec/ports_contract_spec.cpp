@@ -4,11 +4,16 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
+#include <version.h>
+
 #include "cppspec.hpp"
 
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
+
+// The main loop's battery voltage (src/deluge/deluge.cpp), declared at global scope as the host does.
+extern uint16_t batteryMV;
 
 // clang-format off
 describe ports_contract_host("the app's ports keep the contract their fakes keep", ${
@@ -44,6 +49,14 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.ui != nullptr) {
 			expect(bind::contract::ui_facts_are_stable(*p.ui)).to_be_true();
 			expect(bind::contract::flash_cursor_is_named(*p.ui)).to_be_true();
+			expect(bind::contract::battery_and_firmware_are_readings(*p.ui)).to_be_true();
+			// The legacy sources themselves; the voltage is set to a value the ADC could report, then put back.
+			expect(std::string{p.ui->firmware_version()}).to_equal(std::string{kFirmwareVersionString});
+			const uint16_t saved_mv = batteryMV;
+			batteryMV = 3712;
+			expect(p.ui->battery_millivolts()).to_equal(3712);
+			batteryMV = saved_mv;
+			expect(p.ui->battery_millivolts()).to_equal(static_cast<int32_t>(saved_mv));
 		}
 		if (p.sound != nullptr) {
 			// A slot id no song holds.

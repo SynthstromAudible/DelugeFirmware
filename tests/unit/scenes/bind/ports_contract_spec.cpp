@@ -22,6 +22,8 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.card.sample_loading = true;
 		host.ui.cursor = FlashCursor::Off;
 		host.ui.performance = PerformanceEditing::Param;
+		host.ui.battery_mv = 3712;
+		host.ui.firmware = "1.2.3-spec";
 		const Ports p = host.ports();
 		expect(p.audio->audio_inputs_present()).to_be_true();
 		expect(p.audio->live_voice_count()).to_equal(3);
@@ -35,6 +37,12 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(FlashCursor::Off));
 		expect(static_cast<int>(p.ui->performance_editing_mode())).to_equal(static_cast<int>(PerformanceEditing::Param));
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
+		expect(p.ui->battery_millivolts()).to_equal(3712);
+		expect(std::string{p.ui->firmware_version()}).to_equal(std::string{"1.2.3-spec"});
+		expect(contract::battery_and_firmware_are_readings(*p.ui)).to_be_true();
+		host.ui.firmware = "";
+		expect(contract::battery_and_firmware_are_readings(*p.ui)).to_be_false();
+		host.ui.firmware = "1.2.3-spec";
 		expect(contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
 		host.card.replacing = true;

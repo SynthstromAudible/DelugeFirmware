@@ -6,7 +6,15 @@
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 
+#include <version.h>
+
+#include <cstdint>
+#include <string_view>
 #include <utility>
+
+// The battery's voltage, which the main loop sets (src/deluge/deluge.cpp). Declared at global scope: a namespaced
+// declaration would name a different, unlinked variable.
+extern uint16_t batteryMV;
 
 namespace deluge::gui::shell_host {
 namespace {
@@ -46,6 +54,8 @@ public:
 	[[nodiscard]] bool dx7_engine_enabled() const override {
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
 	}
+	[[nodiscard]] int32_t battery_millivolts() const override { return batteryMV; }
+	[[nodiscard]] std::string_view firmware_version() const override { return kFirmwareVersionString; }
 };
 
 } // namespace

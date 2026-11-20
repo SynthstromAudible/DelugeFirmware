@@ -60,6 +60,15 @@ namespace deluge::scenes::bind::contract {
 	return read_back && audio.song_threshold_recording() == threshold && audio.reverb_sidechain_sync_type() == type;
 }
 
+/// @brief The battery reads as a voltage an unsigned 16-bit ADC value can hold, and the firmware version is a
+///        non-empty view over storage that outlives the call: the same bytes answer twice.
+[[nodiscard]] inline bool battery_and_firmware_are_readings(const UiFacts& ui) {
+	const int32_t mv = ui.battery_millivolts();
+	const std::string_view first = ui.firmware_version();
+	const std::string_view second = ui.firmware_version();
+	return mv >= 0 && mv <= UINT16_MAX && !first.empty() && first.data() == second.data() && first == second;
+}
+
 /// @brief The flash cursor is one of its three values.
 [[nodiscard]] inline bool flash_cursor_is_named(const UiFacts& ui) {
 	const auto c = ui.flash_cursor();
