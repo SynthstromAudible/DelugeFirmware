@@ -58,7 +58,6 @@ inline std::vector<std::pair<std::string, SoundState>> matrix() {
 	SoundState nonzero = SoundState{};
 	record::set(nonzero, "transpose", "5");
 	record::set(nonzero, "cents", "-7");
-	record::set(nonzero, "sideChainSend", "1234");
 	effects::EffectStates& fx = sound_effects(nonzero);
 	fx.saturation.clipping_amount = 4;
 	fx.stutter.use_song_stutter = false;

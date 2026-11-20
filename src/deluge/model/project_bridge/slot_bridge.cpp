@@ -58,7 +58,7 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 	    deluge::project::InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 	                                    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeSynth>({}),
 	                                    .tick_magnitude = song.getInputTickMagnitude()};
-	sound.bindState(*slot->state.as<deluge::instrument::DelugeSynth>());
+	sound.bindState(*slot->state.as<deluge::instrument::DelugeSynth>(), slot->routing);
 }
 
 namespace {

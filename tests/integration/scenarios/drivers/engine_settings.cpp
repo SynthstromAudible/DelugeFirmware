@@ -163,14 +163,13 @@ int expectBound(Output& output, const char* how) {
 }
 
 /// The setting paths an Edit maps so far.
-constexpr std::array<std::string_view, 73> kEditedPaths{
+constexpr std::array<std::string_view, 70> kEditedPaths{
     "polyphonic",
     "voicePriority",
     "maxVoices",
     "mode",
     "transpose",
     "cents",
-    "sideChainSend",
     "osc1/type",
     "osc1/transpose",
     "osc1/cents",
@@ -212,8 +211,6 @@ constexpr std::array<std::string_view, 73> kEditedPaths{
     "modulator2/cents",
     "modulator2/retrigPhase",
     "modulator2/toModulator1",
-    "midiOutput/channel",
-    "midiOutput/noteForDrum",
     "modFXType",
     "lpfMode",
     "hpfMode",

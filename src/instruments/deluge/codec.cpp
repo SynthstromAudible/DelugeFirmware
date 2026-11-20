@@ -61,6 +61,10 @@ constexpr KeyRun kDelayKeys{.first = 22, .count = 1};          ///< delay
 constexpr KeyRun kEffectTagKeys{.first = 23, .count = 3};      ///< sidechain, audioCompressor, stutter
 static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 
+/// The keys of kStateKeys whose entries are the host's, the sound's routing (`project::encode_routing` writes them; the
+/// instrument library does not depend on the model's): the instrument holds none of them, only their place in the file.
+constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
+
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
 /// factory presets and official firmware write it.
 constexpr std::array<std::string_view, 1> kOldStateKeys{"compressor"};
@@ -254,10 +258,6 @@ std::optional<Value> scalar_entry(const SoundState& state, std::string_view key)
 	if (key == "voicePriority") {
 		return number(std::to_underlying(v.priority));
 	}
-	if (key == "sideChainSend") {
-		const int32_t send = state.plays.side_chain_send_level;
-		return send != 0 ? std::optional{number(send)} : std::nullopt;
-	}
 	if (key == "mode") {
 		return text(to_string(synth_mode(state)));
 	}
@@ -292,14 +292,12 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	const synth::VoicingState vb = voicing(b);
 	const effects::EffectStates& fa = sound_effects(a);
 	const effects::EffectStates& fb = sound_effects(b);
-	const HostFields ha = host_fields(a);
-	const HostFields hb = host_fields(b);
 	const std::array<synth::Pitch, 2> ma = modulators(a);
 	const std::array<synth::Pitch, 2> mb = modulators(b);
 	const std::array<bool, kStateKeys.size()> differ{
 	    va.polyphony != vb.polyphony,
 	    va.priority != vb.priority,
-	    ha.side_chain_send_level != hb.side_chain_send_level,
+	    false, // sideChainSend: the host's
 	    synth_mode(a) != synth_mode(b),
 	    va.master.transpose != vb.master.transpose,
 	    va.master.cents != vb.master.cents,
@@ -318,8 +316,7 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	    ma[0] != mb[0],
 	    ma[1] != mb[1] || modulator1_to_modulator0(a) != modulator1_to_modulator0(b),
 	    va.unison != vb.unison,
-	    ha.output_midi_channel != hb.output_midi_channel
-	        || ha.output_midi_note_for_drum != hb.output_midi_note_for_drum,
+	    false, // midiOutput: the host's
 	    fa.delay != fb.delay,
 	    fa.sidechain != fb.sidechain,
 	    fa.compressor != fb.compressor,
@@ -364,17 +361,11 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 		map.set("spread", number(u.spread));
 		return map;
 	}
-	if (key == "midiOutput") {
-		auto midi = Value::makeMap();
-		midi.set("channel", number(state.plays.output_midi_channel));
-		midi.set("noteForDrum", number(state.plays.output_midi_note_for_drum));
-		return midi;
-	}
 	return std::nullopt;
 }
 
 SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
-                          std::optional<int32_t> compressor_threshold) {
+                          std::optional<int32_t> compressor_threshold, const serialization::Value* host) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
 	                   .max_voices = Value::makeMap(),
@@ -384,7 +375,12 @@ SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& c
 	                   .effect_tags = Value::makeMap()};
 	const auto put = [&](Value& piece, std::span<const std::string_view> keys) {
 		for (const std::string_view key : keys) {
-			if (std::optional<Value> entry = encode_entry(state, key, context, compressor_threshold)) {
+			if (host != nullptr && std::ranges::find(kHostKeys, key) != kHostKeys.end()) {
+				if (const Value* entry = host->find(key)) {
+					piece.set(std::string(key), *entry);
+				}
+			}
+			else if (std::optional<Value> entry = encode_entry(state, key, context, compressor_threshold)) {
 				piece.set(std::string(key), std::move(*entry));
 			}
 		}
@@ -415,7 +411,8 @@ Value encode(const SoundState& state, const plugin::CodecContext& context) {
 }
 
 bool is_state_key(std::string_view key) {
-	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
+	return std::ranges::find(kStateKeys, key) != kStateKeys.end()
+	       && std::ranges::find(kHostKeys, key) == kHostKeys.end();
 }
 
 serialization::Value with_state(const serialization::Value& element, const SoundState& state,
@@ -759,9 +756,6 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 		else if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
 			read_lfo(value, state, static_cast<size_t>(key[3] - '1'), context);
 		}
-		else if (key == "sideChainSend") {
-			state.side_chain_send_level = intOf(value);
-		}
 		else if (key == "polyphonic") {
 			state.polyphonic = parse_polyphony_mode(textOf(value));
 		}
@@ -770,18 +764,6 @@ std::expected<void, plugin::StateError> decode_impl(const Value& element, FlatSo
 		}
 		else if (key == "voicePriority") {
 			state.voice_priority = static_cast<plugin::VoicePriority>(intOf(value));
-		}
-		else if (key == "midiOutput") {
-			if (value.isMap()) {
-				for (const auto& [midiKey, midiValue] : value.entries()) {
-					if (midiKey == "channel") {
-						state.output_midi_channel = static_cast<uint8_t>(intOf(midiValue));
-					}
-					else if (midiKey == "noteForDrum") {
-						state.output_midi_note_for_drum = static_cast<uint8_t>(intOf(midiValue));
-					}
-				}
-			}
 		}
 	}
 	// What finishing a read does to each source: FM plays sines, ring modulation takes nothing past a wavetable, and a
@@ -838,9 +820,6 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 	else if (key == "voicePriority") {
 		state.voice_priority = from.voice_priority;
 	}
-	else if (key == "sideChainSend") {
-		state.side_chain_send_level = from.side_chain_send_level;
-	}
 	else if (key == "mode") {
 		state.synth_mode = from.synth_mode;
 	}
@@ -880,10 +859,6 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 		state.num_unison = from.num_unison;
 		state.unison_detune = from.unison_detune;
 		state.unison_stereo_spread = from.unison_stereo_spread;
-	}
-	else if (key == "midiOutput") {
-		state.output_midi_channel = from.output_midi_channel;
-		state.output_midi_note_for_drum = from.output_midi_note_for_drum;
 	}
 	else if (deluge::effects::is_effect_key(key)) {
 		deluge::effects::keep_effect_entry(key, state.effects, from.effects);
@@ -966,6 +941,9 @@ std::expected<FlatSlotChange, plugin::StateError> decode_change(const Value& ele
 	// make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
 	std::array<bool, 2> sourceKept{}; // an unchanged oscillator entry keeps its whole source, ranges included
 	for (std::string_view key : kStateKeys) {
+		if (!is_state_key(key)) {
+			continue; // the host's entry: the state holds nothing of it to change
+		}
 		const serialization::Value* held = element.find(key);
 		const serialization::Value* written = previous.find(key);
 		const bool unchanged =

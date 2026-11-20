@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/instrument_slot.h"
 #include "libdeluge/system.h"
 #include "model/fx/channel_setup.h"
 #include "model/fx/effects_owner.h"
@@ -167,17 +168,25 @@ public:
 	/// @brief The Deluge instrument's settings for this sound, from its construction on: its own state (ownedState_)
 	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
 	deluge::instrument::SoundState* state_{nullptr};
-	/// @brief Bind this sound into @p record, its record's state: the record takes what the sound holds, its own state
-	/// moved in or another record's copied, and from then on every setter writes the record.
-	/// @param record The state the sound's record owns; it must outlive the binding (unbindState before it goes).
-	void bindState(deluge::instrument::SoundState& record);
+	/// @brief Bind this sound into its record's slot: the slot's state (@p record) and routing (@p routing) take what
+	/// the sound holds, its own moved in or another record's copied, and from then on every setter writes the record.
+	/// @param record  The state the sound's record owns; it must outlive the binding (unbindState before it goes).
+	/// @param routing The routing the same slot owns, beside @p record.
+	void bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing);
 	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
 	/// record a drum's kit bound it to, else in the sound's own state, which its record takes when it is adopted.
 	void adoptState(deluge::instrument::SoundState loaded);
-	/// @brief Take the state back from the record the sound is bound into, as the record goes: the state moves into the
-	/// sound's own, which it then plays, and the record is left empty. Nothing when it plays its own state already, or
-	/// none.
+	/// @brief Take the state and the routing back from the record the sound is bound into, as the record goes: they
+	/// move into the sound's own, which it then plays, and the record is left empty. Nothing when it plays its own
+	/// state already, or none.
 	void unbindState();
+	/// @brief Where this sound's output goes beyond its instrument: its record's slot's routing once adopted, its own
+	/// (ownedRouting_) before, as a preset being read or the sample preview holds it.
+	[[nodiscard]] const deluge::project::SoundRouting& routing() const { return *routing_; }
+	/// @brief The routing to write a change into, before applyRouting() projects it.
+	[[nodiscard]] deluge::project::SoundRouting& routingRecord() { return *routing_; }
+	/// @brief Set the render's send and the MIDI output's channel and note from the routing.
+	void applyRouting();
 	/// @brief The bound state.
 	/// @return The bound state, or null while unbound.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
@@ -468,6 +477,10 @@ private:
 	deluge::audio::VoiceCost voiceCost_;
 	/// @brief The Deluge instrument's settings for this sound, owned here and bound on adoption (bindState).
 	deluge::instrument::SoundState ownedState_;
+	/// @brief The sound's routing, owned here until a record adopts it (bindState).
+	deluge::project::SoundRouting ownedRouting_;
+	/// @brief The routing the sound plays: ownedRouting_, or its record's slot's.
+	deluge::project::SoundRouting* routing_{&ownedRouting_};
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 

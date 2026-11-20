@@ -74,12 +74,9 @@ describe setting_values("a sound's settings in an Edit's form", ${
 		expect(answer(fmState(), "osc1/transpose")).to_equal(std::string("0"));
 		expect(answer(fmState(), "modulator2/transpose")).to_equal(std::string("-12"));
 		expect(answer(wavetableState(), "osc1/type")).to_equal(std::string("wavetable"));
-		expect(answer(SoundState{}, "midiOutput/channel")).to_equal(std::string("255"));
 	});
 
-	it("takes an unset drum note, which answers nothing", _ {
-		expect(answer(SoundState{}, "midiOutput/noteForDrum")).to_equal(std::string("none"));
-		expect(takes_setting(SoundState{}, "midiOutput/noteForDrum")).to_be_true();
+	it("takes no setting its sound does not hold", _ {
 		expect(takes_setting(fmState(), "osc1/type")).to_be_false();
 		expect(takes_setting(SoundState{}, "osc1/sampleRanges")).to_be_false();
 	});

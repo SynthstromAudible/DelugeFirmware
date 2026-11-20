@@ -222,13 +222,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		sound.killAllVoices();
 	}
 
-	// The sound's own fields and its sources' follow the record; a new type reshapes a source's ranges.
-	if (changed(Part::HOST)) {
-		const deluge::instrument::HostFields host = deluge::instrument::host_fields(after);
-		sound.sideChainSendLevel = host.side_chain_send_level;
-		sound.outputMidiChannel = host.output_midi_channel;
-		sound.outputMidiNoteForDrum = host.output_midi_note_for_drum;
-	}
+	// The sound's sources follow the record; a new type reshapes a source's ranges.
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		SourceResources& source = sound.sources[s];

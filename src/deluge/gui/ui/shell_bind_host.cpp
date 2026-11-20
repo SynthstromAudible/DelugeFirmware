@@ -1166,6 +1166,29 @@ void ShellEditSink::apply(const WriteRequest& request) {
 			return;
 		}
 	}
+	if (model && model->group == deluge::project::SettingGroupId::SOUND_ROUTING && request.where.affect_entire
+	    && request.target.whole_kit && request.where.kit_output) {
+		// A sound's routing with affect-entire held: every sound row of the kit that plays an instrument, as a sound
+		// setting's affect-entire writes them (SetKitSetting)
+		Kit* kit = deluge::bridge::kitAt(*currentSong, *request.where.kit_output);
+		if (kit == nullptr) {
+			refusals_++;
+			return;
+		}
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+			const auto lane =
+			    drum->type == DrumType::SOUND ? deluge::bridge::laneAddressOf(*drum, *currentSong) : std::nullopt;
+			if (!lane || deluge::project::sound_routing(currentSong->project, *lane) == nullptr) {
+				continue;
+			}
+			const deluge::project::SettingAddress address{deluge::project::SettingGroupId::SOUND_ROUTING, *lane};
+			commit_both(ctx, [&](std::string on, const deluge::serialization::Value& value) {
+				return deluge::edits::SetSetting{address, std::move(on), value};
+			});
+		}
+		return;
+	}
 	if (model) {
 		deluge::bridge::seedArpRecordAt(*currentSong, *model); // an arp's writers seed its record from the arp first
 		deluge::edits::Context ctx{*currentSong, currentSong->project};

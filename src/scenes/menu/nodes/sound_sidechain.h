@@ -34,6 +34,7 @@
 ///       arrays `extern` and transcribes `getLookupIndexFromValue` (`util/functions.cpp`) locally. The same treatment
 ///       `sound_compressor.cpp` gives `lshiftAndSaturate<24>`.
 
+#include "deluge-project/setting_group.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/param_shows.h"
@@ -100,10 +101,13 @@ inline constexpr Node sidechain_shape = with_column_name(
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
     sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
-inline constexpr Node sidechain_send = with_affect_entire(
-    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
-                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "sideChainSend"}, Hint::Bar),
-               sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECH_MENU_TITLE)));
+inline constexpr Node sidechain_send =
+    with_affect_entire(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
+                                               {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                .path = "sideChainSend",
+                                                .group = deluge::project::SettingGroupId::SOUND_ROUTING},
+                                               Hint::Bar),
+                                  sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECH_MENU_TITLE)));
 inline constexpr Node sidechain_attack = with_affect_entire(with_column_name(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/attack"},

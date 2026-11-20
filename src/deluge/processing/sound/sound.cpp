@@ -16,9 +16,11 @@
  */
 
 #include "processing/sound/sound.h"
+
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/sound_routing_codec.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/pitch/fine_tune.h"
@@ -509,8 +511,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
 namespace {
-/// The sound element's tags the Deluge instrument decodes entirely (readFromFile), which this reader skips: a sound's
-/// params are all in its defaultParams.
+/// The sound element's tags the Deluge instrument and the sound's routing decode entirely (readFromFile), which this
+/// reader skips: a sound's params are all in its defaultParams.
 constexpr std::array<std::string_view, 26> kInstrumentOnlyTags{
     "mode",          "transpose",      "cents",     "unison",     "sideChainSend",
     "polyphonic",    "maxVoices",      "osc1",      "osc2",       "lfo1",
@@ -2598,6 +2600,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		return Error::FILE_CORRUPTED;
 	}
 	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
+	const deluge::project::SoundRouting routing = deluge::project::decode_routing(*element, *routing_);
 
 	char const* tagName;
 
@@ -2618,6 +2621,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	if (Error error = applyState(decoded); error != Error::NONE) {
 		return error;
 	}
+	*routing_ = routing;
+	applyRouting();
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
 	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
@@ -2683,10 +2688,6 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	// The config the rest of the read plays with, until the read's state is adopted
 	config_ = deluge::instrument::DelugeSynth::derive(state);
-	const deluge::instrument::HostFields host = deluge::instrument::host_fields(state);
-	sideChainSendLevel = host.side_chain_send_level;
-	outputMidiChannel = host.output_midi_channel;
-	outputMidiNoteForDrum = host.output_midi_note_for_drum;
 	resyncGlobalLFOs();
 
 	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
@@ -2782,7 +2783,7 @@ void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	projectSnapshot();
 }
 
-void Sound::bindState(deluge::instrument::SoundState& record) {
+void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing) {
 	if (state_ == &record) {
 		return;
 	}
@@ -2793,11 +2794,14 @@ void Sound::bindState(deluge::instrument::SoundState& record) {
 	else {
 		record = *state_; // another record's, which stays that record's
 	}
+	routing = *routing_;
 	state_ = &record;
+	routing_ = &routing;
 	bindEffects(
 	    &deluge::instrument::sound_effects(record)); // copies the effects it played, which the move left in place
 	if (own) {
 		ownedState_ = {}; // no second copy stays behind
+		ownedRouting_ = {};
 	}
 	projectSnapshot();
 }
@@ -2807,9 +2811,17 @@ void Sound::unbindState() {
 		return;
 	}
 	ownedState_ = std::move(*state_); // the record goes now
+	ownedRouting_ = *routing_;
 	state_ = &ownedState_;
+	routing_ = &ownedRouting_;
 	bindEffects(&deluge::instrument::sound_effects(ownedState_));
 	projectSnapshot();
+}
+
+void Sound::applyRouting() {
+	sideChainSendLevel = routing_->side_chain_send;
+	outputMidiChannel = routing_->midi_channel.value_or(MIDI_CHANNEL_NONE);
+	outputMidiNoteForDrum = routing_->midi_note.value_or(MIDI_NOTE_NONE);
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* knobsSong,
@@ -2817,10 +2829,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
                         const char* pathAttribute) {
 	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
 	// its pieces in the file.
+	const deluge::serialization::Value routing = deluge::project::encode_routing(*routing_);
 	const deluge::instrument::SoundPieces pieces =
 	    deluge::instrument::encode_pieces(*state_, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
 	                                      // the threshold the render last applied, its param's
-	                                      core().compressor().dsp().threshold().raw());
+	                                      core().compressor().dsp().threshold().raw(), &routing);
 
 	writer.writeValue(pieces.head);
 	writer.writeValue(pieces.effect_attributes);

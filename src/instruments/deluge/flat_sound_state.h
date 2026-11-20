@@ -55,9 +55,6 @@ struct SourceState {
 struct FlatSoundState {
 	plugin::VoicePriority voice_priority{plugin::VoicePriority::MEDIUM};
 	uint8_t max_voice_count{8};
-	int32_t side_chain_send_level{0};
-	uint8_t output_midi_channel{255};       ///< 255 = none
-	uint8_t output_midi_note_for_drum{255}; ///< 255 = none
 	bool oscillator_sync{false};
 	PolyphonyMode polyphonic{PolyphonyMode::POLY};
 	SynthMode synth_mode{SynthMode::SUBTRACTIVE};
