@@ -64,8 +64,19 @@ void set_engine(SoundState& state, SynthMode mode);
 /// @brief One of @p state's four LFOs, in file order, to change in place.
 [[nodiscard]] synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept;
 
-/// @brief Slot @p slot's pitch, to change in place: an FM sound's carrier, another's kind's, a sample's the one its
-/// slot keeps (its ranges carry their own tuning).
+/// @brief Slot @p slot's kind with its parts: the one it plays, or while FM plays the one it parks.
+/// @return The kind, or null when FM plays and the slot parks none (a new synth's square).
+[[nodiscard]] const synth::SlotState* slot_kind_of(const SoundState& state, size_t slot) noexcept;
+
+/// @copydoc slot_kind_of(const SoundState&, size_t)
+[[nodiscard]] synth::SlotState* slot_kind_of(SoundState& state, size_t slot) noexcept;
+
+/// @brief Slot @p slot's pitch: an FM sound's carrier, another's kind's, a sample's the one its slot keeps (its ranges
+/// carry their own tuning).
+/// @return The pitch.
+[[nodiscard]] const synth::Pitch& source_pitch_of(const SoundState& state, size_t slot) noexcept;
+
+/// @copydoc source_pitch_of(const SoundState&, size_t)
 [[nodiscard]] synth::Pitch& source_pitch_of(SoundState& state, size_t slot) noexcept;
 
 /// @brief Slot @p slot's sample playback, to change in place: a sample's own (played, or parked while FM plays), any

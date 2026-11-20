@@ -131,7 +131,7 @@ public:
 	[[nodiscard]] deluge::effects::FxSection& fxSection() { return fxSection_; }
 	[[nodiscard]] deluge::effects::ChainCore& core() { return fxSection_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const { return fxSection_.core(); }
-	/// @brief The sound's effect settings: its bound record's, else its binding's own.
+	/// @brief The sound's effect settings: the record's they are kept in, else the ones effectsBinding_ holds.
 	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
 	/// @brief The render's copy of the effect settings: it reads nothing else of them.
@@ -140,7 +140,7 @@ public:
 	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
 	/// @param next The new effect settings.
 	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
-	/// @brief Keep the sound's effect settings in @p record, or in its binding again (model::bindEffects).
+	/// @brief Keep the sound's effect settings in @p record, or in effectsBinding_ itself (model::bindEffects).
 	/// @param record The record that holds the settings, or nullptr.
 	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
 	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
@@ -166,12 +166,13 @@ public:
 	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
 	deluge::instrument::SoundState* state_{&ownedState_};
 	/// @brief Bind this sound into its record's slot: the slot's state (@p record) and routing (@p routing) take what
-	/// the sound holds, its own moved in or another record's copied, and from then on every setter writes the record.
+	/// the sound holds, its own moved in or another record's copied, and every setter writes the record while bound.
 	/// @param record  The state the sound's record owns; it must outlive the binding (unbindState before it goes).
 	/// @param routing The routing the same slot owns, beside @p record.
 	void bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing);
 	/// @brief Play @p loaded, the state a load decoded or a setup made, its runtime already set to the same: in the
-	/// record a drum's kit bound it to, else in the sound's own state, which its record takes when it is adopted.
+	/// slot's record the sound is bound into, else in its own state, which its record takes when it is adopted.
+	/// @param loaded The state to play.
 	void adoptState(deluge::instrument::SoundState loaded);
 	/// @brief Take the state and the routing back from the record the sound is bound into, as the record goes: they
 	/// move into the sound's own, which it then plays, and the record is left empty. Nothing when it plays its own
@@ -179,14 +180,18 @@ public:
 	void unbindState();
 	/// @brief Where this sound's output goes beyond its instrument: its record's slot's routing once adopted, its own
 	/// (ownedRouting_) before, as a preset being read or the sample preview holds it.
+	/// @return The routing.
 	[[nodiscard]] const deluge::project::SoundRouting& routing() const { return *routing_; }
 	/// @brief The routing to write a change into, before applyRouting() projects it.
+	/// @return The routing.
 	[[nodiscard]] deluge::project::SoundRouting& routingRecord() { return *routing_; }
 	/// @brief Set the render's send and the MIDI output's channel and note from the routing.
 	void applyRouting();
 	/// @brief The state this sound plays: its record's once adopted, its own before.
+	/// @return The state.
 	[[nodiscard]] const deluge::instrument::SoundState& state() const { return *state_; }
 	/// @brief The state this sound plays, to write a change into before applying it.
+	/// @return The state.
 	[[nodiscard]] deluge::instrument::SoundState& record() { return *state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.

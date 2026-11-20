@@ -76,10 +76,10 @@ struct SoundPieces {
 [[nodiscard]] bool is_state_key(std::string_view key);
 
 /// @brief @p element (a sound's slot) with the Deluge instrument's entries replaced by @p state's encoding: each such
-/// entry takes the encoding's value at its old position, one the encoding no longer writes is dropped, and one the
+/// entry takes the encoding's value at its old position, one the encoding does not write is dropped, and one the
 /// encoding writes that the element lacked is appended in the encoding's order. The sidechain's older tag
 /// ("compressor") is dropped: the encoding holds what it said. Every other entry (params, cables, an older file's
-/// entries the instrument no longer writes…) is kept, in order; the cables are the cable codec's (cable_codec.h).
+/// entries the instrument does not write…) is kept, in order; the cables are the cable codec's (cable_codec.h).
 /// @param element The sound's slot.
 /// @param state   The state whose encoding replaces the instrument's entries.
 /// @param context The file context.

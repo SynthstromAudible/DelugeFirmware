@@ -5,8 +5,8 @@
 #include "deluge-project/instrument_slot.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "support/learned_fixture.h"
 #include "support/printers/sound_routing_printer.h"
 #include "support/song_fixture.h"
 
@@ -25,12 +25,7 @@ constexpr deluge::project::SoundRouting kRouted{.side_chain_send = 123456, .midi
 
 /// A sample row made as a kit-row preset makes it, holding @p routing before any kit adopts it.
 SoundDrum* row_holding(spec::SongFixture& f, const deluge::project::SoundRouting& routing) {
-	auto* drum = spec::detail::place<SoundDrum>();
-	ParamManagerForTimeline params;
-	params.setupWithPatching();
-	Sound::initParams(&params);
-	drum->setupAsSample(&params);
-	f.song->live.param_backup.backUp(drum, f.clip, &params, true);
+	SoundDrum* drum = spec::learned::makeSoundDrum(f);
 	drum->routingRecord() = routing;
 	drum->applyRouting();
 	return drum;

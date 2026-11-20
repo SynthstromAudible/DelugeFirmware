@@ -2761,7 +2761,7 @@ void Sound::recordHeldDxPatch(int32_t s) {
 }
 
 void Sound::adoptState(deluge::instrument::SoundState loaded) {
-	// A drum plays the record its kit adopted it into; any other sound its own state
+	// A sound bound into a slot plays the slot's record; any other plays its own state
 	*state_ = std::move(loaded);
 	bindEffects(&deluge::instrument::sound_effects(*state_));
 	projectSnapshot();
@@ -2773,7 +2773,7 @@ void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::S
 	}
 	const bool own = state_ == &ownedState_;
 	if (own) {
-		record = std::move(ownedState_); // the record holds it from now on
+		record = std::move(ownedState_); // the record holds it
 	}
 	else {
 		record = *state_; // another record's, which stays that record's
@@ -2795,7 +2795,7 @@ void Sound::unbindState() {
 	if (state_ == &ownedState_) {
 		return;
 	}
-	ownedState_ = std::move(*state_); // the record goes now
+	ownedState_ = std::move(*state_); // the record's state moves back into the sound
 	ownedRouting_ = *routing_;
 	state_ = &ownedState_;
 	routing_ = &ownedRouting_;

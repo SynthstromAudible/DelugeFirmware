@@ -34,6 +34,7 @@
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
+#include "support/song_load.h"
 
 #include "support/spec_main.h"
 
@@ -82,24 +83,6 @@ MIDIInstrument* midi_of(Song& song) {
 	return nullptr;
 }
 
-/// @brief Load @p xml into a new song, as a song file is read; null if the read failed.
-Song* load_song(std::string_view xml) {
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
-	Song* song = new (memory) Song();
-	song->paramManager.setupUnpatched();
-	deluge::model::initGlobalParams(&song->paramManager);
-	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
-	if (!tree) {
-		return nullptr;
-	}
-	deluge::storage::ValueTreeDeserializer adapter(*tree, sourceFormatOf(deluge::storage::DocumentFormat::XML));
-	Error error = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
-	if (error == Error::NONE) {
-		error = deluge::bridge::loadSong(*song, adapter);
-	}
-	return error == Error::NONE ? song : nullptr;
-}
-
 /// @brief @p song as it saves, as text.
 std::string saved(Song& song) {
 	std::vector<char> buffer(1u << 20);
@@ -121,12 +104,12 @@ using deluge::project::ModKnobCc;
 describe knob_records("the knob records, by Edit", ${
 	it("a song read without activeModFunction holds mode 1, and one read with 4 holds 4", _ {
 		Song* const before = currentSong;
-		Song* plain = load_song(song_xml(""));
+		Song* plain = deluge::scenes::spec::load_song(song_xml(""));
 		expect(plain).not_().to_be_null();
 		if (plain != nullptr) {
 			expect(plain->project.mod_knob_mode).to_equal(1);
 		}
-		Song* four = load_song(song_xml(R"(activeModFunction="4")"));
+		Song* four = deluge::scenes::spec::load_song(song_xml(R"(activeModFunction="4")"));
 		expect(four).not_().to_be_null();
 		if (four != nullptr) {
 			expect(four->project.mod_knob_mode).to_equal(4);
@@ -137,7 +120,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a song that says a mode past the last button keeps it in its record, and the knobs use the last", _ {
 		Song* const before = currentSong;
-		Song* nine = load_song(song_xml(R"(activeModFunction="9")"));
+		Song* nine = deluge::scenes::spec::load_song(song_xml(R"(activeModFunction="9")"));
 		expect(nine).not_().to_be_null();
 		if (nine != nullptr) {
 			expect(nine->project.mod_knob_mode).to_equal(9);
@@ -204,7 +187,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a song saved after its mode changes to 6 says activeModFunction 6", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(song_xml(""));
+		Song* song = deluge::scenes::spec::load_song(song_xml(""));
 		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
@@ -222,7 +205,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track's modKnobs load into its record, each word as the file says it", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(
 		    R"(<modKnobs><modKnob cc="none" /><modKnob cc="bend" /><modKnob cc="aftertouch" /><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
@@ -244,7 +227,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a knob on CC 1 is the Y axis, read the same by the engine and the model", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="1" /></modKnobs>)"));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="1" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		const ModKnobCc y_axis{.kind = ModKnobCc::Kind::NUMBER, .number = CC_NUMBER_Y_AXIS};
 		expect(midi).not_().to_be_null();
@@ -277,7 +260,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("an unedited MIDI track saves no modKnobs", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(""));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
 		expect(song).not_().to_be_null();
 		if (song != nullptr) {
 			currentSong = song;
@@ -288,7 +271,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track edited through a setting records its knobs as it then saves them", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(""));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -309,7 +292,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("SetModKnobCC writes the record and the engine, marks the track edited, and takes no undo step", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(""));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(""));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -334,7 +317,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("the gold knob's CC change goes through the record", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="74" /></modKnobs>)"));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="74" /></modKnobs>)"));
 		MIDIInstrument* midi = song != nullptr ? midi_of(*song) : nullptr;
 		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
@@ -352,7 +335,7 @@ describe knob_records("the knob records, by Edit", ${
 
 	it("a MIDI track's assignments copied into a new MIDI instrument are its record once the song adopts it", _ {
 		Song* const before = currentSong;
-		Song* song = load_song(midi_song_xml(R"(<modKnobs><modKnob cc="none" /><modKnob cc="12" /></modKnobs>)"));
+		Song* song = deluge::scenes::spec::load_song(midi_song_xml(R"(<modKnobs><modKnob cc="none" /><modKnob cc="12" /></modKnobs>)"));
 		MIDIInstrument* old = song != nullptr ? midi_of(*song) : nullptr;
 		expect(old).not_().to_be_null();
 		if (old != nullptr) {
