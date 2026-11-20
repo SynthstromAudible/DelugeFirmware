@@ -16,9 +16,11 @@
  */
 
 #include "processing/sound/sound.h"
+
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/sound_routing_codec.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/pitch/fine_tune.h"
@@ -2598,6 +2600,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		return Error::FILE_CORRUPTED;
 	}
 	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
+	const deluge::project::SoundRouting routing = deluge::project::decode_routing(*element, *routing_);
 
 	char const* tagName;
 
@@ -2618,6 +2621,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	if (Error error = applyState(decoded); error != Error::NONE) {
 		return error;
 	}
+	*routing_ = routing;
+	applyRouting();
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
 	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
@@ -2782,7 +2787,7 @@ void Sound::adoptState(deluge::instrument::SoundState loaded) {
 	projectSnapshot();
 }
 
-void Sound::bindState(deluge::instrument::SoundState& record) {
+void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::SoundRouting& routing) {
 	if (state_ == &record) {
 		return;
 	}
@@ -2793,11 +2798,14 @@ void Sound::bindState(deluge::instrument::SoundState& record) {
 	else {
 		record = *state_; // another record's, which stays that record's
 	}
+	routing = *routing_;
 	state_ = &record;
+	routing_ = &routing;
 	bindEffects(
 	    &deluge::instrument::sound_effects(record)); // copies the effects it played, which the move left in place
 	if (own) {
 		ownedState_ = {}; // no second copy stays behind
+		ownedRouting_ = {};
 	}
 	projectSnapshot();
 }
@@ -2807,9 +2815,17 @@ void Sound::unbindState() {
 		return;
 	}
 	ownedState_ = std::move(*state_); // the record goes now
+	ownedRouting_ = *routing_;
 	state_ = &ownedState_;
+	routing_ = &ownedRouting_;
 	bindEffects(&deluge::instrument::sound_effects(ownedState_));
 	projectSnapshot();
+}
+
+void Sound::applyRouting() {
+	sideChainSendLevel = routing_->side_chain_send;
+	outputMidiChannel = routing_->midi_channel.value_or(MIDI_CHANNEL_NONE);
+	outputMidiNoteForDrum = routing_->midi_note.value_or(MIDI_NOTE_NONE);
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, Song* knobsSong,
@@ -2817,10 +2833,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
                         const char* pathAttribute) {
 	// The instrument writes its own settings; the effects', the params, the arpeggiator and the mod knobs sit between
 	// its pieces in the file.
+	const deluge::serialization::Value routing = deluge::project::encode_routing(*routing_);
 	const deluge::instrument::SoundPieces pieces =
 	    deluge::instrument::encode_pieces(*state_, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
 	                                      // the threshold the render last applied, its param's
-	                                      core().compressor().dsp().threshold().raw());
+	                                      core().compressor().dsp().threshold().raw(), &routing);
 
 	writer.writeValue(pieces.head);
 	writer.writeValue(pieces.effect_attributes);

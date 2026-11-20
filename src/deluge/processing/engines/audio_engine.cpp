@@ -556,13 +556,15 @@ void init() {
 	sampleForPreview->performInitialPatching(
 	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
-	// The preview sends all of itself to the sidechain: its state, and the runtime's copy the render reads
+	// The preview sends all of itself to the sidechain: its routing (no record owns it; it is its own), its state, and
+	// the runtime's copy the render reads
 	constexpr int32_t kFullSend = 2147483647;
 	deluge::instrument::SoundState& record = *sampleForPreview->boundRecord();
 	deluge::instrument::HostFields host = deluge::instrument::host_fields(record);
 	host.side_chain_send_level = kFullSend;
 	record = deluge::instrument::with_host_fields(std::move(record), host);
-	sampleForPreview->sideChainSendLevel = kFullSend;
+	sampleForPreview->routingRecord().side_chain_send = kFullSend;
+	sampleForPreview->applyRouting();
 
 	// Before the first render reads it.
 	voiceBudget.configure(deluge_cycle_hz(), DELUGE_VOICE_BUDGET_PERCENT);

@@ -225,9 +225,15 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// The sound's own fields and its sources' follow the record; a new type reshapes a source's ranges.
 	if (changed(Part::HOST)) {
 		const deluge::instrument::HostFields host = deluge::instrument::host_fields(after);
-		sound.sideChainSendLevel = host.side_chain_send_level;
-		sound.outputMidiChannel = host.output_midi_channel;
-		sound.outputMidiNoteForDrum = host.output_midi_note_for_drum;
+		deluge::project::SoundRouting& routing = sound.routingRecord();
+		routing.side_chain_send = host.side_chain_send_level;
+		routing.midi_channel = host.output_midi_channel == MIDI_CHANNEL_NONE
+		                           ? std::nullopt
+		                           : std::optional<uint8_t>{host.output_midi_channel};
+		routing.midi_note = host.output_midi_note_for_drum == MIDI_NOTE_NONE
+		                        ? std::nullopt
+		                        : std::optional<uint8_t>{host.output_midi_note_for_drum};
+		sound.applyRouting();
 	}
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {

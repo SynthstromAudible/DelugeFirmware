@@ -21,10 +21,11 @@ inline constexpr std::array<std::string_view, 2> kSoundRoutingKeys{"sideChainSen
 /// @return A Map of the entries, keyed as kSoundRoutingKeys.
 [[nodiscard]] serialization::Value encode_routing(const SoundRouting& routing);
 
-/// @brief The routing @p element (a sound element) holds; a routing with no send and no MIDI output where it holds
-/// neither entry.
+/// @brief The routing @p element (a sound element) holds, read onto @p onto: an entry the element lacks keeps its value
+/// there, as the instrument's own fields are read onto the sound's.
 /// @param element The sound element.
+/// @param onto    The routing read onto; a new sound's (no send, no MIDI output) by default.
 /// @return The routing.
-[[nodiscard]] SoundRouting decode_routing(const serialization::Value& element);
+[[nodiscard]] SoundRouting decode_routing(const serialization::Value& element, SoundRouting onto = {});
 
 } // namespace deluge::project

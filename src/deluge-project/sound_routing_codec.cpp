@@ -39,8 +39,8 @@ Value encode_routing(const SoundRouting& routing) {
 	return entries;
 }
 
-SoundRouting decode_routing(const Value& element) {
-	SoundRouting routing;
+SoundRouting decode_routing(const Value& element, SoundRouting onto) {
+	SoundRouting routing = onto;
 	if (const Value* send = element.find("sideChainSend")) {
 		routing.side_chain_send = int_of(*send);
 	}

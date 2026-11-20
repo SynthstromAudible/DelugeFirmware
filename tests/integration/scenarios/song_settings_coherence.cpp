@@ -108,10 +108,16 @@ void forEachSettingAddress(
 		if (output.type == OutputType::AUDIO) {
 			visitGroup({SettingGroupId::AUDIO_INPUT, *track}, track->output_id, nullptr);
 		}
+		if (output.type == OutputType::SYNTH) {
+			visitGroup({SettingGroupId::SOUND_ROUTING, *track}, track->output_id, nullptr);
+		}
 		if (output.type == OutputType::KIT) {
 			for (::Drum* drum = static_cast<::Kit&>(output).firstDrum; drum != nullptr; drum = drum->next) {
 				if (const auto lane = deluge::bridge::laneAddressOf(*drum, song)) {
 					visitGroup({SettingGroupId::LANE, *lane}, lane->drum_id, nullptr);
+					if (drum->type == DrumType::SOUND) {
+						visitGroup({SettingGroupId::SOUND_ROUTING, *lane}, lane->drum_id, nullptr);
+					}
 					visitGroup({SettingGroupId::LANE_ARP, *lane}, lane->drum_id, nullptr,
 					           deluge::bridge::arpHostValuesAreSettings({.drum = drum}));
 				}
@@ -196,7 +202,10 @@ std::string settingIncoherence(::Song& song, const SettingAddress& address, uint
 		const auto engine = deluge::bridge::engineSettingValue(song, address, path);
 		const std::string a = record ? record->str() : "<none>";
 		const std::string b = engine ? engine->str() : "<none>";
-		if (!record || !engine || a != b) {
+		// An unset MIDI output note reads as none in both: the one path with no value to compare
+		const bool both_unset =
+		    !record && !engine && address.group == SettingGroupId::SOUND_ROUTING && path == "midiOutput/noteForDrum";
+		if (!both_unset && (!record || !engine || a != b)) {
 			return std::string{groupName(address.group)} + " " + std::to_string(owner) + " " + std::string{path}
 			       + ": record=" + a + " engine=" + b;
 		}

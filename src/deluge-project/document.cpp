@@ -16,7 +16,9 @@
  */
 
 #include "deluge-project/document.h"
+
 #include "deluge-project/audio_input.h"
+#include "deluge-project/sound_routing_codec.h"
 
 #include "deluge-project/arp_codec.h"
 #include "deluge-project/controls_codec.h"
@@ -211,6 +213,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			if (plugins.instruments.decode != nullptr) {
 				record.instrument = InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 				                                   .state = plugins.instruments.decode(*output.node, magnitude),
+				                                   .routing = decode_routing(*output.node),
 				                                   .tick_magnitude = magnitude};
 			}
 			if (const Value* arp = output.node->find("arpeggiator")) {
@@ -247,6 +250,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 						drumRecord.instrument =
 						    InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
 						                   .state = plugins.instruments.decode(*drum.node, magnitude),
+						                   .routing = decode_routing(*drum.node),
 						                   .tick_magnitude = magnitude};
 					}
 					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", plugins)) {
