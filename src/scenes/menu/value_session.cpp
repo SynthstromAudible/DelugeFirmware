@@ -28,6 +28,40 @@
 
 namespace deluge::scenes::menu {
 
+namespace {
+
+/// @brief @p node's value read again into the edit storage its kind uses, where the user is in it -- a number's edit
+///        position, a list's scroll, a range's edge -- left as it is. A page has no value of its own: its columns read
+///        live.
+void read_value_again(MenuContext& ctx, MenuState& st, const Node& node) {
+	switch (node.kind) {
+	case Kind::Submenu:
+		break;
+	case Kind::Enum:
+		st.enum_index = bindings::read(node, ctx);
+		break;
+	case Kind::Toggle:
+		st.edit_bool = bindings::read(node, ctx) != 0;
+		break;
+	case Kind::Range:
+		st.edit_int = bindings::read(node, ctx);
+		st.edit_upper = bindings::read_upper(node, ctx);
+		break;
+	case Kind::Custom:
+		// The item's own re-read (`CustomItem::on_reread`), not its `on_focus`: `beginSession` loads programs, opens
+		// scenes and rewinds cursors, none of which `readValueAgain` does.
+		if (node.custom != nullptr) {
+			node.custom->on_reread(ctx, st);
+		}
+		break;
+	default:
+		st.edit_int = bindings::read(node, ctx);
+		break;
+	}
+}
+
+} // namespace
+
 void ValueSession::begin(MenuCore core, const Node* value) {
 	value_ = value;
 	if (value == &nodes::sequence_direction && !core.ctx.is_kit) {
@@ -121,27 +155,44 @@ void ValueSession::commit(MenuCore core, const Node& node) const {
 		}
 		break;
 	case Kind::Enum:
-		bindings::write(node, ctx, st.enum_index);
+		if (!bindings::write(node, ctx, st.enum_index)) {
+			refused(ctx, st, node);
+		}
 		// A target's list can change under the write (a stored choice that no longer applies leaves it once the
 		// write moves off it): the cursor follows the value, not the old position.
-		if (node.bind.target.valid()) {
+		else if (node.bind.target.valid()) {
 			st.enum_index = bindings::read(node, ctx);
 		}
 		break;
 	case Kind::Toggle:
-		bindings::write(node, ctx, st.edit_bool ? 1 : 0);
+		if (!bindings::write(node, ctx, st.edit_bool ? 1 : 0)) {
+			refused(ctx, st, node);
+		}
 		break;
-	case Kind::Range:
+	case Kind::Range: {
 		// Both ends, every commit, the lower first. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
 		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the storage. A commit
 		// that wrote only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
-		bindings::write(node, ctx, st.edit_int);
-		bindings::write_upper(node, ctx, st.edit_upper);
-		break;
-	default:
-		bindings::write(node, ctx, st.edit_int);
+		const bool lower = bindings::write(node, ctx, st.edit_int);
+		const bool upper = bindings::write_upper(node, ctx, st.edit_upper);
+		if (!lower || !upper) {
+			refused(ctx, st, node);
+		}
 		break;
 	}
+	default:
+		if (!bindings::write(node, ctx, st.edit_int)) {
+			refused(ctx, st, node);
+		}
+		break;
+	}
+}
+
+void ValueSession::refused(MenuContext& ctx, MenuState& st, const Node& node) {
+	// The page shows what is stored, never a value that was not kept: the edit storage goes back to the stored value,
+	// and the screen is redrawn to show it. An accepted write reads nothing back, so its page draws as it did.
+	read_value_again(ctx, st, node);
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 void ValueSession::read_again(MenuCore core) const {
@@ -149,35 +200,9 @@ void ValueSession::read_again(MenuCore core) const {
 	if (node == nullptr) {
 		return;
 	}
-	MenuContext& ctx = core.ctx;
-	MenuState& st = core.st;
-	// `MenuItem::readValueAgain`: the value is read again and the screen redrawn, and where the user is in it -- a
-	// number's edit position, a list's scroll, a range's edge -- stays (`Value::readValueAgain` is `readCurrentValue`
-	// and a render). A page has no value of its own: `Submenu::readValueAgain` only redraws, and its columns read live.
-	switch (node->kind) {
-	case Kind::Submenu:
-		break;
-	case Kind::Enum:
-		st.enum_index = bindings::read(*node, ctx);
-		break;
-	case Kind::Toggle:
-		st.edit_bool = bindings::read(*node, ctx) != 0;
-		break;
-	case Kind::Range:
-		st.edit_int = bindings::read(*node, ctx);
-		st.edit_upper = bindings::read_upper(*node, ctx);
-		break;
-	case Kind::Custom:
-		// The item's own re-read (`CustomItem::on_reread`), not its `on_focus`: `beginSession` loads programs, opens
-		// scenes and rewinds cursors, none of which `readValueAgain` does.
-		if (node->custom != nullptr) {
-			node->custom->on_reread(ctx, st);
-		}
-		break;
-	default:
-		st.edit_int = bindings::read(*node, ctx);
-		break;
-	}
+	// `MenuItem::readValueAgain`: the value is read again and the screen redrawn (`Value::readValueAgain` is
+	// `readCurrentValue` and a render); `Submenu::readValueAgain` only redraws.
+	read_value_again(core.ctx, core.st, *node);
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 

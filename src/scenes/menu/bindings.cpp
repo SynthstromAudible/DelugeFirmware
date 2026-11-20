@@ -161,17 +161,18 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 ///        A setting the device applies only after a restart says so, as the USB audio item does
 ///        (`STRING_FOR_RESTART_TO_APPLY`); a stored write then reaches the open menu through @p after_write, and
 ///        repaints the pad grid too where @p repaints_grid says the grid shows it.
-void write_device(const deluge::scenes::bind::Target& target, SetFn after_write, bool repaints_grid,
+/// @return Whether the device kept the value: false where the target did not resolve or the port refused it.
+bool write_device(const deluge::scenes::bind::Target& target, SetFn after_write, bool repaints_grid,
                   const MenuContext& ctx, int32_t value) {
 	using deluge::scenes::bind::DeviceWrite;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    deluge::scenes::bind::request_for(target, ctx.model, addresses_of(ctx), ctx.ports, value);
 	if (!request || ctx.ports.device == nullptr) {
-		return;
+		return false;
 	}
 	const DeviceWrite done = ctx.ports.device->write(request->target.path, request->menu_value);
 	if (done == DeviceWrite::REFUSED) {
-		return;
+		return false;
 	}
 	if (done == DeviceWrite::STORED_FOR_RESTART) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
@@ -183,6 +184,7 @@ void write_device(const deluge::scenes::bind::Target& target, SetFn after_write,
 	if (repaints_grid) {
 		notify::raise(notify::Dirty::GridMain);
 	}
+	return true;
 }
 
 } // namespace
@@ -313,7 +315,7 @@ int32_t read(const Node& asked, const MenuContext& ctx) {
 	return 0;
 }
 
-void write(const Node& asked, const MenuContext& ctx, int32_t value) {
+bool write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
 	const Binding& bind = node.bind;
 
@@ -322,63 +324,65 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// unresolved target and a refused write ask for nothing and raise nothing.
 	if (bind.target.valid()) {
 		if (bind.target.on_device()) {
-			write_device(bind.target, bind.after_write, bind.repaints_grid, ctx, value);
-			return;
+			return write_device(bind.target, bind.after_write, bind.repaints_grid, ctx, value);
 		}
 		if (!readable(bind.target, ctx) || ctx.ports.writes == nullptr) {
-			return;
+			return false;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
 		    deluge::scenes::bind::request_for(bind.target, ctx.model, addresses_of(ctx), ctx.ports, value);
-		if (request && ctx.ports.writes->write(*request)) {
-			notify::raise(notify::Dirty::Oled);
-			if (bind.repaints_grid) {
-				notify::raise(notify::Dirty::GridMain);
-			}
-			if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
-				// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
-				// gated; over-invalidation, never loss.
-				//
-				//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two ways:
-				//    `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
-				//    `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp` /
-				//    `UnpatchedParam::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)),
-				//    and the knob-indicator refresh `setCurrentValueInResponseToUserInput` triggers through
-				//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`, whose
-				//    deferred `displayAutomation()` calls `setKnobIndicatorLevels()` (`View::displayAutomation`).
-				//    `legacy_redraw_for` lists both enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp`).
-				//
-				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
-				//    `possiblyRefreshAutomationEditorGrid` ends in `uiNeedsRendering(&automationView)`
-				//    (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e. a main-pad re-render
-				//    (`AutomationView::renderMainPads`) -- and `ParamAutomation`/`ModTarget` appear *only* in `r.oled`,
-				//    never in `r.main_rows` (`legacy_redraw_for` in `notify_drain_mapping.cpp`). Without this third
-				//    raise, editing the param the automation view is showing would stop repainting its grid the moment
-				//    `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator `r.main_rows` carries
-				//    for exactly this; the mapping file itself is left alone.
-				//
-				//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-				//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
-				//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
-				//    every param write asks for one grid repaint the drain already coalesces, rather than
-				//    silently dropping the one that mattered.
-				notify::raise(notify::Dirty::ParamAutomation);
-				notify::raise(notify::Dirty::ModTarget);
-				notify::raise(notify::Dirty::GridMain);
-			}
+		if (!request || !ctx.ports.writes->write(*request)) {
+			return false;
 		}
-		return;
+		notify::raise(notify::Dirty::Oled);
+		if (bind.repaints_grid) {
+			notify::raise(notify::Dirty::GridMain);
+		}
+		if (bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM) {
+			// Three facts, replacing three legacy effects. Each is unconditional here where legacy was
+			// gated; over-invalidation, never loss.
+			//
+			//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two ways:
+			//    `possiblyRefreshAutomationEditorGrid` (`Integer::writeCurrentValue` in
+			//    `origin/main:src/deluge/gui/menu_item/patched_param/integer.cpp` /
+			//    `UnpatchedParam::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/unpatched_param.cpp`)),
+			//    and the knob-indicator refresh `setCurrentValueInResponseToUserInput` triggers through
+			//    `ParamManager::notifyParamModifiedInSomeWay` -> `View::notifyParamAutomationOccurred`, whose
+			//    deferred `displayAutomation()` calls `setKnobIndicatorLevels()` (`View::displayAutomation`).
+			//    `legacy_redraw_for` lists both enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp`).
+			//
+			//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
+			//    `possiblyRefreshAutomationEditorGrid` ends in `uiNeedsRendering(&automationView)`
+			//    (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e. a main-pad re-render
+			//    (`AutomationView::renderMainPads`) -- and `ParamAutomation`/`ModTarget` appear *only* in `r.oled`,
+			//    never in `r.main_rows` (`legacy_redraw_for` in `notify_drain_mapping.cpp`). Without this third
+			//    raise, editing the param the automation view is showing would stop repainting its grid the moment
+			//    `MenuScene` replaces the legacy items. `Dirty::GridMain` is the enumerator `r.main_rows` carries
+			//    for exactly this; the mapping file itself is left alone.
+			//
+			//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
+			//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`gui/views/automation_view.cpp`),
+			//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
+			//    every param write asks for one grid repaint the drain already coalesces, rather than
+			//    silently dropping the one that mattered.
+			notify::raise(notify::Dirty::ParamAutomation);
+			notify::raise(notify::Dirty::ModTarget);
+			notify::raise(notify::Dirty::GridMain);
+		}
+		return true;
 	}
 
 	// A `get`/`set` (or `action`) node: the hook owns the model write, so all this layer knows is
 	// that something the OLED shows has changed. Tested before `param` -- `node.h`'s documented
 	// precedence, and the reason a `menu_item::Transpose` node can carry a learn-only `ParamRef`
-	// without this function writing to it.
+	// without this function writing to it. The hook reports no refusal, so the write stands as taken.
 	if (bind.set != nullptr) {
 		bind.set(ctx, value);
 		notify::raise(notify::Dirty::Oled);
-		return;
+		return true;
 	}
+	// Nothing to write, so nothing refused it.
+	return true;
 }
 
 int32_t read_upper(const Node& node, const MenuContext& ctx) {
@@ -387,13 +391,14 @@ int32_t read_upper(const Node& node, const MenuContext& ctx) {
 	return shown ? shown->value : 0;
 }
 
-void write_upper(const Node& node, const MenuContext& ctx, int32_t value) {
+bool write_upper(const Node& node, const MenuContext& ctx, int32_t value) {
 	// A range's ends are DEVICE rows; the upper edge writes as the lower one does, and the node's after-write is the
-	// lower edge's alone.
+	// lower edge's alone. A node with no DEVICE upper row has nothing to write, so nothing refused it.
 	const std::optional<deluge::scenes::bind::Target> upper = upper_target(node);
 	if (upper && upper->on_device()) {
-		write_device(*upper, nullptr, node.bind.repaints_grid, ctx, value);
+		return write_device(*upper, nullptr, node.bind.repaints_grid, ctx, value);
 	}
+	return true;
 }
 
 void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {

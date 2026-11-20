@@ -790,7 +790,8 @@ Result MenuScene::after_render() {
 }
 
 void MenuScene::flip_in_place(const Node& node) {
-	bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
+	// The list row reads its value live, so a refused flip already draws the stored one.
+	(void)bindings::write(node, ctx_, bindings::read(node, ctx_) == 0 ? 1 : 0);
 }
 
 void MenuScene::mark_edited_after_turn() {

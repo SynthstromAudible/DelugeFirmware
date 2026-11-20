@@ -52,7 +52,7 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		FakeMenuShell r;
 		const MenuContext ctx = r.fakes.synth_context();
 		(void)deluge::notify::dirty().drain();
-		menu::bindings::write(nodes::lpf_freq, ctx, 30);
+		expect(menu::bindings::write(nodes::lpf_freq, ctx, 30)).to_be_true();
 		const auto& requests = r.fakes.host.writes.requests;
 		expect(requests.size()).to_equal(size_t{1});
 		if (!requests.empty()) {
@@ -153,7 +153,7 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		const MenuContext ctx = r.fakes.synth_context();
 		r.fakes.host.writes.accept = false;
 		(void)deluge::notify::dirty().drain();
-		menu::bindings::write(nodes::osc_sync, ctx, 1);
+		expect(menu::bindings::write(nodes::osc_sync, ctx, 1)).to_be_false();
 		// The request reached the sink, which refused it: nothing the screen shows has changed.
 		expect(r.fakes.host.writes.requests.size()).to_equal(size_t{1});
 		expect(repainted()).to_be_false();
@@ -165,10 +165,41 @@ describe menu_value_edits_fakes("the menu's value edits over the ports' fakes an
 		const int32_t lower = menu::bindings::read(nodes::default_tempo, ctx);
 		r.fakes.host.device.refuse.insert(std::string{device_path::kTempoLower});
 		(void)deluge::notify::dirty().drain();
-		menu::bindings::write(nodes::default_tempo, ctx, lower + 10);
+		expect(menu::bindings::write(nodes::default_tempo, ctx, lower + 10)).to_be_false();
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(lower);
 		expect(repainted()).to_be_false();
+	});
+
+	it("keeps the open toggle page's drawn value when the edit sink refuses the turn's write", _ {
+		FakeMenuShell r;
+		const MenuContext ctx = r.open_synth(nodes::osc_sync);
+		expect(menu_scene().focused()).to_equal(&nodes::osc_sync);
+		r.fakes.host.writes.accept = false;
+		r.shell.tick(100);
+		const std::string before = r.oled();
+		r.turn(1, 1000);
+		// The turn's write reached the sink, which refused it; the page still draws the stored value.
+		expect(r.fakes.host.writes.requests.size()).to_equal(size_t{1});
+		expect(r.oled()).to_equal(before);
+		expect(static_cast<int32_t>(menu_scene().state().edit_bool)).to_equal(menu::bindings::read(nodes::osc_sync, ctx));
+	});
+
+	it("keeps the open range page's drawn ends when the device port refuses the turn's store", _ {
+		FakeMenuShell r;
+		const MenuContext ctx = r.open_settings(nodes::default_tempo);
+		expect(menu_scene().focused()).to_equal(&nodes::default_tempo);
+		r.fakes.host.device.refuse.insert(std::string{device_path::kTempoLower});
+		r.fakes.host.device.refuse.insert(std::string{device_path::kTempoUpper});
+		r.shell.tick(100);
+		const std::string before = r.oled();
+		const int32_t lower = menu::bindings::read(nodes::default_tempo, ctx);
+		r.turn(1, 1000);
+		// Both ends' stores reached the port, which kept neither; the page still draws the stored ends.
+		expect(r.fakes.host.device.stores.empty()).to_be_false();
+		expect(menu::bindings::read(nodes::default_tempo, ctx)).to_equal(lower);
+		expect(r.oled()).to_equal(before);
+		expect(menu_scene().state().edit_int).to_equal(lower);
 	});
 });
 // clang-format on

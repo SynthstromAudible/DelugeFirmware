@@ -141,7 +141,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 							// base is a no-op. No `select_chain` here -- legacy's `handleItemAction` calls
 							// `selectButtonPress()` directly, never `enterSubmenu`, for this arm.
 							if (col_node.kind == Kind::Toggle || col_node.selection_is_toggle) {
-								bindings::write(col_node, ctx, bindings::read(col_node, ctx) == 0 ? 1 : 0);
+								// The column reads its value live, so a refused flip already draws the stored one.
+								(void)bindings::write(col_node, ctx, bindings::read(col_node, ctx) == 0 ? 1 : 0);
 							}
 							notify_column(ctx, col_node);
 						}
