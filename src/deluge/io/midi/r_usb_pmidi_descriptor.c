@@ -37,8 +37,9 @@ Macro definitions
 #define USB_BCDNUM (0x0200u) /* bcdUSB */
 // Release Number. Bumped when USB audio was added, so hosts don't reuse anything they cached about the MIDI-only
 // configuration, then each time the audio streams' descriptors changed: when the out stream went from adaptive to
-// asynchronous with implicit feedback, and when it got its adaptive alternate setting back as well
-#define USB_RELEASE (0x0302u)
+// asynchronous with implicit feedback, when it got its adaptive alternate setting back as well, and when the out stream
+// got a feature unit (volume and mute)
+#define USB_RELEASE (0x0303u)
 // With USB audio turned off we describe ourselves exactly as before USB audio existed
 #define USB_RELEASE_MIDI_ONLY (0x0200u)
 #define USB_CONFIGNUM (1u) /* Configuration number */
@@ -62,9 +63,11 @@ Macro definitions
 
 /* USB audio (UAC1), described in audio10.pdf and frmts10.pdf from usb.org
  * Audio control: interface descriptor, then the class-specific header (8 + 1 per streaming interface), then an input
- * and an output terminal for each direction
+ * and an output terminal for each direction, plus a feature unit (master volume and mute) between the host's stream and
+ * the outputs
  */
-#define USB_AUDIO_AC_CS_LENGTH (8 + 3 + (12 + 9) * 2)
+#define USB_AUDIO_FU_LENGTH(channels) (7 + ((channels) + 1))
+#define USB_AUDIO_AC_CS_LENGTH (8 + 3 + (12 + 9) * 2 + USB_AUDIO_FU_LENGTH(USB_PAUDIO_NUM_CHANNELS))
 #define USB_AUDIO_AC_LENGTH (9 + USB_AUDIO_AC_CS_LENGTH)
 /* Each streaming interface: alternate setting 0 (no endpoint, so no bandwidth when not streaming), then for each
  * streaming alternate setting: interface descriptor, general descriptor, format type descriptor (with one sample
@@ -94,6 +97,16 @@ Macro definitions
 #define AUDIO_AC_HEADER 0x01
 #define AUDIO_AC_INPUT_TERMINAL 0x02
 #define AUDIO_AC_OUTPUT_TERMINAL 0x03
+#define AUDIO_AC_FEATURE_UNIT 0x06
+// bmaControls bits for a feature unit - audio10.pdf 4.3.2.5
+#define AUDIO_FU_CONTROL_MUTE 0x01
+#define AUDIO_FU_CONTROL_VOLUME 0x02
+// A feature unit has a bmaControls entry for each channel of its stream, after the master's. Ours are all empty - only
+// the master has controls. One of these per channel count, so the descriptor can't end up a different length from
+// USB_AUDIO_FU_LENGTH()
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_2 0, 0
+#define AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_##channels
+#define AUDIO_FU_NO_CHANNEL_CONTROLS(channels) AUDIO_FU_NO_CHANNEL_CONTROLS_FOR(channels)
 #define AUDIO_AS_GENERAL 0x01
 #define AUDIO_AS_FORMAT_TYPE 0x02
 #define AUDIO_EP_GENERAL 0x01
@@ -208,15 +221,26 @@ uint8_t g_midi_configuration[TOTAL_CONFIG_LENGTH + (TOTAL_CONFIG_LENGTH % 2)] = 
     0x03, 0x00,                   // wChannelConfig - left and right front
     0,                            // iChannelNames
     0,                            // iTerminal
-    9,                            // bLength
-    CS_INTERFACE,                 // bDescriptorType
-    AUDIO_AC_OUTPUT_TERMINAL,     // bDescriptorSubtype
-    AUDIO_TERMINAL_OUTPUTS,       // bTerminalID
-    LO(AUDIO_TERMINAL_LINE),      // wTerminalType
-    HI(AUDIO_TERMINAL_LINE),      //
-    0,                            // bAssocTerminal
-    AUDIO_TERMINAL_FROM_HOST,     // bSourceID
-    0,                            // iTerminal
+    // Volume and mute for the host's stream, so macOS and iOS give the Deluge a working volume control rather than
+    // greying it out. Master channel only - audio10.pdf 4.3.2.5
+    USB_AUDIO_FU_LENGTH(USB_PAUDIO_NUM_CHANNELS),          // bLength
+    CS_INTERFACE,                                          // bDescriptorType
+    AUDIO_AC_FEATURE_UNIT,                                 // bDescriptorSubtype
+    USB_PAUDIO_FEATURE_UNIT_FROM_HOST,                     // bUnitID
+    AUDIO_TERMINAL_FROM_HOST,                              // bSourceID
+    1,                                                     // bControlSize
+    AUDIO_FU_CONTROL_MUTE | AUDIO_FU_CONTROL_VOLUME,       // bmaControls(0) - master
+    AUDIO_FU_NO_CHANNEL_CONTROLS(USB_PAUDIO_NUM_CHANNELS), // bmaControls(1) and (2) - left and right
+    0,                                                     // iFeature
+    9,                                                     // bLength
+    CS_INTERFACE,                                          // bDescriptorType
+    AUDIO_AC_OUTPUT_TERMINAL,                              // bDescriptorSubtype
+    AUDIO_TERMINAL_OUTPUTS,                                // bTerminalID
+    LO(AUDIO_TERMINAL_LINE),                               // wTerminalType
+    HI(AUDIO_TERMINAL_LINE),                               //
+    0,                                                     // bAssocTerminal
+    USB_PAUDIO_FEATURE_UNIT_FROM_HOST,                     // bSourceID
+    0,                                                     // iTerminal
     // Deluge to host
     12,                           // bLength
     CS_INTERFACE,                 // bDescriptorType
