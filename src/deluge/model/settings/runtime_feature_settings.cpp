@@ -273,7 +273,8 @@ void RuntimeFeatureSettings::serialiseSettings(Serializer& writer) {
 
 	for (const FeatureInfo& feature : deluge::project::kFeatures) {
 		writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, std::string{feature.path}.c_str(), false);
+		// Each name is a string literal, which `features.cpp` asserts, so its text ends in a NUL.
+		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, feature.path.data(), false);
 		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, values[std::to_underlying(feature.id)], false);
 		writer.writeOpeningTagEnd(false);
 		writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);

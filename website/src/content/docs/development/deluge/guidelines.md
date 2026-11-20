@@ -79,7 +79,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 To add a new runtime feature setting:
 
-1. **Declare the setting**: In `src/deluge-project/features.h`, add the feature to `enum class Feature` after the last one and its entry to `kFeatures` (its XML name, the words for its values and its default). In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching enum value to `enum RuntimeFeatureSettingType` before `MaxElement`, and its localized name to `kDisplayNames`.
+1. **Declare the setting**: In `src/deluge-project/features.h`, add the feature to `enum class Feature` after the last one (pointing the `static_assert` under `kFeatures` at it) and its entry to `kFeatures` (its XML name, the words for its values and its default). In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching enum value to `enum RuntimeFeatureSettingType` before `MaxElement`.
 2. **Add localization**:
    - `src/deluge/gui/l10n/strings.h`: Add `STRING_FOR_COMMUNITY_FEATURE_...` to `enum class String`.
    - `src/deluge/gui/l10n/english.json`: Add the string entry with the display name for OLED.

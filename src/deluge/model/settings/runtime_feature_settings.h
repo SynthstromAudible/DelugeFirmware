@@ -113,33 +113,6 @@ public:
 	///        bytes.
 	static void parseSettingsBytes(void* ctx, char* bytes, uint32_t len);
 
-	/// @brief The name a menu shows for each feature, indexed by `deluge::project::Feature`.
-	static constexpr std::array<deluge::l10n::String, deluge::project::kFeatureCount> kDisplayNames{{
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_QUANTIZE,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
-	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
-	}};
-
 protected:
 	/// Each feature's value, indexed by its `deluge::project::Feature`; `kFeatures` names, words and defaults them.
 	std::array<uint32_t, deluge::project::kFeatureCount> values{};

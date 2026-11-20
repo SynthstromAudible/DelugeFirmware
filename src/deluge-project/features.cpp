@@ -24,11 +24,13 @@
 namespace deluge::project {
 namespace {
 
-/// Whether every entry sits at its id's index, names a file name no other entry has, and has a default it can hold.
+/// Whether every entry sits at its id's index, names a file name no other entry has, and has a default it can hold;
+/// and whether each name's text ends in a NUL, as a string literal's does, so a writer may take it as a C string.
 constexpr bool features_are_well_formed() {
 	for (size_t at = 0; at < kFeatures.size(); ++at) {
 		const FeatureInfo& info = kFeatures[at];
-		if (std::to_underlying(info.id) != at || info.path.empty() || info.default_value >= info.choices.size()) {
+		if (std::to_underlying(info.id) != at || info.path.empty() || info.default_value >= info.choices.size()
+		    || info.path.data()[info.path.size()] != '\0') {
 			return false;
 		}
 		const auto same_path = [&](const FeatureInfo& other) { return other.path == info.path; };
@@ -38,7 +40,8 @@ constexpr bool features_are_well_formed() {
 	}
 	return true;
 }
-static_assert(features_are_well_formed(), "a feature's entry is out of place, named twice, or has no default");
+static_assert(features_are_well_formed(),
+              "a feature's entry is out of place, named twice, has no default, or is not a string literal");
 
 static_assert(std::to_underlying(ShortcutOverlay::MENU_AND_CLIP) + 1 == kShortcutOverlayWords.size()
                   && std::to_underlying(SyncScalingAction::FILL) + 1 == kSyncScalingActionWords.size(),

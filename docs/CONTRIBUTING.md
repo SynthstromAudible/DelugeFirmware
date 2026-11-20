@@ -93,9 +93,9 @@ missing from the description; it never blocks a merge.
 When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
 
 1. **Declare the Setting**:
-   - In `src/deluge-project/features.h`, add your feature to `enum class Feature` after the last one, and its entry to `kFeatures`: the name `CommunityFeatures.XML` writes it under, the words for its values (`kFeatureToggleWords` for On/Off) and its factory value. The menu's DEVICE row `features/<name>` is made from that entry.
+   - In `src/deluge-project/features.h`, add your feature to `enum class Feature` after the last one (and point the `static_assert` below `kFeatures` at it), and its entry to `kFeatures`: the name `CommunityFeatures.XML` writes it under, the words for its values (`kFeatureToggleWords` for On/Off) and its factory value. The menu's DEVICE row `features/<name>` is made from that entry.
    - If your setting has more states than simple On/Off, give it a neutral `enum class` and its words beside `ShortcutOverlay` in `features.h`.
-   - In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`), and its display name to `kDisplayNames`; `runtime_feature_settings.cpp` asserts each identifier equal to its `Feature`.
+   - In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`); `runtime_feature_settings.cpp` asserts each identifier equal to its `Feature`.
 
 2. **Add Localization (l10n) Strings**:
    - `src/deluge/gui/l10n/strings.h`: Add a `STRING_FOR_COMMUNITY_FEATURE_...` identifier to `enum class String`.

@@ -75,14 +75,11 @@ enum class SyncScalingAction : uint8_t {
 
 /// @brief One feature: its file name, its choices and its default.
 struct FeatureInfo {
-	Feature id;                                ///< the feature, which is also its index in `kFeatures`
-	std::string_view path;                     ///< the name the feature file writes
+	Feature id;            ///< the feature, which is also its index in `kFeatures`
+	std::string_view path; ///< the name the feature file writes: a string literal, so its text ends in a NUL
 	std::span<const std::string_view> choices; ///< the words for its values, in value order
 	uint8_t default_value{0};                  ///< the value a factory reset gives it
 };
-
-/// @brief How many features there are.
-inline constexpr size_t kFeatureCount = std::to_underlying(Feature::SHORTCUT_OVERLAY) + 1;
 
 /// The menu-time tables: read by a menu and by the feature file's read and write, never by the audio tier or an
 /// interrupt. The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
@@ -96,35 +93,80 @@ inline constexpr std::array<std::string_view, 2> kSyncScalingActionWords{"syncSc
 inline constexpr std::array<std::string_view, 3> kShortcutOverlayWords{"off", "menuOnly", "menuAndClip"};
 
 /// @brief Every feature, indexed by its id.
-inline constexpr std::array<FeatureInfo, kFeatureCount> kFeatures{{
-    {Feature::DRUM_RANDOMIZER, "drumRandomizer", kFeatureToggleWords, 1},
-    {Feature::QUANTIZE, "quantize", kFeatureToggleWords, 1},
-    {Feature::FINE_TEMPO_KNOB, "fineTempoKnob", kFeatureToggleWords, 1},
-    {Feature::CATCH_NOTES, "catchNotes", kFeatureToggleWords, 1},
-    {Feature::DELETE_UNUSED_KIT_ROWS, "deleteUnusedKitRows", kFeatureToggleWords, 1},
-    {Feature::ALT_GOLDEN_KNOB_DELAY_PARAMS, "altGoldenKnobDelayParams", kFeatureToggleWords, 0},
-    {Feature::SYNC_SCALING_ACTION, "syncScalingAction", kSyncScalingActionWords,
-     std::to_underlying(SyncScalingAction::SYNC_SCALING)},
-    {Feature::HIGHLIGHT_INCOMING_NOTES, "highlightIncomingNotes", kFeatureToggleWords, 1},
-    {Feature::DISPLAY_NORNS_LAYOUT, "displayNornsLayout", kFeatureToggleWords, 0},
-    {Feature::SHIFT_IS_STICKY, "stickyShift", kFeatureToggleWords, 0},
-    {Feature::LIGHT_SHIFT_LED, "lightShift", kFeatureToggleWords, 0},
-    {Feature::ENABLE_DX7_ENGINE, "EnableDX7Engine", kFeatureToggleWords, 0},
-    {Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT, "enableKeyboardViewSidebarMenuExit", kFeatureToggleWords, 0},
-    {Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD, "enableLaunchEventPlayhead", kFeatureToggleWords, 1},
-    {Feature::DISPLAY_CHORD_KEYBOARD, "displayChordKeyboard", kFeatureToggleWords, 0},
-    {Feature::ALTERNATIVE_PLAYBACK_START_BEHAVIOUR, "alternativePlaybackStartBehaviour", kFeatureToggleWords, 0},
-    {Feature::ENABLE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads", kFeatureToggleWords, 0},
-    {Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR, "alternativeTapTempoBehaviour", kFeatureToggleWords, 0},
-    {Feature::HORIZONTAL_MENUS, "enableHorizontalMenus", kFeatureToggleWords, 1},
-    {Feature::TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip", kFeatureToggleWords, 1},
-    {Feature::SHOW_BATTERY_LEVEL, "showBatteryLevel", kFeatureToggleWords, 1},
-    {Feature::ROUNDED_CORNERS, "roundedCorners", kFeatureToggleWords, 1},
-    {Feature::SHORTCUT_OVERLAY, "shortcutOverlay", kShortcutOverlayWords,
-     std::to_underlying(ShortcutOverlay::MENU_ONLY)},
-}};
+inline constexpr auto kFeatures = std::to_array<FeatureInfo>({
+    {.id = Feature::DRUM_RANDOMIZER, .path = "drumRandomizer", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::QUANTIZE, .path = "quantize", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::FINE_TEMPO_KNOB, .path = "fineTempoKnob", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::CATCH_NOTES, .path = "catchNotes", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::DELETE_UNUSED_KIT_ROWS,
+     .path = "deleteUnusedKitRows",
+     .choices = kFeatureToggleWords,
+     .default_value = 1},
+    {.id = Feature::ALT_GOLDEN_KNOB_DELAY_PARAMS,
+     .path = "altGoldenKnobDelayParams",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::SYNC_SCALING_ACTION,
+     .path = "syncScalingAction",
+     .choices = kSyncScalingActionWords,
+     .default_value = std::to_underlying(SyncScalingAction::SYNC_SCALING)},
+    {.id = Feature::HIGHLIGHT_INCOMING_NOTES,
+     .path = "highlightIncomingNotes",
+     .choices = kFeatureToggleWords,
+     .default_value = 1},
+    {.id = Feature::DISPLAY_NORNS_LAYOUT,
+     .path = "displayNornsLayout",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::SHIFT_IS_STICKY, .path = "stickyShift", .choices = kFeatureToggleWords, .default_value = 0},
+    {.id = Feature::LIGHT_SHIFT_LED, .path = "lightShift", .choices = kFeatureToggleWords, .default_value = 0},
+    {.id = Feature::ENABLE_DX7_ENGINE, .path = "EnableDX7Engine", .choices = kFeatureToggleWords, .default_value = 0},
+    {.id = Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+     .path = "enableKeyboardViewSidebarMenuExit",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD,
+     .path = "enableLaunchEventPlayhead",
+     .choices = kFeatureToggleWords,
+     .default_value = 1},
+    {.id = Feature::DISPLAY_CHORD_KEYBOARD,
+     .path = "displayChordKeyboard",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+     .path = "alternativePlaybackStartBehaviour",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::ENABLE_GRID_VIEW_LOOP_PADS,
+     .path = "enableGridViewLoopPads",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+     .path = "alternativeTapTempoBehaviour",
+     .choices = kFeatureToggleWords,
+     .default_value = 0},
+    {.id = Feature::HORIZONTAL_MENUS,
+     .path = "enableHorizontalMenus",
+     .choices = kFeatureToggleWords,
+     .default_value = 1},
+    {.id = Feature::TRIM_FROM_START_OF_AUDIO_CLIP,
+     .path = "trimFromStartOfAudioClip",
+     .choices = kFeatureToggleWords,
+     .default_value = 1},
+    {.id = Feature::SHOW_BATTERY_LEVEL, .path = "showBatteryLevel", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::ROUNDED_CORNERS, .path = "roundedCorners", .choices = kFeatureToggleWords, .default_value = 1},
+    {.id = Feature::SHORTCUT_OVERLAY,
+     .path = "shortcutOverlay",
+     .choices = kShortcutOverlayWords,
+     .default_value = std::to_underlying(ShortcutOverlay::MENU_ONLY)},
+});
 
 } // namespace menu_tables
+
+/// @brief How many features there are: the table's size.
+inline constexpr size_t kFeatureCount = kFeatures.size();
+static_assert(std::to_underlying(Feature::SHORTCUT_OVERLAY) + 1 == kFeatureCount,
+              "every Feature has an entry: point this at the last enumerator when adding one");
 
 /// @brief The table's entry for @p f.
 /// @param f A feature.
