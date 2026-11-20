@@ -231,7 +231,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 		resolved.sound = sound;
 		resolved.mod = sound;
 		if (sound != nullptr) {
-			resolved.source = &sound->sources[menuCtx.source_index];
+			resolved.source = &sound->sourceResources[menuCtx.source_index];
 			if (menuCtx.range_index >= 0 && menuCtx.range_index < std::ssize(resolved.source->ranges)) {
 				resolved.range = resolved.source->ranges.getElement(menuCtx.range_index);
 			}

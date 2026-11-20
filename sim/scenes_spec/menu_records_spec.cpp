@@ -45,9 +45,9 @@ namespace {
 void give_three_ranges(::Sound& sound, int32_t s) {
 	deluge::edits::settingFor(sound, s == 0 ? "osc1/type" : "osc2/type", Value::makeScalar("sample"));
 	(void)sound.getOrCreateFirstRange(s);
-	sound.sources[s].ranges.getElement(0)->topNote = 40;
-	sound.sources[s].ranges.insertMultiRange(1)->topNote = 60;
-	sound.sources[s].ranges.insertMultiRange(2)->topNote = 32767;
+	sound.sourceResources[s].ranges.getElement(0)->topNote = 40;
+	sound.sourceResources[s].ranges.insertMultiRange(1)->topNote = 60;
+	sound.sourceResources[s].ranges.insertMultiRange(2)->topNote = 32767;
 	deluge::edits::recordRanges(sound, s);
 }
 
@@ -72,14 +72,14 @@ describe menu_records("a menu's questions, answered from the record", ${
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::range_count(ctx)).to_equal(3);
 		expect(menu::range_top_note(ctx, 1)).to_equal(60);
-		(void)sound.sources[0].getRange(70); // a note played in range 2
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		(void)sound.sourceResources[0].getRange(70); // a note played in range 2
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 		expect(picker_cursor(ctx)).to_equal(2);
 		const MenuContext other = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 1, false, false, false, false);
 		expect(picker_cursor(other)).to_equal(1);
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the invalid default is
 		// worked out afresh and written back.
-		expect(sound.sources[1].defaultRangeI).to_equal(1);
+		expect(sound.sourceResources[1].defaultRangeI).to_equal(1);
 	});
 
 	it("a re-read of the range picker keeps the edge being edited and the range, and writes nothing", _ {
@@ -89,7 +89,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 2;
+		sound.sourceResources[0].defaultRangeI = 2;
 		menu::MenuState st{};
 		st.path[0] = &nodes::multi_range;
 		st.depth = 0;
@@ -99,7 +99,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(static_cast<int>(st.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Right));
 		expect(static_cast<int>(st.list[0].cursor)).to_equal(0);
 		expect(static_cast<int>(st.walk.range_choice)).to_equal(-1);
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 	});
 
 	it("a re-read of the modulation list puts a cursor past the last cable back on the list, as PatchCables::readValueAgain does", _ {
@@ -120,10 +120,10 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 0;
+		sound.sourceResources[0].defaultRangeI = 0;
 		menu::select_range(ctx, 2);
 		expect(picker_cursor(ctx)).to_equal(2);
-		expect(sound.sources[0].defaultRangeI).to_equal(2);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(2);
 	});
 
 	it("opens the range picker on the middle range when the one remembered is past the end", _ {
@@ -131,9 +131,9 @@ describe menu_records("a menu's questions, answered from the record", ${
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		give_three_ranges(sound, 0);
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		sound.sources[0].defaultRangeI = 7;
+		sound.sourceResources[0].defaultRangeI = 7;
 		expect(picker_cursor(ctx)).to_equal(1);
-		expect(sound.sources[0].defaultRangeI).to_equal(1);
+		expect(sound.sourceResources[0].defaultRangeI).to_equal(1);
 	});
 
 	it("opens the sample browser on the range's recorded file", _ {

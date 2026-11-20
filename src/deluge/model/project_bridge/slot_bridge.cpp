@@ -266,12 +266,12 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const deluge::instrument::DxPatchState* recordedPatch = deluge::instrument::dx_patch(*sound.boundState(), id);
-		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sources[s]);
+		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sourceResources[s]);
 		    patch && (recordedPatch == nullptr || *patch != *recordedPatch)) {
 			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
 			(void)deluge::edits::apply(ctx, dx);
 		}
-		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sources[s]);
+		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sourceResources[s]);
 		    !std::ranges::equal(held, deluge::instrument::source_ranges(*sound.boundState(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
 			(void)deluge::edits::apply(ctx, ranges);

@@ -43,7 +43,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 		bool ringModFails = false;
 		for (int32_t s = 0; s < kNumSources; s++) {
 			VoiceSamplePlaybackGuide& guide = voice.guides[s];
-			const SourceResources& source = sound.sources[s];
+			const SourceResources& source = sound.sourceResources[s];
 			guide.audioFileHolder = nullptr;
 			bool playable = flags.checkSourceEverActive(s);
 			if (playable) [[likely]] {
@@ -51,7 +51,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 				guide.sequenceSyncLengthTicks = 0;
 				if (synthMode != SynthMode::FM
 				    && (sound.oscType(s) == OscType::SAMPLE || sound.oscType(s) == OscType::WAVETABLE)) {
-					MultiRange* range = sound.sources[s].getRange(noteAfterArpeggiation + sound.getTranspose());
+					MultiRange* range = sound.sourceResources[s].getRange(noteAfterArpeggiation + sound.getTranspose());
 					AudioFileHolder* holder = range != nullptr ? range->getAudioFileHolder() : nullptr;
 					if (holder == nullptr || holder->audioFile == nullptr) {
 						playable = false;
@@ -76,7 +76,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 
 		// A sample plays the way the sound reverses it for this note, between the bounds that sets.
 		for (int32_t s = 0; s < kNumSources && !ringModFails; s++) {
-			SourceResources& source = sound.sources[s];
+			SourceResources& source = sound.sourceResources[s];
 			if (synthMode != SynthMode::FM && sound.oscType(s) == OscType::SAMPLE && voice.guides[s].audioFileHolder
 			    && flags.checkSourceEverActive(s)) {
 				source.invertReversed = sound.invertReversed;
@@ -100,7 +100,7 @@ NoteSetup note_setup_for(SoundVoice& voice, Sound& sound, ParamManagerForTimelin
 	}
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources& source = sound.sources[s];
+		SourceResources& source = sound.sourceResources[s];
 		SourceSetup& out = setup.sources[s];
 		out.osc_type = sound.oscType(s);
 		out.ever_active = flags.checkSourceEverActive(s);

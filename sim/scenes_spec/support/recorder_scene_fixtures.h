@@ -112,7 +112,7 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		currentSong = song.song; // the app's sink resolves addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		source = &sound->sources[0];
+		source = &sound->sourceResources[0];
 		deluge::test::set(*sound->state_, "osc1/type", "square"); // so "became SAMPLE" is a real observation
 		sound->projectSnapshot();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));

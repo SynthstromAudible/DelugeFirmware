@@ -52,7 +52,7 @@ SoundVoice::SoundVoice(Sound& sound) : sound{sound} {
 			kernel.unison_parts[u].slots[s].bind({.sample = &ports_[u][s].sample,
 			                                      .dx = &ports_[u][s].dx,
 			                                      .input = &ports_[u][s].input,
-			                                      .live_inputs = &sound.sources[s].liveInputs.inputs()});
+			                                      .live_inputs = &sound.sourceResources[s].liveInputs.inputs()});
 		}
 	}
 }
@@ -108,7 +108,7 @@ void SoundVoice::note_off(ParamManagerForTimeline* paramManager, bool note_tails
 	kernel.note_off(release_info_for(sound, paramManager, note_tails_allowed), allow_release_stage, engineClock());
 
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources* source = &sound.sources[s];
+		SourceResources* source = &sound.sourceResources[s];
 		if (sound.oscType(s) == OscType::SAMPLE) {
 			source->invertReversed = false; // Reset temporary flag back to normal
 		}
@@ -225,7 +225,7 @@ bool SoundVoice::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s,
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
-	const SourceResources& source = sound.sources[s];
+	const SourceResources& source = sound.sourceResources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
 	const bool reversed = sound.playsReversed(s);

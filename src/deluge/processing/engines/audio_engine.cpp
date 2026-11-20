@@ -2168,8 +2168,8 @@ void soundPreview(PreviewVolume const& volume) {
 
 void stopAnyPreviewing() {
 	sampleForPreview->killAllVoices();
-	if (std::ssize(sampleForPreview->sources[0].ranges)) {
-		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
+	if (std::ssize(sampleForPreview->sourceResources[0].ranges)) {
+		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sourceResources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 	}
 }

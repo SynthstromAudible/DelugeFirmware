@@ -438,8 +438,8 @@ void releaseSongFiles() {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {
-				for (int32_t r = 0; r < std::ssize(synth->sources[s].ranges); r++) {
-					synth->sources[s].ranges.getElement(r)->getAudioFileHolder()->setAudioFile(nullptr);
+				for (int32_t r = 0; r < std::ssize(synth->sourceResources[s].ranges); r++) {
+					synth->sourceResources[s].ranges.getElement(r)->getAudioFileHolder()->setAudioFile(nullptr);
 				}
 			}
 		}
@@ -449,8 +449,8 @@ void releaseSongFiles() {
 					continue;
 				}
 				auto* soundDrum = static_cast<SoundDrum*>(drum);
-				for (int32_t r = 0; r < std::ssize(soundDrum->sources[0].ranges); r++) {
-					soundDrum->sources[0].ranges.getElement(r)->getAudioFileHolder()->setAudioFile(nullptr);
+				for (int32_t r = 0; r < std::ssize(soundDrum->sourceResources[0].ranges); r++) {
+					soundDrum->sourceResources[0].ranges.getElement(r)->getAudioFileHolder()->setAudioFile(nullptr);
 				}
 			}
 		}
@@ -610,7 +610,7 @@ void checkLiveZoneMove() {
 		}
 		auto* synth = static_cast<SoundInstrument*>(output);
 		const auto address = deluge::bridge::slotAddressOf(*synth);
-		if (!address || synth->oscType(0) != OscType::SAMPLE || synth->sources[0].ranges.empty()) {
+		if (!address || synth->oscType(0) != OscType::SAMPLE || synth->sourceResources[0].ranges.empty()) {
 			continue;
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -618,7 +618,7 @@ void checkLiveZoneMove() {
 		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, clip, &clip->paramManager);
 		synth->Sound::noteOn(ms, &synth->arpeggiator, 60, zeroMPEValues);
 		const size_t sounding = synth->numActiveVoices();
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[0]);
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sourceResources[0]);
 		if (ranges[0].start_pos + 1000 < ranges[0].end_pos) {
 			ranges[0].start_pos += 1000;
 		}
@@ -773,8 +773,8 @@ void forEachSongHolder(Song& song, Visit visit) {
 		if (output->type == OutputType::SYNTH) {
 			auto* synth = static_cast<SoundInstrument*>(output);
 			for (int32_t s = 0; s < kNumSources; s++) {
-				for (int32_t r = 0; r < std::ssize(synth->sources[s].ranges); r++) {
-					visit(synth->sources[s].ranges.getElement(r)->getAudioFileHolder());
+				for (int32_t r = 0; r < std::ssize(synth->sourceResources[s].ranges); r++) {
+					visit(synth->sourceResources[s].ranges.getElement(r)->getAudioFileHolder());
 				}
 			}
 		}
@@ -784,8 +784,8 @@ void forEachSongHolder(Song& song, Visit visit) {
 					continue;
 				}
 				auto* soundDrum = static_cast<SoundDrum*>(drum);
-				for (int32_t r = 0; r < std::ssize(soundDrum->sources[0].ranges); r++) {
-					visit(soundDrum->sources[0].ranges.getElement(r)->getAudioFileHolder());
+				for (int32_t r = 0; r < std::ssize(soundDrum->sourceResources[0].ranges); r++) {
+					visit(soundDrum->sourceResources[0].ranges.getElement(r)->getAudioFileHolder());
 				}
 			}
 		}

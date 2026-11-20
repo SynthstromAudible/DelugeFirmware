@@ -205,7 +205,7 @@ void stepStart() {
 void moveZoneEnd() {
 	Clip* clip = currentSong->live.clips.session_clips[0];
 	auto& sound = *static_cast<SoundInstrument*>(clip->output);
-	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	ranges[0].end_pos = g_zoneMoveEnd;
 	deluge::edits::rangesFor(sound, 0, std::move(ranges));
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];

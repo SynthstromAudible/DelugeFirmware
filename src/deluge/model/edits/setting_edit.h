@@ -135,7 +135,7 @@ Error editRange(::Sound& sound, int32_t s, size_t i, Change&& change) {
 /// @param sound The sound whose source changed.
 /// @param s     Source (oscillator) index.
 inline void recordRanges(::Sound& sound, int32_t s) {
-	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sources[s]));
+	rangesFor(sound, s, deluge::bridge::rangesOf(sound.sourceResources[s]));
 }
 
 /// @brief A gesture's change of source @p s of @p sound to the DX7 patch @p patch: an Edit on the sound's slot when it

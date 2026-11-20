@@ -258,7 +258,7 @@ void openRecorder() {
 		guestTick(0); // the menu's push of the recorder screen runs from the guest's tick
 	}
 	// Read once the menu is open: entering it gives a source with no range its first one.
-	g_range = !sound->sources[0].ranges.empty() ? sound->sources[0].ranges.getElement(0) : nullptr;
+	g_range = !sound->sourceResources[0].ranges.empty() ? sound->sourceResources[0].ranges.getElement(0) : nullptr;
 }
 
 /// Starts a take for @p marker's leg; false (with the failure reported) when none is running under the recorder screen.
@@ -421,7 +421,7 @@ void stepMidiEnding() {
 	if (!waitOver()) {
 		return;
 	}
-	const SourceResources& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sourceResources[0];
 	AudioFileHolder* holder = g_range->getAudioFileHolder();
 	const auto* sample = holder != nullptr ? static_cast<const Sample*>(holder->audioFile) : nullptr;
 	const bool isSample = g_sound->oscType(0) == OscType::SAMPLE;
@@ -510,7 +510,7 @@ void stepClosedWait() {
 	if (!waitOver()) {
 		return;
 	}
-	const SourceResources& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sourceResources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(g_sound->oscType(0)),
@@ -562,7 +562,7 @@ void stepNulledWait() {
 	if (!waitOver()) {
 		return;
 	}
-	const SourceResources& source = g_sound->sources[0];
+	const SourceResources& source = g_sound->sourceResources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
 	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
 	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(g_sound->oscType(0)),

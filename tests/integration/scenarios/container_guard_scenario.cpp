@@ -853,7 +853,7 @@ bool setupLeg() {
 	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
-		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sourceResources[0];
 		if (static_cast<SoundInstrument*>(g_clip->output)->getOrCreateFirstRange(0) == nullptr
 		    || source.ranges.insertMultiRange(1) == nullptr) {
 			return setupFailed("no memory for two multi-ranges");

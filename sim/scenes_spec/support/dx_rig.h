@@ -66,7 +66,7 @@ struct DxRig {
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 
-	DxPatch& patch() { return *sound->sources[0].ensureDxPatch(); }
+	DxPatch& patch() { return *sound->sourceResources[0].ensureDxPatch(); }
 
 	deluge::project::SlotAddress slot() {
 		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)

@@ -296,7 +296,7 @@ Sample* make_marker_sample() {
 
 /// @brief Give @p sound's source 0 one range holding @p sample, recorded as a load records it.
 void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
-	SourceResources& source = sound.sources[0];
+	SourceResources& source = sound.sourceResources[0];
 	deluge::test::set(*sound.state_, "osc1/type", "sample");
 	deluge::test::set(*sound.state_, "osc1/loopMode", "1"); // ONCE
 	sound.projectSnapshot();
@@ -2012,8 +2012,8 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1);
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 2, 1)).to_equal(&nodes::source0_transpose);
 

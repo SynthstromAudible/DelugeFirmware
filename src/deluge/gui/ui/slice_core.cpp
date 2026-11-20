@@ -176,8 +176,8 @@ void SliceCore::unbind_first_drum() {
 	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->killAllVoices();
-	if (std::ssize(drum->sources[0].ranges)) {
-		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
+	if (std::ssize(drum->sourceResources[0].ranges)) {
+		MultisampleRange* range = (MultisampleRange*)drum->sourceResources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 		// Reflect the cleared audio file into the record.
 		deluge::edits::recordRanges(*drum, 0);
@@ -363,7 +363,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		                          deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
 
 		deluge::edits::settingFor(*firstDrum, "osc1/reversed", deluge::serialization::Value::makeNumber(0));
-		firstDrum->sources[0].invertReversed = false;
+		firstDrum->sourceResources[0].invertReversed = false;
 
 		if (!firstRange->sampleHolder.audioFile) {
 			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got

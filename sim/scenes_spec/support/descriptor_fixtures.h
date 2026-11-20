@@ -106,7 +106,7 @@ inline void unload_files(const MenuContext& ctx) {
 	if (spec::menu_engine(ctx).sound == nullptr) {
 		return;
 	}
-	for (SourceResources& source : spec::menu_engine(ctx).sound->sources) {
+	for (SourceResources& source : spec::menu_engine(ctx).sound->sourceResources) {
 		for (int32_t e = 0; e < std::ssize(source.ranges); ++e) {
 			source.ranges.getElement(e)->getAudioFileHolder()->audioFile = nullptr;
 		}
@@ -117,7 +117,7 @@ inline SettingContext descriptor_context(const Fixture& fixture, const MenuConte
 	SettingContext shown = context_of(fixture.where, family);
 	if (spec::menu_engine(ctx).sound != nullptr) {
 		for (int32_t i = 0; i < static_cast<int32_t>(deluge::plugin::kMaxSoundSources); ++i) {
-			if (spec::menu_engine(ctx).sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
+			if (spec::menu_engine(ctx).sound->sourceResources[i].hasAtLeastOneAudioFileLoaded()) {
 				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
 			}
 		}

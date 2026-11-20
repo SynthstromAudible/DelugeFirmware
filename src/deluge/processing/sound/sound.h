@@ -215,7 +215,7 @@ public:
 	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
 	[[nodiscard]] bool playsReversed(int32_t s) const {
-		return config_.sources[s].reversed != sources[s].invertReversed;
+		return config_.sources[s].reversed != sourceResources[s].invertReversed;
 	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
@@ -227,7 +227,7 @@ public:
 
 	ParamLPF paramLPF{};
 
-	SourceResources sources[kNumSources];
+	SourceResources sourceResources[kNumSources];
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.

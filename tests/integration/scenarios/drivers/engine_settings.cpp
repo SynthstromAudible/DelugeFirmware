@@ -570,10 +570,11 @@ int rangeLeg(Sound& sound, Song& song, const char* name) {
 	}
 	deluge::edits::Context ctx{song, song.project};
 	for (int32_t s = 0; s < kNumSources; s++) {
-		if (!playsSamples(sound, s == 0 ? "osc1/loopMode" : "osc2/loopMode") || sound.sources[s].ranges.empty()) {
+		if (!playsSamples(sound, s == 0 ? "osc1/loopMode" : "osc2/loopMode")
+		    || sound.sourceResources[s].ranges.empty()) {
 			continue;
 		}
-		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sources[s]);
+		const std::vector<deluge::instrument::RangeState> old = deluge::bridge::rangesOf(sound.sourceResources[s]);
 		for (const auto& ranges : {nudged(old), old}) {
 			deluge::edits::SetSourceRanges edit{*address, static_cast<uint8_t>(s), ranges};
 			const std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE
@@ -598,10 +599,10 @@ int affectEntireRangeLeg(Kit& kit, Song& song) {
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		auto* soundDrum = drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 		const auto address = soundDrum != nullptr ? deluge::bridge::slotAddressOf(*soundDrum) : std::nullopt;
-		if (!address || !playsSamples(*soundDrum, "osc1/loopMode") || soundDrum->sources[0].ranges.empty()) {
+		if (!address || !playsSamples(*soundDrum, "osc1/loopMode") || soundDrum->sourceResources[0].ranges.empty()) {
 			continue;
 		}
-		before.push_back(deluge::bridge::rangesOf(soundDrum->sources[0]));
+		before.push_back(deluge::bridge::rangesOf(soundDrum->sourceResources[0]));
 		deluge::edits::SetSourceRanges edit{*address, 0, nudged(before.back())};
 		if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 			std::fprintf(io.err, "kit %s affect-entire ranges on %s: refused\n", kit.name.c_str(),
@@ -822,7 +823,7 @@ int liveRangeLeg(Song& song) {
 		auto* synth = static_cast<SoundInstrument*>(output);
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*synth);
 		int32_t s = 0;
-		while (s < kNumSources && synth->sources[s].ranges.empty()) {
+		while (s < kNumSources && synth->sourceResources[s].ranges.empty()) {
 			s++;
 		}
 		if (!address || s == kNumSources) {
@@ -836,7 +837,7 @@ int liveRangeLeg(Song& song) {
 		if (sounding == 0) {
 			continue;
 		}
-		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sources[s]);
+		std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(synth->sourceResources[s]);
 		if (synth->oscType(s) == OscType::SAMPLE) {
 			ranges.back().transpose = static_cast<int16_t>(ranges.back().transpose == 0 ? 1 : 0);
 		}

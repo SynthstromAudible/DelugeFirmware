@@ -255,7 +255,7 @@ bool noteWithinCurrentRange(int32_t untransposed) {
 	if (sound == nullptr) {
 		return false;
 	}
-	SourceResources& source = sound->sources[ctx.source_index];
+	SourceResources& source = sound->sourceResources[ctx.source_index];
 	if (std::ssize(source.ranges) <= 1 || ctx.range_index >= std::ssize(source.ranges)) {
 		return false;
 	}

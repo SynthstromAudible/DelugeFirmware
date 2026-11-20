@@ -62,10 +62,10 @@ Song* freshSong() {
 
 /// Whether the synth's first oscillator has a file bound.
 bool sampleBound(SoundInstrument& synth) {
-	if (synth.sources[0].ranges.empty()) {
+	if (synth.sourceResources[0].ranges.empty()) {
 		return false;
 	}
-	AudioFileHolder* holder = synth.sources[0].ranges.getElement(0)->getAudioFileHolder();
+	AudioFileHolder* holder = synth.sourceResources[0].ranges.getElement(0)->getAudioFileHolder();
 	return holder != nullptr && holder->audioFile != nullptr;
 }
 

@@ -56,8 +56,8 @@ deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::
 	deluge::instrument::sound_effects(record) = sound.renderEffects();
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sources[s].heldDxPatch());
-		record = deluge::instrument::with_ranges(std::move(record), id, sound.sources[s].heldRanges());
+		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch());
+		record = deluge::instrument::with_ranges(std::move(record), id, sound.sourceResources[s].heldRanges());
 	}
 	return record;
 }

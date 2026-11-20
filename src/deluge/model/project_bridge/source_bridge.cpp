@@ -87,7 +87,7 @@ bool takes(const std::vector<deluge::instrument::RangeState>& now,
 } // namespace
 
 Error applyRanges(::Sound& sound, int32_t s, const std::vector<deluge::instrument::RangeState>& ranges) {
-	::SourceResources& source = sound.sources[s];
+	::SourceResources& source = sound.sourceResources[s];
 	const std::vector<deluge::instrument::RangeState> now = rangesOf(source);
 	if (now == ranges) {
 		sound.recordHeldRanges(s); // a gesture changed the runtime itself and records the result
@@ -175,7 +175,7 @@ std::optional<deluge::instrument::DxPatchState> dxPatchOf(const ::SourceResource
 }
 
 Error applyDxPatch(::Sound& sound, int32_t s, const deluge::instrument::DxPatchState& patch) {
-	::SourceResources& source = sound.sources[s];
+	::SourceResources& source = sound.sourceResources[s];
 	if (sound.oscType(s) != OscType::DX7) {
 		return Error::UNSPECIFIED;
 	}

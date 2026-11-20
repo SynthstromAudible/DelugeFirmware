@@ -748,7 +748,7 @@ Sample* previewedSample() {
 	if (deluge::gui::ui::shellPreviewer().pending()) {
 		return nullptr;
 	}
-	SourceResources& source = AudioEngine::sampleForPreview->sources[0];
+	SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 	if (source.ranges.empty()) {
 		return nullptr;
 	}
@@ -839,7 +839,7 @@ std::string g_osc2TypeBefore;
 
 /// Oscillator 2 of the boot synth on @p clip, as the menu's resolved sound target names it (`resolvedFor`).
 deluge::gui::SoundTarget osc2Target(Clip& clip) {
-	SourceResources& source = g_synth->sources[1];
+	SourceResources& source = g_synth->sourceResources[1];
 	return {.sound = g_synth,
 	        .mod = g_synth,
 	        .params = &clip.paramManager,
@@ -1173,7 +1173,7 @@ void prepareLeg() {
 			}
 			g_imStallRangePaths.clear();
 			if (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr) {
-				SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+				SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sourceResources[0];
 				for (int32_t i = 0; i < std::ssize(source.ranges); i++) {
 					g_imStallRangePaths.push_back(
 					    static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath);
@@ -1717,8 +1717,8 @@ void tickShellSlice() {
 			sendNextSongDuringSlice();
 		}
 		// The slicer stays open on its sample if the slice fails, so the preview's holder has to keep it loaded.
-		const auto* range =
-		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].ranges.getElement(0));
+		const auto* range = static_cast<const MultisampleRange*>(
+		    AudioEngine::sampleForPreview->sourceResources[0].ranges.getElement(0));
 		if (range->sampleHolder.audioFile == nullptr || range->sampleHolder.filePath != legFile()) {
 			setupFailed(legName(g_leg), "the slice let go of the sample the slicer shows");
 		}
@@ -2353,7 +2353,7 @@ void checkLeg() {
 	}
 	case Leg::ImportStall: {
 		deluge_audio_load_set_latency_ms(0);
-		SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sourceResources[0];
 		bool rangesKept = std::ssize(source.ranges) == std::ssize(g_imStallRangePaths);
 		for (int32_t i = 0; rangesKept && i < std::ssize(source.ranges); i++) {
 			rangesKept = static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath
@@ -2438,7 +2438,7 @@ void checkLeg() {
 		}
 		else {
 			auto* synth = static_cast<SoundInstrument*>(g_importSynthClip->output);
-			SourceResources& source = synth->sources[0];
+			SourceResources& source = synth->sourceResources[0];
 			const int32_t ranges = std::ssize(source.ranges);
 			int32_t matched = 0;
 			for (int32_t i = 0; i < ranges; i++) {

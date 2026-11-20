@@ -164,7 +164,7 @@ private:
 
 	/// @brief The preview drum's range while it holds a sample file, else null.
 	static const MultisampleRange* heldPreview() {
-		SourceResources& source = AudioEngine::sampleForPreview->sources[0];
+		SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 		if (source.ranges.empty()) {
 			return nullptr;
 		}

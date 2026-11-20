@@ -82,7 +82,7 @@ inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCas
 	// The kinds and the engine go in through their rules, as a load reaches them: a file can hold ring mod or FM over a
 	// sample or wavetable kind, which the menus refuse to write
 	for (int32_t i = 0; i < 2; i++) {
-		SourceResources& s = sound.sources[i];
+		SourceResources& s = sound.sourceResources[i];
 		*sound.state_ = deluge::test::with_kind(*sound.state_, static_cast<deluge::instrument::SourceId>(i),
 		                                        i == which ? c.osc_type : OscType::SQUARE);
 		sound.projectSnapshot();

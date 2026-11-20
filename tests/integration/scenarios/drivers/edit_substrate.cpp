@@ -687,7 +687,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	deluge::edits::SetEngineSetting sample{*slot, "osc1/type", Value::makeScalar("sample")};
 	check(deluge::edits::apply(ctx, sample) == Error::NONE, "ranges: osc1 plays samples");
 	sound.getOrCreateFirstRange(0);
-	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	check(ranges.size() == 1, "ranges: one range");
 	if (ranges.size() != 1) {
 		return;
@@ -698,16 +698,16 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	ranges[0].transpose = 5;
 	deluge::edits::SetSourceRanges zone{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, zone) == Error::NONE, "ranges: an in-place zone is applied");
-	auto* holder = &static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(0))->sampleHolder;
+	auto* holder = &static_cast<MultisampleRange*>(sound.sourceResources[0].ranges.getElement(0))->sampleHolder;
 	check(holder->startPos == 100 && holder->endPos == 900 && holder->transpose == 5, "ranges: the runtime takes it");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the sound stays coherent");
 
 	// A gesture that changed the runtime itself records the result: the Edit carries the runtime's own list.
 	holder->endPos = 800;
-	deluge::edits::SetSourceRanges record{*slot, 0, deluge::bridge::rangesOf(sound.sources[0])};
+	deluge::edits::SetSourceRanges record{*slot, 0, deluge::bridge::rangesOf(sound.sourceResources[0])};
 	check(deluge::edits::apply(ctx, record) == Error::NONE, "ranges: the runtime's own list is taken");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: recording a gesture's result reseeds");
-	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 
 	const Value before = (*deluge::harness::encodedSlot(ctx.song, *slot));
 	auto withFile = ranges;
@@ -716,7 +716,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, file) != Error::NONE, "ranges: assigning a file is refused");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: a refused list leaves it coherent");
 
-	check(static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(0))->sampleHolder.filePath
+	check(static_cast<MultisampleRange*>(sound.sourceResources[0].ranges.getElement(0))->sampleHolder.filePath
 	          != "SAMPLES/OTHER.WAV",
 	      "ranges: a refused list leaves the runtime's file");
 	auto longer = ranges;
@@ -727,10 +727,10 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	// A range added above the open top note, but below it in pitch: out of order, refused before the runtime takes it
 	auto unordered = ranges;
 	unordered.push_back(deluge::instrument::RangeState{.top_note = 40, .end_pos = deluge::instrument::kUnsetEndPos});
-	const auto heldBefore = std::ssize(sound.sources[0].ranges);
+	const auto heldBefore = std::ssize(sound.sourceResources[0].ranges);
 	deluge::edits::SetSourceRanges insertOutOfOrder{*slot, 0, unordered};
 	check(deluge::edits::apply(ctx, insertOutOfOrder) != Error::NONE
-	          && std::ssize(sound.sources[0].ranges) == heldBefore,
+	          && std::ssize(sound.sourceResources[0].ranges) == heldBefore,
 	      "ranges: an insert out of order is refused before the runtime takes a range");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "ranges: a refusal leaves the slot");
@@ -738,7 +738,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	// A malformed legacy file can leave two ranges on one top note: a change to one of them still takes, judged only
 	// where it changes.
 	for (int32_t i : {0, 1}) {
-		MultiRange* range = sound.sources[0].ranges.insertMultiRange(i);
+		MultiRange* range = sound.sourceResources[0].ranges.insertMultiRange(i);
 		check(range != nullptr, "ranges: a range inserted");
 		if (range == nullptr) {
 			return;
@@ -746,7 +746,7 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 		range->topNote = 60;
 	}
 	deluge::edits::recordRanges(sound, 0);
-	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	ranges[2].end_pos = 700;
 	deluge::edits::SetSourceRanges legacy{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, legacy) == Error::NONE, "ranges: a change beside a duplicate top note is taken");
@@ -757,11 +757,12 @@ void testSetSourceRanges(deluge::edits::Context& ctx) {
 	// A source that plays no samples still holds its sample ranges, which a change of their zone reaches.
 	deluge::edits::SetEngineSetting saw{*slot, "osc1/type", Value::makeScalar("saw")};
 	check(deluge::edits::apply(ctx, saw) == Error::NONE, "ranges: osc1 becomes a saw");
-	ranges = deluge::bridge::rangesOf(sound.sources[0]);
+	ranges = deluge::bridge::rangesOf(sound.sourceResources[0]);
 	ranges[2].start_pos = 123;
 	deluge::edits::SetSourceRanges hidden{*slot, 0, ranges};
 	check(deluge::edits::apply(ctx, hidden) == Error::NONE
-	          && static_cast<MultisampleRange*>(sound.sources[0].ranges.getElement(2))->sampleHolder.startPos == 123,
+	          && static_cast<MultisampleRange*>(sound.sourceResources[0].ranges.getElement(2))->sampleHolder.startPos
+	                 == 123,
 	      "ranges: a saw's sample range takes a zone change");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "ranges: the saw stays coherent");
 }
@@ -955,7 +956,7 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	check(state != nullptr && deluge::instrument::source_type(*state, deluge::instrument::SourceId::A) == OscType::DX7
 	          && patch != nullptr && patch->params == deluge::instrument::kDx7InitVoice,
 	      "blank dx: its state holds a DX7 oscillator on the init voice");
-	check(sound.oscType(0) == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
+	check(sound.oscType(0) == OscType::DX7 && sound.sourceResources[0].dxPatch != nullptr,
 	      "blank dx: its runtime plays a DX7 oscillator");
 	ctx.song.live.param_backup.backUp(*synth, nullptr, &paramManager, true);
 	ctx.song.addOutput(synth);
@@ -976,7 +977,7 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	}
 	deluge::edits::SetEngineSetting dx7{*slot, "osc1/type", Value::makeScalar("dx7")};
 	check(deluge::edits::apply(ctx, dx7) == Error::NONE, "dx: osc1 is a DX7");
-	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[0]);
+	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sourceResources[0]);
 	check(patch.has_value(), "dx: the DX7 source has a patch");
 	if (!patch) {
 		return;
@@ -985,7 +986,8 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	patch->random_detune = 5;
 	deluge::edits::SetDxPatch edit{*slot, 0, *patch};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "dx: a patch is applied");
-	check(sound.sources[0].dxPatch->params[3] == patch->params[3] && sound.sources[0].dxPatch->random_detune == 5,
+	check(sound.sourceResources[0].dxPatch->params[3] == patch->params[3]
+	          && sound.sourceResources[0].dxPatch->random_detune == 5,
 	      "dx: the runtime takes it");
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "dx: the sound stays coherent");
 
@@ -995,19 +997,22 @@ void testSetDxPatch(deluge::edits::Context& ctx) {
 	patch->params[135] = 7; // feedback
 	patch->engine_mode = 0; // auto
 	deluge::edits::SetDxPatch autoBytes{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
+	check(deluge::edits::apply(ctx, autoBytes) == Error::NONE
+	          && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
 	      "dx: an auto patch's new bytes choose its engine");
 	patch->engine_mode = 2; // MkI
 	deluge::edits::SetDxPatch mk1{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, mk1) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
+	check(deluge::edits::apply(ctx, mk1) == Error::NONE && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
 	      "dx: a MkI patch renders in MkI");
 	patch->engine_mode = 0;
 	deluge::edits::SetDxPatch backToAuto{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, backToAuto) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MKI,
+	check(deluge::edits::apply(ctx, backToAuto) == Error::NONE
+	          && sound.sourceResources[0].dxPatch->engine == Engine::MKI,
 	      "dx: auto chosen again picks MkI for algorithm 4 with feedback");
 	patch->params[135] = 0; // no feedback
 	deluge::edits::SetDxPatch noFeedback{*slot, 0, *patch};
-	check(deluge::edits::apply(ctx, noFeedback) == Error::NONE && sound.sources[0].dxPatch->engine == Engine::MODERN,
+	check(deluge::edits::apply(ctx, noFeedback) == Error::NONE
+	          && sound.sourceResources[0].dxPatch->engine == Engine::MODERN,
 	      "dx: an auto patch without feedback goes back to the modern engine");
 
 	deluge::edits::SetEngineSetting saw{*slot, "osc2/type", Value::makeScalar("saw")};

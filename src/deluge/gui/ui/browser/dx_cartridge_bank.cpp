@@ -113,10 +113,10 @@ bool loadDxCartridgeBytes(std::span<std::byte> bytes) {
 }
 
 void loadDxProgram(::Sound& sound, int32_t source, DX7Cartridge& cartridge, int32_t program) {
-	if (sound.sources[source].ensureDxPatch() == nullptr) {
+	if (sound.sourceResources[source].ensureDxPatch() == nullptr) {
 		return;
 	}
-	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sources[source]);
+	std::optional<deluge::instrument::DxPatchState> patch = deluge::bridge::dxPatchOf(sound.sourceResources[source]);
 	cartridge.unpackProgram(patch->params, program);
 	deluge::edits::dxPatchFor(sound, source, *patch);
 	sound.killAllVoices();

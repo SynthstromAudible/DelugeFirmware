@@ -393,7 +393,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
 	                                                           2147483647);
 	if (is_dx) {
-		sources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
+		sourceResources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
@@ -1320,7 +1320,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 		if (sourceEverActive
 		    && (oscType(s) != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
-		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
+		        || (!disregardSampleLoop && sourceResources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
 	}
@@ -1341,7 +1341,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		if (sourceEverActive && oscType(s) == OscType::SAMPLE
 		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
-				return sources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
+				return sourceResources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
 			}
 			return 1;
 		}
@@ -1381,7 +1381,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 			if (anyLooping && config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
-			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
+			int32_t length = sourceResources[s].getLengthInSamplesAtSystemSampleRate(note);
 
 			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or
 			// shortened the sample
@@ -1409,7 +1409,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 			continue;
 		}
 
-		if (oscType(s) != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
+		if (oscType(s) != OscType::SAMPLE || !sourceResources[s].hasAtLeastOneAudioFileLoaded()
 		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
@@ -1443,7 +1443,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
 			if (config_.sources[s].repeat_mode == SampleRepeatMode::ONCE
-			    || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+			    || !sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
 				              // tried to do a late start otherwise?
 			}
@@ -1468,7 +1468,7 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
 	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sources[s].hasAtLeastOneAudioFileLoaded());
+	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
@@ -1481,7 +1481,7 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager*
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
 	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sources[s].hasAtLeastOneAudioFileLoaded());
+	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
@@ -1814,8 +1814,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
-		if (oscType(s) == OscType::DX7 and sources[s].dxPatch) {
-			sources[s].dxPatch->computeLfo(output.size());
+		if (oscType(s) == OscType::DX7 and sourceResources[s].dxPatch) {
+			sourceResources[s].dxPatch->computeLfo(output.size());
 		}
 	}
 
@@ -1946,7 +1946,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		std::array<bool, kNumSources> sourceEverActives;
 		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
-			dxPatchChangeds[s] = sources[s].dxPatchChanged;
+			dxPatchChangeds[s] = sourceResources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
@@ -2102,7 +2102,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
-		sources[i].dxPatchChanged = false;
+		sourceResources[i].dxPatchChanged = false;
 	}
 
 	// Unlike all the other possible reasons we might want to start skipping rendering,
@@ -2704,7 +2704,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const OscType type = deluge::instrument::source_type(state, id);
-		SourceResources& source = sources[s];
+		SourceResources& source = sourceResources[s];
 		source.setOscType(type);
 		if (const deluge::instrument::DxPatchState* from = deluge::instrument::dx_patch(state, id)) {
 			DxPatch* patch = source.ensureDxPatch();
@@ -2747,8 +2747,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 }
 
 MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
-	const bool had = !sources[s].ranges.empty();
-	MultiRange* range = sources[s].getOrCreateFirstRange();
+	const bool had = !sourceResources[s].ranges.empty();
+	MultiRange* range = sourceResources[s].getOrCreateFirstRange();
 	if (range != nullptr && !had) {
 		recordHeldRanges(s);
 	}
@@ -2757,7 +2757,7 @@ MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
 
 void Sound::recordHeldRanges(int32_t s) {
 	const auto id = static_cast<deluge::instrument::SourceId>(s);
-	if (std::vector held = sources[s].heldRanges();
+	if (std::vector held = sourceResources[s].heldRanges();
 	    !std::ranges::equal(held, deluge::instrument::source_ranges(*state_, id))) {
 		*state_ = deluge::instrument::with_ranges(std::move(*state_), id, std::move(held));
 	}
@@ -2766,7 +2766,7 @@ void Sound::recordHeldRanges(int32_t s) {
 void Sound::recordHeldDxPatch(int32_t s) {
 	const auto id = static_cast<deluge::instrument::SourceId>(s);
 	const deluge::instrument::DxPatchState* recorded = deluge::instrument::dx_patch(*state_, id);
-	if (std::optional held = sources[s].heldDxPatch();
+	if (std::optional held = sourceResources[s].heldDxPatch();
 	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
 		*state_ = deluge::instrument::with_dx_patch(std::move(*state_), id, held);
 	}
@@ -2936,7 +2936,7 @@ deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisito
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (oscType(s) == OscType::SAMPLE || oscType(s) == OscType::WAVETABLE) {
-			if (sources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
+			if (sourceResources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
 				return deluge::storage::Walk::Stop;
 			}
 		}
@@ -3013,7 +3013,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 void Sound::detachSourcesFromAudioFiles() {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].detachAllAudioFiles();
+		sourceResources[s].detachAllAudioFiles();
 	}
 }
 
@@ -3024,7 +3024,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// AudioExcludedSection.
 	AudioExcludedSection section;
 	killAllVoices();
-	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
+	sourceResources[s].ranges.erase(sourceResources[s].ranges.begin() + r); // Destructs the range
 }
 
 // This function has to give the same outcome as SourceResources::renderInStereo()
@@ -3076,7 +3076,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// Have a look at what samples, if any, each source holds
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources* source = &sources[s];
+		SourceResources* source = &sourceResources[s];
 
 		if (!modelStack->checkSourceEverActive(s)) {
 			continue;
