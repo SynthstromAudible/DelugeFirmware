@@ -1,5 +1,10 @@
 # Synth Untangling — State-Decoupling Audit & the Concrete End-Target Object Model
 
+> **Superseded** for the synth's state by the DelugeSynth state work (Track A step 3, `docs/dev/roadmap.md`): a sound's
+> record is `instrument::SoundState`, composed of its components' states with a typed `Recall`, its routing on the
+> host (`project::SoundRouting`), and the split's ownership by the domain split's records. This audit records the June
+> state and its proposed targets.
+>
 > **The model today** is `synth_l1_engine_architecture.md` (engines and source slots in the synth library) and
 > `synth_voice_lift.md` (the voice kernel); this audit records the June state it was written against.
 
