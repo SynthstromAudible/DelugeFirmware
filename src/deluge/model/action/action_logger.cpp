@@ -42,7 +42,6 @@
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/instrument/kit.h"
-#include "model/note/note_locks.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -790,9 +789,6 @@ void ActionLogger::closeActionUnlessCreatedJustNow(ActionType actionType) {
 void ActionLogger::deleteAllLogs() {
 	deleteLog(BEFORE);
 	deleteLog(AFTER);
-	// Nothing in the history refers to note lock sets any more: the song's unused ones can go (soon, from the main
-	// loop)
-	deluge::note_locks::compactionRequested = true;
 }
 
 void ActionLogger::deleteLog(int32_t time) {

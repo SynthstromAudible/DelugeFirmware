@@ -34,12 +34,14 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note_lock_playback.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_low_level_reader.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "model/voice/voice.h"
+#include "model/voice/voice_note_locks_inline.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/envelope.h"
@@ -1555,7 +1557,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	if (!((synthMode == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
-	      || noteLocksTurnOnASource())) [[unlikely]] {
+	      || VoiceNoteLocks::pendingTurnsOnASource(*this))) [[unlikely]] {
 		return;
 	}
 
@@ -1591,7 +1593,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 				invertReversed = instruction.invertReversed;
 				// With the arp on, the note it starts may be another held one: use that note's locks
 				deluge::note_locks::PendingScope locks(modelStackWithSoundFlags->song->noteLocks,
-				                                       instruction.arpNoteOn->lockSet, instruction.arpNoteOn->liveTag);
+				                                       instruction.arpNoteOn->locks);
 				noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp,
 				                      instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn->velocity,
 				                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate,
@@ -1642,22 +1644,6 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
-bool Sound::noteLocksTurnOnASource() {
-	const deluge::note_locks::LockSetView& locks = deluge::note_locks::pending;
-	for (int32_t i = 0; i < locks.count; i++) {
-		int32_t p = locks.params[i];
-		if ((p == params::LOCAL_OSC_A_VOLUME || p == params::LOCAL_OSC_B_VOLUME || p == params::LOCAL_NOISE_VOLUME)
-		    && locks.values[i] != -2147483648) {
-			bool sample = synthMode != SynthMode::FM && p != params::LOCAL_NOISE_VOLUME
-			              && sources[p - params::LOCAL_OSC_A_VOLUME].oscType == OscType::SAMPLE;
-			if (!sample || sources[p - params::LOCAL_OSC_A_VOLUME].hasAtLeastOneAudioFileLoaded()) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack) {
 	if (tag == 0) {
 		return;
@@ -1667,7 +1653,7 @@ void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, Mode
 	bool volume = param == params::LOCAL_MODULATOR_0_VOLUME || param == params::LOCAL_MODULATOR_1_VOLUME
 	              || param == params::LOCAL_OSC_A_VOLUME || param == params::LOCAL_OSC_B_VOLUME;
 	for (const ActiveVoice& voice : voices_) {
-		if (voice->liveEditTag == tag && voice->noteLocks.setValue(param, value)) {
+		if (voice->noteLocks.liveEditTag == tag && voice->noteLocks.set(param, value)) {
 			voicesMayHaveNoteLocks = true;
 			voice->patcher.performInitialPatching(*this, *modelStack->paramManager);
 			if (volume) {
@@ -1702,7 +1688,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			    synthMode == SynthMode::FM
 			    || std::ranges::any_of(std::views::iota(0, kNumSources),
 			                           [&](int32_t s) {
-				                           return voice->sourceActiveCurrently(*this, s, paramManager)
+				                           return voice->noteLocks.sourceActiveCurrently(*this, s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
 			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
@@ -1725,10 +1711,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		Voice& legatoVoice = **voiceForLegato;
 		// The new note's parameter locks (or lack of them) take over the gliding voice
-		legatoVoice.liveEditTag = deluge::note_locks::pendingLiveTag;
-		if (deluge::note_locks::pending.count != 0 || legatoVoice.noteLocks.mask != 0) [[unlikely]] {
-			legatoVoice.noteLocks.set(deluge::note_locks::pending);
-			voicesMayHaveNoteLocks = voicesMayHaveNoteLocks || legatoVoice.noteLocks.mask != 0;
+		if (legatoVoice.noteLocks.takePending()) [[unlikely]] {
+			voicesMayHaveNoteLocks = true;
 			legatoVoice.patcher.performInitialPatching(*this, *modelStack->paramManager);
 		}
 		legatoVoice.changeNoteCode(modelStack, noteCodePreArp, noteCodePostArp, fromMIDIChannel, mpeValues);
@@ -2442,7 +2426,7 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 
 			// The arp's note remembers the parameter locks of the sequenced note that's holding it
 			deluge::note_locks::PendingScope locks(modelStackWithSoundFlags->song->noteLocks,
-			                                       instruction.arpNoteOn->lockSet, instruction.arpNoteOn->liveTag);
+			                                       instruction.arpNoteOn->locks);
 			noteOnPostArpeggiator(
 			    modelStackWithSoundFlags,
 			    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
@@ -2584,18 +2568,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	uint64_t lockedParams = 0;
 	if (voicesMayHaveNoteLocks) [[unlikely]] {
 		for (ActiveVoice& voice : voices_) {
-			lockedParams |= voice->noteLocks.mask;
+			lockedParams |= voice->noteLocks.mask();
 		}
 		voicesMayHaveNoteLocks = (lockedParams != 0);
 	}
-	constexpr uint64_t kPanLock = (uint64_t)1 << params::LOCAL_PAN;
-	// renderingVoicesInStereo only looks for stereo samples in the sources the knob values have on
-	constexpr uint64_t kStereoLocks =
-	    kPanLock | ((uint64_t)1 << params::LOCAL_OSC_A_VOLUME) | ((uint64_t)1 << params::LOCAL_OSC_B_VOLUME);
 
 	// Render each voice into a local buffer here
 	bool voice_rendered_in_stereo = renderingVoicesInStereo(modelStackWithSoundFlags)
-	                                || ((lockedParams & kStereoLocks) && AudioEngine::renderInStereo);
+	                                || ((lockedParams & VoiceNoteLocks::kStereo) && AudioEngine::renderInStereo);
 
 	// FIXME(@stellar-aria): if we have simulataneous sounds rendering, they'll overwrite
 	// each other in this buffer. It probably should be object or thread-local
@@ -2610,7 +2590,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// Very often, we'll just apply panning here at the Sound level rather than the Voice level
 		bool applyingPanAtVoiceLevel =
 		    (AudioEngine::renderInStereo
-		     && ((lockedParams & kPanLock)
+		     && ((lockedParams & VoiceNoteLocks::kPan)
 		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN)));
 
 		// Setup filters
@@ -2635,12 +2615,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (lockedParams) [[unlikely]] {
 				// A voice whose note locks a filter param runs that filter even if the knob value has it off
 				// (the same params the Sound-level decision above looks at)
-				constexpr uint64_t kLPFLocks =
-				    ((uint64_t)1 << params::LOCAL_LPF_FREQ) | ((uint64_t)1 << params::LOCAL_LPF_MORPH);
-				constexpr uint64_t kHPFLocks =
-				    ((uint64_t)1 << params::LOCAL_HPF_FREQ) | ((uint64_t)1 << params::LOCAL_HPF_MORPH);
-				voiceLPF = voiceLPF || (thisHasFilters && (voice->noteLocks.mask & kLPFLocks));
-				voiceHPF = voiceHPF || (thisHasFilters && (voice->noteLocks.mask & kHPFLocks));
+				voiceLPF = voiceLPF || (thisHasFilters && voice->noteLocks.hasAnyOf(VoiceNoteLocks::kLPF));
+				voiceHPF = voiceHPF || (thisHasFilters && voice->noteLocks.hasAnyOf(VoiceNoteLocks::kHPF));
 			}
 
 			bool stillGoing =
@@ -3241,7 +3217,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	for (const ActiveVoice& voice : voices_) {
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				bool sourceEverActive = voice->sourceEverActive(modelStack, s);
+				bool sourceEverActive = voice->noteLocks.sourceEverActive(modelStack, s);
 
 				if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 				    && voice->guides[s].audioFileHolder && voice->guides[s].audioFileHolder->audioFile) {
@@ -4481,7 +4457,7 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 }
 
 bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager,
-                                        const deluge::note_locks::VoiceLocks* locks) {
+                                        const deluge::note_locks::LockSet* locks) {
 	switch (envelopeConfig[e].mode) {
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false; // one-shot
@@ -4494,8 +4470,8 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	auto value = [&](int32_t p) {
-		const int32_t* locked = locks ? locks->find(p) : nullptr;
-		return locked ? *locked : patchedParams->getValue(p);
+		std::optional<int32_t> locked = locks != nullptr ? locks->get(p) : std::nullopt;
+		return locked.value_or(patchedParams->getValue(p));
 	};
 
 	// These params are fetched "pre-LPF"
@@ -4504,7 +4480,7 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 }
 
 bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager,
-                                   const deluge::note_locks::VoiceLocks* locks) {
+                                   const deluge::note_locks::LockSet* locks) {
 	switch (envelopeConfig[e].mode) {
 	case deluge::modulation::EnvelopeMode::AHD:
 		return false;
@@ -4518,9 +4494,10 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	// A lock replaces the knob value and its automation for the whole note
-	const int32_t* sustainLock = locks ? locks->find(params::LOCAL_ENV_0_SUSTAIN + e) : nullptr;
-	const int32_t* decayLock = locks ? locks->find(params::LOCAL_ENV_0_DECAY + e) : nullptr;
-	const int32_t* releaseLock = locks ? locks->find(params::LOCAL_ENV_0_RELEASE + e) : nullptr;
+	auto lock = [&](int32_t p) { return locks != nullptr ? locks->get(p) : std::nullopt; };
+	std::optional<int32_t> sustainLock = lock(params::LOCAL_ENV_0_SUSTAIN + e);
+	std::optional<int32_t> decayLock = lock(params::LOCAL_ENV_0_DECAY + e);
+	std::optional<int32_t> releaseLock = lock(params::LOCAL_ENV_0_RELEASE + e);
 
 	return (sustainLock ? *sustainLock != -2147483648
 	                    : patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648))

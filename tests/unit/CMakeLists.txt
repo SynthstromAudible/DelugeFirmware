@@ -74,6 +74,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/io/midi/midi_queue.cpp
         # For FFT magnitude tests
         ../../src/deluge/util/fast_pythag.cpp
+        # For note parameter lock tests
+        ../../src/deluge/model/note/note_locks.cpp
+        ../../src/deluge/model/note/note_lock_playback.cpp
 )
 
 add_executable(UnitTests
@@ -102,6 +105,7 @@ add_executable(UnitTests
         fast_divide_tests.cpp
         tick_interpolation_tests.cpp
         envelope_curve_tests.cpp
+        note_locks_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

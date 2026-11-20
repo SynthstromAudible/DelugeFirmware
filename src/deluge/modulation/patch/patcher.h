@@ -50,15 +50,26 @@ public:
 	/// `locks`: a Voice's patcher passes its note's parameter locks, which replace the preset (knob / automation) value
 	/// of each locked param before cables are applied. nullptr for a Sound's (global) patcher.
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values,
-	        const deluge::note_locks::VoiceLocks* locks = nullptr)
+	        const deluge::note_locks::LockSet* locks = nullptr)
 	    : config(config), source_values_(source_values), param_final_values_(param_final_values), locks_(locks) {};
-	void performInitialPatching(Sound& sound, ParamManager& param_manager);
-	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager);
-	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound, ParamManagerForTimeline& param_manager);
+	// Each entry point checks for locks inline, so a voice without them goes straight to the <false> instantiation
+	// (the code as it was before locks): these run per voice per render.
+	void performInitialPatching(Sound& sound, ParamManager& param_manager) {
+		hasLocks() ? performInitialPatchingImpl<true>(sound, param_manager)
+		           : performInitialPatchingImpl<false>(sound, param_manager);
+	}
+	void performPatching(uint32_t sources_changed, Sound& sound, ParamManagerForTimeline& param_manager) {
+		hasLocks() ? performPatchingImpl<true>(sources_changed, sound, param_manager)
+		           : performPatchingImpl<false>(sources_changed, sound, param_manager);
+	}
+	void recalculateFinalValueForParamWithNoCables(int32_t param, Sound& sound,
+	                                               ParamManagerForTimeline& param_manager) {
+		hasLocks() ? recalculateFinalValueForParamWithNoCablesImpl<true>(param, sound, param_manager)
+		           : recalculateFinalValueForParamWithNoCablesImpl<false>(param, sound, param_manager);
+	}
 
 private:
-	// Each entry point checks for locks once and runs a <false> instantiation (the unchanged code) when there are none
-	[[nodiscard]] bool hasLocks() const { return locks_ != nullptr && locks_->mask != 0; }
+	[[nodiscard]] bool hasLocks() const { return locks_ != nullptr && !locks_->empty(); }
 	template <bool kLocks>
 	void performInitialPatchingImpl(Sound& sound, ParamManager& param_manager);
 	template <bool kLocks>
@@ -87,5 +98,5 @@ private:
 	const Config& config;
 	std::span<int32_t> source_values_;
 	std::span<int32_t> param_final_values_;
-	const deluge::note_locks::VoiceLocks* locks_;
+	const deluge::note_locks::LockSet* locks_;
 };

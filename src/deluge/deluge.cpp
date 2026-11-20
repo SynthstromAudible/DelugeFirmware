@@ -54,7 +54,6 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/note/note_locks.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -606,8 +605,6 @@ void registerTasks() {
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
 	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine", RESOURCE_NONE);
-	// Drops unused note parameter-lock sets after the undo history has been cleared (a flag check otherwise)
-	addRepeatingTask(&deluge::note_locks::compactionTask, p++, 0.05, 0.1, 1.0, "note lock compaction", RESOURCE_NONE);
 
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);

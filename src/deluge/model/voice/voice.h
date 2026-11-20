@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "model/voice/voice_note_locks.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
@@ -31,8 +32,6 @@
 
 class StereoSample;
 class ModelStackWithSoundFlags;
-class ParamManager;
-class ParamManagerForTimeline;
 using namespace deluge;
 class Voice final {
 public:
@@ -92,26 +91,8 @@ public:
 
 	bool justCreated{false};
 
-	/// Parameter locks of the note this voice is playing (copied at noteOn). Read by `patcher`.
-	deluge::note_locks::VoiceLocks noteLocks;
-	/// note_locks::LiveEdit::tag of the held pad whose uncommitted lock edits this voice was started with, else 0
-	uint16_t liveEditTag{0};
-
-	// Sound's checks of whether a source / modulator / noise / osc sync is on, or whether envelope 1 sustains, look at
-	// the knob values. A lock replaces the knob value for its note, so this voice asks these instead.
-
-	/// The note's locks give envelope 1 a sustain (they lock one of its sustain / decay / release, and with those
-	/// values it sustains). Lets a note-off through on a sound whose own values have no tails.
-	[[nodiscard]] bool locksGiveSustain(Sound& sound, ParamManagerForTimeline* paramManager) const;
-	/// Sound::isSourceActiveEver (through the model stack's cache), or a lock turns the source's volume up. "Ever"
-	/// stays true for a source the sound has on and a lock turns off: that only skips its rendering, below.
-	[[nodiscard]] bool sourceEverActive(ModelStackWithSoundFlags* modelStack, int32_t s) const;
-	/// Sound::isSourceActiveCurrently, with a lock on the source's volume in place of its knob value
-	[[nodiscard]] bool sourceActiveCurrently(Sound& sound, int32_t s, ParamManagerForTimeline* paramManager) const;
-	/// Sound::renderingOscillatorSyncCurrently, with a lock on osc B's volume in place of its knob value
-	[[nodiscard]] bool oscSyncCurrently(Sound& sound, ParamManagerForTimeline* paramManager) const;
-	/// The noise volume is ever above -inf, from its knob / automation or a lock
-	[[nodiscard]] bool noiseEverActive(ParamManager* paramManager) const;
+	/// Parameter locks of the note this voice is playing. Read by `patcher`.
+	VoiceNoteLocks noteLocks;
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);

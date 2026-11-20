@@ -32,7 +32,8 @@
 #include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
-#include "model/note/note_locks.h"
+#include "model/note/note_lock_file.h"
+#include "model/note/note_lock_playback.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -50,8 +51,6 @@
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
-
-namespace params = deluge::modulation::params;
 
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
@@ -1777,43 +1776,34 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 		                                                     false); // Snapshot for undoability. Don't steal data.
 	}
 
-	struct Change {
-		int32_t type;
-		int32_t value;
-	} change{changeType, changeValue};
+	return forNotesAcrossAllScreens(editPos, modelStack, [&](Note& thisNote) {
+		switch (changeType) {
+		case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
+			int32_t newVelocity = std::clamp<int32_t>(thisNote.getVelocity() + changeValue, 1, 127);
+			thisNote.setVelocity(newVelocity);
+		} break;
 
-	return forNotesAcrossAllScreens(
-	    editPos, modelStack,
-	    [](Note* thisNote, void* context) {
-		    Change& c = *static_cast<Change*>(context);
-		    switch (c.type) {
-		    case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
-			    int32_t newVelocity = std::clamp<int32_t>(thisNote->getVelocity() + c.value, 1, 127);
-			    thisNote->setVelocity(newVelocity);
-		    } break;
+		case CORRESPONDING_NOTES_SET_VELOCITY: {
+			thisNote.setVelocity(changeValue);
+		} break;
 
-		    case CORRESPONDING_NOTES_SET_VELOCITY: {
-			    thisNote->setVelocity(c.value);
-		    } break;
+		case CORRESPONDING_NOTES_SET_PROBABILITY: {
+			thisNote.setProbability(changeValue);
+		} break;
 
-		    case CORRESPONDING_NOTES_SET_PROBABILITY: {
-			    thisNote->setProbability(c.value);
-		    } break;
+		case CORRESPONDING_NOTES_SET_ITERANCE: {
+			thisNote.setIterance(Iterance::fromInt(changeValue));
+		} break;
 
-		    case CORRESPONDING_NOTES_SET_ITERANCE: {
-			    thisNote->setIterance(Iterance::fromInt(c.value));
-		    } break;
-
-		    case CORRESPONDING_NOTES_SET_FILL: {
-			    thisNote->setFill(c.value);
-		    } break;
-		    }
-	    },
-	    &change);
+		case CORRESPONDING_NOTES_SET_FILL: {
+			thisNote.setFill(changeValue);
+		} break;
+		}
+	});
 }
 
-Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, void (*fn)(Note*, void*),
-                                        void* context) {
+Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack,
+                                        const std::function<void(Note&)>& visit) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
@@ -1854,7 +1844,7 @@ Error NoteRow::forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 		Note* __restrict__ thisNote = notes.getElement(indexThisScreen);
 		if (thisNote != nullptr && thisNote->pos == posThisScreen) {
-			fn(thisNote, context);
+			visit(*thisNote);
 		}
 	}
 
@@ -2571,18 +2561,15 @@ bool NoteRow::noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song*
 	if (note == nullptr || note->lockSet == 0) [[likely]] {
 		return false;
 	}
-	deluge::note_locks::LockSetView locks = song->noteLocks.get(note->lockSet);
-	return deluge::note_locks::locksSustain(locks.params, locks.values, locks.count);
+	return deluge::note_locks::locksSustain(song->noteLocks.get(note->lockSet));
+}
+
+// A held pad's uncommitted parameter-lock edits for this note, if any
+static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
+	return deluge::note_locks::liveEdits.find(modelStack->getTimelineCounter(), modelStack->noteRowId, note->pos);
 }
 
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
-// A held pad's uncommitted parameter-lock edits for this note, if any. Only looks while a pad is held.
-static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
-	if (deluge::note_locks::numArmedLiveEdits == 0) [[likely]] {
-		return nullptr;
-	}
-	return deluge::note_locks::findLiveEdit(modelStack->getTimelineCounter(), modelStack->noteRowId, note->pos);
-}
 
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
@@ -3292,9 +3279,7 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
 	                           // before we know what kind of Drum (if any) we have.
 
-	// Parameter-lock columns: lockParams names the params, and noteLocks refers to them by column number
-	int32_t lockColumnParams[params::FIRST_GLOBAL];
-	int32_t numLockColumns = -1; // -1: no lockParams seen yet
+	deluge::note_locks::FileReader noteLocksReader;
 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -3621,32 +3606,12 @@ getOut: {}
 		}
 
 		else if (!strcmp(tagName, "lockParams")) {
-			String names;
-			numLockColumns = 0;
-			if (reader.readTagOrAttributeValueString(&names) == Error::NONE) {
-				char const* name = names.get();
-				while (*name && numLockColumns < params::FIRST_GLOBAL) {
-					char const* end = strchr(name, ',');
-					size_t length = end ? (size_t)(end - name) : strlen(name);
-					char buffer[48];
-					length = std::min(length, sizeof(buffer) - 1);
-					memcpy(buffer, name, length);
-					buffer[length] = 0;
-					// An unknown name (from some future firmware) still takes its column, so later columns line up
-					lockColumnParams[numLockColumns++] = params::fileStringToParam(params::Kind::PATCHED, buffer, true);
-					if (!end) {
-						break;
-					}
-					name = end + 1;
-				}
-			}
+			noteLocksReader.readParams(reader);
 		}
 
 		else if (!strcmp(tagName, "noteLocks")) {
 			// Written after the note data, so the notes it refers to exist by now
-			if (numLockColumns > 0) {
-				readNoteLocksFromFile(reader, song, lockColumnParams, numLockColumns);
-			}
+			noteLocksReader.readLocks(reader, notes, song->noteLocks);
 		}
 
 		else if (!strcmp(tagName, "expressionData")) {
@@ -3731,7 +3696,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		}
 		writer.write("\"");
 
-		writeNoteLocksToFile(writer, song);
+		deluge::note_locks::writeToFile(writer, notes, song->noteLocks);
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3765,110 +3730,6 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 	else {
 		writer.closeTag(true);
-	}
-}
-
-// Parameter locks, as two noteRow attributes written after the note data:
-//   lockParams="lpfFrequency,volume"  - the locked params' file names, in "column" order
-//   noteLocks="0x..."                 - per locked note: pos (8 hex), number of locks (2 hex), then per lock: column
-//                                       (2 hex) and value (8 hex, the param's preset value)
-// Firmware that doesn't know these attributes skips them and plays the notes unlocked.
-void NoteRow::writeNoteLocksToFile(Serializer& writer, Song* song) {
-	int32_t columnParams[params::FIRST_GLOBAL];
-	int32_t numColumns = 0;
-	int8_t columnOfParam[params::FIRST_GLOBAL];
-	memset(columnOfParam, -1, sizeof(columnOfParam));
-
-	for (int32_t n = 0; n < notes.getNumElements(); n++) {
-		deluge::note_locks::LockSetView locks = song->noteLocks.get(notes.getElement(n)->lockSet);
-		for (int32_t l = 0; l < locks.count; l++) {
-			int32_t p = locks.params[l];
-			if (columnOfParam[p] < 0) {
-				columnOfParam[p] = numColumns;
-				columnParams[numColumns++] = p;
-			}
-		}
-	}
-	if (!numColumns) {
-		return;
-	}
-
-	writer.insertCommaIfNeeded();
-	writer.write("\n");
-	writer.printIndents();
-	writer.writeTagNameAndSeperator("lockParams");
-	writer.write("\"");
-	for (int32_t c = 0; c < numColumns; c++) {
-		if (c) {
-			writer.write(",");
-		}
-		writer.write(params::paramNameForFile(params::Kind::PATCHED, columnParams[c]));
-	}
-	writer.write("\"");
-
-	writer.insertCommaIfNeeded();
-	writer.write("\n");
-	writer.printIndents();
-	writer.writeTagNameAndSeperator("noteLocks");
-	writer.write("\"0x");
-	for (int32_t n = 0; n < notes.getNumElements(); n++) {
-		Note* note = notes.getElement(n);
-		deluge::note_locks::LockSetView locks = song->noteLocks.get(note->lockSet);
-		if (!locks.count) {
-			continue;
-		}
-		char buffer[9];
-		intToHex(note->pos, buffer);
-		writer.write(buffer);
-		intToHex(locks.count, buffer, 2);
-		writer.write(buffer);
-		for (int32_t l = 0; l < locks.count; l++) {
-			intToHex(columnOfParam[locks.params[l]], buffer, 2);
-			writer.write(buffer);
-			intToHex(locks.values[l], buffer);
-			writer.write(buffer);
-		}
-	}
-	writer.write("\"");
-}
-
-void NoteRow::readNoteLocksFromFile(Deserializer& reader, Song* song, int32_t const* columnParams, int32_t numColumns) {
-	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-		return;
-	}
-	char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-	if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-		return;
-	}
-
-	while (true) {
-		char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(10);
-		if (!hexChars) {
-			return;
-		}
-		int32_t pos = hexToIntFixedLength(hexChars, 8);
-		int32_t count = hexToIntFixedLength(&hexChars[8], 2);
-
-		deluge::note_locks::Lock locks[deluge::note_locks::kMaxLocksPerNote];
-		int32_t numLocks = 0;
-		for (int32_t l = 0; l < count; l++) {
-			hexChars = reader.readNextCharsOfTagOrAttributeValue(10);
-			if (!hexChars) {
-				return;
-			}
-			int32_t column = hexToIntFixedLength(hexChars, 2);
-			int32_t value = hexToIntFixedLength(&hexChars[2], 8);
-			if (column < numColumns && deluge::note_locks::isLockableParam(columnParams[column])
-			    && numLocks < deluge::note_locks::kMaxLocksPerNote) {
-				locks[numLocks++] = {(uint8_t)columnParams[column], value};
-			}
-		}
-
-		int32_t i = notes.search(pos, GREATER_OR_EQUAL);
-		Note* note = notes.getElement(i);
-		if (note && note->pos == pos) {
-			note->lockSet = song->noteLocks.intern(locks, numLocks);
-		}
 	}
 }
 
@@ -4290,7 +4151,9 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 			int32_t i = notes.search(newPos, GREATER_OR_EQUAL);
 			Note* pasted = notes.getElement(i);
 			if (pasted && pasted->pos == newPos) {
-				pasted->lockSet = modelStack->song->noteLocks.importFrom(copiedNoteRow->locks, noteSource->lockSet);
+				// Out of memory: the note is pasted without its locks
+				pasted->lockSet =
+				    modelStack->song->noteLocks.intern(copiedNoteRow->locks.get(noteSource->lockSet)).value_or(0);
 			}
 		}
 

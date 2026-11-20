@@ -24,6 +24,7 @@
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
+#include <functional>
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -123,8 +124,6 @@ public:
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
-	void writeNoteLocksToFile(Serializer& writer, Song* song);
-	void readNoteLocksFromFile(Deserializer& reader, Song* song, int32_t const* columnParams, int32_t numColumns);
 	inline int32_t getNoteCode() { return y; }
 	/// Whether this note has a tail: if the row's sound allows them, or regardless if the note's locks give it a
 	/// sustain (note_locks::locksSustain). `rowAllowsNoteTails` is InstrumentClip::allowNoteTails for this row.
@@ -230,10 +229,10 @@ public:
 	/// (cross-screen) editing, of every copy of it on the other screens. Snapshots the row into `action` for undo.
 	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                  int32_t changeType, int32_t changeValue);
-	/// Calls fn(note, context) on the note at editPos and, if the clip is wrap (cross-screen) editing, on every copy of
-	/// it on the other screens - before and after editPos's, as addCorrespondingNotes creates them. Doesn't snapshot.
-	Error forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, void (*fn)(Note*, void*),
-	                               void* context);
+	/// Calls `visit` on the note at editPos and, if the clip is wrap (cross-screen) editing, on every copy of it on the
+	/// other screens - before and after editPos's, as addCorrespondingNotes creates them. Doesn't snapshot.
+	Error forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack,
+	                               const std::function<void(Note&)>& visit);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.

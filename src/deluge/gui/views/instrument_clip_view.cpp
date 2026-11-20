@@ -68,7 +68,7 @@
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
-#include "model/note/note_locks.h"
+#include "model/note/note_lock_playback.h"
 #include "model/note/note_row.h"
 #include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -1245,7 +1245,9 @@ ramError:
 					newNote->lift = noteToCopy->lift;
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
-					newNote->lockSet = newCopiedNoteRow->locks.importFrom(currentSong->noteLocks, noteToCopy->lockSet);
+					// Out of memory: the note is copied without its locks
+					newNote->lockSet =
+					    newCopiedNoteRow->locks.intern(currentSong->noteLocks.get(noteToCopy->lockSet)).value_or(0);
 
 					if (copyToFile) {
 
@@ -2369,7 +2371,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		if (!(getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
 		    && numEditPadPressesPerNoteRowOnScreen[yDisplay] == 1
 		    && (int32_t)(timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0
-		    && (clip->allowNoteTails(modelStackWithNoteRow) || heldNoteInRowLocksSustain(yDisplay))
+		    && (clip->allowNoteTails(modelStackWithNoteRow) || noteLocks.heldNoteLocksSustain(yDisplay))
 		    && getEditPadPressXDisplayOnScreen(yDisplay) < xDisplay) {
 
 			// Find that original press
@@ -2640,7 +2642,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					// Knob turns while this is held can lock the note's params; arm its slot before the audition
 					// below, so the auditioned voice can be found and updated as they come in
 					editPadPresses[i].intendedLockSet = 0; // Only meaningful once a vertical drag lifts the note
-					armLiveNoteLocks(i);
+					noteLocks.arm(i);
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
 					for (int32_t t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
@@ -2755,7 +2757,7 @@ Sound* InstrumentClipView::getSoundForNoteRow(NoteRow* noteRow, ParamManagerForT
 
 void InstrumentClipView::endEditPadPress(uint8_t i) {
 	// Every way a press ends comes through here: commit its pending parameter-lock edits now (no-op if none)
-	commitLiveNoteLocks(i);
+	noteLocks.commit(i);
 
 	gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].isValid = false;
 	editPadPresses[i].isActive = false;
@@ -4685,7 +4687,7 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 			else {
 				if (editPadPresses[i].deleteOnScroll) {
 					// Pending lock edits go into the note before it's lifted, and its locks travel with it
-					commitLiveNoteLocks(i);
+					noteLocks.commit(i);
 					int32_t pos = editPadPresses[i].intendedPos;
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
@@ -4867,7 +4869,7 @@ cancelPress:
 			editPadPresses[i].deleteOnScroll = success;
 			// Further lock edits go to the note in its new row. Same press: the voice it's sounding keeps hearing them,
 			// and edits made while it couldn't be placed (floating) are kept for when it is.
-			armLiveNoteLocks(i, true);
+			noteLocks.arm(i, true);
 
 			if (success) {
 				if (editPadPresses[i].mpeCachedYet) {
@@ -4944,9 +4946,8 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 
 	// A held note pad auditions its note with the note's parameter locks, plus any edits pending on the pad (the
 	// voices get the pad's tag, so further knob turns reach them)
-	uint16_t committedLockSet = 0;
-	const deluge::note_locks::LiveEdit* liveEdit = on ? getAuditionLiveEdit(yDisplay, &committedLockSet) : nullptr;
-	deluge::note_locks::PendingScope locks(currentSong->noteLocks, committedLockSet, liveEdit);
+	NoteLockEditor::HeldNote heldNote = on ? noteLocks.getHeldNote(yDisplay) : NoteLockEditor::HeldNote{};
+	deluge::note_locks::PendingScope locks(currentSong->noteLocks, heldNote.lockSet, heldNote.live);
 
 	if (instrument->type == OutputType::KIT) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -7168,7 +7169,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	if (offset) {
 		// Pending lock edits go into the notes before they move (their locks move with them)
-		commitAllLiveNoteLocks();
+		noteLocks.commitAll();
 		action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 		if (action) {
 			action->offset = offset;
@@ -7317,7 +7318,7 @@ doCompareNote:
 	}
 
 	if (offset) {
-		rearmAllLiveNoteLocks(); // Further lock edits go to the notes where they are now
+		noteLocks.rearmAll(); // Further lock edits go to the notes where they are now
 	}
 
 	// Now, decide what message to display ---------------------------------------------------

@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
-#include "model/note/note_locks.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
@@ -166,8 +165,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	active_note.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	active_note.baseVelocity = originalVelocity;
 	active_note.velocity = originalVelocity; // Means note is on.
-	active_note.lockSet = deluge::note_locks::pendingIndex;
-	active_note.liveTag = deluge::note_locks::pendingLiveTag;
+	active_note.locks = deluge::note_locks::pending.ref;
 
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -290,8 +288,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// midiChannel
 		if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
 			// Except take the latest note-on's parameter locks, as the arp-off path below does
-			arp_note->lockSet = deluge::note_locks::pendingIndex;
-			arp_note->liveTag = deluge::note_locks::pendingLiveTag;
+			arp_note->locks = deluge::note_locks::pending.ref;
 			return; // If we're an arpeggiator, return
 		}
 	}
@@ -344,8 +341,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	// editing. Kind of a hacky solution, but it works for now.
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 	arp_note->sampleSyncLength = instruction->sampleSyncLengthOn;
-	arp_note->lockSet = deluge::note_locks::pendingIndex;
-	arp_note->liveTag = deluge::note_locks::pendingLiveTag;
+	arp_note->locks = deluge::note_locks::pending.ref;
 
 	// If we're an arpeggiator...
 	if (!arpIsOff(settings)) {
@@ -1476,13 +1472,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		if (isPlayGlideForCurrentStep && !isRatcheting) {
 			glideOnNextNoteOff = true;
 		}
-	}
-}
-
-void Arpeggiator::forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) {
-	ArpeggiatorBase::forEachLockSet(fn, context);
-	for (int32_t n = 0; n < notes.getNumElements(); n++) {
-		fn(((ArpNote*)notes.getElementAddress(n))->lockSet, context);
 	}
 }
 

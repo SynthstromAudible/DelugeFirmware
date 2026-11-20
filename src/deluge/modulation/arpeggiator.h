@@ -19,6 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
+#include "model/note/note_lock_playback.h"
 #include "model/sync.h"
 #include "storage/storage_manager.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -178,11 +179,9 @@ struct ArpNote {
 	uint8_t baseVelocity{0};
 	// Keep the stretch length with the note when its voice start is deferred to a later render.
 	uint32_t sampleSyncLength{0};
-	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pendingIndex at its note-on),
-	// so the notes the arp generates from it later carry them too. Index into the Song's note_locks::Pool.
-	uint16_t lockSet{0};
-	// And its held pad's live edits, if any (note_locks::pendingLiveTag at its note-on)
-	uint16_t liveTag{0};
+	// Parameter locks of the sequenced note that put this note in the arp (note_locks::pending at its note-on), so
+	// the notes the arp generates from it later carry them too
+	deluge::note_locks::NoteRef locks;
 
 	// For note-ons
 	std::array<ArpNoteStatus, ARP_MAX_INSTRUCTION_NOTES> noteStatus{};
@@ -253,10 +252,6 @@ public:
 	/// agree on this, or notes pend in one place and get looked for in another.
 	static bool arpIsOff(ArpeggiatorSettings* settings) {
 		return (settings == nullptr) || settings->mode == ArpMode::OFF;
-	}
-	/// Calls fn on every note-lock pool index this arp holds (ArpNote::lockSet), so the pool can be compacted
-	virtual void forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) {
-		fn(active_note.lockSet, context);
 	}
 	ArpNote active_note; // For the currently active note.
 
@@ -385,7 +380,6 @@ public:
 	bool handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) override;
 	bool hasPendingNotes(ArpeggiatorSettings* settings) override;
 	bool hasAnyInputNotesActive() override;
-	void forEachLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context) override;
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user

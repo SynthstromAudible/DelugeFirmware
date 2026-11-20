@@ -326,7 +326,6 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 	// run at least once so this can be used for yielding a single call as well
 	Time new_time = getSecondsFromStart();
 	bool ret = false;
-	yieldDepth++;
 	do {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -347,7 +346,6 @@ bool TaskManager::yield(RunCondition until, Time timeout, bool returnOnIdle) {
 		}
 		ret = until();
 	} while (!ret && (skip_timeout || getSecondsFromStart() < time_now + timeout));
-	yieldDepth--;
 
 	auto finish_time = getSecondsFromStart();
 	yielding_task->lastCallTime = finish_time; // hack so it won't get called again immediately

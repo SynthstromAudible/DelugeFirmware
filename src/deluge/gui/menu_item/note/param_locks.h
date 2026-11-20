@@ -74,9 +74,9 @@ public:
 private:
 	void readLocks();
 	void drawValue();
-	[[nodiscard]] int32_t numEntries() const { return locks_.count ? locks_.count + 1 : 1; } // + "Clear all" / "None"
+	[[nodiscard]] int32_t numEntries() const { return locks_.size() + 1; } // + "Clear all" / "None"
 
-	deluge::note_locks::VoiceLocks locks_;
+	deluge::note_locks::LockSet locks_;
 	deluge::vector<std::string_view> options_;
 	int32_t currentValue_{0};
 	int32_t scrollPos_{0};

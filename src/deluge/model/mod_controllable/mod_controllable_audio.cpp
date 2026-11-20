@@ -1166,7 +1166,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
 				HeldNoteLock held = isStepEditing
-				                        ? instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
+				                        ? instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
 				                        : HeldNoteLock::NONE;
 				if (held == HeldNoteLock::NO_NOTE) {
 					continue; // No held note plays this param's Sound
@@ -1201,7 +1201,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
 				if (noteLock) {
-					instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else {
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
@@ -1271,7 +1271,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 				// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
 				HeldNoteLock held = isStepEditing
-				                        ? instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
+				                        ? instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
 				                        : HeldNoteLock::NONE;
 				if (held == HeldNoteLock::NO_NOTE) {
 					continue; // No held note plays this param's Sound
@@ -1306,7 +1306,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
 				if (noteLock) {
-					instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else {
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
@@ -1382,10 +1382,11 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 				// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
 				int32_t heldValue;
-				HeldNoteLock held = modLength ? instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &heldValue)
-				                              : HeldNoteLock::NONE;
+				HeldNoteLock held = modLength
+				                        ? instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &heldValue)
+				                        : HeldNoteLock::NONE;
 				if (held == HeldNoteLock::LOCK) {
-					instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+					instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 				}
 				else if (held == HeldNoteLock::NONE) {
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,

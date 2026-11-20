@@ -1091,8 +1091,9 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		int32_t currentValue;
 		// Holding note pads in the clip view locks a local param on those notes instead of step-automating it
-		HeldNoteLock held = isStepEditing ? instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
-		                                  : HeldNoteLock::NONE;
+		HeldNoteLock held = isStepEditing
+		                        ? instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
+		                        : HeldNoteLock::NONE;
 		if (held == HeldNoteLock::NO_NOTE) {
 			return; // No held note plays this param's Sound
 		}
@@ -1122,7 +1123,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
 			if (noteLock) {
-				instrumentClipView.setHeldNoteLock(modelStackWithParam, newValue);
+				instrumentClipView.noteLocks.setHeldValue(modelStackWithParam, newValue);
 			}
 			else {
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
@@ -1155,8 +1156,12 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			// mode don't display popup if you're currently editing the same param
 			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, PatchSource::NONE,
-				                                 PatchSource::NONE, noteLock);
+				view.displayModEncoderValuePopup(
+				    kind, modelStackWithParam->paramId, newKnobPos, PatchSource::NONE, PatchSource::NONE,
+				    noteLock ? View::HeldPadEdit::NOTE_LOCK
+				    : isStepEditing && instrumentClipView.noteLocks.automatesHeldNotes(modelStackWithParam)
+				        ? View::HeldPadEdit::AUTOMATING
+				        : View::HeldPadEdit::NONE);
 			}
 		}
 	}
@@ -1356,7 +1361,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 					int32_t currentValue;
 					// obtain current value of the learned parameter
 					if (isStepEditing
-					    && instrumentClipView.getHeldNoteLockValue(modelStackWithParam, &currentValue)
+					    && instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &currentValue)
 					           != HeldNoteLock::NONE) {
 						// A held note's parameter lock
 					}

@@ -31,21 +31,11 @@ template <bool kLocks>
 [[gnu::always_inline]] inline int32_t Patcher::presetValue(uint32_t param, Sound& sound,
                                                            ParamManager& param_manager) const {
 	if constexpr (kLocks) {
-		if ((locks_->mask >> param) & 1) {
-			return locks_->valueFor(param);
+		if (std::optional<int32_t> locked = locks_->get(param)) {
+			return *locked;
 		}
 	}
 	return sound.getSmoothedPatchedParamValue(param, param_manager);
-}
-
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound& sound,
-                                                        ParamManagerForTimeline& param_manager) {
-	if (hasLocks()) [[unlikely]] {
-		recalculateFinalValueForParamWithNoCablesImpl<true>(p, sound, param_manager);
-	}
-	else {
-		recalculateFinalValueForParamWithNoCablesImpl<false>(p, sound, param_manager);
-	}
 }
 
 template <bool kLocks>
@@ -83,14 +73,6 @@ int32_t rangeFinalValues[kMaxNumPatchCables]; // TODO: storing these in permanen
                                               // of time... actually so minor though, maybe not worth it.
 
 // You may as well check sourcesChanged before calling this.
-void Patcher::performPatching(uint32_t sourcesChanged, Sound& sound, ParamManagerForTimeline& param_manager) {
-	if (hasLocks()) [[unlikely]] {
-		performPatchingImpl<true>(sourcesChanged, sound, param_manager);
-	}
-	else {
-		performPatchingImpl<false>(sourcesChanged, sound, param_manager);
-	}
-}
 
 template <bool kLocks>
 void Patcher::performPatchingImpl(uint32_t sourcesChanged, Sound& sound, ParamManagerForTimeline& param_manager) {
@@ -309,15 +291,6 @@ template <bool kLocks>
 
 // NOTE: parameter preset values can't be bigger than 536870912, otherwise overflowing will occur
 
-void Patcher::performInitialPatching(Sound& sound, ParamManager& param_manager) {
-	if (hasLocks()) [[unlikely]] {
-		performInitialPatchingImpl<true>(sound, param_manager);
-	}
-	else {
-		performInitialPatchingImpl<false>(sound, param_manager);
-	}
-}
-
 template <bool kLocks>
 void Patcher::performInitialPatchingImpl(Sound& sound, ParamManager& param_manager) {
 	// In this function, we are sneaky and write the "cable combination" working value in to paramFinalValues, before
@@ -385,3 +358,11 @@ void Patcher::performInitialPatchingImpl(Sound& sound, ParamManager& param_manag
 		    paramNeutralValues[param], param_final_values_[param - config.firstParam], param);
 	}
 }
+
+// The entry points in patcher.h call these from other files
+template void Patcher::performInitialPatchingImpl<false>(Sound&, ParamManager&);
+template void Patcher::performInitialPatchingImpl<true>(Sound&, ParamManager&);
+template void Patcher::performPatchingImpl<false>(uint32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::performPatchingImpl<true>(uint32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::recalculateFinalValueForParamWithNoCablesImpl<false>(int32_t, Sound&, ParamManagerForTimeline&);
+template void Patcher::recalculateFinalValueForParamWithNoCablesImpl<true>(int32_t, Sound&, ParamManagerForTimeline&);

@@ -80,10 +80,8 @@ std::string_view ParamLockValue::getTitle() const {
 
 void ParamLockValue::readCurrentValue() {
 	dirty_ = false;
-	note_locks::VoiceLocks locks;
-	instrumentClipView.getNoteEditorLocks(locks);
-	if ((locks.mask >> param_) & 1) {
-		setValue(lockValueToKnobPos(param_, locks.valueFor(param_)));
+	if (std::optional<int32_t> locked = instrumentClipView.noteLocks.getMenuLocks().get(param_)) {
+		setValue(lockValueToKnobPos(param_, *locked));
 	}
 }
 
@@ -91,9 +89,7 @@ void ParamLockValue::readValueAgain() {
 	if (dirty_) {
 		return; // Keep showing the pending edit until it's written
 	}
-	note_locks::VoiceLocks locks;
-	instrumentClipView.getNoteEditorLocks(locks);
-	if (!((locks.mask >> param_) & 1)) {
+	if (!instrumentClipView.noteLocks.getMenuLocks().has(param_)) {
 		// The notes now targeted don't have this lock (or it was deleted): back to the list, rather than show a value
 		// that isn't theirs
 		soundEditor.goUpOneLevel();
@@ -131,7 +127,7 @@ void ParamLockValue::commit() {
 		return;
 	}
 	dirty_ = false;
-	instrumentClipView.setNoteEditorLock(param_, knobPosToLockValue(param_, getValue()));
+	instrumentClipView.noteLocks.setMenuLock(param_, knobPosToLockValue(param_, getValue()));
 }
 
 void ParamLockValue::endSession() {
@@ -141,7 +137,7 @@ void ParamLockValue::endSession() {
 
 void ParamLockValue::deletePress() {
 	dirty_ = false;
-	if (instrumentClipView.removeNoteEditorLock(param_)) {
+	if (instrumentClipView.noteLocks.removeMenuLock(param_)) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTE_LOCK_DELETED));
 	}
 	soundEditor.goUpOneLevel();
@@ -158,26 +154,19 @@ bool ParamLocks::shouldEnterSubmenu() {
 }
 
 void ParamLocks::readLocks() {
-	instrumentClipView.getNoteEditorLocks(locks_);
-	// Show them in param order, as the pool stores them (a live edit may have appended one)
-	for (int32_t i = 1; i < locks_.count; i++) {
-		for (int32_t j = i; j > 0 && locks_.params[j - 1] > locks_.params[j]; j--) {
-			std::swap(locks_.params[j - 1], locks_.params[j]);
-			std::swap(locks_.values[j - 1], locks_.values[j]);
-		}
-	}
+	locks_ = instrumentClipView.noteLocks.getMenuLocks();
 
 	constexpr int32_t kLen = 32;
 	PLACE_SDRAM_BSS static char bufs[note_locks::kMaxLocksPerNote][kLen];
 	options_.clear();
-	for (int32_t i = 0; i < locks_.count; i++) {
-		int32_t param = locks_.params[i];
+	for (int32_t i = 0; i < locks_.size(); i++) {
+		int32_t param = locks_.params()[i];
 		snprintf(bufs[i], kLen, "%s %d", paramName(param),
-		         static_cast<int>(displayValue(param, lockValueToKnobPos(param, locks_.values[i]))));
+		         static_cast<int>(displayValue(param, lockValueToKnobPos(param, locks_.values()[i]))));
 		options_.push_back(bufs[i]);
 	}
-	options_.push_back(l10n::getView(locks_.count ? l10n::String::STRING_FOR_NOTE_LOCKS_CLEAR_ALL
-	                                              : l10n::String::STRING_FOR_NOTE_LOCKS_NONE));
+	options_.push_back(l10n::getView(!locks_.empty() ? l10n::String::STRING_FOR_NOTE_LOCKS_CLEAR_ALL
+	                                                 : l10n::String::STRING_FOR_NOTE_LOCKS_NONE));
 	currentValue_ = std::clamp<int32_t>(currentValue_, 0, numEntries() - 1);
 	int32_t maxScroll = std::max<int32_t>(0, numEntries() - kOLEDMenuNumOptionsVisible);
 	scrollPos_ = std::clamp<int32_t>(scrollPos_, std::max<int32_t>(0, currentValue_ - kOLEDMenuNumOptionsVisible + 1),
@@ -212,10 +201,8 @@ void ParamLocks::drawValue() {
 
 void ParamLocks::renderInHorizontalMenu(const SlotPosition& slot) {
 	// The number of locks, where the other note editor columns show their values
-	note_locks::VoiceLocks locks;
-	instrumentClipView.getNoteEditorLocks(locks);
 	char text[4];
-	snprintf(text, sizeof(text), "%d", static_cast<int>(locks.count));
+	snprintf(text, sizeof(text), "%d", static_cast<int>(instrumentClipView.noteLocks.getMenuLocks().size()));
 	hid::display::OLED::main.drawStringCentered(text, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
 	                                            kTextTitleSpacingX, kTextTitleSizeY, slot.width);
 }
@@ -230,26 +217,26 @@ void ParamLocks::selectEncoderAction(int32_t offset) {
 }
 
 MenuItem* ParamLocks::selectButtonPress() {
-	if (locks_.count == 0) {
+	if (locks_.empty()) {
 		return nullptr; // "None": back up
 	}
-	if (currentValue_ == locks_.count) { // "Clear all"
-		if (instrumentClipView.clearNoteEditorLocks()) {
+	if (currentValue_ == locks_.size()) { // "Clear all"
+		if (instrumentClipView.noteLocks.clearMenuLocks()) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTE_LOCKS_CLEARED));
 		}
 		currentValue_ = 0;
 		readValueAgain();
 		return NO_NAVIGATION;
 	}
-	noteParamLockValueMenu.setParam(locks_.params[currentValue_]);
+	noteParamLockValueMenu.setParam(locks_.params()[currentValue_]);
 	return &noteParamLockValueMenu;
 }
 
 void ParamLocks::deletePress() {
-	if (currentValue_ >= locks_.count) {
+	if (currentValue_ >= locks_.size()) {
 		return;
 	}
-	if (instrumentClipView.removeNoteEditorLock(locks_.params[currentValue_])) {
+	if (instrumentClipView.noteLocks.removeMenuLock(locks_.params()[currentValue_])) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTE_LOCK_DELETED));
 	}
 	readValueAgain();

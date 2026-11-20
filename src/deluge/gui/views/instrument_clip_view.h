@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_view.h"
+#include "gui/views/note_lock_editor.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/iterance/iterance.h"
@@ -45,11 +46,6 @@ class CopiedNoteRow;
 class ParamNode;
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
-class ModelStackWithAutoParam;
-namespace deluge::note_locks {
-struct LiveEdit;
-struct VoiceLocks;
-} // namespace deluge::note_locks
 
 struct EditPadPress {
 	bool isActive;
@@ -67,13 +63,6 @@ struct EditPadPress {
 	uint32_t intendedPos;     // For "blurred squares", means start of square
 	uint32_t intendedLength;  // For "blurred squares", means length of square
 	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
-};
-
-/// What turning a knob does while note pads are held in the clip view (InstrumentClipView::getHeldNoteLockValue)
-enum class HeldNoteLock : uint8_t {
-	NONE,    // Not a lockable param of this clip, or no pads held: edit the param as usual
-	LOCK,    // Lock it on the held notes that play this param's Sound
-	NO_NOTE, // A lockable param, but no held note plays its Sound (kit rows of other drums): leave it alone
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
@@ -297,33 +286,8 @@ public:
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 
-	// Per-note parameter locks (instrument_clip_view_note_locks.cpp)
-	/// While note pads are held, a turn of a lockable (local patched) param of this clip only ever sets parameter
-	/// locks, never step automation - from the mod knobs, MIDI follow and MIDI-learned knobs alike. For LOCK and
-	/// NO_NOTE, gives the value to show: the held note's pending or committed lock, else the param's value at the
-	/// note.
-	HeldNoteLock getHeldNoteLockValue(ModelStackWithAutoParam* modelStack, int32_t* value);
-	/// Sets this param's lock, uncommitted, on every held note playing its Sound, and makes it heard. False if no
-	/// held note plays its Sound.
-	bool setHeldNoteLock(ModelStackWithAutoParam* modelStack, int32_t value);
-	/// Commits a held pad's pending lock edits to its notes as one undoable change (no-op if none) and disarms its
-	/// slot. Called whenever a press ends.
-	void commitLiveNoteLocks(int32_t i);
-	void commitAllLiveNoteLocks();
-	/// (Re)arms press i's live-edit slot for the notes it covers now. `samePress`: press i is the press the slot was
-	/// armed for, now covering moved notes (note_locks::armLiveEdit)
-	void armLiveNoteLocks(int32_t i, bool samePress = false);
-	void rearmAllLiveNoteLocks();
-	/// The live-edit slot (and its note's committed lock set) for the audition of a held note in this row
-	const deluge::note_locks::LiveEdit* getAuditionLiveEdit(int32_t yDisplay, uint16_t* committedLockSet);
-	// Note editor: the left-most targeted note's locks (with any pending edits), and edits applied to every targeted
-	// note
-	void getNoteEditorLocks(deluge::note_locks::VoiceLocks& locks);
-	bool setNoteEditorLock(int32_t param, int32_t value);
-	bool removeNoteEditorLock(int32_t param);
-	bool clearNoteEditorLocks();
-	/// Calls fn on every pool index the clip view holds outside the notes: lifted (dragged) notes' locks
-	void forEachHeldLockSet(void (*fn)(uint16_t& lockSet, void* context), void* context);
+	/// Per-note parameter locks: knob turns on held note pads, and the note editor's "Param locks" menu
+	NoteLockEditor noteLocks{*this};
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
@@ -422,14 +386,7 @@ private:
 	// note editor selected / remembered note targets
 	Note* get_remembered_note(int32_t selection_index = -1);
 	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
-	Sound* getSoundForEditPadPress(int32_t i, NoteRow** getNoteRow, int32_t* getNoteRowId,
-	                               ParamManagerForTimeline** getParamManager);
-	uint16_t getCommittedLockSetForPress(int32_t i);
-	/// The note held in this row locks a sustain (committed or still live), so it has a tail even on a sound without
-	bool heldNoteInRowLocksSustain(int32_t yDisplay);
-	int32_t findHeldNoteLockPresses(ModelStackWithAutoParam const* modelStack, bool* matches);
-	template <typename F>
-	bool changeNoteEditorLockSets(F change);
+	friend class NoteLockEditor; // Edits the notes the note editor targets
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;
