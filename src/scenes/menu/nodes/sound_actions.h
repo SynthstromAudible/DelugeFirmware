@@ -48,6 +48,7 @@
 ///       otherwise latches `soundEditor.selectedNoteRow`. The refusal is already what `context_for` resolves to
 ///       `MenuContext::resolved == false`; the latch is the UI state above.
 
+#include "deluge-project/setting_group.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"

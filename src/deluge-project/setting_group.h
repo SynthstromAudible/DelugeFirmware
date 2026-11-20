@@ -145,11 +145,12 @@ struct SettingAddress {
 /// @return The value; a host value the record does not hold reads as its row's default. Nullopt for any other path.
 [[nodiscard]] std::optional<serialization::Value> arp_setting_value(const ArpRecord& record, std::string_view path);
 
-/// @brief A record as it was before a write that may reshape it beyond the written path: an arp's, whose preset writes
-///        three fields and whose first write creates it. Empty for every other group, whose writes touch their path
-///        alone.
+/// @brief A record as it was before a write, for a group whose record a write's own path cannot put back: an arp's,
+///        whose preset writes three fields and whose first write creates it; a sound's routing, whose unset note no
+///        row value writes. Empty for every other group, whose writes touch their path alone.
 struct SettingRecordSnapshot {
 	std::optional<std::optional<ArpRecord>> arp; ///< the arp record slot, when the address names one
+	std::optional<SoundRouting> routing;         ///< the routing, when the address names one
 };
 
 /// @brief @p address's record as it is now, for restore_setting_record.

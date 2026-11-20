@@ -511,8 +511,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
 namespace {
-/// The sound element's tags the Deluge instrument decodes entirely (readFromFile), which this reader skips: a sound's
-/// params are all in its defaultParams.
+/// The sound element's tags the Deluge instrument and the sound's routing decode entirely (readFromFile), which this
+/// reader skips: a sound's params are all in its defaultParams.
 constexpr std::array<std::string_view, 26> kInstrumentOnlyTags{
     "mode",          "transpose",      "cents",     "unison",     "sideChainSend",
     "polyphonic",    "maxVoices",      "osc1",      "osc2",       "lfo1",

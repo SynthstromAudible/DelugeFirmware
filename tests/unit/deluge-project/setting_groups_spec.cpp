@@ -186,6 +186,17 @@ describe setting_groups_owners("the owner setting groups", $ {
 		expect(sound_routing(std::as_const(song), lane.owner)).to_equal(&drum.instrument->routing);
 	});
 
+	it("puts a routing back whole, an unset note included, as a refused write leaves it", _ {
+		Song song;
+		DocDrum& drum = song.drum_structure.getOrCreate(5);
+		drum.instrument.emplace();
+		const SettingAddress lane{SettingGroupId::SOUND_ROUTING, LaneAddress{.kit_id = 7, .drum_id = 5}};
+		const SettingRecordSnapshot before = snapshot_setting_record(song, lane);
+		expect(write_setting(song, lane, "midiOutput/noteForDrum", Value::makeScalar("72"))).to_be_true();
+		expect(restore_setting_record(song, lane, before)).to_be_true();
+		expect(drum.instrument->routing.midi_note.has_value()).to_be_false();
+	});
+
 	it("refuses a track or row that plays no instrument", _ {
 		Song song;
 		(void)song.output_structure.getOrCreate(7);

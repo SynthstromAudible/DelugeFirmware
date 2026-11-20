@@ -37,13 +37,14 @@ inline constexpr int32_t kMaxUnisonSpread = 50;
 
 /// @brief The instrument's entries of a sound element, split where other owners' entries sit between them in a file:
 /// a preset's path comes between effect_attributes and max_voices; params, the arpeggiator and the mod knobs between
-/// body and midi_output; the learned MIDI knobs between delay and effect_tags.
+/// body and midi_output; the learned MIDI knobs between delay and effect_tags. The sound's routing (`sideChainSend`,
+/// `midiOutput`) is the host's, which the instrument places among its own where the file holds it.
 struct SoundPieces {
-	serialization::Value head;              ///< polyphonic, voicePriority, sideChainSend, mode, transpose, cents
+	serialization::Value head; ///< polyphonic, voicePriority, (the host's sideChainSend), mode, transpose, cents
 	serialization::Value effect_attributes; ///< modFXType, lpfMode, hpfMode, filterRoute, clippingAmount
 	serialization::Value max_voices;        ///< maxVoices
 	serialization::Value body;              ///< osc1, osc2, lfo1–lfo4, modulator1–2 (FM only), unison
-	serialization::Value midi_output;       ///< midiOutput
+	serialization::Value midi_output;       ///< the host's midiOutput
 	serialization::Value delay;             ///< delay
 	serialization::Value effect_tags;       ///< sidechain, audioCompressor, stutter
 };
@@ -55,9 +56,9 @@ struct SoundPieces {
 /// @param context              The file context (tick magnitude).
 /// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as
 /// the render last applied it.
-/// @param host                 The host's entries of the element, which the instrument places where the file holds
-/// them: the sound's routing (`sideChainSend`, `midiOutput`) as its owner records it, each written as given and an
-/// absent one not at all. nullptr writes neither.
+/// @param host                 The sound's routing as entries (`project::encode_routing`): `sideChainSend` placed in
+/// head after voicePriority, `midiOutput` as the midi_output piece, each as given and an absent one not at all. nullptr
+/// leaves both out.
 /// @return The pieces, in file order.
 [[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
                                         std::optional<int32_t> compressor_threshold = std::nullopt,

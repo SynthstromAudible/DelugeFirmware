@@ -61,8 +61,8 @@ constexpr KeyRun kDelayKeys{.first = 22, .count = 1};          ///< delay
 constexpr KeyRun kEffectTagKeys{.first = 23, .count = 3};      ///< sidechain, audioCompressor, stutter
 static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 
-/// The keys of kStateKeys whose entries are the host's (a sound's routing): the instrument holds none of them, only
-/// their place in the file.
+/// The keys of kStateKeys whose entries are the host's, the sound's routing (`project::encode_routing` writes them; the
+/// instrument library does not depend on the model's): the instrument holds none of them, only their place in the file.
 constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
 
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
@@ -941,6 +941,9 @@ std::expected<FlatSlotChange, plugin::StateError> decode_change(const Value& ele
 	// make: a legacy zone, a sync level the tick magnitude cannot write. Only a changed entry is read.
 	std::array<bool, 2> sourceKept{}; // an unchanged oscillator entry keeps its whole source, ranges included
 	for (std::string_view key : kStateKeys) {
+		if (!is_state_key(key)) {
+			continue; // the host's entry: the state holds nothing of it to change
+		}
 		const serialization::Value* held = element.find(key);
 		const serialization::Value* written = previous.find(key);
 		const bool unchanged =

@@ -176,7 +176,7 @@ inline std::ostream& operator<<(std::ostream& os, const RangeState& r) {
 	                         r.transpose, r.cents);
 }
 
-/// @brief Prints what a sound plays, every component's state and the host fields.
+/// @brief Prints what a sound plays, every component's state.
 inline std::ostream& operator<<(std::ostream& os, const ComposedState& s) {
 	return os << "{voicing " << s.voicing << ", engine " << s.engine << ", instrument_lfos [" << s.instrument_lfos[0]
 	          << " " << s.instrument_lfos[1] << "], voice_lfos [" << s.voice_lfos[0] << " " << s.voice_lfos[1]

@@ -296,6 +296,18 @@ Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) 
 	return Error::NONE;
 }
 
+namespace {
+
+/// @brief The slot a sound routing group's @p owner names: a kit lane's drum, else a synth track's output.
+project::SlotAddress routedSlot(const project::SettingOwner& owner) {
+	if (const auto* lane = std::get_if<project::LaneAddress>(&owner)) {
+		return {.kind = project::SlotAddress::Kind::DRUM, .id = lane->drum_id};
+	}
+	return {.kind = project::SlotAddress::Kind::OUTPUT, .id = std::get<project::TrackAddress>(owner).output_id};
+}
+
+} // namespace
+
 Error applyNoteRowSetting(::NoteRow& row, ::InstrumentClip& clip, ::Song& song, std::string_view path,
                           const Value& value, const Value* previous) {
 	if (path == "bendRange") {
@@ -812,13 +824,8 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		return applyArpSetting(drum->arpSettings, {.drum = drum, .kit = kit}, song, path, *value);
 	}
 	case SettingGroupId::SOUND_ROUTING: {
-		// A bound sound plays its record's routing: projecting is setting the runtime's copies from it
-		const auto* lane = std::get_if<project::LaneAddress>(&address.owner);
-		const project::SlotAddress slot =
-		    lane != nullptr ? project::SlotAddress{.kind = project::SlotAddress::Kind::DRUM, .id = lane->drum_id}
-		                    : project::SlotAddress{.kind = project::SlotAddress::Kind::OUTPUT,
-		                                           .id = std::get<project::TrackAddress>(address.owner).output_id};
-		::Sound* sound = bridge::soundAt(song, slot);
+		// A bound sound plays its record's routing: projecting is setting the runtime's copies from it.
+		::Sound* sound = bridge::soundAt(song, routedSlot(address.owner));
 		if (sound == nullptr || &sound->routing() != project::sound_routing(song.project, address.owner)) {
 			return Error::UNSPECIFIED;
 		}
@@ -939,12 +946,7 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		return output != nullptr ? engineTrackValue(*output, path) : std::nullopt;
 	}
 	if (address.group == SettingGroupId::SOUND_ROUTING) {
-		const auto* lane = std::get_if<project::LaneAddress>(&address.owner);
-		const project::SlotAddress slot =
-		    lane != nullptr ? project::SlotAddress{.kind = project::SlotAddress::Kind::DRUM, .id = lane->drum_id}
-		                    : project::SlotAddress{.kind = project::SlotAddress::Kind::OUTPUT,
-		                                           .id = std::get<project::TrackAddress>(address.owner).output_id};
-		const ::Sound* sound = bridge::soundAt(song, slot);
+		const ::Sound* sound = bridge::soundAt(song, routedSlot(address.owner));
 		if (sound == nullptr) {
 			return std::nullopt;
 		}
@@ -954,7 +956,10 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 		if (path == "midiOutput/channel") {
 			return Value::makeScalar(std::to_string(sound->outputMidiChannel));
 		}
-		return Value::makeNumber(sound->outputMidiNoteForDrum);
+		if (path == "midiOutput/noteForDrum") {
+			return Value::makeNumber(sound->outputMidiNoteForDrum);
+		}
+		return std::nullopt;
 	}
 	if (address.group == SettingGroupId::AUDIO_INPUT) {
 		::Output* output = findOutput(song, std::get<project::TrackAddress>(address.owner).output_id);

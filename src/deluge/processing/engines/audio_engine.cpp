@@ -558,8 +558,7 @@ void init() {
 
 	// The preview sends all of itself to the sidechain: its own routing (no record owns it), and the runtime's copy the
 	// render reads
-	constexpr int32_t kFullSend = 2147483647;
-	sampleForPreview->routingRecord().side_chain_send = kFullSend;
+	sampleForPreview->routingRecord().side_chain_send = deluge::project::SoundRouting::kFullSend;
 	sampleForPreview->applyRouting();
 
 	// Before the first render reads it.

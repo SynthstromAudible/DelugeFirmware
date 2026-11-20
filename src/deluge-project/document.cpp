@@ -387,7 +387,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		}
 		if (output.instrument && plugins.instruments.encode != nullptr) {
 			plugins.instruments.encode(output.instrument->state, element, magnitude);
-			append_entries(element, encode_routing(output.instrument->routing)); // the host's, beside the instrument's
+			append_entries(element, encode_routing(output.instrument->routing));
 		}
 		if (output.arp) {
 			// A sound's element holds the arp's sync level relative to the song's tick magnitude.

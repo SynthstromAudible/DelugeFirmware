@@ -449,13 +449,13 @@ void write_output(DocOutput& o, std::string_view path, const Value& value) {
 constexpr SettingInfo kLaneTable[] = {text("name")};
 
 // SOUND_ROUTING (InstrumentSlot::routing on a synth track's DocOutput or a sound kit row's DocDrum)
+
 /// The MIDI output channel as a file writes it: 0–15, or 255 for none. Nothing between is a channel.
 constexpr std::array<std::string_view, 17> kMidiChannels{"0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",
                                                          "9", "10", "11", "12", "13", "14", "15", "255"};
 /// The channel row's choice for none ("255").
 constexpr int32_t kNoMidiChannel = 16;
-/// The file's word for no channel and no note.
-constexpr int32_t kNoneWord = 255;
+static_assert(kMidiChannels[kNoMidiChannel] == "255" && SoundRouting::kNone == 255);
 /// The MIDI output channel menu lists none first, then channels 1–16 (stored 0–15).
 constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 constexpr plugin::SettingDescriptorExtras kMidiChannelExtras{
@@ -472,7 +472,7 @@ constexpr plugin::SettingDescriptorExtras kNoteForDrumExtras{
     .mapping = {.kind = plugin::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs},
     .applies_when = kOnKitLane};
 constexpr SettingInfo kSoundRoutingTable[] = {
-    SettingInfo{.path = "sideChainSend", .min = 0, .max = INT32_MAX, .extras = &kSendExtras},
+    SettingInfo{.path = "sideChainSend", .min = 0, .max = SoundRouting::kFullSend, .extras = &kSendExtras},
     SettingInfo{.path = "midiOutput/channel",
                 .kind = plugin::SettingKind::CHOICE,
                 .choices = kMidiChannels,
@@ -509,20 +509,21 @@ std::optional<Value> read_routing(const SoundRouting& routing, std::string_view 
 		return number(routing.side_chain_send);
 	}
 	if (path == "midiOutput/channel") {
-		return Value::makeScalar(std::to_string(routing.midi_channel.value_or(kNoneWord)));
+		return Value::makeScalar(std::to_string(routing.midi_channel.value_or(SoundRouting::kNone)));
 	}
 	if (path == "midiOutput/noteForDrum") {
-		return number(routing.midi_note.value_or(kNoneWord));
+		return number(routing.midi_note.value_or(SoundRouting::kNone));
 	}
 	return std::nullopt;
 }
 
+/// @p routing with @p path set to @p v; a path past the send and the channel is the note (callers check the row).
 void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
 	if (path == "sideChainSend") {
 		routing.side_chain_send = v;
 	}
 	else if (path == "midiOutput/channel") {
-		routing.midi_channel = v == kNoneWord ? std::nullopt : std::optional{static_cast<uint8_t>(v)};
+		routing.midi_channel = v == SoundRouting::kNone ? std::nullopt : std::optional{static_cast<uint8_t>(v)};
 	}
 	else {
 		routing.midi_note = static_cast<uint8_t>(v);
@@ -816,6 +817,10 @@ void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
 } // namespace
 
 SettingRecordSnapshot snapshot_setting_record(Song& song, const SettingAddress& address) {
+	if (address.group == SettingGroupId::SOUND_ROUTING) {
+		const SoundRouting* routing = routing_of(song, address.owner);
+		return routing != nullptr ? SettingRecordSnapshot{.routing = *routing} : SettingRecordSnapshot{};
+	}
 	if (!is_arp_group(address.group)) {
 		return {};
 	}
@@ -824,6 +829,14 @@ SettingRecordSnapshot snapshot_setting_record(Song& song, const SettingAddress& 
 }
 
 bool restore_setting_record(Song& song, const SettingAddress& address, const SettingRecordSnapshot& snapshot) {
+	if (snapshot.routing && address.group == SettingGroupId::SOUND_ROUTING) {
+		SoundRouting* routing = routing_of(song, address.owner);
+		if (routing == nullptr) {
+			return false;
+		}
+		*routing = *snapshot.routing;
+		return true;
+	}
 	if (!snapshot.arp || !is_arp_group(address.group)) {
 		return false;
 	}
