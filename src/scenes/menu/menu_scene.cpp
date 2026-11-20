@@ -30,7 +30,6 @@
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
-#include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/write_sink.h"
@@ -44,6 +43,7 @@
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/menu_core.h"
@@ -627,7 +627,7 @@ MenuScene::HorizontalTurn MenuScene::route_horizontal_turn(int32_t offset, bool 
 		const int8_t pos = st_.decimal_pos;
 		const bool moves = !xenc_held
 		                   && ((offset > 0 && pos > 0)
-		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= kMaxMenuPatchCableValue));
+		                       || (offset < 0 && static_cast<int64_t>(pow10_of(pos)) * 10 <= plugin::kCableMenuMax));
 		if (moves) {
 			cable_edge_until_ms_ = 0;
 			return HorizontalTurn::Menu;

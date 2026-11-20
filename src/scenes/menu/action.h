@@ -64,8 +64,6 @@
 ///       scene (see `nodes/actions.h`) and leaves the rest to the dispatcher; each divergence is
 ///       named there rather than silently absorbed.
 
-#include "definitions_cxx.hpp" // PerformanceEditingMode
-
 #include <cstdint>
 
 namespace deluge::scenes::menu {

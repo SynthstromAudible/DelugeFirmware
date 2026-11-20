@@ -25,6 +25,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
+#include "definitions_cxx.hpp" // PerformanceEditingMode, for the numbering static_asserts
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"

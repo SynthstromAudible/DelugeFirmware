@@ -8,6 +8,7 @@
 
 #include "board_layout.hpp"
 #include "gui/l10n/strings.h"
+#include "synth/modulation/patch_source.h"
 
 #include <cstdint>
 #include <string_view>
@@ -37,8 +38,9 @@ public:
 	/// @param source2 The cable's top source, or `PatchSource::NONE`.
 	/// @param context What the popup reads of the owner.
 	/// @param now_ms  The gesture's clock.
-	virtual void show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,
-	                              const overlay::PopupContext& context, uint32_t now_ms) = 0;
+	virtual void show_value_popup(const ModTurn& turn, deluge::synth::PatchSource source1,
+	                              deluge::synth::PatchSource source2, const overlay::PopupContext& context,
+	                              uint32_t now_ms) = 0;
 
 	/// @brief A turn wrote a value (`View::refreshKnobParamManager`'s moment).
 	virtual void value_written() = 0;

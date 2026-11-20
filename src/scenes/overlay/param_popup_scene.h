@@ -71,10 +71,10 @@
 
 #include "shell/scene.h"
 
-#include "definitions_cxx.hpp"
 #include "plugin-api/types/param_kind.h"
 
 #include "effects/state.h"
+#include "synth/modulation/patch_source.h"
 
 #include <cstdint>
 #include <optional>
@@ -116,8 +116,8 @@ struct ShownPopup {
 	deluge::plugin::ParamKind kind{deluge::plugin::ParamKind::NONE};
 	int32_t param_id{-1};
 	int32_t display_value{0};
-	PatchSource source1{PatchSource::NONE};
-	PatchSource source2{PatchSource::NONE};
+	deluge::synth::PatchSource source1{deluge::synth::PatchSource::NONE};
+	deluge::synth::PatchSource source2{deluge::synth::PatchSource::NONE};
 };
 
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
@@ -154,8 +154,8 @@ public:
 	///
 	/// @note A draw, here or in `tick()`'s deferred flush, raises a `CancelNotification` notice: legacy's popup is the
 	///       display's notification, so it replaces whatever notification was up. A hand-off raises none.
-	bool show(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
-	          PatchSource source2, uint32_t now_ms, PopupContext context = {});
+	bool show(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, deluge::synth::PatchSource source1,
+	          deluge::synth::PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
 	deluge::ui::shell::SceneKind kind() const override { return kParamPopupSceneKind; }
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -208,8 +208,9 @@ private:
 	///        notification" block (`gui/views/view.cpp`), shared by `show()` and the flush path in
 	///        `tick()`.
 	/// @return True when the commit arm ran; see `show()`.
-	bool attempt_display(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
-	                     PatchSource source2, uint32_t now_ms, PopupContext context);
+	bool attempt_display(deluge::plugin::ParamKind kind, int32_t param_id, int32_t knob_pos,
+	                     deluge::synth::PatchSource source1, deluge::synth::PatchSource source2, uint32_t now_ms,
+	                     PopupContext context);
 
 	static constexpr size_t kTextCap = 40; // `etl::string<40>` (`View::displayModEncoderValuePopup`).
 	char name_[kTextCap + 1] = {};
@@ -228,15 +229,15 @@ private:
 	deluge::plugin::ParamKind last_param_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t last_param_id_ = -1;
 	int32_t last_display_value_ = INT32_MIN;
-	PatchSource last_source1_ = PatchSource::NONE;
-	PatchSource last_source2_ = PatchSource::NONE;
+	deluge::synth::PatchSource last_source1_ = deluge::synth::PatchSource::NONE;
+	deluge::synth::PatchSource last_source2_ = deluge::synth::PatchSource::NONE;
 
 	// `display_owner_*`/`display_ownership_start_time`/`last_display_update_time`/
 	// `last_actual_display_time`: the arbitration ("juggling ball") statics (`View::displayModEncoderValuePopup`).
 	deluge::plugin::ParamKind display_owner_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t display_owner_param_id_ = -1;
-	PatchSource display_owner_source1_ = PatchSource::NONE;
-	PatchSource display_owner_source2_ = PatchSource::NONE;
+	deluge::synth::PatchSource display_owner_source1_ = deluge::synth::PatchSource::NONE;
+	deluge::synth::PatchSource display_owner_source2_ = deluge::synth::PatchSource::NONE;
 	uint32_t display_ownership_start_ms_ = 0;
 	uint32_t last_display_update_ms_ = 0;
 	uint32_t last_actual_display_ms_ = 0;
@@ -246,8 +247,8 @@ private:
 	deluge::plugin::ParamKind pending_kind_ = deluge::plugin::ParamKind::NONE;
 	int32_t pending_param_id_ = 0;
 	int32_t pending_knob_pos_ = 0;
-	PatchSource pending_source1_ = PatchSource::NONE;
-	PatchSource pending_source2_ = PatchSource::NONE;
+	deluge::synth::PatchSource pending_source1_ = deluge::synth::PatchSource::NONE;
+	deluge::synth::PatchSource pending_source2_ = deluge::synth::PatchSource::NONE;
 	/// Cached alongside the rest of the deferred call: legacy's pending replay re-reads the same
 	/// `View` state the original call did, so the port must replay the same context too.
 	PopupContext pending_context_{};

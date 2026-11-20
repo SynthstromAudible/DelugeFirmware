@@ -19,7 +19,6 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "definitions_cxx.hpp"
 #include "foundation/string_format.h"
 #include "instruments/deluge/state_access.h"
 
@@ -34,6 +33,12 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
+using deluge::gfx::oled::kTextHugeSizeY;
+using deluge::gfx::oled::kTextHugeSpacingX;
+using deluge::gfx::oled::kTextSizeYUpdated;
+using deluge::gfx::oled::kTextSpacingX;
+using deluge::gfx::oled::kTextTitleSizeY;
+using deluge::gfx::oled::kTextTitleSpacingX;
 using deluge::l10n::String;
 
 size_t depth_of(const MenuState& state) {

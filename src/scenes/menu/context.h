@@ -16,7 +16,6 @@
 ///       `session_view_root` / `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch
 ///       mapping and for what stayed behind.
 
-#include "definitions_cxx.hpp"
 #include "midi/device_id.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"

@@ -32,6 +32,8 @@
 
 namespace deluge::scenes::services {
 
+using deluge::synth::PatchSource;
+
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SceneId;

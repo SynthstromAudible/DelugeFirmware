@@ -84,6 +84,7 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text_edit.h"
 
+#include "gfx/grid/pad_grid.h"
 #include "gfx/oled/icon.h"
 #include "model/sample/waveform_navigator.h"
 
@@ -846,7 +847,7 @@ private:
 	/// The previewed waveform's scroll and zoom, opened afresh on each new sample (`waveformBasicNavigator.opened()`).
 	deluge::sample::WaveformNav nav_{};
 	/// The waveform last painted, kept on the pads once the preview gives its sample up.
-	RGB waveform_shown_[kDisplayHeight][kDisplayWidth]{};
+	RGB waveform_shown_[deluge::gfx::grid::kDelugeGrid.rows][deluge::gfx::grid::kDelugeGrid.main_cols]{};
 	uint64_t nav_identity_ = 0;
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;

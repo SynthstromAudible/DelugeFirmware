@@ -80,9 +80,8 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // PatchSource -- one of the root-level headers this layer may name
-
 #include "instruments/deluge/cables.h"
+#include "plugin-api/types/param_mapping.h"
 #include "scenes/bind/write_sink.h"
 
 #include <cstdint>
@@ -312,7 +311,7 @@ int32_t ducking_strength(const MenuContext& ctx);
 /// @return @p n as a column.
 constexpr Node fixed_cable_column(Node n, GetFn get) {
 	n.bind.get = get;
-	n.bind.fixed_range = IntRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	n.bind.fixed_range = IntRange{-plugin::kCableMenuMax, plugin::kCableMenuMax, 1};
 	n.bind.horizontal_step = HorizontalStep{.coarse = 100, .fine = 1};
 	return with_allow_session_from_horizontal(n);
 }

@@ -34,7 +34,6 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp"
 #include "instruments/deluge/cables.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
@@ -52,6 +51,7 @@
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
 
+#include "deluge-project/structure_codec.h"
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY
 #include "ui/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
@@ -207,7 +207,7 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 			return 0;
 		}
 		if (offset < 0) {
-			return MIDI_CHANNEL_MPE_UPPER_ZONE;
+			return project::kMidiChannelUpperZone;
 		}
 		return value;
 	}
@@ -245,10 +245,10 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 
 	std::string_view channel_text;
-	if (value == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+	if (value == project::kMidiChannelLowerZone) {
 		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_LOWER_ZONE));
 	}
-	else if (value == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+	else if (value == project::kMidiChannelUpperZone) {
 		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_MPE_UPPER_ZONE));
 	}
 	else if (value == MIDI_CHANNEL_NONE) {

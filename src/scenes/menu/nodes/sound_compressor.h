@@ -29,8 +29,6 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // kMaxKnobPos
-
 #include <span>
 
 namespace deluge::scenes::menu {

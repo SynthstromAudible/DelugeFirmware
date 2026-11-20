@@ -34,7 +34,6 @@
 
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"

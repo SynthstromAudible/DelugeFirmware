@@ -108,7 +108,7 @@
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
-#include "definitions_cxx.hpp"
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_navigator.h"
 
 #include <array>
@@ -436,7 +436,7 @@ private:
 	/// A voice played the sample at the last grid render, so the frame that clears its playhead is asked for.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
-	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> last_ticks_{};
 };
 
 /// @brief The application's one slicer.

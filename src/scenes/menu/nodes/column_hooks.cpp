@@ -25,7 +25,6 @@
 #include "scenes/menu/menu_scene.h" // node_text, for the formatted names the level columns cut
 #include "scenes/menu/nodes/nodes.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
@@ -35,6 +34,7 @@
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/arp_rhythm.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
 #include <algorithm>

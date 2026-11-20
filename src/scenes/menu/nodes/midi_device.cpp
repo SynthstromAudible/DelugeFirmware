@@ -26,13 +26,13 @@
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth
 #include "scenes/profile.h"
 
+#include "plugin-api/types/display_mapping.h"
 #include "shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/oled/frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
 #include "scenes/bind/ports/midi_devices.h"
 
 #include <algorithm>
@@ -215,14 +215,14 @@ int32_t get_device_velocity_to_level(const MenuContext& ctx) {
 		return 0;
 	}
 	return static_cast<int32_t>(
-	    ((static_cast<int64_t>(settings->velocity_to_level) * kMaxMenuValue + 536870912) >> 30));
+	    ((static_cast<int64_t>(settings->velocity_to_level) * plugin::kMaxMenuSteps + 536870912) >> 30));
 }
 
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
 	// `DefaultVelocityToLevel::writeCurrentValue`: the device's default, then every input on it takes it, by the
 	// app's Edit through the sound port (none for a song the app does not play).
 	const bool written = edit_device(ctx, [value](MidiDeviceSettings& s) {
-		s.velocity_to_level = static_cast<int32_t>(value * (2147483648 / (kMaxMenuValue * 2)));
+		s.velocity_to_level = static_cast<int32_t>(value * (2147483648 / (plugin::kMaxMenuSteps * 2)));
 	});
 	if (written && ctx.ports.sound_writes != nullptr) {
 		(void)ctx.ports.sound_writes->velocity_to_level_everywhere(ctx.midi_device);

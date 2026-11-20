@@ -38,12 +38,13 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
 #include "gui/l10n/param_names.h"
 #include "instruments/deluge/cable_acceptance.h"
+#include "instruments/deluge/cable_codec.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
+#include "plugin-api/types/param_mapping.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 
@@ -52,6 +53,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -230,8 +232,11 @@ std::string_view destination_short_name(const MenuContext& ctx, uint8_t p) {
 ///        share (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cables.cpp` `PatchCables::renderOptions`).
 int32_t cable_value_to_menu(int32_t param_value) {
-	return static_cast<int32_t>((static_cast<int64_t>(param_value) * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+	return static_cast<int32_t>((static_cast<int64_t>(param_value) * plugin::kCableMenuMax + (1 << 29)) >> 30);
 }
+
+/// @brief How many sources a cable can name: every `PatchSource` before `NONE`.
+constexpr size_t kNumPatchSources = std::to_underlying(PatchSource::NONE);
 
 /// @brief `SourceSelection`'s own option order (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`) -- NOT the
 ///        `PatchSource` enumerator order, which is why it is a table rather than a loop over the enum.
@@ -371,13 +376,13 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	// every frame in the render frame's own stack, which is what an immediate-mode widget wants and costs 32 x 32
 	// bytes.
 	constexpr size_t kRowChars = 32;
-	static_assert(kMaxNumPatchCables <= 64, "the row buffer below is sized for legacy's 32 cables");
-	char bufs[kMaxNumPatchCables][kRowChars];
-	deluge::ui::oled::ListRow rows[kMaxNumPatchCables];
+	static_assert(instrument::kMaxCables <= 64, "the row buffer below is sized for legacy's 32 cables");
+	char bufs[instrument::kMaxCables][kRowChars];
+	deluge::ui::oled::ListRow rows[instrument::kMaxCables];
 	size_t n = 0;
 
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
-		if (n >= kMaxNumPatchCables) {
+		if (n >= instrument::kMaxCables) {
 			break;
 		}
 		const CableEnds ends = ends_of(cable.depth);
@@ -722,7 +727,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	}
 
 	// `getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`).
-	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	constexpr IntRange kRange{-plugin::kCableMenuMax, plugin::kCableMenuMax, 1};
 
 	// `PatchCableStrength::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`): a
 	// turn while Select is held switches a polarised source's polarity -- up unipolar, down bipolar --, edits nothing,
@@ -868,7 +873,7 @@ std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContex
 	// `PatchCableStrength::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`):
 	// "rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision
 	// ((1<<(30+32))/5000)".
-	const int64_t magic_constant = (INT64_C(922337203685477) * 5000) / kMaxMenuPatchCableValue;
+	const int64_t magic_constant = (INT64_C(922337203685477) * 5000) / plugin::kCableMenuMax;
 	return deluge::scenes::bind::WriteRequest{
 	    .target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
 	    .where = ctx.addresses,
@@ -1036,7 +1041,7 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth
 	// to another cable's range: a global source can control any range, a local one only a cable that goes to a local
 	// param.
 	if (!destination.is_param()) {
-		if (source < kFirstLocalSource) {
+		if (source < PatchSource::ENVELOPE_0) {
 			return true;
 		}
 		return destination.param_index() < kFirstGlobal;

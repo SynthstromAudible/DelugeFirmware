@@ -259,6 +259,7 @@ LIBRARIES: dict[str, Library] = {
             "effects/",
             "effects/host_chain/",
             "serialization/",
+            "midi/device_id.h",
             "music-theory/",
             "foundation/panic.h",
             "gui/l10n/setting_names.h",

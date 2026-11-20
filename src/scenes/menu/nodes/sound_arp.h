@@ -64,9 +64,9 @@
 #include "scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
 #include "scenes/menu/relevance.h"
 
-#include "definitions_cxx.hpp" // ArpPreset -- `arp_preset_chain`'s CUSTOM test
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
+#include "plugin-api/types/arp.h"
 
 #include <optional>
 #include <span>
@@ -173,7 +173,7 @@ inline constexpr Node arp_octave_mode_to_note_mode_drums = with_affect_entire(wi
 ///        returns null, i.e. ascends.
 inline constexpr const Node* kArpPresetChain[] = {&arp_octave_mode_to_note_mode, &arp_octave_mode_to_note_mode_drums};
 inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
-	if (get_arp_preset(ctx) != static_cast<int32_t>(ArpPreset::CUSTOM)) {
+	if (get_arp_preset(ctx) != int32_t{plugin::kArpPresetCustom}) {
 		return nullptr;
 	}
 	return relevance::is_kit_row(ctx) ? &arp_octave_mode_to_note_mode_drums : &arp_octave_mode_to_note_mode;
@@ -183,20 +183,20 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 ///        in the title face, else the preset's icon, DOWN being UP's mirrored.
 inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
 	namespace icons = deluge::gfx::oled::icons;
-	switch (static_cast<ArpPreset>(value)) {
-	case ArpPreset::OFF:
+	switch (static_cast<uint8_t>(value)) {
+	case plugin::kArpPresetOff:
 		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
 		                                   .face = deluge::ui::oled::ArtColumn::Face::Title,
 		                                   .dy = 5};
-	case ArpPreset::DOWN:
+	case plugin::kArpPresetDown:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
-	case ArpPreset::BOTH:
+	case plugin::kArpPresetBoth:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
-	case ArpPreset::RANDOM:
+	case plugin::kArpPresetRandom:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
-	case ArpPreset::WALK:
+	case plugin::kArpPresetWalk:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
-	case ArpPreset::CUSTOM:
+	case plugin::kArpPresetCustom:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
 	default:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};

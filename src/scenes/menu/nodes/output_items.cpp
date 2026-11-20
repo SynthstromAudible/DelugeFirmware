@@ -35,7 +35,6 @@
 #include "gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "model/output.h"
 #include "model/song/song.h"

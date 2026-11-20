@@ -6,7 +6,6 @@
 
 #include "ui/oled/popup.h"
 
-#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
@@ -23,12 +22,19 @@
 
 namespace deluge::scenes::overlay {
 
+using deluge::synth::PatchSource;
+
 using Kind = deluge::plugin::ParamKind;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
 
 namespace {
+
+/// @brief The offset from a raw knob position (-64..64) to its 0..128 display scale.
+constexpr int32_t kKnobPosOffset = 64;
+/// @brief The count of real MIDI CC numbers, which a MIDI clip's params number from 0.
+constexpr int32_t kNumRealCCNumbers = 120;
 
 /// Legacy's `View::MIN_DISPLAY_OWNERSHIP_TIME`/`DISPLAY_TIMEOUT`/`MIN_UPDATE_INTERVAL`
 /// (`gui/views/view.h`), in `AudioEngine::audioSampleTimer` units at `kSampleRate` (44100Hz),
@@ -116,13 +122,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		// `knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`; a non-null instrument *is* that
 		// test having passed.
 		if (kind == Kind::EXPRESSION) {
-			if (param_id == X_PITCH_BEND) {
+			if (std::cmp_equal(param_id, deluge::instrument::kExpressionPitchBend.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 			}
-			else if (param_id == Z_PRESSURE) {
+			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionPressure.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 			}
-			else if (param_id == Y_SLIDE_TIMBRE) {
+			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionSlide.value)) {
 				// In mono expression this is the mod wheel; the y axis is not directly controllable.
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}

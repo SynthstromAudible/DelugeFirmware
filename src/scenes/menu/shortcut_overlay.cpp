@@ -154,13 +154,13 @@ void paint_source_column(deluge::ui::grid::GridFrame& f, const MenuContext& ctx,
 	    || param == deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend)
 	    || param == deluge::instrument::runtime_index(deluge::instrument::param::kVolume);
 	const auto allowed = [&](PatchSource source, bool edits_range) {
-		if (source >= kLastPatchSource) {
+		if (source >= PatchSource::NONE) {
 			return false;
 		}
 		if (edits_range) {
 			// `PatchCableStrength::checkPermissionToBeginSession`
 			// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) for a cable's range.
-			return source < kFirstLocalSource
+			return source < PatchSource::ENVELOPE_0
 			       || param < deluge::instrument::runtime_index(deluge::instrument::kFirstGlobalParam);
 		}
 		// The volume triple takes the destination the source can reach.

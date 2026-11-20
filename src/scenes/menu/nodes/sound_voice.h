@@ -46,8 +46,8 @@
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
 #include "scenes/menu/relevance.h"
 
-#include "definitions_cxx.hpp" // PolyphonyMode -- `polyphony_chain`'s POLY test
 #include "gfx/oled/icons.h"
+#include "instruments/deluge/words.h"
 
 #include <optional>
 #include <span>
@@ -100,7 +100,8 @@ inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
 inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                           .path = "polyphonic"};
 inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
-	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
+	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(instrument::PolyphonyMode::POLY) ? &voice_count
+	                                                                                                   : nullptr;
 }
 
 inline constexpr Node polyphony = with_affect_entire(

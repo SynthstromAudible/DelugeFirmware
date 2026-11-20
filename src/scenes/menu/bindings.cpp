@@ -69,7 +69,6 @@
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
-#include "definitions_cxx.hpp"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -78,6 +77,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "notify/dirty_set.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/sound/sound_drum.h"
 
 #include <algorithm>
@@ -369,7 +369,7 @@ IntRange range(const Node& asked, const MenuContext& ctx) {
 		// `fixed_range` from its builder or a `range` hook, both of which are consulted above before this switch is
 		// ever reached. Deliberately not a hard failure -- a `FREEZE` in a library this layer means to keep pure would
 		// be worse than a wrong number.
-		return IntRange{kMinMenuValue, kMaxMenuValue, 1};
+		return IntRange{0, plugin::kMaxMenuSteps, 1};
 	}
 }
 
@@ -479,7 +479,7 @@ int32_t menu_to_pan(int32_t menu_value) {
 }
 int32_t unsigned_to_menu(uint32_t stored) {
 	// `computeCurrentValueForUnsignedMenuItem` (`util/value_scaling.cpp`).
-	return ((int64_t)stored * kMaxMenuValue + 2147483648) >> 32;
+	return ((int64_t)stored * plugin::kMaxMenuSteps + 2147483648) >> 32;
 }
 uint32_t menu_to_unsigned(int32_t menu_value) {
 	// `computeFinalValueForUnsignedMenuItem` (`util/value_scaling.cpp`).

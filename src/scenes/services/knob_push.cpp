@@ -23,6 +23,7 @@
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "music-theory/note_length.h"
+#include "plugin-api/types/display_mapping.h"
 
 #include <algorithm>
 #include <array>
@@ -624,7 +625,7 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	const char* unit = "";
 	if (arm.path == "audioCompressor/thresh") {
 		out.title = text(String::STRING_FOR_THRESHOLD);
-		shown = (64 + knob) * kMaxMenuValue / 128;
+		shown = (64 + knob) * plugin::kMaxMenuSteps / 128;
 	}
 	else if (arm.path == "audioCompressor/ratio") {
 		out.title = text(String::STRING_FOR_RATIO);

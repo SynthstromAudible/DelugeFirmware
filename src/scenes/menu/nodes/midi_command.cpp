@@ -32,6 +32,7 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
+#include "deluge-project/structure_codec.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_engine.h"
 
@@ -147,10 +148,10 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// does store `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` here. A CC's channel is resolved the same way.
 		deluge::ui::shell::TextScratch channel_scratch;
 		std::string_view channel_text;
-		if (command.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		if (command.channelOrZone == project::kMidiChannelLowerZone) {
 			channel_text = text_of(String::STRING_FOR_MPE_LOWER_ZONE, channel_scratch);
 		}
-		else if (command.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		else if (command.channelOrZone == project::kMidiChannelUpperZone) {
 			channel_text = text_of(String::STRING_FOR_MPE_UPPER_ZONE, channel_scratch);
 		}
 		else {

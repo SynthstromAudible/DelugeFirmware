@@ -29,7 +29,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "effects/state.h"
 #include "effects/words.h"
@@ -57,7 +56,7 @@ namespace {
 ///        (`origin/main:src/deluge/gui/menu_item/reverb/room_size.h` readCurrentValue and siblings). Writes go through
 ///        the row's user scale.
 int32_t reverb_float_to_menu(float value) {
-	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
+	return static_cast<int32_t>(std::lround(value * plugin::kMaxMenuSteps));
 }
 
 /// @brief `stutter::StutterDirection`'s own enumerators.

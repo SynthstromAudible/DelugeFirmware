@@ -98,6 +98,7 @@
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
 
+#include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
 #include "plugin-api/types/display_mapping.h"
 
 #include <limits>

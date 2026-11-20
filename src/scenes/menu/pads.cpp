@@ -160,7 +160,7 @@ std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, Valu
 	}
 	Result handled;
 	handled.handled = true;
-	if (source >= kLastPatchSource) {
+	if (source >= PatchSource::NONE) {
 		return handled;
 	}
 	const bool previous_held = other_source_pad_held(ui.held_pads, x, y);

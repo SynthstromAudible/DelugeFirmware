@@ -204,12 +204,11 @@
 #include "ui/oled/frame.h"
 
 #include "deluge-project/setting_group.h"
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
-
-#include "definitions_cxx.hpp"
 
 #include <array>
 #include <cstdint>
@@ -616,9 +615,9 @@ private:
 	/// `graphicsRoutine` handed `PadLEDs::setTickSquares` a new square this render, which the fast cursor flashes.
 	bool tick_squares_set_ = false;
 	/// Each row's square at the last `setTickSquares`: legacy's `slowFlashSquares`.
-	std::array<uint8_t, kDisplayHeight> flashed_ticks_ = filled_no_tick();
-	static constexpr std::array<uint8_t, kDisplayHeight> filled_no_tick() {
-		std::array<uint8_t, kDisplayHeight> a{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> flashed_ticks_ = filled_no_tick();
+	static constexpr std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> filled_no_tick() {
+		std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> a{};
 		a.fill(deluge::ui::grid::kNoTickSquare);
 		return a;
 	}

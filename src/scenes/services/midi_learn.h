@@ -123,7 +123,7 @@
 #include "scenes/bind/ports/learn_sink.h"
 #include "scenes/services/learn_mode.h"
 
-#include "definitions_cxx.hpp"
+#include "definitions_cxx.hpp" // GlobalMIDICommand, MidiLearn
 #include "deluge-project/clip_address.h"
 #include "deluge-project/mapping_table.h"
 

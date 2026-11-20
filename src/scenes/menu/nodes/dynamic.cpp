@@ -30,7 +30,7 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
+#include "definitions_cxx.hpp" // NUM_GATE_CHANNELS, NUM_PHYSICAL_CV_CHANNELS
 #include "midi/device_id.h"
 
 #include <algorithm>

@@ -91,7 +91,7 @@
 #include "ui/grid/waveform.h"
 #include "ui/grid/zoom_transition.h"
 
-#include "definitions_cxx.hpp"
+#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "model/sample/waveform_navigator.h"
 
@@ -317,7 +317,7 @@ private:
 	/// A voice played the waveform at the last grid render, so the playhead is asked for again.
 	bool playing_ = false;
 	/// Each row's tick square at the last render: legacy's `slowFlashSquares`, which the fast cursor flashes against.
-	std::array<uint8_t, kDisplayHeight> last_ticks_{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> last_ticks_{};
 	/// A note was already auditioning when the held marker went down: legacy's hold assigns `currentUIMode`, so that
 	/// audition's bit is gone and only one begun under the hold makes `HOLDING_SAMPLE_MARKER | AUDITIONING`.
 	bool audition_under_hold_ = false;

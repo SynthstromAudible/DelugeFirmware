@@ -31,7 +31,6 @@
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 
-#include "definitions_cxx.hpp"
 #include "instruments/deluge/state_access.h"
 #include "instruments/deluge/words.h"
 #include "scenes/bind/ports/sound_writes.h"

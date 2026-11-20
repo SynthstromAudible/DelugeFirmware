@@ -109,8 +109,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // kMaxMenuValue, for `device_default_velocity_to_level`
-
+#include "plugin-api/types/display_mapping.h"
 #include <cstdint>
 
 namespace deluge::scenes::menu::nodes {
@@ -276,7 +275,7 @@ inline constexpr Node mpe_direction = with_select_chain(
 /// (`origin/main:src/deluge/gui/menu_item/integer.cpp`), which is `ValueStyle::off_at_zero`.
 inline constexpr Node device_default_velocity_to_level =
     with_value_style(int_item(sid(deluge::l10n::String::STRING_FOR_VELOCITY), get_device_velocity_to_level,
-                              set_device_velocity_to_level, IntRange{0, kMaxMenuValue, 1}),
+                              set_device_velocity_to_level, IntRange{0, plugin::kMaxMenuSteps, 1}),
                      deluge::ui::oled::ValueStyle{.off_at_zero = true});
 
 inline constexpr Node device_send_clock =

@@ -31,7 +31,6 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "definitions_cxx.hpp"
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 
