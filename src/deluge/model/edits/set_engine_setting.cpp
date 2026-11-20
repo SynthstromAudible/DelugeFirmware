@@ -53,7 +53,7 @@ Error commitEngineSetting(::Sound& sound, const deluge::project::InstrumentSlot*
 		return Error::UNSPECIFIED; // the sound has no such setting in its engine and types
 	}
 	const auto change = settingChange(sound, path, value);
-	if (slot != nullptr && deluge::bridge::typedWriteAudit().enabled) {
+	if (slot != nullptr && deluge::bridge::typedWriteAuditOn()) {
 		const deluge::instrument::SoundState& before = sound.state();
 		deluge::bridge::auditSettingWrite(
 		    before, path, value,

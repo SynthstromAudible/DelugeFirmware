@@ -165,7 +165,7 @@ Error commitState(::Sound& sound, const deluge::instrument::SlotChange& change, 
 	Error error = applyChange(sound, before, change.state, song);
 	// The runtime reshapes ranges as it takes a type (keeping only top notes across kinds), which it reflects into the
 	// record: the gates' audit checks that the record is the change's afterwards.
-	if (error == Error::NONE && typedWriteAudit().enabled && !(record == change.state)) {
+	if (error == Error::NONE && typedWriteAuditOn() && !(record == change.state)) {
 		error = Error::UNSPECIFIED;
 	}
 	return error;
@@ -178,7 +178,7 @@ TypedWriteAudit& typedWriteAudit() {
 
 std::optional<deluge::serialization::Value> typedWriteAuditBase(const ::Sound& sound,
                                                                 const deluge::project::InstrumentSlot& slot) {
-	if (!typedWriteAudit().enabled) {
+	if (!typedWriteAuditOn()) {
 		return std::nullopt;
 	}
 	return deluge::instrument::encode(sound.state(), {.input_tick_magnitude = slot.tick_magnitude});
@@ -210,7 +210,7 @@ void auditSettingWrite(const deluge::instrument::SoundState& before, std::string
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
                        const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got) {
 	TypedWriteAudit& audit = typedWriteAudit();
-	if (!audit.enabled) {
+	if (!typedWriteAuditOn()) {
 		return;
 	}
 	audit.writes++;

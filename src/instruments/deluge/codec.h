@@ -125,7 +125,8 @@ struct SlotChange {
 [[nodiscard]] std::vector<std::string_view> changed_entries(const SoundState& a, const SoundState& b);
 
 /// @brief Every field of @p state the codec reads and writes, by name, ranges' millisecond zones included; mod knobs
-/// and the effects are left out. For comparing two states and for recording what a reader produced.
+/// and the effects are left out. For comparing two states and for recording what a reader produced: the tests' and
+/// the harness's; nothing the device runs calls it.
 /// @param state The state to dump.
 /// @return A Map of the fields by name.
 [[nodiscard]] serialization::Value dump_state(const SoundState& state);
