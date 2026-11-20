@@ -90,6 +90,7 @@
 #include "scenes/menu/relevance.h"
 
 #include "plugin-api/types/display_mapping.h"
+
 #include <span>
 
 namespace deluge::scenes::menu {

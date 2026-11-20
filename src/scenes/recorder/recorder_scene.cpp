@@ -3,6 +3,7 @@
 
 #include "scenes/recorder/recorder_scene.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, AudioRecordingFolder, Error, kInternalButtonPressLatency, kSampleRate
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 

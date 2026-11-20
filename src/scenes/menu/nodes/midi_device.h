@@ -110,6 +110,7 @@
 #include "scenes/menu/nodes/detail.h"
 
 #include "plugin-api/types/display_mapping.h"
+
 #include <cstdint>
 
 namespace deluge::scenes::menu::nodes {

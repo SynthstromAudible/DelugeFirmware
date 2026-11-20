@@ -30,6 +30,7 @@
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h" // AudioRecorderItem::on_focus opens this
 
+#include "definitions_cxx.hpp" // MarkerType
 #include "shell/profile.h"
 #include "ui/oled/text.h"
 

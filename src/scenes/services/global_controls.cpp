@@ -27,6 +27,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, GlobalMIDICommand, kInternalButtonPressLatency
 #include "shell/input_lowering.h"
 
 #include "gui/l10n/strings.h"

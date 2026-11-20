@@ -19,6 +19,7 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
+#include "definitions_cxx.hpp" // FLAT_CHAR
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 

@@ -25,6 +25,7 @@
 
 #include "effects/compressor.h" // the dsp-next display functions
 #include "foundation/string_format.h"
+#include "plugin-api/types/display_mapping.h"
 
 #include <algorithm>
 #include <cstring>
@@ -41,9 +42,6 @@ const std::span<const Node* const> kSoundCompressorChildren{kRoots};
 
 namespace {
 
-/// @brief The compressor knob's positions: 0..127 are stored, 128 and past it take the top of the range.
-constexpr int32_t kKnobPositions = 128;
-
 /// The record's value behind knob position @p value: the stored q31 when it is at that position, else what
 /// `writeCurrentValue` stores there (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_values.h`;
 /// Blend's own is `Blend::setCompressorValue`).
@@ -52,8 +50,8 @@ int32_t shown_q31(const Node& node, const MenuContext& ctx, int32_t value, bool 
 	    stored && (*stored >> 24) == value) {
 		return *stored;
 	}
-	if (value >= kKnobPositions) {
-		return blend ? std::numeric_limits<int32_t>::max() : (kKnobPositions - 1) << 24;
+	if (value >= plugin::kMaxKnobPosition) {
+		return blend ? std::numeric_limits<int32_t>::max() : (plugin::kMaxKnobPosition - 1) << 24;
 	}
 	return value << 24;
 }

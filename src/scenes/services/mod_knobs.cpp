@@ -25,6 +25,8 @@
 #include "controls/knob_math.h"
 #include "controls/pages.h"
 #include "controls/section.h"
+#include "definitions_cxx.hpp" // MIDIFollowFeedbackAutomationMode, kNoSelection
+#include "plugin-api/types/display_mapping.h"
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
@@ -387,7 +389,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	if (turn.kind == Kind::PATCH_CABLE) {
 		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
-		knob_pos = controls::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
+		knob_pos = controls::fold_cable(knob_pos + plugin::kMaxKnobPosition / 2) - plugin::kMaxKnobPosition / 2;
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) {
@@ -554,7 +556,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 				knob_pos = 64;
 			}
 		}
-		knob_pos += kKnobPosOffset;
+		knob_pos += plugin::kMaxKnobPosition / 2;
 
 		if (info.kind == Kind::PATCH_CABLE) {
 			knob_pos = controls::fold_cable(knob_pos);
@@ -576,7 +578,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 	if (info.non_existent_param) {
 		out.declared = true;
 		// Same implicit-narrowing point as above.
-		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
+		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + plugin::kMaxKnobPosition / 2);
 		out.bipolar = false;
 		return out;
 	}

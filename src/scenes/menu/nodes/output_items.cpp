@@ -28,6 +28,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "definitions_cxx.hpp" // OutputType
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 

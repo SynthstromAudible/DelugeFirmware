@@ -20,6 +20,7 @@
 
 #include "scenes/browser/browser_scene.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, Error, kNumSources
 #include "notify/notice_queue.h"
 #include "ui/core/blink.h"
 #include "ui/core/metrics.h"
@@ -56,6 +57,10 @@
 #include <string>
 
 namespace deluge::scenes::browser {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::storage::FileCatalogue;
@@ -1436,8 +1441,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
 		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
 		// `qwertyVisible`, acted on by `after_render`.
-		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, deluge::gfx::grid::kDelugeGrid.main_cols,
-		                                                         deluge::gfx::grid::kDelugeGrid.rows});
+		reveal_press_ = f.first_press_in(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows});
 	}
 	switch (pads_) {
 	case BrowserPads::Root:
@@ -1451,8 +1455,8 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 		if (id_ == BrowserId::DxSyx) {
 			// `DxSyxBrowser::opened` sets `qwertyVisible = false` and never draws the keys: the pads still type, dark.
-			for (int32_t x = 0; x < deluge::gfx::grid::kDelugeGrid.main_cols; x++) {
-				for (int32_t y = 0; y < deluge::gfx::grid::kDelugeGrid.rows; y++) {
+			for (int32_t x = 0; x < kMainCols; x++) {
+				for (int32_t y = 0; y < kRows; y++) {
 					(void)f.pad(x, y, RGB{0, 0, 0});
 				}
 			}
@@ -1496,8 +1500,8 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	// `waveformBasicNavigator.opened()` does.
 	const services::WaveformAddress preview{.kind = services::WaveformAddress::Kind::PREVIEW};
 	const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(preview);
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, deluge::gfx::grid::kDelugeGrid.main_cols);
-	const int32_t rows = std::min<int32_t>(f.bounds().h, deluge::gfx::grid::kDelugeGrid.rows);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
+	const int32_t rows = std::min<int32_t>(f.bounds().h, kRows);
 	if (!info) {
 		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
 		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
@@ -1932,14 +1936,13 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Pad:
 		// A main pad with the keyboard hidden was read by `render_grid` (`reveal_press_`), beneath a context menu too.
-		if (id_ == BrowserId::Sample && event.x < deluge::gfx::grid::kDelugeGrid.main_cols
-		    && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
+		if (id_ == BrowserId::Sample && event.x < kMainCols && (pads_ != BrowserPads::Keyboard || !keyboard_visible_)) {
 			Result r;
 			r.handled = true;
 			return r;
 		}
 		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
-		if (id_ == BrowserId::Sample && event.x == deluge::gfx::grid::kDelugeGrid.main_cols) {
+		if (id_ == BrowserId::Sample && event.x == kMainCols) {
 			if (event.velocity != 0 && !mode_up()) {
 				return close();
 			}

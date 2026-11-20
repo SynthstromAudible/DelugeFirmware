@@ -22,7 +22,8 @@
 ///       `bindings.h` says a table must name at the call site because nothing can infer it. The
 ///       validator's `Flag::HalfPrecision` audit re-checks that it is set (`kHalfPrecisionNodes`).
 ///
-/// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over 0..`kMaxKnobPos`), as
+/// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over
+/// 0..`plugin::kMaxKnobPosition`), as
 ///       legacy's `DecimalWithoutScrolling` does (`audio_compressor::CompressorValue`); their banners and screens show
 ///       `getDisplayValue()`'s real units through `compressor_banner`/`compressor_screen`.
 

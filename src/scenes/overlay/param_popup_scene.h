@@ -129,7 +129,7 @@ public:
 	///        the arbitration says this call may.
 	/// @param kind     The param's kind; `Kind::PATCH_CABLE` selects the "src->[src->]name" form.
 	/// @param param_id The param id within @p kind.
-	/// @param knob_pos The raw knob position (legacy's pre-`kKnobPosOffset` `newKnobPos`).
+	/// @param knob_pos The raw knob position (legacy's pre-offset `newKnobPos`).
 	/// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
 	/// @param source2  The second patch source (a double patch cable), or `PatchSource::NONE`.
 	/// @param now_ms   The tick's wall clock, exactly as `UiContext::now_ms` reaches `handle()`.

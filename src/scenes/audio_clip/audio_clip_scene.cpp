@@ -21,6 +21,7 @@
 
 #include "scenes/audio_clip/audio_clip_scene.h"
 
+#include "definitions_cxx.hpp" // OutputType, kMaxSequenceLength
 #include "gfx/grid/palette.h"
 #include "notify/notice_queue.h"
 #include "scenes/menu/context.h"
@@ -83,6 +84,7 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 /// @brief `renderMainPads`' fixed 16 main columns (`audio_clip_view.cpp` writes
 ///        `image[y][0 .. kDisplayWidth)` throughout).
 constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 /// @brief The colour `PadLEDs::prepareColour` substitutes for a `coloursArray` entry of 2, which is
 ///        the only non-zero value `graphicsRoutine` ever fills (`audio_clip_view.cpp`).
@@ -1243,7 +1245,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 
 	// `AudioClipView::renderSidebar`: both columns black. The macro arm is not ported;
 	// see the class docstring's warning.
-	const std::array<RGB, deluge::gfx::grid::kDelugeGrid.rows> black{};
+	const std::array<RGB, kRows> black{};
 	deluge::ui::grid::sidebar_columns(f, black, black);
 
 	// `graphicsRoutine`'s `PadLEDs::setTickSquares`, which the driver applies to the whole rendered image on its way
@@ -1253,7 +1255,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	// when `setTickSquares` is handed a new one.
 	const deluge::ui::grid::TickColour colour =
 	    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
-	std::array<deluge::ui::grid::TickSquare, deluge::gfx::grid::kDelugeGrid.rows> per_row{};
+	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
 	if (flash_cursor() == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
 		deluge::ui::grid::tick_squares(f, per_row, kUnreachableMutedColour);

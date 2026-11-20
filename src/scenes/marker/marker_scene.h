@@ -80,6 +80,7 @@
 ///          (`SampleMarkerEditor::padAction`, `SampleMarkerEditor::horizontalEncoderAction`), which defers and retries;
 ///          its port is `InputLowering::set_sd_busy`, which is not an `Action` and is not this scene's to file.
 
+#include "definitions_cxx.hpp" // MarkerType, kSampleMarkerBlinkTime
 #include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"
 #include "scenes/services/waveform_address.h"

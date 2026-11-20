@@ -18,6 +18,7 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
+#include "definitions_cxx.hpp" // GlobalMIDICommand, MidiLearn, IS_A_CC, MIDI_CHANNEL_NONE
 #include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_engine.h"

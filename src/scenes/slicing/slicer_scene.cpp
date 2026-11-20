@@ -29,6 +29,10 @@
 
 namespace deluge::scenes::slicing {
 
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
+
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -43,7 +47,7 @@ namespace {
 /// marks into `image[4]` (`origin/main:src/deluge/gui/ui/slicer.cpp`). Legacy spells both as the literal 4; on the
 /// shipped 8-row grid that is `kDisplayHeight / 2`, which is also the bound of the squash loop it
 /// wrote as an expression.
-constexpr int32_t kWaveformRowBase = deluge::gfx::grid::kDelugeGrid.rows / 2;
+constexpr int32_t kWaveformRowBase = kRows / 2;
 
 /// `int32_t x = manualSlicePoints[i].startPos / (sample->lengthInSamples + 0.0) * 16`.
 /// The 16 is legacy's own literal, not `kDisplayWidth`, and the arithmetic is deliberately in
@@ -380,8 +384,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	const bool on = velocity != 0;
 	// `Slicer::padAction`'s press and release arms are the same window -- a main-grid pad in the TOP half, in
 	// MANUAL mode. `kDisplayHeight / 2` is legacy's own expression for the slot grid's four rows.
-	const bool in_window = x < deluge::gfx::grid::kDelugeGrid.main_cols && y < deluge::gfx::grid::kDelugeGrid.rows / 2
-	                       && mode_ == Mode::Manual;
+	const bool in_window = x < kMainCols && y < kRows / 2 && mode_ == Mode::Manual;
 
 	if (on && in_window) {
 		// The inverse of the slot layout `render_grid` draws with -- index `i` goes to
@@ -460,7 +463,7 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
 	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
 	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
-	if (x == deluge::gfx::grid::kDelugeGrid.main_cols && on && !ports().ui->auditioning()) {
+	if (x == kMainCols && on && !ports().ui->auditioning()) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
 		}
@@ -669,13 +672,13 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (nav_.sample == nullptr || ops_ == nullptr) {
 		return;
 	}
-	std::array<deluge::ui::grid::TickSquare, deluge::gfx::grid::kDelugeGrid.rows> per_row{};
+	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	const std::optional<int32_t> pos = ops_->play_position();
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
 		const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
-		if (col < deluge::gfx::grid::kDelugeGrid.main_cols) {
-			for (int32_t y = deluge::gfx::grid::kDelugeGrid.rows - 4; y < deluge::gfx::grid::kDelugeGrid.rows; y++) {
+		if (col < kMainCols) {
+			for (int32_t y = kRows - 4; y < kRows; y++) {
 				per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
 				                                          .colour = deluge::ui::grid::TickColour::Normal};
 			}
@@ -717,65 +720,62 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	f.region(
-	    deluge::gfx::grid::Rect{0, 0, deluge::gfx::grid::kDelugeGrid.main_cols, deluge::gfx::grid::kDelugeGrid.rows},
-	    [&](deluge::ui::grid::GridFrame& main) {
-		    services::paint_columns(main, nav_.renderData, nav_.sample->getFoundValueCentrePoint(),
-		                            nav_.sample->getValueSpan());
+	f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, kRows}, [&](deluge::ui::grid::GridFrame& main) {
+		services::paint_columns(main, nav_.renderData, nav_.sample->getFoundValueCentrePoint(),
+		                        nav_.sample->getValueSpan());
 
-		    if (mode_ == Mode::Region) {
-			    // The full-screen waveform, and nothing else.
-			    return;
-		    }
+		if (mode_ == Mode::Region) {
+			// The full-screen waveform, and nothing else.
+			return;
+		}
 
-		    // Legacy renders the waveform full height into a SEPARATE image and then
-		    // averages row pairs into the top half, so every read is of the untouched full-height
-		    // render. Done in place that would be wrong -- row 6 reads rows 4 and 5, which rows 0 and 1
-		    // have already overwritten -- so the full-height render is snapshotted first.
-		    RGB src[deluge::gfx::grid::kDelugeGrid.rows][deluge::gfx::grid::kDelugeGrid.main_cols]{};
-		    for (int32_t y = 0; y < deluge::gfx::grid::kDelugeGrid.rows; y++) {
-			    for (int32_t x = 0; x < deluge::gfx::grid::kDelugeGrid.main_cols; x++) {
-				    src[y][x] = main.peek(x, y);
-			    }
-		    }
-		    for (int32_t x = 0; x < deluge::gfx::grid::kDelugeGrid.main_cols; x++) {
-			    for (int32_t yy = 0; yy < deluge::gfx::grid::kDelugeGrid.rows / 2; yy++) {
-				    (void)main.pad(x, yy + kWaveformRowBase, RGB::average(src[yy * 2][x], src[yy * 2 + 1][x]));
-			    }
-		    }
+		// Legacy renders the waveform full height into a SEPARATE image and then
+		// averages row pairs into the top half, so every read is of the untouched full-height
+		// render. Done in place that would be wrong -- row 6 reads rows 4 and 5, which rows 0 and 1
+		// have already overwritten -- so the full-height render is snapshotted first.
+		RGB src[kRows][kMainCols]{};
+		for (int32_t y = 0; y < kRows; y++) {
+			for (int32_t x = 0; x < kMainCols; x++) {
+				src[y][x] = main.peek(x, y);
+			}
+		}
+		for (int32_t x = 0; x < kMainCols; x++) {
+			for (int32_t yy = 0; yy < kRows / 2; yy++) {
+				(void)main.pad(x, yy + kWaveformRowBase, RGB::average(src[yy * 2][x], src[yy * 2 + 1][x]));
+			}
+		}
 
-		    // The slice marks. The column is `startPos / lengthInSamples * 16` in double
-		    // arithmetic, so a slice at the very end of the sample lands on column 16 -- the first
-		    // SIDEBAR column in legacy's image. The region clips it here; see the header for why that
-		    // is the behaviour-preserving choice rather than a transcription of the write.
-		    for (int32_t i = 0; i < num_manual_slices_; i++) {
-			    const int32_t x = static_cast<int32_t>(points_[i].start_pos
-			                                           / (static_cast<double>(nav_.sample->lengthInSamples) + 0.0)
-			                                           * kSliceMarkColumns);
-			    // `RGB{1, (i == currentSlice) ? 200_u8 : 16_u8, 1}`. The `_u8` literal lives
-			    // in `util/misc.h`, which this layer may not include (`scenes-includes-outside`), so
-			    // the cast is spelled out -- the same reason `MarkerScene` inlined
-			    // `divide_round_negative`.
-			    (void)main.pad(x, kWaveformRowBase, RGB(1, static_cast<uint8_t>((i == current_slice_) ? 200 : 16), 1));
-		    }
+		// The slice marks. The column is `startPos / lengthInSamples * 16` in double
+		// arithmetic, so a slice at the very end of the sample lands on column 16 -- the first
+		// SIDEBAR column in legacy's image. The region clips it here; see the header for why that
+		// is the behaviour-preserving choice rather than a transcription of the write.
+		for (int32_t i = 0; i < num_manual_slices_; i++) {
+			const int32_t x = static_cast<int32_t>(
+			    points_[i].start_pos / (static_cast<double>(nav_.sample->lengthInSamples) + 0.0) * kSliceMarkColumns);
+			// `RGB{1, (i == currentSlice) ? 200_u8 : 16_u8, 1}`. The `_u8` literal lives
+			// in `util/misc.h`, which this layer may not include (`scenes-includes-outside`), so
+			// the cast is spelled out -- the same reason `MarkerScene` inlined
+			// `divide_round_negative`.
+			(void)main.pad(x, kWaveformRowBase, RGB(1, static_cast<uint8_t>((i == current_slice_) ? 200 : 16), 1));
+		}
 
-		    // The lower screen: 64 slots in four pages of 4x4, laid out left to right by
-		    // page. `RGB::monochrome(3)` is legacy's initialiser and is overwritten on every path, so
-		    // it has no counterpart here.
-		    for (int32_t i = 0; i < kMaxManualSlices; i++) {
-			    const int32_t xx = (i % 4) + (i / 16) * 4;
-			    const int32_t yy = (i / 4) % 4;
-			    const int32_t page = i / 16;
+		// The lower screen: 64 slots in four pages of 4x4, laid out left to right by
+		// page. `RGB::monochrome(3)` is legacy's initialiser and is overwritten on every path, so
+		// it has no counterpart here.
+		for (int32_t i = 0; i < kMaxManualSlices; i++) {
+			const int32_t xx = (i % 4) + (i / 16) * 4;
+			const int32_t yy = (i / 4) % 4;
+			const int32_t page = i / 16;
 
-			    const auto dim_level = static_cast<uint8_t>((i < num_manual_slices_) ? 2 : 6);
-			    RGB colour = (page % 2 == 0) ? deluge::gui::colours::green.dim(dim_level)
-			                                 : deluge::gui::colours::darkblue.dim(dim_level);
-			    if (i == current_slice_) {
-				    colour = deluge::gui::colours::green.dim();
-			    }
-			    (void)main.pad(xx, yy, colour);
-		    }
-	    });
+			const auto dim_level = static_cast<uint8_t>((i < num_manual_slices_) ? 2 : 6);
+			RGB colour = (page % 2 == 0) ? deluge::gui::colours::green.dim(dim_level)
+			                             : deluge::gui::colours::darkblue.dim(dim_level);
+			if (i == current_slice_) {
+				colour = deluge::gui::colours::green.dim();
+			}
+			(void)main.pad(xx, yy, colour);
+		}
+	});
 }
 
 SlicerScene& slicer_scene() {

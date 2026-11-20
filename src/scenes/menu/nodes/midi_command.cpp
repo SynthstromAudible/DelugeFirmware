@@ -24,6 +24,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
+#include "definitions_cxx.hpp" // GlobalMIDICommand, IS_A_CC, IS_A_PC
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 

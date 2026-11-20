@@ -120,6 +120,7 @@
 /// race-free under a dispatcher that runs the op in another context.** The `std::atomic` state
 /// below is written for that case regardless; nothing has put it under load.
 
+#include "definitions_cxx.hpp" // Error
 #include "scenes/run_inline.h"
 #include "storage/file_catalogue.h"
 

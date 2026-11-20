@@ -37,6 +37,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
+#include "definitions_cxx.hpp" // ThresholdRecordingMode
 #include "deluge-project/song.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"

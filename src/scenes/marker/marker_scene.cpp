@@ -3,6 +3,7 @@
 
 #include "scenes/marker/marker_scene.h"
 
+#include "definitions_cxx.hpp" // MarkerType, kNumMarkerTypes, kNumSources
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
 #include "ui/grid/frame.h"
@@ -37,6 +38,10 @@
 #include <vector>
 
 namespace deluge::scenes::marker {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::ui::shell::Action;
@@ -508,14 +513,14 @@ void MarkerScene::select_encoder(int32_t offset) {
 	write_value(static_cast<uint32_t>(new_pos));
 
 	// If marker was on-screen...
-	if (old_col >= 0 && old_col < deluge::gfx::grid::kDelugeGrid.main_cols) {
+	if (old_col >= 0 && old_col < kMainCols) {
 		cols_on_screen(cols);
 		// It might have changed, and despite having a new_col variable above, that's only our
 		// desired value - we might have run into the end of the sample
 		new_col = cols[idx(marker_type_)].colOnScreen;
 
 		// But isn't anymore...
-		if (new_col < 0 || new_col >= deluge::gfx::grid::kDelugeGrid.main_cols) {
+		if (new_col < 0 || new_col >= kMainCols) {
 			nav_.xScroll += nav_.xZoom * offset;
 			if (nav_.xScroll < 0) {
 				nav_.xScroll = 0; // Shouldn't happen...
@@ -912,7 +917,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Pad: {
 		const int32_t x = event.x;
-		if (x == deluge::gfx::grid::kDelugeGrid.main_cols) {
+		if (x == kMainCols) {
 			// The mute column: legacy exits on a press with no UI mode up.
 			if (event.on && !mode_up()) {
 				r.handled = true;
@@ -923,7 +928,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 			return r;
 		}
-		if (x > deluge::gfx::grid::kDelugeGrid.main_cols) {
+		if (x > kMainCols) {
 			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
 			// swallows it on an audio clip.
 			r.handled = true;
@@ -938,8 +943,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// shortcut (`potentialShortcutPadAction`'s `ignoreAction`): with SHIFT they go on to the editor's own arms
 		// below, under any mode.
 		const bool root_keeps_pad = ctx_.root_is_automation && x == 0 && (event.y == 6 || event.y == 7);
-		if (event.on && ctx.shift && !root_keeps_pad && x < deluge::gfx::grid::kDelugeGrid.main_cols
-		    && !only_auditioning) {
+		if (event.on && ctx.shift && !root_keeps_pad && x < kMainCols && !only_auditioning) {
 			r.handled = true;
 			if (!mode_up()) {
 				if (const std::optional<SceneId> page =
@@ -1071,7 +1075,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	follow_waveform(*info);
 
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, deluge::gfx::grid::kDelugeGrid.main_cols);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(main_cols), 0, static_cast<uint8_t>(f.bounds().h)};
 
 	// The zoom slide (`PadLEDs::renderZoom`), over the main pads alone. It starts from the last settled frame and
@@ -1187,7 +1191,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	if (cursor == bind::FlashCursor::Off) {
 		return;
 	}
-	std::array<deluge::ui::grid::TickSquare, deluge::gfx::grid::kDelugeGrid.rows> per_row{};
+	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	const std::optional<int64_t> pos = waveforms().play_position(where_);
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {

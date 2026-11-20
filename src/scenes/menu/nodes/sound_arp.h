@@ -183,20 +183,20 @@ inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
 ///        in the title face, else the preset's icon, DOWN being UP's mirrored.
 inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuContext&, int32_t value) {
 	namespace icons = deluge::gfx::oled::icons;
-	switch (static_cast<uint8_t>(value)) {
-	case plugin::kArpPresetOff:
+	switch (value) {
+	case int32_t{plugin::kArpPresetOff}:
 		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
 		                                   .face = deluge::ui::oled::ArtColumn::Face::Title,
 		                                   .dy = 5};
-	case plugin::kArpPresetDown:
+	case int32_t{plugin::kArpPresetDown}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
-	case plugin::kArpPresetBoth:
+	case int32_t{plugin::kArpPresetBoth}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUpDown, .dy = 1};
-	case plugin::kArpPresetRandom:
+	case int32_t{plugin::kArpPresetRandom}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::dice, .dy = 1};
-	case plugin::kArpPresetWalk:
+	case int32_t{plugin::kArpPresetWalk}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeWalk, .dy = 1};
-	case plugin::kArpPresetCustom:
+	case int32_t{plugin::kArpPresetCustom}:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeCustom, .dy = 1};
 	default:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .dy = 1};

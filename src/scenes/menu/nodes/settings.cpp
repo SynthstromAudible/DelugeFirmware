@@ -34,6 +34,8 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, FLAT_CHAR, OutputType, ThresholdRecordingMode, ScreensaverMode
+#include "deluge-project/structure_codec.h"
 #include "instruments/deluge/cables.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
@@ -51,7 +53,6 @@
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
 
-#include "deluge-project/structure_codec.h"
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY
 #include "ui/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString

@@ -196,6 +196,7 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
 
+#include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "deluge-project/clip_address.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/timeline/timeline.h"

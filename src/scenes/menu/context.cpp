@@ -57,6 +57,7 @@
 
 #include "scenes/menu/node.h"
 
+#include "definitions_cxx.hpp" // kNumSources
 #include "instruments/deluge/state_access.h"
 
 #include "model/settings/runtime_feature_settings.h"

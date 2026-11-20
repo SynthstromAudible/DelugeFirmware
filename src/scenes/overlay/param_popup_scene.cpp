@@ -12,6 +12,7 @@
 #include "instruments/deluge/params.h"
 #include "notify/notice_queue.h"
 #include "plugin-api/types/arp_rhythm.h"
+#include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/param.h"
 
 #include <algorithm>
@@ -31,8 +32,6 @@ using deluge::ui::shell::SurfaceRole;
 
 namespace {
 
-/// @brief The offset from a raw knob position (-64..64) to its 0..128 display scale.
-constexpr int32_t kKnobPosOffset = 64;
 /// @brief The count of real MIDI CC numbers, which a MIDI clip's params number from 0.
 constexpr int32_t kNumRealCCNumbers = 120;
 
@@ -81,7 +80,7 @@ const char* source_short_name(PatchSource source) {
 ///        reproduced -- neither has any effect on the value returned.
 /// @param kind     The param's kind; `Kind::MIDI` passes @p knob_pos through unchanged.
 /// @param param_id The param id within @p kind.
-/// @param knob_pos Legacy's `newKnobPos + kKnobPosOffset` -- the caller adds the offset.
+/// @param knob_pos Legacy's `newKnobPos + 64` -- the caller adds the offset.
 /// @return The menu-range value (0..50, or -25..25 for a pan/pitch param) to display.
 int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob_pos) {
 	if (kind == Kind::MIDI) {
@@ -161,7 +160,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
 /// @param kind          The param's kind.
 /// @param param_id      The param id within @p kind.
-/// @param knob_pos      The raw knob position (pre-`kKnobPosOffset`).
+/// @param knob_pos      The raw knob position (pre-offset).
 /// @param context       The model context; see `PopupContext`.
 /// @param out            Filled in with the formatted value text.
 /// @return The value used for the arbitration's change-detection (legacy's
@@ -195,7 +194,8 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		return display_value;
 	}
 	if (deluge::instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
-		const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
+		const int32_t display_value =
+		    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 		char name[12];
 		const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(display_value)].name;
 		const int n = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(display_value),
@@ -205,7 +205,8 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		}
 		return display_value;
 	}
-	const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
+	const int32_t display_value =
+	    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 	out.append_int(display_value);
 	return display_value;
 }
