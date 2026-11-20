@@ -53,7 +53,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 	});
 	it("answers the tracks as the spec set them, and an unknown chain as having no effects", _ {
 		test::FakeHost host;
-		host.tracks.track_list = {{.output_id = 3, .kind = TrackKind::SYNTH}};
+		host.tracks.track_list = {{.output_id = 3, .kind = deluge::project::TrackKind::SYNTH}};
 		const Ports p = host.ports();
 		expect(p.tracks->tracks().size()).to_equal(size_t{1});
 		expect(contract::unknown_chain_has_no_effects(

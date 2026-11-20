@@ -1,5 +1,7 @@
 #include "gui/ui/menu_view_of.h"
 
+#include "deluge-project/track_kind.h"
+
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -9,6 +11,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
+#include "util/functions.h"
 
 namespace deluge::gui {
 
@@ -17,27 +20,10 @@ scenes::services::MenuView menuViewOf(::Clip* clip) {
 	if (clip == nullptr || clip->output == nullptr || !clip->output->id()) {
 		return view;
 	}
-	using scenes::bind::TrackKind;
 	view.clip = project::ClipAddress{clip->id()};
 	view.track = project::TrackAddress{*clip->output->id()};
 	view.audio_clip = clip->type == ClipType::AUDIO;
-	switch (clip->output->type) {
-	case OutputType::KIT:
-		view.kind = TrackKind::KIT;
-		break;
-	case OutputType::MIDI_OUT:
-		view.kind = TrackKind::MIDI_OUT;
-		break;
-	case OutputType::CV:
-		view.kind = TrackKind::CV;
-		break;
-	case OutputType::AUDIO:
-		view.kind = TrackKind::AUDIO;
-		break;
-	default:
-		view.kind = TrackKind::SYNTH;
-		break;
-	}
+	view.kind = trackKindOf(clip->output->type).value_or(project::TrackKind::SYNTH);
 	if (clip->type == ClipType::INSTRUMENT) {
 		auto* instrumentClip = static_cast<InstrumentClip*>(clip);
 		view.affect_entire = instrumentClip->affectEntire;

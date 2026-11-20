@@ -33,7 +33,7 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
-#include "deluge-project/structure_codec.h"
+#include "deluge-project/midi_channels.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_engine.h"
 

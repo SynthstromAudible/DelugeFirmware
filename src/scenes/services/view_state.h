@@ -9,6 +9,7 @@
 #include "deluge-project/drum_type.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/setting_group.h"
+#include "deluge-project/track_kind.h"
 #include "scenes/bind/ports/track_facts.h"
 #include "scenes/services/waveform_address.h"
 
@@ -25,7 +26,7 @@ namespace deluge::scenes::services {
 struct MenuView {
 	std::optional<project::ClipAddress> clip;   ///< the clip; none for a song-level or settings menu
 	std::optional<project::TrackAddress> track; ///< the clip's track
-	bind::TrackKind kind{bind::TrackKind::SYNTH};
+	project::TrackKind kind{project::TrackKind::SYNTH};
 	bool audio_clip{false};               ///< the clip is an audio clip
 	std::optional<uint32_t> selected_row; ///< a kit's selected row, by its drum id
 	project::DrumType selected_row_type{project::DrumType::SOUND};

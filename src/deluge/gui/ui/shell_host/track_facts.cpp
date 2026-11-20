@@ -1,4 +1,5 @@
 #include "definitions_cxx.hpp"
+#include "deluge-project/track_kind.h"
 #include "effects/plugin.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "model/clip/instrument_clip.h"
@@ -12,6 +13,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
+#include "util/functions.h"
 
 #include <utility>
 #include <variant>
@@ -23,7 +25,6 @@ namespace {
 class HostTrackFacts final : public scenes::bind::TrackFacts {
 public:
 	[[nodiscard]] std::vector<scenes::bind::TrackFact> tracks() const override {
-		using scenes::bind::TrackKind;
 		std::vector<scenes::bind::TrackFact> list;
 		if (currentSong == nullptr) {
 			return list;
@@ -33,24 +34,9 @@ public:
 				continue; // a track the song has not given an id cannot be named
 			}
 			scenes::bind::TrackFact fact{.output_id = *output->id()};
-			switch (output->type) {
-			case OutputType::KIT:
-				fact.kind = TrackKind::KIT;
-				break;
-			case OutputType::MIDI_OUT:
-				fact.kind = TrackKind::MIDI_OUT;
+			fact.kind = trackKindOf(output->type).value_or(project::TrackKind::SYNTH);
+			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 				fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
-				break;
-			case OutputType::CV:
-				fact.kind = TrackKind::CV;
-				fact.channel = static_cast<::NonAudioInstrument*>(output)->getChannel();
-				break;
-			case OutputType::AUDIO:
-				fact.kind = TrackKind::AUDIO;
-				break;
-			default:
-				fact.kind = TrackKind::SYNTH;
-				break;
 			}
 			list.push_back(fact);
 		}

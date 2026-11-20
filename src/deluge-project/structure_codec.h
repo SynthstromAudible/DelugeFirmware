@@ -24,6 +24,7 @@
 #include "deluge-project/doc_note_row.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/midi_channels.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -35,12 +36,6 @@ namespace deluge::project {
 // The structure records: the model's keys within the element that carries them (a clip, a note row, an output, a
 // drum), beside keys that are the engine's. Each encode returns a Map of the record's keys only; each decode reads
 // them from the element and keeps any value the element lacks.
-
-/// @brief The MIDI channel value that sends a MIDI output's notes to the song's transpose instead of a channel.
-inline constexpr int32_t kMidiChannelTranspose = 55;
-/// @brief The MIDI channel values naming the lower and upper MPE zones.
-inline constexpr int32_t kMidiChannelLowerZone = 16;
-inline constexpr int32_t kMidiChannelUpperZone = 17;
 
 /// @brief A clip's `length` (legacy `trackLength`; at least 1), `colourOffset`, `section` (at most 23 as read;
 /// 255, arranger-only, is not written) and `launchStyle`.

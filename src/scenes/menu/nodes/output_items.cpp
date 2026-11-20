@@ -36,6 +36,7 @@
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
 #include "deluge-project/setting_group.h"
+#include "deluge-project/track_kind.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -99,7 +100,7 @@ std::optional<serialization::Value> track_row(const MenuContext& ctx, uint32_t o
 ///        (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`).
 std::optional<bind::TrackFact> midi_track_of(const MenuContext& ctx) {
 	const std::optional<bind::TrackFact> track = track_of(ctx);
-	return track && track->kind == bind::TrackKind::MIDI_OUT ? track : std::nullopt;
+	return track && track->kind == project::TrackKind::MIDI_OUT ? track : std::nullopt;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -119,7 +120,7 @@ std::optional<bind::TrackFact> midi_track_of(const MenuContext& ctx) {
 ///        `relevance::audio_source_is_specific`.
 std::optional<uint32_t> editing_of(const MenuContext& ctx) {
 	const std::optional<bind::TrackFact> track = track_of(ctx);
-	return track && track->kind == bind::TrackKind::AUDIO ? std::optional{track->output_id} : std::nullopt;
+	return track && track->kind == project::TrackKind::AUDIO ? std::optional{track->output_id} : std::nullopt;
 }
 
 /// @brief The track the audio track records from, by id; nullopt for none.
@@ -207,7 +208,7 @@ int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::Trac
 ///       channel 0 -- i.e. always "Audio Player" whatever its mode.
 ///       Legacy has the identical behaviour; it is a fidelity result, not a port decision.
 std::string_view output_type_text(const bind::TrackFact& track) {
-	return bind::track_kind_name(track.kind, track.kind == bind::TrackKind::MIDI_OUT ? track.channel : 0);
+	return project::track_kind_name(track.kind, track.kind == project::TrackKind::MIDI_OUT ? track.channel : 0);
 }
 
 /// @brief Write the track the audio track records from (or none) through the menu's sink.

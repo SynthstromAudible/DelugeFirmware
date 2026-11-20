@@ -57,6 +57,7 @@
 
 #include "scenes/menu/node.h"
 
+#include "deluge-project/track_kind.h"
 #include "instruments/deluge/state_access.h"
 
 #include "model/settings/runtime_feature_settings.h"
@@ -161,7 +162,7 @@ void select_source(MenuContext& ctx, int8_t index) {
 
 MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx) {
-	using bind::TrackKind;
+	using project::TrackKind;
 	MenuContext ctx{};
 	ctx.song = &song;
 	ctx.source_index = source_index;
