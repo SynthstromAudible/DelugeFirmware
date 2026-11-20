@@ -6029,7 +6029,7 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    currentSong->xZoom[NAVIGATION_CLIP], 0, kDisplayWidth, false, thisNoteRow->locksTakeEffect(clip));
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -6129,7 +6129,7 @@ void InstrumentClipView::exitScaleMode() {
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-				    currentSong->xZoom[NAVIGATION_CLIP]);
+				    currentSong->xZoom[NAVIGATION_CLIP], 0, kDisplayWidth, false, thisNoteRow->locksTakeEffect(clip));
 				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 				PadLEDs::numAnimatedRows++;
@@ -7654,7 +7654,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				noteRow->renderRow(this, rowColour[yDisplay], rowTailColour[yDisplay], rowBlurColour[yDisplay], image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false);
+				                   renderWidth, false, noteRow->locksTakeEffect(clip));
 			}
 
 			if (drawUndefinedArea) {

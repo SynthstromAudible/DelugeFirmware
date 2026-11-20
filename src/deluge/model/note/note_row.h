@@ -108,7 +108,10 @@ public:
 	~NoteRow();
 	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
+	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, bool showLocks = true);
+	/// This row's notes' parameter locks do something: it plays a Sound (a synth, or a kit's sound drum). Where they
+	/// don't (MIDI / CV, gate and MIDI drums), locked notes aren't drawn as such.
+	[[nodiscard]] bool locksTakeEffect(const InstrumentClip* clip) const;
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = nullptr);

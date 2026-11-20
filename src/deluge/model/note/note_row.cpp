@@ -1906,7 +1906,7 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailColour, RGB rowBlurColour, RGB* image,
                         uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
                         bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
-                        int32_t xEnd, bool drawRepeats) {
+                        int32_t xEnd, bool drawRepeats, bool showLocks) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -1921,6 +1921,13 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
+
+	// Notes with parameter locks are drawn white instead of the row colour - head, tail and blur alike, dimmed the
+	// same way the row colour is (a blur colour equal to the main colour means the caller doesn't want blurring).
+	// Row colours are all fully saturated hues, so white can't be mistaken for one, and no other note state uses it.
+	constexpr RGB lockColour = deluge::gui::colours::white_full;
+	constexpr RGB lockTailColour = lockColour.forTail();
+	const RGB lockBlurColour = (rowBlurColour == rowColour) ? lockColour : lockColour.forBlur();
 
 	int32_t whichRepeat = 0;
 
@@ -1972,6 +1979,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
 			bool drewNote = false;
+			bool drewHead = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			RGB& pixel = image[xDisplay];
@@ -1979,7 +1987,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
 				drewNote = true;
-				pixel = rowBlurColour;
+				pixel = (showLocks && note->lockSet) ? lockBlurColour : rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1988,9 +1996,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
+				drewHead = true;
 				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
 				// to max brightness with velocity
-				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
+				pixel = ((showLocks && note->lockSet) ? lockColour : rowColour)
+				            .adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -2009,16 +2019,16 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 				if (noteEnd > squareStartPos && noteHasTail(note, allowNoteTails, currentSong)) {
 					drewNote = true;
-					pixel = rowTailColour;
+					pixel = (showLocks && note->lockSet) ? lockTailColour : rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
 				}
 			}
-			// if we're not dealing with a blurred note or a note tail
-			if (pixel != rowBlurColour && pixel != rowTailColour) {
+			// if we're dealing with a note head (not a blurred note or a note tail)
+			if (drewHead) {
 				// if fill mode is active, identify the notes that are fill or not-fill
-				if (drewNote && currentSong->isFillModeActive()) {
+				if (currentSong->isFillModeActive()) {
 					if (note->fill == FillMode::FILL) {
 						pixel = deluge::gui::colours::blue;
 					}
@@ -2027,11 +2037,13 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
-				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
-					// if note has non-default settings for probability, iterance or fill
+				else if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					// if note has non-default settings for probability, iterance or fill: yellow, or pale yellow
+					// (yellow and the lock colour averaged) if it has parameter locks too
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
-						pixel = deluge::gui::colours::yellow;
+						pixel = (showLocks && note->lockSet) ? RGB::average(deluge::gui::colours::yellow, lockColour)
+						                                     : deluge::gui::colours::yellow;
 					}
 				}
 			}
@@ -2540,6 +2552,10 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	               ->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 	                                   &modelStack->getTimelineCounter()->paramManager)
 	               ->addSoundFlags());
+}
+bool NoteRow::locksTakeEffect(const InstrumentClip* clip) const {
+	OutputType type = clip->output->type;
+	return type == OutputType::SYNTH || (type == OutputType::KIT && drum != nullptr && drum->type == DrumType::SOUND);
 }
 
 bool NoteRow::noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song) {
