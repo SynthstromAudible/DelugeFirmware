@@ -526,7 +526,7 @@ void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
 		routing.midi_channel = v == SoundRouting::kNone ? std::nullopt : std::optional{static_cast<uint8_t>(v)};
 	}
 	else {
-		routing.midi_note = static_cast<uint8_t>(v);
+		routing.midi_note = v == SoundRouting::kNone ? std::nullopt : std::optional{static_cast<uint8_t>(v)};
 	}
 }
 

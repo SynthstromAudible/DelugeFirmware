@@ -1406,10 +1406,6 @@ void Song::removeDocDrum(Drum* drum) {
 	}
 }
 
-// Bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only if it lacks one, as
-// assignMissingIds does via generateNewOutputId), seed the record from the engine output via
-// seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
-// the assignMissingIds call site composes without double-binding or double-minting.
 // A sound's bound state points at its own member, so a copy would point at the original's.
 static_assert(!std::is_copy_constructible_v<SoundInstrument> && !std::is_copy_assignable_v<SoundInstrument>);
 static_assert(!std::is_copy_constructible_v<SoundDrum> && !std::is_copy_assignable_v<SoundDrum>);
@@ -1418,6 +1414,10 @@ static_assert(!std::is_copy_constructible_v<Song> && !std::is_copy_assignable_v<
 static_assert(!std::is_copy_constructible_v<Kit> && !std::is_copy_assignable_v<Kit>);
 static_assert(!std::is_copy_constructible_v<AudioOutput> && !std::is_copy_assignable_v<AudioOutput>);
 
+// Bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only if it lacks one, as
+// assignMissingIds does via generateNewOutputId), seed the record from the engine output via
+// seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
+// the assignMissingIds call site composes without double-binding or double-minting.
 void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
 		return;

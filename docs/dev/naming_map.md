@@ -33,7 +33,7 @@ for routing edges and summing buffers.
 | `Sound::sources` | `Sound::sourceResources` | done | |
 | `LFOConfig` | `synth::LfoState` | done | an LFO's component state, from the record to the render |
 | `ModControllableSnapshot` | deleted | done | an effects binding's render copy is its own `renderEffects()` and `renderModFXParam()` |
-| `FlatSoundState` | the codec's parse form, inside the library | done | nothing outside `src/instruments/deluge` names it |
+| `FlatSoundState` | the codec's parse form, inside the library | done | outside `src/instruments/deluge` only the composition spec names it |
 | a sound's sidechain send and MIDI output in its state | `project::SoundRouting` on the slot | done | the `SOUND_ROUTING` setting group |
 | `effects::SoundChain` | `effects::FxSection` | done | the synth's fixed series of effects; "chain" means a host list of devices |
 | `Sound` | deleted | after Track A step 4 and P5 | it shrinks to a wrapper around `DelugeSynth`, then goes |

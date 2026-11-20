@@ -2802,6 +2802,7 @@ void Sound::bindState(deluge::instrument::SoundState& record, deluge::project::S
 		ownedRouting_ = {};
 	}
 	projectSnapshot();
+	applyRouting();
 }
 
 void Sound::unbindState() {
@@ -2814,6 +2815,7 @@ void Sound::unbindState() {
 	routing_ = &ownedRouting_;
 	bindEffects(&deluge::instrument::sound_effects(ownedState_));
 	projectSnapshot();
+	applyRouting();
 }
 
 void Sound::applyRouting() {
@@ -2857,7 +2859,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.closeTag();
 	}
 
-	// Mod knobs (read the authoritative record; cache fallback only for an unbound Sound)
+	// Mod knobs, as the sound holds them
 	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {

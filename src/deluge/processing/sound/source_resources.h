@@ -22,12 +22,12 @@
 #include "storage/multi_range/multi_range_array.h"
 #include "synth/sources/input/live/live_inputs.h"
 
+#include "instruments/deluge/sound_state.h"
+
 class ParamManagerForTimeline;
 class WaveTable;
 class SampleHolder;
 class DxPatch;
-
-#include "instruments/deluge/sound_state.h"
 
 #include <optional>
 #include <vector>
@@ -51,12 +51,12 @@ public:
 	/// @brief The oscillator's ranges: each one's file, zone and cluster reservations, as it plays them.
 	MultiRangeArray ranges;
 
-	DxPatch* dxPatch;
+	DxPatch* dxPatch{nullptr};
 	bool dxPatchChanged = false;
 	/// @brief The live histories this oscillator's voices read while its type is an input type; empty otherwise.
 	deluge::synth::LiveInputStore liveInputs;
 
-	int16_t defaultRangeI; // -1 means none yet
+	int16_t defaultRangeI{-1}; ///< -1 means none yet
 
 	/// Whether this source renders in stereo. Static + fully parameterised (no `Sound` reach) so the
 	/// voice kernel can call it straight off its per-block config. Still reads `AudioEngine` stereo/input globals.
