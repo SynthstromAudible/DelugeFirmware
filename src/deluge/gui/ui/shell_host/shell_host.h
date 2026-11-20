@@ -6,6 +6,11 @@
 
 #include "scenes/bind/ports/ports.h"
 
+#include <cstdint>
+#include <optional>
+#include <string_view>
+#include <vector>
+
 class AudioClip;
 
 namespace deluge::edits {
@@ -44,6 +49,68 @@ namespace deluge::gui::shell_host {
 
 /// @brief The host's MidiDevices: the cables `MIDIDeviceManager` keeps, and their own settings.
 [[nodiscard]] scenes::bind::MidiDevices& midi_devices();
+
+/// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
+///        Edits.
+///
+/// A sound target's request becomes SetEngineSetting on the sound's slot, and its partner row's value a second one;
+/// with affect-entire held on a kit, one SetKitSetting over the kit's sound drums the target's fan-out rule picks,
+/// read in each drum's own context, as legacy's loop picks them (and its partner a second); a drum that refuses the
+/// value is left as it was, as legacy's loop writes it harmlessly. A sample's loop mode set to play once ends the kit
+/// arpeggiator's note first. An effect target's request is the same on a sound's slot, and on a host chain (the whole
+/// kit's, an audio track's, the master's) SetEffectSetting on the chain, its partner second. A request whose slot or
+/// chain does not resolve, or a sound with no slot, is refused: logged and counted, never applied through the
+/// runtime's setter alone.
+class HostEditSink final : public scenes::bind::WriteSink, public controls::Sink {
+public:
+	bool write(const scenes::bind::WriteRequest& request) override;
+	bool delete_automation(const project::ParamAddress& address) override;
+	bool write_text(const scenes::bind::Target& target, const scenes::bind::Addresses& where,
+	                std::string_view text) override;
+	void set_default_audio_input_channel(int32_t channel) override;
+
+	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+	                 controls::Resolution resolution) override;
+	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
+	std::optional<uint32_t> take_for(uint32_t output_id) override;
+	bool make_param(const project::ParamAddress& address) override;
+	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override;
+	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
+	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;
+	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;
+	bool stutter(const controls::KnobFocus& focus, bool begin) override;
+	bool grab_region(const controls::KnobFocus& focus, uint32_t pos) override;
+	bool write_effect(const scenes::bind::EffectOwner& owner, std::string_view path,
+	                  const serialization::Value& value) override;
+	bool midi_cc_select(const controls::KnobFocus& focus, int32_t knob, bool on) override;
+	bool delete_knob_automation(const project::ParamAddress& address) override;
+	bool instrument_edited(const controls::KnobFocus& focus) override;
+
+	/// @brief How many writes this sink has refused since start-up.
+	/// @return The count: a request whose slot does not resolve, a sound with no slot, or a value its Edit refused.
+	[[nodiscard]] uint32_t refusals() const { return refusals_; }
+
+private:
+	/// @brief Apply @p request, counting a refusal.
+	void apply(const scenes::bind::WriteRequest& request);
+	/// @brief A PARAM target's write: SetParamValue by its address, or SetKitParamValue under affect-entire on a kit
+	///        row; then MIDI follow's feedback.
+	void write_param_target(const scenes::bind::WriteRequest& request);
+	/// @brief A CABLE target's write: SetPatchCable by its address, or, polarity only, SetCablePolarity.
+	void write_cable_target(const scenes::bind::WriteRequest& request);
+	/// @brief Apply @p edit to the current song, counting a refusal.
+	/// @return Whether it applied.
+	bool counted_apply(edits::Edit& edit);
+
+	uint32_t refusals_{0}; ///< the writes refused since start-up
+};
+
+/// @brief The host's HostEditSink: both `Ports::writes` and `Ports::controls_sink`.
+[[nodiscard]] HostEditSink& edit_sink();
+
+/// @brief How many menu writes the host's edit sink has refused since start-up. Each is also logged.
+/// @return HostEditSink::refusals of @ref edit_sink.
+[[nodiscard]] uint32_t shellEditRefusals();
 
 /// @brief Apply @p edit to the current song: the one way the write ports apply an Edit.
 /// @param edit The edit. The caller has checked that a song is loaded.

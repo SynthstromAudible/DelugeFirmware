@@ -19,8 +19,8 @@
 
 /// @file
 /// @brief Where an incoming CC or pitch bend reaches the current song's learned knobs (controls/learned.h), through
-///        the app's facts, sink and takeover states. Defined with the app's binding host (gui/ui/shell_bind_host.cpp),
-///        which holds them.
+///        the app's facts, sink and takeover states. Defined with the scenes' host, which holds them
+///        (gui/ui/shell_host/learned_dispatch.cpp).
 
 #include <cstdint>
 

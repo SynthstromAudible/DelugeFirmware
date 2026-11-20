@@ -221,8 +221,8 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::str
 	const services::KnobPush press =
 	    services::knob_push(side.song->project, side.focus, knob, true, inputs_of(side, held));
 	currentSong = side.song;
-	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
-	                           side.focus, press);
+	(void)services::apply_push(*deluge::scenes::menu::host_ports().writes,
+	                           *deluge::scenes::menu::host_ports().controls_sink, side.focus, press);
 	if (press.comp) {
 		side.focus.comp = *press.comp;
 	}
@@ -230,8 +230,8 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::str
 	const services::KnobPush release =
 	    services::knob_push(side.song->project, side.focus, knob, false, inputs_of(side, held));
 	currentSong = side.song;
-	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
-	                           side.focus, release);
+	(void)services::apply_push(*deluge::scenes::menu::host_ports().writes,
+	                           *deluge::scenes::menu::host_ports().controls_sink, side.focus, release);
 	hold_mod_button(mode, false);
 	(void)last_notice();
 
@@ -315,7 +315,7 @@ std::string set_mod_fx(Side& side, std::string_view type, std::string_view view)
 	if (chain == nullptr) {
 		return "no chain";
 	}
-	deluge::controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+	deluge::controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 	if (!sink.write_effect(*chain, "modFXType", deluge::serialization::Value::makeScalar(std::string{type}))
 	    || !sink.chain_view(*chain, "modFXCurrentParam", view)) {
 		return "sink refused " + std::string{type} + "/" + std::string{view};

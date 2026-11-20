@@ -1344,7 +1344,7 @@ describe tables_2_writes("scenes::menu sound-editor tables: writes", $ {
 
 	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {
 		// With AFFECT-ENTIRE held on a kit row, main's ~20 hand-written sweeps write every drum in the kit; the port's
-		// the generic fan-out and the arp items' kit sweep (`SetKitLaneSetting` in `shell_bind_host.cpp`, every lane's
+		// the generic fan-out and the arp items' kit sweep (`SetKitLaneSetting` in `shell_host/edit_sink.cpp`, every lane's
 		// arp) must write the same set. Observing "the same set" generically is what the two-drum fixture buys: select
 		// each drum in turn and read the node back.
 		//

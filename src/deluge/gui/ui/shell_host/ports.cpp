@@ -18,6 +18,8 @@ const bind::Ports& host_ports() {
 	    .sound_writes = &gui::shell_host::sound_writes(),
 	    .learn = &gui::shell_host::learn_sink(),
 	    .midi = &gui::shell_host::midi_devices(),
+	    .writes = &gui::shell_host::edit_sink(),
+	    .controls_sink = &gui::shell_host::edit_sink(),
 	};
 	return ports;
 }

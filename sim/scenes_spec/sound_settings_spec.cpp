@@ -2,6 +2,7 @@
 // of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
 // library, on a synth and on a kit row.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
@@ -88,9 +89,9 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 	const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
-	bind::RecordingSink recorded;
+	bind::test::RecordingWrites recorded;
 	MenuContext recording = ctx;
-	recording.sink = &recorded;
+	recording.ports.writes = &recorded;
 	for (const int32_t v : probes) {
 		if (shown->stale == v) {
 			continue;

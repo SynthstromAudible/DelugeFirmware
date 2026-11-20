@@ -109,7 +109,7 @@ bool RecorderScene::name_drum() {
 	if (!ctx_.is_kit) {
 		return true;
 	}
-	if (ctx_.sink == nullptr || !ctx_.addresses.lane) {
+	if (ctx_.ports.writes == nullptr || !ctx_.addresses.lane) {
 		// A kit context with no row to name -- affect-entire, which `can()` already refuses -- leaves the
 		// drum unnamed, where legacy would have dereferenced a null `SoundDrum*`.
 		return true;
@@ -125,7 +125,7 @@ bool RecorderScene::name_drum() {
 		if (own && own->str() == candidate) {
 			continue;
 		}
-		if (ctx_.sink->write_text(name, ctx_.addresses, candidate)) {
+		if (ctx_.ports.writes->write_text(name, ctx_.addresses, candidate)) {
 			return true;
 		}
 	}

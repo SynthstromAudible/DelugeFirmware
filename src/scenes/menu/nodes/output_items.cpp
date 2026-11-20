@@ -240,14 +240,14 @@ std::string_view output_type_text(const bind::TrackFact& track) {
 
 /// @brief Write the track the audio track records from (or none) through the menu's sink.
 void write_recording_from(const MenuContext& ctx, const bind::TrackFact* from) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
-	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::MODEL,
-	                                  .path = "outputRecordingFrom",
-	                                  .group = project::SettingGroupId::AUDIO_INPUT},
-	                       .where = ctx.addresses,
-	                       .menu_value = from != nullptr ? static_cast<int32_t>(from->output_id) : -1});
+	(void)ctx.ports.writes->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                          .path = "outputRecordingFrom",
+	                                          .group = project::SettingGroupId::AUDIO_INPUT},
+	                               .where = ctx.addresses,
+	                               .menu_value = from != nullptr ? static_cast<int32_t>(from->output_id) : -1});
 }
 
 } // namespace
@@ -301,11 +301,11 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	if (linked(ctx)) {
 		// Unlinking (the `else` arm of main's `Linked::writeCurrentValue`): the new value is false, so just clear the
 		// file name. No UI is opened, so nothing is filed and `render` is what takes the user back out.
-		if (midi_track_of(ctx) && ctx.sink != nullptr) {
-			(void)ctx.sink->write_text({.kind = bind::Target::Kind::MODEL,
-			                            .path = "deviceDefinitionFileName",
-			                            .group = project::SettingGroupId::INSTRUMENT_DEVICE},
-			                           ctx.addresses, "");
+		if (midi_track_of(ctx) && ctx.ports.writes != nullptr) {
+			(void)ctx.ports.writes->write_text({.kind = bind::Target::Kind::MODEL,
+			                                    .path = "deviceDefinitionFileName",
+			                                    .group = project::SettingGroupId::INSTRUMENT_DEVICE},
+			                                   ctx.addresses, "");
 		}
 		return;
 	}

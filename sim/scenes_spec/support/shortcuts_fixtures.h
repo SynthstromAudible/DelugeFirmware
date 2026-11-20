@@ -108,7 +108,7 @@ inline std::string paths_in_root(const std::vector<std::string>& paths, std::str
 inline bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
-	return request.has_value() && ctx.sink->write(*request);
+	return request.has_value() && ctx.ports.writes->write(*request);
 }
 
 /// @brief Seed, once, cables on the fixture's sound for the source blinks to find: both layers of one pad pair, a

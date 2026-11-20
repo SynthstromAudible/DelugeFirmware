@@ -49,7 +49,7 @@ Target model(SettingGroupId group, std::string_view path) {
 
 /// Writes menu value @p menu of @p group's row @p path through the app's sink at @p ctx's addresses.
 void write(const MenuContext& ctx, SettingGroupId group, std::string_view path, int32_t menu) {
-	menu::host_write_sink().write({.target = model(group, path), .where = ctx.addresses, .menu_value = menu});
+	menu::host_ports().writes->write({.target = model(group, path), .where = ctx.addresses, .menu_value = menu});
 }
 
 /// The record's value at @p path, as text, or "none".
@@ -151,7 +151,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const MenuContext ctx = clip_root(*f.song, f.clip);
 		const Target priority{.kind = Target::Kind::SOUND, .path = "voicePriority", .audio_clip_path = "priority"};
-		menu::host_write_sink().write({.target = priority, .where = ctx.addresses, .menu_value = 2});
+		menu::host_ports().writes->write({.target = priority, .where = ctx.addresses, .menu_value = 2});
 		expect(recorded(*f.song, {SettingGroupId::AUDIO_CLIP, *ctx.addresses.clip}, "priority"))
 		    .to_equal(stored_text(SettingGroupId::AUDIO_CLIP, "priority", 2));
 	});

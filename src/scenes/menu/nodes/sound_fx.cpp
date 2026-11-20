@@ -89,9 +89,9 @@ std::optional<deluge::effects::StutterState> stutter_of(const MenuContext& ctx) 
 void write_stutter(const MenuContext& ctx, std::string_view path, bool on) {
 	bind::Addresses where = ctx.addresses;
 	where.affect_entire = bindings::writes_whole_kit(ctx);
-	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = path, .whole_kit = true},
-	                       .where = where,
-	                       .menu_value = on ? 1 : 0});
+	(void)ctx.ports.writes->write({.target = {.kind = bind::Target::Kind::EFFECT, .path = path, .whole_kit = true},
+	                               .where = where,
+	                               .menu_value = on ? 1 : 0});
 }
 
 } // namespace
@@ -126,7 +126,7 @@ int32_t get_reverb_sidechain_sync(const MenuContext& ctx) {
 	    deluge::plugin::sync_type_choice(AudioEngine::reverbSidechainSettings.sync_type));
 }
 void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	// The sync type is the engine's alone; the level is the song's record.
@@ -183,7 +183,7 @@ int32_t get_stutter_direction(const MenuContext& ctx) {
 void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	// The private `getValue()` shift, then `applyOptionToStutter` over the affect-entire sweep
 	// (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`).
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	const int32_t v = value + (show_use_song(ctx) ? 0 : 1);
@@ -296,7 +296,7 @@ int32_t get_stutter_quantize(const MenuContext& ctx) {
 void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
 	// `QuantizedStutter::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/stutter/quantized.h`). The
 	// affect-entire sweep tests the *context's* `use_song_stutter`, not each drum's, as legacy does.
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);

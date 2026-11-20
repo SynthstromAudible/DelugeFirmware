@@ -123,8 +123,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		spec::SongFixture f = spec::make_synth_song();
 		give_sample_range(*static_cast<SoundInstrument*>(f.instrument));
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
-		ctx.sink = &recording;
+		bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0); // LINEAR
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
@@ -137,9 +137,9 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/quantized", Value::makeNumber(1));
 		deluge::edits::changeEffect(*f.song, f.song->live.master_channel, "stutter/reverse", Value::makeNumber(1));
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
+		bind::test::RecordingWrites recording;
 		MenuContext recorded = ctx;
-		recorded.sink = &recording;
+		recorded.ports.writes = &recording;
 		menu::bindings::write(nodes::stutter_direction, recorded, 0); // "use song", offered on a sound
 		to_be_at_least(expect(recording.requests.size()), size_t{3});
 
@@ -159,8 +159,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		deluge::edits::changeEffect(*f.song, *drum, "stutter/useSongStutter", Value::makeNumber(1));
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
-		bind::RecordingSink recording;
-		ctx.sink = &recording;
+		bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		menu::bindings::write(nodes::stutter_quantize, ctx, 1);
 		expect(recording.requests.empty()).to_be_true();
 	});
@@ -169,8 +169,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		spec::SongFixture kit = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(kit);
 		MenuContext on_row = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
-		on_row.sink = &recording;
+		bind::test::RecordingWrites recording;
+		on_row.ports.writes = &recording;
 		menu::bindings::write(nodes::sequence_direction, on_row, 2);
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
@@ -180,8 +180,8 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 
 		spec::SongFixture synth = spec::make_synth_song();
 		MenuContext on_clip = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false);
-		bind::RecordingSink clip_recording;
-		on_clip.sink = &clip_recording;
+		bind::test::RecordingWrites clip_recording;
+		on_clip.ports.writes = &clip_recording;
 		menu::bindings::write(nodes::sequence_direction, on_clip, 1);
 		expect(clip_recording.requests.size()).to_equal(size_t{1});
 		if (!clip_recording.requests.empty()) {

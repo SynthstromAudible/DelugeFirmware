@@ -51,7 +51,7 @@ int32_t menu_of(std::string_view path, std::string_view word) {
 
 /// Writes @p path = @p menu through the app's sink at @p ctx's addresses.
 void write(const MenuContext& ctx, std::string_view path, int32_t menu) {
-	menu::host_write_sink().write({.target = effect(path), .where = ctx.addresses, .menu_value = menu});
+	menu::host_ports().writes->write({.target = effect(path), .where = ctx.addresses, .menu_value = menu});
 }
 
 /// Writes the low-pass mode SVF_Notch at @p ctx.

@@ -665,7 +665,7 @@ shell's; every model-aware implementation is here, as with `Scene`.
 * **Learned MIDI and MIDI follow are not here either.** A learned CC or pitch bend is dispatched by
   `controls::dispatch_song_cc`, `dispatch_output_cc` and `dispatch_output_bend`, and a followed CC resolved by
   `controls::resolve_follow`, both in `src/controls`; each write goes through the `Sink` the host binds
-  (`scenes::menu::host_controls_sink`) over the `Facts` the host binds as `Ports::controls`. The menu's and the pads'
+  as `Ports::controls_sink` over the `Facts` the host binds as `Ports::controls`. The menu's and the pads'
   learns and unlearns write the mapping table through the learn port (`Ports::learn`, `bind::LearnSink`), which names
   a device by its `midi::DeviceId`; `controls::TakeoverStore` holds the takeover states those entries key.
 

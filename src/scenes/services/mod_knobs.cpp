@@ -161,7 +161,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	}
 	// Holding a note on a stopped clip grabs its params' values from there.
 	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
-		(void)menu::host_controls_sink().grab_region(*focus_, pos);
+		(void)menu::host_ports().controls_sink->grab_region(*focus_, pos);
 	}
 	// Unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
@@ -274,14 +274,14 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 	turn_knob(knob, offset, now_ms, out);
 	// Every turn on a clip marks its instrument edited, whatever it wrote.
 	if (is_clip_context(*focus_)) {
-		(void)menu::host_controls_sink().instrument_edited(*focus_);
+		(void)menu::host_ports().controls_sink->instrument_edited(*focus_);
 	}
 }
 
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	const bind::Ports& ports = menu::host_ports();
 	const controls::Facts& facts = *ports.controls;
-	controls::Sink& sink = menu::host_controls_sink();
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
@@ -415,7 +415,7 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	if (bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink& sink = menu::host_controls_sink();
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 
 	// A MIDI track choosing its knob's CC: a mod button's press changes nothing, and its release ends the choice.
 	if (selecting_cc_) {
@@ -471,7 +471,7 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 	if (ctx.learn || bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink& sink = menu::host_controls_sink();
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 
 	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (ctx.shift && on) {
@@ -492,7 +492,7 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 		selecting_knob_ = which_encoder;
 	}
 	// A push that edited the instrument marks it, on a clip.
-	if (apply_push(menu::host_write_sink(), sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
+	if (apply_push(*menu::host_ports().writes, sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
 		(void)sink.instrument_edited(*focus_);
 	}
 	if (push.comp) {

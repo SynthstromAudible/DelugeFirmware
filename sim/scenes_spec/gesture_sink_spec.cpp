@@ -72,7 +72,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		Song* const saved = currentSong;
 		currentSong = synth.song;
 		const MenuContext on_synth = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false);
-		bind::WriteSink& sink = menu::host_write_sink();
+		bind::WriteSink& sink = *menu::host_ports().writes;
 		using deluge::project::SettingGroupId;
 		expect(sink.write_text(name_of(SettingGroupId::TRACK), on_synth.addresses, "BASSLINE")).to_be_true();
 		expect(sink.write_text(name_of(SettingGroupId::CLIP), on_synth.addresses, "VERSE")).to_be_true();
@@ -94,7 +94,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		currentSong = audio.song;
 		audio.song->setCurrentClip(audio.clip);
 		const deluge::project::ParamAddress lpf = audio_lpf(audio);
-		expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
@@ -225,7 +225,7 @@ describe gesture_sink("a scene's gestures through the app's sink and its clip an
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = synth.song;
-		bind::WriteSink& sink = menu::host_write_sink();
+		bind::WriteSink& sink = *menu::host_ports().writes;
 		const deluge::project::ClipAddress nowhere{synth.clip->id() + 1000};
 		bind::Addresses lost = menu::context_for(*synth.song, deluge::gui::menuViewOf(synth.clip), 0, false, false, false, false).addresses;
 		lost.clip = nowhere;

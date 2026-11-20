@@ -141,13 +141,13 @@ bool writes_whole_kit(const MenuContext& ctx) {
 }
 
 void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
-	(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-	                                  .path = path,
-	                                  .group = deluge::project::SettingGroupId::SONG},
-	                       .menu_value = value});
+	(void)ctx.ports.writes->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	                                          .path = path,
+	                                          .group = deluge::project::SettingGroupId::SONG},
+	                               .menu_value = value});
 }
 
 bool relevant(const Node& node, const MenuContext& ctx) {
@@ -263,12 +263,12 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
 	// outside the range and an unresolved target ask for nothing.
 	if (bind.target.valid()) {
-		if (ctx.model == nullptr || !ctx.ports.has_bind_ports() || ctx.sink == nullptr) {
+		if (ctx.model == nullptr || !ctx.ports.has_bind_ports() || ctx.ports.writes == nullptr) {
 			return;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
 		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
-		if (request && ctx.sink->write(*request)) {
+		if (request && ctx.ports.writes->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
 				notify::raise(notify::Dirty::GridMain);
@@ -572,7 +572,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 		deluge::notify::raise(deluge::notify::Dirty::Oled);
 		return;
 	}
-	if (!has_instrument_clip(ctx) || ctx.sink == nullptr) {
+	if (!has_instrument_clip(ctx) || ctx.ports.writes == nullptr) {
 		return;
 	}
 	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
@@ -580,7 +580,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), ctx.ports, value);
 	if (request) {
-		(void)ctx.sink->write(*request);
+		(void)ctx.ports.writes->write(*request);
 	}
 	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }

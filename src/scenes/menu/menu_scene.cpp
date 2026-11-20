@@ -32,6 +32,7 @@
 
 #include "definitions_cxx.hpp" // kMaxMenuPatchCableValue
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/knob_focus.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
@@ -795,13 +796,13 @@ void MenuScene::flip_in_place(const Node& node) {
 void MenuScene::mark_edited_after_turn() {
 	// `currentSound`, which the slot stands for, and `markInstrumentAsEdited`'s `!inSettingsMenu()`: the settings menu
 	// can be opened over a synth with a slot resolved.
-	if (ctx_.controls_sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
+	if (ctx_.ports.controls_sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
 	    || !select_turn_edits_instrument(ctx_, st_)) {
 		return;
 	}
 	const deluge::project::SlotAddress slot = *ctx_.addresses.slot;
 	const bool drum = slot.kind == deluge::project::SlotAddress::Kind::DRUM;
-	(void)ctx_.controls_sink->instrument_edited(deluge::scenes::bind::KnobFocus{
+	(void)ctx_.ports.controls_sink->instrument_edited(deluge::scenes::bind::KnobFocus{
 	    .owner = deluge::scenes::bind::SoundFocus{
 	        .slot = slot, .clip = ctx_.addresses.clip, .kit = drum ? ctx_.addresses.kit_output : std::nullopt}});
 }
@@ -922,7 +923,7 @@ Result MenuScene::after_render_navigation() {
 		if (item != nullptr && is_automation_item(*item)) {
 			deleting_automation = true;
 			const std::optional<deluge::project::ParamAddress> address = automation_address(*item, ctx_, st_);
-			if (address && ctx_.sink != nullptr && ctx_.sink->delete_automation(*address)) {
+			if (address && ctx_.ports.writes != nullptr && ctx_.ports.writes->delete_automation(*address)) {
 				(void)r.actions.push_back(
 				    Action{.kind = Action::Kind::Popup,
 				           .popup_string = static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED)});

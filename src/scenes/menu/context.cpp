@@ -52,7 +52,6 @@
 
 #include "scenes/menu/context.h"
 
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 
@@ -275,13 +274,11 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		ctx.root = MenuContext::Root::Settings;
 	}
 
-	// What a target node binds through: the model, the addresses, and the app's ports and sink, which act on the song
+	// What a target node binds through: the model, the addresses, and the app's ports, which act on the song
 	// it plays: a context over any other song binds nothing through them.
 	ctx.model = &song.project;
 	if (host_binds(song)) {
 		ctx.ports = host_ports();
-		ctx.sink = &host_write_sink();
-		ctx.controls_sink = &host_controls_sink();
 	}
 	// An unresolved context (a kit row with no note row) names nothing to edit.
 	if (ctx.resolved && slot) {

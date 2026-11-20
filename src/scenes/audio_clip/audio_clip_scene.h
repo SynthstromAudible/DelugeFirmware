@@ -585,7 +585,6 @@ private:
 	/// @{
 	std::optional<deluge::project::ClipAddress> clip_;
 	::Song* song_ = nullptr;
-	deluge::scenes::bind::WriteSink* sink_ = nullptr;
 	deluge::scenes::bind::Ports ports_{};
 	/// @}
 

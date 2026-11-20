@@ -1,6 +1,8 @@
 #include "fakes.h"
 #include "port_contracts.h"
 
+#include "support/printers/bind_addresses_printer.h"
+#include "support/printers/controls_printer.h"
 #include "support/printers/learn_input_printer.h"
 #include "support/printers/mapping_printer.h"
 
@@ -149,6 +151,51 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		}
 		host.learn.accept = false;
 		expect(contract::unknown_owner_knob_is_refused(*p.learn, knob)).to_be_true();
+	});
+	it("records each menu write in order with its arguments", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const Target name{.kind = Target::Kind::MODEL, .path = "name"};
+		const Addresses where{.clip = deluge::project::ClipAddress{5}};
+		expect(p.writes->write_text(name, where, "Lead")).to_be_true();
+		p.writes->set_default_audio_input_channel(3);
+		expect(host.writes.gestures.size()).to_equal(size_t{2});
+		if (host.writes.gestures.size() == 2) {
+			const auto& text = host.writes.gestures[0];
+			expect(text.kind).to_equal(test::RecordingWrites::Gesture::Kind::TEXT);
+			expect(text.target).to_equal(name);
+			expect(text.where).to_equal(where);
+			expect(text.text).to_equal(std::string{"Lead"});
+			expect(host.writes.gestures[1].kind).to_equal(test::RecordingWrites::Gesture::Kind::DEFAULT_INPUT_CHANNEL);
+			expect(host.writes.gestures[1].value).to_equal(int64_t{3});
+		}
+	});
+	it("records each knob write in order with its arguments, and answers take_for as the spec set", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const deluge::project::ParamAddress lpf =
+		    deluge::project::ParamAddress::of(deluge::project::OwnerId::clip(4), deluge::project::engine_target(3));
+		expect(p.controls_sink->write_param(lpf, 7, 1, 24, deluge::controls::Resolution::LEARNED)).to_be_true();
+		expect(host.controls_sink.param_writes.size()).to_equal(size_t{1});
+		if (host.controls_sink.param_writes.size() == 1) {
+			const auto& write = host.controls_sink.param_writes[0];
+			expect(write.address).to_equal(lpf);
+			expect(write.value).to_equal(7);
+			expect(write.resolution).to_equal(deluge::controls::Resolution::LEARNED);
+		}
+		expect(p.controls_sink->delete_knob_automation(lpf)).to_be_true();
+		expect(host.controls_sink.gestures.size()).to_equal(size_t{1});
+		if (host.controls_sink.gestures.size() == 1) {
+			const auto& gesture = host.controls_sink.gestures[0];
+			expect(gesture.kind).to_equal(test::RecordingControlsSink::Gesture::Kind::DELETE_KNOB_AUTOMATION);
+			expect(gesture.address.has_value()).to_be_true();
+			if (gesture.address) {
+				expect(*gesture.address).to_equal(lpf);
+			}
+		}
+		host.controls_sink.take_answer = 12;
+		expect(p.controls_sink->take_for(9).value_or(0)).to_equal(uint32_t{12});
+		expect(host.controls_sink.take_requests.size()).to_equal(size_t{1});
 	});
 	it("answers the MIDI devices as the spec set them, and keeps a write to a known device", _ {
 		test::FakeHost host;

@@ -106,10 +106,12 @@ void AudioClipScene::open(std::optional<deluge::project::ClipAddress> clip, ::So
                           deluge::scenes::bind::WriteSink* sink, deluge::scenes::bind::ClipWrites* clip_writes) {
 	clip_ = song != nullptr ? clip : std::nullopt;
 	song_ = song;
-	// The app's sink and ports act on the song it plays; a scene over any other song binds nothing through them.
+	// The app's ports act on the song it plays; a scene over any other song binds nothing through them.
 	const bool binds = song_ != nullptr && menu::host_binds(*song_);
-	sink_ = sink != nullptr ? sink : (binds ? &menu::host_write_sink() : nullptr);
 	ports_ = binds ? menu::host_ports() : deluge::scenes::bind::Ports{};
+	if (sink != nullptr) {
+		ports_.writes = sink;
+	}
 	if (clip_writes != nullptr) {
 		ports_.clip_writes = clip_writes;
 	}
@@ -675,18 +677,18 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 	// `AudioClipView::selectEncoderAction`'s `else` branch (`audio_clip_view.cpp`): the track's mode, scrolled as
 	// `AudioOutput::scrolledMode` scrolls it, written to the track's record.
 	const std::optional<deluge::project::TrackAddress> at = track();
-	if (!at || sink_ == nullptr) {
+	if (!at || ports_.writes == nullptr) {
 		return false;
 	}
 	constexpr auto kModes = static_cast<int32_t>(std::size(deluge::project::kAudioModeWords));
 	const int32_t mode = std::clamp((audio_mode() + static_cast<int8_t>(offset)) % kModes, 0, kModes - 1);
 	deluge::scenes::bind::Addresses where{};
 	where.track = *at;
-	(void)sink_->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-	                               .path = "mode",
-	                               .group = deluge::project::SettingGroupId::AUDIO_INPUT},
-	                    .where = where,
-	                    .menu_value = mode});
+	(void)ports_.writes->write({.target = {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+	                                       .path = "mode",
+	                                       .group = deluge::project::SettingGroupId::AUDIO_INPUT},
+	                            .where = where,
+	                            .menu_value = mode});
 	return true;
 }
 

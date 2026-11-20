@@ -15,6 +15,7 @@
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/ports/ui_facts.h"
+#include "scenes/bind/write_sink.h"
 
 namespace deluge::scenes::bind {
 
@@ -33,6 +34,8 @@ struct Ports {
 	SoundWrites* sound_writes{nullptr};       ///< where a scene's edits of a sound's sources go
 	LearnSink* learn{nullptr};                ///< where a scene's MIDI learns go
 	MidiDevices* midi{nullptr};               ///< the connected MIDI devices and their own settings
+	WriteSink* writes{nullptr};               ///< where a menu's setting, text and automation writes go
+	controls::Sink* controls_sink{nullptr};   ///< where the knobs' writes and an effect setting's exact word go
 	/// @brief Whether every port the bind dispatch reads (audio, sound, tracks and controls) is present.
 	/// @return True when all four are non-null.
 	[[nodiscard]] bool has_bind_ports() const {

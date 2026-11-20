@@ -2,6 +2,7 @@
 // file the sample browser opens on, where a kit row's play direction lives -- are answered from the record, the
 // runtime facts and the scenes' view state, never from the engine's objects.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
@@ -184,8 +185,8 @@ describe menu_records("a menu's questions, answered from the record", ${
 		spec::SongFixture kit = spec::make_kit_song();
 		(void)spec::add_drum<MIDIDrum>(kit);
 		MenuContext ctx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
-		ctx.sink = &recording;
+		bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		menu::bindings::write(nodes::sequence_direction, ctx, 1);
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
@@ -214,7 +215,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		for (const Case& c : cases) {
 			const MenuContext ctx = menu::context_for(*c.song, deluge::gui::menuViewOf(c.clip), 0, false, false, false, false);
 			expect(ctx.ports.controls).to_be_null();
-			expect(ctx.sink).to_be_null();
+			expect(ctx.ports.writes).to_be_null();
 			const deluge::project::DocClip before =
 			    *c.song->project.resolveClip(deluge::project::ClipAddress{c.clip->id()});
 			const auto swing = c.song->project.groove.swing_interval;

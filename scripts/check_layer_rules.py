@@ -246,12 +246,6 @@ LEGACY_PORT_SEAMS = (
     # wall that may. Its HEADER (`shell_automation_glue.h`) is deliberately NOT listed: it declares free functions over
     # legacy types and integers and names no port type.
     "src/deluge/gui/ui/shell_automation_glue.cpp",
-    # The binding's host half. It names the scenes' binding types
-    # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:
-    # the write sink that applies a menu's requests as Edits, and the runtime facts a menu reads (the audio
-    # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
-    # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
-    "src/deluge/gui/ui/shell_bind_host.cpp",
     # The slicer scene's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
     # names no port type, so it is not listed.
     "src/deluge/gui/ui/shell_slice_ops.cpp",

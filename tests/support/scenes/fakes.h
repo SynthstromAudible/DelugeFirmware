@@ -3,8 +3,12 @@
 /// @file
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
+#include "controls/sink.h"
+#include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
+#include "scenes/bind/write_sink.h"
+#include "serialization/value.h"
 
 #include <cstdint>
 #include <map>
@@ -255,19 +259,108 @@ struct FakeMidiDevices final : MidiDevices {
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 };
 
+/// @brief WriteSink that records every request, in order, and takes each.
+struct RecordingWrites final : WriteSink {
+	/// @brief A text or default-input-channel request, as recorded.
+	struct Gesture {
+		/// @brief Which request it was.
+		enum class Kind : uint8_t {
+			TEXT,                  ///< write_text
+			DEFAULT_INPUT_CHANNEL, ///< set_default_audio_input_channel
+		};
+		Kind kind{Kind::TEXT}; ///< which request it was
+		Target target{};       ///< TEXT's row
+		Addresses where{};     ///< TEXT's owner
+		std::string text;      ///< TEXT's text
+		int64_t value{0};      ///< DEFAULT_INPUT_CHANNEL's channel
+	};
+	std::vector<WriteRequest> requests;         ///< every write, in order
+	std::vector<project::ParamAddress> deletes; ///< every delete_automation's param, in order
+	std::vector<Gesture> gestures;              ///< every text and default-input-channel request, in order
+	bool write(const WriteRequest& request) override;
+	bool delete_automation(const project::ParamAddress& address) override;
+	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
+	void set_default_audio_input_channel(int32_t channel) override;
+};
+
+/// @brief controls::Sink that records every request, in order, and takes each; take_for answers @ref take_answer.
+struct RecordingControlsSink final : controls::Sink {
+	/// @brief A param write by address, as recorded.
+	struct ParamWrite {
+		project::ParamAddress address;                               ///< the param written
+		int32_t value{0};                                            ///< its value
+		int32_t pos{0};                                              ///< the position written at
+		int32_t length{0};                                           ///< the length of the region written
+		controls::Resolution resolution{controls::Resolution::KNOB}; ///< how its address resolves
+	};
+	/// @brief One of the knobs' other requests, as recorded.
+	struct Gesture {
+		/// @brief Which request it was.
+		enum class Kind : uint8_t {
+			KNOB_MODE,              ///< knob_mode
+			CHAIN_VIEW,             ///< chain_view
+			CONTROLS,               ///< write_controls
+			STUTTER,                ///< stutter
+			GRAB_REGION,            ///< grab_region
+			EFFECT_WORD,            ///< write_effect
+			MIDI_CC_SELECT,         ///< midi_cc_select
+			DELETE_KNOB_AUTOMATION, ///< delete_knob_automation
+			INSTRUMENT_EDITED,      ///< instrument_edited
+		};
+		Kind kind{Kind::KNOB_MODE}; ///< which request it was
+		/// KNOB_MODE's mode, GRAB_REGION's position, MIDI_CC_SELECT's knob.
+		int64_t value{0};
+		std::optional<project::KnobModeOwner> knob_owner;         ///< KNOB_MODE's owner
+		project::ChainAddress chain{};                            ///< CHAIN_VIEW's chain
+		std::string key;                                          ///< CHAIN_VIEW's key, EFFECT_WORD's path
+		std::string text;                                         ///< CHAIN_VIEW's word, EFFECT_WORD's word
+		std::optional<project::ControlsAddress> controls_address; ///< CONTROLS' owner
+		std::vector<project::ControllerMapping> controls;         ///< CONTROLS' mappings
+		/// STUTTER's, GRAB_REGION's, MIDI_CC_SELECT's and INSTRUMENT_EDITED's focus.
+		KnobFocus focus{};
+		bool begin{false};                            ///< STUTTER's begin (true) or end; MIDI_CC_SELECT's on
+		std::optional<EffectOwner> effect_owner;      ///< EFFECT_WORD's owner
+		std::optional<project::ParamAddress> address; ///< DELETE_KNOB_AUTOMATION's param
+	};
+	std::vector<ParamWrite> param_writes;                                   ///< every write_param, in order
+	std::vector<std::pair<project::ParamAddress, int32_t>> learned_follows; ///< every learned_written, in order
+	std::vector<uint32_t> take_requests;                                    ///< every output take_for was asked about
+	std::vector<project::ParamAddress> made;                                ///< every param make_param was asked for
+	std::vector<std::pair<project::OwnerParamTarget, project::MidiCommand>> absolutes; ///< every knob_absolute
+	std::vector<Gesture> gestures;       ///< every other request, in order
+	std::optional<uint32_t> take_answer; ///< what take_for answers
+	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+	                 controls::Resolution resolution) override;
+	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
+	std::optional<uint32_t> take_for(uint32_t output_id) override;
+	bool make_param(const project::ParamAddress& address) override;
+	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override;
+	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
+	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;
+	bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) override;
+	bool stutter(const KnobFocus& focus, bool begin) override;
+	bool grab_region(const KnobFocus& focus, uint32_t pos) override;
+	bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) override;
+	bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) override;
+	bool delete_knob_automation(const project::ParamAddress& address) override;
+	bool instrument_edited(const KnobFocus& focus) override;
+};
+
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
 struct FakeHost {
-	FakeAudioFacts audio;              ///< the audio port's fake
-	FakeCardFacts card;                ///< the card port's fake
-	FakeUiFacts ui;                    ///< the UI port's fake
-	FakeSoundFacts sound;              ///< the sound port's fake
-	FakeClipFacts clips;               ///< the clip port's fake
-	FakeTrackFacts tracks;             ///< the track port's fake
-	FakeControlFacts controls;         ///< the knobs' port's fake
-	RecordingClipWrites clip_writes;   ///< the clip port's recorder
-	RecordingSoundWrites sound_writes; ///< the sound port's recorder
-	RecordingLearnSink learn;          ///< the learn port's recorder
-	FakeMidiDevices midi;              ///< the MIDI devices port's fake
+	FakeAudioFacts audio;                ///< the audio port's fake
+	FakeCardFacts card;                  ///< the card port's fake
+	FakeUiFacts ui;                      ///< the UI port's fake
+	FakeSoundFacts sound;                ///< the sound port's fake
+	FakeClipFacts clips;                 ///< the clip port's fake
+	FakeTrackFacts tracks;               ///< the track port's fake
+	FakeControlFacts controls;           ///< the knobs' port's fake
+	RecordingClipWrites clip_writes;     ///< the clip port's recorder
+	RecordingSoundWrites sound_writes;   ///< the sound port's recorder
+	RecordingLearnSink learn;            ///< the learn port's recorder
+	FakeMidiDevices midi;                ///< the MIDI devices port's fake
+	RecordingWrites writes;              ///< the menu writes' recorder
+	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
@@ -280,7 +373,9 @@ struct FakeHost {
 		        .clip_writes = &clip_writes,
 		        .sound_writes = &sound_writes,
 		        .learn = &learn,
-		        .midi = &midi};
+		        .midi = &midi,
+		        .writes = &writes,
+		        .controls_sink = &controls_sink};
 	}
 };
 

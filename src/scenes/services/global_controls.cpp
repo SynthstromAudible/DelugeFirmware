@@ -86,10 +86,10 @@ void write_sync_scaling(::Song* song, int32_t clip_id) {
 	if (song == nullptr || !menu::host_binds(*song)) {
 		return;
 	}
-	(void)menu::host_write_sink().write({.target = {.kind = bind::Target::Kind::MODEL,
-	                                                .path = "syncScalingClip",
-	                                                .group = deluge::project::SettingGroupId::SONG},
-	                                     .menu_value = clip_id});
+	(void)menu::host_ports().writes->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                                   .path = "syncScalingClip",
+	                                                   .group = deluge::project::SettingGroupId::SONG},
+	                                        .menu_value = clip_id});
 }
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every

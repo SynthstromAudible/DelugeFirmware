@@ -20,6 +20,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
+#include "scenes/bind/knob_focus.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/storage_manager.h"
 
@@ -217,10 +218,10 @@ describe knob_writes("a gold knob's write by address", ${
 		const deluge::scenes::bind::KnobFocus focus{
 		    .owner = deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
 		                                              .clip = deluge::project::ClipAddress{f.clip->id()}}};
-		(void)deluge::scenes::menu::host_controls_sink().stutter(focus, true);
+		(void)deluge::scenes::menu::host_ports().controls_sink->stutter(focus, true);
 		const int32_t before_stutter = f.song->live.stutter.valueBeforeStuttering;
-		(void)deluge::scenes::menu::host_controls_sink().stutter(focus, false);
-		const bool deleted = deluge::scenes::menu::host_controls_sink().delete_knob_automation(on(*f.clip, lpf));
+		(void)deluge::scenes::menu::host_ports().controls_sink->stutter(focus, false);
+		const bool deleted = deluge::scenes::menu::host_ports().controls_sink->delete_knob_automation(on(*f.clip, lpf));
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 

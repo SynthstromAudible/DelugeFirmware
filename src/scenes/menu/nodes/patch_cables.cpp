@@ -759,13 +759,14 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	state.cursor_blink = deluge::ui::Blink{};
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
-	if (ctx.sink != nullptr && find_cable(ctx, source, destination).has_value()) {
+	if (ctx.ports.writes != nullptr && find_cable(ctx, source, destination).has_value()) {
 		const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, source, destination);
 		if (address) {
-			(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
-			                       .where = ctx.addresses,
-			                       .polarity = polarity,
-			                       .polarity_only = true});
+			(void)ctx.ports.writes->write(
+			    {.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
+			     .where = ctx.addresses,
+			     .polarity = polarity,
+			     .polarity_only = true});
 		}
 	}
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
@@ -789,8 +790,8 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	    in_horizontal ? default_polarity(strength_source(state, which_)) : state.walk.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, polarity);
-	if (request && ctx.sink != nullptr) {
-		(void)ctx.sink->write(*request);
+	if (request && ctx.ports.writes != nullptr) {
+		(void)ctx.ports.writes->write(*request);
 	}
 }
 

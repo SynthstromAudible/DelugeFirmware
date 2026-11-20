@@ -69,7 +69,7 @@ std::optional<int32_t> playing(Song& song, const ParamAddress& address) {
 /// Writes @p word through the app's sink at @p where; whether the engine and the record then hold it.
 bool sink_lands(Song& song, const Target& target, const Addresses& where, int32_t word) {
 	bind::WriteRequest request{.target = target, .where = where, .param_value = word};
-	menu::host_write_sink().write(request);
+	menu::host_ports().writes->write(request);
 	const std::optional<ParamAddress> address = bind::param_address(target, where);
 	if (!address || playing(song, *address) != word) {
 		return false;
@@ -188,7 +188,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		                      .kit_output = *kit.instrument->id(),
 		                      .affect_entire = true,
 		                      .clip = deluge::project::ClipAddress{kit.clip->id()}};
-		menu::host_write_sink().write({.target = kSoundLpf, .where = where, .param_value = 0x66666666});
+		menu::host_ports().writes->write({.target = kSoundLpf, .where = where, .param_value = 0x66666666});
 		const auto at = [&](Drum& d) {
 			return playing(*kit.song, ParamAddress{.owner = deluge::project::OwnerId::drum(*d.id()),
 			                                       .space = deluge::project::ParamSpace::ENGINE,
@@ -202,7 +202,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("sends MIDI-follow feedback for the param it writes", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const std::optional<uint32_t> sent = feedback_stamp(synth, [&] {
-			menu::host_write_sink().write({.target = kSoundLpf, .where = on_synth(synth), .param_value = 0x12345678});
+			menu::host_ports().writes->write({.target = kSoundLpf, .where = on_synth(synth), .param_value = 0x12345678});
 		});
 		expect(sent).to_equal(std::optional{987654u});
 	});
@@ -210,7 +210,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("creates and sets a cable through a CABLE request", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
-		expect(menu::host_write_sink().write({.target = cable,
+		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
 		                                      .param_value = 0x12345678,
 		                                      .polarity = deluge::instrument::Polarity::BIPOLAR}))
@@ -226,11 +226,11 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("flips an existing cable's polarity through a polarity-only CABLE request, leaving its strength", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
-		(void)menu::host_write_sink().write({.target = cable,
+		(void)menu::host_ports().writes->write({.target = cable,
 		                                     .where = on_synth(synth),
 		                                     .param_value = 0x12345678,
 		                                     .polarity = deluge::instrument::Polarity::BIPOLAR});
-		expect(menu::host_write_sink().write({.target = cable,
+		expect(menu::host_ports().writes->write({.target = cable,
 		                                      .where = on_synth(synth),
 		                                      .polarity = deluge::instrument::Polarity::UNIPOLAR,
 		                                      .polarity_only = true}))
@@ -249,7 +249,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		const ParamAddress lpf = synth_lpf(synth);
 		bool taken = false;
 		const std::optional<uint32_t> sent =
-		    feedback_stamp(synth, [&] { taken = menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB); });
+		    feedback_stamp(synth, [&] { taken = menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB); });
 		expect(taken).to_be_true();
 		expect(sent).to_equal(std::optional{0u});
 		const deluge::project::DocAutoParam* record = synth.song->project.resolveParam(lpf);
@@ -262,10 +262,10 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("deletes a param's automation by address, one undo step", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const ParamAddress lpf = synth_lpf(synth);
-		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
-		expect(menu::host_write_sink().delete_automation(lpf)).to_be_true();
+		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_true();
 		expect(synth.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
 		expect(action).not_().to_be_null();
@@ -285,9 +285,9 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		ParamAddress lpf = synth_lpf(synth);
 		lpf.owner.id += 1000;
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
-		expect(menu::host_write_sink().write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
-		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 0, deluge::controls::Resolution::KNOB)).to_be_false();
-		expect(menu::host_write_sink().delete_automation(lpf)).to_be_false();
+		expect(menu::host_ports().writes->write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
+		expect(menu::host_ports().controls_sink->write_param(lpf, 0x10000000, 0, 0, deluge::controls::Resolution::KNOB)).to_be_false();
+		expect(menu::host_ports().writes->delete_automation(lpf)).to_be_false();
 	});
 
 	it("keeps one sound's cables when another's are read", _ {
@@ -295,7 +295,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		spec::SongFixture b = spec::make_synth_song();
 		Song* const saved = currentSong;
 		deluge::scenes::spec::make_current(a.song);
-		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::ENVELOPE_1,
+		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::ENVELOPE_1,
 		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
 		                                     .where = on_synth(a),
 		                                     .param_value = 0x01000000});
@@ -307,7 +307,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		}
 		deluge::scenes::spec::make_current(b.song);
 		deluge::synth::CableTarget other = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
-		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::RANDOM,
+		(void)menu::host_ports().writes->write({.target = cable_target(PatchSource::RANDOM,
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),
 		                                     .param_value = 0x01000000});

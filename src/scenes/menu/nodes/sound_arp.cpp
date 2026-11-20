@@ -38,12 +38,12 @@ int32_t get_arp_preset(const MenuContext& ctx) {
 	return address ? static_cast<int32_t>(ctx.ports.tracks->arp_preset(*address)) : 0;
 }
 void set_arp_preset(const MenuContext& ctx, int32_t value) {
-	if (ctx.sink == nullptr || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+	if (ctx.ports.writes == nullptr || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
 		return;
 	}
 	if (const std::optional<bind::WriteRequest> request =
 	        bind::request_for(arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, ctx.ports, value)) {
-		ctx.sink->write(*request);
+		ctx.ports.writes->write(*request);
 	}
 }
 

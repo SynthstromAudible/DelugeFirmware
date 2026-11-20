@@ -1986,7 +1986,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
-		expect(deluge::scenes::menu::host_controls_sink().write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(deluge::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		const deluge::scenes::menu::MenuContext ctx =
 		    deluge::scenes::menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false, false);
 		const std::string before =
@@ -2024,7 +2024,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
 		(void)fixture.clip->paramManager.getOrCreateExpressionParamSet(); // a played bend made it, as a note would
-		expect(deluge::scenes::menu::host_controls_sink().write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+		expect(deluge::scenes::menu::host_ports().controls_sink->write_param(bend, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		const std::string before = recorded_row(*fixture.song, deluge::project::SettingGroupId::CLIP_VALUES,
 		                                        deluge::project::ClipAddress{fixture.clip->id()}, "bendRange");
 		const CableDefaults defaults{cables().a, 6, 0, 9};

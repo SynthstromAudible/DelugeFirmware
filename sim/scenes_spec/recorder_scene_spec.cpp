@@ -31,6 +31,7 @@
 /// @note The spec may include `gui/`; the library may not. Same rule `browser_scene_spec.cpp` and
 ///       `marker_scene_spec.cpp` run under.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/notify_drain.h"
 #include "gui/ui/shell_drum_creator.h"
@@ -674,15 +675,15 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Guards g;
 		{
 			KitRig k;
-			bind::RecordingSink recording;
+			bind::test::RecordingWrites recording;
 			MenuContext c = k.ctx();
-			c.sink = &recording;
+			c.ports.writes = &recording;
 			recorder_scene().open(c);
 			k.shell.init(SceneId{kRecorderSceneKind, 0});
 			k.shell.tick(0);
 			expect(recording.gestures.size()).to_equal(size_t{1});
 			if (!recording.gestures.empty()) {
-				expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::TEXT);
+				expect(recording.gestures[0].kind).to_equal(bind::test::RecordingWrites::Gesture::Kind::TEXT);
 				expect(recording.gestures[0].text).to_equal(std::string{"REC1"});
 			}
 		}

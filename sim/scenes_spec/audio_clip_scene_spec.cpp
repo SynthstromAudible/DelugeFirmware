@@ -1844,7 +1844,7 @@ describe audio_clip_scene_spec_body(
 		        Input in;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::RecordingSink recording;
+		        bind::test::RecordingWrites recording;
 		        bind::test::RecordingClipWrites clip_writes;
 		        r.open_scene_only(&recording, &clip_writes);
 		        using Kind = bind::test::RecordingClipWrites::Call::Kind;

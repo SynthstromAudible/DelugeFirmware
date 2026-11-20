@@ -230,4 +230,98 @@ bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& set
 	return true;
 }
 
+bool RecordingWrites::write(const WriteRequest& request) {
+	requests.push_back(request);
+	return true;
+}
+
+bool RecordingWrites::delete_automation(const project::ParamAddress& address) {
+	deletes.push_back(address);
+	return true;
+}
+
+bool RecordingWrites::write_text(const Target& target, const Addresses& where, std::string_view text) {
+	gestures.push_back({.kind = Gesture::Kind::TEXT, .target = target, .where = where, .text = std::string{text}});
+	return true;
+}
+
+void RecordingWrites::set_default_audio_input_channel(int32_t channel) {
+	gestures.push_back({.kind = Gesture::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
+}
+
+bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,
+                                        int32_t length, controls::Resolution resolution) {
+	param_writes.push_back({address, value, pos, length, resolution});
+	return true;
+}
+
+void RecordingControlsSink::learned_written(const project::ParamAddress& address, int32_t knob_pos) {
+	learned_follows.emplace_back(address, knob_pos);
+}
+
+std::optional<uint32_t> RecordingControlsSink::take_for(uint32_t output_id) {
+	take_requests.push_back(output_id);
+	return take_answer;
+}
+
+bool RecordingControlsSink::make_param(const project::ParamAddress& address) {
+	made.push_back(address);
+	return true;
+}
+
+void RecordingControlsSink::knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
+	absolutes.emplace_back(target, source);
+}
+
+bool RecordingControlsSink::knob_mode(project::KnobModeOwner owner, uint8_t mode) {
+	gestures.push_back({.kind = Gesture::Kind::KNOB_MODE, .value = mode, .knob_owner = owner});
+	return true;
+}
+
+bool RecordingControlsSink::chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) {
+	gestures.push_back(
+	    {.kind = Gesture::Kind::CHAIN_VIEW, .chain = chain, .key = std::string{key}, .text = std::string{word}});
+	return true;
+}
+
+bool RecordingControlsSink::write_controls(project::ControlsAddress owner,
+                                           std::vector<project::ControllerMapping> controls) {
+	gestures.push_back({.kind = Gesture::Kind::CONTROLS, .controls_address = owner, .controls = std::move(controls)});
+	return true;
+}
+
+bool RecordingControlsSink::stutter(const KnobFocus& focus, bool begin) {
+	gestures.push_back({.kind = Gesture::Kind::STUTTER, .focus = focus, .begin = begin});
+	return true;
+}
+
+bool RecordingControlsSink::grab_region(const KnobFocus& focus, uint32_t pos) {
+	gestures.push_back({.kind = Gesture::Kind::GRAB_REGION, .value = pos, .focus = focus});
+	return true;
+}
+
+bool RecordingControlsSink::write_effect(const EffectOwner& owner, std::string_view path,
+                                         const serialization::Value& value) {
+	gestures.push_back({.kind = Gesture::Kind::EFFECT_WORD,
+	                    .key = std::string{path},
+	                    .text = value.isScalar() ? value.str() : std::string{},
+	                    .effect_owner = owner});
+	return true;
+}
+
+bool RecordingControlsSink::midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) {
+	gestures.push_back({.kind = Gesture::Kind::MIDI_CC_SELECT, .value = knob, .focus = focus, .begin = on});
+	return true;
+}
+
+bool RecordingControlsSink::delete_knob_automation(const project::ParamAddress& address) {
+	gestures.push_back({.kind = Gesture::Kind::DELETE_KNOB_AUTOMATION, .address = address});
+	return true;
+}
+
+bool RecordingControlsSink::instrument_edited(const KnobFocus& focus) {
+	gestures.push_back({.kind = Gesture::Kind::INSTRUMENT_EDITED, .focus = focus});
+	return true;
+}
+
 } // namespace deluge::scenes::bind::test

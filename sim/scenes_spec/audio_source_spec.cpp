@@ -21,6 +21,7 @@
 /// answer back.
 
 #include "deluge-project/setting_group.h"
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -470,8 +471,8 @@ describe audio_source_sink("scenes::context_menu the audio-source descriptor: th
 		SourceGuard guard{r.song.output};
 		seed(r.song.output, AudioInputChannel::LEFT, nullptr);
 		MenuContext ctx = r.menu_context();
-		deluge::scenes::bind::RecordingSink recording;
-		ctx.sink = &recording;
+		deluge::scenes::bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		r.open_selector(ctx);
 		r.shell.tick(5);
 		r.turn(1, 10);
@@ -483,7 +484,7 @@ describe audio_source_sink("scenes::context_menu the audio-source descriptor: th
 		expect(channel).to_be_true();
 		const bool default_channel =
 		    recording.gestures.size() == 1
-		    && recording.gestures[0].kind == deluge::scenes::bind::GestureRequest::Kind::DEFAULT_INPUT_CHANNEL;
+		    && recording.gestures[0].kind == deluge::scenes::bind::test::RecordingWrites::Gesture::Kind::DEFAULT_INPUT_CHANNEL;
 		expect(default_channel).to_be_true();
 	});
 

@@ -294,7 +294,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
 		const ParamAddress cable = cableOf(f, *f.clip);
 		RootView root;
-		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		expect(sink.write_param(cable, 1 << 26, 0, 0, controls::Resolution::LEARNED)).to_be_true();
 		expect(valueOf(*f.song, cable)).to_equal(std::optional<int32_t>{1 << 26}, "the cable depth");
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
@@ -309,7 +309,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		RootView root;
-		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		const uint32_t output = *f.instrument->id();
 		expect(sink.take_for(output)).to_equal(std::optional<uint32_t>{f.clip->id()}, "the output's take");
 		expect(sink.take_for(output + 1000).has_value()).to_be_false();
@@ -339,7 +339,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		RootView root;
-		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		const ParamAddress cable = cableOf(f, *f.clip);
 		expect(valueOf(*f.song, cable).has_value()).to_be_false();
 		expect(sink.make_param(cable)).to_be_true();
@@ -373,11 +373,11 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		};
 		expect(relative(target)).to_be_true("the target's relative flag");
 		expect(relative(other)).to_be_true("the other's relative flag");
-		deluge::scenes::menu::host_controls_sink().knob_absolute(target, a);
+		deluge::scenes::menu::host_ports().controls_sink->knob_absolute(target, a);
 		expect(relative(target)).to_be_false();
 		expect(relative(other)).to_be_true();
 		// A command the target is not learned to leaves it alone.
-		deluge::scenes::menu::host_controls_sink().knob_absolute(other, a);
+		deluge::scenes::menu::host_ports().controls_sink->knob_absolute(other, a);
 		expect(relative(other)).to_be_true();
 		deluge::scenes::spec::make_current(saved);
 	});
@@ -389,7 +389,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		f.song->setCurrentClip(f.clip);
-		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		controls::Sink& sink = *deluge::scenes::menu::host_ports().controls_sink;
 		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
 		const project::ParamTarget volume = project::engine_target(
 		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME),

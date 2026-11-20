@@ -20,7 +20,6 @@
 #include "midi/device_id.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/services/view_state.h"
 
 #include <cstdint>
@@ -42,7 +41,7 @@ struct Node;
 /// hook is handed a `const MenuContext&` instead of reading a global.
 ///
 /// It holds what a node edits by address -- the record (`model`), the owners (`addresses`) -- and what it reads and
-/// writes through: the host's runtime facts and its sink. Its flags say which kind of context `context_for()`
+/// writes through: the host's ports. Its flags say which kind of context `context_for()`
 /// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
@@ -82,7 +81,7 @@ struct MenuContext {
 
 	/// @brief The song, for the device and session menus that act on the running song itself (its threshold
 	///        recording mode, its stem export, the velocity default every instrument takes). Everything else a node
-	///        edits it reaches through `model`, `addresses`, `facts` and `sink`.
+	///        edits it reaches through `model`, `addresses` and `ports`.
 	Song* song = nullptr;
 	/// @brief The range the menu edits, by index into the source's ranges; -1 for none chosen.
 	int16_t range_index = -1;
@@ -189,16 +188,14 @@ struct MenuContext {
 	Root root = Root::Settings;
 
 	/// @name What a target node binds through
-	/// The model and addresses a target resolves against, the host's ports, the sink its writes go to, and the
-	/// same host's controls sink, which takes the gold knobs' writes and an effect setting's exact word.
+	/// The model and addresses a target resolves against, and the host's ports, which its reads and writes go
+	/// through (`ports.writes` takes its writes, `ports.controls_sink` the gold knobs' and an effect setting's exact
+	/// word).
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
 	deluge::scenes::bind::Ports ports{}; ///< the host's ports; a spec's fakes
-	deluge::scenes::bind::WriteSink* sink = nullptr;
-	/// The same host's controls sink: the gold knobs' writes and an effect setting's exact word.
-	deluge::controls::Sink* controls_sink = nullptr;
-	/// @}
+	                                     /// @}
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,

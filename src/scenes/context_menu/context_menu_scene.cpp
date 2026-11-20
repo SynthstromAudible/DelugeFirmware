@@ -230,7 +230,7 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	// Not ported: the `if (currentUIMode != 0u) return;` guard at the top of `AudioInputSelector::selectEncoderAction`.
 	// `currentUIMode` is a legacy UI global this layer may not read, and the shell's own input routing is what stands
 	// in for it -- a scene below a modal overlay is not handed the turn at all.
-	if (!audio_track_of(ctx) || ctx.sink == nullptr) {
+	if (!audio_track_of(ctx) || ctx.ports.writes == nullptr) {
 		return;
 	}
 	const auto option = static_cast<AudioSourceOption>(selection.option);
@@ -244,7 +244,8 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	// The option is the channel's word: OFF is none. Leaving the specific track clears the recording-from state (the
 	// input's Edit does), so the track that was being recorded is not left silently muted.
 	const int32_t channel = option < AudioSourceOption::Count ? static_cast<int32_t>(option) : 0;
-	(void)ctx.sink->write({.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
+	(void)ctx.ports.writes->write(
+	    {.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
 
 	if (option == AudioSourceOption::Track) {
 		// Keep the chosen source if it is still usable, otherwise take the first one
@@ -253,13 +254,13 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 		if (!record_from) {
 			record_from = first_recordable_track(ctx);
 		}
-		(void)ctx.sink->write({.target = audio_input_row("outputRecordingFrom"),
-		                       .where = ctx.addresses,
-		                       .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
+		(void)ctx.ports.writes->write({.target = audio_input_row("outputRecordingFrom"),
+		                               .where = ctx.addresses,
+		                               .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
 	}
 
 	// The song-wide default follows whatever was last picked here.
-	ctx.sink->set_default_audio_input_channel(input_channel_of(ctx));
+	ctx.ports.writes->set_default_audio_input_channel(input_channel_of(ctx));
 }
 
 std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> scratch) {
