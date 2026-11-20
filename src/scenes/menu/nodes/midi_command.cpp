@@ -24,7 +24,9 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/profile.h"
 
-#include "definitions_cxx.hpp" // GlobalMIDICommand, IS_A_CC, IS_A_PC
+#include "scenes/bind/ports/learn_sink.h"
+#include "scenes/bind/ports/midi_devices.h"
+
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
@@ -33,12 +35,13 @@
 #include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/midi_channels.h"
-#include "io/midi/device_registry.h"
-#include "io/midi/midi_engine.h"
+#include "deluge-project/midi_command.h"
 
 #include <charconv>
 #include <cstddef>
+#include <optional>
 #include <string_view>
 
 namespace deluge::scenes::menu::nodes {
@@ -46,14 +49,8 @@ namespace deluge::scenes::menu::nodes {
 namespace {
 
 using deluge::l10n::String;
-
-/// @brief The slot `command` binds, as a live reference into the MIDI engine.
-///
-/// `util::to_underlying(commandNumber)` in every one of legacy's five members
-/// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), once.
-LearnedMIDI& slot_for(GlobalMIDICommand command) {
-	return midiEngine.globalMIDICommands[static_cast<size_t>(command)];
-}
+using deluge::project::kFirstCcChannel;
+using deluge::project::kFirstProgramChangeChannel;
 
 /// @brief The node currently on screen, so this item can draw its own title.
 ///
@@ -99,18 +96,12 @@ int32_t command_row0_y(const deluge::ui::oled::OledFrame& f) {
 
 } // namespace
 
-void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
-	// `Command::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): *any* select-encoder
-	// motion clears the binding, in either direction -- the item has no value to walk, so legacy spends the encoder on
-	// "forget this". `f.turn()` is this port's detent count, and reading it claims it (`ui/core/frame_context.h`, rule
-	// 2), which is what keeps the shell from also acting on it.
-	if (f.turn() != 0) {
-		slot_for(command_).clear();
-	}
-
-	LearnedMIDI& command = slot_for(command_);
+	// A context with no MIDI devices port has no binding to show: the command reads as unassigned.
+	const std::optional<bind::LearnedBinding> command =
+	    ctx.ports.midi != nullptr ? ctx.ports.midi->global_command(command_) : std::nullopt;
 	const int32_t row0_y = command_row0_y(f);
 	const int32_t row_h = f.style.row_height;
 	const int32_t spacing = deluge::ui::oled::spacing_x_for(f.style.row_font);
@@ -120,27 +111,29 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
 	deluge::ui::shell::TextScratch scratch;
 
-	if (!command.containsSomething()) {
+	if (!command) {
 		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`).
 		deluge::ui::oled::text(f, row(0, 0), text_of(String::STRING_FOR_COMMAND_UNASSIGNED, scratch), ts);
 	}
 	else {
 		// Row 0: the device, side-scrolling. `Command::drawPixelsForOled`
-		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) -- the display name of the cable the binding names,
-		// or "ANY MIDI DEVICE" for a binding with no cable, drawn and then handed to `OLED::setupSideScroller` across
-		// the full panel width. `scroll_text` is this layer's side scroller and does both in one call; the scroll state
-		// is the menu's own per-depth `ScrollText` (`MenuState::scroll`), which nothing else on this screen uses.
+		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) -- the display name of the device the binding
+		// names, or "ANY MIDI DEVICE" for a binding with none, drawn and then handed to `OLED::setupSideScroller`
+		// across the full panel width. `scroll_text` is this layer's side scroller and does both in one call; the
+		// scroll state is the menu's own per-depth `ScrollText` (`MenuState::scroll`), which nothing else on this
+		// screen uses.
 		std::string_view device = text_of(String::STRING_FOR_ANY_MIDI_DEVICE, scratch);
-		if (command.cable != nullptr) {
-			device = std::string_view{command.cable->getDisplayName()};
+		if (command->device) {
+			device = ctx.ports.midi->name(*command->device);
 		}
 		deluge::ui::oled::scroll_text(f, row(0, 0), device, f.style.row_font,
 		                              state.scroll[state.depth < kMenuDepth ? state.depth : 0]);
 
 		// Row 1: the channel or MPE zone. `Command::drawPixelsForOled`
 		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). The "great CC channel hack" is that
-		// `channelOrZone` carries the message type in its high range (`IS_A_CC`, `IS_A_PC` -- `definitions_cxx.hpp`),
-		// so the printed channel is the stored value minus whichever band it falls in, plus one for 1-based display.
+		// `channel_or_zone` carries the message type in its high range (`kFirstCcChannel`, `kFirstProgramChangeChannel`
+		// -- `deluge-project/midi_command.h`), so the printed channel is the stored value minus whichever band it falls
+		// in, plus one for 1-based display.
 		//
 		// The two MPE-zone arms are live, not defensive: `PlaybackHandler::noteMessageReceived`
 		// (`playback/playback_handler.cpp`) resolves the channel through
@@ -149,24 +142,24 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// does store `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` here. A CC's channel is resolved the same way.
 		deluge::ui::shell::TextScratch channel_scratch;
 		std::string_view channel_text;
-		if (command.channelOrZone == project::kMidiChannelLowerZone) {
+		const int32_t channel = command->channel_or_zone;
+		if (channel == project::kMidiChannelLowerZone) {
 			channel_text = text_of(String::STRING_FOR_MPE_LOWER_ZONE, channel_scratch);
 		}
-		else if (command.channelOrZone == project::kMidiChannelUpperZone) {
+		else if (channel == project::kMidiChannelUpperZone) {
 			channel_text = text_of(String::STRING_FOR_MPE_UPPER_ZONE, channel_scratch);
 		}
 		else {
 			channel_text = text_of(String::STRING_FOR_CHANNEL, channel_scratch);
 			int32_t channel_mod = 0;
-			if (command.channelOrZone >= IS_A_PC) {
-				channel_mod = IS_A_PC;
+			if (channel >= kFirstProgramChangeChannel) {
+				channel_mod = kFirstProgramChangeChannel;
 			}
-			else if (command.channelOrZone >= IS_A_CC) {
-				channel_mod = IS_A_CC;
+			else if (channel >= kFirstCcChannel) {
+				channel_mod = kFirstCcChannel;
 			}
 			char buf[12];
-			deluge::ui::oled::text(f, row(1, spacing * 8), format_int(command.channelOrZone + 1 - channel_mod, buf),
-			                       ts);
+			deluge::ui::oled::text(f, row(1, spacing * 8), format_int(channel + 1 - channel_mod, buf), ts);
 		}
 		deluge::ui::oled::text(f, row(1, 0), channel_text, ts);
 
@@ -174,15 +167,16 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). "Note"/"CC"/"PC" are bare literals in legacy too
 		// -- they are not in the string table.
 		std::string_view kind = "Note";
-		if (command.channelOrZone >= IS_A_PC) {
+		if (channel >= kFirstProgramChangeChannel) {
 			kind = "PC";
 		}
-		else if (command.channelOrZone >= IS_A_CC) {
+		else if (channel >= kFirstCcChannel) {
 			kind = "CC";
 		}
 		deluge::ui::oled::text(f, row(2, 0), kind, ts);
 		char buf[12];
-		deluge::ui::oled::text(f, row(2, spacing * 5), format_int(command.noteOrCC, buf), ts);
+		deluge::ui::oled::text(f, row(2, spacing * 5),
+		                       format_int(command->note_or_cc.value_or(project::MidiCommand::kNone), buf), ts);
 	}
 
 	// A leaf's select press leaves the item -- `FirmwareVersionItem::render`'s own arm, and what
@@ -194,51 +188,68 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 }
 
-deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
+deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEvent& event,
                                                   const deluge::ui::shell::UiContext& /*ui_ctx*/,
-                                                  const MenuContext& /*ctx*/, MenuState& /*state*/) const {
-	// `midi::Command` has no `buttonAction`/`padAction` override. MIDI learn reaches the item through
-	// `MenuLearn::offer`, which calls the learn members below. Nothing to consume here.
-	return {};
+                                                  const MenuContext& ctx, MenuState& /*state*/) const {
+	// `Command::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): *any* select-encoder
+	// motion unlearns the command, in either direction -- the item has no value to walk, so legacy spends the encoder
+	// on "forget this". `owned_input` leaves the turn unclaimed so that it arrives here, and taking it keeps the scene
+	// from also acting on it. `midi::Command` has no `buttonAction`/`padAction` override, and MIDI learn reaches the
+	// item through `MenuLearn::offer`, which calls the learn members below.
+	using deluge::ui::shell::UiEvent;
+	if (event.kind != UiEvent::Kind::Encoder || event.encoder != deluge::ui::EncoderRole::Select || event.delta == 0) {
+		return {};
+	}
+	if (ctx.ports.learn != nullptr) {
+		ctx.ports.learn->learn_global(command_, std::nullopt);
+	}
+	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	return {.handled = true};
 }
 
-bool MidiCommandItem::learn_note_on(deluge::midi::DeviceId device, int32_t channel, int32_t note) const {
+bool MidiCommandItem::learn_note_on(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel,
+                                    int32_t note) const {
 	// `Command::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), minus its display arm:
-	// `MenuLearn` pops or redraws (`nodes/midi_command.h`'s note).
-	::MIDICable* const cable = deluge::midi::cable_of(device);
-	if (cable == nullptr) {
+	// `MenuLearn` pops or redraws (`nodes/midi_command.h`'s note). A device the MIDI devices port does not know learns
+	// nothing.
+	if (ctx.ports.learn == nullptr || ctx.ports.midi == nullptr || !ctx.ports.midi->settings(device)) {
 		return false;
 	}
-	LearnedMIDI& command = slot_for(command_);
-	command.cable = cable;
-	command.channelOrZone = static_cast<uint8_t>(channel);
-	command.noteOrCC = static_cast<uint8_t>(note);
+	ctx.ports.learn->learn_global(command_, bind::LearnedBinding{.device = device,
+	                                                             .channel_or_zone = static_cast<uint8_t>(channel),
+	                                                             .note_or_cc = static_cast<uint8_t>(note)});
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 	return true;
 }
 
-bool MidiCommandItem::learn_cc(deluge::midi::DeviceId device, int32_t channel, int32_t cc, int32_t value) const {
+bool MidiCommandItem::learn_cc(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel, int32_t cc,
+                               int32_t value) const {
 	// `Command::learnCC` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): a zero-valued CC is the release
 	// half of a momentary controller and binds nothing; the menu still uses the message, as `SoundEditor` does.
 	if (value != 0) {
-		return learn_note_on(device, channel + IS_A_CC, cc);
+		return learn_note_on(ctx, device, channel + kFirstCcChannel, cc);
 	}
 	return false;
 }
 
-bool MidiCommandItem::learn_program_change(deluge::midi::DeviceId device, int32_t channel, int32_t program) const {
+bool MidiCommandItem::learn_program_change(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel,
+                                           int32_t program) const {
 	// `Command::learnProgramChange` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). FILL is the one command
 	// a program change cannot drive -- it is a momentary hold, and a PC has no off half -- so legacy refuses it with a
 	// popup; the menu still uses the message, as `SoundEditor::pcReceivedForMidiLearn` does.
-	if (command_ == GlobalMIDICommand::FILL) {
+	if (command_ == deluge::project::GlobalCommand::FILL) {
 		deluge::notify::notice_string(sid(String::STRING_FOR_CANT_LEARN_PC));
 		return false;
 	}
-	return learn_note_on(device, channel + IS_A_PC, program);
+	return learn_note_on(ctx, device, channel + kFirstProgramChangeChannel, program);
 }
 
-bool MidiCommandItem::unlearn() const {
-	slot_for(command_).clear(); // `Command::unlearnAction`
+bool MidiCommandItem::unlearn(const MenuContext& ctx) const {
+	// `Command::unlearnAction`.
+	if (ctx.ports.learn == nullptr) {
+		return false;
+	}
+	ctx.ports.learn->learn_global(command_, std::nullopt);
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 	return true;
 }

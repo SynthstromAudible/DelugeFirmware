@@ -1,8 +1,12 @@
 #pragma once
 
 /// @file
-/// @brief Where a scene's MIDI learns go: what a mapping target is played by, and which knob drives a param.
+/// @brief Where a scene's MIDI learns go: what a mapping target is played by, which knob drives a param, and what a
+///        global command or a follow input is learned to.
 
+#include "scenes/bind/ports/midi_devices.h"
+
+#include "deluge-project/device_settings.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
@@ -44,6 +48,17 @@ public:
 	/// @return Whether the knob was learned.
 	virtual bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
 	                        int32_t midi_channel) = 0;
+	/// @brief Learn @p binding as what @p command is taken from, or unlearn @p command when @p binding is nullopt. A
+	///        binding naming a device `MidiDevices` does not know is refused, and nothing is stored. Nothing is
+	///        saved here: the settings menu saves when it closes.
+	/// @param command The global command.
+	/// @param binding The binding learned, or nullopt to unlearn.
+	virtual void learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) = 0;
+	/// @brief Learn @p binding as what @p input listens on, or unlearn @p input when @p binding is nullopt. A binding
+	///        naming a device `MidiDevices` does not know is refused, and nothing is stored. Nothing is saved here.
+	/// @param input   The follow input.
+	/// @param binding The binding learned, or nullopt to unlearn.
+	virtual void learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) = 0;
 };
 
 } // namespace deluge::scenes::bind

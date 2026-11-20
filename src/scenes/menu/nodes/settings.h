@@ -8,13 +8,10 @@
 /// page, the sample browser preview mode, the play cursor, the recording page, the community
 /// features, the battery readout and the firmware version.
 ///
-/// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
-/// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), or is a DEVICE row the device port keeps
-/// (the community features, the audio, the clocks, the scalar MIDI and MIDI follow settings and the CV and gate outputs
-/// among them). Every one of those is inside this layer's include allow-list (see `scripts/check_layer_rules.py`'s
-/// `scenes-includes-outside`, which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is in
-/// the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read and
-/// write the real thing.
+/// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting is a DEVICE row the device port keeps (the
+/// community features, the audio, the clocks, the MIDI and MIDI follow settings and the CV and gate outputs among
+/// them), or a learned MIDI input -- a global command's or a follow input's -- which the MIDI devices port reads and
+/// the learn port writes. No hook here reads or writes the device's state itself.
 ///
 /// @note **No `Kind::Custom` placeholder remains here.** Every item whose state or action sits behind the
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
@@ -38,8 +35,8 @@
 ///           The five `reset_*` items are a real `ResetItem` opening `context_menu::ContextMenuScene`
 ///           through `MenuWalkState::pending_scene` (see "1. Actions" below). The twelve `midi_command_*`
 ///           (`origin/main:src/deluge/gui/menu_item/midi/command.h`, MIDI-learn items) are a real `MidiCommandItem`:
-///           they navigate nowhere, they bind an incoming MIDI message to a `GlobalMIDICommand`, which reaches them
-///           through `MenuLearn::offer` in learn mode; `MenuScene::unlearn` forgets it.
+///           they navigate nowhere, they bind an incoming MIDI message to a `project::GlobalCommand`, which reaches
+///           them through `MenuLearn::offer` in learn mode; `MenuScene::unlearn` forgets it.
 ///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
 ///           `default_key` are `Kind::Range` -- exactly the three consumers that
 ///           justify a `Range` kind -- and each end is a DEVICE row (`defaults/tempo/lower`, `.../upper`), not a
@@ -109,39 +106,40 @@ namespace deluge::scenes::menu::nodes {
 /// @name Hooks. Bodies (and their legacy citations) in `nodes/settings.cpp`.
 /// @{
 
-/// @brief `midi::FollowChannel`'s read and write over `midiEngine.midiFollowChannelType[which]`
-///        (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`), with the channel type as an argument
-///        rather than a constructor member.
+/// @brief `midi::FollowChannel`'s read and write (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`),
+///        with the input as an argument rather than a constructor member: the channel or zone the MIDI devices port
+///        reads, `MIDI_CHANNEL_NONE` for nothing learned, and a write through the learn port that keeps the device.
 ///
 /// The nineteen nodes are nineteen distinct addresses of the two templates below -- the same
 /// device `relevance.h` uses for its `osc0_*`/`osc1_*` pairs, and for the same reason: a `Node`
 /// carries no per-item payload, so what legacy stored in a member has to be a template argument.
 /// @{
-int32_t follow_channel_get(int32_t which);
-void follow_channel_set(int32_t which, int32_t value);
-template <int Which>
-int32_t get_follow_channel(const MenuContext&) {
-	return follow_channel_get(Which);
+int32_t follow_channel_get(const MenuContext& ctx, project::FollowInput input);
+void follow_channel_set(const MenuContext& ctx, project::FollowInput input, int32_t value);
+template <project::FollowInput Input>
+int32_t get_follow_channel(const MenuContext& ctx) {
+	return follow_channel_get(ctx, Input);
 }
-template <int Which>
-void set_follow_channel(const MenuContext&, int32_t value) {
-	follow_channel_set(Which, value);
+template <project::FollowInput Input>
+void set_follow_channel(const MenuContext& ctx, int32_t value) {
+	follow_channel_set(ctx, Input, value);
 }
 /// @}
 
 /// @brief `midi::FollowChannel::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`) and
-///        `learnCC`: a note-on or a CC sets the channel and the cable it came on. @return Whether it learned: a note-on
-///        or a CC with a cable.
-bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event);
-/// @brief `midi::FollowChannel::unlearnAction`: the channel goes back to unassigned. @return True.
-bool follow_channel_unlearn(int32_t which);
-template <int Which>
-bool learn_follow_channel(const MenuContext&, const deluge::ui::shell::UiEvent& event) {
-	return follow_channel_learn(Which, event);
+///        `learnCC`: a note-on or a CC learns the device it came on and its channel, through the learn port.
+/// @return Whether it learned: a note-on or a CC from a device the MIDI devices port knows.
+bool follow_channel_learn(const MenuContext& ctx, project::FollowInput input, const deluge::ui::shell::UiEvent& event);
+/// @brief `midi::FollowChannel::unlearnAction`: the input goes back to unassigned. @return Whether there was a learn
+///        port to unlearn it.
+bool follow_channel_unlearn(const MenuContext& ctx, project::FollowInput input);
+template <project::FollowInput Input>
+bool learn_follow_channel(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event) {
+	return follow_channel_learn(ctx, Input, event);
 }
-template <int Which>
-bool unlearn_follow_channel(const MenuContext&) {
-	return follow_channel_unlearn(Which);
+template <project::FollowInput Input>
+bool unlearn_follow_channel(const MenuContext& ctx) {
+	return follow_channel_unlearn(ctx, Input);
 }
 
 /// @brief `midi::FollowChannel::selectEncoderAction`: past either end the channel becomes unassigned
@@ -154,17 +152,17 @@ std::optional<int32_t> turn_follow_channel(const MenuContext& ctx, int32_t value
 
 /// @brief `midi::FollowChannel::drawInteger`: the input-differentiation line, the device and the channel or zone, in
 ///        the MIDI command screen's three rows.
-/// @param which  The `MIDIFollowChannelType` the node edits.
-/// @param ctx    The menu's context, whose MIDI devices port names the device.
+/// @param input  The follow input the node edits.
+/// @param ctx    The menu's context, whose MIDI devices port reads the binding and names the device.
 /// @param f      The frame the item draws in.
 /// @param value  The channel or zone after this tick's edit.
 /// @param scroll The side-scroll state of the device's name.
-void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
-                         deluge::ui::ScrollText& scroll);
-template <int Which>
+void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::oled::OledFrame& f,
+                         int32_t value, deluge::ui::ScrollText& scroll);
+template <project::FollowInput Input>
 void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
                          deluge::ui::ScrollText& scroll) {
-	follow_channel_draw(Which, ctx, f, value, scroll);
+	follow_channel_draw(Input, ctx, f, value, scroll);
 }
 
 /// @brief `midi::FollowKitRootNote::learnNoteOn`
@@ -360,16 +358,19 @@ inline constexpr Node midi_clock = submenu(sid(String::STRING_FOR_CLOCK), kMidiC
 // unassigned; `turn_follow_channel` moves between them, so the range only has to admit them all.
 inline constexpr IntRange kFollowChannelRange{0, MIDI_CHANNEL_NONE, 1};
 
-/// One follow-channel node. `n` is the `MIDIFollowChannelType` enumerator's value
-/// (`definitions_cxx.hpp`: A = 0, B = 1, C = 2, Track1 = 3 .. Track16 = 18).
+/// One follow-channel node. `n` is its `project::FollowInput`'s value (A = 0, B = 1, C = 2, TRACK_1 = 3 .. TRACK_16 =
+/// 18), which also numbers a track's title.
 #define DELUGE_FOLLOW_CHANNEL(node_name, n, name_id)                                                                   \
-	inline constexpr Node node_name =                                                                                  \
-	    with_leaf_draw(with_turn(with_learn(with_title_arg(int_item(sid(String::name_id), get_follow_channel<(n)>,     \
-	                                                                set_follow_channel<(n)>, kFollowChannelRange),     \
-	                                                       (n) >= 3 ? (n) - 2 : 0),                                    \
-	                                        learn_follow_channel<(n)>, unlearn_follow_channel<(n)>),                   \
-	                             turn_follow_channel),                                                                 \
-	                   draw_follow_channel<(n)>)
+	inline constexpr Node node_name = with_leaf_draw(                                                                  \
+	    with_turn(                                                                                                     \
+	        with_learn(with_title_arg(                                                                                 \
+	                       int_item(sid(String::name_id), get_follow_channel<static_cast<project::FollowInput>(n)>,    \
+	                                set_follow_channel<static_cast<project::FollowInput>(n)>, kFollowChannelRange),    \
+	                       (n) >= 3 ? (n) - 2 : 0),                                                                    \
+	                   learn_follow_channel<static_cast<project::FollowInput>(n)>,                                     \
+	                   unlearn_follow_channel<static_cast<project::FollowInput>(n)>),                                  \
+	        turn_follow_channel),                                                                                      \
+	    draw_follow_channel<static_cast<project::FollowInput>(n)>)
 
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_a, 0, STRING_FOR_FOLLOW_CHANNEL_A);
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_b, 1, STRING_FOR_FOLLOW_CHANNEL_B);
@@ -442,7 +443,7 @@ inline constexpr Node midi_takeover =
     setting_item(sid(String::STRING_FOR_TAKEOVER), Kind::Enum, device_row(project::device_path::kMidiTakeover));
 
 /// The twelve `midi::Command` learn items (`origin/main:src/deluge/gui/ui/menus.cpp`), each backed by its own
-/// `MidiCommandItem` (`nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
+/// `MidiCommandItem` (`nodes/midi_command.h`) -- one per `project::GlobalCommand`.
 /// The order is `midiCommandsMenu`'s own (`origin/main:src/deluge/gui/ui/menus.cpp`), which is NOT the enum's order.
 /// @{
 inline constexpr Node midi_command_play = with_learn_mode(custom(sid(String::STRING_FOR_PLAY), &kMidiCommandPlayItem));

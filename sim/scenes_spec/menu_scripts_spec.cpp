@@ -1054,7 +1054,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(play).not_().to_be_null();
 		expect(play == nullptr ? nullptr : play->custom).not_().to_be_null();
 		if (play != nullptr && play->custom != nullptr) {
-			expect(play->custom->learn_cc(deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
+			expect(play->custom->learn_cc(ctx, deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
 		}
 		menu_scene().open(nodes::midi_commands, ctx);
 

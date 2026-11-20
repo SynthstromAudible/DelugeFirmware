@@ -72,6 +72,49 @@ enum class FeedbackAutomation : uint8_t {
 	HIGH = 3,     ///< the most often
 };
 
+/// @brief A command the device takes from MIDI whatever song is loaded, once a message is learned for it.
+enum class GlobalCommand : uint8_t {
+	PLAYBACK_RESTART = 0,         ///< restart playback from the start
+	PLAY = 1,                     ///< the PLAY button
+	RECORD = 2,                   ///< the RECORD button
+	TAP = 3,                      ///< tap tempo
+	LOOP = 4,                     ///< loop record
+	LOOP_CONTINUOUS_LAYERING = 5, ///< loop record, layering continuously
+	UNDO = 6,                     ///< undo
+	REDO = 7,                     ///< redo
+	FILL = 8,                     ///< fill, held while the message is
+	TRANSPOSE = 9,                ///< transpose the song
+	NEXT_SONG = 10,               ///< load the next song
+	SHIFT = 11,                   ///< the SHIFT button
+};
+/// @brief How many global commands there are.
+inline constexpr size_t kGlobalCommandCount = std::to_underlying(GlobalCommand::SHIFT) + 1;
+
+/// @brief An input MIDI follow listens on: the three follow channels, then one for each of the sixteen tracks.
+enum class FollowInput : uint8_t {
+	A = 0,         ///< follow channel A
+	B = 1,         ///< follow channel B
+	C = 2,         ///< follow channel C
+	TRACK_1 = 3,   ///< track 1's input
+	TRACK_2 = 4,   ///< track 2's input
+	TRACK_3 = 5,   ///< track 3's input
+	TRACK_4 = 6,   ///< track 4's input
+	TRACK_5 = 7,   ///< track 5's input
+	TRACK_6 = 8,   ///< track 6's input
+	TRACK_7 = 9,   ///< track 7's input
+	TRACK_8 = 10,  ///< track 8's input
+	TRACK_9 = 11,  ///< track 9's input
+	TRACK_10 = 12, ///< track 10's input
+	TRACK_11 = 13, ///< track 11's input
+	TRACK_12 = 14, ///< track 12's input
+	TRACK_13 = 15, ///< track 13's input
+	TRACK_14 = 16, ///< track 14's input
+	TRACK_15 = 17, ///< track 15's input
+	TRACK_16 = 18, ///< track 16's input
+};
+/// @brief How many follow inputs there are.
+inline constexpr size_t kFollowInputCount = std::to_underlying(FollowInput::TRACK_16) + 1;
+
 /// @name The pads' brightness: the `ui/padBrightness` row's levels, and how a menu shows them.
 /// @{
 inline constexpr int32_t kDimmestPadLevel = 1;    ///< the dimmest level a menu sets

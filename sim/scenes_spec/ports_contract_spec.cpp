@@ -129,6 +129,10 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			expect(p.midi->connected().empty()).to_be_false();
 			expect(bind::contract::connected_devices_are_known(*p.midi)).to_be_true();
 			expect(bind::contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
+			if (p.learn != nullptr && !p.midi->connected().empty()) {
+				expect(bind::contract::learns_read_back(*p.learn, *p.midi, p.midi->connected().front())).to_be_true();
+				expect(bind::contract::unknown_device_learn_is_refused(*p.learn, *p.midi)).to_be_true();
+			}
 		}
 		if (p.writes != nullptr) {
 			// A sound and a clip no song holds.

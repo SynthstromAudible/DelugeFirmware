@@ -27,6 +27,13 @@ namespace deluge::project {
 /// params number from them. 120 up are the channel-mode messages.
 inline constexpr int32_t kNumRealCcNumbers = 120;
 
+/// @name How a learned command's channel_or_zone encodes the message kind: 0–15 a note's channel, 16 and 17 the MPE
+///       lower and upper zones, then the same eighteen again for a CC and once more for a program change.
+/// @{
+inline constexpr uint8_t kFirstCcChannel = 18;            ///< the first channel_or_zone encoding a CC
+inline constexpr uint8_t kFirstProgramChangeChannel = 36; ///< the first channel_or_zone encoding a program change
+/// @}
+
 /// @brief Which MIDI device a command listens to, as a song names it: a fixed port, or a USB device the Deluge hosts,
 /// known by its name and USB ids.
 struct MidiDeviceRef {
@@ -49,11 +56,8 @@ struct MidiDeviceRef {
 struct MidiCommand {
 	/// The value of channel_or_zone and note_or_cc when nothing is learned.
 	static constexpr uint8_t kNone = 255;
-	/// The first channel_or_zone encoding a program change (channels 0–17 are notes, 18–35 CCs); a launch command
-	/// cannot be one.
-	static constexpr uint8_t kFirstProgramChange = 36;
-
-	/// A MIDI channel 0–15, an MPE zone (16 lower, 17 upper), a CC-encoded channel, or kNone.
+	/// A MIDI channel 0–15, an MPE zone (16 lower, 17 upper), a CC-encoded channel (from kFirstCcChannel), or kNone.
+	/// A launch command is never a program change (from kFirstProgramChangeChannel).
 	uint8_t channel_or_zone{kNone};
 	uint8_t note_or_cc{kNone};
 	/// The device it must come from when inputs are told apart by device; empty means any device.

@@ -3,8 +3,9 @@
 /// @brief `MidiCommandItem` -- the `CustomItem` behind the twelve global-MIDI-command learn items.
 ///
 /// Mirrors main's `deluge::gui::menu_item::midi::Command` (`origin/main:src/deluge/gui/menu_item/midi/command.h`): a
-/// `MenuItem` parameterised by one `GlobalMIDICommand`, whose whole job is to bind the next MIDI
-/// message the user sends to `midiEngine.globalMIDICommands[that command]`.
+/// `MenuItem` parameterised by one global command, whose whole job is to bind the next MIDI message the user sends to
+/// that command. The binding is read through `bind::MidiDevices::global_command` and written through
+/// `bind::LearnSink::learn_global`.
 ///
 /// Legacy's twelve instances are the `midi::Command` globals (`playbackRestartMidiCommand` .. `shiftMidiCommand` in
 /// `origin/main:src/deluge/gui/ui/menus.cpp`), and this file declares the twelve that replace them one for one.
@@ -13,14 +14,15 @@
 ///
 /// **What is ported, member by member** (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`):
 ///
-///   * `learnNoteOn` -> `learn_note_on`: writes `cable`/`channelOrZone`/`noteOrCC` into the slot.
-///   * `learnCC` -> `learn_cc`: `learnNoteOn(cable, channel + IS_A_CC, cc)`, and only when
+///   * `learnNoteOn` -> `learn_note_on`: learns the device, the channel or zone, and the note.
+///   * `learnCC` -> `learn_cc`: a note-on learn at `channel + project::kFirstCcChannel`, and only when
 ///     `value != 0` -- legacy ignores the note-off half of a momentary controller.
-///   * `learnProgramChange` -> `learn_program_change`: `learnNoteOn(cable, channel + IS_A_PC, pc)`,
-///     except on `GlobalMIDICommand::FILL`, which refuses with the `CANT_LEARN_PC` popup.
-///   * `unlearnAction` -> `unlearn`: `clear()`s the slot.
-///   * `selectEncoderAction` -> the `f.turn()` arm of `render`: **any** select-encoder motion clears
-///     the slot. (Legacy really does clear on either direction; the item has no value to walk.)
+///   * `learnProgramChange` -> `learn_program_change`: a note-on learn at
+///     `channel + project::kFirstProgramChangeChannel`, except on `GlobalCommand::FILL`, which refuses with the
+///     `CANT_LEARN_PC` popup.
+///   * `unlearnAction` -> `unlearn`: unlearns the command.
+///   * `selectEncoderAction` -> `handle`'s select-turn arm: **any** select-encoder motion unlearns the command.
+///     (Legacy really does clear on either direction; the item has no value to walk.)
 ///   * `drawPixelsForOled` -> `render`.
 ///   * `shouldBlinkLearnLed` -> `wants_learn_blink`, which is `true` on all twelve.
 ///   * `allowsLearnMode` has no port: it gates legacy's `UI_MODE_MIDI_LEARN` bookkeeping (`SoundEditor::buttonAction`
@@ -35,8 +37,7 @@
 
 #include "scenes/menu/node.h"
 
-#include "definitions_cxx.hpp" // GlobalMIDICommand -- one of the three root-level headers this
-                               // layer may name (src/scenes/CMakeLists.txt is the authority)
+#include "deluge-project/device_settings.h"
 
 #include <cstdint>
 
@@ -48,36 +49,40 @@ namespace deluge::scenes::menu::nodes {
 /// `validate_tree` stops reporting these twelve nodes.
 class MidiCommandItem final : public CustomItem {
 public:
-	/// @param command Which slot of `midiEngine.globalMIDICommands` this item binds -- legacy's
-	///                `Command::commandNumber` (`origin/main:src/deluge/gui/menu_item/midi/command.h`), spelled as the
-	///                real enum rather than as a number so a swapped pair is a type-checked mistake rather than a
-	///                silent one.
-	explicit constexpr MidiCommandItem(GlobalMIDICommand command) : command_{command} {}
+	/// @param command Which global command this item binds -- legacy's `Command::commandNumber`
+	///                (`origin/main:src/deluge/gui/menu_item/midi/command.h`), spelled as the enum rather than as a
+	///                number so a swapped pair is a type-checked mistake rather than a silent one.
+	explicit constexpr MidiCommandItem(deluge::project::GlobalCommand command) : command_{command} {}
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	/// @brief The select press, which leaves the item. The select turn is not claimed, so it reaches `handle` as an
+	///        event, where it unlearns the command.
 	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
-		return kListInput;
+		return {.select = true};
 	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 
-	bool learn_note_on(deluge::midi::DeviceId device, int32_t channel, int32_t note) const override;
-	bool learn_cc(deluge::midi::DeviceId device, int32_t channel, int32_t cc, int32_t value) const override;
-	bool learn_program_change(deluge::midi::DeviceId device, int32_t channel, int32_t program) const override;
-	bool unlearn() const override;
+	bool learn_note_on(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel,
+	                   int32_t note) const override;
+	bool learn_cc(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel, int32_t cc,
+	              int32_t value) const override;
+	bool learn_program_change(const MenuContext& ctx, deluge::midi::DeviceId device, int32_t channel,
+	                          int32_t program) const override;
+	bool unlearn(const MenuContext& ctx) const override;
 	bool wants_learn_blink() const override {
 		return true;
 	} ///< `Command::shouldBlinkLearnLed` (`origin/main:src/deluge/gui/menu_item/midi/command.h`), true on all twelve.
 
 	/// @brief Which command this item binds. For specs, and for the twelve-way mapping check.
-	constexpr GlobalMIDICommand command() const { return command_; }
+	constexpr deluge::project::GlobalCommand command() const { return command_; }
 
 private:
-	GlobalMIDICommand command_;
+	deluge::project::GlobalCommand command_;
 };
 
-/// @name The twelve instances, one per learnable `GlobalMIDICommand`.
+/// @name The twelve instances, one per global command.
 ///
 /// `inline const` rather than `inline constexpr`, exactly as `EditNameItem`'s and `ResetItem`'s
 /// instances are: the type has a vtable, and only the *addresses* need to be constant expressions,
@@ -86,22 +91,24 @@ private:
 /// Named after the node each backs (`nodes/settings.h`), and paired with the legacy global it replaces
 /// (`origin/main:src/deluge/gui/ui/menus.cpp`).
 /// @{
-inline const MidiCommandItem kMidiCommandPlayItem{GlobalMIDICommand::PLAY}; ///< `playMidiCommand`
+inline const MidiCommandItem kMidiCommandPlayItem{deluge::project::GlobalCommand::PLAY}; ///< `playMidiCommand`
 inline const MidiCommandItem kMidiCommandRestartItem{
     //
-    GlobalMIDICommand::PLAYBACK_RESTART};                                       ///< `playbackRestartMidiCommand`
-inline const MidiCommandItem kMidiCommandRecordItem{GlobalMIDICommand::RECORD}; ///< `recordMidiCommand`
-inline const MidiCommandItem kMidiCommandTapItem{GlobalMIDICommand::TAP};       ///< `tapMidiCommand`
-inline const MidiCommandItem kMidiCommandUndoItem{GlobalMIDICommand::UNDO};     ///< `undoMidiCommand`
-inline const MidiCommandItem kMidiCommandRedoItem{GlobalMIDICommand::REDO};     ///< `redoMidiCommand`
-inline const MidiCommandItem kMidiCommandLoopItem{GlobalMIDICommand::LOOP};     ///< `loopMidiCommand`
+    deluge::project::GlobalCommand::PLAYBACK_RESTART}; ///< `playbackRestartMidiCommand`
+inline const MidiCommandItem kMidiCommandRecordItem{deluge::project::GlobalCommand::RECORD}; ///< `recordMidiCommand`
+inline const MidiCommandItem kMidiCommandTapItem{deluge::project::GlobalCommand::TAP};       ///< `tapMidiCommand`
+inline const MidiCommandItem kMidiCommandUndoItem{deluge::project::GlobalCommand::UNDO};     ///< `undoMidiCommand`
+inline const MidiCommandItem kMidiCommandRedoItem{deluge::project::GlobalCommand::REDO};     ///< `redoMidiCommand`
+inline const MidiCommandItem kMidiCommandLoopItem{deluge::project::GlobalCommand::LOOP};     ///< `loopMidiCommand`
 inline const MidiCommandItem kMidiCommandLayeringLoopItem{
     //
-    GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};                           ///< `loopContinuousLayeringMidiCommand`
-inline const MidiCommandItem kMidiCommandFillItem{GlobalMIDICommand::FILL}; ///< `fillMidiCommand`
-inline const MidiCommandItem kMidiCommandTransposeItem{GlobalMIDICommand::TRANSPOSE}; ///< `transposeMidiCommand`
-inline const MidiCommandItem kMidiCommandNextSongItem{GlobalMIDICommand::NEXT_SONG};  ///< `nextSongMidiCommand`
-inline const MidiCommandItem kMidiCommandShiftItem{GlobalMIDICommand::SHIFT};         ///< `shiftMidiCommand`
+    deluge::project::GlobalCommand::LOOP_CONTINUOUS_LAYERING}; ///< `loopContinuousLayeringMidiCommand`
+inline const MidiCommandItem kMidiCommandFillItem{deluge::project::GlobalCommand::FILL}; ///< `fillMidiCommand`
+inline const MidiCommandItem kMidiCommandTransposeItem{
+    deluge::project::GlobalCommand::TRANSPOSE}; ///< `transposeMidiCommand`
+inline const MidiCommandItem kMidiCommandNextSongItem{
+    deluge::project::GlobalCommand::NEXT_SONG};                                            ///< `nextSongMidiCommand`
+inline const MidiCommandItem kMidiCommandShiftItem{deluge::project::GlobalCommand::SHIFT}; ///< `shiftMidiCommand`
 /// @}
 
 } // namespace deluge::scenes::menu::nodes

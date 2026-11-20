@@ -775,37 +775,43 @@ struct CustomItem {
 	/// @{
 
 	/// @brief Bind a note-on to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel, or the MPE zone the port mapped it to.
 	/// @param note    Its note number.
 	/// @return Whether it learned.
-	virtual bool learn_note_on(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*note*/) const {
+	virtual bool learn_note_on(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                           int32_t /*note*/) const {
 		return false;
 	}
 
 	/// @brief Bind a CC to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel, or the MPE zone the port mapped it to.
 	/// @param cc      The controller number.
 	/// @param value   The controller value.
 	/// @return Whether it learned.
-	virtual bool learn_cc(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*cc*/,
-	                      int32_t /*value*/) const {
+	virtual bool learn_cc(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                      int32_t /*cc*/, int32_t /*value*/) const {
 		return false;
 	}
 
 	/// @brief Bind a program change to whatever this item learns.
+	/// @param ctx     The menu's context, whose ports take the learn.
 	/// @param device  The device it arrived on.
 	/// @param channel Its channel.
 	/// @param program The program number.
 	/// @return Whether it learned: false for a refusal.
-	virtual bool learn_program_change(deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
-	                                  int32_t /*program*/) const {
+	virtual bool learn_program_change(const MenuContext& /*ctx*/, deluge::midi::DeviceId /*device*/,
+	                                  int32_t /*channel*/, int32_t /*program*/) const {
 		return false;
 	}
 
-	/// @brief Forget what this item learned -- `MenuItem::unlearnAction`. @return Whether it has anything to forget.
-	virtual bool unlearn() const { return false; }
+	/// @brief Forget what this item learned -- `MenuItem::unlearnAction`.
+	/// @param ctx The menu's context, whose ports take the unlearn.
+	/// @return Whether it has anything to forget.
+	virtual bool unlearn(const MenuContext& /*ctx*/) const { return false; }
 
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
 	///        `MenuItem::shouldBlinkLearnLed`, which `SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`

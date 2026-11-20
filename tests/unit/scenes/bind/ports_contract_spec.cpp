@@ -287,6 +287,25 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(host.midi.writes.size()).to_equal(size_t{2});
 		expect(p.midi->name(deluge::midi::kUpstreamUsb1).empty()).to_be_true();
 	});
+	it("records each global and follow learn, reads it back through the MIDI devices, and keeps none from an unknown device", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.midi->global_command(deluge::project::GlobalCommand::PLAY).has_value()).to_be_false();
+		expect(contract::learns_read_back(*p.learn, *p.midi, deluge::midi::kDin)).to_be_true();
+		expect(contract::unknown_device_learn_is_refused(*p.learn, *p.midi)).to_be_true();
+		// Two learns, two unlearns and two restores, then the two refused learns, each recorded.
+		expect(host.learn.calls.size()).to_equal(size_t{8});
+		if (host.learn.calls.size() == 8) {
+			expect(host.learn.calls[0].kind).to_equal(test::RecordingLearnSink::Call::Kind::LEARN_GLOBAL);
+			expect(host.learn.calls[0].global).to_equal(deluge::project::GlobalCommand::TAP);
+			expect(host.learn.calls[1].kind).to_equal(test::RecordingLearnSink::Call::Kind::LEARN_FOLLOW);
+			expect(host.learn.calls[1].follow).to_equal(deluge::project::FollowInput::TRACK_2);
+			expect(host.learn.calls[2].binding.has_value()).to_be_false();
+		}
+		// A sink that keeps nothing fails the read-back case.
+		host.learn.devices = nullptr;
+		expect(contract::learns_read_back(host.learn, host.midi, deluge::midi::kDin)).to_be_false();
+	});
 	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
 		test::FakeHost host;
 		const Ports p = host.ports();

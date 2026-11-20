@@ -214,6 +214,39 @@ bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, mid
 	return accept;
 }
 
+namespace {
+
+/// @brief Keep @p binding in @p kept under @p key, or forget @p key for nullopt; a binding naming a device @p devices
+///        does not know keeps nothing.
+template <typename Key>
+void keep(const FakeMidiDevices& devices, std::map<Key, LearnedBinding>& kept, Key key,
+          const std::optional<LearnedBinding>& binding) {
+	if (!binding) {
+		kept.erase(key);
+		return;
+	}
+	if (binding->device && !devices.settings(*binding->device)) {
+		return;
+	}
+	kept.insert_or_assign(key, *binding);
+}
+
+} // namespace
+
+void RecordingLearnSink::learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_GLOBAL, .global = command, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->globals, command, binding);
+	}
+}
+
+void RecordingLearnSink::learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) {
+	calls.push_back({.kind = Call::Kind::LEARN_FOLLOW, .follow = input, .binding = binding});
+	if (devices != nullptr) {
+		keep(*devices, devices->follows, input, binding);
+	}
+}
+
 FakeDeviceSettings::FakeDeviceSettings() {
 	for (const plugin::SettingInfo& row : project::device_table()) {
 		std::array<char, 12> digits{};
@@ -256,6 +289,16 @@ bool FakeMidiDevices::write(midi::DeviceId device, const MidiDeviceSettings& set
 	}
 	at->second = settings;
 	return true;
+}
+
+std::optional<LearnedBinding> FakeMidiDevices::global_command(project::GlobalCommand command) const {
+	const auto at = globals.find(command);
+	return at != globals.end() ? std::optional{at->second} : std::nullopt;
+}
+
+std::optional<LearnedBinding> FakeMidiDevices::follow_input(project::FollowInput input) const {
+	const auto at = follows.find(input);
+	return at != follows.end() ? std::optional{at->second} : std::nullopt;
 }
 
 bool RecordingWrites::write(const WriteRequest& request) {

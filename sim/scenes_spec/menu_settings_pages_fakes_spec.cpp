@@ -5,11 +5,13 @@
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/device_settings.h"
+#include "scenes/bind/ports/midi_devices.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/midi_command.h"
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
@@ -21,6 +23,7 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/midi_command.h"
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/sound_state.h"
@@ -36,6 +39,7 @@
 
 #include "support/fake_host_rig.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/learned_binding_printer.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
@@ -52,6 +56,7 @@
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
+using deluge::scenes::bind::LearnedBinding;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
@@ -747,6 +752,99 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		// The item on its own screen shows the note it learned.
 		expect(menu_scene().state().edit_int).to_equal(61);
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("shows each command's own binding from the MIDI devices fake, and its device by the fake's name", _ {
+		using deluge::project::GlobalCommand;
+		const LearnedBinding cc{.device = deluge::midi::kDin,
+		                        .channel_or_zone = static_cast<uint8_t>(deluge::project::kFirstCcChannel + 3),
+		                        .note_or_cc = 42};
+		for (const Node* node : nodes::kMidiCommandsChildren) {
+			const auto* item = dynamic_cast<const nodes::MidiCommandItem*>(node->custom);
+			expect(item).not_().to_be_null();
+			if (item == nullptr) {
+				continue;
+			}
+			const auto panel = [&](std::optional<LearnedBinding> binding, GlobalCommand on) {
+				Rig r;
+				if (binding) {
+					r.fakes.host.midi.globals.insert_or_assign(on, *binding);
+				}
+				r.open(*node);
+				r.shell.tick(40);
+				return r.surfaces.pbm(0);
+			};
+			// Another command's binding is not this one's: the screen is the unassigned one.
+			const GlobalCommand other =
+			    item->command() == GlobalCommand::SHIFT ? GlobalCommand::PLAY : GlobalCommand::SHIFT;
+			const std::string unassigned = panel(std::nullopt, item->command());
+			expect(panel(cc, other)).to_equal(unassigned);
+			const std::string learned = panel(cc, item->command());
+			expect(learned).not_().to_equal(unassigned);
+			// The device is named by the fake, and a binding with none is any device's.
+			LearnedBinding any = cc;
+			any.device.reset();
+			expect(panel(any, item->command())).not_().to_equal(learned);
+		}
+	});
+
+	it("records a command's learn and a turn's unlearn on the learn sink, and keeps them in the fake", _ {
+		using deluge::project::GlobalCommand;
+		using Call = bind::test::RecordingLearnSink::Call;
+		Rig r;
+		r.open(nodes::midi_command_record);
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		const LearnedBinding note{.device = deluge::midi::kDin, .channel_or_zone = 4, .note_or_cc = 61};
+		const auto& calls = r.fakes.host.learn.calls;
+		expect(calls.size()).to_equal(size_t{1});
+		if (calls.size() == 1) {
+			expect(calls[0].kind).to_equal(Call::Kind::LEARN_GLOBAL);
+			expect(calls[0].global).to_equal(GlobalCommand::RECORD);
+			expect(calls[0].binding).to_equal(std::optional{note});
+		}
+		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD)).to_equal(std::optional{note});
+		// A CC is learned in its band; program changes are refused on FILL alone.
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 20)).to_be_true();
+		const LearnedBinding cc{.device = deluge::midi::kDin,
+		                        .channel_or_zone = static_cast<uint8_t>(deluge::project::kFirstCcChannel + 4),
+		                        .note_or_cc = 20};
+		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD)).to_equal(std::optional{cc});
+		// Any turn of the select encoder unlearns it.
+		r.turn(-1, 60);
+		expect(calls.size()).to_equal(size_t{3});
+		if (calls.size() == 3) {
+			expect(calls[2].kind).to_equal(Call::Kind::LEARN_GLOBAL);
+			expect(calls[2].binding.has_value()).to_be_false();
+		}
+		expect(r.fakes.host.midi.global_command(GlobalCommand::RECORD).has_value()).to_be_false();
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("reads a follow input's channel from the fake, keeps its device on a turn, and learns and unlearns through the sink", _ {
+		using deluge::project::FollowInput;
+		using Call = bind::test::RecordingLearnSink::Call;
+		Rig r;
+		r.fakes.host.midi.follows.insert_or_assign(FollowInput::TRACK_1,
+		                                           LearnedBinding{.device = deluge::midi::kDin, .channel_or_zone = 3});
+		const MenuContext ctx = r.open(nodes::midi_follow_track1);
+		const LearnedBinding din_4{.device = deluge::midi::kDin, .channel_or_zone = 4};
+		expect(menu::bindings::read(nodes::midi_follow_track1, ctx)).to_equal(3);
+		expect(menu::bindings::read(nodes::midi_follow_channel_a, ctx)).to_equal(int32_t{MIDI_CHANNEL_NONE});
+		r.turn(1, 60);
+		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1)).to_equal(std::optional{din_4});
+		// A note learns the device and the channel it came on.
+		r.fakes.host.midi.follows.insert_or_assign(FollowInput::TRACK_1, LearnedBinding{.channel_or_zone = 9});
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1)).to_equal(std::optional{din_4});
+		menu_scene().unlearn();
+		expect(r.fakes.host.midi.follow_input(FollowInput::TRACK_1).has_value()).to_be_false();
+		const auto& calls = r.fakes.host.learn.calls;
+		expect(calls.empty()).to_be_false();
+		if (!calls.empty()) {
+			expect(calls.back().kind).to_equal(Call::Kind::LEARN_FOLLOW);
+			expect(calls.back().follow).to_equal(FollowInput::TRACK_1);
+			expect(calls.back().binding.has_value()).to_be_false();
+		}
 	});
 
 	it("shows the chord transpose method, which the menu does not offer, as chromatic, as main's list clamps it", _ {

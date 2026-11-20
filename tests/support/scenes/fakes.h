@@ -228,14 +228,20 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool velocity_to_level_everywhere(midi::DeviceId device) override;
 };
 
-/// @brief LearnSink that records every learn, in order, and answers each with @ref accept.
+struct FakeMidiDevices;
+
+/// @brief LearnSink that records every learn, in order, and answers each with @ref accept. A global or follow learn is
+///        also kept in @ref devices, when set, so the MIDI devices fake reads it back; one naming a device that fake
+///        does not know is recorded and kept nowhere.
 struct RecordingLearnSink final : LearnSink {
 	/// @brief One recorded learn: its kind and its arguments.
 	struct Call {
 		/// @brief Which learn it was.
 		enum class Kind : uint8_t {
-			LEARN,      ///< learn
-			LEARN_KNOB, ///< learn_knob
+			LEARN,        ///< learn
+			LEARN_KNOB,   ///< learn_knob
+			LEARN_GLOBAL, ///< learn_global
+			LEARN_FOLLOW, ///< learn_follow
 		};
 		Kind kind{Kind::LEARN};                       ///< which learn it was
 		std::optional<project::MappingTarget> target; ///< LEARN's target, or LEARN_KNOB's owner and param
@@ -244,13 +250,19 @@ struct RecordingLearnSink final : LearnSink {
 		midi::DeviceId device{};                      ///< LEARN_KNOB's device; none for a mod knob
 		int32_t which_knob{0};                        ///< LEARN_KNOB's mod knob or CC number
 		int32_t midi_channel{0};                      ///< LEARN_KNOB's channel, 16 or more for a mod knob
+		project::GlobalCommand global{};              ///< LEARN_GLOBAL's command
+		project::FollowInput follow{};                ///< LEARN_FOLLOW's input
+		std::optional<LearnedBinding> binding;        ///< LEARN_GLOBAL's or LEARN_FOLLOW's binding; none to unlearn
 	};
-	std::vector<Call> calls; ///< every learn taken, in order
-	bool accept{true};       ///< what each learn answers
+	std::vector<Call> calls;           ///< every learn taken, in order
+	bool accept{true};                 ///< what each learn answers
+	FakeMidiDevices* devices{nullptr}; ///< where a global or follow learn is kept; none keeps nothing
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
 	bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
 	                int32_t midi_channel) override;
+	void learn_global(project::GlobalCommand command, std::optional<LearnedBinding> binding) override;
+	void learn_follow(project::FollowInput input, std::optional<LearnedBinding> binding) override;
 };
 
 /// @brief MidiDevices a spec sets directly: DIN alone, connected, with default settings, until the spec says otherwise.
@@ -259,12 +271,16 @@ struct FakeMidiDevices final : MidiDevices {
 	std::map<uint32_t, std::string> names{{midi::kDin.value, "DIN"}};    ///< what `name` answers, by handle
 	std::map<uint32_t, MidiDeviceSettings> kept{{midi::kDin.value, {}}}; ///< what `settings` answers, by handle
 	std::vector<std::pair<midi::DeviceId, MidiDeviceSettings>> writes;   ///< every write, in order, known or not
+	std::map<project::GlobalCommand, LearnedBinding> globals;            ///< what `global_command` answers
+	std::map<project::FollowInput, LearnedBinding> follows;              ///< what `follow_input` answers
 	[[nodiscard]] std::span<const midi::DeviceId> connected() const override { return list; }
 	[[nodiscard]] std::string_view name(midi::DeviceId device) const override;
 	[[nodiscard]] std::optional<MidiDeviceSettings> settings(midi::DeviceId device) const override;
 	/// @brief Records the write, and keeps @p settings when @p device is in @ref kept.
 	/// @return Whether @p device is in @ref kept.
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
+	[[nodiscard]] std::optional<LearnedBinding> global_command(project::GlobalCommand command) const override;
+	[[nodiscard]] std::optional<LearnedBinding> follow_input(project::FollowInput input) const override;
 };
 
 /// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in
@@ -393,8 +409,10 @@ struct FakeHost {
 	RecordingWrites writes;              ///< the menu writes' recorder
 	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
 	FakeDeviceSettings device;           ///< the device settings' fake
-	/// @brief Ports pointing at this host's fakes; valid while it lives.
+	/// @brief Ports pointing at this host's fakes; valid while it lives. The learn recorder keeps its global and
+	///        follow learns in the MIDI devices fake.
 	[[nodiscard]] Ports ports() {
+		learn.devices = &midi;
 		return {.audio = &audio,
 		        .card = &card,
 		        .ui = &ui,

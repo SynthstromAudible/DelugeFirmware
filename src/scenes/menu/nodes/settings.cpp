@@ -27,20 +27,20 @@
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/device_settings.h"
+#include "scenes/bind/ports/learn_sink.h"
+#include "scenes/bind/ports/midi_devices.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, NUM_GATE_CHANNELS
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, NUM_GATE_CHANNELS
 #include "deluge-project/device_settings.h"
 #include "deluge-project/midi_channels.h"
+#include "deluge-project/midi_command.h"
 #include "gfx/oled/glyphs.h"
-#include "io/midi/device_registry.h"
-#include "io/midi/midi_engine.h"
 #include "music-theory/note_names.h"
-#include "storage/flash_storage.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/core/metrics.h"              // kReadoutValueY
@@ -59,34 +59,56 @@ namespace deluge::scenes::menu::nodes {
 // ---------------------------------------------------------------------------------------------
 // MIDI follow
 
-int32_t follow_channel_get(int32_t which) {
-	// `FollowChannel::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`)
-	return midiEngine.midiFollowChannelType[which].channelOrZone;
-}
-void follow_channel_set(int32_t which, int32_t value) {
-	// `FollowChannel::selectEncoderAction`'s unassigned arm forgets the learned input, device and all; any other value
-	// is `writeCurrentValue`.
-	if (value == MIDI_CHANNEL_NONE) {
-		midiEngine.midiFollowChannelType[which].clear();
-		return;
-	}
-	midiEngine.midiFollowChannelType[which].channelOrZone = value;
+namespace {
+
+/// @brief What @p input is learned to, through the MIDI devices port; none with no port.
+std::optional<bind::LearnedBinding> follow_binding(const MenuContext& ctx, project::FollowInput input) {
+	return ctx.ports.midi != nullptr ? ctx.ports.midi->follow_input(input) : std::nullopt;
 }
 
-bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event) {
+} // namespace
+
+int32_t follow_channel_get(const MenuContext& ctx, project::FollowInput input) {
+	// `FollowChannel::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`): an
+	// input with nothing learned is unassigned.
+	const std::optional<bind::LearnedBinding> binding = follow_binding(ctx, input);
+	return binding ? binding->channel_or_zone : MIDI_CHANNEL_NONE;
+}
+
+void follow_channel_set(const MenuContext& ctx, project::FollowInput input, int32_t value) {
+	if (ctx.ports.learn == nullptr) {
+		return;
+	}
+	// `FollowChannel::selectEncoderAction`'s unassigned arm forgets the learned input, device and all; any other value
+	// is `writeCurrentValue`, which keeps the device.
+	if (value == MIDI_CHANNEL_NONE) {
+		ctx.ports.learn->learn_follow(input, std::nullopt);
+		return;
+	}
+	bind::LearnedBinding binding = follow_binding(ctx, input).value_or(bind::LearnedBinding{});
+	binding.channel_or_zone = static_cast<uint8_t>(value);
+	ctx.ports.learn->learn_follow(input, binding);
+}
+
+bool follow_channel_learn(const MenuContext& ctx, project::FollowInput input, const deluge::ui::shell::UiEvent& event) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	::MIDICable* const cable = deluge::midi::cable_of(event.device);
-	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || cable == nullptr) {
+	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || ctx.ports.learn == nullptr
+	    || ctx.ports.midi == nullptr || !ctx.ports.midi->settings(event.device)) {
 		return false;
 	}
-	LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	input.cable = cable;
-	input.channelOrZone = event.channel;
+	// The device and the channel; the number the input names none of stays as it was.
+	bind::LearnedBinding binding = follow_binding(ctx, input).value_or(bind::LearnedBinding{});
+	binding.device = event.device;
+	binding.channel_or_zone = event.channel;
+	ctx.ports.learn->learn_follow(input, binding);
 	return true;
 }
 
-bool follow_channel_unlearn(int32_t which) {
-	midiEngine.midiFollowChannelType[which].clear();
+bool follow_channel_unlearn(const MenuContext& ctx, project::FollowInput input) {
+	if (ctx.ports.learn == nullptr) {
+		return false;
+	}
+	ctx.ports.learn->learn_follow(input, std::nullopt);
 	return true;
 }
 
@@ -104,8 +126,8 @@ std::optional<int32_t> turn_follow_channel(const MenuContext&, int32_t value, in
 	return next >= NUM_CHANNELS || next < 0 ? MIDI_CHANNEL_NONE : next;
 }
 
-void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
-                         deluge::ui::ScrollText& scroll) {
+void follow_channel_draw(project::FollowInput input, const MenuContext& ctx, deluge::ui::oled::OledFrame& f,
+                         int32_t value, deluge::ui::ScrollText& scroll) {
 	using deluge::l10n::String;
 	// Legacy's canvas rows 20 / 29 / 38 at the Apple face's height 7, laid out as `MidiCommandItem` lays the same rows
 	// (`ui/core/metrics.h`).
@@ -125,12 +147,10 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	                                   : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
 	                       ts);
 
-	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	// A learned cable with no MIDI devices port to name it (a spec's fakes) shows no name.
+	const std::optional<bind::LearnedBinding> binding = follow_binding(ctx, input);
 	std::string_view device = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED));
-	if (input.cable != nullptr) {
-		device =
-		    ctx.ports.midi != nullptr ? ctx.ports.midi->name(deluge::midi::id_of(*input.cable)) : std::string_view{};
+	if (binding && binding->device) {
+		device = ctx.ports.midi->name(*binding->device);
 	}
 	deluge::ui::oled::scroll_text(f, row(1, 0), device, f.style.row_font, scroll);
 
@@ -147,7 +167,7 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	else {
 		channel_text = deluge::scenes::text_lookup(sid(String::STRING_FOR_CHANNEL));
 		char buf[12];
-		const int32_t shown = value + 1 - (value >= IS_A_CC ? IS_A_CC : 0);
+		const int32_t shown = value + 1 - (value >= project::kFirstCcChannel ? project::kFirstCcChannel : 0);
 		const std::to_chars_result r = std::to_chars(buf, buf + sizeof(buf), shown);
 		deluge::ui::oled::text(f, row(2, deluge::ui::oled::spacing_x_for(f.style.row_font) * 8),
 		                       std::string_view{buf, static_cast<size_t>(r.ptr - buf)}, ts);

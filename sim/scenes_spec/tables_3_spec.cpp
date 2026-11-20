@@ -1734,7 +1734,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   const deluge::scenes::menu::CustomItem* item = focused_item();
 			   expect(item).not_().to_be_null();
 			   if (item != nullptr) {
-				   expect(item->learn_program_change(spec_device(), 2, static_cast<int32_t>(7 + i)))
+				   expect(item->learn_program_change(settings.ctx, spec_device(), 2, static_cast<int32_t>(7 + i)))
 				       .to_equal(!is_fill); // FILL refuses
 			   }
 			   const std::string pc_got = CommandSlots::capture().describe();
@@ -1790,7 +1790,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 0)).to_be_false();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 0)).to_be_false();
 		}
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 0)).to_be_true();
@@ -2643,7 +2643,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
@@ -2663,7 +2663,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_note_on(spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+			expect(item->learn_note_on(settings.ctx, spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
@@ -2679,7 +2679,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		const deluge::scenes::menu::CustomItem* item = focused_item();
 		expect(item).not_().to_be_null();
 		if (item != nullptr) {
-			expect(item->learn_cc(spec_device(), 3, 42, 127)).to_be_true();
+			expect(item->learn_cc(settings.ctx, spec_device(), 3, 42, 127)).to_be_true();
 		}
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
