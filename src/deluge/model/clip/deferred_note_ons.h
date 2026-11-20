@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "model/note/note_lock_playback.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -60,7 +61,10 @@ struct VoiceStart {
 	int32_t ticksLate;
 	uint32_t samplesLate;
 	int32_t fromMIDIChannel;
-	bool invertReversed; ///< The arpeggiator's reverse flip for this note, see Sound::invertReversed
+	bool invertReversed;               ///< The arpeggiator's reverse flip for this note, see Sound::invertReversed
+	deluge::note_locks::NoteRef locks; ///< The note's parameter locks, which its voice plays with
+	/// Set for a note that waited: its locks as they were when it was due, used rather than looking `locks` up now
+	deluge::note_locks::LockSet const* locksWhenDue = nullptr;
 };
 
 /// Start a voice on the Sound now, or queue it if this render can't start another (or the Sound already has notes

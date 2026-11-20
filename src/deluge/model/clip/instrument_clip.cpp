@@ -38,6 +38,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note.h"
+#include "model/note/note_lock_playback.h"
 #include "model/output.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
@@ -58,6 +59,7 @@
 #include <array>
 #include <cmath>
 #include <new>
+#include <optional>
 #include <ranges>
 
 #include "playback/mode/playback_mode.h"
@@ -924,6 +926,17 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 
 	int16_t mpeValues[kNumExpressionDimensions];
 	pendingNoteOn->noteRow->getMPEValues(modelStackWithNoteRow, mpeValues);
+
+	// Voice::noteOn picks the note's parameter locks up from here - for a note that waited, as they were when it was
+	// due
+	std::optional<deluge::note_locks::PendingScope> locks;
+	if (pendingNoteOn->locksWhenDue != nullptr) {
+		locks.emplace(*pendingNoteOn->locksWhenDue, pendingNoteOn->locks);
+	}
+	else {
+		locks.emplace(modelStack->song->noteLocks, pendingNoteOn->locks.lockSet,
+		              deluge::note_locks::liveEdits.findByTag(pendingNoteOn->locks.liveTag));
+	}
 
 	if (output->type == OutputType::KIT) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(

@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "model/voice/voice_note_locks.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part.h"
 #include "modulation/envelope.h"
@@ -89,6 +90,9 @@ public:
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
 	bool justCreated{false};
+
+	/// Parameter locks of the note this voice is playing. Read by `patcher`.
+	VoiceNoteLocks noteLocks;
 
 	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithSoundFlags* modelStack, bool deletingSong = false);

@@ -34,6 +34,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/note/note_lock_file.h"
+#include "model/note/note_lock_playback.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -493,7 +494,7 @@ addNewNote:
 		if (noteEnd > squareStart) {
 
 			// We have a tail! But if tails aren't allowed, cut it off and make a new note here instead
-			if (!allowNoteTails) {
+			if (!noteHasTail(note, allowNoteTails, modelStack->song)) {
 				if (action) {
 					action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 					    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, false);
@@ -510,7 +511,7 @@ addNewNote:
 		else {
 
 			// If we're wanting to extend, and tails are allowed...
-			if (extendPreviousNoteIfPossible && allowNoteTails) {
+			if (extendPreviousNoteIfPossible && noteHasTail(note, allowNoteTails, modelStack->song)) {
 
 				int32_t newLength;
 
@@ -2006,7 +2007,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				if (wrapping) {
 					noteEnd -= effectiveRowLength;
 				}
-				if (noteEnd > squareStartPos && allowNoteTails) {
+				if (noteEnd > squareStartPos && noteHasTail(note, allowNoteTails, currentSong)) {
 					drewNote = true;
 					pixel = rowTailColour;
 					if (occupancyMask) {
@@ -2540,7 +2541,24 @@ bool NoteRow::check_for_note_still_sounding(ModelStackWithNoteRow* modelStack, S
 	                                   &modelStack->getTimelineCounter()->paramManager)
 	               ->addSoundFlags());
 }
+
+bool NoteRow::noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song) {
+	if (rowAllowsNoteTails) [[likely]] {
+		return true;
+	}
+	if (note == nullptr || note->lockSet == 0) [[likely]] {
+		return false;
+	}
+	return deluge::note_locks::locksSustain(song->noteLocks.get(note->lockSet));
+}
+
+// A held pad's uncommitted parameter-lock edits for this note, if any
+static const deluge::note_locks::LiveEdit* liveEditFor(ModelStackWithNoteRow* modelStack, Note* note) {
+	return deluge::note_locks::liveEdits.find(modelStack->getTimelineCounter(), modelStack->noteRowId, note->pos);
+}
+
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
+
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2582,6 +2600,10 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
+					const deluge::note_locks::LiveEdit* live = liveEditFor(modelStack, thisNote);
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].locks = {
+					    thisNote->lockSet, live != nullptr ? live->tag : uint16_t{0}};
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].locksWhenDue = nullptr;
 					pendingNoteOnList->count++;
 				}
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
@@ -2593,6 +2615,8 @@ storePendingNoteOn:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThings(
 					    ((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 					    &modelStack->getTimelineCounter()->paramManager);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					((MelodicInstrument*)output)
 					    ->sendNote(modelStackWithThreeMainThings, true, getNoteCode(), mpeValues, MIDI_CHANNEL_NONE,
 					               thisNote->velocity, thisNote->length, ticksLate, samplesLate);
@@ -2640,6 +2664,8 @@ storePendingNoteOn:
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
+					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
+					                                       liveEditFor(modelStack, thisNote));
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
 					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}
@@ -2655,9 +2681,12 @@ storePendingNoteOn:
 		}
 	}
 
-	// And for all cases of a note-on, remember that that's what's happening, for later.
+	// And for all cases of a note-on, remember that that's what's happening, for later - so its note-off gets sent.
+	// A sound with no tails gets none, except for a note whose locks give it a sustain, and a note on a held pad,
+	// whose sustain may be locked while it plays.
 	if (on) {
-		if (clip->allowNoteTails(modelStack)) {
+		if (noteHasTail(thisNote, clip->allowNoteTails(modelStack), modelStack->song)
+		    || (thisNote && liveEditFor(modelStack, thisNote))) {
 			sequenced = true;
 		}
 	}

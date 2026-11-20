@@ -76,6 +76,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/fast_pythag.cpp
         # For note parameter lock tests
         ../../src/deluge/model/note/note_locks.cpp
+        ../../src/deluge/model/note/note_lock_playback.cpp
 )
 
 add_executable(UnitTests

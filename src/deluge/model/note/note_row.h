@@ -21,6 +21,7 @@
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/iterance/iterance.h"
+#include "model/note/note_lock_playback.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
@@ -79,6 +80,10 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	deluge::note_locks::NoteRef locks; // Note::lockSet, and its held pad's live-edit tag if it has one
+	/// Set for a note that waited (DeferredNoteOns): its locks as they were when it was due, played instead of
+	/// looking `locks` up now
+	const deluge::note_locks::LockSet* locksWhenDue;
 };
 
 struct PendingNoteOnList {
@@ -116,6 +121,9 @@ public:
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
+	/// Whether this note has a tail: if the row's sound allows them, or regardless if the note's locks give it a
+	/// sustain (note_locks::locksSustain). `rowAllowsNoteTails` is InstrumentClip::allowNoteTails for this row.
+	static bool noteHasTail(const Note* note, bool rowAllowsNoteTails, const Song* song);
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
