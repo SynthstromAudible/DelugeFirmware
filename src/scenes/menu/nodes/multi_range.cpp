@@ -32,7 +32,6 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "processing/source.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>

@@ -31,7 +31,6 @@
 #include "gfx/oled/icons.h"
 
 #include "deluge-project/song.h"
-#include "model/song/song.h"
 #include "music-theory/preset_scales.h"
 #include "storage/flash_storage.h"
 
@@ -109,9 +108,8 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 }
 
 void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool value) const {
-	// `ActiveScaleMenu::setDisabled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`), whose
-	// `else if (currentSong)` makes a null song a silent no-op. `ctx.song` stands in for `currentSong` -- the
-	// substitution `context.h` makes everywhere.
+	// `ActiveScaleMenu::setDisabled` (`origin/main:src/deluge/gui/menu_item/active_scales.cpp`) writes the
+	// song's flag only when a song exists; `write_song` is a silent no-op without a write port.
 	if (index >= kScaleRows) {
 		return;
 	}

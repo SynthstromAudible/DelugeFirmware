@@ -34,7 +34,6 @@
 #include "effects/words.h"
 #include "gfx/oled/icons.h"
 #include "instruments/deluge/state_access.h"
-#include "model/song/song.h"
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"

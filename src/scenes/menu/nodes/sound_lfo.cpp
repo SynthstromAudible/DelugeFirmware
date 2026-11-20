@@ -26,7 +26,6 @@
 
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/sync.h"
-#include "processing/sound/sound.h"
 #include "serialization/value.h"
 
 #include <string>

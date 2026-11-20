@@ -39,14 +39,6 @@
 
 #include "definitions_cxx.hpp" // ThresholdRecordingMode
 #include "deluge-project/song.h"
-#include "model/clip/audio_clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/instrument.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/output.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_holder.h"
 #include "model/song/song.h"
 #include "notify/dirty_set.h"
 #include "plugin-api/types/display_mapping.h"

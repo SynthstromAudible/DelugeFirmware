@@ -27,10 +27,6 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "model/drum/drum.h"
-#include "model/instrument/kit.h"
-#include "model/output.h"
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {

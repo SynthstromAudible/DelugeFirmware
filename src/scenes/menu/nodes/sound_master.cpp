@@ -25,10 +25,8 @@
 #include "scenes/menu/context.h"
 
 #include "instruments/deluge/words.h"
-#include "processing/sound/sound.h"
 #include "serialization/value.h"
 
-#include "processing/source.h"
 #include <string>
 
 namespace deluge::scenes::menu::nodes {

@@ -37,8 +37,6 @@
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
 #include "deluge-project/setting_group.h"
-#include "model/output.h"
-#include "model/song/song.h"
 
 #include <algorithm>
 #include <cstdint>
