@@ -11,11 +11,10 @@
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
 /// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), or is a DEVICE row the device port keeps
 /// (the community features, the audio, the clocks, the scalar MIDI and MIDI follow settings and the CV and gate outputs
-/// among them). Every one of those is inside
-/// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
-/// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
-/// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
-/// and write the real thing.
+/// among them). Every one of those is inside this layer's include allow-list (see `scripts/check_layer_rules.py`'s
+/// `scenes-includes-outside`, which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is in
+/// the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read and
+/// write the real thing.
 ///
 /// @note **No `Kind::Custom` placeholder remains here.** Every item whose state or action sits behind the
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
