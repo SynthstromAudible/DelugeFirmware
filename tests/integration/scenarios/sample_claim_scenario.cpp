@@ -371,6 +371,9 @@ bool g_imEmptySucceeded = false;
 
 /// The slicer scene's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
 bool g_shellCommitBegun = false;
+/// The manual leg's landed audition: pressed, and checked once its load landed.
+bool g_landedAuditionPressed = false;
+bool g_landedAuditionChecked = false;
 bool g_shellEnded = false;
 bool g_shellBackKept = false;
 bool g_shellBackNoContextRefused = false;
@@ -1554,6 +1557,8 @@ void observeEmptyImport(deluge::gui::FolderImportRequest request) {
 
 void actShellSlice() {
 	g_shellCommitBegun = false;
+	g_landedAuditionPressed = false;
+	g_landedAuditionChecked = false;
 	g_shellEnded = false;
 	g_shellBackKept = false;
 	g_shellBackNoContextRefused = false;
@@ -1698,8 +1703,26 @@ void tickShellSlice() {
 		if (g_leg == Leg::ShellSlice) {
 			checkTeardownDropsAudition(scene);
 		}
-		if (g_leg == Leg::ShellSliceManual) {
+		if (g_leg == Leg::ShellSliceManual && !g_landedAuditionPressed) {
 			checkAuditionReleaseCoherent(scene);
+		}
+		// A slice auditioned and held until its load lands: the first drum plays the slicer's file, and its record
+		// and slot must say so before the release.
+		if (g_leg == Leg::ShellSliceManual && scene.ops() != nullptr && !g_landedAuditionChecked) {
+			if (!g_landedAuditionPressed) {
+				scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 64});
+				g_landedAuditionPressed = true;
+				return;
+			}
+			if (deluge::gui::ui::shellSlicerBusy()) {
+				return; // its load is still out
+			}
+			const int32_t failuresBefore = g_report.failures();
+			g_report.count(deluge::harness::expectSongCoherent(*currentSong, "slice-audition-landed"));
+			scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 0});
+			printf("SC-PROBE leg=%s auditionLanded coherent=%d\n", legName(g_leg),
+			       g_report.failures() == failuresBefore ? 1 : 0);
+			g_landedAuditionChecked = true;
 		}
 		deluge::scenes::slicing::SliceCommit commit{};
 		commit.is_manual = g_leg == Leg::ShellSliceManual;
