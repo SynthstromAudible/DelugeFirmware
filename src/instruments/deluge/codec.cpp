@@ -61,6 +61,9 @@ constexpr KeyRun kDelayKeys{.first = 22, .count = 1};          ///< delay
 constexpr KeyRun kEffectTagKeys{.first = 23, .count = 3};      ///< sidechain, audioCompressor, stutter
 static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
 
+/// The keys of kStateKeys whose entries are the host's (a sound's routing), placed where the file holds them.
+constexpr std::array<std::string_view, 2> kHostKeys{"sideChainSend", "midiOutput"};
+
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
 /// factory presets and official firmware write it.
 constexpr std::array<std::string_view, 1> kOldStateKeys{"compressor"};
@@ -374,7 +377,7 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 }
 
 SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
-                          std::optional<int32_t> compressor_threshold) {
+                          std::optional<int32_t> compressor_threshold, const serialization::Value* host) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
 	                   .max_voices = Value::makeMap(),
@@ -384,7 +387,12 @@ SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& c
 	                   .effect_tags = Value::makeMap()};
 	const auto put = [&](Value& piece, std::span<const std::string_view> keys) {
 		for (const std::string_view key : keys) {
-			if (std::optional<Value> entry = encode_entry(state, key, context, compressor_threshold)) {
+			if (host != nullptr && std::ranges::find(kHostKeys, key) != kHostKeys.end()) {
+				if (const Value* entry = host->find(key)) {
+					piece.set(std::string(key), *entry);
+				}
+			}
+			else if (std::optional<Value> entry = encode_entry(state, key, context, compressor_threshold)) {
 				piece.set(std::string(key), std::move(*entry));
 			}
 		}

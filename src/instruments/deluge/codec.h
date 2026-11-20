@@ -55,9 +55,13 @@ struct SoundPieces {
 /// @param context              The file context (tick magnitude).
 /// @param compressor_threshold The compressor threshold to write in place of the state's: a sound's is its param, as
 /// the render last applied it.
+/// @param host                 The host's entries of the element, which the instrument places where the file holds
+/// them: the sound's routing (`sideChainSend`, `midiOutput`) as its owner records it, each written as given and an
+/// absent one not at all. nullptr writes the state's own.
 /// @return The pieces, in file order.
 [[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
-                                        std::optional<int32_t> compressor_threshold = std::nullopt);
+                                        std::optional<int32_t> compressor_threshold = std::nullopt,
+                                        const serialization::Value* host = nullptr);
 
 /// @brief The pieces of encode_pieces as one Map, in file order: what the instrument owns of a sound element.
 /// @param state   The sound's settings.
