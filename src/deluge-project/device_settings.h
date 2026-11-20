@@ -63,6 +63,15 @@ enum class FavouritesLayout : uint8_t {
 	OFF = 2,                  ///< no favourites
 };
 
+/// @brief How often MIDI follow sends back the values a followed param's automation plays: the
+///        `midiFollow/feedback/automation` row.
+enum class FeedbackAutomation : uint8_t {
+	DISABLED = 0, ///< never, and the default
+	LOW = 1,      ///< the least often
+	MEDIUM = 2,   ///< more often
+	HIGH = 3,     ///< the most often
+};
+
 /// @name The pads' brightness: the `ui/padBrightness` row's levels, and how a menu shows them.
 /// @{
 inline constexpr int32_t kDimmestPadLevel = 1;    ///< the dimmest level a menu sets
@@ -243,6 +252,28 @@ struct device_path {
 	static constexpr DevicePath kStemOffline{"stemExport/offline"};
 	/// Whether a stem export renders the whole mix as one stem: BOOL.
 	static constexpr DevicePath kStemMixdown{"stemExport/mixdown"};
+	/// The note a kit's first row answers to under MIDI follow: INTEGER, a MIDI note 0 to 127.
+	static constexpr DevicePath kFollowKitRootNote{"midiFollow/kitRootNote"};
+	/// Which channels MIDI follow sends its feedback on: CHOICE, none, channel A, B or C, the track's channel, or the
+	/// track's with channel A, B or C.
+	static constexpr DevicePath kFollowFeedbackChannel{"midiFollow/feedback/channel"};
+	/// How often MIDI follow sends the values automation plays: CHOICE over FeedbackAutomation.
+	static constexpr DevicePath kFollowFeedbackAutomation{"midiFollow/feedback/automation"};
+	/// Whether MIDI follow ignores a CC that arrives within a second of the feedback it sent for that CC: BOOL.
+	static constexpr DevicePath kFollowFeedbackFilter{"midiFollow/feedback/filter"};
+	/// Whether a followed CC shows the param it moves on the display: BOOL.
+	static constexpr DevicePath kFollowDisplayParam{"midiFollow/displayParam"};
+	/// Whether a note a kit receives selects the kit's row it plays: BOOL.
+	static constexpr DevicePath kMidiSelectKitRow{"midi/selectKitRow"};
+	/// Whether the MIDI input is sent on to the MIDI outputs: BOOL.
+	static constexpr DevicePath kMidiThru{"midi/thru"};
+	/// How an incoming note transposes the clips MIDI transposes: CHOICE, in key or chromatic. The device may hold a
+	/// third method no menu offers, which reads clamped to chromatic.
+	static constexpr DevicePath kMidiTranspose{"midi/transpose"};
+	/// How a knob's incoming CC takes over its param: CHOICE, jump, pick up, scale, relative.
+	static constexpr DevicePath kMidiTakeover{"midi/takeover"};
+	/// Whether a learned MIDI input answers only the device it was learned from: BOOL.
+	static constexpr DevicePath kDifferentiateInputs{"midi/differentiateInputs"};
 	/// How long a gate output stays off between two notes at least, in tenths of a millisecond: INTEGER.
 	static constexpr DevicePath kGateMinOffTime{"gate/minOffTime"};
 	/// The pattern of each CV output's volts-per-octave rows: INTEGER, in hundredths of a volt, 0 for Hz/V. The `*` is

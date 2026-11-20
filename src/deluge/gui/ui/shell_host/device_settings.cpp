@@ -11,6 +11,9 @@
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -73,6 +76,20 @@ static_assert(std::to_underlying(usb_audio::OutputSource::LINE_IN) == 1 && usb_a
 static_assert(project::kCvOutputCount == NUM_PHYSICAL_CV_CHANNELS && project::kGateOutputCount == NUM_GATE_CHANNELS);
 static_assert(project::kRunGateOutput == WHICH_GATE_OUTPUT_IS_RUN
               && project::kClockGateOutput == WHICH_GATE_OUTPUT_IS_CLOCK);
+static_assert(std::to_underlying(MIDIFollowFeedbackChannelType::TrackAndC) == 7
+              && kLastValidMIDIFollowFeedbackChannelType == MIDIFollowFeedbackChannelType::TrackAndC);
+// The automation feedback's choices are the legacy mode's valid values; its INVALID sentinel is no choice.
+static_assert(std::to_underlying(project::FeedbackAutomation::DISABLED)
+                  == std::to_underlying(MIDIFollowFeedbackAutomationMode::DISABLED)
+              && std::to_underlying(project::FeedbackAutomation::LOW)
+                     == std::to_underlying(MIDIFollowFeedbackAutomationMode::LOW)
+              && std::to_underlying(project::FeedbackAutomation::MEDIUM)
+                     == std::to_underlying(MIDIFollowFeedbackAutomationMode::MEDIUM)
+              && std::to_underlying(project::FeedbackAutomation::HIGH)
+                     == std::to_underlying(MIDIFollowFeedbackAutomationMode::HIGH)
+              && kNumMIDIFollowFeedbackAutomationModes == 4);
+static_assert(std::to_underlying(MIDITransposeControlMethod::CHROMATIC) == 1);
+static_assert(std::to_underlying(MIDITakeoverMode::RELATIVE) == 3 && kNumMIDITakeoverModes == 4);
 static_assert(std::to_underlying(GateType::V_TRIG) == 0 && std::to_underlying(GateType::S_TRIG) == 1
               && std::to_underlying(GateType::SPECIAL) == 2);
 
@@ -101,9 +118,9 @@ struct FlagHome {
 	project::DevicePath path;
 	bool* value;
 };
-/// Every such row: the flash settings', the clocks' and USB audio's, and the stem export's options, which the export
-/// keeps and nothing saves.
-constexpr std::array<FlagHome, 23> kFlagHomes{{
+/// Every such row: the flash settings', the clocks', USB audio's and MIDI's, and the stem export's options, which the
+/// export keeps and nothing saves.
+constexpr std::array<FlagHome, 28> kFlagHomes{{
     {device_path::kAccessibilityShortcuts, &FlashStorage::accessibilityShortcuts},
     {device_path::kGridAllowGreenSelection, &FlashStorage::gridAllowGreenSelection},
     {device_path::kGridEmptyPadsUnarm, &FlashStorage::gridEmptyPadsUnarm},
@@ -120,6 +137,11 @@ constexpr std::array<FlagHome, 23> kFlagHomes{{
     {device_path::kTriggerInAutoStart, &playbackHandler.analogClockInputAutoStart},
     {device_path::kTempoMagnitudeMatching, &playbackHandler.tempoMagnitudeMatchingEnabled},
     {device_path::kUsbDirectMonitoring, &usb_audio::directMonitoring},
+    {device_path::kFollowFeedbackFilter, &midiEngine.midiFollowFeedbackFilter},
+    {device_path::kFollowDisplayParam, &midiEngine.midiFollowDisplayParam},
+    {device_path::kMidiSelectKitRow, &midiEngine.midiSelectKitRow},
+    {device_path::kMidiThru, &midiEngine.midiThru},
+    {device_path::kDifferentiateInputs, &MIDIDeviceManager::differentiatingInputsByDevice},
     {device_path::kStemNormalize, &stemExport.allowNormalization},
     {device_path::kStemNormalizeDrums, &stemExport.allowNormalizationForDrums},
     {device_path::kStemToSilence, &stemExport.exportToSilence},
@@ -158,12 +180,13 @@ struct ByteHome {
 	uint8_t* value;
 };
 /// Every such row.
-constexpr std::array<ByteHome, 5> kByteHomes{{
+constexpr std::array<ByteHome, 6> kByteHomes{{
     {device_path::kSwingInterval, &FlashStorage::defaultSwingInterval},
     {device_path::kBendRange, &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
     {device_path::kRecordQuantize, &FlashStorage::recordQuantizeLevel},
     {device_path::kCountIn, &playbackHandler.countInBars},
     {device_path::kGateMinOffTime, &cvEngine.minGateOffTime},
+    {device_path::kFollowKitRootNote, &midiEngine.midiFollowKitRootNote},
 }};
 
 /// @brief A default range's end: which of the flash settings' ranges, and which end of it.
@@ -264,9 +287,9 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 }
 
 /// The device's own settings where the device keeps them: the flash settings, the pad controller's play cursor, the
-/// community features, the audio engine's, USB audio's and the clocks' settings, the CV and gate outputs', and the
-/// stem export's options. A store writes the value as the menu's own item does, with that item's side effects; none
-/// saves (the settings menu saves on its close).
+/// community features, the audio engine's, USB audio's and the clocks' settings, MIDI's and MIDI follow's, the CV and
+/// gate outputs', and the stem export's options. A store writes the value as the menu's own item does, with that item's
+/// side effects; none saves (the settings menu saves on its close).
 class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		const std::string_view path = row.path;
@@ -376,6 +399,20 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		}
 		if (path == device_path::kMidiClockIn) {
 			return flag(playbackHandler.midiInClockEnabled);
+		}
+		if (path == device_path::kFollowFeedbackChannel) {
+			return choice(row, std::to_underlying(midiEngine.midiFollowFeedbackChannelType));
+		}
+		if (path == device_path::kFollowFeedbackAutomation) {
+			return choice(row, std::to_underlying(midiEngine.midiFollowFeedbackAutomation));
+		}
+		if (path == device_path::kMidiTranspose) {
+			// The device may hold the chord method, which no menu offers: it reads clamped to chromatic, as the
+			// menu's list shows it.
+			return choice(row, std::to_underlying(MIDITranspose::controlMethod));
+		}
+		if (path == device_path::kMidiTakeover) {
+			return choice(row, std::to_underlying(midiEngine.midiTakeover));
 		}
 		if (const auto output = output_at(device_path::kCvVoltsPerOctave, path, NUM_PHYSICAL_CV_CHANNELS)) {
 			return number(cvEngine.cvChannels[*output].voltsPerOctave);
@@ -601,6 +638,22 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 			// `ReceiveClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/receive_clock.h`): off, the
 			// song stops following an incoming clock.
 			playbackHandler.setMidiInClockEnabled(stored != 0);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kFollowFeedbackChannel) {
+			midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowFeedbackChannelType>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kFollowFeedbackAutomation) {
+			midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMidiTranspose) {
+			MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMidiTakeover) {
+			midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(stored);
 			return DeviceWrite::STORED;
 		}
 		if (const auto output = output_at(device_path::kCvVoltsPerOctave, path, NUM_PHYSICAL_CV_CHANNELS)) {

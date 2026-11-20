@@ -263,7 +263,8 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief The typed reads answer what `read` reads: the play cursor as one of its three values, the shortcut layout as
-///        one of its two, the favourites layout as one of its three, and a feature's flag as its row's value.
+///        one of its two, the favourites layout as one of its three, the automation feedback as one of its four, and a
+///        feature's flag as its row's value.
 [[nodiscard]] inline bool device_typed_reads_match(const DeviceSettings& device) {
 	using device_path = project::device_path;
 	const project::FlashCursor cursor = read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
@@ -271,6 +272,8 @@ namespace deluge::scenes::bind::contract {
 	    read_device<project::ShortcutsVersion>(&device, device_path::kShortcutsVersion);
 	const project::FavouritesLayout favourites =
 	    read_device<project::FavouritesLayout>(&device, device_path::kFavouritesLayout);
+	const project::FeedbackAutomation automation =
+	    read_device<project::FeedbackAutomation>(&device, device_path::kFollowFeedbackAutomation);
 	const project::DevicePath battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
 	const bool named_cursor = cursor == project::FlashCursor::FAST || cursor == project::FlashCursor::OFF
 	                          || cursor == project::FlashCursor::SLOW;
@@ -278,10 +281,14 @@ namespace deluge::scenes::bind::contract {
 	const bool named_favourites = favourites == project::FavouritesLayout::FAVOURITES
 	                              || favourites == project::FavouritesLayout::FAVOURITES_AND_BANKS
 	                              || favourites == project::FavouritesLayout::OFF;
-	return named_cursor && named_version && named_favourites
+	const bool named_automation =
+	    automation == project::FeedbackAutomation::DISABLED || automation == project::FeedbackAutomation::LOW
+	    || automation == project::FeedbackAutomation::MEDIUM || automation == project::FeedbackAutomation::HIGH;
+	return named_cursor && named_version && named_favourites && named_automation
 	       && device.read(device_path::kPlayCursor) == std::to_underlying(cursor)
 	       && device.read(device_path::kShortcutsVersion) == std::to_underlying(version)
 	       && device.read(device_path::kFavouritesLayout) == std::to_underlying(favourites)
+	       && device.read(device_path::kFollowFeedbackAutomation) == std::to_underlying(automation)
 	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0);
 }
 

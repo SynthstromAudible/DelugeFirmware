@@ -547,8 +547,8 @@ void MenuScene::unlearn() {
 
 void MenuScene::read_learned_value_again() {
 	const Node* at = focused();
-	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom && at->bind.get != nullptr
-	    && (at->learn != nullptr || at->unlearn != nullptr)) {
+	if (at != nullptr && at->kind != Kind::Submenu && at->kind != Kind::Custom
+	    && (at->bind.get != nullptr || at->bind.target.valid()) && (at->learn != nullptr || at->unlearn != nullptr)) {
 		read_value_again();
 	}
 }

@@ -292,6 +292,35 @@ constexpr std::array kAudioAndClockRows{
     boolean(device_path::kStemMixdown, 0),
 };
 
+/// The channels MIDI follow may send its feedback on, in the order the follow feedback's channel type numbers them.
+constexpr std::array<std::string_view, 8> kFeedbackChannelWords{"none",  "a",         "b",         "c",
+                                                                "track", "trackAndA", "trackAndB", "trackAndC"};
+/// How often MIDI follow may send automation's values, in FeedbackAutomation's order.
+constexpr std::array<std::string_view, 4> kFeedbackAutomationWords{"disabled", "low", "medium", "high"};
+static_assert(std::to_underlying(FeedbackAutomation::HIGH) == kFeedbackAutomationWords.size() - 1,
+              "an enumerator's value is its choice's index");
+/// How an incoming note may transpose: the two methods a menu offers of the device's three.
+constexpr std::array<std::string_view, 2> kMidiTransposeWords{"inKey", "chromatic"};
+/// How a knob's incoming CC may take over its param, in the order the takeover mode numbers them.
+constexpr std::array<std::string_view, 4> kMidiTakeoverWords{"jump", "pickup", "scale", "relative"};
+/// The note a kit's first row answers to under MIDI follow, as MIDI follow's settings reset it.
+constexpr int32_t kResetKitRootNote = 36;
+
+/// The MIDI page's rows: MIDI follow's, then the page's own.
+constexpr std::array kMidiRows{
+    integer(device_path::kFollowKitRootNote, 0, 127, kResetKitRootNote),
+    choice(device_path::kFollowFeedbackChannel, kFeedbackChannelWords, 0),
+    choice(device_path::kFollowFeedbackAutomation, kFeedbackAutomationWords,
+           std::to_underlying(FeedbackAutomation::DISABLED)),
+    boolean(device_path::kFollowFeedbackFilter, 0),
+    boolean(device_path::kFollowDisplayParam, 0),
+    boolean(device_path::kMidiSelectKitRow, 0),
+    boolean(device_path::kMidiThru, 0),
+    choice(device_path::kMidiTranspose, kMidiTransposeWords, 0),
+    choice(device_path::kMidiTakeover, kMidiTakeoverWords, 0),
+    boolean(device_path::kDifferentiateInputs, 0),
+};
+
 /// A gate's modes, in the order the gate's mode numbers them: every gate's two triggers, and the special mode of the
 /// clock's gate and of the run's.
 constexpr std::array<std::string_view, 2> kGateModeWords{"vTrig", "sTrig"};
@@ -323,7 +352,8 @@ constexpr std::array kCvAndGateRows = [] {
 /// The rows before the preset scales'.
 constexpr size_t kLeadingRows = 2 + kDefaultsRows.size();
 /// The rows after them, before the community features'.
-constexpr size_t kTrailingRows = kPadsAndScreenRows.size() + kAudioAndClockRows.size() + kCvAndGateRows.size();
+constexpr size_t kTrailingRows =
+    kPadsAndScreenRows.size() + kAudioAndClockRows.size() + kMidiRows.size() + kCvAndGateRows.size();
 /// How many rows the table has.
 constexpr size_t kRowCount = kLeadingRows + kScaleCount + kTrailingRows + kFeatureCount;
 
@@ -349,6 +379,9 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 		rows[at++] = row;
 	}
 	for (const SettingInfo& row : kAudioAndClockRows) {
+		rows[at++] = row;
+	}
+	for (const SettingInfo& row : kMidiRows) {
 		rows[at++] = row;
 	}
 	for (const SettingInfo& row : kCvAndGateRows) {
@@ -433,6 +466,16 @@ static_assert([] {
 	         device_path::kStemKitFx,
 	         device_path::kStemOffline,
 	         device_path::kStemMixdown,
+	         device_path::kFollowKitRootNote,
+	         device_path::kFollowFeedbackChannel,
+	         device_path::kFollowFeedbackAutomation,
+	         device_path::kFollowFeedbackFilter,
+	         device_path::kFollowDisplayParam,
+	         device_path::kMidiSelectKitRow,
+	         device_path::kMidiThru,
+	         device_path::kMidiTranspose,
+	         device_path::kMidiTakeover,
+	         device_path::kDifferentiateInputs,
 	         device_path::kGateMinOffTime,
 	     }) {
 		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {

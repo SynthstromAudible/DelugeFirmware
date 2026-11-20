@@ -3,6 +3,7 @@
 ///        song behind the menu: what a page shows is the fake's value, and what a turn writes reaches the fake's
 ///        store.
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/device_settings.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -23,11 +24,15 @@
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/sound_state.h"
+#include "midi/device_id.h"
 #include "music-theory/preset_scales.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include "shell/profile.h"
 #include "shell/profiles/deluge.h"
+#include "shell/scene.h"
 #include "shell/shell.h"
+#include "ui/core/input.h"
 
 #include "support/fake_host_rig.h"
 #include "support/mocks/fake_surfaces.h"
@@ -148,6 +153,23 @@ std::vector<std::string> last_stores(const spec::FakeHostRig& fakes, size_t coun
 		out.push_back(stores[i].first + "=" + stores[i].second.str());
 	}
 	return out;
+}
+
+/// @brief LEARN held while one MIDI message of @p kind arrives from the DIN port, as the menu takes it in learn mode.
+/// @return Whether the menu used the message.
+bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t data1) {
+	using deluge::ui::shell::ButtonId;
+	using deluge::ui::shell::UiEvent;
+	const deluge::ui::shell::ButtonSet held{};
+	const deluge::ui::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
+	const bool used =
+	    menu_scene()
+	        .handle(UiEvent{.kind = kind, .channel = 4, .data1 = data1, .data2 = 100, .device = deluge::midi::kDin}, ui)
+	        .handled;
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
+	return used;
 }
 
 /// @brief The community features' nodes, in the page's order, each with its feature.
@@ -660,6 +682,87 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		    .to_equal(std::vector<std::string>{"gate/3/mode=clock", std::string{device_path::kGateMinOffTime} + "=25"});
 		expect(menu::bindings::read(nodes::gate_off_time, ctx)).to_equal(25);
 		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("names the MIDI follow feedback's channels as its item does, the track's alone and with each follow channel", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::midi_follow_feedback);
+		expect(names_of(nodes::midi_follow_feedback_channel, ctx))
+		    .to_equal(std::vector<std::string>{"None", "Channel A", "Channel B", "Channel C", "Channel Track",
+		                                       "Channel Track + Channel A", "Channel Track + Channel B",
+		                                       "Channel Track + Channel C"});
+		expect(names_of(nodes::midi_follow_feedback_automation, ctx))
+		    .to_equal(std::vector<std::string>{"Disabled", "Low", "Medium", "High"});
+		expect(menu::bindings::read(nodes::midi_follow_feedback_channel, ctx)).to_equal(0);
+		hold(r.fakes, device_path::kFollowFeedbackChannel, 6);
+		expect(menu::bindings::read(nodes::midi_follow_feedback_channel, ctx)).to_equal(6);
+		menu::bindings::write(nodes::midi_follow_feedback_channel, ctx, 7);
+		menu::bindings::write(nodes::midi_follow_feedback_automation, ctx, 2);
+		menu::bindings::write(nodes::midi_follow_feedback_filter, ctx, 1);
+		expect(last_stores(r.fakes, 3))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kFollowFeedbackChannel} + "=trackAndC",
+		                                       std::string{device_path::kFollowFeedbackAutomation} + "=medium",
+		                                       std::string{device_path::kFollowFeedbackFilter} + "=1"});
+		expect(std::to_underlying(bind::read_device<deluge::project::FeedbackAutomation>(
+		           ctx.ports.device, device_path::kFollowFeedbackAutomation)))
+		    .to_equal(std::to_underlying(deluge::project::FeedbackAutomation::MEDIUM));
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("names the MIDI page's choices as their items do, and stores each of its rows through the device port", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::midi_settings);
+		expect(names_of(nodes::midi_takeover, ctx))
+		    .to_equal(std::vector<std::string>{"Jump", "Pickup", "Scale", "Relative"});
+		expect(names_of(nodes::midi_transpose_method, ctx)).to_equal(std::vector<std::string>{"In Key", "Chromatic"});
+		expect(menu::bindings::read(nodes::midi_follow_kit_root_note, ctx)).to_equal(36);
+		expect(menu::bindings::range(nodes::midi_follow_kit_root_note, ctx).max).to_equal(127);
+		expect(menu::bindings::read(nodes::midi_input_differentiation, ctx)).to_equal(0);
+		menu::bindings::write(nodes::midi_takeover, ctx, 3);
+		menu::bindings::write(nodes::midi_thru, ctx, 1);
+		menu::bindings::write(nodes::midi_select_kit_row, ctx, 1);
+		menu::bindings::write(nodes::midi_input_differentiation, ctx, 1);
+		menu::bindings::write(nodes::midi_follow_display_param, ctx, 1);
+		menu::bindings::write(nodes::midi_follow_kit_root_note, ctx, 48);
+		expect(last_stores(r.fakes, 6))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kMidiTakeover} + "=relative",
+		                                       std::string{device_path::kMidiThru} + "=1",
+		                                       std::string{device_path::kMidiSelectKitRow} + "=1",
+		                                       std::string{device_path::kDifferentiateInputs} + "=1",
+		                                       std::string{device_path::kFollowDisplayParam} + "=1",
+		                                       std::string{device_path::kFollowKitRootNote} + "=48"});
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("learns the kit root note from a note-on as a write of its row, and nothing from a CC", _ {
+		Rig r;
+		r.open(nodes::midi_follow_kit_root_note);
+		// Learn mode takes the CC, and the item learns nothing from it.
+		(void)offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 20);
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 61)).to_be_true();
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kFollowKitRootNote} + "=61"});
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
+		// The item on its own screen shows the note it learned.
+		expect(menu_scene().state().edit_int).to_equal(61);
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("shows the chord transpose method, which the menu does not offer, as chromatic, as main's list clamps it", _ {
+		Rig r;
+		// The device's third method: the menu lists the first two.
+		hold(r.fakes, device_path::kMidiTranspose, 2);
+		const MenuContext ctx = r.open(nodes::midi_transpose_method);
+		expect(menu::bindings::read(nodes::midi_transpose_method, ctx)).to_equal(1);
+		expect(static_cast<int32_t>(menu_scene().state().enum_index)).to_equal(1);
+		r.shell.tick(40);
+		// Showing it writes nothing.
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+		// A turn down picks the one before it.
+		r.turn(-1, 60);
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kMidiTranspose} + "=inKey"});
 	});
 });
 // clang-format on

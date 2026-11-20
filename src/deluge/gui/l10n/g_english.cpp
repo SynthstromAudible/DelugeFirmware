@@ -1058,6 +1058,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_TEXT_KEYBOARD_QWERTY, "QWERTY"},
         {STRING_FOR_TEXT_KEYBOARD_AZERTY, "AZERTY"},
         {STRING_FOR_TEXT_KEYBOARD_QWERTZ, "QWERTZ"},
+        {STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK, "Channel Track"},
+        {STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_A, "Channel Track + Channel A"},
+        {STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_B, "Channel Track + Channel B"},
+        {STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C, "Channel Track + Channel C"},
     },
 };
 } // namespace deluge::l10n::built_in

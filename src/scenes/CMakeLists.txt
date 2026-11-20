@@ -20,9 +20,9 @@
 # discriminator (`<cstdint>` and `<stdint.h>` are both slash-less) that the checker does not have.
 # A fourth root-level include added here must be justified in this comment or it is a violation
 # nothing will catch.
-# (io/** is for the settings root: `midiEngine`, `MIDIDeviceManager` and
-# `MIDITranspose` -- the state most of the MIDI settings page edits -- live there, and
-# check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)
+# (io/** is for the settings root and its resets: `midiEngine` and the MIDI device registry --
+# the follow channels' and the MIDI commands' state -- and `MIDIDeviceManager`'s reset live
+# there, and check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)
 # (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.)
 #
 # Link direction: deluge_scenes links deluge_app (compile-only; see below), never the reverse.

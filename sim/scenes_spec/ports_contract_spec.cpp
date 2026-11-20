@@ -10,6 +10,9 @@
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
@@ -642,6 +645,82 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK] = clock_gate;
 		playbackHandler.triggerClockOutTickScheduled = clock_scheduled;
 		(void)cvEngine.takePendingGateOutputs(true);
+	});
+
+	it("keeps the MIDI settings where the MIDI engine keeps them, each write one plain store", _ {
+		const bind::Ports& p = menu::host_ports();
+		expect(p.device).not_().to_be_null();
+		if (p.device == nullptr) {
+			return;
+		}
+		using device_path = deluge::project::device_path;
+		const uint8_t root = midiEngine.midiFollowKitRootNote;
+		const MIDIFollowFeedbackChannelType feedback = midiEngine.midiFollowFeedbackChannelType;
+		const MIDIFollowFeedbackAutomationMode automation = midiEngine.midiFollowFeedbackAutomation;
+		const bool filter = midiEngine.midiFollowFeedbackFilter;
+		const bool display = midiEngine.midiFollowDisplayParam;
+		const bool select_row = midiEngine.midiSelectKitRow;
+		const bool thru = midiEngine.midiThru;
+		const MIDITakeoverMode takeover = midiEngine.midiTakeover;
+		const MIDITransposeControlMethod method = MIDITranspose::controlMethod;
+		const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+
+		(void)p.device->write(device_path::kFollowKitRootNote, 61);
+		(void)p.device->write(device_path::kFollowFeedbackChannel, 5);
+		(void)p.device->write(device_path::kFollowFeedbackAutomation, 3);
+		(void)p.device->write(device_path::kMidiTakeover, 2);
+		(void)p.device->write(device_path::kMidiTranspose, 1);
+		expect(static_cast<int>(midiEngine.midiFollowKitRootNote)).to_equal(61);
+		expect(static_cast<int>(midiEngine.midiFollowFeedbackChannelType))
+		    .to_equal(static_cast<int>(MIDIFollowFeedbackChannelType::TrackAndA));
+		expect(static_cast<int>(midiEngine.midiFollowFeedbackAutomation))
+		    .to_equal(static_cast<int>(MIDIFollowFeedbackAutomationMode::HIGH));
+		expect(static_cast<int>(midiEngine.midiTakeover)).to_equal(static_cast<int>(MIDITakeoverMode::SCALE));
+		expect(static_cast<int>(MIDITranspose::controlMethod))
+		    .to_equal(static_cast<int>(MIDITransposeControlMethod::CHROMATIC));
+		for (const bool on : {true, false}) {
+			(void)p.device->write(device_path::kFollowFeedbackFilter, on ? 1 : 0);
+			(void)p.device->write(device_path::kFollowDisplayParam, on ? 1 : 0);
+			(void)p.device->write(device_path::kMidiSelectKitRow, on ? 1 : 0);
+			(void)p.device->write(device_path::kMidiThru, on ? 1 : 0);
+			(void)p.device->write(device_path::kDifferentiateInputs, on ? 1 : 0);
+			expect(midiEngine.midiFollowFeedbackFilter).to_equal(on);
+			expect(midiEngine.midiFollowDisplayParam).to_equal(on);
+			expect(midiEngine.midiSelectKitRow).to_equal(on);
+			expect(midiEngine.midiThru).to_equal(on);
+			expect(MIDIDeviceManager::differentiatingInputsByDevice).to_equal(on);
+		}
+
+		// The chord method, which no menu offers, reads clamped to chromatic, and its page shows Chromatic, as main's
+		// list clamps it; reading heals nothing.
+		MIDITranspose::controlMethod = MIDITransposeControlMethod::CHORD;
+		expect(p.device->read(device_path::kMidiTranspose).value_or(-1)).to_equal(1);
+		{
+			menu::MenuContext on_device{};
+			on_device.ports = menu::host_ports();
+			const int32_t shown = menu::bindings::read(menu::nodes::midi_transpose_method, on_device);
+			std::array<std::string_view, menu::kMaxDynamicNames> names{};
+			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+			const size_t count = menu::bindings::names(menu::nodes::midi_transpose_method, on_device, names, scratch);
+			expect(count).to_equal(size_t{2});
+			expect(shown).to_equal(1);
+			if (shown >= 0 && static_cast<size_t>(shown) < count) {
+				expect(std::string{names[static_cast<size_t>(shown)]}).to_equal(std::string{"Chromatic"});
+			}
+		}
+		expect(static_cast<int>(MIDITranspose::controlMethod))
+		    .to_equal(static_cast<int>(MIDITransposeControlMethod::CHORD));
+
+		midiEngine.midiFollowKitRootNote = root;
+		midiEngine.midiFollowFeedbackChannelType = feedback;
+		midiEngine.midiFollowFeedbackAutomation = automation;
+		midiEngine.midiFollowFeedbackFilter = filter;
+		midiEngine.midiFollowDisplayParam = display;
+		midiEngine.midiSelectKitRow = select_row;
+		midiEngine.midiThru = thru;
+		midiEngine.midiTakeover = takeover;
+		MIDITranspose::controlMethod = method;
+		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
 	});
 });
 

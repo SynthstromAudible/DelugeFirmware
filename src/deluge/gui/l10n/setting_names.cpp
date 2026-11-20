@@ -602,6 +602,43 @@ constexpr SettingNames kMidiClockOutNames{STRING_FOR_MIDI_CLOCK_OUT, STRING_FOR_
 constexpr SettingNames kMidiClockInNames{STRING_FOR_MIDI_CLOCK_IN, STRING_FOR_INPUT, {}, {}};
 constexpr SettingNames kTempoMagnitudeMatchingNames{
     STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING, {}, {}};
+/// MIDI follow's rows and the MIDI page's own. The feedback channels after the follow channels' own names are the
+/// track's channel alone and with each of them, as the feedback's channel item names them.
+constexpr SettingNames kFollowKitRootNoteNames{
+    STRING_FOR_FOLLOW_KIT_ROOT_NOTE, STRING_FOR_FOLLOW_KIT_ROOT_NOTE, {}, {}};
+constexpr std::array<String, 8> kFollowFeedbackChannelChoices{{
+    STRING_FOR_NONE,
+    STRING_FOR_FOLLOW_CHANNEL_A,
+    STRING_FOR_FOLLOW_CHANNEL_B,
+    STRING_FOR_FOLLOW_CHANNEL_C,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_A,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_B,
+    STRING_FOR_FOLLOW_FEEDBACK_CHANNEL_TRACK_AND_C,
+}};
+constexpr SettingNames kFollowFeedbackChannelNames{
+    STRING_FOR_CHANNEL, STRING_FOR_CHANNEL, kFollowFeedbackChannelChoices, {}};
+constexpr std::array<String, 4> kFollowFeedbackAutomationChoices{{
+    STRING_FOR_DISABLED,
+    STRING_FOR_LOW,
+    STRING_FOR_MEDIUM,
+    STRING_FOR_HIGH,
+}};
+constexpr SettingNames kFollowFeedbackAutomationNames{
+    STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, kFollowFeedbackAutomationChoices, {}};
+constexpr SettingNames kFollowFeedbackFilterNames{
+    STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER, {}, {}};
+constexpr SettingNames kFollowDisplayParamNames{
+    STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM, {}, {}};
+constexpr SettingNames kMidiSelectKitRowNames{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, {}, {}};
+constexpr SettingNames kMidiThruNames{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, {}, {}};
+constexpr std::array<String, 2> kMidiTransposeChoices{{STRING_FOR_TRANSPOSE_INKEY, STRING_FOR_TRANSPOSE_CHROMATIC}};
+constexpr SettingNames kMidiTransposeNames{STRING_FOR_TRANSPOSE, STRING_FOR_TRANSPOSE, kMidiTransposeChoices, {}};
+constexpr std::array<String, 4> kMidiTakeoverChoices{
+    {STRING_FOR_JUMP, STRING_FOR_PICK_UP, STRING_FOR_SCALE, STRING_FOR_RELATIVE}};
+constexpr SettingNames kMidiTakeoverNames{STRING_FOR_TAKEOVER, STRING_FOR_TAKEOVER, kMidiTakeoverChoices, {}};
+constexpr SettingNames kDifferentiateInputsNames{
+    STRING_FOR_DIFFERENTIATE_INPUTS, STRING_FOR_DIFFERENTIATE_INPUTS, {}, {}};
 /// The CV outputs' and the gate outputs' rows. Every output's row of a kind shares its names; a gate's mode lists the
 /// clock or the run signal only on the gate whose row has that choice.
 constexpr SettingNames kCvVoltsPerOctaveNames{
@@ -725,7 +762,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 220> kEntries{{
+constexpr std::array<Entry, 230> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -829,6 +866,16 @@ constexpr std::array<Entry, 220> kEntries{{
     Entry{SettingGroupId::DEVICE, "gate/2/mode", &kRunGateModeNames},
     Entry{SettingGroupId::DEVICE, "gate/3/mode", &kClockGateModeNames},
     Entry{SettingGroupId::DEVICE, "gate/minOffTime", &kGateMinOffTimeNames},
+    Entry{SettingGroupId::DEVICE, "midi/differentiateInputs", &kDifferentiateInputsNames},
+    Entry{SettingGroupId::DEVICE, "midi/selectKitRow", &kMidiSelectKitRowNames},
+    Entry{SettingGroupId::DEVICE, "midi/takeover", &kMidiTakeoverNames},
+    Entry{SettingGroupId::DEVICE, "midi/thru", &kMidiThruNames},
+    Entry{SettingGroupId::DEVICE, "midi/transpose", &kMidiTransposeNames},
+    Entry{SettingGroupId::DEVICE, "midiFollow/displayParam", &kFollowDisplayParamNames},
+    Entry{SettingGroupId::DEVICE, "midiFollow/feedback/automation", &kFollowFeedbackAutomationNames},
+    Entry{SettingGroupId::DEVICE, "midiFollow/feedback/channel", &kFollowFeedbackChannelNames},
+    Entry{SettingGroupId::DEVICE, "midiFollow/feedback/filter", &kFollowFeedbackFilterNames},
+    Entry{SettingGroupId::DEVICE, "midiFollow/kitRootNote", &kFollowKitRootNoteNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/active", &kPadColourActiveNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/fill", &kPadColourFillNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/muted", &kPadColourMutedNames},

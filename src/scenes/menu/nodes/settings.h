@@ -10,7 +10,8 @@
 ///
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
 /// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), or is a DEVICE row the device port keeps
-/// (the community features, the audio, the clocks and the CV and gate outputs among them). Every one of those is inside
+/// (the community features, the audio, the clocks, the scalar MIDI and MIDI follow settings and the CV and gate outputs
+/// among them). Every one of those is inside
 /// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
 /// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
 /// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
@@ -86,7 +87,7 @@
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
 #include "scenes/menu/nodes/midi_device.h"  // the per-device page `midi_devices` chains to
-#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, swing_interval_turn
+#include "scenes/menu/nodes/roots.h"        // swing_interval_turn
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
 
@@ -168,32 +169,12 @@ void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext& ctx,
 }
 
 /// @brief `midi::FollowKitRootNote::learnNoteOn`
-/// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`): a note-on sets the kit root note.
-/// @return Whether it learned.
+/// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h`): a note-on writes its note to the
+/// DEVICE `midiFollow/kitRootNote` row.
+/// @param ctx   The menu's context, whose device port takes the write.
+/// @param event The MIDI message offered for learning.
+/// @return Whether it learned: a note-on the port stored.
 bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event);
-
-int32_t get_follow_kit_root_note(const MenuContext& ctx);
-void set_follow_kit_root_note(const MenuContext& ctx, int32_t value);
-int32_t get_follow_feedback_channel(const MenuContext& ctx);
-void set_follow_feedback_channel(const MenuContext& ctx, int32_t value);
-size_t follow_feedback_channel_names(const MenuContext& ctx, std::span<std::string_view> out);
-int32_t get_follow_feedback_automation(const MenuContext& ctx);
-void set_follow_feedback_automation(const MenuContext& ctx, int32_t value);
-int32_t get_follow_feedback_filter(const MenuContext& ctx);
-void set_follow_feedback_filter(const MenuContext& ctx, int32_t value);
-int32_t get_follow_display_param(const MenuContext& ctx);
-void set_follow_display_param(const MenuContext& ctx, int32_t value);
-
-int32_t get_midi_select_kit_row(const MenuContext& ctx);
-void set_midi_select_kit_row(const MenuContext& ctx, int32_t value);
-int32_t get_midi_thru(const MenuContext& ctx);
-void set_midi_thru(const MenuContext& ctx, int32_t value);
-int32_t get_midi_transpose_method(const MenuContext& ctx);
-void set_midi_transpose_method(const MenuContext& ctx, int32_t value);
-int32_t get_midi_takeover(const MenuContext& ctx);
-void set_midi_takeover(const MenuContext& ctx, int32_t value);
-int32_t get_midi_input_differentiation(const MenuContext& ctx);
-void set_midi_input_differentiation(const MenuContext& ctx, int32_t value);
 
 /// `defaults::SwingInterval::getNoteLengthName`: the default resolution, the DEVICE `defaults/magnitude` row.
 int32_t default_resolution_magnitude(const MenuContext& ctx);
@@ -421,53 +402,45 @@ inline constexpr const Node* kMidiFollowChannelChildren[] = {
 inline constexpr Node midi_follow_channel = submenu(sid(String::STRING_FOR_CHANNEL), kMidiFollowChannelChildren);
 
 inline constexpr Node midi_follow_kit_root_note =
-    with_learn(int_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), get_follow_kit_root_note,
-                        set_follow_kit_root_note, IntRange{0, kMaxMIDIValue, 1}),
+    with_learn(setting_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), Kind::Int,
+                            device_row(project::device_path::kFollowKitRootNote)),
                learn_follow_kit_root_note);
 
 /// `FollowFeedbackChannelType::getOptions`
-/// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_channel_type.h`) builds three of its eight labels
-/// at run time ("Track + A", ...), so the list is dynamic.
+/// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_channel_type.h`) joins the track's label to each
+/// follow channel's for its last three; the row names them with strings of the same text.
 inline constexpr Node midi_follow_feedback_channel =
-    dynamic_enumeration(sid(String::STRING_FOR_CHANNEL), follow_feedback_channel_names, get_follow_feedback_channel,
-                        set_follow_feedback_channel);
+    setting_item(sid(String::STRING_FOR_CHANNEL), Kind::Enum, device_row(project::device_path::kFollowFeedbackChannel));
 inline constexpr Node midi_follow_feedback_automation =
-    enumeration(sid(String::STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION), kThresholdModeNames, get_follow_feedback_automation,
-                set_follow_feedback_automation);
+    setting_item(sid(String::STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION), Kind::Enum,
+                 device_row(project::device_path::kFollowFeedbackAutomation));
 inline constexpr Node midi_follow_feedback_filter =
-    toggle_item(sid(String::STRING_FOR_FOLLOW_FEEDBACK_FILTER), get_follow_feedback_filter, set_follow_feedback_filter);
+    setting_item(sid(String::STRING_FOR_FOLLOW_FEEDBACK_FILTER), Kind::Toggle,
+                 device_row(project::device_path::kFollowFeedbackFilter));
 inline constexpr const Node* kMidiFollowFeedbackChildren[] = {
     &midi_follow_feedback_channel, &midi_follow_feedback_automation, &midi_follow_feedback_filter};
 inline constexpr Node midi_follow_feedback =
     submenu(sid(String::STRING_FOR_FOLLOW_FEEDBACK), kMidiFollowFeedbackChildren);
 
-inline constexpr Node midi_follow_display_param =
-    toggle_item(sid(String::STRING_FOR_FOLLOW_DISPLAY_PARAM), get_follow_display_param, set_follow_display_param);
+inline constexpr Node midi_follow_display_param = setting_item(
+    sid(String::STRING_FOR_FOLLOW_DISPLAY_PARAM), Kind::Toggle, device_row(project::device_path::kFollowDisplayParam));
 inline constexpr const Node* kMidiFollowChildren[] = {&midi_follow_channel, &midi_follow_kit_root_note,
                                                       &midi_follow_feedback, &midi_follow_display_param};
 inline constexpr Node midi_follow = submenu(sid(String::STRING_FOR_FOLLOW_TITLE), kMidiFollowChildren);
 
-inline constexpr Node midi_select_kit_row =
-    toggle_item(sid(String::STRING_FOR_SELECT_KIT_ROW), get_midi_select_kit_row, set_midi_select_kit_row);
-inline constexpr Node midi_thru = toggle_item(sid(String::STRING_FOR_MIDI_THRU), get_midi_thru, set_midi_thru);
+inline constexpr Node midi_select_kit_row = setting_item(sid(String::STRING_FOR_SELECT_KIT_ROW), Kind::Toggle,
+                                                         device_row(project::device_path::kMidiSelectKitRow));
+inline constexpr Node midi_thru =
+    setting_item(sid(String::STRING_FOR_MIDI_THRU), Kind::Toggle, device_row(project::device_path::kMidiThru));
 
-/// `midi::Transpose::getOptions` (`origin/main:src/deluge/gui/menu_item/midi/transpose.h`).
-inline constexpr uint16_t kMidiTransposeNames[] = {
-    sid(String::STRING_FOR_TRANSPOSE_INKEY),
-    sid(String::STRING_FOR_TRANSPOSE_CHROMATIC),
-};
-inline constexpr Node midi_transpose_method = enumeration(sid(String::STRING_FOR_TRANSPOSE), kMidiTransposeNames,
-                                                          get_midi_transpose_method, set_midi_transpose_method);
+/// `midi::Transpose` (`origin/main:src/deluge/gui/menu_item/midi/transpose.h`): its options are the row's two choices.
+/// The chord method the device may hold reads clamped to chromatic, as the item's list shows it.
+inline constexpr Node midi_transpose_method =
+    setting_item(sid(String::STRING_FOR_TRANSPOSE), Kind::Enum, device_row(project::device_path::kMidiTranspose));
 
-/// `midi::Takeover::getOptions` (`origin/main:src/deluge/gui/menu_item/midi/takeover.h`).
-inline constexpr uint16_t kMidiTakeoverNames[] = {
-    sid(String::STRING_FOR_JUMP),
-    sid(String::STRING_FOR_PICK_UP),
-    sid(String::STRING_FOR_SCALE),
-    sid(String::STRING_FOR_RELATIVE),
-};
+/// `midi::Takeover` (`origin/main:src/deluge/gui/menu_item/midi/takeover.h`).
 inline constexpr Node midi_takeover =
-    enumeration(sid(String::STRING_FOR_TAKEOVER), kMidiTakeoverNames, get_midi_takeover, set_midi_takeover);
+    setting_item(sid(String::STRING_FOR_TAKEOVER), Kind::Enum, device_row(project::device_path::kMidiTakeover));
 
 /// The twelve `midi::Command` learn items (`origin/main:src/deluge/gui/ui/menus.cpp`), each backed by its own
 /// `MidiCommandItem` (`nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
@@ -501,8 +474,8 @@ inline constexpr const Node* kMidiCommandsChildren[] = {
 inline constexpr Node midi_commands = submenu(sid(String::STRING_FOR_COMMANDS), kMidiCommandsChildren, Layout::Vertical,
                                               nullptr, sid(String::STRING_FOR_MIDI_COMMANDS));
 
-inline constexpr Node midi_input_differentiation = toggle_item(
-    sid(String::STRING_FOR_DIFFERENTIATE_INPUTS), get_midi_input_differentiation, set_midi_input_differentiation);
+inline constexpr Node midi_input_differentiation = setting_item(
+    sid(String::STRING_FOR_DIFFERENTIATE_INPUTS), Kind::Toggle, device_row(project::device_path::kDifferentiateInputs));
 /// The device list, and the per-device page a select press on it opens --
 /// `Devices::selectButtonPress` returns `&midiDeviceMenu` unconditionally
 /// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). The page and its chain hook are `nodes/midi_device.h`;

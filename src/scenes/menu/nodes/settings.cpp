@@ -26,6 +26,7 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "scenes/bind/device_reader.h"
+#include "scenes/bind/ports/device_settings.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
@@ -33,12 +34,11 @@
 #include "scenes/registry.h"        // menu_scene()
 
 #include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, NUM_GATE_CHANNELS
+#include "deluge-project/device_settings.h"
 #include "deluge-project/midi_channels.h"
 #include "gfx/oled/glyphs.h"
 #include "io/midi/device_registry.h"
-#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_transpose.h"
 #include "music-theory/note_names.h"
 #include "storage/flash_storage.h"
 
@@ -55,15 +55,6 @@
 #include <cstdint>
 
 namespace deluge::scenes::menu::nodes {
-
-namespace {
-
-/// @brief Read a plain `bool` global as a toggle's value.
-constexpr int32_t from_bool(bool value) {
-	return value ? 1 : 0;
-}
-
-} // namespace
 
 // ---------------------------------------------------------------------------------------------
 // MIDI follow
@@ -128,9 +119,10 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
 
 	deluge::ui::oled::text(f, row(0, 0),
-	                       deluge::scenes::text_lookup(sid(MIDIDeviceManager::differentiatingInputsByDevice
-	                                                           ? String::STRING_FOR_INPUT_DIFFERENTIATION_ON
-	                                                           : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
+	                       deluge::scenes::text_lookup(
+	                           sid(bind::read_device_flag(ctx.ports.device, project::device_path::kDifferentiateInputs)
+	                                   ? String::STRING_FOR_INPUT_DIFFERENTIATION_ON
+	                                   : String::STRING_FOR_INPUT_DIFFERENTIATION_OFF)),
 	                       ts);
 
 	const LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
@@ -163,143 +155,11 @@ void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled
 	deluge::ui::oled::text(f, row(2, 0), channel_text, ts);
 }
 
-bool learn_follow_kit_root_note(const MenuContext&, const deluge::ui::shell::UiEvent& event) {
-	if (event.kind != deluge::ui::shell::UiEvent::Kind::MidiNoteOn) {
+bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event) {
+	if (event.kind != deluge::ui::shell::UiEvent::Kind::MidiNoteOn || ctx.ports.device == nullptr) {
 		return false;
 	}
-	midiEngine.midiFollowKitRootNote = event.data1;
-	return true;
-}
-
-int32_t get_follow_kit_root_note(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h` `readCurrentValue`
-	return midiEngine.midiFollowKitRootNote;
-}
-void set_follow_kit_root_note(const MenuContext&, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_kit_root_note.h` `writeCurrentValue`
-	midiEngine.midiFollowKitRootNote = static_cast<uint8_t>(value);
-}
-
-int32_t get_follow_feedback_channel(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_channel_type.h` `readCurrentValue`
-	return static_cast<int32_t>(midiEngine.midiFollowFeedbackChannelType);
-}
-void set_follow_feedback_channel(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_channel_type.h`).
-	midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowFeedbackChannelType>(value);
-}
-
-size_t follow_feedback_channel_names(const MenuContext&, std::span<std::string_view> out) {
-	// `FollowFeedbackChannelType::getOptions`
-	// (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_channel_type.h`): four l10n strings, then the
-	// Track label with its "**" index placeholder trimmed, then that label joined to each of A/B/C. The three joined
-	// labels are built into this translation unit's own buffers, exactly as legacy builds them into the menu item's
-	// (`FollowFeedbackChannelType::getTrackAndChannelOption`).
-	using deluge::l10n::String;
-	static constexpr String kFixed[] = {String::STRING_FOR_NONE, String::STRING_FOR_FOLLOW_CHANNEL_A,
-	                                    String::STRING_FOR_FOLLOW_CHANNEL_B, String::STRING_FOR_FOLLOW_CHANNEL_C};
-	static constexpr String kJoined[] = {String::STRING_FOR_FOLLOW_CHANNEL_A, String::STRING_FOR_FOLLOW_CHANNEL_B,
-	                                     String::STRING_FOR_FOLLOW_CHANNEL_C};
-	static char buffers[3][80];
-
-	std::string_view track = deluge::scenes::text_lookup(sid(String::STRING_FOR_FOLLOW_CHANNEL_TRACK));
-	if (track.size() >= 2 && track.substr(track.size() - 2) == "**") {
-		track.remove_suffix(2);
-	}
-
-	size_t n = 0;
-	for (String s : kFixed) {
-		if (n < out.size()) {
-			out[n++] = deluge::scenes::text_lookup(sid(s));
-		}
-	}
-	if (n < out.size()) {
-		out[n++] = track;
-	}
-	for (size_t i = 0; i < 3 && n < out.size(); i++) {
-		const std::string_view channel = deluge::scenes::text_lookup(sid(kJoined[i]));
-		size_t len = 0;
-		const auto append = [&](std::string_view text) {
-			for (char c : text) {
-				if (len + 1 < sizeof(buffers[i])) {
-					buffers[i][len++] = c;
-				}
-			}
-		};
-		append(track);
-		append(" + ");
-		append(channel);
-		out[n++] = std::string_view{buffers[i], len};
-	}
-	return n;
-}
-
-int32_t get_follow_feedback_automation(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_automation.h` `readCurrentValue`
-	return static_cast<int32_t>(midiEngine.midiFollowFeedbackAutomation);
-}
-void set_follow_feedback_automation(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_feedback_automation.h`).
-	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(value);
-}
-
-int32_t get_follow_feedback_filter(const MenuContext&) {
-	// `midiFollowFeedbackFilterMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(midiEngine.midiFollowFeedbackFilter);
-}
-void set_follow_feedback_filter(const MenuContext&, int32_t value) {
-	midiEngine.midiFollowFeedbackFilter = value != 0;
-}
-
-int32_t get_follow_display_param(const MenuContext&) {
-	// `midiFollowDisplayParamMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(midiEngine.midiFollowDisplayParam);
-}
-void set_follow_display_param(const MenuContext&, int32_t value) {
-	midiEngine.midiFollowDisplayParam = value != 0;
-}
-
-// ---------------------------------------------------------------------------------------------
-// The rest of the MIDI page
-
-int32_t get_midi_select_kit_row(const MenuContext&) {
-	return from_bool(midiEngine.midiSelectKitRow); // `midiSelectKitRowMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_midi_select_kit_row(const MenuContext&, int32_t value) {
-	midiEngine.midiSelectKitRow = value != 0;
-}
-
-int32_t get_midi_thru(const MenuContext&) {
-	return from_bool(midiEngine.midiThru); // `midiThruMenu`
-}
-void set_midi_thru(const MenuContext&, int32_t value) {
-	midiEngine.midiThru = value != 0;
-}
-
-int32_t get_midi_transpose_method(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/midi/transpose.h` `readCurrentValue`
-	return static_cast<int32_t>(MIDITranspose::controlMethod);
-}
-void set_midi_transpose_method(const MenuContext&, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/midi/transpose.h` `writeCurrentValue`
-	MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(value);
-}
-
-int32_t get_midi_takeover(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/midi/takeover.h` `readCurrentValue`
-	return static_cast<int32_t>(midiEngine.midiTakeover);
-}
-void set_midi_takeover(const MenuContext&, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/midi/takeover.h` `writeCurrentValue`
-	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(value);
-}
-
-int32_t get_midi_input_differentiation(const MenuContext&) {
-	return from_bool(MIDIDeviceManager::differentiatingInputsByDevice); // `midiInputDifferentiationMenu`
-	                                                                    // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_midi_input_differentiation(const MenuContext&, int32_t value) {
-	MIDIDeviceManager::differentiatingInputsByDevice = value != 0;
+	return ctx.ports.device->write(project::device_path::kFollowKitRootNote, event.data1) != bind::DeviceWrite::REFUSED;
 }
 
 // ---------------------------------------------------------------------------------------------
