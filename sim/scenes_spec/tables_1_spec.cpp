@@ -892,7 +892,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		}
 		deluge::edits::recordRanges(*sound, 0);
 		MenuContext ctx = spec::ctx_of(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		                               /*kit_global_fx=*/false);
 		menu::MenuState picker{};
 		picker.list[0].cursor = 2;
 		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();

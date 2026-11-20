@@ -1298,8 +1298,8 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
-		                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,
-		                                          /*kit_global_fx=*/false);
+		                                     /*session_or_arranger_root=*/false, /*session_view_root=*/false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(nodes::stem_export, ctx);
 		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::stem_export)});

@@ -122,7 +122,7 @@ constexpr int32_t kVibratoCableId = static_cast<int32_t>(
 /// @brief Open a real `MenuScene` at `nodes::root_song` on the global guest's OWN scene stack --
 ///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
 ///
-/// `root_song` needs no clip (`context_for`'s second argument is `nullptr`), so this needs nothing
+/// `root_song` needs no clip (the view names none: `menuViewOf(nullptr)`), so this needs nothing
 /// from `spec::SongFixture` but the `Song&` itself -- unlike `sound_root`, which the spec fixture
 /// resolves a clip and instrument for.
 ///

@@ -443,7 +443,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 			input->channelOrZone = 0;
 		}
 		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false,
-		                                    false);
+		                               false);
 		ctx.midi_device = deluge::midi::id_of(cable);
 		actionLogger.deleteAllLogs();
 

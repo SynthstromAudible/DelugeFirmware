@@ -935,7 +935,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                                  /*session_view_root=*/true, false);
+		                                     /*session_view_root=*/true, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		// Entered from the root, not opened directly: at depth 0 an unwanted `ascend()` is a silent
 		// no-op, so "the item consumed the select press" would be indistinguishable from "it did not".
@@ -1153,7 +1153,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                                  /*session_view_root=*/true, false);
+		                                     /*session_view_root=*/true, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::stem_export, ctx);
 		(void)menu_scene().take_action(); // drain anything an earlier block left in the one-slot outbox

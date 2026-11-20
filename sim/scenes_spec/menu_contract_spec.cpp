@@ -533,7 +533,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		Rig r;
 		spec::SongFixture kit = spec::make_kit_song();
 		const MenuContext ctx = spec::ctx_of(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false,
-		                                          /*kit_global_fx=*/true);
+		                                     /*kit_global_fx=*/true);
 		(void)menu::assign_node_ids(MenuScene::roots());
 		menu_scene().open(nodes::sound_root, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::lpf_res)});

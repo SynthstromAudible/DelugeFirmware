@@ -49,7 +49,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song();
 		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		                               /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::lpf_freq;
 		menu::MenuPads pads;
@@ -71,7 +71,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song();
 		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		                               /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::lpf_freq;
 		menu::MenuPads pads;
@@ -90,7 +90,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song(); // its synth patches NOTE and VELOCITY to the cutoff
 		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		                               /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::patch_cables;
 		menu::MenuPads pads;

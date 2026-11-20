@@ -800,7 +800,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 			for (int32_t which = 0; which < 2; which++) {
 				seed_osc_case(*sound, *song.song, sample, c, which);
 				const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip),
-				                                          static_cast<int8_t>(which), false, false, false, false);
+				                                     static_cast<int8_t>(which), false, false, false, false);
 				const std::string path = std::string{"sample/"} + c.name + "/" + std::to_string(which);
 				const std::vector<std::string>* frozen = table().find(path, "rel");
 				const auto flag = [](bool on) { return std::string{on ? "1" : "0"}; };

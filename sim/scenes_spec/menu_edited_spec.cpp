@@ -246,7 +246,7 @@ describe menu_edited_guest("the menu scene marks the instrument it edits, as Sou
 		activate(fx);
 		const menu::MenuContext ctx =
 		    spec::ctx_of(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
-		                      /*session_or_arranger_root=*/false, /*session_view_root=*/false, /*kit_global_fx=*/true);
+		                 /*session_or_arranger_root=*/false, /*session_view_root=*/false, /*kit_global_fx=*/true);
 		expect(ctx.root).to_equal(menu::MenuContext::Root::KitGlobalFx);
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(open_on_guest(nodes::delay_type, ctx)).to_be_true();

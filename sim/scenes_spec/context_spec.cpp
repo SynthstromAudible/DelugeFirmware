@@ -119,7 +119,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = false;
 		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-		                                          /*kit_global_fx=*/true);
+		                                     /*kit_global_fx=*/true);
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
 		expect(ctx.is_kit_global_fx).to_be_true();
 		expect(ctx.is_drum).to_be_false();
@@ -132,7 +132,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		(void)spec::add_drum<MIDIDrum>(m);
 		m.clip->affectEntire = false;
 		const MenuContext midi = spec::ctx_of(*m.song, deluge::gui::menuViewOf(m.clip), 0, false, false, false,
-		                                           /*kit_global_fx=*/true);
+		                                      /*kit_global_fx=*/true);
 		expect(root_of(midi)).to_equal(static_cast<int>(Root::MidiDrum));
 		expect(midi.is_kit_global_fx).to_be_true();
 	});
@@ -225,13 +225,13 @@ describe menu_context("scenes::menu::context_for", $ {
 		auto f = spec::make_synth_song();
 
 		const MenuContext arranger = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                              /*session_view_root=*/false, false);
+		                                          /*session_view_root=*/false, false);
 		expect(root_of(arranger)).to_equal(static_cast<int>(Root::Song));
 		expect(arranger.is_song_view).to_be_true();
 		expect(arranger.is_session_view).to_be_false();
 
 		const MenuContext session = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
-		                                             /*session_view_root=*/true, false);
+		                                         /*session_view_root=*/true, false);
 		expect(root_of(session)).to_equal(static_cast<int>(Root::Song));
 		expect(session.is_song_view).to_be_true();
 		expect(session.is_session_view).to_be_true();
@@ -249,7 +249,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		// transcribed, not repaired -- `context_for` polices no argument, and this pins that so the
 		// day someone adds a repair they have to argue for it here.
 		const MenuContext impossible = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/false,
-		                                                /*session_view_root=*/true, false);
+		                                            /*session_view_root=*/true, false);
 		expect(root_of(impossible)).to_equal(static_cast<int>(Root::Settings));
 		expect(impossible.is_song_view).to_be_false();
 		expect(impossible.is_session_view).to_be_true();

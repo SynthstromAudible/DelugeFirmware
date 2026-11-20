@@ -190,7 +190,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		select_language();
 		Rig r;
 		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		                                     false, /*kit_global_fx=*/false);
 		menu::MenuContext core_ctx = ctx;
 		menu::MenuState st{};
 		st.path[0] = &nodes::patch_cable_strength_regular;

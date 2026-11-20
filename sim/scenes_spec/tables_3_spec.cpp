@@ -704,8 +704,8 @@ describe tables_3_values("scenes::menu settings and other roots tables: values",
 		const std::vector<spec::TreeEntry> entries = spec::tree_entries("song", nodes::root_song);
 		for (const Case& c : cases) {
 			const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0,
-			                                          /*performance_view=*/false, /*session_or_arranger_root=*/true,
-			                                          c.session_view_root, false);
+			                                     /*performance_view=*/false, /*session_or_arranger_root=*/true,
+			                                     c.session_view_root, false);
 			// All three views take the same root: the port must differ on relevance, not on routing.
 			expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Song));
 			expect(ctx.is_song_view).to_be_true();

@@ -23,8 +23,9 @@ namespace deluge::scenes::spec {
 /// @param session_or_arranger_root `context_for`'s @p session_or_arranger_root.
 /// @param session_view_root        `context_for`'s @p session_view_root.
 /// @param kit_global_fx            `context_for`'s @p kit_global_fx.
-/// @return The context; its ports are the app's, valid for the program's life.
-[[nodiscard]] inline menu::MenuContext ctx_of(::Song& song, const services::MenuView& view, int8_t source_index,
+/// @return The context. It binds the app's ports when the app plays @p song; otherwise only the app's device port, as
+///         the device's settings act on no song. The ports are valid for the program's life.
+[[nodiscard]] inline menu::MenuContext ctx_of(const ::Song& song, const services::MenuView& view, int8_t source_index,
                                               bool performance_view, bool session_or_arranger_root,
                                               bool session_view_root, bool kit_global_fx) {
 	const bind::Ports* ports = menu::host_binds(song) ? &menu::host_ports() : nullptr;

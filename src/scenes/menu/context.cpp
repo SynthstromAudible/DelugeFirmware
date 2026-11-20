@@ -173,9 +173,10 @@ MenuContext context_for(const project::Song& model, const bind::Ports* ports, co
 	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
-	// What a target node binds through: the ports the caller passes, which act on the song the app plays, so a caller
-	// over any other song passes none. The device's own settings act on no song, so the device port is bound whatever
-	// the caller passes: its own when it has one, the app's otherwise.
+	// What a target node binds through: the ports the caller passes -- the app's when the app plays the song `model`
+	// records, a spec's fakes over its own model, or none over any other song (`context.h`'s `@param ports`). The
+	// device's own settings act on no song, so the device port is bound whatever the caller passes: its own when it
+	// has one, the app's otherwise.
 	if (ports != nullptr) {
 		ctx.ports = *ports;
 	}

@@ -145,7 +145,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		KitMenu k;
 		currentSong = k.song.song;
 		MenuContext ctx = spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/true);
+		                               /*kit_global_fx=*/true);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::root_kit_global_fx, ctx);
 		k.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::lpf_freq)});
