@@ -29,15 +29,12 @@ class InstrumentClip;
 
 using Polarity = deluge::instrument::Polarity;
 
-Polarity stringToPolarity(std::string_view string);
 std::string_view polarityToString(Polarity polarity);
-std::string_view polarityToStringShort(const Polarity polarity);
 
 class PatchCable {
 public:
 	PatchCable() = default;
 	void setDefaultPolarity();
-	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};

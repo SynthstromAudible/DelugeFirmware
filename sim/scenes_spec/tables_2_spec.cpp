@@ -929,7 +929,7 @@ describe tables_2_patch_cables("scenes::menu sound-editor tables: the patch-cabl
 		// The page, in the polarity opposite to what a fresh cable would be given.
 		const Polarity fresh = PatchCable::getDefaultPolarity(kSource);
 		const Polarity chosen = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
-		expect(PatchCable::hasPolarity(kSource)).to_be_true();
+		expect(deluge::instrument::has_polarity(kSource)).to_be_true();
 
 		menu::MenuState st{};
 		st.walk.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;

@@ -20,18 +20,8 @@
 
 #include <storage/flash_storage.h>
 
-Polarity stringToPolarity(const std::string_view string) {
-	return deluge::instrument::parse_polarity(string);
-}
 std::string_view polarityToString(const Polarity polarity) {
 	return deluge::instrument::to_string(polarity);
-}
-std::string_view polarityToStringShort(const Polarity polarity) {
-	return deluge::instrument::to_short_string(polarity);
-}
-
-bool PatchCable::hasPolarity(PatchSource source) {
-	return deluge::instrument::has_polarity(source);
 }
 
 Polarity PatchCable::getDefaultPolarity(PatchSource source) {

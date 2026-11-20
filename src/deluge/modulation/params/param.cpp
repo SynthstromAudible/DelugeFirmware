@@ -73,10 +73,6 @@ char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode
 	return l10n::patched_param_short_name_at(type, lpf, hpf).data();
 }
 
-char const* getPatchedParamDisplayName(int32_t p) {
-	return l10n::param_name_at(Kind::PATCHED, static_cast<uint32_t>(p)).data();
-}
-
 char const* getParamDisplayName(Kind kind, int32_t p) {
 	return l10n::param_name_at(kind, static_cast<uint32_t>(p)).data();
 }
