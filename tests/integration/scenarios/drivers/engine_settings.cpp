@@ -153,9 +153,8 @@ int expectBound(Output& output, const char* how) {
 		                         ? output.docOutput_->instrument.has_value()
 		                         : (static_cast<SoundDrum&>(sound).docDrum_ != nullptr
 		                            && static_cast<SoundDrum&>(sound).docDrum_->instrument.has_value());
-		if (code == 0 && (sound.boundState() == nullptr || !slotted)) {
-			std::fprintf(io.err, "UNBOUND %s: a %s of %s has no %s\n", how, kind, output.name.c_str(),
-			             sound.boundState() == nullptr ? "bound state" : "slot");
+		if (code == 0 && !slotted) {
+			std::fprintf(io.err, "UNBOUND %s: a %s of %s has no slot\n", how, kind, output.name.c_str());
 			code = 3;
 		}
 	});
@@ -327,7 +326,7 @@ std::string_view coherence(Sound& sound, Song& song, std::string_view path, cons
 		return "no slot";
 	}
 	const Value encoded =
-	    deluge::instrument::encode(*sound.boundState(), {.input_tick_magnitude = song.getInputTickMagnitude()});
+	    deluge::instrument::encode(sound.state(), {.input_tick_magnitude = song.getInputTickMagnitude()});
 	const Value held_tree = slot->state.encode({.input_tick_magnitude = slot->tick_magnitude});
 	const std::string* held = deluge::serialization::text_of(leafAt(held_tree, path));
 	if (leafAt(encoded, path) != nullptr && (held == nullptr || *held != slotForm(path, value, song).str())) {
@@ -394,7 +393,7 @@ int settingLegs(Sound& sound, Song& song, const char* name) {
 		for (const Value& value : legalValues(*row, old ? &old->str() : nullptr)) {
 			const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 			deluge::edits::SetEngineSetting edit{*address, std::string(path), value};
-			if (!deluge::instrument::allows_setting(*sound.boundState(), path, value)) {
+			if (!deluge::instrument::allows_setting(sound.state(), path, value)) {
 				// Ring mod and an oscillator it cannot ring: refused, the slot as it was.
 				if (deluge::edits::apply(ctx, edit) == Error::NONE
 				    || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)),
@@ -458,10 +457,10 @@ constexpr std::array<deluge::instrument::SourceId, 2> kSourceIds{deluge::instrum
 /// 0 when each holds, else 3 after printing the first that does not.
 int modePairLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr) {
+	if (!address) {
 		return 0;
 	}
-	const deluge::instrument::SoundState before = *sound.boundState();
+	const deluge::instrument::SoundState before = sound.state();
 	const auto tuningOf = [](const deluge::instrument::SoundState& state, deluge::instrument::SourceId id) {
 		const deluge::instrument::Tuning tuning = deluge::instrument::source_tuning(state, id);
 		return std::pair{tuning.transpose, tuning.cents};
@@ -486,7 +485,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 			continue;
 		}
 		for (size_t s = 0; s < kSourceIds.size(); s++) {
-			const auto now = tuningOf(*sound.boundState(), kSourceIds[s]);
+			const auto now = tuningOf(sound.state(), kSourceIds[s]);
 			const auto was = tuningOf(before, kSourceIds[s]);
 			if (now != was) {
 				std::fprintf(io.err, "%s mode pair: osc%zu's tuning while FM is %d/%d, it was %d/%d\n", name, s + 1,
@@ -498,7 +497,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		// it must outlast that.
 		for (std::string path : {"osc1/transpose", "osc2/transpose"}) {
 			const int32_t was = static_cast<int32_t>(
-			    deluge::instrument::source_tuning(*sound.boundState(), kSourceIds[path[3] - '1']).transpose);
+			    deluge::instrument::source_tuning(sound.state(), kSourceIds[path[3] - '1']).transpose);
 			for (int32_t to : {was < 96 ? was + 1 : was - 1, was}) {
 				deluge::edits::SetEngineSetting tune{*address, path, Value::makeNumber(to)};
 				if (deluge::edits::apply(ctx, tune) != Error::NONE) {
@@ -509,7 +508,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 		}
 	}
 	for (size_t s = 0; s < kSourceIds.size(); s++) {
-		if (!sameHiddenSource(*sound.boundState(), before, kSourceIds[s])) {
+		if (!sameHiddenSource(sound.state(), before, kSourceIds[s])) {
 			std::fprintf(io.err, "%s mode pair: osc%zu is not the oscillator it was\n", name, s + 1);
 			return 3;
 		}
@@ -523,12 +522,11 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 /// oscillator), else 3 after printing the first that does not.
 int ringModLeg(Sound& sound, Song& song, const char* name) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr || sound.getSynthMode() == SynthMode::FM
-	    || sound.oscType(0) != OscType::SAMPLE) {
+	if (!address || sound.getSynthMode() == SynthMode::FM || sound.oscType(0) != OscType::SAMPLE) {
 		return 0;
 	}
 	const std::vector<deluge::instrument::RangeState> ranges =
-	    deluge::instrument::source_ranges(*sound.boundState(), deluge::instrument::SourceId::A);
+	    deluge::instrument::source_ranges(sound.state(), deluge::instrument::SourceId::A);
 	const Value slotBefore = (*deluge::harness::encodedSlot(song, *address));
 	deluge::edits::Context ctx{song, song.project};
 	deluge::edits::SetEngineSetting ringMod{*address, "mode", Value::makeScalar("ringmod")};
@@ -537,7 +535,7 @@ int ringModLeg(Sound& sound, Song& song, const char* name) {
 		failed = "taken";
 	}
 	else if (sound.getSynthMode() == SynthMode::RINGMOD || sound.oscType(0) != OscType::SAMPLE
-	         || deluge::instrument::source_ranges(*sound.boundState(), deluge::instrument::SourceId::A) != ranges
+	         || deluge::instrument::source_ranges(sound.state(), deluge::instrument::SourceId::A) != ranges
 	         || !deluge::serialization::first_difference((*deluge::harness::encodedSlot(song, *address)), slotBefore)
 	                 .empty()) {
 		failed = "the refusal changed the sound";
@@ -896,18 +894,18 @@ int magnitudeLeg(Song& song) {
 	deluge::edits::Context ctx{song, song.project};
 	for (Sound* sound : sounds) {
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(*sound);
-		if (!address || sound->boundState() == nullptr) {
+		if (!address) {
 			continue;
 		}
 		const auto lfoLevels = [sound] {
 			std::array<deluge::plugin::SyncLevel, 4> levels{};
 			for (size_t l = 0; l < levels.size(); l++) {
-				levels[l] = deluge::instrument::lfo(*sound->boundState(), l).sync_level;
+				levels[l] = deluge::instrument::lfo(sound->state(), l).sync_level;
 			}
 			return levels;
 		};
 		const auto levels = lfoLevels();
-		const deluge::effects::EffectStates effects = deluge::instrument::sound_effects(*sound->boundState());
+		const deluge::effects::EffectStates effects = deluge::instrument::sound_effects(sound->state());
 		const Value priority = *leafAt((*deluge::harness::encodedSlot(song, *address)), "voicePriority");
 		deluge::edits::SetEngineSetting edit{*address, "voicePriority", priority};
 		std::string failed = deluge::edits::apply(ctx, edit) != Error::NONE ? "refused" : "";
@@ -921,8 +919,8 @@ int magnitudeLeg(Song& song) {
 			failed = "the LFO sync levels moved";
 		}
 		if (failed.empty()
-		    && (deluge::instrument::sound_effects(*sound->boundState()).delay.sync_level != effects.delay.sync_level
-		        || deluge::instrument::sound_effects(*sound->boundState()).sidechain.sync_level
+		    && (deluge::instrument::sound_effects(sound->state()).delay.sync_level != effects.delay.sync_level
+		        || deluge::instrument::sound_effects(sound->state()).sidechain.sync_level
 		               != effects.sidechain.sync_level)) {
 			failed = "the delay's or sidechain's sync level moved";
 		}
@@ -1123,8 +1121,8 @@ int loadRulesLeg(Song& song) {
 		std::fprintf(io.err, "LOADFAIL load-rules presets\n");
 		return 1;
 	}
-	const deluge::instrument::SoundState* a = static_cast<SoundInstrument*>(tuned)->boundState();
-	const deluge::instrument::SoundState* b = static_cast<SoundInstrument*>(ringmod)->boundState();
+	const deluge::instrument::SoundState* a = &static_cast<SoundInstrument*>(tuned)->state();
+	const deluge::instrument::SoundState* b = &static_cast<SoundInstrument*>(ringmod)->state();
 	constexpr deluge::instrument::SourceId kFirst = deluge::instrument::SourceId::A;
 	std::string_view failed;
 	if (a == nullptr || b == nullptr) {

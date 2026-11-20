@@ -824,13 +824,13 @@ bool ShellEditSink::insert_range(deluge::project::SlotAddress slot, uint8_t sour
 	// `MultiRange::selectEncoderAction`'s insert (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a
 	// range with no file at @p at, the one below it narrowed
 	const auto id = static_cast<deluge::instrument::SourceId>(source);
-	std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(*sound->boundState(), id);
+	std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(sound->state(), id);
 	if (at > ranges.size()) {
 		return false;
 	}
 	// A new sample range's end is unset until a file gives it one, as a runtime range starts; a wavetable range has
 	// no zone
-	const bool sample = deluge::instrument::source_type(*sound->boundState(), id) == OscType::SAMPLE;
+	const bool sample = deluge::instrument::source_type(sound->state(), id) == OscType::SAMPLE;
 	ranges.insert(
 	    ranges.begin() + at,
 	    deluge::instrument::RangeState{.top_note = top_note, .end_pos = sample ? deluge::instrument::kUnsetEndPos : 0});
@@ -853,7 +853,7 @@ bool ShellEditSink::delete_range(deluge::project::SlotAddress slot, uint8_t sour
 	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the range goes, the one below
 	// it widened
 	std::vector<deluge::instrument::RangeState> ranges =
-	    deluge::instrument::source_ranges(*sound->boundState(), static_cast<deluge::instrument::SourceId>(source));
+	    deluge::instrument::source_ranges(sound->state(), static_cast<deluge::instrument::SourceId>(source));
 	if (index >= ranges.size()) {
 		return false;
 	}
@@ -979,11 +979,11 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 	// One sound: a sample source with ranges (not FM) in its range, any other source in its own setting.
 	const auto one = [&](deluge::project::SlotAddress slot, std::optional<uint16_t> in_range) {
 		::Sound* sound = deluge::bridge::soundAt(*currentSong, slot);
-		if (sound == nullptr || sound->boundState() == nullptr) {
+		if (sound == nullptr) {
 			return false;
 		}
 		namespace instrument = deluge::instrument;
-		const instrument::SoundState& state = *sound->boundState();
+		const instrument::SoundState& state = sound->state();
 		const auto id = static_cast<instrument::SourceId>(source);
 		const std::vector<instrument::RangeState> held = instrument::source_ranges(state, id);
 		if (!held.empty() && instrument::synth_mode(state) != instrument::SynthMode::FM
@@ -1284,7 +1284,7 @@ uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) con
 
 const deluge::instrument::SoundState* ShellRuntimeFacts::sound_state(deluge::project::SlotAddress slot) const {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	return sound != nullptr ? sound->boundState() : nullptr;
+	return sound != nullptr ? &sound->state() : nullptr;
 }
 
 const deluge::effects::EffectStates* ShellRuntimeFacts::chain_effects(deluge::project::ChainAddress chain) const {

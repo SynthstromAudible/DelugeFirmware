@@ -798,7 +798,7 @@ void testRecordsOfAbandonedKitRows(deluge::edits::Context& ctx) {
 	auto* row = static_cast<SoundDrum*>(StorageManager::createNewDrum(DrumType::SOUND));
 	static_cast<Kit*>(abandoned)->addDrum(row, &ctx.song); // adopted as a row read into the song is
 	check(row->docDrum_ != nullptr
-	          && row->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == row->boundState(),
+	          && row->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == &row->state(),
 	      "abandoned rows: the row plays its record's state");
 	const uint32_t rowId = *row->id();
 	void* abandonedMemory = dynamic_cast<void*>(abandoned);
@@ -817,17 +817,17 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	(void)sound.getOrCreateFirstRange(0); // a range the runtime holds and the record has recorded
 	deluge::instrument::sound_effects(*sound.state_).compressor.threshold = 12345; // the sound's effects come with it
 	// A square oscillator keeps its range for a switch back: the recall holds it
-	const deluge::synth::SampleRange* buffer = sound.boundState()->recall.slots[0].ranges.data();
+	const deluge::synth::SampleRange* buffer = sound.state().recall.slots[0].ranges.data();
 	ctx.song.addOutput(synth);
 	const deluge::instrument::SoundState* record =
 	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeSynth>();
-	check(record == sound.boundState() && record->recall.slots[0].ranges.data() == buffer,
+	check(record == &sound.state() && record->recall.slots[0].ranges.data() == buffer,
 	      "handover: adoption moves the sound's own state into its record");
 	check(deluge::instrument::sound_effects(*record).compressor.threshold == 12345,
 	      "handover: the record holds the sound's effects");
 	const deluge::synth::SampleRange* held = record->recall.slots[0].ranges.data();
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
-	check(sound.boundState() != record && sound.boundState()->recall.slots[0].ranges.data() == held,
+	check(&sound.state() != record && sound.state().recall.slots[0].ranges.data() == held,
 	      "handover: a record that goes moves the state back");
 }
 
@@ -840,7 +840,7 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	deluge::project::InstrumentSlot& slot = *synth->docOutput_->instrument;
-	check(slot.state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
+	check(slot.state.as<deluge::instrument::DelugeSynth>() == &sound.state(),
 	      "ownership: a synth plays its record's state");
 	deluge::edits::SetEngineSetting toFive{*deluge::bridge::slotAddressOf(sound), "transpose",
 	                                       serialization::Value::makeNumber(5)};
@@ -848,12 +848,11 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	const deluge::instrument::SoundState* record = slot.state.as<deluge::instrument::DelugeSynth>();
 	// Deleted as a track is: its record goes now, the sound when the render lets go of it.
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
-	check(sound.boundState() != nullptr && sound.boundState() != record
-	          && deluge::instrument::voicing(*sound.boundState()).master.transpose == 5,
+	check(&sound.state() != record && deluge::instrument::voicing(sound.state()).master.transpose == 5,
 	      "ownership: a synth whose record goes keeps its state");
 	check(deluge::edits::setUnslottedSetting(sound, "transpose", serialization::Value::makeNumber(6), ctx.song)
 	              == Error::NONE
-	          && deluge::instrument::voicing(*sound.boundState()).master.transpose == 6 && sound.getTranspose() == 6,
+	          && deluge::instrument::voicing(sound.state()).master.transpose == 6 && sound.getTranspose() == 6,
 	      "ownership: and a setting still writes it");
 
 	ParamManagerForTimeline kitParams;
@@ -865,20 +864,19 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	kit.addDrum(kept);
 	kit.addDrum(removed);
 	check(removed->docDrum_ != nullptr
-	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == removed->boundState(),
+	          && removed->docDrum_->instrument->state.as<deluge::instrument::DelugeSynth>() == &removed->state(),
 	      "ownership: a kit row plays its record's state");
 	deluge::edits::SetEngineSetting rowTranspose{*deluge::bridge::slotAddressOf(*removed), "transpose",
 	                                             serialization::Value::makeNumber(-3)};
 	check(deluge::edits::apply(ctx, rowTranspose) == Error::NONE, "ownership: a setting Edit reaches the kit row");
 	kit.removeDrum(removed);
-	check(removed->boundState() != nullptr
-	          && deluge::instrument::voicing(*removed->boundState()).master.transpose == -3,
+	check(deluge::instrument::voicing(removed->state()).master.transpose == -3,
 	      "ownership: a removed kit row keeps its state");
 	AudioEngine::retire(removed);
 	const uint32_t keptId = kept->id().value_or(0);
 	ctx.song.deleteOutputThatIsInMainList(&kit, false);
 	check(ctx.model.drum_structure.find(keptId) == nullptr, "ownership: a kit's rows' records go with the kit's");
-	check(kept->boundState() != nullptr, "ownership: and its rows keep their state");
+	check(deluge::instrument::voicing(kept->state()).master.transpose == 0, "ownership: and its rows keep their state");
 }
 
 // A new drum's id is one no drum record of the song holds: a drum whose id the counter has not passed (a hibernating
@@ -950,7 +948,7 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	}
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	static_cast<SoundInstrument*>(synth)->setupAsBlankSynth(&paramManager, true);
-	const deluge::instrument::SoundState* state = sound.boundState();
+	const deluge::instrument::SoundState* state = &sound.state();
 	const deluge::instrument::DxPatchState* patch =
 	    state != nullptr ? deluge::instrument::dx_patch(*state, deluge::instrument::SourceId::A) : nullptr;
 	check(state != nullptr && deluge::instrument::source_type(*state, deluge::instrument::SourceId::A) == OscType::DX7
@@ -1334,7 +1332,7 @@ void testTwoOutputsOneIdInFile() {
 		Sound& sound = *synth;
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 		const deluge::project::InstrumentSlot* slot = address ? song->project.resolveSlot(*address) : nullptr;
-		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeSynth>() == sound.boundState(),
+		check(slot != nullptr && slot->state.as<deluge::instrument::DelugeSynth>() == &sound.state(),
 		      "read ids: each synth plays its own slot's state");
 	}
 	deluge::edits::Context readCtx{*song, song->project};
@@ -1344,8 +1342,8 @@ void testTwoOutputsOneIdInFile() {
 	                                       serialization::Value::makeNumber(-3)};
 	check(deluge::edits::apply(readCtx, first) == Error::NONE && deluge::edits::apply(readCtx, second) == Error::NONE,
 	      "read ids: a setting Edit on each synth applies");
-	check(deluge::instrument::voicing(*synths[0]->boundState()).master.transpose == 5
-	          && deluge::instrument::voicing(*synths[1]->boundState()).master.transpose == -3,
+	check(deluge::instrument::voicing(synths[0]->state()).master.transpose == 5
+	          && deluge::instrument::voicing(synths[1]->state()).master.transpose == -3,
 	      "read ids: a write to one synth reaches only its own record");
 }
 
@@ -1570,14 +1568,14 @@ void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	sound.core().compressor().dsp().set_threshold(
 	    deluge::dsp::Q<31>::from_raw(sound.effects().compressor.threshold + (123 << 16)));
-	const deluge::instrument::SoundState before = *sound.boundState();
+	const deluge::instrument::SoundState before = sound.state();
 	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
 	{
 		ActiveWriterScope scope(writer); // what a song's save does for each of its outputs
 		synth->writeToFile(nullptr, &ctx.song);
 	}
 	check(writer.finish().has_value(), "save: the synth writes");
-	check(*sound.boundState() == before, "save: the record is as it was");
+	check(sound.state() == before, "save: the record is as it was");
 	check(deluge::harness::expectSongCoherent(ctx.song, "after a save") == 0, "save: every sound is coherent");
 }
 

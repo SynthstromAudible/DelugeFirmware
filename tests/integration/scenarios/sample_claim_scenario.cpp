@@ -763,9 +763,9 @@ Sample* previewedSample() {
 /// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
-	const deluge::instrument::SoundState* state = preview.boundState();
+	const deluge::instrument::SoundState* state = &preview.state();
 	const bool derived =
-	    state != nullptr && preview.config() == deluge::instrument::DelugeSynth::derive(*preview.boundState());
+	    state != nullptr && preview.config() == deluge::instrument::DelugeSynth::derive(preview.state());
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
 	if (!derived || deluge::instrument::source_type(*state, deluge::instrument::SourceId::A) != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {

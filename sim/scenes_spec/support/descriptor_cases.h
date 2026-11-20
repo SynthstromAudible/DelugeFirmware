@@ -578,7 +578,7 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 	std::optional<Value> value;
 	switch (family) {
 	case Family::INSTRUMENT:
-		value = deluge::instrument::setting_value(*spec::menu_engine(ctx).sound->boundState(), row.path);
+		value = deluge::instrument::setting_value(spec::menu_engine(ctx).sound->state(), row.path);
 		break;
 	case Family::EFFECT:
 		value = deluge::effects::effect_setting_value(
@@ -911,7 +911,7 @@ struct SpecReader {
 			        switch (owner.family) {
 			        case Family::INSTRUMENT: {
 				        const std::optional<int32_t> held =
-				            deluge::instrument::held_setting(*spec::menu_engine(owner.ctx).sound->boundState(), path);
+				            deluge::instrument::held_setting(spec::menu_engine(owner.ctx).sound->state(), path);
 				        if (!held) {
 					        owner.unknown.emplace_back(path);
 				        }

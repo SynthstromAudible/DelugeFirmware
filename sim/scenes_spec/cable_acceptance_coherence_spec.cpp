@@ -72,7 +72,7 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 /// @return Whether the Edit applied.
 bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path,
                  std::string_view text) {
-	deluge::instrument::SoundState wanted = *sound.boundState();
+	deluge::instrument::SoundState wanted = sound.state();
 	const std::optional<deluge::serialization::Value> written =
 	    deluge::instrument::canonical_setting(path, deluge::serialization::Value::makeScalar(std::string(text)));
 	if (!written || !deluge::instrument::allows_setting(wanted, path, *written)) {

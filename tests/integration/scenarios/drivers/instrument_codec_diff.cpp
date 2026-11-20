@@ -181,8 +181,7 @@ Value stateKeysOf(const Value& element) {
 
 int encodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	for (SoundEntry& entry : sounds) {
-		const Value encoded =
-		    deluge::instrument::encode(*entry.sound->boundState(), {.input_tick_magnitude = magnitude});
+		const Value encoded = deluge::instrument::encode(entry.sound->state(), {.input_tick_magnitude = magnitude});
 		const Value written = stateKeysOf(entry.element);
 		if (std::string d = deluge::serialization::first_difference(written, encoded); !d.empty()) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the written element and the encode differ at %s\n",
@@ -224,9 +223,8 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		return 2;
 	}
 	const deluge::instrument::SoundState newSynth(
-	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
-	const deluge::instrument::SoundState newDrum(
-	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
+	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->state());
+	const deluge::instrument::SoundState newDrum(static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
 	if (std::string d = deluge::serialization::first_difference(
 	        deluge::instrument::dump_state(newSynth), deluge::instrument::dump_state(deluge::instrument::SoundState{}));
 	    !d.empty()) {
@@ -238,7 +236,7 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	}
 	bool dumped = false;
 	for (SoundEntry& entry : sounds) {
-		const Value loaded = deluge::instrument::dump_state(*entry.sound->boundState()); // what the reader left
+		const Value loaded = deluge::instrument::dump_state(entry.sound->state()); // what the reader left
 		if (const char* dump = std::getenv("INSTRUMENT_DUMP_STATE"); dump != nullptr && !dumped) {
 			if (FILE* df = std::fopen(dump, "wb")) {
 				const std::string json = deluge::serialization::write_json(loaded);
@@ -278,9 +276,8 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		return 2;
 	}
 	const deluge::instrument::SoundState newSynth(
-	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
-	const deluge::instrument::SoundState newDrum(
-	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
+	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->state());
+	const deluge::instrument::SoundState newDrum(static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->state());
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
 		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;

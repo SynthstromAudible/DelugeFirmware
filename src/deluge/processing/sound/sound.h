@@ -164,7 +164,7 @@ public:
 
 	/// @brief The Deluge instrument's settings for this sound, from its construction on: its own state (ownedState_)
 	/// until a record adopts it (Song::adoptOutput / adoptDrum), the record's from then until the record goes.
-	deluge::instrument::SoundState* state_{nullptr};
+	deluge::instrument::SoundState* state_{&ownedState_};
 	/// @brief Bind this sound into its record's slot: the slot's state (@p record) and routing (@p routing) take what
 	/// the sound holds, its own moved in or another record's copied, and from then on every setter writes the record.
 	/// @param record  The state the sound's record owns; it must outlive the binding (unbindState before it goes).
@@ -175,7 +175,7 @@ public:
 	void adoptState(deluge::instrument::SoundState loaded);
 	/// @brief Take the state and the routing back from the record the sound is bound into, as the record goes: they
 	/// move into the sound's own, which it then plays, and the record is left empty. Nothing when it plays its own
-	/// state already, or none.
+	/// state already.
 	void unbindState();
 	/// @brief Where this sound's output goes beyond its instrument: its record's slot's routing once adopted, its own
 	/// (ownedRouting_) before, as a preset being read or the sample preview holds it.
@@ -184,11 +184,10 @@ public:
 	[[nodiscard]] deluge::project::SoundRouting& routingRecord() { return *routing_; }
 	/// @brief Set the render's send and the MIDI output's channel and note from the routing.
 	void applyRouting();
-	/// @brief The state this sound plays: its record's once adopted, its own before; never null after construction.
-	/// @return The state.
-	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
-	/// @brief The state this sound plays, to write a change into before applying it; never null after construction.
-	[[nodiscard]] deluge::instrument::SoundState* boundRecord() { return state_; }
+	/// @brief The state this sound plays: its record's once adopted, its own before.
+	[[nodiscard]] const deluge::instrument::SoundState& state() const { return *state_; }
+	/// @brief The state this sound plays, to write a change into before applying it.
+	[[nodiscard]] deluge::instrument::SoundState& record() { return *state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.
 	/// @return INSUFFICIENT_RAM if a key-split range cannot be had.
@@ -204,6 +203,8 @@ public:
 	/// @brief The sound's settings as its voices play them.
 	[[nodiscard]] const deluge::synth::SoundConfig& config() const { return config_; }
 	/// @brief Oscillator @p s's first range, made when it has none and then recorded as the record's.
+	/// @details The range it makes is the empty default, written to the record at once so a gesture's range Edit
+	/// (`editRange`) finds it there; the gesture's own Edit then records what it puts in the range.
 	/// @return The range, or null when there is no memory for one.
 	MultiRange* getOrCreateFirstRange(int32_t s);
 	/// @brief Record oscillator @p s's ranges as its runtime holds them (files found, zones loading clamped), when the
