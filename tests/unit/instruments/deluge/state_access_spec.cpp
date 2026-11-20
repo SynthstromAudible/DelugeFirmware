@@ -63,6 +63,12 @@ describe state_access("the Deluge instrument's state, as code outside the instru
 		expect(dx.sources[1]).to_equal(s.sources[1]);
 	});
 
+	it("sizes a sound's sources by the source count, one slot per SourceId", _ {
+		expect(SoundState{}.sources.size()).to_equal(kSourceCount);
+		expect(kSourceCount).to_equal(size_t{2});
+		expect(static_cast<size_t>(SourceId::B) + 1).to_equal(kSourceCount);
+	});
+
 	it("reads the mode and the sound's effects", _ {
 		SoundState s;
 		s.synth_mode = SynthMode::FM;

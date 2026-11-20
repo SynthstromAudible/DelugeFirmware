@@ -78,7 +78,7 @@ enum class MenuAction : uint8_t {
 	None = 0,
 
 	/// @brief Enter the performance view in the editing mode named by `MenuActionRequest::arg`
-	///        (a `PerformanceEditingMode`, and never `DISABLED` -- see `nodes/actions.h`).
+	///        (a `bind::PerformanceEditing`, and never `Disabled` -- see `nodes/actions.h`).
 	///
 	/// The dispatcher performs `EditingMode::selectButtonPress`
 	/// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`): set

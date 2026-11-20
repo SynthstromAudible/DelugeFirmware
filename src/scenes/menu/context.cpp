@@ -57,7 +57,6 @@
 
 #include "scenes/menu/node.h"
 
-#include "definitions_cxx.hpp" // kNumSources
 #include "instruments/deluge/state_access.h"
 
 #include "model/settings/runtime_feature_settings.h"
@@ -73,7 +72,8 @@ namespace {
 
 /// @brief The edited source's ranges, empty where the context edits no sound or no source.
 std::span<const deluge::instrument::RangeState> edited_ranges(const MenuContext& ctx) {
-	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0 || ctx.source_index >= kNumSources) {
+	if (ctx.ports.sound == nullptr || !ctx.addresses.slot || ctx.source_index < 0
+	    || ctx.source_index >= static_cast<int32_t>(instrument::kSourceCount)) {
 		return {};
 	}
 	const deluge::instrument::SoundState* state = ctx.ports.sound->sound_state(*ctx.addresses.slot);
@@ -138,7 +138,7 @@ void select_range(MenuContext& ctx, int32_t index) {
 }
 
 void select_source(MenuContext& ctx, int8_t index) {
-	if (!ctx.addresses.slot || index < 0 || index >= kNumSources) {
+	if (!ctx.addresses.slot || index < 0 || index >= static_cast<int32_t>(instrument::kSourceCount)) {
 		return;
 	}
 	// The range reset in main's `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), folded in here

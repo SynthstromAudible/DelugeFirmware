@@ -34,8 +34,9 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, FLAT_CHAR, OutputType, ThresholdRecordingMode, ScreensaverMode
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, OutputType, ThresholdRecordingMode, ScreensaverMode
 #include "deluge-project/structure_codec.h"
+#include "gfx/oled/glyphs.h"
 #include "instruments/deluge/cables.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
@@ -1249,7 +1250,7 @@ std::string_view format_range_key(int32_t value, std::span<char> scratch) {
 		scratch[len++] = static_cast<char>(sharps ? noteCodeToNoteLetter[note] : noteCodeToNoteLetterFlats[note]);
 	}
 	if (noteCodeIsSharp[note] && len < scratch.size()) {
-		scratch[len++] = sharps ? '#' : static_cast<char>(FLAT_CHAR);
+		scratch[len++] = sharps ? '#' : deluge::gfx::oled::kFlatGlyph;
 	}
 	return std::string_view{scratch.data(), len};
 }

@@ -19,7 +19,6 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
-#include "definitions_cxx.hpp" // FLAT_CHAR
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 
@@ -28,6 +27,7 @@
 #include "scenes/profile.h"
 
 #include "gfx/oled/font.h"
+#include "gfx/oled/glyphs.h"
 #include "notify/notice_queue.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -80,7 +80,7 @@ void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
 	};
 	put(static_cast<char>(sharps ? noteCodeToNoteLetter[within] : noteCodeToNoteLetterFlats[within]));
 	if (noteCodeIsSharp[within]) {
-		put(sharps ? '#' : static_cast<char>(FLAT_CHAR));
+		put(sharps ? '#' : deluge::gfx::oled::kFlatGlyph);
 	}
 	// `intToString(octave, thisChar, 1)`: at least one digit, with a leading '-' for a negative
 	// octave (a note code below 24 -- the bottom two octaves of the MIDI range, and below).

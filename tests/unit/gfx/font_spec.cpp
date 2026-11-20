@@ -1,5 +1,6 @@
 #include "cppspec.hpp"
 #include "gfx/oled/font.h"
+#include "gfx/oled/glyphs.h"
 #include "support/spec_main.h"
 
 using namespace deluge::gfx::oled;
@@ -24,6 +25,11 @@ describe font("gfx::oled fonts", $ {
 	   "caller's own text height survives unchanged, as the legacy switch did", _ {
 		expect(font_for_text_height(15).render_height).to_equal(0);
 		expect(font_for_text_height(20).render_height).to_equal(0);
+	});
+
+	it("names the flat sign at the font's code point, which has a glyph", _ {
+		expect(static_cast<uint8_t>(kFlatGlyph)).to_equal(0x81);
+		expect(glyph_index(static_cast<uint8_t>(kFlatGlyph))).to_be_greater_than(0);
 	});
 
 	it("indexes glyphs with lowercase folded onto uppercase", _ {

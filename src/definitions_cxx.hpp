@@ -25,6 +25,8 @@
 #include "deluge-project/sequence_direction.h"
 #include "effects/words.h"
 #include "gfx/oled/font.h"
+#include "gfx/oled/glyphs.h"
+#include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
 #include "plugin-api/types/voice_priority.h"
@@ -53,7 +55,7 @@
 
 // Constants for the char value of the flat(♭) accidental glyph
 #define FLAT_CHAR_STR "\x81"
-#define FLAT_CHAR 0x81u
+inline constexpr char FLAT_CHAR = deluge::gfx::oled::kFlatGlyph;
 
 constexpr uint8_t kOctaveSize = 12;
 
@@ -448,7 +450,8 @@ constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) 
 using FilterType = deluge::effects::FilterType;
 constexpr int32_t kNumFilterTypes = deluge::effects::kNumFilterTypes;
 
-constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources =
+    static_cast<int32_t>(deluge::instrument::kSourceCount); // sources as in oscillators - within a Sound (synth).
 
 enum class OldArpMode {
 	OFF,
