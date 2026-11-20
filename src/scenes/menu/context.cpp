@@ -175,16 +175,12 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
-	// The device's own settings, whichever song the context is over: read through the host's device port even where
-	// the context binds no ports. With no device port at all, each takes its row's default: horizontal menus on, the
-	// overlay over menus.
-	const bind::DeviceSettings* device = host_ports().device;
+	// The device's own settings act on no song, so the device port is bound whichever song the context is over.
+	ctx.ports.device = host_ports().device;
 	ctx.horizontal_menus =
-	    bind::read_device_value(device, project::device_path::feature(project::Feature::HORIZONTAL_MENUS)).value_or(1)
-	    != 0;
+	    bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::HORIZONTAL_MENUS));
 	ctx.shortcut_overlay = bind::read_device<project::ShortcutOverlay>(
-	                           device, project::device_path::feature(project::Feature::SHORTCUT_OVERLAY))
-	                           .value_or(project::ShortcutOverlay::MENU_ONLY)
+	                           ctx.ports.device, project::device_path::feature(project::Feature::SHORTCUT_OVERLAY))
 	                       != project::ShortcutOverlay::OFF;
 	ctx.resolved = true;
 
@@ -287,7 +283,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	}
 
 	// What a target node binds through: the model, the addresses, and the app's ports, which act on the song
-	// it plays: a context over any other song binds nothing through them.
+	// it plays: a context over any other song binds nothing through them but the device port bound above.
 	ctx.model = &song.project;
 	if (host_binds(song)) {
 		ctx.ports = host_ports();

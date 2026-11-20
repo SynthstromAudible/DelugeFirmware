@@ -66,7 +66,7 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 ///        the name is drawn so a change on the Defaults page shows at once. Sharps, the row's default, where the
 ///        context binds no device port.
 bool sharps_preferred(const MenuContext& ctx) {
-	return bind::read_device_value(ctx.ports.device, project::device_path::kUseSharps).value_or(1) != 0;
+	return bind::read_device_flag(ctx.ports.device, project::device_path::kUseSharps);
 }
 
 /// @brief A note's name with its octave, as `noteCodeToString(noteCode, buffer, nullptr, true)` spells it

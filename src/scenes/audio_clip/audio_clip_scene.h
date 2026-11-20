@@ -628,8 +628,7 @@ private:
 	/// @brief The flash-cursor setting: the device's `pads/playCursor` row; the factory's Slow, the row's default, with
 	///        no device port.
 	project::FlashCursor flash_cursor() const {
-		return bind::read_device<project::FlashCursor>(ports_.device, project::device_path::kPlayCursor)
-		    .value_or(project::FlashCursor::SLOW);
+		return bind::read_device<project::FlashCursor>(ports_.device, project::device_path::kPlayCursor);
 	}
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.

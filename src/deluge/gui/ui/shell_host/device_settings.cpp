@@ -121,10 +121,11 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 			return flag(FlashStorage::defaultDisabledPresetScales[*scale]);
 		}
 		if (const FeatureInfo* feature = project::feature_at(path)) {
-			// The file may hold any number: an on/off feature's toggle shows any but 0 as on, and a value past a
-			// feature's choices reads clamped into them.
+			// The file may hold any number: an on/off feature is on only at 1, as every reader of it tests
+			// (`RuntimeFeatureSettings::isOn`), and a value past a feature's choices reads clamped into them.
 			const uint32_t value = runtimeFeatureSettings.get(legacy_type(feature->id));
-			return row.kind == plugin::SettingKind::BOOL ? flag(value != 0) : choice(row, value);
+			return row.kind == plugin::SettingKind::BOOL ? flag(value == RuntimeFeatureStateToggle::On)
+			                                             : choice(row, value);
 		}
 		D_PRINTLN("device setting %.*s has no home", static_cast<int>(path.size()), path.data());
 		return Value::makeNumber(row.default_value);

@@ -177,10 +177,11 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			expect(static_cast<int>(p.device->write(sticky, 1))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)).to_equal(uint32_t{1});
 			expect(p.device->read(light).value_or(-1)).to_equal(1);
-			// A number the file held that no value names: an on/off feature shows any but 0 as on, as its toggle
-			// does, and a feature with choices reads clamped into them.
+			// A number the file held that no value names: an on/off feature is on only at 1, as every reader of it
+			// tests (`RuntimeFeatureSettings::isOn`), and a feature with choices reads clamped into them.
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, 2);
-			expect(p.device->read(light).value_or(-1)).to_equal(1);
+			expect(p.device->read(light).value_or(-1)).to_equal(0);
+			expect(runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::LightShiftLed)).to_be_false();
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, 7);
 			expect(p.device->read(overlay).value_or(-1))
 			    .to_equal(static_cast<int32_t>(deluge::project::ShortcutOverlay::MENU_AND_CLIP));

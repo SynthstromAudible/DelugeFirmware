@@ -220,7 +220,7 @@ bool audio_clip_has_sample(const MenuContext& ctx) {
 
 bool battery_shown(const MenuContext& ctx) {
 	// `battery::Level::isRelevant` (`origin/main:src/deluge/gui/menu_item/battery/level.h`): the device's
-	// show-battery-level feature. Hidden where the context binds no device port.
+	// show-battery-level feature; its row's default, shown, where the context binds no device port.
 	return bind::read_device_flag(ctx.ports.device,
 	                              project::device_path::feature(project::Feature::SHOW_BATTERY_LEVEL));
 }

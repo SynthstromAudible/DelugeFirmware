@@ -5,6 +5,7 @@
 ///        MIDI or gate drum selected; and every column of the kit's own arp and randomizer pages by the selected drum's
 ///        kind and the arp's mode.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
@@ -28,7 +29,6 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
-#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -89,8 +89,8 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		const MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
-		expect(menu::shortcut_node(ctx.root, spec::shortcut_layout(), false, 11, 0)).to_equal(&menu::nodes::arp_rate);
-		const RGB pad = menu::shortcut_colour(ctx, 11, 0);
+		expect(menu::shortcut_node(ctx.root, deluge::project::ShortcutsVersion::V3, false, 11, 0)).to_equal(&menu::nodes::arp_rate);
+		const RGB pad = menu::shortcut_colour(ctx, deluge::project::ShortcutsVersion::V3, 11, 0);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);
 		expect(pad.b).to_equal(0);
@@ -158,8 +158,8 @@ describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomi
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, true))).to_be_false();
 		// The kit's own menu is latched: its overlay paints (11,3) black and Shift + pad refuses it.
 		const MenuContext menu_ctx = kit_table_context(f, true);
-		expect(menu::shortcut_node(menu_ctx.root, spec::shortcut_layout(), false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
-		const RGB pad = menu::shortcut_colour(menu_ctx, 11, 3);
+		expect(menu::shortcut_node(menu_ctx.root, deluge::project::ShortcutsVersion::V3, false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
+		const RGB pad = menu::shortcut_colour(menu_ctx, deluge::project::ShortcutsVersion::V3, 11, 3);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);
 		expect(pad.b).to_equal(0);

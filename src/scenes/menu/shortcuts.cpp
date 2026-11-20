@@ -462,8 +462,7 @@ ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion versi
 }
 
 project::ShortcutsVersion shortcuts_version(const MenuContext& ctx) {
-	return bind::read_device<project::ShortcutsVersion>(ctx.ports.device, project::device_path::kShortcutsVersion)
-	    .value_or(project::ShortcutsVersion::V3);
+	return bind::read_device<project::ShortcutsVersion>(ctx.ports.device, project::device_path::kShortcutsVersion);
 }
 
 void set_shortcuts_version(const MenuContext& ctx, project::ShortcutsVersion version) {

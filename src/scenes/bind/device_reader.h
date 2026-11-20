@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 
 namespace deluge::scenes::bind {
 
@@ -34,30 +35,36 @@ private:
 	const DeviceSettings* device_;
 };
 
-/// @brief The value of the DEVICE row at @p path: what @p port holds, or the row's default when there is no port.
-/// @param port The host's device settings, or null where a context binds none.
-/// @param path A DEVICE row's path (a `project::device_path` constant).
-/// @return The row's stored value, or nullopt when no DEVICE row has that path.
-[[nodiscard]] std::optional<int32_t> read_device_value(const DeviceSettings* port, std::string_view path);
+/// @name Typed reads of the DEVICE rows a scene branches on.
+///
+/// Every read answers what @p port holds, or the row's default where there is no port (a context that binds none).
+/// @p path must be a DEVICE row's path, a `project::device_path` constant: a path no row has is a programming error,
+/// which the debug build asserts on.
+/// @{
+
+/// @brief The value of the DEVICE row at @p path, in the row's stored units.
+/// @param port The host's device settings, or null.
+/// @param path A DEVICE row's path.
+/// @return The stored value; the row's default with no port.
+[[nodiscard]] int32_t read_device_value(const DeviceSettings* port, std::string_view path);
 
 /// @brief The DEVICE CHOICE row at @p path as the enum whose enumerators are its choices' indices.
-/// @tparam E An `enum class` whose values are the row's choice indices.
-/// @param port The host's device settings, or null where a context binds none: the row's default then.
-/// @param path A DEVICE row's path (a `project::device_path` constant).
-/// @return The choice, or nullopt when no DEVICE row has that path.
+/// @tparam E A scoped enum whose values are the row's choice indices.
+/// @param port The host's device settings, or null.
+/// @param path A DEVICE row's path.
+/// @return The choice; the row's default with no port.
 template <typename E>
-[[nodiscard]] std::optional<E> read_device(const DeviceSettings* port, std::string_view path) {
-	const std::optional<int32_t> value = read_device_value(port, path);
-	if (!value.has_value()) {
-		return std::nullopt;
-	}
-	return static_cast<E>(*value);
+requires std::is_scoped_enum_v<E>
+[[nodiscard]] E read_device(const DeviceSettings* port, std::string_view path) {
+	return static_cast<E>(read_device_value(port, path));
 }
 
 /// @brief Whether the DEVICE BOOL row at @p path is on.
-/// @param port The host's device settings, or null where a context binds none.
-/// @param path A DEVICE row's path (a `project::device_path` constant).
-/// @return The row's value; false with no port or no such row.
+/// @param port The host's device settings, or null.
+/// @param path A DEVICE row's path.
+/// @return The row's value; the row's default with no port.
 [[nodiscard]] bool read_device_flag(const DeviceSettings* port, std::string_view path);
+
+/// @}
 
 } // namespace deluge::scenes::bind

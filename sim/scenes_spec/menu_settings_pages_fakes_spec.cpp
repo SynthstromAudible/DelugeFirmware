@@ -354,10 +354,10 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(row_of(nodes::root_settings, nodes::battery_level, ctx)).to_equal(-1);
 		r.fakes.host.device.values.insert_or_assign(battery, deluge::serialization::Value::makeNumber(1));
 		expect(nodes::battery_level.relevant(ctx)).to_be_true();
-		// With no device port the readout is hidden.
+		// With no device port the readout follows its row's default, which is on.
 		MenuContext unbound = ctx;
 		unbound.ports.device = nullptr;
-		expect(nodes::battery_level.relevant(unbound)).to_be_false();
+		expect(nodes::battery_level.relevant(unbound)).to_be_true();
 	});
 
 	it("leaves the open menu's layout as it was when the port refuses a horizontal-menus write", _ {

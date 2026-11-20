@@ -331,7 +331,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::device_unknown_path_write_is_refused(forgetful)).to_be_true();
 		expect(contract::device_out_of_range_write_is_refused(forgetful)).to_be_true();
 	});
-	it("reads a device row typed: what the port holds, and with no port the row's default or off", _ {
+	it("reads a device row typed: what the port holds, and with no port the row's default", _ {
 		using deluge::project::Feature;
 		using deluge::project::FlashCursor;
 		using deluge::project::ShortcutsVersion;
@@ -342,21 +342,21 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(static_cast<int>(p.device->write(battery, 0))).to_equal(static_cast<int>(DeviceWrite::STORED));
 		expect(read_device_flag(p.device, battery)).to_be_false();
 		expect(static_cast<int>(p.device->write(device_path::kPlayCursor, 1))).to_equal(static_cast<int>(DeviceWrite::STORED));
-		expect(static_cast<int>(read_device<FlashCursor>(p.device, device_path::kPlayCursor).value_or(FlashCursor{0xff})))
+		expect(static_cast<int>(read_device<FlashCursor>(p.device, device_path::kPlayCursor)))
 			.to_equal(static_cast<int>(FlashCursor::OFF));
 		expect(static_cast<int>(p.device->write(device_path::kShortcutsVersion, 0)))
 			.to_equal(static_cast<int>(DeviceWrite::STORED));
-		expect(static_cast<int>(read_device<ShortcutsVersion>(p.device, device_path::kShortcutsVersion).value_or(ShortcutsVersion{0xff})))
+		expect(static_cast<int>(read_device<ShortcutsVersion>(p.device, device_path::kShortcutsVersion)))
 			.to_equal(static_cast<int>(ShortcutsVersion::V1));
 		expect(contract::device_typed_reads_match(*p.device)).to_be_true();
 
-		// No port: an enum row reads its default, a flag reads off, and a path no row has reads nothing.
-		expect(static_cast<int>(read_device<FlashCursor>(nullptr, device_path::kPlayCursor).value_or(FlashCursor{0xff})))
+		// No port: every row reads its default.
+		expect(static_cast<int>(read_device<FlashCursor>(nullptr, device_path::kPlayCursor)))
 			.to_equal(static_cast<int>(FlashCursor::SLOW));
-		expect(static_cast<int>(read_device<ShortcutsVersion>(nullptr, device_path::kShortcutsVersion).value_or(ShortcutsVersion{0xff})))
+		expect(static_cast<int>(read_device<ShortcutsVersion>(nullptr, device_path::kShortcutsVersion)))
 			.to_equal(static_cast<int>(ShortcutsVersion::V3));
-		expect(read_device_flag(nullptr, battery)).to_be_false();
-		expect(read_device<FlashCursor>(nullptr, "no/such/row").has_value()).to_be_false();
+		expect(read_device_flag(nullptr, battery)).to_be_true();
+		expect(read_device_flag(nullptr, device_path::feature(Feature::ENABLE_DX7_ENGINE))).to_be_false();
 	});
 });
 

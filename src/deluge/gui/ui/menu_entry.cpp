@@ -385,10 +385,11 @@ void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
 	// latch, as legacy's items ask `editingKitAffectEntire()` (`setupKitGlobalFXMenu`) and not the clip.
 	menu::MenuContext asked = ctx;
 	asked.is_kit_global_fx = ctx.is_kit && kitGlobalFxLatch;
+	const deluge::project::ShortcutsVersion version = menu::shortcuts_version(asked);
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			image[y][x] = editingNothing ? deluge::gui::colours::black
-			                             : menu::shortcut_colour(asked, static_cast<uint8_t>(x),
+			                             : menu::shortcut_colour(asked, version, static_cast<uint8_t>(x),
 			                                                     static_cast<uint8_t>(y), askRelevance);
 			occupancyMask[y][x] = 64;
 		}

@@ -689,8 +689,7 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	// The device's play cursor; Slow, the row's default, with no device port.
 	const deluge::project::FlashCursor cursor = deluge::scenes::bind::read_device<deluge::project::FlashCursor>(
-	                                                ports().device, deluge::project::device_path::kPlayCursor)
-	                                                .value_or(deluge::project::FlashCursor::SLOW);
+	    ports().device, deluge::project::device_path::kPlayCursor);
 	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}

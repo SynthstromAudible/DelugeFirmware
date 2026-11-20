@@ -45,7 +45,7 @@ using deluge::gfx::oled::kTextTitleSpacingX;
 using deluge::l10n::String;
 
 /// @brief Whether the DX7 engine feature is on, which gives the DX7 parameter page its own pad layout: the device's
-///        row, off where the context binds no device port.
+///        row; its default, off, where the context binds no device port.
 bool dx7_engine_enabled(const MenuContext& ctx) {
 	return bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::ENABLE_DX7_ENGINE));
 }

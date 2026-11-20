@@ -217,7 +217,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open(nodes::synth_mode);
 		r.shift_press(15, 1);
-		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, spec::shortcut_layout(), false, 15, 1);
+		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 15, 1);
 		expect(randomizer).not_().to_be_null();
 		expect(menu_scene().focused_value()).to_equal(randomizer);
 	});
@@ -249,7 +249,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		select_language();
 		Rig r;
 		r.open(nodes::vibrato);
-		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, spec::shortcut_layout(), nodes::vibrato);
+		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, nodes::vibrato);
 		expect(own.valid).to_be_true();
 		r.shift_press(own.x, own.y);
 		expect(r.st().second_layer).to_be_false();

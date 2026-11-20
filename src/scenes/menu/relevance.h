@@ -154,7 +154,7 @@ bool is_midi_out(const MenuContext& ctx);
 
 /// @brief Is the battery readout switched on? `battery::Level::isRelevant`
 ///        (`origin/main:src/deluge/gui/menu_item/battery/level.h`): the device's `features/showBatteryLevel` row,
-///        read through @p ctx's device port; false where it binds none.
+///        read through @p ctx's device port; the row's default, on, where it binds none.
 bool battery_shown(const MenuContext& ctx);
 
 /// @brief Is the audio clip's output recording from one specific track?

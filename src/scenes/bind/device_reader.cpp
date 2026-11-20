@@ -2,6 +2,8 @@
 
 #include "deluge-project/device_settings.h"
 
+#include <cassert>
+
 namespace deluge::scenes::bind {
 
 std::optional<int32_t> DeviceReader::read(std::string_view path) const {
@@ -12,16 +14,20 @@ plugin::SettingReader DeviceReader::reader() const {
 	return device_->reader();
 }
 
-std::optional<int32_t> read_device_value(const DeviceSettings* port, std::string_view path) {
-	if (port != nullptr) {
-		return port->read(path);
-	}
+int32_t read_device_value(const DeviceSettings* port, std::string_view path) {
 	const plugin::SettingInfo* row = plugin::find_setting(project::device_table(), path);
-	return row != nullptr ? std::optional<int32_t>{row->default_value} : std::nullopt;
+	assert(row != nullptr && "a DEVICE row's path");
+	if (row == nullptr) {
+		return 0;
+	}
+	if (port == nullptr) {
+		return row->default_value;
+	}
+	return port->read(path).value_or(row->default_value);
 }
 
 bool read_device_flag(const DeviceSettings* port, std::string_view path) {
-	return port != nullptr && port->read(path).value_or(0) != 0;
+	return read_device_value(port, path) != 0;
 }
 
 } // namespace deluge::scenes::bind

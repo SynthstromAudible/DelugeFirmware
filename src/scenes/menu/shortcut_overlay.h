@@ -5,6 +5,7 @@
 ///        and the patching-source column blue where a source may patch to the focused param -- `SoundEditor`'s
 ///        `renderMainPads` while `should_render_shortcut_overlay()`.
 
+#include "deluge-project/device_settings.h"
 #include "gfx/grid/palette.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_state.h"
@@ -29,7 +30,15 @@ bool overlay_shown(const MenuContext& ctx, bool shift);
 
 /// @brief One main-grid pad's colour in the shortcut colour map: `kShortcutColours[x][y]` where the pad's shortcut
 ///        names a node and (when @p ask_relevance) that node is relevant for source `x % 2`, else black.
-RGB shortcut_colour(const MenuContext& ctx, uint8_t x, uint8_t y, bool ask_relevance = true);
+/// @param ctx           The menu's context.
+/// @param version       The shortcut layout in force (`shortcuts_version(ctx)`), read once by a caller painting every
+///                      pad.
+/// @param x             The pad's column.
+/// @param y             The pad's row.
+/// @param ask_relevance Black out a pad whose node is not relevant.
+/// @return The pad's colour.
+RGB shortcut_colour(const MenuContext& ctx, project::ShortcutsVersion version, uint8_t x, uint8_t y,
+                    bool ask_relevance = true);
 
 /// @brief `renderMainShortcutsOnly` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): every main-grid pad its colour
 ///        from `kShortcutColours` where its shortcut names an item relevant here, asked for source `x % 2`, else black.

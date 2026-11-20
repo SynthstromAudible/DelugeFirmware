@@ -6,6 +6,7 @@
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
 /// not here) -- it already owns every other root's row of that same table.
 
+#include "deluge-project/device_settings.h"
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -27,7 +28,6 @@
 #include "processing/sound/sound_drum.h"
 
 #include "support/fake_note_bridge.h"
-#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "unit/ui/support/frames.h"
@@ -74,15 +74,12 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 
 	it("both roots' shortcut layers are empty in both shortcut versions, and light no pad even for "
 	   "a node with a real shortcut elsewhere", _ {
-		const deluge::project::ShortcutsVersion saved = spec::shortcut_layout();
 		for (deluge::project::ShortcutsVersion version : {deluge::project::ShortcutsVersion::V1, deluge::project::ShortcutsVersion::V3}) {
-			spec::set_shortcut_layout(version);
 			for (MenuContext::Root root : {MenuContext::Root::NoteEditor, MenuContext::Root::NoteRowEditor}) {
-				expect(all_null(menu::shortcut_layer(root, spec::shortcut_layout(), /*second_layer=*/false))).to_be_true();
-				expect(all_null(menu::shortcut_layer(root, spec::shortcut_layout(), /*second_layer=*/true))).to_be_true();
+				expect(all_null(menu::shortcut_layer(root, version, /*second_layer=*/false))).to_be_true();
+				expect(all_null(menu::shortcut_layer(root, version, /*second_layer=*/true))).to_be_true();
 			}
 		}
-		spec::set_shortcut_layout(saved);
 
 		// `render_grid` only ever flashes `shortcut_pos(ctx_.root, version, *focused())`. `note_editor_root`
 		// itself is in NO root's table, so opening the scene on it could never observe a leak.

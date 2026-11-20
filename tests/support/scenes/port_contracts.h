@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace deluge::scenes::bind::contract {
@@ -267,21 +268,19 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief The typed reads answer what `read` reads: the play cursor as one of its three values, the shortcut layout as
-///        one of its two, and a feature's flag as its row's value; a path no row has reads as nothing and as off.
+///        one of its two, and a feature's flag as its row's value.
 [[nodiscard]] inline bool device_typed_reads_match(const DeviceSettings& device) {
 	namespace device_path = project::device_path;
-	const std::optional<project::FlashCursor> cursor =
-	    read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
-	const std::optional<project::ShortcutsVersion> version =
+	const project::FlashCursor cursor = read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
+	const project::ShortcutsVersion version =
 	    read_device<project::ShortcutsVersion>(&device, device_path::kShortcutsVersion);
 	const std::string_view battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
 	const bool named_cursor = cursor == project::FlashCursor::FAST || cursor == project::FlashCursor::OFF
 	                          || cursor == project::FlashCursor::SLOW;
 	const bool named_version = version == project::ShortcutsVersion::V1 || version == project::ShortcutsVersion::V3;
-	return named_cursor && named_version
-	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0)
-	       && !read_device<project::FlashCursor>(&device, "no/such/row").has_value()
-	       && !read_device_flag(&device, "no/such/row");
+	return named_cursor && named_version && device.read(device_path::kPlayCursor) == std::to_underlying(cursor)
+	       && device.read(device_path::kShortcutsVersion) == std::to_underlying(version)
+	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0);
 }
 
 /// @}

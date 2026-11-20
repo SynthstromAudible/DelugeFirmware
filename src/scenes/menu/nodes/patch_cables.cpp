@@ -74,8 +74,7 @@ constexpr uint8_t kFirstGlobal = deluge::instrument::runtime_index(deluge::instr
 /// @param ctx The menu's context, whose device port holds the setting.
 /// @return The device's default cable polarity; bipolar, the row's default, where the context binds no device port.
 instrument::Polarity default_patch_cable_polarity(const MenuContext& ctx) {
-	return bind::read_device<instrument::Polarity>(ctx.ports.device, project::device_path::kPatchCablePolarity)
-	    .value_or(instrument::Polarity::BIPOLAR);
+	return bind::read_device<instrument::Polarity>(ctx.ports.device, project::device_path::kPatchCablePolarity);
 }
 
 /// @brief The polarity a new cable from @p source takes.

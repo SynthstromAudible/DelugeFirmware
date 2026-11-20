@@ -100,8 +100,7 @@ int32_t body_y(const deluge::ui::oled::OledFrame& f) {
 /// @brief How the playhead is shown: the device's `pads/playCursor` row; Slow, the row's default, with no device port.
 deluge::project::FlashCursor play_cursor() {
 	return bind::read_device<deluge::project::FlashCursor>(menu::host_ports().device,
-	                                                       deluge::project::device_path::kPlayCursor)
-	    .value_or(deluge::project::FlashCursor::SLOW);
+	                                                       deluge::project::device_path::kPlayCursor);
 }
 
 } // namespace
