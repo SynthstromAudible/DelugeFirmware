@@ -22,7 +22,7 @@ class ForgetfulDeviceSettings final : public DeviceSettings {
 		return deluge::serialization::Value::makeNumber(row.default_value);
 	}
 	[[nodiscard]] DeviceWrite store(const deluge::plugin::SettingInfo&, const deluge::serialization::Value&) override {
-		return DeviceWrite::Stored;
+		return DeviceWrite::STORED;
 	}
 };
 
@@ -38,7 +38,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.audio.threshold = 2;
 		host.audio.sidechain_type = deluge::plugin::SyncType::DOTTED;
 		host.card.sample_loading = true;
-		host.ui.cursor = deluge::project::FlashCursor::Off;
+		host.ui.cursor = deluge::project::FlashCursor::OFF;
 		host.ui.performance = PerformanceEditing::Param;
 		host.ui.battery_mv = 3712;
 		host.ui.firmware = "1.2.3-spec";
@@ -52,7 +52,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 		expect(p.card->sample_load_in_flight()).to_be_true();
 		expect(p.card->output_may_be_replaced()).to_be_false();
-		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(deluge::project::FlashCursor::Off));
+		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(deluge::project::FlashCursor::OFF));
 		expect(static_cast<int>(p.ui->performance_editing_mode())).to_equal(static_cast<int>(PerformanceEditing::Param));
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
 		expect(p.ui->battery_millivolts()).to_equal(3712);
@@ -299,21 +299,28 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 
 		// Each row reads its default; a write stores its file form, in the row's stored units.
 		expect(p.device->read(device_path::kPlayCursor).value_or(-1))
-			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::Slow));
+			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::SLOW));
 		host.device.stores.clear();
-		expect(static_cast<int>(p.device->write(device_path::kPlayCursor, 0))).to_equal(static_cast<int>(DeviceWrite::Stored));
+		expect(static_cast<int>(p.device->write(device_path::kPlayCursor, 0))).to_equal(static_cast<int>(DeviceWrite::STORED));
 		expect(host.device.stores.size()).to_equal(size_t{1});
 		expect(host.device.stores.front().first).to_equal(std::string{device_path::kPlayCursor});
 		expect(host.device.stores.front().second.str()).to_equal(std::string{"fast"});
 		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(0);
 		host.device.accept_restart.insert(std::string{device_path::kUseSharps});
 		expect(static_cast<int>(p.device->write(device_path::kUseSharps, 0)))
-			.to_equal(static_cast<int>(DeviceWrite::StoredForRestart));
+			.to_equal(static_cast<int>(DeviceWrite::STORED_FOR_RESTART));
 
 		// A value the row cannot name reads as the row's default, and is still a value the port holds.
 		host.device.values.insert_or_assign(std::string{device_path::kPatchCablePolarity},
 		                                    deluge::serialization::Value::makeScalar("tripolar"));
 		expect(p.device->read(device_path::kPatchCablePolarity).value_or(-1)).to_equal(1);
+		// An index past the row's choices is clamped into them, as a choice item's widget shows it.
+		host.device.values.insert_or_assign(std::string{device_path::kPlayCursor},
+		                                    deluge::serialization::Value::makeNumber(5));
+		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(2);
+		host.device.values.insert_or_assign(std::string{device_path::kPlayCursor},
+		                                    deluge::serialization::Value::makeNumber(-3));
+		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(0);
 		expect(contract::device_reader_reads_the_rows(*p.device)).to_be_true();
 	});
 	it("fails the device write cases on a port that keeps no write", _ {

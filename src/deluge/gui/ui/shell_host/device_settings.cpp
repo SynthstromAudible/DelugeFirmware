@@ -25,9 +25,9 @@ using serialization::Value;
 namespace device_path = project::device_path;
 
 // A CHOICE row's index is the legacy value for these.
-static_assert(std::to_underlying(FlashCursor::Fast) == FLASH_CURSOR_FAST);
-static_assert(std::to_underlying(FlashCursor::Off) == FLASH_CURSOR_OFF);
-static_assert(std::to_underlying(FlashCursor::Slow) == FLASH_CURSOR_SLOW);
+static_assert(std::to_underlying(FlashCursor::FAST) == FLASH_CURSOR_FAST);
+static_assert(std::to_underlying(FlashCursor::OFF) == FLASH_CURSOR_OFF);
+static_assert(std::to_underlying(FlashCursor::SLOW) == FLASH_CURSOR_SLOW);
 static_assert(std::to_underlying(ShortcutsVersion::V1) == FlashStorage::kShortcutsVersion1);
 static_assert(std::to_underlying(ShortcutsVersion::V3) == FlashStorage::kShortcutsVersion3);
 static_assert(std::to_underlying(instrument::Polarity::UNIPOLAR) == 0
@@ -39,7 +39,7 @@ Value flag(bool on) {
 }
 
 /// @brief A CHOICE row's file form for choice @p index: its word, or, for an index the row has no choice at (a value
-///        the device's flash held that no menu offers), the number, which no choice names and so reads as the default.
+///        the device's flash held that no menu offers), the index itself as a number, which the port's read clamps.
 Value choice(const SettingInfo& row, size_t index) {
 	return index < row.choices.size() ? Value::makeScalar(std::string{row.choices[index]})
 	                                  : Value::makeNumber(static_cast<int64_t>(index));
@@ -91,15 +91,15 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		const int32_t stored = plugin::stored_value(row, value.str()).value_or(row.default_value);
 		if (path == device_path::kUseSharps) {
 			FlashStorage::defaultUseSharps = stored != 0;
-			return DeviceWrite::Stored;
+			return DeviceWrite::STORED;
 		}
 		if (path == device_path::kPatchCablePolarity) {
 			FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(stored);
-			return DeviceWrite::Stored;
+			return DeviceWrite::STORED;
 		}
 		if (path == device_path::kShortcutsVersion) {
 			FlashStorage::shortcutsVersion = static_cast<uint8_t>(stored);
-			return DeviceWrite::Stored;
+			return DeviceWrite::STORED;
 		}
 		if (path == device_path::kPlayCursor) {
 			// Leaving the slow flash clears its tick squares, judged on the value being replaced while it is still the
@@ -109,15 +109,15 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 				PadLEDs::clearTickSquares(true);
 			}
 			PadLEDs::flashCursor = static_cast<uint8_t>(stored);
-			return DeviceWrite::Stored;
+			return DeviceWrite::STORED;
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 			FlashStorage::defaultDisabledPresetScales[*scale] = stored != 0;
-			return DeviceWrite::Stored;
+			return DeviceWrite::STORED;
 		}
 		// A row this host keeps nowhere: refused rather than dropped, so the write is seen not to have happened.
 		D_PRINTLN("device setting %.*s has no home", static_cast<int>(path.size()), path.data());
-		return DeviceWrite::Refused;
+		return DeviceWrite::REFUSED;
 	}
 };
 

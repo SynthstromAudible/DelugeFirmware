@@ -1,5 +1,8 @@
 #include "port_contracts.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/nodes/settings.h"
 
 #include "deluge-project/device_settings.h"
 #include "hid/led/pad_leds.h"
@@ -11,6 +14,7 @@
 
 #include <version.h>
 
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -149,10 +153,26 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		const uint8_t cursor = PadLEDs::flashCursor;
 		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
 		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(0);
+		// A flash byte past the choices reads clamped to the last, and the page shows it as Slow, as a choice item's
+		// widget clamps it.
+		PadLEDs::flashCursor = 5;
+		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(2);
+		menu::MenuContext on_device{};
+		on_device.ports = menu::host_ports();
+		const int32_t shown = menu::bindings::read(menu::nodes::flash_status, on_device);
+		expect(shown).to_equal(2);
+		std::array<std::string_view, menu::kMaxDynamicNames> names{};
+		std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+		const size_t count = menu::bindings::names(menu::nodes::flash_status, on_device, names, scratch);
+		expect(count).to_equal(size_t{3});
+		if (shown >= 0 && static_cast<size_t>(shown) < count) {
+			expect(std::string{names[static_cast<size_t>(shown)]}).to_equal(std::string{"Slow"});
+		}
+		expect(static_cast<int>(PadLEDs::flashCursor)).to_equal(5); // reading heals nothing
 		PadLEDs::flashCursor = cursor;
 		const deluge::instrument::Polarity polarity = FlashStorage::defaultPatchCablePolarity;
 		expect(static_cast<int>(p.device->write(device_path::kPatchCablePolarity, 0)))
-		    .to_equal(static_cast<int>(bind::DeviceWrite::Stored));
+		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<int>(FlashStorage::defaultPatchCablePolarity))
 		    .to_equal(static_cast<int>(deluge::instrument::Polarity::UNIPOLAR));
 		FlashStorage::defaultPatchCablePolarity = polarity;
@@ -178,7 +198,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		const std::string scale_path = std::string{device_path::kDisabledScalePrefix} + "3";
 		const bool disabled = FlashStorage::defaultDisabledPresetScales[3];
 		expect(static_cast<int>(p.device->write(scale_path, disabled ? 0 : 1)))
-		    .to_equal(static_cast<int>(bind::DeviceWrite::Stored));
+		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<bool>(FlashStorage::defaultDisabledPresetScales[3])).to_equal(!disabled);
 		FlashStorage::defaultDisabledPresetScales[3] = disabled;
 	});

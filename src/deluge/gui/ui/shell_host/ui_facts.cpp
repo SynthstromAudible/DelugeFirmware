@@ -23,9 +23,9 @@ using project::FlashCursor;
 using scenes::bind::PerformanceEditing;
 
 // The ports convert these by value.
-static_assert(std::to_underlying(FlashCursor::Fast) == FLASH_CURSOR_FAST);
-static_assert(std::to_underlying(FlashCursor::Off) == FLASH_CURSOR_OFF);
-static_assert(std::to_underlying(FlashCursor::Slow) == FLASH_CURSOR_SLOW);
+static_assert(std::to_underlying(FlashCursor::FAST) == FLASH_CURSOR_FAST);
+static_assert(std::to_underlying(FlashCursor::OFF) == FLASH_CURSOR_OFF);
+static_assert(std::to_underlying(FlashCursor::SLOW) == FLASH_CURSOR_SLOW);
 static_assert(std::to_underlying(PerformanceEditing::Disabled) == std::to_underlying(PerformanceEditingMode::DISABLED));
 static_assert(std::to_underlying(PerformanceEditing::Value) == std::to_underlying(PerformanceEditingMode::VALUE));
 static_assert(std::to_underlying(PerformanceEditing::Param) == std::to_underlying(PerformanceEditingMode::PARAM));

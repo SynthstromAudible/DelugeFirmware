@@ -45,9 +45,9 @@ enum class ShortcutsVersion : uint8_t {
 
 /// @brief How a playhead is shown on the pads: the `pads/playCursor` row.
 enum class FlashCursor : uint8_t {
-	Fast = 0, ///< the pad controller flashes the pad; no pixel of the rendered image changes
-	Off = 1,  ///< no playhead
-	Slow = 2, ///< the factory default: the playhead's pixel is substituted in the rendered image
+	FAST = 0, ///< the pad controller flashes the pad; no pixel of the rendered image changes
+	OFF = 1,  ///< no playhead
+	SLOW = 2, ///< the factory default: the playhead's pixel is substituted in the rendered image
 };
 
 /// @brief The paths of the DEVICE rows the scenes name in code.

@@ -69,7 +69,7 @@ describe device_settings("the DEVICE setting group", ${
 		    {device_path::kUseSharps, SettingKind::BOOL, 1},
 		    {device_path::kPatchCablePolarity, SettingKind::CHOICE, 1},
 		    {device_path::kShortcutsVersion, SettingKind::CHOICE, static_cast<int32_t>(ShortcutsVersion::V3)},
-		    {device_path::kPlayCursor, SettingKind::CHOICE, static_cast<int32_t>(FlashCursor::Slow)},
+		    {device_path::kPlayCursor, SettingKind::CHOICE, static_cast<int32_t>(FlashCursor::SLOW)},
 		};
 		for (const Named& want : named) {
 			const SettingInfo* row = deluge::plugin::find_setting(device_table(), want.path);

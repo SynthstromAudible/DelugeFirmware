@@ -172,6 +172,20 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
 	});
 
+	it("raises nothing for a write the device port refuses", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::defaults_settings);
+		r.fakes.host.device.refuse.insert(std::string{device_path::kPatchCablePolarity});
+		(void)deluge::notify::dirty().drain();
+		menu::bindings::write(nodes::default_patch_cable_polarity, ctx, 0);
+		// The write reached the port, which kept nothing and said so.
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
+		expect(menu::bindings::read(nodes::default_patch_cable_polarity, ctx)).to_equal(1);
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::Oled)).to_be_false();
+		deluge::notify::Notice notice{};
+		expect(deluge::notify::notices().pop(notice)).to_be_false();
+	});
+
 	it("says a setting the device applies after a restart, as the USB audio item does", _ {
 		Rig r;
 		const MenuContext ctx = r.open(nodes::defaults_settings);
@@ -189,7 +203,7 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		const MenuContext ctx = r.open(nodes::root_settings);
 		expect(row_of(nodes::root_settings, nodes::flash_status, ctx)).not_().to_equal(-1);
 		expect(menu::bindings::read(nodes::flash_status, ctx))
-			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::Slow));
+			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::SLOW));
 		expect(names_of(nodes::flash_status, ctx)).to_equal(std::vector<std::string>{"Fast", "Disabled", "Slow"});
 		expect(menu::bindings::range(nodes::flash_status, ctx).max).to_equal(2);
 	});

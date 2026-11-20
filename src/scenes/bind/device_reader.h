@@ -16,6 +16,7 @@ namespace deluge::scenes::bind {
 /// The device is always there, so the reader always resolves; it reads no song.
 class DeviceReader {
 public:
+	/// @brief A reader over @p device's rows.
 	/// @param device The host's device settings; must outlive this reader.
 	explicit DeviceReader(const DeviceSettings& device) : device_{&device} {}
 

@@ -686,10 +686,10 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		}
 	}
 	const deluge::project::FlashCursor cursor = ports().ui->flash_cursor();
-	if (cursor == deluge::project::FlashCursor::Slow) {
+	if (cursor == deluge::project::FlashCursor::SLOW) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::FAST);
 }
 
 void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {

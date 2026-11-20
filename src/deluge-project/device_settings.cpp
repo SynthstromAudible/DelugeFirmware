@@ -65,7 +65,7 @@ constexpr std::array<std::string_view, 2> kPolarityWords{"unipolar", "bipolar"};
 constexpr std::array<std::string_view, 2> kShortcutsVersionWords{"v1", "v3"};
 /// The playhead's forms, in FlashCursor's order.
 constexpr std::array<std::string_view, 3> kPlayCursorWords{"fast", "off", "slow"};
-static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::Slow) == 2,
+static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::SLOW) == 2,
               "an enumerator's value is its choice's index");
 
 constexpr SettingInfo boolean(std::string_view path, int32_t default_value) {
@@ -92,7 +92,7 @@ constexpr std::array<SettingInfo, kLeadingRows + kScaleCount + kTrailingRows> kD
 	}
 	rows[at++] =
 	    choice(device_path::kShortcutsVersion, kShortcutsVersionWords, std::to_underlying(ShortcutsVersion::V3));
-	rows[at++] = choice(device_path::kPlayCursor, kPlayCursorWords, std::to_underlying(FlashCursor::Slow));
+	rows[at++] = choice(device_path::kPlayCursor, kPlayCursorWords, std::to_underlying(FlashCursor::SLOW));
 	return rows;
 }();
 static_assert(plugin::conditions_are_valid(kDeviceTable));

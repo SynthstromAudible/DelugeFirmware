@@ -75,7 +75,7 @@ namespace deluge::scenes::bind::contract {
 /// @brief The flash cursor is one of its three values.
 [[nodiscard]] inline bool flash_cursor_is_named(const UiFacts& ui) {
 	const auto c = ui.flash_cursor();
-	return c == project::FlashCursor::Fast || c == project::FlashCursor::Off || c == project::FlashCursor::Slow;
+	return c == project::FlashCursor::FAST || c == project::FlashCursor::OFF || c == project::FlashCursor::SLOW;
 }
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.
@@ -201,7 +201,7 @@ namespace deluge::scenes::bind::contract {
 /// @brief A write to a path no DEVICE row has is refused, and no row changes.
 [[nodiscard]] inline bool device_unknown_path_write_is_refused(DeviceSettings& device) {
 	const auto before = device_values(device);
-	return device.write("no/such/row", 0) == DeviceWrite::Refused && device_values(device) == before;
+	return device.write("no/such/row", 0) == DeviceWrite::REFUSED && device_values(device) == before;
 }
 
 /// @brief A menu value past a row's range is refused and the row reads as it did: an INTEGER row's max + 1, a CHOICE
@@ -216,7 +216,7 @@ namespace deluge::scenes::bind::contract {
 			continue;
 		}
 		const int32_t past = plugin::menu_range(*row).second + 1;
-		refused = refused && device.write(row->path, past) == DeviceWrite::Refused;
+		refused = refused && device.write(row->path, past) == DeviceWrite::REFUSED;
 	}
 	return refused && device_values(device) == before;
 }
@@ -242,9 +242,9 @@ namespace deluge::scenes::bind::contract {
 	for (const int32_t menu : menus) {
 		const auto stored = plugin::from_menu(*row, menu);
 		const DeviceWrite done = device.write(path, menu);
-		read_back = read_back && stored && done != DeviceWrite::Refused && device.read(path) == stored->first;
+		read_back = read_back && stored && done != DeviceWrite::REFUSED && device.read(path) == stored->first;
 	}
-	const bool restored = device.write(path, plugin::to_menu(*row, *was)) != DeviceWrite::Refused;
+	const bool restored = device.write(path, plugin::to_menu(*row, *was)) != DeviceWrite::REFUSED;
 	return read_back && restored && device.read(path) == was;
 }
 

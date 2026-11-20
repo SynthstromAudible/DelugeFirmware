@@ -158,7 +158,6 @@ extern bool shiftCurrentlyStuck;
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;
 using deluge::scenes::audio_clip::AudioClipScene;
-using deluge::scenes::audio_clip::FlashCursor;
 using deluge::scenes::audio_clip::kAudioClipSceneKind;
 using deluge::ui::shell::BoardProfile;
 using deluge::ui::shell::ButtonId;

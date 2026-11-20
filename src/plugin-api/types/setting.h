@@ -78,8 +78,7 @@ struct UserScale {
 ///      - the device's own settings, which no song holds: Owner DEVICE, Instrument NONE.
 ///    SONG and DEVICE go with NONE alone and a drum with KIT_LANE alone.
 ///  - `instrument` is required for every owner but SONG and DEVICE. A condition on what plays reads it, and NONE off
-///  the song
-///    passes the kit gates (DX7, saturation) as if no kit played, so rows show where they should not.
+///    the song passes the kit gates (DX7, saturation) as if no kit played, so rows show where they should not.
 ///  - A SettingReader answers every path its owner's table holds, applicable or not, and never nullopt for one of
 ///    them: a SETTING condition on a nullopt fails closed, which hides a row that should show. It answers nullopt only
 ///    for a path the owner does not hold.
@@ -101,9 +100,8 @@ struct SettingContext {
 
 /// @brief Whether @p context pairs its Owner with an Instrument the host contract allows.
 /// @param context The context a host passes.
-/// @return True when SONG and DEVICE have NONE alone, KIT_LANE a drum alone (SOUND_DRUM, MIDI_DRUM or GATE_DRUM), KIT
-/// has KIT, and
-///         TRACK and CLIP the track's instrument (SYNTH, KIT, MIDI, CV or AUDIO).
+/// @return True when SONG and DEVICE have NONE alone, KIT_LANE a drum alone (SOUND_DRUM, MIDI_DRUM or GATE_DRUM),
+///         KIT has KIT, and TRACK and CLIP the track's instrument (SYNTH, KIT, MIDI, CV or AUDIO).
 [[nodiscard]] constexpr bool context_is_coherent(const SettingContext& context) {
 	using Owner = SettingContext::Owner;
 	using Instrument = SettingContext::Instrument;

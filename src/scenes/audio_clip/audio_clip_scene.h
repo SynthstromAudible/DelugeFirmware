@@ -255,8 +255,6 @@ inline constexpr uint32_t kUiModeHoldingSongButton = 65;
 inline constexpr uint32_t kUiModeHoldingHorizontalEncoder = 1u << 31;
 /// @}
 
-using FlashCursor = deluge::project::FlashCursor;
-
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 9` (`scenes/registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kAudioClipSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 9);
@@ -627,7 +625,9 @@ private:
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
 	/// @brief The flash-cursor setting, from the host (`UiFacts::flash_cursor`); the factory's Slow with none.
-	FlashCursor flash_cursor() const { return ports_.ui != nullptr ? ports_.ui->flash_cursor() : FlashCursor::Slow; }
+	project::FlashCursor flash_cursor() const {
+		return ports_.ui != nullptr ? ports_.ui->flash_cursor() : project::FlashCursor::SLOW;
+	}
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.

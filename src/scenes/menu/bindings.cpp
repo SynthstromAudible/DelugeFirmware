@@ -140,10 +140,10 @@ void write_device(const Binding& bind, const MenuContext& ctx, int32_t value) {
 		return;
 	}
 	const DeviceWrite done = ctx.ports.device->write(bind.target.path, request->menu_value);
-	if (done == DeviceWrite::Refused) {
+	if (done == DeviceWrite::REFUSED) {
 		return;
 	}
-	if (done == DeviceWrite::StoredForRestart) {
+	if (done == DeviceWrite::STORED_FOR_RESTART) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
 	}
 	notify::raise(notify::Dirty::Oled);

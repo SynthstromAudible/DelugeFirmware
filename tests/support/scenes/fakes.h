@@ -50,7 +50,7 @@ struct FakeCardFacts final : CardFacts {
 struct FakeUiFacts final : UiFacts {
 	bool auditioning_now{false};                                  ///< what `auditioning` answers
 	bool popup{false};                                            ///< what `popup_showing` answers
-	project::FlashCursor cursor{project::FlashCursor::Slow};      ///< what `flash_cursor` answers
+	project::FlashCursor cursor{project::FlashCursor::SLOW};      ///< what `flash_cursor` answers
 	PerformanceEditing performance{PerformanceEditing::Disabled}; ///< what `performance_editing_mode` answers
 	bool dx7_engine{false};                                       ///< what `dx7_engine_enabled` answers
 	int32_t battery_mv{0};                                        ///< what `battery_millivolts` answers
@@ -277,8 +277,9 @@ struct FakeDeviceSettings final : DeviceSettings {
 	FakeDeviceSettings();
 	/// What `load` answers, by path, in file form; a spec may set a value the row cannot name.
 	std::map<std::string, serialization::Value, std::less<>> values;
-	std::set<std::string, std::less<>> accept_restart;                ///< the paths a store answers StoredForRestart
-	std::vector<std::pair<std::string, serialization::Value>> stores; ///< every store, in order
+	std::set<std::string, std::less<>> accept_restart; ///< the paths a store answers StoredForRestart
+	std::set<std::string, std::less<>> refuse;         ///< the paths a store answers REFUSED, keeping nothing
+	std::vector<std::pair<std::string, serialization::Value>> stores; ///< every store, in order, refused ones too
 
 private:
 	[[nodiscard]] serialization::Value load(const plugin::SettingInfo& row) const override;

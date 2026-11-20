@@ -170,7 +170,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(shown.has_value()).to_be_true();
 		if (shown) {
 			expect(shown->applies).to_be_true();
-			expect(shown->value).to_equal(static_cast<int32_t>(deluge::project::FlashCursor::Slow));
+			expect(shown->value).to_equal(static_cast<int32_t>(deluge::project::FlashCursor::SLOW));
 			expect(shown->greatest).to_equal(2);
 		}
 		std::array<ChoiceName, 4> out{};

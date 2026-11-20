@@ -1043,8 +1043,8 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	// `gui/ui_timer_manager.cpp`, through `UI::graphicsRoutine`), so its port is "repaint next tick" whenever the
 	// cursor could move. The condition is `graphicsRoutine`'s own first gate, read positively (`audio_clip_view.cpp`):
 	// with no playback, no active clip, or a count-in running, the column is a constant 255 and nothing animates.
-	const bool cursor_live =
-	    flash_cursor() != FlashCursor::Off && clip_ && ports_.clips != nullptr && ports_.clips->clip_playing(*clip_);
+	const bool cursor_live = flash_cursor() != project::FlashCursor::OFF && clip_ && ports_.clips != nullptr
+	                         && ports_.clips->clip_playing(*clip_);
 	if (cursor_live) {
 		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
 		// while this returns zero the shell's next wake is `now_ms` on every
@@ -1115,7 +1115,7 @@ int32_t AudioClipScene::compute_tick_square() {
 
 	// The latch is `AudioClipView`'s own two private fields, which `timeline/timeline.h`'s
 	// table assigns here by name.
-	if (flash_cursor() != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
+	if (flash_cursor() != project::FlashCursor::OFF && (square != last_tick_square_ || must_redraw_tick_squares_)) {
 		last_tick_square_ = square;
 		must_redraw_tick_squares_ = false;
 		tick_squares_set_ = true;
@@ -1257,11 +1257,11 @@ void AudioClipScene::render_grid(GridFrame& f) {
 	    recording_linearly() ? deluge::ui::grid::TickColour::Red : deluge::ui::grid::TickColour::Normal;
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	per_row.fill(deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(tick_col), .colour = colour});
-	if (flash_cursor() == FlashCursor::Slow && tick_col != deluge::ui::grid::kNoTickSquare) {
+	if (flash_cursor() == project::FlashCursor::SLOW && tick_col != deluge::ui::grid::kNoTickSquare) {
 		deluge::ui::grid::tick_squares(f, per_row, kUnreachableMutedColour);
 	}
 	if (std::exchange(tick_squares_set_, false)) {
-		deluge::ui::grid::flash_tick_squares(f, per_row, flashed_ticks_, flash_cursor() == FlashCursor::Fast);
+		deluge::ui::grid::flash_tick_squares(f, per_row, flashed_ticks_, flash_cursor() == project::FlashCursor::FAST);
 	}
 }
 

@@ -231,8 +231,11 @@ serialization::Value FakeDeviceSettings::load(const plugin::SettingInfo& row) co
 
 DeviceWrite FakeDeviceSettings::store(const plugin::SettingInfo& row, const serialization::Value& value) {
 	stores.emplace_back(std::string{row.path}, value);
+	if (refuse.contains(row.path)) {
+		return DeviceWrite::REFUSED;
+	}
 	values.insert_or_assign(std::string{row.path}, value);
-	return accept_restart.contains(row.path) ? DeviceWrite::StoredForRestart : DeviceWrite::Stored;
+	return accept_restart.contains(row.path) ? DeviceWrite::STORED_FOR_RESTART : DeviceWrite::STORED;
 }
 
 std::string_view FakeMidiDevices::name(midi::DeviceId device) const {
