@@ -26,7 +26,6 @@
 #include "effects/words.h"
 #include "gfx/oled/font.h"
 #include "gfx/oled/glyphs.h"
-#include "instruments/deluge/sound_state.h"
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
 #include "plugin-api/types/voice_priority.h"
@@ -56,6 +55,7 @@
 // Constants for the char value of the flat(♭) accidental glyph
 #define FLAT_CHAR_STR "\x81"
 inline constexpr char FLAT_CHAR = deluge::gfx::oled::kFlatGlyph;
+static_assert(FLAT_CHAR_STR[0] == FLAT_CHAR, "the flat sign has one code point");
 
 constexpr uint8_t kOctaveSize = 12;
 

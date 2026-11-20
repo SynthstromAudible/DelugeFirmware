@@ -21,7 +21,8 @@
 /// @brief Code points the OLED fonts give to symbols outside ASCII.
 namespace deluge::gfx::oled {
 
-/// @brief The font's code point for the flat sign (♭).
+/// @brief The font's code point for the flat sign (♭). A byte, held as a `char` and compared only as one: its
+///        numeric value differs between signed-char hosts and the device, so cast to `uint8_t` before an integer use.
 inline constexpr char kFlatGlyph{'\x81'};
 
 } // namespace deluge::gfx::oled

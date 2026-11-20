@@ -24,7 +24,6 @@
 #include "plugin-api/types/voice_priority.h"
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -60,9 +59,6 @@ struct DxPatchState {
 	int32_t random_detune{0};
 	bool operator==(const DxPatchState&) const = default;
 };
-
-/// @brief The oscillator sources a sound has.
-inline constexpr size_t kSourceCount = 2;
 
 /// @brief One of a sound's two sources.
 struct SourceState {
