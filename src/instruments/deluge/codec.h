@@ -220,6 +220,9 @@ decode_onto(const serialization::Value& element, const FlatSoundState& current, 
 /// @return A Map of the fields by name.
 [[nodiscard]] serialization::Value dump_state(const FlatSoundState& state);
 
+/// @brief dump_state() of a sound's record, in the file's layout.
+[[nodiscard]] serialization::Value dump_state(const SoundState& state);
+
 /// @brief decode_change() onto a sound's record: the change is read in the file's layout and composed.
 [[nodiscard]] std::expected<SlotChange, plugin::StateError> decode_change(const serialization::Value& element,
                                                                           const serialization::Value& previous,

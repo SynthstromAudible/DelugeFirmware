@@ -70,7 +70,7 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 /// @return Whether the Edit applied.
 template <class Change>
 bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path, Change change) {
-	deluge::instrument::FlatSoundState wanted = *sound.boundState();
+	deluge::instrument::FlatSoundState wanted(*sound.boundState());
 	change(wanted);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
 	if (!value) {

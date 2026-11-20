@@ -254,7 +254,7 @@ void forEachBoundSound(Song& song, F&& f) {
 /// the current song, else the unslotted write). @return Whether the state then holds the value.
 template <typename Change>
 bool setThrough(Sound& sound, std::string_view path, Change change) {
-	deluge::instrument::FlatSoundState wanted = *sound.state_;
+	deluge::instrument::FlatSoundState wanted(*sound.state_);
 	change(wanted);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
 	if (!value) {

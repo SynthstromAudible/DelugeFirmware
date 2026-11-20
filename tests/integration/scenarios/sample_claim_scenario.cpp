@@ -762,7 +762,8 @@ Sample* previewedSample() {
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
 	const deluge::test::FlatView state = deluge::test::flat_of(preview.boundState());
-	const bool derived = state.has_value() && preview.config() == deluge::instrument::DelugeSynth::derive(*state);
+	const bool derived =
+	    state.has_value() && preview.config() == deluge::instrument::DelugeSynth::derive(*preview.boundState());
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
 	if (!derived || state->sources[0].osc_type != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {

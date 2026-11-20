@@ -12,7 +12,7 @@ namespace detail {
 inline plugin::StateHandle decode_instrument(const serialization::Value& element, int32_t tick_magnitude) {
 	instrument::FlatSoundState state = instrument::FlatSoundState{};
 	(void)instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
-	return plugin::StateHandle::of<instrument::DelugeSynth>(std::move(state));
+	return plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(state));
 }
 
 inline void encode_instrument(const plugin::StateHandle& state, serialization::Value& element, int32_t tick_magnitude) {

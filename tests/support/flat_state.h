@@ -49,7 +49,7 @@ public:
 	};
 	explicit FlatView(const instrument::SoundState* record) : record_(record) {}
 	Snapshot operator->() const { return {instrument::FlatSoundState(*record_)}; }
-	instrument::FlatSoundState operator*() const { return *record_; }
+	instrument::FlatSoundState operator*() const { return instrument::FlatSoundState(*record_); }
 	[[nodiscard]] bool has_value() const { return record_ != nullptr; }
 	explicit operator bool() const { return has_value(); }
 
@@ -65,15 +65,15 @@ private:
 /// @brief Change @p record through its flat layout, as a spec that builds a state field by field does.
 template <class Change>
 void change_flat(instrument::SoundState& record, Change&& change) {
-	instrument::FlatSoundState flat = record;
+	instrument::FlatSoundState flat(record);
 	change(flat);
-	record = flat;
+	record = instrument::SoundState(flat);
 }
 
 /// @brief The first state_access reader on which @p record and its flat layout disagree; empty where none does.
 [[nodiscard]] inline std::string reader_difference(const instrument::SoundState& record) {
 	namespace instrument = deluge::instrument;
-	const instrument::FlatSoundState flat = record;
+	const instrument::FlatSoundState flat(record);
 	if (instrument::synth_mode(record) != flat.synth_mode) {
 		return "synth_mode";
 	}
@@ -157,7 +157,7 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 /// mode, and the setup transforms.
 [[nodiscard]] inline std::string rule_difference(const instrument::FlatSoundState& flat) {
 	namespace in = instrument;
-	const in::SoundState record = flat;
+	const in::SoundState record(flat);
 	for (const in::SynthMode mode : {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM}) {
 		if (!(in::switch_engine(record, mode) == in::SoundState(in::with_mode(flat, mode)))) {
 			return "switch_engine";
@@ -203,7 +203,7 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 /// Empty where none does.
 [[nodiscard]] inline std::string setting_difference(const instrument::FlatSoundState& flat) {
 	namespace in = instrument;
-	const in::SoundState record = flat;
+	const in::SoundState record(flat);
 	for (const plugin::SettingInfo& row : in::kSettings) {
 		if (row.kind == plugin::SettingKind::STRUCTURED || row.kind == plugin::SettingKind::TEXT) {
 			continue;
@@ -262,7 +262,7 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 /// magnitudes. Empty where none does.
 [[nodiscard]] inline std::string encode_difference(const instrument::FlatSoundState& flat) {
 	namespace in = instrument;
-	const in::SoundState record = flat;
+	const in::SoundState record(flat);
 	constexpr std::array<std::string_view, 27> kKeys{
 	    "polyphonic",     "voicePriority", "sideChainSend", "mode",       "transpose",
 	    "cents",          "modFXType",     "lpfMode",       "hpfMode",    "filterRoute",

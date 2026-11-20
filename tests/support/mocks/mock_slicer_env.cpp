@@ -144,7 +144,7 @@ void resetSlicerEnv() {
 	static deluge::instrument::SoundState record;
 	deluge::instrument::FlatSoundState flat;
 	flat.sources[0].ranges = {deluge::instrument::RangeState{}};
-	record = flat;
+	record = deluge::instrument::SoundState(flat);
 	g_drum.get()->state_ = &record;
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the

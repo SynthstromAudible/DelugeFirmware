@@ -23,4 +23,8 @@ inline constexpr plugin::ParamId kAnyDestination{255};
 [[nodiscard]] bool cable_allowed(PatchSource source, plugin::ParamId destination, const FlatSoundState& state,
                                  bool is_drum);
 
+/// @brief cable_allowed() for a sound's record.
+[[nodiscard]] bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state,
+                                 bool is_drum);
+
 } // namespace deluge::instrument

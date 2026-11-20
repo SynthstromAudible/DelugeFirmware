@@ -73,7 +73,7 @@ project::Song filter_on_lower_knob(uint8_t mode, SynthMode synth_mode = SynthMod
 	instrument::FlatSoundState sound{};
 	sound.synth_mode = synth_mode;
 	output.instrument = project::InstrumentSlot{
-	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(sound)};
+	    .plugin = "deluge.instrument", .state = plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(sound))};
 	return song;
 }
 const controls::KnobFocus kSynth{.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 3}}};

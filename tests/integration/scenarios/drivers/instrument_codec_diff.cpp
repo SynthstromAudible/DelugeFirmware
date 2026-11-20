@@ -229,10 +229,10 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::FlatSoundState newSynth =
-	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState();
-	const deluge::instrument::FlatSoundState newDrum =
-	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState();
+	const deluge::instrument::FlatSoundState newSynth(
+	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
+	const deluge::instrument::FlatSoundState newDrum(
+	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
 	if (std::string d = deluge::serialization::first_difference(
 	        deluge::instrument::dump_state(newSynth),
 	        deluge::instrument::dump_state(deluge::instrument::FlatSoundState{}));
@@ -274,8 +274,8 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		}
 		// The decoded state as the state it plays and what it keeps for a switch back, and back again, loses nothing;
 		// and the sound's record, flattened and composed again, is itself
-		const deluge::instrument::FlatSoundState flat = deluge::instrument::SoundState(decoded);
-		const deluge::instrument::FlatSoundState recordFlat = *entry.sound->boundState();
+		const auto flat = deluge::instrument::FlatSoundState(deluge::instrument::SoundState(decoded));
+		const deluge::instrument::FlatSoundState recordFlat(*entry.sound->boundState());
 		if (!(flat == decoded) || !(deluge::instrument::SoundState(recordFlat) == *entry.sound->boundState())) {
 			const Value flatDump = deluge::instrument::dump_state(flat);
 			const std::string d = deluge::serialization::first_difference(loaded, flatDump);
@@ -318,10 +318,10 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::FlatSoundState newSynth =
-	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState();
-	const deluge::instrument::FlatSoundState newDrum =
-	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState();
+	const deluge::instrument::FlatSoundState newSynth(
+	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
+	const deluge::instrument::FlatSoundState newDrum(
+	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
 		deluge::instrument::FlatSoundState state = entry.drum ? newDrum : newSynth;

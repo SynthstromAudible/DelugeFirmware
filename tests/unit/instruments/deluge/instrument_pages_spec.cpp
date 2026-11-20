@@ -224,7 +224,7 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		const auto& record = instrument::kRemoteControls;
 		instrument::FlatSoundState fm_state;
 		fm_state.synth_mode = instrument::SynthMode::FM;
-		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(fm_state);
+		const auto fm = plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(fm_state));
 		const auto subtractive = plugin::StateHandle::of<instrument::DelugeSynth>({});
 		const auto lfo_pitch = *instrument::cable_depth_id(instrument::PatchSource::LFO_GLOBAL_1, ip::kPitch);
 		const auto sidechain = *instrument::cable_depth_id(instrument::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);

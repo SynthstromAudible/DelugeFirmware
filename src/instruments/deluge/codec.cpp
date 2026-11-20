@@ -1175,9 +1175,9 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 
 std::expected<void, plugin::StateError> decode(const Value& element, SoundState& state,
                                                const plugin::CodecContext& context) {
-	FlatSoundState flat = state;
+	FlatSoundState flat(state);
 	auto result = decode(element, flat, context);
-	state = flat;
+	state = SoundState(flat);
 	return result;
 }
 
@@ -1480,6 +1480,10 @@ std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, 
 	return decode_onto(element, FlatSoundState(current), context).transform([](const FlatSoundState& flat) {
 		return SoundState(flat);
 	});
+}
+
+serialization::Value dump_state(const SoundState& state) {
+	return dump_state(FlatSoundState(state));
 }
 
 } // namespace deluge::instrument

@@ -20,7 +20,7 @@ namespace {
 /// "path=got/want"; empty when every row agrees.
 std::string reads_unlike_state(const ModelFixture& fixture, deluge::project::SlotAddress slot) {
 	const SlotReader reader{fixture.song, slot, fixture.facts};
-	const deluge::instrument::FlatSoundState& state = fixture.facts.states.at(slot.id);
+	const deluge::instrument::SoundState& state = fixture.facts.states.at(slot.id);
 	std::string unlike;
 	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 		if (row.kind == SettingKind::STRUCTURED || row.kind == SettingKind::TEXT) {
@@ -47,7 +47,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 
 	it("reads a changed state: a choice, a number, an LFO's sync level and an FM sound's oscillator type", _ {
 		ModelFixture fixture;
-		deluge::instrument::FlatSoundState state = fixture.facts.states.at(kSynth.id);
+		deluge::instrument::FlatSoundState state(fixture.facts.states.at(kSynth.id));
 		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
 		state.num_unison = 4;
 		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{5};

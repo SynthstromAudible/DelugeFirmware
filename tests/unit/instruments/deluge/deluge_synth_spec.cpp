@@ -54,7 +54,7 @@ struct Change {
 describe deluge_synth("the Deluge synth's config and its changed parts", ${
 	it("derives every value its voices read from the state", _ {
 		const FlatSoundState s = fm_state();
-		const deluge::synth::SoundConfig c = DelugeSynth::derive(s);
+		const deluge::synth::SoundConfig c = DelugeSynth::derive(SoundState(s));
 		expect(c.voicing.priority).to_equal(deluge::plugin::VoicePriority::HIGH);
 		expect(c.voicing.polyphony).to_equal(PolyphonyMode::MONO);
 		expect(int{c.voicing.max_voices}).to_equal(3);
@@ -77,7 +77,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 
 	it("marks nothing when the state is unchanged", _ {
 		const FlatSoundState s = fm_state();
-		expect(DelugeSynth::changes(s, s).none()).to_equal(true);
+		expect(DelugeSynth::changes(SoundState(s), SoundState(s)).none()).to_equal(true);
 	});
 
 	it("marks exactly the part a single field belongs to", _ {
@@ -108,7 +108,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 			change.apply(after);
 			Parts expected;
 			expected.set(std::to_underlying(change.part));
-			expect(DelugeSynth::changes(before, after) == expected).to_equal(true);
+			expect(DelugeSynth::changes(SoundState(before), SoundState(after)) == expected).to_equal(true);
 		}
 	});
 });

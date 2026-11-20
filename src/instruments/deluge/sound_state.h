@@ -32,16 +32,13 @@ struct SoundState {
 	SoundState() = default;
 	/// @brief The record a flat state is (`flatten(SoundState{f}) == f` for every state a file decodes to or a rule
 	/// makes).
-	// The flat form converts implicitly while the library's internals and the specs build it
-	// NOLINTNEXTLINE(cppcoreguidelines-explicit-constructor)
-	SoundState(const FlatSoundState& flat) {
+	explicit SoundState(const FlatSoundState& flat) {
 		auto [composed, kept] = compose(flat);
 		plays = std::move(composed);
 		recall = std::move(kept);
 	}
 	/// @brief The record in the file's flat layout.
-	// NOLINTNEXTLINE(cppcoreguidelines-explicit-constructor)
-	operator FlatSoundState() const { return flatten(plays, recall); }
+	explicit operator FlatSoundState() const { return flatten(plays, recall); }
 	bool operator==(const SoundState&) const = default;
 };
 

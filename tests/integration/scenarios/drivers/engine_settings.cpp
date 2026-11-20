@@ -456,7 +456,7 @@ int modePairLeg(Sound& sound, Song& song, const char* name) {
 	if (!address || sound.boundState() == nullptr) {
 		return 0;
 	}
-	const deluge::instrument::FlatSoundState before = *sound.boundState();
+	const deluge::instrument::FlatSoundState before(*sound.boundState());
 	const auto tuningOf = [](const deluge::instrument::SourceState& source) {
 		return std::pair{source.transpose, source.cents};
 	};
