@@ -63,6 +63,13 @@ enum class FavouritesLayout : uint8_t {
 	OFF = 2,                  ///< no favourites
 };
 
+/// @name The pads' brightness: the `ui/padBrightness` row's levels, and how a menu shows them.
+/// @{
+inline constexpr int32_t kDimmestPadLevel = 1;    ///< the dimmest level a menu sets
+inline constexpr int32_t kBrightestPadLevel = 25; ///< the brightest level, the row's greatest and its default
+inline constexpr int32_t kPadLevelShown = 4;      ///< how many a menu shows for one level, and its step a detent
+/// @}
+
 struct device_path;
 
 /// @brief The path of a DEVICE row the table holds. Only `device_path` makes one, from its own constants, so a path a

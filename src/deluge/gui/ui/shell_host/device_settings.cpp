@@ -56,6 +56,7 @@ static_assert(std::to_underlying(project::FavouritesLayout::FAVOURITES) == Favou
                      == FavouritesDefaultLayoutFavoritesAndBanks
               && std::to_underlying(project::FavouritesLayout::OFF) == FavouritesDefaultLayoutOff);
 static_assert(std::to_underlying(MenuHighlighting::NO_INVERSION) == 2);
+static_assert(project::kDimmestPadLevel == kMinLedBrightness && project::kBrightestPadLevel == kMaxLedBrightness);
 static_assert(SessionLayoutTypeGrid == 1 && GridDefaultActiveModeBlue == 2 && KeyboardLayoutTypePiano == 2);
 static_assert(std::to_underlying(KeyboardLayout::QWERTZ) == 2);
 static_assert(std::to_underlying(ScreensaverMode::DELUGE) == 3);

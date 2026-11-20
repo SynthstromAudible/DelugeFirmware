@@ -220,7 +220,8 @@ int32_t default_resolution_magnitude(const MenuContext& ctx);
 /// magnitude 1 is that name.
 int32_t relative_to_song_magnitude(const MenuContext& ctx);
 /// @brief The pad brightness item's turn, `PadBrightness::selectEncoderAction`
-///        (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`): four a detent, within 4 and 100.
+///        (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`): four a detent, from the
+///        dimmest level to the brightest (`project::kDimmestPadLevel`, `kBrightestPadLevel`).
 /// @param ctx    The menu's context (unused).
 /// @param value  The value shown, four times the level.
 /// @param offset The detents turned.

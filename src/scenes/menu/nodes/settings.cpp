@@ -381,11 +381,11 @@ int32_t relative_to_song_magnitude(const MenuContext&) {
 }
 
 std::optional<int32_t> pad_brightness_turn(const MenuContext&, int32_t value, int32_t offset) {
-	// A level is four on the screen; the dimmest a turn reaches is level 1, the brightest level 25.
-	constexpr int32_t kStep = 4;
-	constexpr int32_t kLeast = 1 * kStep;
-	constexpr int32_t kGreatest = 25 * kStep;
-	return std::clamp(value + (offset * kStep), kLeast, kGreatest);
+	using project::kBrightestPadLevel;
+	using project::kDimmestPadLevel;
+	using project::kPadLevelShown;
+	return std::clamp(value + (offset * kPadLevelShown), kDimmestPadLevel * kPadLevelShown,
+	                  kBrightestPadLevel * kPadLevelShown);
 }
 
 // ---------------------------------------------------------------------------------------------

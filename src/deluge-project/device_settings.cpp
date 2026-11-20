@@ -100,8 +100,6 @@ constexpr int32_t kBlue = 2;
 constexpr int32_t kYellow = 3;
 constexpr int32_t kMagenta = 5;
 constexpr int32_t kAmber = 6;
-/// The brightest pad level: the default, and the level a zero byte in the saved settings reads as.
-constexpr int32_t kBrightestPads = 25;
 /// The scales a new song may start in: the preset scales in their own order, then a random one, then none. A user
 /// scale is no default, so it has no choice.
 constexpr std::array<std::string_view, kScaleCount + 2> kScaleWords{
@@ -223,9 +221,12 @@ constexpr std::array kPadsAndScreenRows{
     SettingInfo{.path = device_path::kPadBrightness,
                 .kind = SettingKind::INTEGER,
                 .min = 0,
-                .max = kBrightestPads,
-                .user = {.user_min = 0, .user_max = 4 * kBrightestPads, .stored_min = 0, .stored_max = kBrightestPads},
-                .default_value = kBrightestPads},
+                .max = kBrightestPadLevel,
+                .user = {.user_min = 0,
+                         .user_max = kPadLevelShown * kBrightestPadLevel,
+                         .stored_min = 0,
+                         .stored_max = kBrightestPadLevel},
+                .default_value = kBrightestPadLevel},
     choice(device_path::kScreensaverMode, kScreensaverWords, 3),
     integer(device_path::kScreensaverTimeout, 1, 60, 5),
     choice(device_path::kSamplePreview, kSamplePreviewWords, 1),
