@@ -4,7 +4,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
@@ -91,7 +91,7 @@ const deluge::effects::EffectStates* owner_effects(const MenuContext& ctx) {
 /// middle that does not land on the context's owner and read back. Empty when it agrees.
 std::string disagreements(const Node& node, const MenuContext& ctx) {
 	const std::string path(node.bind.target.path);
-	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
+	const auto shown = bind::view(node.bind.target, *ctx.model, ctx.addresses, ctx.ports);
 	if (!shown) {
 		return path + " unresolved ";
 	}
@@ -110,7 +110,7 @@ std::string disagreements(const Node& node, const MenuContext& ctx) {
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
 	for (const int32_t v : probes) {
-		const auto request = bind::request_for(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, v);
+		const auto request = bind::request_for(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, v);
 		const auto stored = request ? deluge::plugin::from_menu(row, request->menu_value) : std::nullopt;
 		// What the menu then shows: the position written, or for a number what the stored value reads as (a
 		// compressor knob's top step stores what reads as the step below, as legacy's shows on re-entry).

@@ -6,7 +6,7 @@
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/song.h"
 #include "plugin-api/types/setting.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
 
 #include <cstdint>
 #include <optional>
@@ -20,8 +20,8 @@ class ChainReader {
 public:
 	/// @param model The song.
 	/// @param chain The chain's address.
-	/// @param facts The host's runtime facts, which give the chain's typed effects.
-	ChainReader(const project::Song& model, project::ChainAddress chain, const RuntimeFacts& facts);
+	/// @param tracks The track facts, which give the chain's typed effects.
+	ChainReader(const project::Song& model, project::ChainAddress chain, const TrackFacts& tracks);
 
 	/// @brief Whether the song holds the chain and the host has its typed effects.
 	[[nodiscard]] bool resolved() const { return effects_ != nullptr; }

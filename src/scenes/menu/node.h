@@ -3,9 +3,8 @@
 /// @brief The declarative menu data model: `Node`, `Binding`,
 ///        `ParamRef`, and the `constexpr` builders that assemble a menu tree as plain data.
 ///
-/// @note **This header is model-free and host-testable.** Its only model include is
-///       `modulation/params/param.h`, for `params::Kind` -- pulling in `definitions_cxx.hpp` is
-///       accepted collateral. Nothing here reaches into `gui/`: l10n string ids
+/// @note **This header is model-free and host-testable.** None of its includes is a model header: they are the neutral
+///       libraries' param ids and kinds and the UI toolkit's. Nothing here reaches into `gui/`: l10n string ids
 ///       are carried as plain `uint16_t` rather than `l10n::String`, so a caller resolves them
 ///       through whatever string table it likes. `MenuContext` and `MenuState` are forward
 ///       declared only -- their definitions belong to later tasks (`context.h`, the interpreter's
@@ -19,13 +18,15 @@
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
-#include "modulation/params/param.h"
+#include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
+#include "plugin-api/types/param_kind.h"
 #include "scenes/bind/target.h"
-#include "synth/modulation/cable.h"  // CustomItem::learn_descriptor -- returned by value
-#include "ui/core/frame_context.h"   // CustomItem::owned_input
-#include "ui/grid/frame.h"           // CustomItem::source_blink
-#include "ui/oled/column_drawings.h" // DrawColumn
-#include "ui/oled/columns.h"         // ArtColumn
+#include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
+#include "synth/modulation/patch_source.h" // PatchSource, the type of the pads' sources in `source_press`
+#include "ui/core/frame_context.h"         // CustomItem::owned_input
+#include "ui/grid/frame.h"                 // CustomItem::source_blink
+#include "ui/oled/column_drawings.h"       // DrawColumn
+#include "ui/oled/columns.h"               // ArtColumn
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -34,12 +35,6 @@
 #include <optional>
 #include <span>
 #include <string_view>
-
-/// Forward declared for `CustomItem`'s learn hooks, which only ever take it by reference -- the
-/// same reason `OledFrame` and friends below are declared rather than included. `io/midi/` is
-/// inside this layer's allow-list, but this header is the model-light one and has no need of the
-/// definition.
-class MIDICable;
 
 namespace deluge::ui {
 class LedFrame;
@@ -56,6 +51,10 @@ struct Result;
 } // namespace deluge::ui::shell
 
 namespace deluge::scenes::menu {
+
+/// The patch source type, as `source_press` and `source_blink` take it; this namespace holds the menu's nodes, which
+/// name sources unqualified.
+using deluge::synth::PatchSource;
 
 /// @brief What a `Node` is: which builder made it, and (with `Hint`) which widget renders it.
 ///
@@ -139,9 +138,9 @@ enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 /// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
 ///        (unset) reference for a `Binding` driven entirely by `get`/`set` instead.
 struct ParamRef {
-	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
+	deluge::plugin::ParamKind kind = deluge::plugin::ParamKind::NONE;
 	uint8_t index = 255;
-	constexpr bool valid() const { return kind != deluge::modulation::params::Kind::NONE; }
+	constexpr bool valid() const { return kind != deluge::plugin::ParamKind::NONE; }
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
@@ -770,16 +769,33 @@ struct CustomItem {
 	///       `gui/ui/shell_host_ui.h`'s `@par MIDI learn` for the route.
 	/// @{
 
-	/// @brief Bind a note-on to whatever this item learns. @return Whether it learned.
-	virtual bool learn_note_on(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*note*/) const { return false; }
-
-	/// @brief Bind a CC to whatever this item learns. @return Whether it learned.
-	virtual bool learn_cc(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*cc*/, int32_t /*value*/) const {
+	/// @brief Bind a note-on to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel, or the MPE zone the port mapped it to.
+	/// @param note    Its note number.
+	/// @return Whether it learned.
+	virtual bool learn_note_on(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*note*/) const {
 		return false;
 	}
 
-	/// @brief Bind a program change to whatever this item learns. @return Whether it learned: false for a refusal.
-	virtual bool learn_program_change(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*program*/) const {
+	/// @brief Bind a CC to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel, or the MPE zone the port mapped it to.
+	/// @param cc      The controller number.
+	/// @param value   The controller value.
+	/// @return Whether it learned.
+	virtual bool learn_cc(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*cc*/,
+	                      int32_t /*value*/) const {
+		return false;
+	}
+
+	/// @brief Bind a program change to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel.
+	/// @param program The program number.
+	/// @return Whether it learned: false for a refusal.
+	virtual bool learn_program_change(deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                                  int32_t /*program*/) const {
 		return false;
 	}
 
@@ -1176,13 +1192,13 @@ constexpr Node with_affect_entire(Node n) {
 ///        UNPATCHED_GLOBAL bindings whose param is what they edit), and the items marked with `with_affect_entire`.
 ///        The audio clip's transpose only learns its global param: its legacy item is no `UnpatchedParam`.
 constexpr bool node_uses_affect_entire(const Node& n) {
-	namespace params = deluge::modulation::params;
+	using deluge::plugin::ParamKind;
 	const bool edits_its_param =
 	    n.bind.get == nullptr
 	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM);
-	return n.uses_affect_entire || n.bind.param.kind == params::Kind::PATCHED
-	       || n.bind.param.kind == params::Kind::UNPATCHED_SOUND
-	       || (n.bind.param.kind == params::Kind::UNPATCHED_GLOBAL && edits_its_param);
+	return n.uses_affect_entire || n.bind.param.kind == ParamKind::PATCHED
+	       || n.bind.param.kind == ParamKind::UNPATCHED_SOUND
+	       || (n.bind.param.kind == ParamKind::UNPATCHED_GLOBAL && edits_its_param);
 }
 
 /// @brief `n` with `option_list_column` set.
@@ -1404,23 +1420,28 @@ constexpr Node with_permitted(Node n, PermittedFn fn) {
 /// @brief The id @p p's param has in its owner's engine's table: a sound's (patched or unpatched) in the Deluge
 ///        instrument's, a global effectable's in its own.
 constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
-	using deluge::modulation::params::Kind;
+	using deluge::plugin::ParamKind;
 	switch (p.kind) {
-	case Kind::PATCHED:
+	case ParamKind::PATCHED:
 		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::PATCHED, p.index});
-	case Kind::UNPATCHED_SOUND:
+	case ParamKind::UNPATCHED_SOUND:
 		return deluge::instrument::param_id({deluge::instrument::RuntimeSet::UNPATCHED, p.index});
-	case Kind::UNPATCHED_GLOBAL:
+	case ParamKind::UNPATCHED_GLOBAL:
 		return deluge::host_chain::param_id(p.index);
-	default:
-		return {};
+	case ParamKind::NONE:
+	case ParamKind::STATIC:
+	case ParamKind::MIDI:
+	case ParamKind::PATCH_CABLE:
+	case ParamKind::EXPRESSION:
+		break;
 	}
+	return {};
 }
 
 /// @brief The table @ref param_id_of names @p p's param in.
 constexpr deluge::scenes::bind::ParamTable param_table_of(ParamRef p) {
-	return p.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL ? deluge::scenes::bind::ParamTable::CHAIN
-	                                                                    : deluge::scenes::bind::ParamTable::SOUND;
+	return p.kind == deluge::plugin::ParamKind::UNPATCHED_GLOBAL ? deluge::scenes::bind::ParamTable::CHAIN
+	                                                             : deluge::scenes::bind::ParamTable::SOUND;
 }
 
 /// @brief Where a param node shows, beyond where its owner holds the param: conditions over the owner's setting rows,
@@ -1585,7 +1606,7 @@ constexpr Node dynamic_submenu(uint16_t name, DynamicChildrenFn children, Releva
 /// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`), so a hook pair is always what reads and writes it -- no
 /// `ParamRef` spelling exists for a `{syncType, syncLevel}` pair.
 ///
-/// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`SyncLevel::size` in
+/// @param r The option range. Normally `{0, kMaxCombinedSync, 1}` (`SyncLevel::size` in
 ///          `origin/main:src/deluge/gui/menu_item/sync_level.h` over `NUM_SYNC_VALUES` in
 ///          `origin/main:src/deluge/model/sync.h`), but `sidechain::Sync` overrides `size()` to 10
 ///          (`origin/main:src/deluge/gui/menu_item/sidechain/sync.h`), so the bounds are an argument rather than baked

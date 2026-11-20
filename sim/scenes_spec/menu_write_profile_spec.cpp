@@ -4,7 +4,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -130,7 +130,7 @@ void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, i
 		const auto slot =
 		    phases.time("slot_address", [&] { return deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum)); });
 		const auto shown = phases.time("view", [&] {
-			return bind::view(target, song.project, bind::Addresses{.slot = slot}, menu::host_runtime_facts());
+			return bind::view(target, song.project, bind::Addresses{.slot = slot}, menu::host_ports());
 		});
 		if (!slot || !shown || !shown->applies) {
 			continue;

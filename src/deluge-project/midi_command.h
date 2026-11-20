@@ -23,6 +23,10 @@
 
 namespace deluge::project {
 
+/// @brief How many MIDI CC numbers are real controllers, 0 to 119: a MIDI instrument can label each, and a MIDI clip's
+/// params number from them. 120 up are the channel-mode messages.
+inline constexpr int32_t kNumRealCcNumbers = 120;
+
 /// @brief Which MIDI device a command listens to, as a song names it: a fixed port, or a USB device the Deluge hosts,
 /// known by its name and USB ids.
 struct MidiDeviceRef {

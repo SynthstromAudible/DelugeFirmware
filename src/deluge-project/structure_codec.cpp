@@ -23,6 +23,7 @@
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
 #include "plugin-api/types/plugin_id.h"
 #include "serialization/tree.h"
@@ -287,9 +288,6 @@ DocOutput new_output(std::string_view element) {
 	return output;
 }
 
-/// The CC numbers a MIDI instrument can label: 0..119.
-constexpr int64_t kNumCcLabels = 120;
-
 Value encode_identity(const DocOutput& output, std::string_view element) {
 	auto map = Value::makeMap();
 	if (output.muted_in_arrangement) {
@@ -451,7 +449,7 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 				for (const auto& [cc, label] : labels->entries()) {
 					const std::optional<int64_t> number = plugin::whole_number(cc);
 					const std::string* name = text_of(&label);
-					if (number && *number >= 0 && *number < kNumCcLabels && name != nullptr && !name->empty()) {
+					if (number && *number >= 0 && *number < kNumRealCcNumbers && name != nullptr && !name->empty()) {
 						output.cc_labels[static_cast<uint8_t>(*number)] = *name;
 					}
 				}

@@ -24,9 +24,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp"
 #include "instruments/deluge/words.h"
-#include "modulation/sync.h"
 #include "plugin-api/types/sync.h"
 #include "processing/sound/sound.h"
 #include "serialization/value.h"

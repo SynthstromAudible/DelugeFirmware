@@ -1,9 +1,10 @@
 # deluge_scenes -- the first UI layer allowed to include the model.
-# May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
-# and -- being the first model-aware layer -- model/**, modulation/**, playback/**,
-# processing/**, storage/**, io/**, gui/l10n/**, and the model's words and values: engines/**,
-# plugin-api/**, serialization/**, sequence/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes
-# to them). Never gui/ otherwise, never hid/.
+# May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI
+# protocol library), the standard library, and -- being the first model-aware layer --
+# model/**, modulation/**, playback/**, processing/**, storage/**, io/**, gui/l10n/**, and the
+# model's words and values: engines/**, plugin-api/**, serialization/**, sequence/**,
+# music-theory/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes to
+# them). Never gui/ otherwise, never hid/.
 #
 # Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no
 # allowed subdirectory:
@@ -58,6 +59,7 @@ add_library(deluge_scenes STATIC
     menu/nodes/column_hooks.cpp
     menu/nodes/context_menu_items.cpp
     menu/nodes/dx.cpp
+    menu/nodes/dx_algorithms.cpp
     menu/nodes/dx_tables.cpp
     menu/nodes/dynamic.cpp
     menu/nodes/edit_name.cpp

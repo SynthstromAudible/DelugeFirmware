@@ -1,4 +1,5 @@
 #pragma once
+#include "midi/device_id.h"
 #include "notify/dirty_set.h"
 #include "shell/fixed_vector.h"
 #include "shell/profile.h"
@@ -13,16 +14,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-
-/// @brief The MIDI cable a `UiEvent`'s MIDI kinds arrived on -- declared, never defined, in this layer.
-///
-/// `MIDICable` is `io/midi/midi_device.h`'s, and `check_layer_rules.py`'s `shell-includes-outside`
-/// row keeps `io/` (like `model/`, `gui/` and `hid/`) out of `src/shell/**`. A forward declaration
-/// is not an include and asks nothing of the type: `UiEvent` stores the pointer and the shell hands
-/// it on, and only the scenes that learn from it -- `src/scenes/` is the first layer allowed to reach the model --
-/// ever dereference it. Declaring the real type rather than an
-/// opaque `void*` is what keeps the hand-off type-checked across the seam.
-class MIDICable;
 
 namespace deluge::ui::shell {
 
@@ -102,10 +93,10 @@ static_assert(alignof(SceneState) == 8);
 /// | `Encoder` | `encoder`, `delta` (signed detents, or an accelerated magnitude per `EncoderKind`) |
 /// | `EncoderButton` | `button` (the encoder's own `*Enc` id), `on` |
 /// | `AllReleased` | none -- the edge where the last held button and pad went up |
-/// | `MidiNoteOn` | `cable`, `channel` (channel or MPE zone), `data1` (note), `data2` (velocity) |
-/// | `MidiCc` | `cable`, `channel` (channel or MPE zone), `data1` (CC number), `data2` (CC value) |
-/// | `MidiProgramChange` | `cable`, `channel`, `data1` (program) |
-/// | `MidiPitchBend` | `cable`, `channel`, `data1` (low seven bits), `data2` (high seven bits) |
+/// | `MidiNoteOn` | `device`, `channel` (channel or MPE zone), `data1` (note), `data2` (velocity) |
+/// | `MidiCc` | `device`, `channel` (channel or MPE zone), `data1` (CC number), `data2` (CC value) |
+/// | `MidiProgramChange` | `device`, `channel`, `data1` (program) |
+/// | `MidiPitchBend` | `device`, `channel`, `data1` (low seven bits), `data2` (high seven bits) |
 ///
 /// @note `AllReleased` is an edge, not a level: it fires once when the held set empties, and
 ///       `UiContext::held`/`held_pads` are the level a scene should test instead.
@@ -118,11 +109,8 @@ static_assert(alignof(SceneState) == 8);
 /// focused item -- and then `services::MidiLearn`, the song view's learn. `Router::run_chain` carries them in that
 /// order, synchronously, through `Shell::route_midi`; `InputLowering` never produces them.
 ///
-/// @note `cable` is the one pointer in this struct and the only thing here the shell layer cannot
-///       name a definition for -- `MIDICable` lives in `io/midi/`, which
-///       `check_layer_rules.py`'s `shell-includes-outside` row keeps out of `src/shell/**`. It is
-///       forward-declared above and **never dereferenced in this layer**. A null `cable` means "no message", and every
-///       consumer must treat it so rather than dereferencing it.
+/// @note `device` is a session handle (`midi::DeviceId`), not the cable itself: the shell carries it and the
+///       scenes name the device by it. Its null value means "no message".
 struct UiEvent {
 	/// @brief Which shape this event has; see the table above.
 	enum class Kind : uint8_t {
@@ -162,8 +150,8 @@ struct UiEvent {
 	uint8_t data1 = 0;
 	/// The MIDI kinds' second data byte; see the table above.
 	uint8_t data2 = 0;
-	/// The MIDI kinds: the cable the message arrived on; null means "no message". Opaque here -- see the note above.
-	::MIDICable* cable = nullptr;
+	/// The MIDI kinds: the device the message arrived on; none means "no message".
+	deluge::midi::DeviceId device{};
 };
 
 /// @brief Everything a scene may ask about the world *around* one `UiEvent`.

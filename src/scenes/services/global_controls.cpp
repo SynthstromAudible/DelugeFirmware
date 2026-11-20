@@ -20,13 +20,14 @@
 ///        MIDI-learn boundary and the full list of what is deliberately not ported.
 
 #include "scenes/services/global_controls.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/services/view_state.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 
+#include "definitions_cxx.hpp" // AudioInputChannel, GlobalMIDICommand, kInternalButtonPressLatency
 #include "shell/input_lowering.h"
 
 #include "gui/l10n/strings.h"
@@ -38,7 +39,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/recording/foreground_recording.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 
 #include <cstddef>
@@ -86,10 +87,10 @@ void write_sync_scaling(::Song* song, int32_t clip_id) {
 	if (song == nullptr || !menu::host_binds(*song)) {
 		return;
 	}
-	(void)menu::host_write_sink().write({.target = {.kind = bind::Target::Kind::MODEL,
-	                                                .path = "syncScalingClip",
-	                                                .group = deluge::project::SettingGroupId::SONG},
-	                                     .menu_value = clip_id});
+	(void)menu::host_ports().writes->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                                   .path = "syncScalingClip",
+	                                                   .group = deluge::project::SettingGroupId::SONG},
+	                                        .menu_value = clip_id});
 }
 
 /// @brief One `l10n::String` as the `uint16_t` `Action::popup_string` carries, exactly as every
@@ -301,12 +302,12 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		if (!clip || !menu::host_binds(*song_)) {
 			return;
 		}
-		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-		if (facts.clip_arrangement_only(*clip)) {
+		const bind::ClipFacts& clips = *menu::host_ports().clips;
+		if (clips.clip_arrangement_only(*clip)) {
 			refuse();
 			return;
 		}
-		if (facts.clip_recording_linearly(*clip)) {
+		if (clips.clip_recording_linearly(*clip)) {
 			refuse();
 			return;
 		}

@@ -21,14 +21,16 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/board.h"
+#include "controls/follow.h"
 #include "controls/knob_math.h"
 #include "controls/pages.h"
 #include "controls/section.h"
+#include "definitions_cxx.hpp" // MIDIFollowFeedbackAutomationMode, kNoSelection
+#include "plugin-api/types/display_mapping.h"
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
-#include "scenes/bind/runtime_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -43,17 +45,17 @@
 #include "instruments/deluge/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
-#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
-#include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
+#include <span>
 
 namespace deluge::scenes::services {
 
-using deluge::modulation::params::Kind;
+using Kind = deluge::plugin::ParamKind;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::ui::EncoderRole;
@@ -90,10 +92,10 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 		break;
 	}
 	if (deluge::instrument::is_cable_depth(address.id)) {
-		return static_cast<int32_t>(deluge::bridge::cableWordOf(address.id));
+		return static_cast<int32_t>(deluge::instrument::cable_word_of(address.id));
 	}
 	if (kind == Kind::UNPATCHED_GLOBAL) {
-		return deluge::host_chain::runtime_index(address.id).value_or(0);
+		return deluge::host_chain::find_runtime_index(address.id).value_or(0);
 	}
 	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
 	return slot ? slot->index : 0;
@@ -125,7 +127,8 @@ bool ModKnobs::bound() const {
 }
 
 const effects::EffectStates* ModKnobs::owner_effects() const {
-	return services::owner_effects(*focus_, menu::host_runtime_facts());
+	const bind::Ports& ports = menu::host_ports();
+	return services::owner_effects(*focus_, *ports.tracks, *ports.sound);
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {
@@ -134,8 +137,9 @@ PushInputs ModKnobs::push_inputs(bool mode_held) const {
 
 bool ModKnobs::owner_stutter_quantized() const {
 	const effects::EffectStates* fx = owner_effects();
+	const bind::Ports& ports = menu::host_ports();
 	const effects::EffectStates* song =
-	    menu::host_runtime_facts().chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
+	    ports.tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
 	return fx != nullptr && song != nullptr && stutter_quantized(*fx, *song);
 }
 
@@ -148,7 +152,7 @@ void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) 
 	selecting_cc_ = false;
 	if (send_midi_feedback) {
 		// `View::setActiveModControllableTimelineCounter`, `View::setActiveModControllableWithoutTimelineCounter`.
-		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false);
+		send_midi_follow_feedback(std::nullopt, kNoSelection, false);
 	}
 }
 
@@ -159,11 +163,11 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	}
 	// Holding a note on a stopped clip grabs its params' values from there.
 	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
-		(void)menu::host_controls_sink().grab_region(*focus_, pos);
+		(void)menu::host_ports().controls_sink->grab_region(*focus_, pos);
 	}
 	// Unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
-		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);
+		send_midi_follow_feedback(std::nullopt, kNoSelection, true);
 	}
 }
 
@@ -272,19 +276,20 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 	turn_knob(knob, offset, now_ms, out);
 	// Every turn on a clip marks its instrument edited, whatever it wrote.
 	if (is_clip_context(*focus_)) {
-		(void)menu::host_controls_sink().instrument_edited(*focus_);
+		(void)menu::host_ports().controls_sink->instrument_edited(*focus_);
 	}
 }
 
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	controls::Sink& sink = menu::host_controls_sink();
+	const bind::Ports& ports = menu::host_ports();
+	const controls::Facts& facts = *ports.controls;
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		// The song's compressor knobs edit settings, not params (`modEncoderActionForNonExistentParam`).
 		const project::ChainAddress song_chain{.kind = project::ChainAddress::Kind::SONG};
-		const effects::EffectStates* fx = facts.chain_effects(song_chain);
+		const effects::EffectStates* fx = ports.tracks->chain_effects(song_chain);
 		if (fx != nullptr) {
 			const CompTurn turn = comp_turn(*comp, *fx, offset);
 			if (sink.write_effect(song_chain, turn.path, turn.value)) {
@@ -334,7 +339,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	turn.should_indicate_middle_value =
 	    controls::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
 
-	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
+	send_midi_follow_feedback(TurnedParam{turn.kind, *address}, turn.new_knob_pos, false);
 	if (turn.note_tails_changed) {
 		out.note_tails_changed();
 	}
@@ -370,7 +375,7 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 			}
 		}
 	}
-	context.stuttering = menu::host_runtime_facts().stutter_active();
+	context.stuttering = menu::host_ports().controls->stutter_active();
 	out.show_value_popup(turn, source1, source2, context, now_ms);
 }
 
@@ -384,14 +389,15 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	if (turn.kind == Kind::PATCH_CABLE) {
 		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
-		knob_pos = controls::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
+		knob_pos = controls::fold_cable(knob_pos + plugin::kMaxKnobPosition / 2) - plugin::kMaxKnobPosition / 2;
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) {
 		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
 		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
 		// port.
-		out.blink_indicator(which_encoder, deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id));
+		out.blink_indicator(which_encoder,
+		                    deluge::instrument::is_bipolar_at(turn.kind, static_cast<uint32_t>(turn.param_id)));
 	}
 	else {
 		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`
@@ -411,7 +417,7 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	if (bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink& sink = menu::host_controls_sink();
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 
 	// A MIDI track choosing its knob's CC: a mod button's press changes nothing, and its release ends the choice.
 	if (selecting_cc_) {
@@ -427,13 +433,14 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 	// The button's rules (`View::modButtonAction` in `origin/main:src/deluge/gui/views/view.cpp`,
 	// `ModControllable::modButtonAction`): the VU meter's toggle and the mode change come before the stutter's end,
 	// which the popup reads, and a press the rules ignore does nothing.
-	const controls::SectionResult section = controls::resolve_section(
-	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
-	    {.root_is_performance = view_.root_is_performance,
-	     .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
-	     .root_is_clip_minder = view_.root_is_clip_minder,
-	     .keeps_stutter = controls::section_keeps_stutter(song_->project, *focus_, static_cast<uint32_t>(which_button),
-	                                                      bind::app_page_sources(menu::host_runtime_facts(), board_))});
+	const controls::SectionResult section =
+	    controls::resolve_section(*focus_, static_cast<uint8_t>(mode()), which_button, on,
+	                              {.root_is_performance = view_.root_is_performance,
+	                               .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
+	                               .root_is_clip_minder = view_.root_is_clip_minder,
+	                               .keeps_stutter = controls::section_keeps_stutter(
+	                                   song_->project, *focus_, static_cast<uint32_t>(which_button),
+	                                   bind::app_page_sources(*menu::host_ports().controls, board_))});
 	if (on && !section.taken) {
 		return;
 	}
@@ -466,12 +473,12 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 	if (ctx.learn || bind::has_no_knobs(*focus_) || !bound()) {
 		return;
 	}
-	controls::Sink& sink = menu::host_controls_sink();
+	controls::Sink& sink = *menu::host_ports().controls_sink;
 
 	// `View::modEncoderButtonAction_deleteAutomation` (`origin/main:src/deluge/gui/views/view.cpp`).
 	if (ctx.shift && on) {
 		const std::optional<ParamAddress> address = knob_address(which_encoder);
-		if (address && menu::host_runtime_facts().param_value(*address).has_value()
+		if (address && menu::host_ports().controls->param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {
 			out.popup(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED);
 		}
@@ -487,7 +494,7 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 		selecting_knob_ = which_encoder;
 	}
 	// A push that edited the instrument marks it, on a clip.
-	if (apply_push(menu::host_write_sink(), sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
+	if (apply_push(*menu::host_ports().writes, sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
 		(void)sink.instrument_edited(*focus_);
 	}
 	if (push.comp) {
@@ -549,7 +556,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 				knob_pos = 64;
 			}
 		}
-		knob_pos += kKnobPosOffset;
+		knob_pos += plugin::kMaxKnobPosition / 2;
 
 		if (info.kind == Kind::PATCH_CABLE) {
 			knob_pos = controls::fold_cable(knob_pos);
@@ -571,7 +578,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 	if (info.non_existent_param) {
 		out.declared = true;
 		// Same implicit-narrowing point as above.
-		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
+		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + plugin::kMaxKnobPosition / 2);
 		out.bipolar = false;
 		return out;
 	}
@@ -611,11 +618,12 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	if (song_ == nullptr) {
 		return out; // no song: nothing to read, so nothing is declared
 	}
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
+	const bind::Ports& ports = menu::host_ports();
+	const controls::Facts& facts = *ports.controls;
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
-		    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
+		    ports.tracks->chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
 		out.non_existent_param = true;
 		out.non_existent_knob_pos = fx != nullptr ? comp_knob_pos(*comp, *fx) : -64;
 		return out;
@@ -668,7 +676,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 		}
 		return;
 	}
-	const bool stuttering = menu::host_runtime_facts().stutter_active();
+	const bool stuttering = menu::host_ports().controls->stutter_active();
 	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			// A blinking knob is driven by its blink's phase.
@@ -716,7 +724,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	declare_indicators(frame);
 }
 
-void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t knob_pos, bool have_param,
+void ModKnobs::send_midi_follow_feedback(const std::optional<TurnedParam>& param, int32_t knob_pos,
                                          bool is_automation) {
 	// `View::sendMidiFollowFeedback`.
 	if (!midiFollow.isFeedbackEnabled()) {
@@ -725,13 +733,13 @@ void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t kn
 	if (!is_clip_context(*focus_)) { // don't send feedback for song params
 		return;
 	}
-	if (have_param) {
+	if (param) {
 		// In a global effectable's context only its own params are followed, elsewhere a sound's.
-		const deluge::bridge::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
-		                                              ? deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE
-		                                              : deluge::bridge::OwnerPlugin::INSTRUMENT;
-		const std::optional<deluge::project::ParamTarget> target =
-		    kind == Kind::NONE ? std::nullopt : deluge::bridge::targetOf(owner, kind, param_id);
+		const deluge::project::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
+		                                               ? deluge::project::OwnerPlugin::GLOBAL_EFFECTABLE
+		                                               : deluge::project::OwnerPlugin::INSTRUMENT;
+		const std::optional<deluge::project::ParamTarget> target = deluge::controls::follow_target(
+		    owner, param->kind, param->address.id, deluge::instrument::has_engine_param);
 		if (const std::optional<uint8_t> cc_number = target ? midiFollow.ccOf(owner, *target) : std::nullopt) {
 			midiFollow.sendCCForMidiFollowFeedback(*cc_number, knob_pos);
 		}
@@ -762,7 +770,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		// ported here -- it is not part of any `View` function this service ports.
 		if (playbackHandler.isEitherClockActive()
 		    && midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
-			send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);
+			send_midi_follow_feedback(std::nullopt, kNoSelection, true);
 		}
 	}
 }

@@ -229,11 +229,11 @@ inline const BoardProfile& profile_64() {
 /// and every shipped subclass needs a USB or DIN backend behind it
 /// (`sim/scenes_spec/midi_learn_spec.cpp`'s `SpecCable` makes the same observation, in a target
 /// that does link `io/midi/`). It does not need to build one, because **nothing on this path reads
-/// through the pointer**: `src/shell/**` may not include `io/`, so `UiEvent::cable` is a
-/// forward-declared type the shell only ever copies (`shell/scene.h`), and the one thing in the
+/// through the pointer**: the host names the cable by its handle in `UiEvent::device`
+/// (`io/midi/device_registry.h`, faked here by `support/fake_device_registry.cpp`), and the one thing in the
 /// tree that dereferences it -- `services::MidiLearn` -- is in the closure this suite does not
-/// build. So the MIDI-learn examples (`shell_host_ui_buttons_spec.cpp`) assert the identity of the address that came
-/// out against the one that went in, which is the whole of what this layer transports.
+/// build. So the MIDI-learn examples (`shell_host_ui_buttons_spec.cpp`) turn the event's device back into its cable
+/// and assert it is the address that went in, which is the whole of what this layer transports.
 alignas(alignof(std::max_align_t)) inline std::byte cable_storage[sizeof(void*) * 4]{};
 
 inline MIDICable& fake_cable() {

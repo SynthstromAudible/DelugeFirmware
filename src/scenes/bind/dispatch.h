@@ -6,9 +6,9 @@
 
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/ports.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -39,10 +39,11 @@ struct ChoiceName {
 /// @param target The target.
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
-/// @param facts  The host's runtime facts.
+/// @param ports  The host's ports: the audio (plugged inputs), sound (loaded sources, typed state), track (effects) and
+///               controls (live param values) facts, which must all be set.
 /// @return The view, or nullopt when the target does not resolve (no slot, or one that is gone).
 [[nodiscard]] std::optional<View> view(const Target& target, const project::Song& model, const Addresses& where,
-                                       const RuntimeFacts& facts);
+                                       const Ports& ports);
 
 /// @brief A target's list entries in menu order. A CHOICE row's: the choices that apply, plus the stored one, marked,
 /// when it no longer applies. A BOOL or INTEGER row a menu shows as a list: the name table's name for each menu value
@@ -50,10 +51,11 @@ struct ChoiceName {
 /// @param target The target.
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
-/// @param facts  The host's runtime facts.
+/// @param ports  The host's ports: the audio (plugged inputs), sound (loaded sources, typed state), track (effects) and
+///               controls (live param values) facts, which must all be set.
 /// @param out    Where the entries go.
 /// @return How many entries were written; 0 for a target that does not resolve or has no choices.
-size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const RuntimeFacts& facts,
+size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const Ports& ports,
                     std::span<ChoiceName> out);
 
 /// @brief The write a menu value @p menu asks for: a CHOICE row's position becomes the descriptor's menu value of the
@@ -61,10 +63,11 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 /// @param target The target.
 /// @param model  The song.
 /// @param where  The addresses the target resolves against.
-/// @param facts  The host's runtime facts.
+/// @param ports  The host's ports: the audio (plugged inputs), sound (loaded sources, typed state), track (effects) and
+///               controls (live param values) facts, which must all be set.
 /// @param menu   The menu value the user chose.
 /// @return The request, or nullopt for the stale entry, a value outside the range, or a target that does not resolve.
 [[nodiscard]] std::optional<WriteRequest> request_for(const Target& target, const project::Song& model,
-                                                      const Addresses& where, const RuntimeFacts& facts, int32_t menu);
+                                                      const Addresses& where, const Ports& ports, int32_t menu);
 
 } // namespace deluge::scenes::bind

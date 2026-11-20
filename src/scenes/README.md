@@ -20,7 +20,7 @@ in `website/src/data/generated/menu-tree.json`.
 | `registry.{h,cpp}` | the application's `SceneRegistry` (`scene_registry()`), the menu singleton (`menu_scene()`), `assigned_node_ids()`, and the boot-wiring record |
 | `l10n_bridge.{h,cpp}`, `scenes/profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
 | `menu/` | the `Node` data model (`node.h`), `MenuContext` (`context.h`), `bindings`, the ten root tables (`menu/nodes/`), the shortcut tables, the validator, the node-id registry, and `MenuScene` with its units |
-| `bind/` | `deluge_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; writes leave as requests through `WriteSink` |
+| `bind/` | `deluge_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; the ports (`bind/ports/`, collected in `bind::Ports`) a scene reads and writes the host through; writes leave as requests |
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
 | `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
@@ -60,7 +60,7 @@ nothing.
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
-  host applies as an Edit (`bind::WriteSink`), so the layer names no `model/edits/` header
+  host applies as an Edit (`bind::WriteSink`, the edit sink, and the other write ports), so the layer names no `model/edits/` header
   (`scenes-no-edits`) and holds no `Sound*`, `ParamManager*`, `Output*`, `AudioClip*`, …
   (`scenes-no-engine-pointers`). `currentSong` is never named (`scenes-currentSong`): the song
   arrives through `MenuContext` or `Services`.
@@ -169,7 +169,7 @@ it reads no pads, no shift and no held Select (`FrameInput::covered`).
 A hook with no `Result` of its own — a `CustomItem`'s `on_focus`, `handle` or `render`, a widget's
 response — asks for something by writing a field on `MenuState`, and `MenuScene::after_render`
 performs it and clears the slot. The six mailboxes are `range_choice`, `source_choice`,
-`midi_cable_choice`, the `value_changed`/`value_node` pair, `pending_action` and `pending_scene`;
+`midi_device_choice`, the `value_changed`/`value_node` pair, `pending_action` and `pending_scene`;
 `range_picker_pending` is a two-tick handshake, not a mailbox; `pending_after_range` is the picker's memory of
 its item, kept until the next substitution or re-root, as `main`'s `menuItemHeadingTo` is.
 
@@ -343,8 +343,8 @@ ahead of the shell from the same file, as are the sound editor's KEYBOARD, SESSI
 (`forwardMenuViewButton`); `MenuScene::route_horizontal_turn` says where a horizontal turn goes.
 
 `nodes::PerformEditorItem` shows the performance view's editing mode, which it reads as
-`RuntimeFacts::performance_editing_mode()`; the host answers it from `performanceView`'s two bools
-(`gui/ui/shell_bind_host.cpp`), and the item's press files `MenuAction::OpenPerformanceView`, whose dispatcher writes
+`UiFacts::performance_editing_mode()`; the host answers it from `performanceView`'s two bools
+(`gui/ui/shell_host/ui_facts.cpp`), and the item's press files `MenuAction::OpenPerformanceView`, whose dispatcher writes
 them.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)
@@ -358,8 +358,8 @@ reach past the page.
   At depth 0 (a shortcut opens it at the root) the menu leaves BACK to `handle()`;
   `menu::owned_input` merges the item's `back` claim so the picker sees it there too.
 * **The range memory is the source's own** (`Source::defaultRangeI`), read through
-  `RuntimeFacts::default_range` and written through `WriteSink::set_default_range`, as legacy's
-  `beginSession` and flick do. Insert and delete are their own sink verbs, which kill the voices and
+  `SoundFacts::default_range` and written through `SoundWrites::set_default_range`, as legacy's
+  `beginSession` and flick do. Insert and delete are their own sound-write verbs, which kill the voices and
   keep the other ranges' samples.
 * **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
   `gui/ui/shell_guest_services.cpp`) hands the press to `MenuScene::delete_range_press`.
@@ -379,16 +379,16 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
 * **The tables are legacy's own**, in `nodes/dx_tables.h`, compared with legacy row by row in `dx_pages_spec`. The
-  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where the menu may include them and they keep
-  their SDRAM placement.
-* **Every write is the whole patch**, `WriteSink::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
-  auto engine mode is not chosen again for a new algorithm, as `main` does not.
+  32 algorithm diagrams are the menu's own art, `nodes/dx_algorithms.h`; their `.rodata` is in the scenes' SDRAM
+  section.
+* **Every write is the whole patch**, `SoundWrites::write_dx_patch`, over legacy's `SetDxPatch` Edit, which records no
+  undo; the engine follows the bytes: an auto patch whose new algorithm needs MkI runs the MkI engine.
 * **The pad blink is the item's own** (`CustomItem::own_blink`): none as the page opens, because legacy's screen entry
   unsets the blink the page sets up; the param's pad after a horizontal step. Shift + a horizontal turn where legacy
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (`RuntimeFacts::dx7_engine_enabled`):
+* **The parameter page has its own pads** while the DX7 engine feature is on (`UiFacts::dx7_engine_enabled`):
   `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
   first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
   the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
@@ -403,8 +403,8 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   through `gui::ui::DxCartridgeRead`, which legacy's browser shares; a bank read closes the browser and lands on the
   cartridge page (`dx_cartridge`, `MenuScene::land_dx_cartridge`) under the browse row, so BACK reopens the browser,
   as `main`'s `DxSyxBrowser::enterKeyPress` does with `soundEditor.enterSubmenu`
-  (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`). The page lists `RuntimeFacts::dx_cartridge`, loads a
-  program per turn through `WriteSink::load_dx_program`, and closes the menu on SELECT
+  (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`). The page lists `SoundFacts::dx_cartridge`, loads a
+  program per turn through `SoundWrites::load_dx_program`, and closes the menu on SELECT
   (`MenuWalkState::exit_completely`).
 
 ## The scenes
@@ -458,7 +458,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   `SampleBrowser::timerCallback` does: a popup, SAMPLES for a kit's lone drum, or LOAD FILES for a
   synth, answered once at the `next_timer` deadline. A folder menu's accept asks the browser host for the import and
   stays up; the host's completion ends it (`BrowserScene::long_press_done`).
-  While a sample load runs (`RuntimeFacts::sample_load_in_flight`) the browser refuses every button
+  While a sample load runs (`CardFacts::sample_load_in_flight`) the browser refuses every button
   and key, as legacy's gate does.
 * **The preview.** Wherever `main`'s `SampleBrowser` calls `previewIfPossible` (a folder's listing
   landing, a move, a typed search that lands on another file) and on leaving, the sample browser asks
@@ -533,7 +533,7 @@ the voices (`Waveforms::play_position`). A vertical turn reaches the clip view b
 (`MenuScene::shortcut_jump`), leaving the editor for that item's page, any item even over the automation view. With
 the automation view as the root, SHIFT + (0,6) and (0,7) are the editor's own presses. The audition column is the
 host's (`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
-(`RuntimeFacts::auditioning`).
+(`UiFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
 
@@ -665,8 +665,23 @@ shell's; every model-aware implementation is here, as with `Scene`.
 * **Learned MIDI and MIDI follow are not here either.** A learned CC or pitch bend is dispatched by
   `controls::dispatch_song_cc`, `dispatch_output_cc` and `dispatch_output_bend`, and a followed CC resolved by
   `controls::resolve_follow`, both in `src/controls`; each write goes through the `Sink` the host binds
-  (`scenes::menu::host_controls_sink`) over the `Facts` it binds (`host_runtime_facts`). The menu's learn and unlearn
-  write the mapping table through the same sink; `controls::TakeoverStore` holds the takeover states those entries key.
+  as `Ports::controls_sink` over the `Facts` the host binds as `Ports::controls`. The menu's and the pads'
+  learns and unlearns write the mapping table through the learn port (`Ports::learn`, `bind::LearnSink`), which names
+  a device by its `midi::DeviceId`; `controls::TakeoverStore` holds the takeover states those entries key.
+
+## The host's ports
+
+A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
+`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
+`SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
+settings; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
+`instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
+`midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
+
+* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
+  `ports.cpp`. It is the only code that names legacy objects for the scenes.
+* **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
+  and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
 ## Repaint and timers
 
@@ -731,7 +746,7 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
 * **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `RuntimeFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+  `UiFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
   paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware

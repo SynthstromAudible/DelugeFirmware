@@ -11,7 +11,6 @@
 /// waveform the fixture asked for with no reader opened.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -159,7 +158,7 @@ struct Rig {
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		deluge::scenes::spec::make_current(
-		    song.song); // the app's sink and waveforms resolve addresses in the current song
+		    song.song); // the app's ports and waveforms resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
@@ -195,8 +194,8 @@ struct Rig {
 	}
 
 	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
+	/// @param sound_writes Where the scene's sound edits go; the app's when null.
+	void open(MarkerType marker, bind::SoundWrites* sound_writes = nullptr) {
 		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
 		// record.
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -207,8 +206,8 @@ struct Rig {
 		deluge::scenes::services::view_state().set_sample_view(
 		    key(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
 		MenuContext c = ctx();
-		if (sink != nullptr) {
-			c.sink = sink;
+		if (sound_writes != nullptr) {
+			c.ports.sound_writes = sound_writes;
 		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
@@ -332,7 +331,7 @@ struct AudioRig {
 	                  const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		deluge::scenes::spec::make_current(
-		    f.song); // the app's sink and waveforms resolve addresses in the current song
+		    f.song); // the app's ports and waveforms resolve addresses in the current song
 		f.clip->sampleHolder.audioFile = sample;
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleHolder.waveformViewZoom = 0;
@@ -349,12 +348,12 @@ struct AudioRig {
 	}
 
 	/// @brief Open the scene on @p marker over the audio clip.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
+	void open(MarkerType marker, bind::ClipWrites* clip_writes = nullptr) {
 		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
 		                                  /*kit_global_fx=*/false);
-		if (sink != nullptr) {
-			c.sink = sink;
+		if (clip_writes != nullptr) {
+			c.ports.clip_writes = clip_writes;
 		}
 		marker_scene().open(c);
 		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});

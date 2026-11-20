@@ -6,21 +6,27 @@
 
 #include "ui/oled/popup.h"
 
+#include "deluge-project/midi_command.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
-#include "modulation/arpeggiator_rhythms.h"
-#include "modulation/params/param.h"
+#include "instruments/deluge/params.h"
 #include "notify/notice_queue.h"
+#include "plugin-api/types/arp_rhythm.h"
+#include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/param.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <string_view>
 #include <utility>
 
 namespace deluge::scenes::overlay {
 
-using deluge::modulation::params::Kind;
+using deluge::synth::PatchSource;
+
+using Kind = deluge::plugin::ParamKind;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
@@ -72,13 +78,13 @@ const char* source_short_name(PatchSource source) {
 ///        reproduced -- neither has any effect on the value returned.
 /// @param kind     The param's kind; `Kind::MIDI` passes @p knob_pos through unchanged.
 /// @param param_id The param id within @p kind.
-/// @param knob_pos Legacy's `newKnobPos + kKnobPosOffset` -- the caller adds the offset.
+/// @param knob_pos Legacy's `newKnobPos + 64` -- the caller adds the offset.
 /// @return The menu-range value (0..50, or -25..25 for a pan/pitch param) to display.
 int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob_pos) {
 	if (kind == Kind::MIDI) {
 		return knob_pos;
 	}
-	const deluge::plugin::ParamInfo* info = deluge::modulation::params::paramInfoFor(kind, param_id);
+	const deluge::plugin::ParamInfo* info = deluge::instrument::param_row_at(kind, static_cast<uint32_t>(param_id));
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
@@ -102,28 +108,29 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append(source_short_name(source2));
 			out.append("->");
 		}
-		const auto type = static_cast<deluge::modulation::params::ParamType>(param_id);
-		out.append(context.filter ? deluge::modulation::params::getPatchedParamShortName(type, context.filter->lpf_mode,
-		                                                                                 context.filter->hpf_mode)
-		                          : deluge::modulation::params::getPatchedParamShortName(type));
+		// A cable's id packs its depth and sources above the destination, which is the low byte.
+		const auto index = static_cast<uint32_t>(static_cast<uint8_t>(param_id));
+		out.append(context.filter ? deluge::l10n::patched_param_short_name_at(index, context.filter->lpf_mode,
+		                                                                      context.filter->hpf_mode)
+		                          : deluge::l10n::patched_param_short_name_at(index));
 	}
 	else if (context.midi_clip) {
 		// The MIDI-clip CC/expression form. The caller has already resolved
 		// `knobsOnClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`; a non-null instrument *is* that
 		// test having passed.
 		if (kind == Kind::EXPRESSION) {
-			if (param_id == X_PITCH_BEND) {
+			if (std::cmp_equal(param_id, deluge::instrument::kExpressionPitchBend.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 			}
-			else if (param_id == Z_PRESSURE) {
+			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionPressure.value)) {
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 			}
-			else if (param_id == Y_SLIDE_TIMBRE) {
+			else if (std::cmp_equal(param_id, deluge::instrument::kExpressionSlide.value)) {
 				// In mono expression this is the mod wheel; the y axis is not directly controllable.
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}
 		}
-		else if (param_id >= 0 && param_id < kNumRealCCNumbers) {
+		else if (param_id >= 0 && param_id < deluge::project::kNumRealCcNumbers) {
 			if (!context.cc_label.empty()) {
 				out.append(context.cc_label);
 			}
@@ -134,10 +141,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 		}
 	}
 	else {
-		const char* name = context.filter ? deluge::modulation::params::getParamDisplayName(
-		                                        kind, param_id, context.filter->lpf_mode, context.filter->hpf_mode)
-		                                  : deluge::modulation::params::getParamDisplayName(kind, param_id);
-		if (name != deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE)) {
+		const auto index = static_cast<uint32_t>(param_id);
+		const std::string_view name =
+		    context.filter
+		        ? deluge::l10n::param_name_at(kind, index, context.filter->lpf_mode, context.filter->hpf_mode)
+		        : deluge::l10n::param_name_at(kind, index);
+		// `param_name` answers the very string `STRING_FOR_NONE` names for a param it does not know, as legacy's did.
+		if (name.data() != deluge::l10n::getView(deluge::l10n::String::STRING_FOR_NONE).data()) {
 			out.append(name);
 		}
 	}
@@ -148,13 +158,13 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 /// A quantized stutter rate shows its bucket while no stutter plays; `PopupContext` says both.
 /// @param kind          The param's kind.
 /// @param param_id      The param id within @p kind.
-/// @param knob_pos      The raw knob position (pre-`kKnobPosOffset`).
+/// @param knob_pos      The raw knob position (pre-offset).
 /// @param context       The model context; see `PopupContext`.
 /// @param out            Filled in with the formatted value text.
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
 int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
-	if (deluge::modulation::params::isParamStutter(kind, param_id) && context.stutter_quantized
+	if (deluge::instrument::is_stutter_rate_at(kind, static_cast<uint32_t>(param_id)) && context.stutter_quantized
 	    && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
@@ -181,17 +191,20 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 		out.append(text);
 		return display_value;
 	}
-	if (deluge::modulation::params::isParamArpRhythm(kind, param_id)) {
-		const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
+	if (deluge::instrument::is_arp_rhythm_at(kind, static_cast<uint32_t>(param_id))) {
+		const int32_t display_value =
+		    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 		char name[12];
-		const int n = std::snprintf(name, sizeof(name), "%d: %s", static_cast<int>(display_value),
-		                            arpRhythmPatternNames[display_value]);
+		const std::string_view pattern = plugin::kArpRhythms[static_cast<size_t>(display_value)].name;
+		const int n = std::snprintf(name, sizeof(name), "%d: %.*s", static_cast<int>(display_value),
+		                            static_cast<int>(pattern.size()), pattern.data());
 		if (n > 0) {
 			out.append(std::string_view{name, std::min(static_cast<size_t>(n), sizeof(name) - 1)});
 		}
 		return display_value;
 	}
-	const int32_t display_value = calculate_knob_pos_for_display(kind, param_id, knob_pos + kKnobPosOffset);
+	const int32_t display_value =
+	    calculate_knob_pos_for_display(kind, param_id, knob_pos + plugin::kMaxKnobPosition / 2);
 	out.append_int(display_value);
 	return display_value;
 }

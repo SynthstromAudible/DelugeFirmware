@@ -23,11 +23,11 @@
 
 #include "scenes/menu/learn.h"
 
-#include "model/project_bridge/controls_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_core.h"
 
 #include "deluge-project/song.h"
+#include "instruments/deluge/cables.h"
 
 #include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
@@ -63,7 +63,7 @@ void announce(const MenuState& st, const Node& learned, deluge::l10n::String wha
 ///        one. @return Whether it learned.
 bool learn_into(const MenuContext& ctx, const MenuState& st, const UiEvent& event) {
 	const Node* at = MenuLearn::node(ctx, st);
-	if (at == nullptr || event.cable == nullptr) {
+	if (at == nullptr || !event.device) {
 		return false;
 	}
 	bool learned = false;
@@ -73,13 +73,13 @@ bool learn_into(const MenuContext& ctx, const MenuState& st, const UiEvent& even
 	else if (const CustomItem* item = custom_of(at)) {
 		switch (event.kind) {
 		case UiEvent::Kind::MidiNoteOn:
-			learned = item->learn_note_on(*event.cable, event.channel, event.data1);
+			learned = item->learn_note_on(event.device, event.channel, event.data1);
 			break;
 		case UiEvent::Kind::MidiCc:
-			learned = item->learn_cc(*event.cable, event.channel, event.data1, event.data2);
+			learned = item->learn_cc(event.device, event.channel, event.data1, event.data2);
 			break;
 		case UiEvent::Kind::MidiProgramChange:
-			learned = item->learn_program_change(*event.cable, event.channel, event.data1);
+			learned = item->learn_program_change(event.device, event.channel, event.data1);
 			break;
 		default:
 			break;
@@ -89,14 +89,6 @@ bool learn_into(const MenuContext& ctx, const MenuState& st, const UiEvent& even
 		announce(st, *at, deluge::l10n::String::STRING_FOR_LEARNED);
 	}
 	return learned;
-}
-
-UiEvent midi_event(UiEvent::Kind kind, ::MIDICable& cable, int32_t channel, int32_t data1, int32_t data2) {
-	return UiEvent{.kind = kind,
-	               .channel = static_cast<uint8_t>(channel),
-	               .data1 = static_cast<uint8_t>(data1),
-	               .data2 = static_cast<uint8_t>(data2),
-	               .cable = &cable};
 }
 
 } // namespace
@@ -125,10 +117,7 @@ std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuCon
 		if (!from_item.is_null() && owner) {
 			return deluge::project::OwnerParamTarget{
 			    .owner = *owner,
-			    .param = deluge::project::engine_target(
-			        deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
-			                                        deluge::modulation::params::Kind::UNPATCHED_SOUND)
-			            .value)};
+			    .param = deluge::project::engine_target(deluge::instrument::knob_param_of(from_item).value)};
 		}
 	}
 	return bindings::learn_target(*node, ctx);
@@ -150,23 +139,8 @@ bool MenuLearn::wants_blink(const MenuState& st) const {
 	return item != nullptr && item->wants_learn_blink();
 }
 
-bool MenuLearn::note_on(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
-                        int32_t note) const {
-	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiNoteOn, cable, channel, note, 0));
-}
-
-bool MenuLearn::cc(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc,
-                   int32_t value) const {
-	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiCc, cable, channel, cc, value));
-}
-
-bool MenuLearn::program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
-                               int32_t program) const {
-	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiProgramChange, cable, channel, program, 0));
-}
-
 bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent& event, const UiContext& ui) const {
-	if (!mode_ || event.cable == nullptr) {
+	if (!mode_ || !event.device) {
 		return false;
 	}
 	// A param item learns a CC or a pitch bend as a MIDI knob (`MenuItem::learnCC` is `learnKnob`); any other item
@@ -183,7 +157,7 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 		return true;
 	case UiEvent::Kind::MidiCc:
 		if (!ui.shift) {
-			(void)(param ? knob(ctx, st, event.cable, event.data1, event.channel) : learn_into(ctx, st, event));
+			(void)(param ? knob(ctx, st, event.device, event.data1, event.channel) : learn_into(ctx, st, event));
 		}
 		return true;
 	case UiEvent::Kind::MidiPitchBend:
@@ -191,7 +165,7 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 			return false;
 		}
 		if (param) {
-			(void)knob(ctx, st, event.cable, 128, event.channel);
+			(void)knob(ctx, st, event.device, 128, event.channel);
 		}
 		return true;
 	default:
@@ -199,10 +173,11 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 	}
 }
 
-bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, ::MIDICable* cable, int32_t which_knob,
+bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, deluge::midi::DeviceId device, int32_t which_knob,
                      int32_t midi_channel) const {
 	const std::optional<deluge::project::OwnerParamTarget> param = target(ctx, st);
-	if (!param || ctx.sink == nullptr || !ctx.sink->learn_knob(*param, cable, which_knob, midi_channel)) {
+	if (!param || ctx.ports.learn == nullptr
+	    || !ctx.ports.learn->learn_knob(*param, device, which_knob, midi_channel)) {
 		return false;
 	}
 	deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LEARNED));
@@ -217,7 +192,7 @@ bool MenuLearn::gold_turn(const MenuContext& ctx, const MenuState& st, const UiE
 		return false;
 	}
 	if (!(ctx.is_kit && ctx.is_kit_global_fx)) {
-		(void)knob(ctx, st, nullptr, event.encoder == deluge::ui::EncoderRole::GoldUpper ? 1 : 0, 255);
+		(void)knob(ctx, st, {}, event.encoder == deluge::ui::EncoderRole::GoldUpper ? 1 : 0, 255);
 	}
 	return true;
 }
@@ -239,8 +214,8 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	// `MenuItemWithCCLearning::unlearnAction`: a param's learned knob goes,
 	// with a popup when there was one.
 	const std::optional<deluge::project::OwnerParamTarget> learned = target(ctx, st);
-	if (learned && ctx.model != nullptr && ctx.sink != nullptr && ctx.model->mappings.find(*learned) != nullptr
-	    && ctx.sink->learn(*learned, std::nullopt, std::nullopt)) {
+	if (learned && ctx.model != nullptr && ctx.ports.learn != nullptr && ctx.model->mappings.find(*learned) != nullptr
+	    && ctx.ports.learn->learn(*learned, std::nullopt, std::nullopt)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
 	}
 }

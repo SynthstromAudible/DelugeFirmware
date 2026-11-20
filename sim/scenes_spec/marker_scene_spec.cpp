@@ -38,7 +38,7 @@
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
@@ -77,6 +77,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include "fakes.h"
 #include "integration/scenarios/slot_coherence.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
@@ -413,44 +414,44 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		playbackHandler.playbackState = saved_playback_state;
 	});
 
-	it("hands a moved marker to the menu's sink as its source's ranges, naming the marker", _ {
+	it("hands a moved marker to the sound port as its source's ranges, naming the marker", _ {
 		Rig r;
-		bind::RecordingSink recording;
+		bind::test::RecordingSoundWrites recording;
 		r.open(MarkerType::START, &recording);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		expect(recording.gestures.size()).to_equal(size_t{1});
-		if (recording.gestures.empty()) {
+		expect(recording.calls.size()).to_equal(size_t{1});
+		if (recording.calls.empty()) {
 			return;
 		}
-		const bind::GestureRequest& g = recording.gestures[0];
-		expect(g.kind).to_equal(bind::GestureRequest::Kind::RANGES);
+		const bind::test::RecordingSoundWrites::Call& g = recording.calls[0];
+		expect(g.kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::RANGES);
 		expect(g.slot).to_equal(*r.ctx().addresses.slot);
 		expect(g.source).to_equal(0);
 		expect(g.ranges.size()).to_equal(size_t{1});
 		expect(static_cast<int32_t>(g.ranges[0].start_pos)).to_equal(kZoomMax);
 		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
 		                                           .marker = static_cast<int8_t>(MarkerType::START)});
-		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the port wrote
 	});
 
-	it("hands an audio clip's moved marker to the menu's sink by the clip's address", _ {
+	it("hands an audio clip's moved marker to the clip port by the clip's address", _ {
 		AudioRig r;
-		bind::RecordingSink recording;
-		r.open(MarkerType::END, &recording);
+		bind::test::RecordingClipWrites clip_writes;
+		r.open(MarkerType::END, &clip_writes);
 		r.tick(0);
 		r.turn_select(-1, 10);
 		r.tick(10);
-		expect(recording.gestures.size()).to_equal(size_t{1});
-		if (recording.gestures.empty()) {
+		expect(clip_writes.calls.size()).to_equal(size_t{1});
+		if (clip_writes.calls.empty()) {
 			return;
 		}
-		const bind::GestureRequest& g = recording.gestures[0];
-		expect(g.kind).to_equal(bind::GestureRequest::Kind::MARKER);
+		const bind::test::RecordingClipWrites::Call& g = clip_writes.calls[0];
+		expect(g.kind).to_equal(bind::test::RecordingClipWrites::Call::Kind::MARKER);
 		expect(g.clip).to_equal(deluge::project::ClipAddress{r.f.clip->id()});
-		expect(g.text).to_equal(std::string{"endSamplePos"});
-		expect(static_cast<int64_t>(g.value)).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
+		expect(g.path).to_equal(std::string{"endSamplePos"});
+		expect(g.value).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
 		expect(r.played().second).to_equal(kSampleLength);
 	});
 
@@ -484,34 +485,34 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.empty();
+		const bool had_none = menu::host_ports().sound->sound_state(slot)->sources[0].ranges.empty();
 
 		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		bind::RecordingSink recording;
-		recorded.sink = &recording;
+		bind::test::RecordingSoundWrites recording;
+		recorded.ports.sound_writes = &recording;
 		if (had_none) {
 			expect(menu::ensure_first_range(recorded)).to_be_true();
-			expect(recording.gestures.size()).to_equal(size_t{1});
-			if (recording.gestures.empty()) {
+			expect(recording.calls.size()).to_equal(size_t{1});
+			if (recording.calls.empty()) {
 				currentSong = saved;
 				return;
 			}
-			expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::RANGES);
-			expect(recording.gestures[0].ranges.size()).to_equal(size_t{1});
-			expect(recording.gestures[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
+			expect(recording.calls[0].kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::RANGES);
+			expect(recording.calls[0].ranges.size()).to_equal(size_t{1});
+			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
 		}
 
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->sources[1].getOrCreateFirstRange();
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
 		const std::vector<deluge::instrument::RangeState>& first =
-		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
+		    menu::host_ports().sound->sound_state(slot)->sources[0].ranges;
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -539,7 +540,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(menu::host_runtime_facts().sound_state(r.slot())->sources[0].ranges[0].file_path)
+		expect(menu::host_ports().sound->sound_state(r.slot())->sources[0].ranges[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);
@@ -588,7 +589,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 
 		// A range below it: the locked range is now the source's second, and the new first holds the same file.
-		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* inserted = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		auto* moved = static_cast<MultisampleRange*>(r.source->ranges.getElement(1));
 		r.range = moved; // the source's vector moved it
@@ -623,7 +624,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
 		// A range below the edited one, so the edited one is the source's second.
-		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
 		auto* below = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		below->sampleHolder.filePath = "SAMPLES/A.WAV";
 		below->sampleHolder.audioFile = r.sample;
@@ -635,7 +636,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const uint64_t identity = r.range->identity();
 
 		// Deleting the range below moves the edited one down into its slot, by move-assignment.
-		expect(menu::host_write_sink().delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
+		expect(menu::host_ports().sound_writes->delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
 		expect(r.range->identity()).to_equal(identity);
 

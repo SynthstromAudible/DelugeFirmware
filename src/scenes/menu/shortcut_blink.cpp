@@ -80,7 +80,7 @@ ParamBlink own_pad(const MenuContext& ctx, const Node& item) {
 
 /// Whether @p node is the patched param @p p's own item.
 bool is_patched_param(const Node* node, uint8_t p) {
-	return node != nullptr && node->bind.param.kind == deluge::modulation::params::Kind::PATCHED
+	return node != nullptr && node->bind.param.kind == deluge::plugin::ParamKind::PATCHED
 	       && node->bind.param.index == p;
 }
 
@@ -114,7 +114,7 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	if (item.custom != nullptr) {
 		return item.custom->source_blink(ctx, state, source, colour);
 	}
-	if (item.bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+	if (item.bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 		return patching::source_is_patched(ctx, source, deluge::synth::CableTarget::param(item.bind.param.index))
 		           ? 3
 		           : kNoBlink;
@@ -130,10 +130,10 @@ void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& it
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
 			SourceBlink& blink = plan.sources[sx][y];
 			blink = SourceBlink{};
-			if (const PatchSource s = patching::mod_source_shortcut(sx, y, false); s < kLastPatchSource) {
+			if (const PatchSource s = patching::mod_source_shortcut(sx, y, false); s < PatchSource::NONE) {
 				blink.freq_mask = source_answer(ctx, state, item, s, blink.colour);
 			}
-			if (const PatchSource s = patching::mod_source_shortcut(sx, y, true); s < kLastPatchSource) {
+			if (const PatchSource s = patching::mod_source_shortcut(sx, y, true); s < PatchSource::NONE) {
 				FlashColour unused = FlashColour::Default;
 				const uint8_t second = source_answer(ctx, state, item, s, unused);
 				blink.alternates = second != kNoBlink && second == blink.freq_mask;

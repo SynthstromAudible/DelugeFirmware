@@ -9,32 +9,9 @@
 
 namespace deluge::scenes::bind::test {
 
-uint8_t FakeFacts::loaded_sources(project::SlotAddress slot) const {
-	asked.push_back(slot);
-	const auto found = loaded.find(slot.id);
-	return found != loaded.end() ? found->second : 0;
-}
-
-const instrument::SoundState* FakeFacts::sound_state(project::SlotAddress slot) const {
-	const auto found = states.find(slot.id);
-	return found != states.end() ? &found->second : nullptr;
-}
-
-bool FakeFacts::allows_note_tails(project::SlotAddress slot, std::optional<project::ClipAddress> /*clip*/) const {
-	const auto found = note_tails.find(slot.id);
-	return found == note_tails.end() || found->second;
-}
-
-uint32_t FakeFacts::chain_key(project::ChainAddress chain) {
-	return chain.kind == project::ChainAddress::Kind::SONG ? UINT32_MAX : chain.id;
-}
-
-const effects::EffectStates* FakeFacts::chain_effects(project::ChainAddress chain) const {
-	const auto found = chains.find(chain_key(chain));
-	return found != chains.end() ? &found->second : nullptr;
-}
-
 ModelFixture::ModelFixture() {
+	host.tracks.bend_main = kDeviceBendRange;
+	host.tracks.bend_mpe = kDeviceBendRangeMpe;
 	song.output_structure.getOrCreate(kSynth.id);
 	song.drum_structure.getOrCreate(kDrum.id);
 	set_state(kSynth, instrument::new_synth_state());
@@ -43,7 +20,7 @@ ModelFixture::ModelFixture() {
 		song.output_structure.getOrCreate(chain.id).effects = project::FxChain{};
 	}
 	for (const project::ChainAddress chain : {kKitChain, kAudioChain, kMasterChain}) {
-		facts.chains[FakeFacts::chain_key(chain)] = effects::EffectStates{};
+		host.tracks.chains[FakeTrackFacts::chain_key(chain)] = effects::EffectStates{};
 	}
 	for (const project::TrackAddress track : {kMidiTrack, kCvTrack, kAudioTrack}) {
 		(void)song.output_structure.getOrCreate(track.output_id);
@@ -67,7 +44,7 @@ ModelFixture::ModelFixture() {
 }
 
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
-	facts.states[slot.id] = state;
+	host.sound.states[slot.id] = state;
 	project::InstrumentSlot made{.plugin = "deluge.instrument",
 	                             .state = plugin::StateHandle::of<instrument::DelugeSynth>(state),
 	                             .tick_magnitude = 1};
@@ -77,26 +54,6 @@ void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundS
 	else {
 		song.drum_structure.getOrCreate(slot.id).instrument = std::move(made);
 	}
-}
-
-CableList FakeFacts::cables(const project::ParamAddress& /*owner*/) const {
-	CableList list;
-	for (const CableFact& cable : cable_list) {
-		if (list.count < list.items.size()) {
-			list.items[list.count++] = cable;
-		}
-	}
-	return list;
-}
-
-std::optional<int32_t> FakeFacts::param_value(const project::ParamAddress& address) const {
-	for (const auto& [at, value] : param_values) {
-		if (at.owner == address.owner && at.space == address.space && at.id == address.id
-		    && at.clip_id == address.clip_id) {
-			return value;
-		}
-	}
-	return std::nullopt;
 }
 
 } // namespace deluge::scenes::bind::test

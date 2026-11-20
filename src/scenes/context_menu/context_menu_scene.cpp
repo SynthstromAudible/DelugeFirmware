@@ -20,9 +20,9 @@
 
 #include "scenes/context_menu/context_menu_scene.h"
 
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/nodes/context_menu_items.h"
@@ -40,6 +40,7 @@
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge.h"
+#include "gfx/grid/pad_grid.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/state_access.h"
 #include "io/midi/midi_device_manager.h"
@@ -187,10 +188,10 @@ std::optional<uint32_t> recording_from_of(const menu::MenuContext& ctx) {
 /// recordable and in the song.
 std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, std::optional<uint32_t> selected) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
-	if (!track || !selected || ctx.facts == nullptr) {
+	if (!track || !selected || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+	for (const bind::TrackFact& candidate : ctx.ports.tracks->tracks()) {
 		if (candidate.output_id == *selected) {
 			return bind::can_record_from(track->output_id, candidate) ? selected : std::nullopt;
 		}
@@ -201,10 +202,10 @@ std::optional<uint32_t> recordable_track_in_song(const menu::MenuContext& ctx, s
 /// `getFirstRecordableOutput` (`audio_input_selector.cpp`).
 std::optional<uint32_t> first_recordable_track(const menu::MenuContext& ctx) {
 	const std::optional<project::TrackAddress> track = audio_track_of(ctx);
-	if (!track || ctx.facts == nullptr) {
+	if (!track || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& candidate : ctx.facts->tracks()) {
+	for (const bind::TrackFact& candidate : ctx.ports.tracks->tracks()) {
 		if (bind::can_record_from(track->output_id, candidate)) {
 			return candidate.output_id;
 		}
@@ -230,7 +231,7 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	// Not ported: the `if (currentUIMode != 0u) return;` guard at the top of `AudioInputSelector::selectEncoderAction`.
 	// `currentUIMode` is a legacy UI global this layer may not read, and the shell's own input routing is what stands
 	// in for it -- a scene below a modal overlay is not handed the turn at all.
-	if (!audio_track_of(ctx) || ctx.sink == nullptr) {
+	if (!audio_track_of(ctx) || ctx.ports.writes == nullptr) {
 		return;
 	}
 	const auto option = static_cast<AudioSourceOption>(selection.option);
@@ -244,7 +245,8 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 	// The option is the channel's word: OFF is none. Leaving the specific track clears the recording-from state (the
 	// input's Edit does), so the track that was being recorded is not left silently muted.
 	const int32_t channel = option < AudioSourceOption::Count ? static_cast<int32_t>(option) : 0;
-	(void)ctx.sink->write({.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
+	(void)ctx.ports.writes->write(
+	    {.target = audio_input_row("inputChannel"), .where = ctx.addresses, .menu_value = channel});
 
 	if (option == AudioSourceOption::Track) {
 		// Keep the chosen source if it is still usable, otherwise take the first one
@@ -253,13 +255,13 @@ void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
 		if (!record_from) {
 			record_from = first_recordable_track(ctx);
 		}
-		(void)ctx.sink->write({.target = audio_input_row("outputRecordingFrom"),
-		                       .where = ctx.addresses,
-		                       .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
+		(void)ctx.ports.writes->write({.target = audio_input_row("outputRecordingFrom"),
+		                               .where = ctx.addresses,
+		                               .menu_value = record_from ? static_cast<int32_t>(*record_from) : -1});
 	}
 
 	// The song-wide default follows whatever was last picked here.
-	ctx.sink->set_default_audio_input_channel(input_channel_of(ctx));
+	ctx.ports.writes->set_default_audio_input_channel(input_channel_of(ctx));
 }
 
 std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> scratch) {
@@ -349,7 +351,7 @@ size_t sample_browser_synth_options_now(const menu::MenuContext& ctx, std::span<
 /// `Kit::padAction` and `Synth::padAction` return `SampleBrowser::padAction`. The mute column is the browser's exit,
 /// whose close takes this menu with it; every other pad does nothing here.
 Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
-	if (event.x == kDisplayWidth) {
+	if (event.x == deluge::gfx::grid::kDelugeGrid.main_cols) {
 		return browser::browser_scene().handle(event, ctx);
 	}
 	Result r;
@@ -360,7 +362,7 @@ Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
 /// The browser's gate (`SampleBrowser::buttonAction`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a
 /// claim or a folder import the menu started is still running.
 bool sample_load_busy(const menu::MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();
+	return ctx.ports.card != nullptr && ctx.ports.card->sample_load_in_flight();
 }
 
 /// `DeleteFile::acceptCurrentOption`: the browser's file is deleted by the host, which removes it from the browser's
@@ -412,7 +414,7 @@ static_assert(
 
 size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out) {
 	const deluge::instrument::SoundState* state =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	const bool ringmod = state != nullptr && deluge::instrument::synth_mode(*state) == SynthMode::RINGMOD;
 	const bool available[] = {!ringmod, !is_folder && !ringmod, !is_folder, !is_folder};
 	size_t n = 0;
@@ -567,7 +569,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// view's) is not one of them. Every other button falls through, as in main.
 	const bool back_or_select = (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
 	                            && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc);
-	if (desc.pad != nullptr && ctx_.facts != nullptr && ctx_.facts->auditioning()
+	if (desc.pad != nullptr && ctx_.ports.ui != nullptr && ctx_.ports.ui->auditioning()
 	    && (back_or_select || event.kind == UiEvent::Kind::Pad)) {
 		Result r;
 		r.handled = true;

@@ -57,7 +57,7 @@ bool VoiceUsageClock::tick(const MenuContext& ctx, const MenuState& st, uint32_t
 	if (place == Place::None) {
 		return false;
 	}
-	const int32_t live = ctx.facts != nullptr ? ctx.facts->live_voice_count() : 0;
+	const int32_t live = ctx.ports.audio != nullptr ? ctx.ports.audio->live_voice_count() : 0;
 	if (place != was) {
 		// `VoiceUsage::beginSession` resets and samples, on arrival and on the way back from a counter
 		// (`origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`); `VoiceCount::beginSession` samples without a

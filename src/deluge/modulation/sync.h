@@ -38,10 +38,6 @@ SyncLevel syncValueToSyncLevel(int32_t option);
 SyncType syncValueToSyncType(int32_t value);
 
 void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude);
-void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, etl::istring& buffer, int32_t tickMagnitude);
 
 /** Modulus of value as a non-zero SyncLevel valid for Swing interval. */
 int32_t wrapSwingIntervalSyncLevel(int32_t value);
-
-/** Clamp value to a valid Swing interval. */
-int32_t clampSwingIntervalSyncLevel(int32_t value);

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
+#include "instruments/deluge/cables.h"
 #include "modulation/automation/auto_param.h"
 #include "synth/modulation/cable.h"
 #include <cstdint>
@@ -26,20 +27,14 @@ class Sound;
 class ParamManagerForTimeline;
 class InstrumentClip;
 
-enum class Polarity : uint8_t {
-	UNIPOLAR = 0,
-	BIPOLAR = 1,
-};
+using Polarity = deluge::instrument::Polarity;
 
-Polarity stringToPolarity(std::string_view string);
 std::string_view polarityToString(Polarity polarity);
-std::string_view polarityToStringShort(const Polarity polarity);
 
 class PatchCable {
 public:
 	PatchCable() = default;
 	void setDefaultPolarity();
-	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};

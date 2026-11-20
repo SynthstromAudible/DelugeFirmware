@@ -73,13 +73,13 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "plugin-api/types/param.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
@@ -951,7 +951,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
 		char name[12];
 		// Index: Name
-		snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
+		const std::string_view rhythmName = deluge::plugin::kArpRhythms[current_display_value].name;
+		snprintf(name, sizeof(name), "%d: %.*s", current_display_value, static_cast<int>(rhythmName.size()),
+		         rhythmName.data());
 		parameter_value.append(name);
 	}
 	else {

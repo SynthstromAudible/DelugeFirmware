@@ -61,7 +61,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/audio_clip/audio_clip_scene.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/relevance.h"
@@ -105,6 +105,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 
+#include "fakes.h"
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
 
@@ -465,8 +466,9 @@ struct Rig {
 	/// end-marker drag example leaves `end_marker_visible_` true and the start-marker example then
 	/// takes the wrong branch of `padAction`.
 	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open_scene_only(bind::WriteSink* sink = nullptr) {
-		audio_clip_scene().open(address(), f.song, sink);
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
+	void open_scene_only(bind::WriteSink* sink = nullptr, bind::ClipWrites* clip_writes = nullptr) {
+		audio_clip_scene().open(address(), f.song, sink, clip_writes);
 		(void)audio_clip_scene().on_enter(SceneId{kAudioClipSceneKind, 0});
 	}
 
@@ -1242,7 +1244,7 @@ describe audio_clip_scene_spec_body(
 		        // whole column -- so the assertion after it is a change and not a tautology.
 		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
-		        // The one setting, which legacy reads directly and the port through `RuntimeFacts::flash_cursor`.
+		        // The one setting, which legacy reads directly and the port through `UiFacts::flash_cursor`.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.tick(1);
@@ -1797,11 +1799,11 @@ describe audio_clip_scene_spec_body(
 		        Rig r;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::WriteSink& sink = deluge::scenes::menu::host_write_sink();
-		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
+		        bind::ClipWrites& clip_writes = *deluge::scenes::menu::host_ports().clip_writes;
+		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
-		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
-		                                      static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
+		        expect(clip_writes.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
+		                                             static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
 		            .to_be_false();
 		        expect(model_snapshot(r)).to_equal(seeded);
 	        });
@@ -1836,61 +1838,70 @@ describe audio_clip_scene_spec_body(
 	        });
 
 	    it(
-	        "hands each gesture to the menu's sink by the clip's address", _ {
+	        "hands each clip edit to the clip port, and the rest to the menu's sink, by the clip's address", _ {
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        Input in;
 		        r.reseed(Sentinel{});
 		        const ModelSnapshot seeded = model_snapshot(r);
-		        bind::RecordingSink recording;
-		        r.open_scene_only(&recording);
-		        using Kind = bind::GestureRequest::Kind;
+		        bind::test::RecordingWrites recording;
+		        bind::test::RecordingClipWrites clip_writes;
+		        r.open_scene_only(&recording, &clip_writes);
+		        using Kind = bind::test::RecordingClipWrites::Call::Kind;
 		        using Resize = bind::ResizeKind;
-		        const auto last = [&recording] { return recording.gestures.back(); };
+		        // The last call of a kind: a length change also records the view a redo returns to, after its resize.
+		        const auto last = [&clip_writes, &self](Kind kind) {
+			        const auto found = std::ranges::find_if(clip_writes.calls.rbegin(), clip_writes.calls.rend(),
+			                                                [kind](const auto& call) { return call.kind == kind; });
+			        const bool present = found != clip_writes.calls.rend();
+			        expect(present).to_be_true();
+			        return present ? *found : bind::test::RecordingClipWrites::Call{};
+		        };
 
 		        (void)in.pad(end_square_of(r), 0, true);
 		        (void)in.pad(9, 0, true);
-		        expect(recording.gestures.size()).to_equal(size_t{1});
-		        if (recording.gestures.empty()) {
+		        expect(clip_writes.calls.size()).to_equal(size_t{1});
+		        if (clip_writes.calls.empty()) {
 			        return;
 		        }
-		        expect(last().kind).to_equal(Kind::RESIZE);
-		        expect(last().clip).to_equal(r.address());
-		        expect(last().resize).to_equal(Resize::END);
-		        expect(last().value).to_equal(480);
-		        expect(last().old_length).to_equal(768);
+		        expect(clip_writes.calls.back().kind).to_equal(Kind::RESIZE);
+		        expect(last(Kind::RESIZE).clip).to_equal(r.address());
+		        expect(last(Kind::RESIZE).resize).to_equal(Resize::END);
+		        expect(last(Kind::RESIZE).value).to_equal(int64_t{480});
+		        expect(last(Kind::RESIZE).old_length).to_equal(768);
 		        (void)in.pad(end_square_of(r), 0, true); // the marker back down
 
 		        (void)in.press(ButtonId::Shift, true);
 		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
-		        expect(last().resize).to_equal(Resize::STRETCH);
-		        expect(last().value).to_equal(720);
-		        expect(last().old_length).to_equal(768);
+		        expect(last(Kind::RESIZE).resize).to_equal(Resize::STRETCH);
+		        expect(last(Kind::RESIZE).value).to_equal(int64_t{720});
+		        expect(last(Kind::RESIZE).old_length).to_equal(768);
+		        expect(clip_writes.calls.back().kind).to_equal(Kind::UNDO_SCROLL);
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
-		        expect(last().resize).to_equal(Resize::NO_STRETCH);
-		        expect(last().value).to_equal(816);
+		        expect(last(Kind::RESIZE).resize).to_equal(Resize::NO_STRETCH);
+		        expect(last(Kind::RESIZE).value).to_equal(int64_t{816});
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
-		        expect(last().kind).to_equal(Kind::RECOLOUR);
-		        expect(last().clip).to_equal(r.address());
-		        expect(last().value).to_equal(3);
+		        expect(clip_writes.calls.back().kind).to_equal(Kind::RECOLOUR);
+		        expect(last(Kind::RECOLOUR).clip).to_equal(r.address());
+		        expect(last(Kind::RECOLOUR).value).to_equal(int64_t{3});
 		        (void)in.press(ButtonId::Shift, false);
 
 		        (void)in.press(ButtonId::YEnc, true);
 		        (void)in.press(ButtonId::XEnc, true);
-		        expect(last().kind).to_equal(Kind::RESIZE);
-		        expect(last().resize).to_equal(Resize::TO_SAMPLE_LENGTH);
+		        expect(last(Kind::RESIZE).resize).to_equal(Resize::TO_SAMPLE_LENGTH);
+		        expect(clip_writes.calls.back().kind).to_equal(Kind::UNDO_SCROLL);
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.press(ButtonId::YEnc, false);
 
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.press(ButtonId::Back, true);
 		        (void)in.press(ButtonId::XEnc, false);
-		        expect(last().kind).to_equal(Kind::CLEAR);
-		        expect(last().clip).to_equal(r.address());
-		        expect(last().clear_automation).to_equal(!FlashStorage::automationClear);
-		        expect(last().clear_sequence_and_mpe).to_be_true();
+		        expect(clip_writes.calls.back().kind).to_equal(Kind::CLEAR);
+		        expect(last(Kind::CLEAR).clip).to_equal(r.address());
+		        expect(last(Kind::CLEAR).clear_automation).to_equal(!FlashStorage::automationClear);
+		        expect(last(Kind::CLEAR).clear_sequence_and_mpe).to_be_true();
 
 		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
 		        expect(recording.requests.size()).to_equal(size_t{1});

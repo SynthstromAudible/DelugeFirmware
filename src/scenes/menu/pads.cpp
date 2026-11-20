@@ -107,7 +107,7 @@ bool is_randomizer_pad(uint8_t x, uint8_t y) {
 bool is_patch_cable_item(const Node* node) {
 	return node != nullptr
 	       && ((node->custom != nullptr && node->custom->is_patch_cable())
-	           || node->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE);
+	           || node->bind.param.kind == deluge::plugin::ParamKind::PATCH_CABLE);
 }
 
 /// @brief The answer of the item at @p depth: a horizontal page answers for its focused column
@@ -127,7 +127,7 @@ SourcePress answer_at(MenuCore core, uint8_t depth, PatchSource source, bool pre
 	if (node->custom != nullptr) {
 		return node->custom->source_press(ctx, st, source, previous_held, open);
 	}
-	if (node->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+	if (node->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 		const uint8_t previous = st.walk.patching_param;
 		st.walk.patching_param = node->bind.param.index;
 		const SourcePress r = nodes::kSourceSelectionRegularItem.source_press(ctx, st, source, previous_held, open);
@@ -160,7 +160,7 @@ std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, Valu
 	}
 	Result handled;
 	handled.handled = true;
-	if (source >= kLastPatchSource) {
+	if (source >= PatchSource::NONE) {
 		return handled;
 	}
 	const bool previous_held = other_source_pad_held(ui.held_pads, x, y);

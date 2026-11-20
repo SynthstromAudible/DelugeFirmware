@@ -19,6 +19,7 @@
 /// @brief `MultiRangeItem`'s members and the picker's chain hook. See `nodes/multi_range.h`.
 
 #include "scenes/menu/nodes/multi_range.h"
+#include "definitions_cxx.hpp" // FLAT_CHAR
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
 
@@ -31,7 +32,6 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "definitions_cxx.hpp"
 #include "processing/source.h"
 #include "storage/flash_storage.h"
 
@@ -152,7 +152,7 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 		return 0;
 	}
 	const instrument::SoundState* sound =
-	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr
 	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != OscType::SAMPLE) {
 		return 0;
@@ -199,19 +199,20 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 		std::optional<int32_t> remembered;
 		if (ctx.range_index >= 0) { // a range is already selected, so it is the default
 			remembered = ctx.range_index;
-			if (ctx.sink != nullptr) {
-				ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(ctx.range_index));
+			if (ctx.ports.sound_writes != nullptr) {
+				ctx.ports.sound_writes->set_default_range(*ctx.addresses.slot, source,
+				                                          static_cast<uint16_t>(ctx.range_index));
 			}
 		}
-		else if (ctx.facts != nullptr) {
-			if (const std::optional<uint16_t> held = ctx.facts->default_range(*ctx.addresses.slot, source)) {
+		else if (ctx.ports.sound != nullptr) {
+			if (const std::optional<uint16_t> held = ctx.ports.sound->default_range(*ctx.addresses.slot, source)) {
 				remembered = *held;
 			}
 		}
 		const bool valid = remembered && *remembered >= 0 && *remembered < count;
 		cursor = valid ? *remembered : count >> 1;
-		if (!valid && count > 0 && ctx.sink != nullptr) { // an invalid default is worked out afresh
-			ctx.sink->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
+		if (!valid && count > 0 && ctx.ports.sound_writes != nullptr) { // an invalid default is worked out afresh
+			ctx.ports.sound_writes->set_default_range(*ctx.addresses.slot, source, static_cast<uint16_t>(cursor));
 		}
 	}
 
@@ -259,7 +260,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	}
 	list_state.freeze_cursor = false;
 	if (const int32_t t = f.turn(); t != 0) {
-		if (ctx.facts != nullptr && ctx.facts->popup_showing()) {
+		if (ctx.ports.ui != nullptr && ctx.ports.ui->popup_showing()) {
 			// `selectEncoderAction` does nothing at all while a popup is up
 			// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::selectEncoderAction`).
 			list_state.freeze_cursor = true;
@@ -269,8 +270,9 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			std::vector<deluge::instrument::RangeState> ranges = ranges_of(ctx);
 			if (index >= 0 && index < std::ssize(ranges)) {
 				step_range_edge(ranges, index, state.edit_edge, t);
-				if (ctx.sink != nullptr && ctx.addresses.slot) {
-					(void)ctx.sink->write_ranges(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), ranges);
+				if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot) {
+					(void)ctx.ports.sound_writes->write_ranges(*ctx.addresses.slot,
+					                                           static_cast<uint8_t>(ctx.source_index), ranges, {});
 				}
 			}
 			f.gate().request_repaint();
@@ -283,9 +285,10 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 			if (const std::optional<RangeInsert> plan = plan_range_insert(ranges, index, t); !plan) {
 				deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 			}
-			else if (ctx.sink != nullptr && ctx.addresses.slot
-			         && ctx.sink->insert_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
-			                                   static_cast<uint16_t>(plan->at), plan->top_note, plan->previous_top)) {
+			else if (ctx.ports.sound_writes != nullptr && ctx.addresses.slot
+			         && ctx.ports.sound_writes->insert_range(
+			             *ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index), static_cast<uint16_t>(plan->at),
+			             plan->top_note, plan->previous_top)) {
 				list_state.cursor = static_cast<int16_t>(plan->at);
 				if (!plan->previous_top) {
 					list_state.scroll++; // inserted before, the window moves with the old range
@@ -341,9 +344,9 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		state.walk.range_choice = static_cast<int16_t>(cursor);
 		// A flick is remembered. A voice that starts without a pad or key (MIDI) moves the memory through
 		// `Source::getRange` and not the cursor; a pad or key goes through `range_note_press`.
-		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.sink != nullptr) {
-			ctx.sink->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
-			                            static_cast<uint16_t>(cursor));
+		if (state.tick.render_resp.changed && ctx.addresses.slot && ctx.ports.sound_writes != nullptr) {
+			ctx.ports.sound_writes->set_default_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+			                                          static_cast<uint16_t>(cursor));
 		}
 	}
 	if (count == 0 && f.select_pressed()) {
@@ -402,7 +405,8 @@ std::optional<RangeDelete> plan_range_delete(std::span<const deluge::instrument:
 
 void range_delete_press(const MenuContext& ctx, MenuState& state) {
 	// `MultiRange::deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
-	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off || (ctx.facts != nullptr && ctx.facts->popup_showing())) {
+	if (state.edit_edge != deluge::ui::oled::RangeEdge::Off
+	    || (ctx.ports.ui != nullptr && ctx.ports.ui->popup_showing())) {
 		return;
 	}
 	deluge::ui::ListState& list = state.list[depth_of(state)];
@@ -412,9 +416,9 @@ void range_delete_press(const MenuContext& ctx, MenuState& state) {
 		deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_LAST_RANGE_CANT_DELETE));
 		return;
 	}
-	if (ctx.sink == nullptr || !ctx.addresses.slot
-	    || !ctx.sink->delete_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
-	                               static_cast<uint16_t>(index), plan->lower_top)) {
+	if (ctx.ports.sound_writes == nullptr || !ctx.addresses.slot
+	    || !ctx.ports.sound_writes->delete_range(*ctx.addresses.slot, static_cast<uint8_t>(ctx.source_index),
+	                                             static_cast<uint16_t>(index), plan->lower_top)) {
 		return;
 	}
 	list.cursor = static_cast<int16_t>(plan->cursor);

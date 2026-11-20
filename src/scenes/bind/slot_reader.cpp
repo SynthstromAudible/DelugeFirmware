@@ -4,9 +4,9 @@
 
 namespace deluge::scenes::bind {
 
-SlotReader::SlotReader(const project::Song& model, project::SlotAddress slot, const RuntimeFacts& facts) {
+SlotReader::SlotReader(const project::Song& model, project::SlotAddress slot, const SoundFacts& sound) {
 	if (model.resolveSlot(slot) != nullptr) {
-		state_ = facts.sound_state(slot);
+		state_ = sound.sound_state(slot);
 	}
 }
 

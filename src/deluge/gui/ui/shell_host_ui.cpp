@@ -34,6 +34,7 @@
 #include "hid/encoder_input.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/device_registry.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
@@ -1437,7 +1438,7 @@ deluge::ui::shell::UiEvent midi_event(deluge::ui::shell::UiEvent::Kind kind, MID
 	                                  .channel = static_cast<uint8_t>(channel),
 	                                  .data1 = static_cast<uint8_t>(data1),
 	                                  .data2 = static_cast<uint8_t>(data2),
-	                                  .cable = &cable};
+	                                  .device = deluge::midi::id_of(cable)};
 }
 
 } // namespace

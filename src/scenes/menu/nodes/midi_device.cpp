@@ -26,28 +26,67 @@
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth
 #include "scenes/profile.h"
 
+#include "plugin-api/types/display_mapping.h"
 #include "shell/scene.h" // UiEvent/UiContext/Result -- CustomItem::handle's signature
 #include "ui/oled/frame.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
-#include "model/song/song.h"
+#include "scenes/bind/ports/midi_devices.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::scenes::menu::nodes {
 
 namespace {
 
+using bind::MidiDeviceSettings;
+using bind::MidiDirection;
+using bind::MpeZones;
 using deluge::l10n::String;
+
+/// @brief The zone `MenuWalkState::mpe_zone` holds: legacy's `MPE_ZONE_LOWER_NUMBERED_FROM_0` and
+///        `MPE_ZONE_UPPER_NUMBERED_FROM_0` (`origin/main:src/deluge/io/midi/midi_device.h`), the zone selector's
+///        option order.
+enum class MpeZone : uint8_t {
+	LOWER = 0, ///< the lower zone, numbered from channel 0
+	UPPER = 1, ///< the upper zone, its master on channel 15
+};
+
+/// @brief Whether the walk's zone is the lower one.
+bool lower_zone(const MenuState& state) {
+	return state.walk.mpe_zone == std::to_underlying(MpeZone::LOWER);
+}
+
+/// @brief The settings of the device the context names.
+/// @return None when it names none, or one the host does not know, or there is no MIDI devices port.
+std::optional<MidiDeviceSettings> device_settings(const MenuContext& ctx) {
+	if (ctx.ports.midi == nullptr || !ctx.midi_device) {
+		return std::nullopt;
+	}
+	return ctx.ports.midi->settings(ctx.midi_device);
+}
+
+/// @brief Read the named device's settings, apply @p change to them, and write them back.
+/// @return Whether the host took the write; false, and nothing written, when there is no device to write.
+// TODO(c++26): take std::function_ref<void(MidiDeviceSettings&)> once the device's libstdc++ provides it
+// (arm-none-eabi GCC 16; 15.2.1 does not).
+template <typename Change>
+bool edit_device(const MenuContext& ctx, Change change) {
+	std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	if (!settings) {
+		return false;
+	}
+	change(*settings);
+	return ctx.ports.midi->write(ctx.midi_device, *settings);
+}
 
 size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
@@ -115,13 +154,20 @@ void focus_selection(MenuState& state) {
 }
 
 /// @brief `ZoneNumMemberChannels::getPort()` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`):
-///        `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]`.
-/// @return The port, or null when no cable is selected (see `nodes/midi_device.h`'s note on the guard).
-MIDIPort* mpe_port(const MenuContext& ctx, const MenuState& state) {
-	if (ctx.midi_cable == nullptr) {
-		return nullptr;
+///        the current cable's `ports[directionSelectorMenu.whichDirection]`, as that port's zones.
+/// @return The direction's index into `MidiDeviceSettings::zones`.
+size_t direction_of(const MenuState& state) {
+	return std::to_underlying(state.walk.mpe_direction != 0 ? MidiDirection::OUT : MidiDirection::IN);
+}
+
+/// @brief The zones of the port the two MPE selectors name.
+/// @return None when no device is selected (see `nodes/midi_device.h`'s note on the guard).
+std::optional<MpeZones> mpe_zones(const MenuContext& ctx, const MenuState& state) {
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	if (!settings) {
+		return std::nullopt;
 	}
-	return &ctx.midi_cable->ports[state.walk.mpe_direction != 0 ? 1 : 0];
+	return settings->zones[direction_of(state)];
 }
 
 } // namespace
@@ -129,15 +175,13 @@ MIDIPort* mpe_port(const MenuContext& ctx, const MenuState& state) {
 IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state) {
 	// `ZoneNumMemberChannels::getMaxValue()` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`),
 	// transcribed statement for statement. The minimum is `Number::getMinValue`'s 0.
-	const MIDIPort* port = mpe_port(ctx, state);
-	if (port == nullptr) {
+	const std::optional<MpeZones> port = mpe_zones(ctx, state);
+	if (!port) {
 		return IntRange{0, 0, 1};
 	}
 	// "This limits it so we don't eat into the other zone" (`ZoneNumMemberChannels::getMaxValue`
 	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)).
-	int32_t num_channels_available = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0
-	                                     ? port->mpeUpperZoneLastMemberChannel
-	                                     : 15 - port->mpeLowerZoneLastMemberChannel;
+	int32_t num_channels_available = lower_zone(state) ? port->upper_last_member : 15 - port->lower_last_member;
 
 	int32_t num_member_channels_available = num_channels_available - 1;
 	if (num_member_channels_available < 0) {
@@ -152,94 +196,79 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) {
 	// `ZoneNumMemberChannels::readCurrentValue()`
 	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).
-	const MIDIPort* port = mpe_port(ctx, state);
-	if (port == nullptr) {
+	const std::optional<MpeZones> port = mpe_zones(ctx, state);
+	if (!port) {
 		return 0;
 	}
-	return state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? port->mpeLowerZoneLastMemberChannel
-	                                                             : 15 - port->mpeUpperZoneLastMemberChannel;
+	return lower_zone(state) ? port->lower_last_member : 15 - port->upper_last_member;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The per-cable binding family. Every hook here reads `MenuContext::midi_cable` and nothing else;
-// see `nodes/midi_device.h` on why a null one reads 0 and writes nothing.
+// The per-device binding family. Every hook here reads and writes the device `MenuContext::midi_device` names, through
+// the MIDI devices port, and nothing else; see `nodes/midi_device.h` on why none reads 0 and writes nothing.
 
 int32_t get_device_velocity_to_level(const MenuContext& ctx) {
 	// `DefaultVelocityToLevel::readCurrentValue`
 	// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`).
-	if (ctx.midi_cable == nullptr) {
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	if (!settings) {
 		return 0;
 	}
 	return static_cast<int32_t>(
-	    ((static_cast<int64_t>(ctx.midi_cable->defaultVelocityToLevel) * kMaxMenuValue + 536870912) >> 30));
+	    ((static_cast<int64_t>(settings->velocity_to_level) * plugin::kMaxMenuSteps + 536870912) >> 30));
 }
 
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
-	// `DefaultVelocityToLevel::writeCurrentValue`: the cable's default, then every input on it takes it, by
-	// the app's Edit through the sink (none for a song the app does not play).
-	if (ctx.midi_cable == nullptr) {
-		return;
+	// `DefaultVelocityToLevel::writeCurrentValue`: the device's default, then every input on it takes it, by the
+	// app's Edit through the sound port (none for a song the app does not play).
+	const bool written = edit_device(ctx, [value](MidiDeviceSettings& s) {
+		s.velocity_to_level = static_cast<int32_t>(value * (2147483648 / (plugin::kMaxMenuSteps * 2)));
+	});
+	if (written && ctx.ports.sound_writes != nullptr) {
+		(void)ctx.ports.sound_writes->velocity_to_level_everywhere(ctx.midi_device);
 	}
-	ctx.midi_cable->defaultVelocityToLevel = value * (2147483648 / (kMaxMenuValue * 2));
-	// Every synth and sound row on the cable takes its new default, by the app's Edit.
-	if (ctx.sink != nullptr) {
-		(void)ctx.sink->velocity_to_level_everywhere(*ctx.midi_cable);
-	}
-	MIDIDeviceManager::anyChangesToSave = true;
 }
 
 int32_t get_device_send_clock(const MenuContext& ctx) {
 	// `DeviceSendClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_send_clock.h`).
-	return ctx.midi_cable != nullptr && ctx.midi_cable->sendClock ? 1 : 0;
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	return settings && settings->send_clock ? 1 : 0;
 }
 
 void set_device_send_clock(const MenuContext& ctx, int32_t value) {
 	// `DeviceSendClock::writeCurrentValue`.
-	if (ctx.midi_cable == nullptr) {
-		return;
-	}
-	ctx.midi_cable->sendClock = value != 0;
-	MIDIDeviceManager::anyChangesToSave = true;
+	(void)edit_device(ctx, [value](MidiDeviceSettings& s) { s.send_clock = value != 0; });
 }
 
 int32_t get_device_receive_clock(const MenuContext& ctx) {
 	// `DeviceReceiveClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_receive_clock.h`).
-	return ctx.midi_cable != nullptr && ctx.midi_cable->receiveClock ? 1 : 0;
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	return settings && settings->receive_clock ? 1 : 0;
 }
 
 void set_device_receive_clock(const MenuContext& ctx, int32_t value) {
 	// `DeviceReceiveClock::writeCurrentValue`.
-	if (ctx.midi_cable == nullptr) {
-		return;
-	}
-	ctx.midi_cable->receiveClock = value != 0;
-	MIDIDeviceManager::anyChangesToSave = true;
+	(void)edit_device(ctx, [value](MidiDeviceSettings& s) { s.receive_clock = value != 0; });
 }
 
 int32_t get_device_is_relative(const MenuContext& ctx) {
 	// `DeviceIsRelative::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_is_relative.h`).
-	return ctx.midi_cable != nullptr && ctx.midi_cable->is_relative ? 1 : 0;
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	return settings && settings->relative ? 1 : 0;
 }
 
 void set_device_is_relative(const MenuContext& ctx, int32_t value) {
 	// `DeviceIsRelative::writeCurrentValue`.
-	if (ctx.midi_cable == nullptr) {
-		return;
-	}
-	ctx.midi_cable->is_relative = value != 0;
-	MIDIDeviceManager::anyChangesToSave = true;
+	(void)edit_device(ctx, [value](MidiDeviceSettings& s) { s.relative = value != 0; });
 }
 
 int32_t get_device_send_thru(const MenuContext& ctx) {
-	return ctx.midi_cable != nullptr && ctx.midi_cable->midi_thru ? 1 : 0;
+	const std::optional<MidiDeviceSettings> settings = device_settings(ctx);
+	return settings && settings->thru ? 1 : 0;
 }
 
 void set_device_send_thru(const MenuContext& ctx, int32_t value) {
-	if (ctx.midi_cable == nullptr) {
-		return;
-	}
-	ctx.midi_cable->midi_thru = value != 0;
-	MIDIDeviceManager::anyChangesToSave = true;
+	(void)edit_device(ctx, [value](MidiDeviceSettings& s) { s.thru = value != 0; });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -247,9 +276,8 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value) {
 
 void MpeDirectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.walk.mpe_direction =
-	    MIDI_DIRECTION_INPUT_TO_DELUGE; // `DirectionSelector::beginSession`
-	                                    // (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`)
+	// `DirectionSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`).
+	state.walk.mpe_direction = std::to_underlying(MidiDirection::IN);
 }
 
 void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -284,9 +312,8 @@ deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEv
 
 void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.walk.mpe_zone =
-	    MPE_ZONE_LOWER_NUMBERED_FROM_0; // `ZoneSelector::beginSession`
-	                                    // (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`)
+	// `ZoneSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`).
+	state.walk.mpe_zone = std::to_underlying(MpeZone::LOWER);
 }
 
 void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -352,26 +379,19 @@ void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const {
 	// `ZoneNumMemberChannels::writeCurrentValue`
 	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).
-	MIDIPort* port = mpe_port(ctx, state);
-	if (port == nullptr) {
-		return;
-	}
-	if (state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
-		port->mpeLowerZoneLastMemberChannel = static_cast<uint8_t>(state.edit_int);
-	}
-	else {
-		port->mpeUpperZoneLastMemberChannel = static_cast<uint8_t>(15 - state.edit_int);
-	}
-
-	MIDIDeviceManager::recountSmallestMPEZones();
-	MIDIDeviceManager::anyChangesToSave = true;
-
-	// "If this was for an output, we transmit an MCM message to tell the device about our MPE zone
-	// for the MIDI they'll be receiving from us." (`ZoneNumMemberChannels::writeCurrentValue`)
-	if (state.walk.mpe_direction == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
-		const int32_t master_channel = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? 0 : 15;
-		ctx.midi_cable->sendRPN(master_channel, 0, 6, state.edit_int);
-	}
+	// The zone, then -- the host's half of the same write -- the recount, the save mark and, for an output, the MCM
+	// message that tells the device about its zone: "If this was for an output, we transmit an MCM message to tell the
+	// device about our MPE zone for the MIDI they'll be receiving from us."
+	const size_t direction = direction_of(state);
+	(void)edit_device(ctx, [&](MidiDeviceSettings& s) {
+		MpeZones& port = s.zones[direction];
+		if (lower_zone(state)) {
+			port.lower_last_member = static_cast<uint8_t>(state.edit_int);
+		}
+		else {
+			port.upper_last_member = static_cast<uint8_t>(15 - state.edit_int);
+		}
+	});
 }
 
 deluge::ui::shell::Result MpeZoneChannelsItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -381,10 +401,10 @@ deluge::ui::shell::Result MpeZoneChannelsItem::handle(const deluge::ui::shell::U
 }
 
 ValueText midi_device_title(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Title || ctx.midi_cable == nullptr) {
+	if (use != ValueTextUse::Title || ctx.ports.midi == nullptr || !ctx.midi_device) {
 		return kValueTextFallback;
 	}
-	const std::string_view name{ctx.midi_cable->getDisplayName()};
+	const std::string_view name = ctx.ports.midi->name(ctx.midi_device);
 	const size_t n = std::min(name.size(), out.size());
 	std::copy_n(name.begin(), n, out.begin());
 	return ValueText{.length = n};

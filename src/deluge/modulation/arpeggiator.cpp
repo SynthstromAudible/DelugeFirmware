@@ -22,9 +22,9 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/arp_ratchet.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "storage/flash_storage.h"
 #include "synth/matrix/param_format.h"
 #include "util/exceptions.h"
@@ -660,10 +660,8 @@ uint32_t ArpeggiatorBase::calculateSpreadVelocity(uint8_t velocity, int32_t spre
 // Returns if the arpeggiator should advance to next note or not
 bool ArpeggiatorBase::evaluateRhythm(uint32_t rhythm, bool isRatchet) {
 	// If it is a rachet, use the last normal note played index, but it it is not a ratchet, play the new rhythm index
-	int32_t rhythmPatternIndex = isRatchet ? lastNormalNotePlayedFromRhythm : notesPlayedFromRhythm;
-	int32_t numberOfRhythmSteps = arpRhythmPatterns[rhythm].length;
-	rhythmPatternIndex = rhythmPatternIndex % numberOfRhythmSteps; // normalize the index just in case
-	return arpRhythmPatterns[rhythm].steps[rhythmPatternIndex];
+	const uint32_t rhythmPatternIndex = isRatchet ? lastNormalNotePlayedFromRhythm : notesPlayedFromRhythm;
+	return deluge::plugin::arp_rhythm_plays(static_cast<uint8_t>(rhythm), rhythmPatternIndex);
 }
 
 // Returns if the arpeggiator should play the next note or not
@@ -809,7 +807,7 @@ void ArpeggiatorBase::increaseSequenceIndexes(uint32_t maxSequenceLength, uint32
 		notesPlayedFromSequence++;
 	}
 	// Rhythm
-	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
+	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % deluge::plugin::kArpRhythms[rhythm].length;
 }
 
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,

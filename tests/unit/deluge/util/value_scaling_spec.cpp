@@ -1,5 +1,5 @@
 #include "definitions_cxx.hpp"
-#include "modulation/arpeggiator_rhythms.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "util/value_scaling.h"
 
 #include <utility>
@@ -11,9 +11,9 @@
 // clang-format off
 describe value_scaling_group("value scaling", ${
 	it("consistent arp and menu max values", _ {
-		// See comment above definition of kMaxPresetArpRhythm
-		expect(kMaxPresetArpRhythm).to_equal(kMaxMenuValue);
-		expect(kMaxPresetArpRhythm).to_equal(50);
+		// The rhythm table holds one entry per menu step, and the param's stored values scale by kMaxMenuValue.
+		expect(static_cast<int32_t>(deluge::plugin::kArpRhythms.size())).to_equal(kMaxMenuValue + 1);
+		expect(static_cast<int32_t>(deluge::plugin::kArpRhythms.size())).to_equal(51);
 	});
 
 	it("unsigned menu item value scaling", _ {

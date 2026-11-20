@@ -103,8 +103,8 @@ describe bind_param("a param target", ${
 		expect(deluge::instrument::param::kPortamento).to_equal(deluge::host_chain::param::kModFXRate);
 		expect(param_address(kPortamento, kOnKitFx).has_value()).to_be_false();
 		ModelFixture f;
-		expect(view(kPortamento, f.song, kOnKitFx, f.facts).has_value()).to_be_false();
-		expect(request_for(kPortamento, f.song, kOnKitFx, f.facts, 10).has_value()).to_be_false();
+		expect(view(kPortamento, f.song, kOnKitFx, f.ports()).has_value()).to_be_false();
+		expect(request_for(kPortamento, f.song, kOnKitFx, f.ports(), 10).has_value()).to_be_false();
 		expect(param_address(kChainTempo, kOnSynth).has_value()).to_be_false();
 		expect(param_address(kSoundBass, kOnSong)->id).to_equal(deluge::host_chain::param::kBass);
 		expect(param_address(kChainLpf, kOnSynth)->id).to_equal(deluge::instrument::param::kLpfFrequency);
@@ -126,10 +126,10 @@ describe bind_param("a param target", ${
 
 	it("shows the value the param plays, in its display's range", _ {
 		ModelFixture f;
-		f.facts.param_values.push_back({*param_address(kSoundPan, kOnSynth), kMax});
-		f.facts.param_values.push_back({*param_address(kPulseWidth, kOnSynth), kMax});
-		f.facts.param_values.push_back({*param_address(kChainLpf, kOnSong), kMin});
-		const auto pan = view(kSoundPan, f.song, kOnSynth, f.facts);
+		f.host.controls.param_values.push_back({*param_address(kSoundPan, kOnSynth), kMax});
+		f.host.controls.param_values.push_back({*param_address(kPulseWidth, kOnSynth), kMax});
+		f.host.controls.param_values.push_back({*param_address(kChainLpf, kOnSong), kMin});
+		const auto pan = view(kSoundPan, f.song, kOnSynth, f.ports());
 		expect(pan.has_value()).to_be_true();
 		if (pan.has_value()) {
 			expect(pan->applies).to_be_true();
@@ -137,20 +137,20 @@ describe bind_param("a param target", ${
 			expect(pan->least).to_equal(-25);
 			expect(pan->greatest).to_equal(25);
 		}
-		const auto width = view(kPulseWidth, f.song, kOnSynth, f.facts);
+		const auto width = view(kPulseWidth, f.song, kOnSynth, f.ports());
 		expect(width.has_value()).to_be_true();
 		if (width.has_value()) {
 			expect(width->value).to_equal(50);
 			expect(width->least).to_equal(0);
 			expect(width->greatest).to_equal(50);
 		}
-		const auto lpf = view(kChainLpf, f.song, kOnSong, f.facts);
+		const auto lpf = view(kChainLpf, f.song, kOnSong, f.ports());
 		expect(lpf.has_value()).to_be_true();
 		if (lpf.has_value()) {
 			expect(lpf->value).to_equal(0);
 		}
 		// A param the runtime does not hold shows the value a new owner starts with.
-		const auto unheld = view(kSoundLpf, f.song, kOnSynth, f.facts);
+		const auto unheld = view(kSoundLpf, f.song, kOnSynth, f.ports());
 		const auto* lpf_row = deluge::plugin::find_param(deluge::instrument::kParams, kSoundLpf.param);
 		expect(unheld.has_value()).to_be_true();
 		if (unheld.has_value()) {
@@ -161,35 +161,35 @@ describe bind_param("a param target", ${
 	it("applies where its conditions hold over the owner's rows, and where its partner shows", _ {
 		ModelFixture f;
 		for (const Target* t : {&kFmOnly, &kWithFm}) {
-			f.facts.param_values.push_back({*param_address(*t, kOnSynth), 0});
+			f.host.controls.param_values.push_back({*param_address(*t, kOnSynth), 0});
 		}
-		f.facts.param_values.push_back({*param_address(kChainLpfOn, kOnKitFx), 0});
+		f.host.controls.param_values.push_back({*param_address(kChainLpfOn, kOnKitFx), 0});
 		const auto applies = [&](const Target& t, const Addresses& where) {
-			const auto shown = view(t, f.song, where, f.facts);
+			const auto shown = view(t, f.song, where, f.ports());
 			return shown.has_value() && shown->applies;
 		};
-		f.facts.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE;
+		f.host.sound.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::SUBTRACTIVE;
 		expect(applies(kFmOnly, kOnSynth)).to_be_false();
 		expect(applies(kWithFm, kOnSynth)).to_be_false();
-		f.facts.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::FM;
+		f.host.sound.states[kSynth.id].synth_mode = deluge::instrument::SynthMode::FM;
 		expect(applies(kFmOnly, kOnSynth)).to_be_true();
 		expect(applies(kWithFm, kOnSynth)).to_be_true();
-		f.facts.chains[FakeFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::OFF;
+		f.host.tracks.chains[FakeTrackFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::OFF;
 		expect(applies(kChainLpfOn, kOnKitFx)).to_be_false();
-		f.facts.chains[FakeFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::SVF_BAND;
+		f.host.tracks.chains[FakeTrackFacts::chain_key(kKitChain)].filter.lpf_mode = deluge::effects::FilterMode::SVF_BAND;
 		expect(applies(kChainLpfOn, kOnKitFx)).to_be_true();
 	});
 
 	it("asks for the stored word of a menu value, within the display's range", _ {
 		ModelFixture f;
-		f.facts.param_values.push_back({*param_address(kSoundPan, kOnSynth), 0});
-		const auto request = request_for(kSoundPan, f.song, kOnSynth, f.facts, 10);
+		f.host.controls.param_values.push_back({*param_address(kSoundPan, kOnSynth), 0});
+		const auto request = request_for(kSoundPan, f.song, kOnSynth, f.ports(), 10);
 		expect(request.has_value()).to_be_true();
 		if (request.has_value()) {
 			expect(request->menu_value).to_equal(10);
 			expect(request->param_value).to_equal(858993440);
 		}
-		expect(request_for(kSoundPan, f.song, kOnSynth, f.facts, 26).has_value()).to_be_false();
+		expect(request_for(kSoundPan, f.song, kOnSynth, f.ports(), 26).has_value()).to_be_false();
 	});
 });
 

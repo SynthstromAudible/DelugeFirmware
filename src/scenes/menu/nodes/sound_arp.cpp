@@ -22,7 +22,7 @@
 #include "scenes/menu/nodes/sound_arp.h"
 
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 
 #include <optional>
@@ -33,16 +33,17 @@ namespace deluge::scenes::menu::nodes {
 // stands for), and writes the preset row through the menu's sink, which a kit row's affect-entire fans out.
 int32_t get_arp_preset(const MenuContext& ctx) {
 	const std::optional<project::SettingAddress> address =
-	    ctx.facts != nullptr ? bind::setting_address(arp_row("arpeggiator/preset"), ctx.addresses) : std::nullopt;
-	return address ? static_cast<int32_t>(ctx.facts->arp_preset(*address)) : 0;
+	    ctx.ports.tracks != nullptr ? bind::setting_address(arp_row("arpeggiator/preset"), ctx.addresses)
+	                                : std::nullopt;
+	return address ? static_cast<int32_t>(ctx.ports.tracks->arp_preset(*address)) : 0;
 }
 void set_arp_preset(const MenuContext& ctx, int32_t value) {
-	if (ctx.sink == nullptr || ctx.model == nullptr || ctx.facts == nullptr) {
+	if (ctx.ports.writes == nullptr || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
 		return;
 	}
 	if (const std::optional<bind::WriteRequest> request =
-	        bind::request_for(arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, *ctx.facts, value)) {
-		ctx.sink->write(*request);
+	        bind::request_for(arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, ctx.ports, value)) {
+		ctx.ports.writes->write(*request);
 	}
 }
 

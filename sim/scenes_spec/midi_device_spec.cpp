@@ -17,7 +17,7 @@
 ///     five per-cable fields and all four MPE member-channel numbers, on both -- so a swapped pair
 ///     of hooks changes the string even though every individual read still round-trips.
 ///   * **the fixture has two cables**, and every write is checked to leave the other one exactly
-///     where it was. `MenuContext::midi_cable` is the first binding input that is a *selection*
+///     where it was. `MenuContext::midi_device` is the first binding input that is a *selection*
 ///     rather than a global, and a hook that reached for `MIDIDeviceManager::dinMIDIPorts` (or for
 ///     the wrong `MIDIPort` of the right cable) would pass a one-cable spec.
 ///   * **each example starts from the asymmetric baseline**, drives the port with a value, and compares the captured
@@ -29,6 +29,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -47,6 +48,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/action/action_logger.h"
@@ -67,13 +69,17 @@
 #include "unit/gfx/support/golden.h"
 #include "unit/gfx/support/pbm.h"
 
+#include "fakes.h"
+
 #include "cppspec.hpp"
 #include "support/matchers/address_of.h"
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "support/spec_main.h"
@@ -331,7 +337,7 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		install_song(f.song.song);
 
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		Rig r;
 		r.open(nodes::midi_devices, ctx);
 		r.shell.tick(0);
@@ -347,7 +353,7 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		Rig r;
 		r.open(nodes::midi_device, ctx);
 		r.shell.tick(0);
@@ -394,7 +400,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		for (const int32_t value : {0, 1, 25, kMaxMenuValue}) {
 			baseline(*f.a, *f.b);
@@ -437,7 +443,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		}
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false,
 		                                    false);
-		ctx.midi_cable = &cable;
+		ctx.midi_device = deluge::midi::id_of(cable);
 		actionLogger.deleteAllLogs();
 
 		bindings::write(nodes::device_default_velocity_to_level, ctx, 25);
@@ -464,7 +470,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		struct Row {
 			const Node* node;
@@ -498,14 +504,14 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 
 	it("follows the selection: the same node writes cable B once the context names cable B", _ {
 		// The wrong-cable catch, stated directly. Nothing about the node changes between the two
-		// halves -- only `MenuContext::midi_cable` -- so a hook that reached for anything other than
+		// halves -- only `MenuContext::midi_device` -- so a hook that reached for anything other than
 		// that field (a global, the first hosted device, the DIN ports) fails here.
 		select_language();
 		Fixture& f = fixture();
 		MenuContext on_a = f.ctx;
-		on_a.midi_cable = f.a.get();
+		on_a.midi_device = deluge::midi::id_of(*f.a);
 		MenuContext on_b = f.ctx;
-		on_b.midi_cable = f.b.get();
+		on_b.midi_device = deluge::midi::id_of(*f.b);
 
 		// Each write is deliberately a **no-op on the cable it addresses** and would be a *change*
 		// on the other one, because `baseline()` gives the two cables opposite values, so a write of the value
@@ -536,10 +542,13 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		// Assert-then-clear, not defensive-clear: the flag is a process global shared with every
 		// other example in this binary, so each iteration asserts the state it needs *before*
 		// setting up, rather than quietly forcing it.
+		//
+		// Each write changes its field, as every write the page makes does (a toggle's turn flips it, and an int's turn
+		// moves it or is not committed): the host marks the devices on a change.
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		const bool saved = MIDIDeviceManager::anyChangesToSave;
 
 		for (const Node* n : {&nodes::device_default_velocity_to_level, &nodes::device_send_clock,
@@ -547,7 +556,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 			baseline(*f.a, *f.b);
 			MIDIDeviceManager::anyChangesToSave = false;
 			expect(MIDIDeviceManager::anyChangesToSave).to_be_false();
-			bindings::write(*n, ctx, 1);
+			bindings::write(*n, ctx, bindings::read(*n, ctx) == 0 ? 1 : 0);
 			expect(text_of(n->name) + " marked dirty")
 			    .to_equal(text_of(n->name) + (MIDIDeviceManager::anyChangesToSave ? " marked dirty" : " LEFT CLEAN"));
 		}
@@ -561,7 +570,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		select_language();
 		Fixture& f = fixture();
 		MenuContext none = f.ctx;
-		none.midi_cable = nullptr;
+		none.midi_device = {};
 		baseline(*f.a, *f.b);
 		const std::string before = CableState::capture(*f.a, *f.b);
 		for (const Node* n : {&nodes::device_default_velocity_to_level, &nodes::device_send_clock,
@@ -570,6 +579,121 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 			bindings::write(*n, none, 1);
 		}
 		expect(CableState::capture(*f.a, *f.b)).to_equal(before);
+	});
+});
+
+describe midi_device_host_writes("scenes::menu: the host's MIDI devices port applies what the page's items applied", $ {
+	// `MidiDevices::write` takes a device's whole settings; the host applies what changed, in the order legacy's items
+	// did: the fields, the recount for a zone change, the save mark, then an output zone's MCM.
+
+	it("sends an output zone change to the device as its MCM, and an input zone change not at all", _ {
+		select_language();
+		Fixture& f = fixture();
+		bind::MidiDevices& midi = *menu::host_ports().midi;
+		const deluge::midi::DeviceId a = deluge::midi::id_of(*f.a);
+
+		baseline(*f.a, *f.b);
+		std::optional<bind::MidiDeviceSettings> s = midi.settings(a);
+		expect(s.has_value()).to_be_true();
+		if (!s) {
+			return;
+		}
+		s->zones[std::to_underlying(bind::MidiDirection::OUT)].lower_last_member = 7;
+		expect(midi.write(a, *s)).to_be_true();
+		expect(int(f.a->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel)).to_equal(7);
+		// `sendRPN(0, 0, 6, 7)`: RPN LSB, RPN MSB, the value, then the two null-RPN CCs.
+		expect(f.a->sent).to_equal(std::vector<std::string>{"0:100=6", "0:101=0", "0:6=7", "0:100=127", "0:101=127"});
+
+		f.a->sent.clear();
+		s->zones[std::to_underlying(bind::MidiDirection::OUT)].upper_last_member = 12;
+		expect(midi.write(a, *s)).to_be_true();
+		// `sendRPN(15, 0, 6, 15 - 12)`, on the upper zone's master channel.
+		expect(f.a->sent).to_equal(
+		    std::vector<std::string>{"15:100=6", "15:101=0", "15:6=3", "15:100=127", "15:101=127"});
+
+		f.a->sent.clear();
+		s->zones[std::to_underlying(bind::MidiDirection::IN)].lower_last_member = 9;
+		expect(midi.write(a, *s)).to_be_true();
+		expect(int(f.a->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel)).to_equal(9);
+		expect(f.a->sent.empty()).to_be_true();
+	});
+
+	it("recounts the smallest zones on any zone change, and marks the devices on any change", _ {
+		select_language();
+		bind::MidiDevices& midi = *menu::host_ports().midi;
+		MIDICable& din = MIDIDeviceManager::dinMIDIPorts;
+		const uint8_t saved_flags = din.connectionFlags;
+		const MIDIPort saved_out = din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE];
+		const MIDIPort saved_in = din.ports[MIDI_DIRECTION_INPUT_TO_DELUGE];
+		const bool saved_dirty = MIDIDeviceManager::anyChangesToSave;
+
+		// DIN connected, with an output lower zone the recount has not seen yet.
+		din.connectionFlags = 1;
+		din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel = 6;
+		MIDIDeviceManager::recountSmallestMPEZones();
+		din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel = 4;
+		expect(int(MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput)).to_equal(6);
+
+		// An unchanged write applies nothing.
+		std::optional<bind::MidiDeviceSettings> s = midi.settings(deluge::midi::kDin);
+		expect(s.has_value()).to_be_true();
+		if (s) {
+			MIDIDeviceManager::anyChangesToSave = false;
+			expect(midi.write(deluge::midi::kDin, *s)).to_be_true();
+			expect(MIDIDeviceManager::anyChangesToSave).to_be_false();
+			expect(int(MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput)).to_equal(6);
+
+			// An input zone change recounts (and so sees the output's 4) and marks.
+			s->zones[std::to_underlying(bind::MidiDirection::IN)].upper_last_member = 13;
+			expect(midi.write(deluge::midi::kDin, *s)).to_be_true();
+			expect(int(MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput)).to_equal(4);
+			expect(MIDIDeviceManager::anyChangesToSave).to_be_true();
+
+			// A clock change marks and does not recount.
+			din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel = 2;
+			MIDIDeviceManager::anyChangesToSave = false;
+			s = midi.settings(deluge::midi::kDin);
+			if (s) {
+				s->receive_clock = !s->receive_clock;
+				expect(midi.write(deluge::midi::kDin, *s)).to_be_true();
+			}
+			expect(MIDIDeviceManager::anyChangesToSave).to_be_true();
+			expect(int(MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput)).to_equal(4);
+			din.receiveClock = !din.receiveClock;
+		}
+
+		din.connectionFlags = saved_flags;
+		din.ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE] = saved_out;
+		din.ports[MIDI_DIRECTION_INPUT_TO_DELUGE] = saved_in;
+		MIDIDeviceManager::recountSmallestMPEZones();
+		MIDIDeviceManager::anyChangesToSave = saved_dirty;
+	});
+
+	it("writes the velocity default, then has every input on the device take it", _ {
+		select_language();
+		Fixture& f = fixture();
+		baseline(*f.a, *f.b);
+		bind::test::RecordingSoundWrites writes;
+		MenuContext ctx = f.ctx;
+		ctx.midi_device = deluge::midi::id_of(*f.a);
+		ctx.ports.sound_writes = &writes;
+
+		bindings::write(nodes::device_default_velocity_to_level, ctx, 25);
+		expect(f.a->defaultVelocityToLevel).to_equal(int32_t{25 * (2147483648 / (kMaxMenuValue * 2))});
+		expect(writes.calls.size()).to_equal(size_t{1});
+		if (writes.calls.size() == 1) {
+			expect(writes.calls[0].kind).to_equal(bind::test::RecordingSoundWrites::Call::Kind::VELOCITY_EVERYWHERE);
+			expect(writes.calls[0].device.value).to_equal(ctx.midi_device.value);
+		}
+
+		// Legacy re-patches on every write, a value the device already holds included.
+		bindings::write(nodes::device_default_velocity_to_level, ctx, 25);
+		expect(writes.calls.size()).to_equal(size_t{2});
+
+		// No device: nothing written, nothing re-patched.
+		ctx.midi_device = {};
+		bindings::write(nodes::device_default_velocity_to_level, ctx, 10);
+		expect(writes.calls.size()).to_equal(size_t{2});
 	});
 });
 
@@ -584,7 +708,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		Rig r;
 		r.open(nodes::midi_device, ctx);
@@ -615,7 +739,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		Rig r;
 		r.open(nodes::midi_device, ctx);
@@ -635,7 +759,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		Rig r;
 		r.open(nodes::midi_device, ctx);
@@ -660,7 +784,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		   for (SpecCable* cable : {f.a.get(), f.b.get()}) {
 			   baseline(*f.a, *f.b);
 			   MenuContext ctx = f.ctx;
-			   ctx.midi_cable = cable;
+			   ctx.midi_device = deluge::midi::id_of(*cable);
 			   install_song(f.song.song);
 			   const std::string which = cable == f.a.get() ? "a" : "b";
 
@@ -694,7 +818,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		select_language();
 		Fixture& f = fixture();
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 
 		for (uint8_t direction = 0; direction < 2; direction++) {
 			for (uint8_t zone = 0; zone < 2; zone++) {
@@ -758,7 +882,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		{
 			Rig r;
 			r.open(nodes::mpe_zone, ctx);
@@ -790,7 +914,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;
 		expect(open_device_page_on_guest(f, ctx)).to_be_true();
@@ -815,7 +939,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;
 		expect(open_device_page_on_guest(f, ctx)).to_be_true();
@@ -847,7 +971,7 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 		Fixture& f = fixture();
 		baseline(*f.a, *f.b);
 		MenuContext ctx = f.ctx;
-		ctx.midi_cable = f.a.get();
+		ctx.midi_device = deluge::midi::id_of(*f.a);
 		{
 			Rig r;
 			r.open(node, ctx);
@@ -897,5 +1021,5 @@ describe midi_device_reference_rows("scenes::menu: the per-device page: the refe
 });
 // clang-format on
 
-DELUGE_SPEC(midi_device_spec, midi_device_shape, midi_device_per_cable, midi_device_mpe, midi_device_pixels,
-            midi_device_reference_rows)
+DELUGE_SPEC(midi_device_spec, midi_device_shape, midi_device_per_cable, midi_device_host_writes, midi_device_mpe,
+            midi_device_pixels, midi_device_reference_rows)

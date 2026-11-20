@@ -80,10 +80,9 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // PatchSource -- one of the root-level headers this layer may name
-
-#include "modulation/patch/patch_cable.h" // Polarity
-#include "scenes/bind/write_sink.h"
+#include "instruments/deluge/cables.h"
+#include "plugin-api/types/param_mapping.h"
+#include "scenes/bind/ports/write_sink.h"
 
 #include <cstdint>
 #include <optional>
@@ -250,7 +249,7 @@ public:
 	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (MIDI, CV, or a turn
 	///        under a held Select); a cable the page makes later takes it. Restarts the cursor's blink dark, as
 	///        `updatePolarityUI`'s re-render does.
-	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
+	void set_polarity(const MenuContext& ctx, MenuState& state, instrument::Polarity polarity) const;
 
 	/// `PatchCableStrength : Automation` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): shift +
 	/// select deletes the cable's automation.
@@ -273,8 +272,9 @@ inline const SourceSelectionItem kSourceSelectionRangeItem{SourceSelectionItem::
 inline const PatchCableStrengthItem kPatchCableStrengthRegularItem{PatchCableStrengthItem::Which::Regular};
 inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStrengthItem::Which::Range};
 /// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
-inline const PatchCableStrengthItem kVibratoItem{
-    PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
+inline const PatchCableStrengthItem kVibratoItem{PatchCableStrengthItem::Which::Fixed,
+                                                 deluge::instrument::runtime_index(deluge::instrument::param::kPitch),
+                                                 PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`) and the column
 ///        (`Decimal::renderInHorizontalMenu`, `origin/main:src/deluge/gui/menu_item/decimal.cpp`, rendering style
@@ -288,9 +288,9 @@ ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueText
 
 /// `sidechainVolumeShortcutMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
-inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem::Which::Fixed,
-                                                         deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
-                                                         PatchSource::SIDECHAIN};
+inline const PatchCableStrengthItem kSidechainVolumeItem{
+    PatchCableStrengthItem::Which::Fixed,
+    deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend), PatchSource::SIDECHAIN};
 /// @}
 
 /// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
@@ -311,7 +311,7 @@ int32_t ducking_strength(const MenuContext& ctx);
 /// @return @p n as a column.
 constexpr Node fixed_cable_column(Node n, GetFn get) {
 	n.bind.get = get;
-	n.bind.fixed_range = IntRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	n.bind.fixed_range = IntRange{-plugin::kCableMenuMax, plugin::kCableMenuMax, 1};
 	n.bind.horizontal_step = HorizontalStep{.coarse = 100, .fine = 1};
 	return with_allow_session_from_horizontal(n);
 }
@@ -385,12 +385,13 @@ inline constexpr std::span<const Node* const> kPatchCablesChain{kPatchCablesChai
 /// @brief The request that sets the cable @p learn names (its bottom-level source to its destination) on the sound
 ///        @p ctx edits to @p menu_value, the strength page's own value; a cable it makes takes @p polarity.
 /// @return The request, or nullopt where @p ctx edits no sound.
-std::optional<deluge::scenes::bind::WriteRequest>
-cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity);
+std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx,
+                                                                deluge::synth::CableTarget learn, int32_t menu_value,
+                                                                instrument::Polarity polarity);
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///
-/// Applied at the 29 declaration sites whose `bind.param.kind == params::Kind::PATCHED` (the macros
+/// Applied at the 29 declaration sites whose `bind.param.kind == ParamKind::PATCHED` (the macros
 /// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which is **exactly 53 nodes** -- the same
 /// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
 /// `tables_2_spec` pins both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper

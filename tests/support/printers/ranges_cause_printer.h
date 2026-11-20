@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/sound_writes.h"
 
 #include <format>
 #include <ostream>

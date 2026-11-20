@@ -46,8 +46,8 @@
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
 #include "scenes/menu/relevance.h"
 
-#include "definitions_cxx.hpp" // PolyphonyMode -- `polyphony_chain`'s POLY test
 #include "gfx/oled/icons.h"
+#include "instruments/deluge/words.h"
 
 #include <optional>
 #include <span>
@@ -100,7 +100,8 @@ inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
 inline constexpr deluge::scenes::bind::Target kPolyphonic{.kind = deluge::scenes::bind::Target::Kind::SOUND,
                                                           .path = "polyphonic"};
 inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
-	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
+	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(instrument::PolyphonyMode::POLY) ? &voice_count
+	                                                                                                   : nullptr;
 }
 
 inline constexpr Node polyphony = with_affect_entire(
@@ -110,8 +111,8 @@ inline constexpr Node polyphony = with_affect_entire(
                      sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT)));
 inline constexpr Node portamento =
     with_column_draw(with_column_name(param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
-                                            {deluge::modulation::params::Kind::UNPATCHED_SOUND,
-                                             deluge::modulation::params::UNPATCHED_PORTAMENTO},
+                                            {deluge::plugin::ParamKind::UNPATCHED_SOUND,
+                                             deluge::instrument::runtime_index(deluge::instrument::param::kPortamento)},
                                             Hint::None),
                                       sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT)),
                      glide_draw);

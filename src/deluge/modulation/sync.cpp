@@ -1,33 +1,11 @@
 #include "modulation/sync.h"
-#include "definitions_cxx.hpp"
-#include "etl/string.h"
-#include "util/const_functions.h"
+#include "music-theory/note_length.h"
+#include "plugin-api/types/display_mapping.h"
 
-#ifdef IN_UNIT_TESTS
-#include "mock_display.h"
-#include "mock_functions.h"
-#include "mock_song.h"
-#else
-#include "hid/display/display.h"
-#include "model/song/song.h"
-#include "util/functions.h"
-#endif
+#include <utility>
 
 int32_t wrapSwingIntervalSyncLevel(int32_t value) {
-	// This is tricky because we don't want zero: that would be "off".
-	return mod(value - 1, NUM_SWING_INTERVALS - 1) + 1;
-}
-
-int32_t clampSwingIntervalSyncLevel(int32_t value) {
-	if (value < MIN_SWING_INERVAL) {
-		return MIN_SWING_INERVAL;
-	}
-	else if (value > MAX_SWING_INTERVAL) {
-		return MAX_SWING_INTERVAL;
-	}
-	else {
-		return value;
-	}
+	return deluge::plugin::wrap_swing_interval(value);
 }
 
 SyncType syncValueToSyncType(int32_t value) {
@@ -55,53 +33,7 @@ SyncLevel syncValueToSyncLevel(int32_t option) {
 }
 
 void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude) {
-	char const* typeStr = nullptr;
-	SyncType type{syncValueToSyncType(value)};
-	SyncLevel level{syncValueToSyncLevel(value)};
-
-	uint32_t shift = deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(level);
-	uint32_t noteLength = uint32_t{3} << shift;
-
-	switch (type) {
-	case SYNC_TYPE_EVEN:
-		if (value != 0) {
-			typeStr = "-notes";
-		}
-		break;
-	case SYNC_TYPE_TRIPLET:
-		typeStr = "-tplts";
-		break;
-	case SYNC_TYPE_DOTTED:
-		typeStr = "-dtted";
-		break;
-	}
-
-	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
-	if (typeStr != nullptr) {
-		int32_t magnitudeLevelBars = deluge::plugin::index_of(SYNC_LEVEL_8TH) - tickMagnitude;
-		if ((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED)
-		    && deluge::plugin::index_of(level) <= magnitudeLevelBars) {
-			// On OLED, getNoteLengthNameForMagniture() handles adding this for the non-bar levels. On 7seg, always
-			// append it
-			buffer.append(typeStr);
-		}
-	}
-}
-
-void syncValueToStringForHorzMenuLabel(SyncType type, SyncLevel level, etl::istring& buffer, int32_t tickMagnitude) {
-	uint32_t shift = deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(level);
-	uint32_t noteLength = uint32_t{3} << shift;
-
-	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), nullptr, false);
-
-	// Remove all '-' characters
-	etl::string<12> tempBuf;
-	for (uint32_t i = 0; i < buffer.size(); ++i) {
-		const char currentChar = buffer.c_str()[i];
-		if (currentChar != '-' && currentChar != '\0') {
-			tempBuf.push_back(currentChar);
-		}
-	}
-	buffer.clear();
-	buffer.append(tempBuf.c_str());
+	const auto name =
+	    deluge::music::sync_value_name(static_cast<int32_t>(value), tickMagnitude, deluge::music::SyncNameForm::FULL);
+	buffer.append(name.view().data(), name.view().size());
 }

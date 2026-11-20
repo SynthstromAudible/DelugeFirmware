@@ -2,6 +2,7 @@
 
 #include "scenes/menu/note_bridge.h"
 
+#include "definitions_cxx.hpp" // FillMode, kNumProbabilityValues, the iterance presets
 #include "notify/notice_queue.h"
 #include "sequence/iterance.h"
 

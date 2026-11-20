@@ -20,14 +20,15 @@
 
 #include "scenes/menu/nodes/output_items.h"
 
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/track_facts.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "definitions_cxx.hpp" // OutputType
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
@@ -35,7 +36,6 @@
 #include "gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
-#include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -82,10 +82,10 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 
 /// @brief The track the menu's context names, as the song holds it; nullopt where it names none.
 std::optional<bind::TrackFact> track_of(const MenuContext& ctx) {
-	if (!ctx.addresses.track || ctx.facts == nullptr) {
+	if (!ctx.addresses.track || ctx.ports.tracks == nullptr) {
 		return std::nullopt;
 	}
-	for (const bind::TrackFact& track : ctx.facts->tracks()) {
+	for (const bind::TrackFact& track : ctx.ports.tracks->tracks()) {
 		if (track.output_id == ctx.addresses.track->output_id) {
 			return track;
 		}
@@ -240,14 +240,14 @@ std::string_view output_type_text(const bind::TrackFact& track) {
 
 /// @brief Write the track the audio track records from (or none) through the menu's sink.
 void write_recording_from(const MenuContext& ctx, const bind::TrackFact* from) {
-	if (ctx.sink == nullptr) {
+	if (ctx.ports.writes == nullptr) {
 		return;
 	}
-	(void)ctx.sink->write({.target = {.kind = bind::Target::Kind::MODEL,
-	                                  .path = "outputRecordingFrom",
-	                                  .group = project::SettingGroupId::AUDIO_INPUT},
-	                       .where = ctx.addresses,
-	                       .menu_value = from != nullptr ? static_cast<int32_t>(from->output_id) : -1});
+	(void)ctx.ports.writes->write({.target = {.kind = bind::Target::Kind::MODEL,
+	                                          .path = "outputRecordingFrom",
+	                                          .group = project::SettingGroupId::AUDIO_INPUT},
+	                               .where = ctx.addresses,
+	                               .menu_value = from != nullptr ? static_cast<int32_t>(from->output_id) : -1});
 }
 
 } // namespace
@@ -301,11 +301,11 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	if (linked(ctx)) {
 		// Unlinking (the `else` arm of main's `Linked::writeCurrentValue`): the new value is false, so just clear the
 		// file name. No UI is opened, so nothing is filed and `render` is what takes the user back out.
-		if (midi_track_of(ctx) && ctx.sink != nullptr) {
-			(void)ctx.sink->write_text({.kind = bind::Target::Kind::MODEL,
-			                            .path = "deviceDefinitionFileName",
-			                            .group = project::SettingGroupId::INSTRUMENT_DEVICE},
-			                           ctx.addresses, "");
+		if (midi_track_of(ctx) && ctx.ports.writes != nullptr) {
+			(void)ctx.ports.writes->write_text({.kind = bind::Target::Kind::MODEL,
+			                                    .path = "deviceDefinitionFileName",
+			                                    .group = project::SettingGroupId::INSTRUMENT_DEVICE},
+			                                   ctx.addresses, "");
 		}
 		return;
 	}
@@ -372,7 +372,7 @@ void SpecificOutputItem::on_focus(const MenuContext& ctx, MenuState& state) cons
 
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	const std::vector<bind::TrackFact> tracks =
-	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
+	    ctx.ports.tracks != nullptr ? ctx.ports.tracks->tracks() : std::vector<bind::TrackFact>{};
 	int32_t index = recordable_index(tracks, editing, editing ? recording_from_of(ctx, *editing) : std::nullopt);
 	if (index < 0) {
 		// Main's `SpecificSourceOutputSelector::beginSession` -- "if the stored source was removed or became invalid,
@@ -395,7 +395,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	const size_t d = depth_of(state);
 	const std::optional<uint32_t> editing = editing_of(ctx);
 	const std::vector<bind::TrackFact> tracks =
-	    ctx.facts != nullptr ? ctx.facts->tracks() : std::vector<bind::TrackFact>{};
+	    ctx.ports.tracks != nullptr ? ctx.ports.tracks->tracks() : std::vector<bind::TrackFact>{};
 
 	// Main's `SpecificSourceOutputSelector::selectEncoderAction`. Done here rather than in `handle` for
 	// `SourceSelectionItem`'s reason: the select-encoder turn is a widget-owned shape delivered
@@ -474,10 +474,10 @@ void SpecificOutputItem::commit(const MenuContext& ctx, MenuState& state) const 
 	// cannot have moved between the render that set `value_changed` and this call -- `after_render` runs immediately
 	// after, with no input in between (`ActiveScalesItem::commit`'s note).
 	const std::optional<uint32_t> editing = editing_of(ctx);
-	if (!editing || ctx.facts == nullptr) {
+	if (!editing || ctx.ports.tracks == nullptr) {
 		return;
 	}
-	const std::vector<bind::TrackFact> tracks = ctx.facts->tracks();
+	const std::vector<bind::TrackFact> tracks = ctx.ports.tracks->tracks();
 	write_recording_from(ctx, track_at(tracks, editing, state.list[depth_of(state)].cursor));
 }
 

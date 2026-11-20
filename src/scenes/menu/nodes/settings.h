@@ -44,12 +44,12 @@
 ///           page rather than committing a value) and `midi_devices` (`Devices` in
 ///           `origin/main:src/deluge/gui/menu_item/midi/devices.h`, a scrolling device list) are the real items
 ///           `CvSelectionItem`, `GateSelectionItem` and `MidiDevicesItem`
-///           (`nodes/dynamic.h`), with a `MenuWalkState::source_choice` / `midi_cable_choice` write-back.
+///           (`nodes/dynamic.h`), with a `MenuWalkState::source_choice` / `midi_device_choice` write-back.
 ///           The five `reset_*` items are a real `ResetItem` opening `context_menu::ContextMenuScene`
 ///           through `MenuWalkState::pending_scene` (see "1. Actions" below). The twelve `midi_command_*`
 ///           (`origin/main:src/deluge/gui/menu_item/midi/command.h`, MIDI-learn items) are a real `MidiCommandItem`:
-///           they navigate nowhere, they bind an incoming MIDI message to a `GlobalMIDICommand`, and the entry points
-///           that deliver that message are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.
+///           they navigate nowhere, they bind an incoming MIDI message to a `GlobalMIDICommand`, which reaches them
+///           through `MenuLearn::offer` in learn mode; `MenuScene::unlearn` forgets it.
 ///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
 ///           `default_key` are `Kind::Range` -- exactly the three consumers that
 ///           justify a `Range` kind -- and their `lower`/`upper` live in `FlashStorage::defaultRanges`, not on
@@ -97,6 +97,9 @@
 #include "scenes/menu/nodes/roots.h"        // kThresholdModeNames
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
+
+#include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
+#include "plugin-api/types/display_mapping.h"
 
 #include <limits>
 #include <span>
@@ -169,14 +172,16 @@ std::optional<int32_t> turn_follow_channel(const MenuContext& ctx, int32_t value
 /// @brief `midi::FollowChannel::drawInteger`: the input-differentiation line, the device and the channel or zone, in
 ///        the MIDI command screen's three rows.
 /// @param which  The `MIDIFollowChannelType` the node edits.
+/// @param ctx    The menu's context, whose MIDI devices port names the device.
 /// @param f      The frame the item draws in.
 /// @param value  The channel or zone after this tick's edit.
 /// @param scroll The side-scroll state of the device's name.
-void follow_channel_draw(int32_t which, deluge::ui::oled::OledFrame& f, int32_t value, deluge::ui::ScrollText& scroll);
+void follow_channel_draw(int32_t which, const MenuContext& ctx, deluge::ui::oled::OledFrame& f, int32_t value,
+                         deluge::ui::ScrollText& scroll);
 template <int Which>
-void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext&, int32_t value,
+void draw_follow_channel(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, int32_t value,
                          deluge::ui::ScrollText& scroll) {
-	follow_channel_draw(Which, f, value, scroll);
+	follow_channel_draw(Which, ctx, f, value, scroll);
 }
 
 /// @brief `midi::FollowKitRootNote::learnNoteOn`
@@ -962,8 +967,8 @@ inline constexpr Node default_metronome_volume =
                sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
 
 /// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`) is
-/// `polarityToString(...)` (`modulation/patch/patch_cable.cpp`) for the two polarities --
-/// literals again, so a dynamic list.
+/// `polarityToString` (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`) for the two polarities, here
+/// `instrument::to_string`: literals, so a dynamic list.
 inline constexpr Node default_patch_cable_polarity =
     dynamic_enumeration(sid(String::STRING_FOR_DEFAULT_POLARITY), polarity_names, get_default_patch_cable_polarity,
                         set_default_patch_cable_polarity);
@@ -1126,11 +1131,12 @@ inline constexpr Node record_count_in = with_value_style(
     with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
                sid(String::STRING_FOR_REC_COUNT_IN)),
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
-/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` -- "can't do triplets/dots for quantize"
+/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), here
+/// `plugin::SyncType::TRIPLET` -- "can't do triplets/dots for quantize"
 /// (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
 inline constexpr Node record_quantize = with_sync_name_magnitude(
     sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,
-                    IntRange{0, static_cast<int32_t>(SYNC_TYPE_TRIPLET) - 1, 1}),
+                    IntRange{0, std::to_underlying(deluge::plugin::SyncType::TRIPLET) - 1, 1}),
     relative_to_song_magnitude);
 inline constexpr Node record_margins =
     toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);

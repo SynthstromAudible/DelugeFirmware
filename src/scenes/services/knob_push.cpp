@@ -11,17 +11,19 @@
 #include "effects/compressor.h"
 #include "effects/host_chain/pages.h"
 #include "effects/host_chain/params.h"
+#include "effects/reverb_presets.h"
 #include "effects/setting_params.h"
+#include "effects/words.h"
+#include "gui/l10n/effect_names.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "model/fx/mod_fx_names.h"
-#include "model/mod_controllable/filters/filter_config.h"
-#include "model/song/reverb_presets.h"
-#include "modulation/params/param.h"
+#include "music-theory/note_length.h"
+#include "plugin-api/types/display_mapping.h"
 
 #include <algorithm>
 #include <array>
@@ -36,13 +38,12 @@ namespace {
 using deluge::l10n::String;
 using deluge::project::ControllerMapping;
 namespace ip = deluge::instrument::param;
-namespace params = deluge::modulation::params;
 
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
 
-/// What a push reads beyond the song's records: the owner's effects and the device facts, from the host's runtime
-/// facts, and the gesture's context.
+/// What a push reads beyond the song's records: the owner's effects (from the host's track and sound ports), the device
+/// facts (from the controls port) and the gesture's context.
 struct Reads {
 	effects::EffectStates effects; ///< the owner's effect settings (a new chain's for none)
 	controls::PageSources pages;   ///< the publishers and the device facts (the alternative delay knobs)
@@ -52,11 +53,11 @@ struct Reads {
 
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
+	const bind::Ports& ports = menu::host_ports();
+	Reads out{.pages = bind::app_page_sources(*ports.controls, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const effects::EffectStates* fx = owner_effects(focus, facts)) {
+	if (const effects::EffectStates* fx = owner_effects(focus, *ports.tracks, *ports.sound)) {
 		out.effects = *fx;
 	}
 	return out;
@@ -71,17 +72,16 @@ int32_t tick_magnitude(const project::Song& song) {
 	return song.transport.inside_world_tick_magnitude + song.transport.inside_world_tick_magnitude_offset_from_bpm;
 }
 
-const char* filter_type_name(FilterType type) {
+const char* filter_type_name(effects::FilterType type) {
 	switch (type) {
-	case FilterType::LPF:
+	case effects::FilterType::LPF:
 		return text(String::STRING_FOR_LPF);
-	case FilterType::HPF:
+	case effects::FilterType::HPF:
 		return text(String::STRING_FOR_HPF);
-	case FilterType::EQ:
+	case effects::FilterType::EQ:
 		return text(String::STRING_FOR_EQ);
-	default:
-		return text(String::STRING_FOR_NONE);
 	}
+	return text(String::STRING_FOR_NONE);
 }
 
 const char* lpf_mode_name(effects::FilterMode mode) {
@@ -114,15 +114,16 @@ const char* hpf_mode_name(effects::FilterMode mode) {
 	}
 }
 
-const char* filter_mode_name(FilterType type, const effects::EffectStates& fx) {
+const char* filter_mode_name(effects::FilterType type, const effects::EffectStates& fx) {
 	switch (type) {
-	case FilterType::LPF:
+	case effects::FilterType::LPF:
 		return lpf_mode_name(fx.filter.lpf_mode);
-	case FilterType::HPF:
+	case effects::FilterType::HPF:
 		return hpf_mode_name(fx.filter.hpf_mode);
-	default:
-		return text(String::STRING_FOR_NONE);
+	case effects::FilterType::EQ:
+		break;
 	}
+	return text(String::STRING_FOR_NONE);
 }
 
 const char* delay_type_name(effects::DelayType type) {
@@ -163,9 +164,9 @@ const char* sidechain_name(const project::Song& song, const effects::EffectState
 	                                                                                  : String::STRING_FOR_FAST);
 }
 
-std::string filter_popup(FilterType type, const effects::EffectStates& fx) {
+std::string filter_popup(effects::FilterType type, const effects::EffectStates& fx) {
 	std::string out = filter_type_name(type);
-	if (type != FilterType::EQ) {
+	if (type != effects::FilterType::EQ) {
 		out += "\n";
 		out += filter_mode_name(type, fx);
 	}
@@ -180,9 +181,23 @@ std::string delay_popup(const project::Song& song, const effects::EffectStates& 
 	return std::string{"Ping pong: "} + ping_pong_name(fx.delay.ping_pong) + "\n" + delay_type_name(fx.delay.type);
 }
 
+/// The preset nearest @p song's reverb.
+size_t current_reverb_preset(const project::Song& song) {
+	return effects::nearest_reverb_preset_of(song.reverb.room_size, song.reverb.damping);
+}
+
+/// The preset after the one nearest @p song's reverb.
+size_t next_reverb_preset(const project::Song& song) {
+	return (current_reverb_preset(song) + 1) % effects::kReverbPresets.size();
+}
+
+/// Reverb preset @p preset's popup name.
+std::string reverb_name(size_t preset) {
+	return std::string{l10n::reverb_preset_name(preset)};
+}
+
 std::string sidechain_reverb_popup(const project::Song& song, const effects::EffectStates& fx) {
-	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n"
-	       + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
+	return std::string{"Sidechain: "} + sidechain_name(song, fx) + "\n" + reverb_name(current_reverb_preset(song));
 }
 
 std::string comp_reverb_popup(const project::Song& song, const bind::CompView& comp) {
@@ -190,11 +205,12 @@ std::string comp_reverb_popup(const project::Song& song, const bind::CompView& c
 	if (comp.editing) {
 		return out + "Comp Param: " + kCompParamNames[comp.param % kCompParamNames.size()];
 	}
-	return out + deluge::model::reverbPresetName(deluge::model::reverbPresetOf(song));
+	return out + reverb_name(current_reverb_preset(song));
 }
 
-std::string mod_fx_popup(effects::ModFXType type, ModFXParam param) {
-	return std::string{"Type: "} + modfx::modFXToString(type) + "\nParam: " + modfx::getParamName(type, param);
+std::string mod_fx_popup(effects::ModFXType type, effects::ModFxParam param) {
+	return std::string{"Type: "} + std::string{l10n::mod_fx_name(type)}
+	       + "\nParam: " + std::string{l10n::mod_fx_param_name(type, param, false)};
 }
 
 /// The chain's record, as the focus names it.
@@ -230,15 +246,14 @@ void say(KnobPush& out, const Reads& inputs, std::string popup, std::string noti
 
 /// The next reverb preset, as two song settings.
 void push_reverb(KnobPush& out, const project::Song& song) {
-	const size_t next = (deluge::model::reverbPresetOf(song) + 1) % deluge::model::kNumReverbPresets;
-	out.song.emplace_back("reverb/roomSize", deluge::model::kReverbPresetRoomSize[next]);
-	out.song.emplace_back("reverb/dampening", deluge::model::kReverbPresetDamping[next]);
+	const size_t next = next_reverb_preset(song);
+	out.song.emplace_back("reverb/roomSize", effects::kReverbPresets[next].room_size);
+	out.song.emplace_back("reverb/dampening", effects::kReverbPresets[next].damping);
 }
 
 /// The reverb name after @p out's preset change.
-const char* pushed_reverb_name(const project::Song& song) {
-	return deluge::model::reverbPresetName((deluge::model::reverbPresetOf(song) + 1)
-	                                       % deluge::model::kNumReverbPresets);
+std::string pushed_reverb_name(const project::Song& song) {
+	return reverb_name(next_reverb_preset(song));
 }
 
 /// The text a step of setting @p id shows, from the effects @p after it.
@@ -254,7 +269,7 @@ void say_step(KnobPush& out, const project::Song& song, plugin::ParamId id, cons
 		say(out, inputs, delay_popup(song, after, inputs.pages.alt_delay), notice);
 	}
 	else if (id == setting::kLpfMode || id == setting::kHpfMode) {
-		const FilterType type = id == setting::kLpfMode ? FilterType::LPF : FilterType::HPF;
+		const effects::FilterType type = id == setting::kLpfMode ? effects::FilterType::LPF : effects::FilterType::HPF;
 		say(out, inputs, filter_popup(type, after), filter_mode_name(type, after));
 	}
 	else if (id == setting::kSidechainSyncLevel) {
@@ -265,7 +280,7 @@ void say_step(KnobPush& out, const project::Song& song, plugin::ParamId id, cons
 /// The chain's mod FX view, as its record holds it; feedback for no chain.
 uint32_t mod_fx_view(const project::Song& song, const bind::KnobFocus& focus) {
 	const project::FxChain* chain = chain_of(song, focus);
-	return chain != nullptr ? chain->mod_fx_param : std::to_underlying(ModFXParam::FEEDBACK);
+	return chain != nullptr ? chain->mod_fx_param : std::to_underlying(effects::ModFxParam::FEEDBACK);
 }
 
 /// After the mod FX type stepped to @p after's: a view the new type has no param for moves on to the next one it
@@ -275,13 +290,13 @@ void fix_mod_fx_view(KnobPush& out, const project::Song& song, const bind::KnobF
 	const effects::ModFXType type = after.mod_fx.type;
 	const uint32_t view = mod_fx_view(song, focus);
 	uint32_t param = view;
-	for (int32_t tried = 0; tried < kNumModFXParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
-		param = (param + 1) % kNumModFXParams;
+	for (int32_t tried = 0; tried < effects::kNumModFxParams && !host_chain::mod_fx_page_valid(type, param); tried++) {
+		param = (param + 1) % effects::kNumModFxParams;
 	}
 	if (param != view) {
 		out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[param]);
 	}
-	say(out, inputs, mod_fx_popup(type, static_cast<ModFXParam>(param)), modfx::modFXToString(type));
+	say(out, inputs, mod_fx_popup(type, static_cast<effects::ModFxParam>(param)), std::string{l10n::mod_fx_name(type)});
 }
 
 /// A press of knob @p pressed that moved @p focus's section from @p pages's current page to @p page: a sound's filter
@@ -311,24 +326,25 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		}
 		out.controls = std::move(after);
 		// The filter cycle's pages are low-pass, high-pass and EQ, on either knob.
-		const auto next = static_cast<FilterType>(page.page_id % kNumFilterTypes);
+		const auto next = static_cast<effects::FilterType>(page.page_id % effects::kNumFilterTypes);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		return;
 	}
 	switch (page.section) {
 	case host_chain::kFilterSection: {
-		const auto next = static_cast<FilterType>(page.page_id);
+		const auto next = static_cast<effects::FilterType>(page.page_id);
 		out.chain_view.emplace("currentFilterType", effects::kFilterTypeWords[page.page_id]);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		out.edited = true;
 		return;
 	}
 	case host_chain::kModFxSection: {
-		const auto param = static_cast<ModFXParam>(page.page_id);
+		const auto param = static_cast<effects::ModFxParam>(page.page_id);
 		if (page.page_id != mod_fx_view(song, focus)) {
 			out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[page.page_id]);
 		}
-		say(out, inputs, mod_fx_popup(fx.mod_fx.type, param), modfx::getParamName(fx.mod_fx.type, param));
+		say(out, inputs, mod_fx_popup(fx.mod_fx.type, param),
+		    std::string{l10n::mod_fx_param_name(fx.mod_fx.type, param, false)});
 		out.edited = true;
 		return;
 	}
@@ -394,7 +410,7 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 		break;
 	}
 	// CC 1 is named the mod wheel, as `MIDIInstrument::appendCCName` names `CC_EXTERNAL_MOD_WHEEL`, while its lane is
-	// CC 1's own (`ShellEditSink::midi_cc_select`'s lane, as legacy's `getParamToControlFromInputMIDIChannel`). No
+	// CC 1's own (`HostEditSink::midi_cc_select`'s lane, as legacy's `getParamToControlFromInputMIDIChannel`). No
 	// record holds a 1: the codec reads a file's 1 as the Y axis, and the CC choice steps over it.
 	if (cc.number == project::ModKnobCc::kYAxisNumber || cc.number == 1) {
 		return text(String::STRING_FOR_MOD_WHEEL);
@@ -430,23 +446,23 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 			out += source_short_name(second);
 			out += " -> ";
 		}
-		out += params::getPatchedParamShortName(static_cast<params::ParamType>(destination ? destination->index : 0),
-		                                        fx.filter.lpf_mode, fx.filter.hpf_mode);
+		out += l10n::patched_param_short_name_at(destination ? destination->index : 0, fx.filter.lpf_mode,
+		                                         fx.filter.hpf_mode);
 		return out;
 	}
 	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
-		const std::optional<uint8_t> index = host_chain::runtime_index(id);
-		return index ? params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
-		                                           fx.filter.hpf_mode)
+		const std::optional<uint8_t> index = host_chain::find_runtime_index(id);
+		return index ? std::string{l10n::param_name_at(plugin::ParamKind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
+		                                               fx.filter.hpf_mode)}
 		             : std::string{};
 	}
 	const std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(id);
 	if (!slot) {
 		return {};
 	}
-	const params::Kind kind =
-	    slot->set == instrument::RuntimeSet::PATCHED ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND;
-	return params::getParamDisplayName(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode);
+	const plugin::ParamKind kind =
+	    slot->set == instrument::RuntimeSet::PATCHED ? plugin::ParamKind::PATCHED : plugin::ParamKind::UNPATCHED_SOUND;
+	return std::string{l10n::param_name_at(kind, slot->index, fx.filter.lpf_mode, fx.filter.hpf_mode)};
 }
 
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
@@ -474,16 +490,17 @@ std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus) {
 	return std::nullopt;
 }
 
-const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts) {
+const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::TrackFacts& tracks,
+                                           const bind::SoundFacts& sound) {
 	const std::optional<EffectOwner> owner = effect_owner(focus);
 	if (!owner) {
 		return nullptr;
 	}
 	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-		const instrument::SoundState* state = facts.sound_state(*slot);
+		const instrument::SoundState* state = sound.sound_state(*slot);
 		return state != nullptr ? &instrument::sound_effects(*state) : nullptr;
 	}
-	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
+	return tracks.chain_effects(std::get<project::ChainAddress>(*owner));
 }
 
 KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
@@ -532,13 +549,13 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 		const std::optional<plugin::ParamId> bottom = param_at(0);
 		const auto pair = [&](plugin::ParamId upper, plugin::ParamId lower) { return top == upper && bottom == lower; };
 		if (pair(ip::kLpfFrequency, ip::kLpfResonance)) {
-			return filter_popup(FilterType::LPF, fx);
+			return filter_popup(effects::FilterType::LPF, fx);
 		}
 		if (pair(ip::kHpfFrequency, ip::kHpfResonance)) {
-			return filter_popup(FilterType::HPF, fx);
+			return filter_popup(effects::FilterType::HPF, fx);
 		}
 		if (pair(ip::kTreble, ip::kBass)) {
-			return filter_popup(FilterType::EQ, fx);
+			return filter_popup(effects::FilterType::EQ, fx);
 		}
 		if (pair(ip::kDelayRate, ip::kDelayFeedback)) {
 			return delay_popup(song, fx, inputs.pages.alt_delay);
@@ -564,7 +581,8 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	const project::FxChain* chain = chain_of(song, focus);
 	switch (button) {
 	case host_chain::kFilterSection:
-		return filter_popup(chain != nullptr ? static_cast<FilterType>(chain->filter_type) : FilterType::LPF, fx);
+		return filter_popup(
+		    chain != nullptr ? static_cast<effects::FilterType>(chain->filter_type) : effects::FilterType::LPF, fx);
 	case 2: // the envelopes, which a chain has none of
 		return {};
 	case 3: // the delay
@@ -572,8 +590,8 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	case host_chain::kCompressorSection:
 		return is_song ? comp_reverb_popup(song, focus.comp) : sidechain_reverb_popup(song, fx);
 	case host_chain::kModFxSection:
-		return mod_fx_popup(fx.mod_fx.type,
-		                    chain != nullptr ? static_cast<ModFXParam>(chain->mod_fx_param) : ModFXParam::FEEDBACK);
+		return mod_fx_popup(fx.mod_fx.type, chain != nullptr ? static_cast<effects::ModFxParam>(chain->mod_fx_param)
+		                                                     : effects::ModFxParam::FEEDBACK);
 	default:
 		return names_popup(song, focus, button, inputs);
 	}
@@ -607,7 +625,7 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	const char* unit = "";
 	if (arm.path == "audioCompressor/thresh") {
 		out.title = text(String::STRING_FOR_THRESHOLD);
-		shown = (64 + knob) * kMaxMenuValue / 128;
+		shown = (64 + knob) * plugin::kMaxMenuSteps / 128;
 	}
 	else if (arm.path == "audioCompressor/ratio") {
 		out.title = text(String::STRING_FOR_RATIO);
@@ -670,16 +688,8 @@ bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::Kno
 }
 
 std::string note_length_name(uint32_t note_length, int32_t tick_magnitude) {
-	// The note's magnitude: positive is bars, negative a division of a bar.
-	int32_t magnitude = -5 - tick_magnitude;
-	for (uint32_t level = 3; level < note_length; level <<= 1) {
-		magnitude++;
-	}
-	if (magnitude < 0) {
-		const uint32_t division = uint32_t{1} << -magnitude;
-		return std::to_string(division) + ((division % 10) == 2 ? "nd" : "th") + "-notes";
-	}
-	return std::to_string(uint32_t{1} << magnitude) + "-bar";
+	return std::string{
+	    music::note_length_name(music::note_magnitude(note_length, tick_magnitude), "-notes", false).view()};
 }
 
 } // namespace deluge::scenes::services

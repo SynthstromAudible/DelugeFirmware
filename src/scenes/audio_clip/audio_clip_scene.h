@@ -92,7 +92,7 @@
 /// is the driver-side substitution this widget is the port of.
 ///
 /// @note **The flash-cursor setting** (`PadLEDs::flashCursor`) comes from the host as
-///       `RuntimeFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
+///       `UiFacts::flash_cursor`: Off refuses the tick-square update outright (`AudioClipView::graphicsRoutine`),
 ///       only Slow reaches a pixel (`PadLEDs::prepareColour`), and Fast has the PIC flash each new square
 ///       (`ui::grid::flash_tick_squares`); `ui/grid/columns.h`'s `tick_colour` warning records why that flash is
 ///       colourless for a muted row.
@@ -196,20 +196,20 @@
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
 
+#include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "deluge-project/clip_address.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/timeline/timeline.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
 #include "deluge-project/setting_group.h"
+#include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/ports.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
-
-#include "definitions_cxx.hpp"
 
 #include <array>
 #include <cstdint>
@@ -278,8 +278,9 @@ public:
 	/// @param song The song it belongs to, whose view (scroll, zoom, triplets) the scene starts from; null is treated
 	///             as "no clip".
 	/// @param sink Where the scene's writes go; the app's sink when null.
+	/// @param clip_writes Where the scene's clip edits go; the app's when null.
 	void open(std::optional<deluge::project::ClipAddress> clip, ::Song* song,
-	          deluge::scenes::bind::WriteSink* sink = nullptr);
+	          deluge::scenes::bind::WriteSink* sink = nullptr, deluge::scenes::bind::ClipWrites* clip_writes = nullptr);
 
 	/// @name The two marker latches
 	/// `AudioClipView::endMarkerVisible` / `startMarkerVisible` (`audio_clip_view.h`). They
@@ -569,7 +570,7 @@ private:
 	/// @param old_length The length before the request.
 	/// @param new_length The length after it.
 	void after_loop_length_change(int32_t old_length, int32_t new_length);
-	/// @brief Tell the sink where a redo of the last length change scrolls back to: the view as it is now.
+	/// @brief Tell the clip port where a redo of the last length change scrolls back to: the view as it is now.
 	void note_undo_scroll();
 	/// @brief `TimelineView::displayNumberOfBarsAndBeats`' popup half.
 	///
@@ -584,8 +585,7 @@ private:
 	/// @{
 	std::optional<deluge::project::ClipAddress> clip_;
 	::Song* song_ = nullptr;
-	deluge::scenes::bind::WriteSink* sink_ = nullptr;
-	const deluge::scenes::bind::RuntimeFacts* facts_ = nullptr;
+	deluge::scenes::bind::Ports ports_{};
 	/// @}
 
 	/// The waveform's per-column cache, the scene's own: the scan fills it for the view's scroll and zoom.
@@ -616,17 +616,17 @@ private:
 	/// `graphicsRoutine` handed `PadLEDs::setTickSquares` a new square this render, which the fast cursor flashes.
 	bool tick_squares_set_ = false;
 	/// Each row's square at the last `setTickSquares`: legacy's `slowFlashSquares`.
-	std::array<uint8_t, kDisplayHeight> flashed_ticks_ = filled_no_tick();
-	static constexpr std::array<uint8_t, kDisplayHeight> filled_no_tick() {
-		std::array<uint8_t, kDisplayHeight> a{};
+	std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> flashed_ticks_ = filled_no_tick();
+	static constexpr std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> filled_no_tick() {
+		std::array<uint8_t, deluge::gfx::grid::kDelugeGrid.rows> a{};
 		a.fill(deluge::ui::grid::kNoTickSquare);
 		return a;
 	}
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
-	/// @brief The flash-cursor setting, from the host (`RuntimeFacts::flash_cursor`); the factory's Slow with none.
-	FlashCursor flash_cursor() const { return facts_ != nullptr ? facts_->flash_cursor() : FlashCursor::Slow; }
+	/// @brief The flash-cursor setting, from the host (`UiFacts::flash_cursor`); the factory's Slow with none.
+	FlashCursor flash_cursor() const { return ports_.ui != nullptr ? ports_.ui->flash_cursor() : FlashCursor::Slow; }
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.

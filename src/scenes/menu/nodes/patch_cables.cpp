@@ -25,7 +25,7 @@
 #include "scenes/services/source_names.h"
 
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/ports/sound_facts.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -38,12 +38,14 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
-#include "definitions_cxx.hpp"
+#include "gui/l10n/param_names.h"
 #include "instruments/deluge/cable_acceptance.h"
+#include "instruments/deluge/cable_codec.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
-#include "model/project_bridge/patch_cable_words.h"
-#include "modulation/params/param.h"
-#include "modulation/patch/patch_cable.h"
+#include "plugin-api/types/param_mapping.h"
+#include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 
 #include <algorithm>
@@ -51,13 +53,35 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::scenes::menu::nodes {
 
-namespace params = deluge::modulation::params;
 using deluge::l10n::String;
 
 namespace {
+/// @brief The per-voice volume, one of the three volume params a patch cable reaches as one destination.
+constexpr uint8_t kLocalVolume = deluge::instrument::runtime_index(deluge::instrument::param::kVolume);
+/// @brief The post-FX volume, the destination that stands for the three volumes.
+constexpr uint8_t kPostFxVolume = deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostFX);
+/// @brief The post-FX volume's reverb send, the third of the three volume params.
+constexpr uint8_t kPostReverbSendVolume =
+    deluge::instrument::runtime_index(deluge::instrument::param::kVolumePostReverbSend);
+/// @brief The first of the sound's global patched params; the per-voice ones come before it.
+constexpr uint8_t kFirstGlobal = deluge::instrument::runtime_index(deluge::instrument::kFirstGlobalParam);
+
+/// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
+/// @return The device's default cable polarity.
+instrument::Polarity default_patch_cable_polarity() {
+	return FlashStorage::defaultPatchCablePolarity;
+}
+
+/// @brief The polarity a new cable from @p source takes.
+/// @param source The cable's source.
+/// @return The source's fixed polarity, or the device's default where it fixes none.
+instrument::Polarity default_polarity(PatchSource source) {
+	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity());
+}
 
 // ---------------------------------------------------------------------------------------------
 // Text helpers. The two `util/functions.cpp` source-name tables are `services/source_names.h`'s.
@@ -120,7 +144,7 @@ void append_cable_value(char* out, size_t& len, size_t cap, int32_t value) {
 std::optional<deluge::project::ParamAddress> cable_address(const MenuContext& ctx, PatchSource from,
                                                            deluge::synth::CableTarget destination) {
 	const deluge::scenes::bind::Target cable{.kind = deluge::scenes::bind::Target::Kind::CABLE,
-	                                         .param = deluge::bridge::cable_depth(from, destination)};
+	                                         .param = deluge::instrument::cable_depth_of(from, destination)};
 	return deluge::scenes::bind::param_address(cable, ctx.addresses);
 }
 
@@ -139,7 +163,7 @@ std::optional<deluge::project::ParamAddress> sound_address(const MenuContext& ct
 /// @brief The cables of the sound @p ctx edits, in the engine's order; empty where it edits none.
 deluge::scenes::bind::CableList cables_of(const MenuContext& ctx) {
 	const std::optional<deluge::project::ParamAddress> owner = sound_address(ctx);
-	return owner && ctx.facts != nullptr ? ctx.facts->cables(*owner) : deluge::scenes::bind::CableList{};
+	return owner && ctx.ports.sound != nullptr ? ctx.ports.sound->cables(*owner) : deluge::scenes::bind::CableList{};
 }
 
 /// @brief A cable's two ends, as legacy's `PatchCable` holds them: its source, and its destination descriptor (the
@@ -169,7 +193,7 @@ CableEnds ends_of(deluge::plugin::ParamId depth) {
 /// @brief The engine's cable from @p from to @p destination on the sound @p ctx edits, or nullopt.
 std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx, PatchSource from,
                                                           deluge::synth::CableTarget destination) {
-	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, destination);
+	const deluge::plugin::ParamId depth = deluge::instrument::cable_depth_of(from, destination);
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
 		if (cable.depth == depth) {
 			return cable;
@@ -181,23 +205,26 @@ std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx
 /// @brief The value the cable plays now, as the engine stores it; nullopt where the sound has no such cable.
 std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, deluge::synth::CableTarget destination) {
 	const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, from, destination);
-	return address && ctx.facts != nullptr ? ctx.facts->param_value(*address) : std::nullopt;
+	return address && ctx.ports.controls != nullptr ? ctx.ports.controls->param_value(*address) : std::nullopt;
 }
 
 /// @brief The typed state of the sound @p ctx edits, or null.
 const deluge::instrument::SoundState* sound_state_of(const MenuContext& ctx) {
-	return ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	return ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot)
+	                                                        : nullptr;
 }
 
-/// @brief The destination's short name (`getPatchedParamShortName`), the morph params named after what the sound's
-///        filter modes make them.
-std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
+/// @brief The destination's short name (`l10n::patched_param_short_name_at`), the morph params named after what the
+///        sound's filter modes make them.
+/// @param ctx The menu context, whose sound's filter modes name the morph params.
+/// @param p   The destination's index in the patched set: the low byte of a cable's destination.
+/// @return The name; empty for an index no patched param has.
+std::string_view destination_short_name(const MenuContext& ctx, uint8_t p) {
 	const deluge::instrument::SoundState* state = sound_state_of(ctx);
 	const deluge::effects::FilterState* filter =
 	    state != nullptr ? &deluge::instrument::sound_effects(*state).filter : nullptr;
-	const char* name = filter != nullptr ? params::getPatchedParamShortName(p, filter->lpf_mode, filter->hpf_mode)
-	                                     : params::getPatchedParamShortName(p);
-	return name != nullptr ? std::string_view{name} : std::string_view{};
+	return filter != nullptr ? deluge::l10n::patched_param_short_name_at(p, filter->lpf_mode, filter->hpf_mode)
+	                         : deluge::l10n::patched_param_short_name_at(p);
 }
 
 /// @brief `((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >>
@@ -205,8 +232,11 @@ std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
 ///        share (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`,
 ///        `origin/main:src/deluge/gui/menu_item/patch_cables.cpp` `PatchCables::renderOptions`).
 int32_t cable_value_to_menu(int32_t param_value) {
-	return static_cast<int32_t>((static_cast<int64_t>(param_value) * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+	return static_cast<int32_t>((static_cast<int64_t>(param_value) * plugin::kCableMenuMax + (1 << 29)) >> 30);
 }
+
+/// @brief How many sources a cable can name: every `PatchSource` before `NONE`.
+constexpr size_t kNumPatchSources = std::to_underlying(PatchSource::NONE);
 
 /// @brief `SourceSelection`'s own option order (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`) -- NOT the
 ///        `PatchSource` enumerator order, which is why it is a table rather than a loop over the enum.
@@ -346,13 +376,13 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	// every frame in the render frame's own stack, which is what an immediate-mode widget wants and costs 32 x 32
 	// bytes.
 	constexpr size_t kRowChars = 32;
-	static_assert(kMaxNumPatchCables <= 64, "the row buffer below is sized for legacy's 32 cables");
-	char bufs[kMaxNumPatchCables][kRowChars];
-	deluge::ui::oled::ListRow rows[kMaxNumPatchCables];
+	static_assert(instrument::kMaxCables <= 64, "the row buffer below is sized for legacy's 32 cables");
+	char bufs[instrument::kMaxCables][kRowChars];
+	deluge::ui::oled::ListRow rows[instrument::kMaxCables];
 	size_t n = 0;
 
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
-		if (n >= kMaxNumPatchCables) {
+		if (n >= instrument::kMaxCables) {
 			break;
 		}
 		const CableEnds ends = ends_of(cable.depth);
@@ -367,9 +397,8 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		}
 		append_cable_value(buf, len, kRowChars, cable_value_to_menu(cable_value(ctx, ends.from, desc).value_or(0)));
 		append(buf, len, kRowChars, " ");
-		// The destination's short name, which is a `modulation/params/` table rather than a
-		// `util/` one, so it is called rather than transcribed.
-		append(buf, len, kRowChars, destination_short_name(ctx, desc.param_index()));
+		// The destination's short name, from `l10n::patched_param_short_name_at`.
+		append(buf, len, kRowChars, destination_short_name(ctx, static_cast<uint8_t>(desc.param_index())));
 		rows[n].label = std::string_view{buf, len};
 		rows[n].selectable = true;
 		n++;
@@ -429,7 +458,7 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 	// the range picker below it.
 	if (which_ == Which::Regular && state.depth > 0) {
 		const Node* from = state.path[state.depth - 1];
-		if (from != nullptr && from->bind.param.kind == params::Kind::PATCHED) {
+		if (from != nullptr && from->bind.param.kind == deluge::plugin::ParamKind::PATCHED) {
 			state.walk.patching_param = from->bind.param.index;
 		}
 	}
@@ -581,16 +610,16 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		state.walk.patching_param = param_;
 		state.walk.patch_source = source_;
 	}
-	else if (which_ == Which::Regular && state.walk.patching_param == params::GLOBAL_VOLUME_POST_FX) {
+	else if (which_ == Which::Regular && state.walk.patching_param == kPostFxVolume) {
 		// `Regular::checkPermissionToBeginSession`
 		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`): the three volume params are one
 		// destination to the user, so a source that cannot reach POST_FX is retried against POST_REVERB_SEND and then
 		// LOCAL_VOLUME before the page gives up.
 		const auto disallowed = [&](int32_t p) { return !patching::source_may_patch(ctx, state.walk.patch_source, p); };
-		if (disallowed(params::GLOBAL_VOLUME_POST_FX)) {
-			state.walk.patching_param = params::GLOBAL_VOLUME_POST_REVERB_SEND;
-			if (disallowed(params::GLOBAL_VOLUME_POST_REVERB_SEND)) {
-				state.walk.patching_param = params::LOCAL_VOLUME;
+		if (disallowed(kPostFxVolume)) {
+			state.walk.patching_param = kPostReverbSendVolume;
+			if (disallowed(kPostReverbSendVolume)) {
+				state.walk.patching_param = kLocalVolume;
 			}
 		}
 	}
@@ -602,8 +631,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	const PatchSource source = strength_source(state, which_);
 	const std::optional<deluge::scenes::bind::CableFact> existing =
 	    find_cable(ctx, source, strength_destination(state, which_));
-	state.walk.patch_polarity =
-	    existing.has_value() ? static_cast<Polarity>(existing->polarity) : PatchCable::getDefaultPolarity(source);
+	state.walk.patch_polarity = existing.has_value() ? existing->polarity : default_polarity(source);
 
 	// `Decimal::beginSession` plus `getDefaultEditPos()`
 	// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): the cursor starts on the hundredths' place.
@@ -677,7 +705,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	if (!destination.is_param()) {
 		stages[n++] = source_short_name(destination.top_source());
 	}
-	stages[n++] = destination_short_name(ctx, destination.param_index());
+	stages[n++] = destination_short_name(ctx, static_cast<uint8_t>(destination.param_index()));
 	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, bounds.w, bounds.h},
 	                                std::span<const std::string_view>{stages.data(), n});
 
@@ -686,29 +714,29 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see the layout
 	// block above). Below the number, which is where legacy puts it.
 	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53, deluge::gfx::oled::kTextSpacingY};
-	if (PatchCable::hasPolarity(source)) {
+	if (instrument::has_polarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}};
 		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
-		                                   state.walk.patch_polarity == Polarity::UNIPOLAR ? 1 : 0);
+		                                   state.walk.patch_polarity == instrument::Polarity::UNIPOLAR ? 1 : 0);
 	}
 	else {
 		// A param with no polarity shows only the default one, full width, uninverted.
-		const std::string_view only = polarityToString(PatchCable::getDefaultPolarity(source));
+		const std::string_view only = instrument::to_string(default_polarity(source));
 		deluge::ui::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
 		                                   kNoPolarityWidth, -1);
 	}
 
 	// `getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`).
-	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
+	constexpr IntRange kRange{-plugin::kCableMenuMax, plugin::kCableMenuMax, 1};
 
 	// `PatchCableStrength::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`): a
 	// turn while Select is held switches a polarised source's polarity -- up unipolar, down bipolar --, edits nothing,
 	// and uses the press up so its release opens nothing. This page is never a horizontal column here (a column draws
 	// through `present_column`), which is legacy's `!isInHorizontalMenu()`.
 	const int8_t turn = f.turn();
-	const bool polarity_turn = turn != 0 && f.select_held() && PatchCable::hasPolarity(source);
+	const bool polarity_turn = turn != 0 && f.select_held() && instrument::has_polarity(source);
 	if (polarity_turn) {
-		set_polarity(ctx, state, turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR);
+		set_polarity(ctx, state, turn > 0 ? instrument::Polarity::UNIPOLAR : instrument::Polarity::BIPOLAR);
 		state.tick.use_up_select = true;
 	}
 
@@ -727,7 +755,8 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	}
 }
 
-void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const {
+void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& state,
+                                          instrument::Polarity polarity) const {
 	// `polarity_in_the_ui_` first, then `setPatchCablePolarity` (main's `PatchCableStrength::buttonAction`), which is a
 	// no-op while no cable exists -- `commit` makes a new cable with it.
 	state.walk.patch_polarity = polarity;
@@ -735,13 +764,14 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	state.cursor_blink = deluge::ui::Blink{};
 	const PatchSource source = strength_source(state, which_);
 	const deluge::synth::CableTarget destination = strength_destination(state, which_);
-	if (ctx.sink != nullptr && find_cable(ctx, source, destination).has_value()) {
+	if (ctx.ports.writes != nullptr && find_cable(ctx, source, destination).has_value()) {
 		const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, source, destination);
 		if (address) {
-			(void)ctx.sink->write({.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
-			                       .where = ctx.addresses,
-			                       .polarity = static_cast<deluge::instrument::Polarity>(polarity),
-			                       .polarity_only = true});
+			(void)ctx.ports.writes->write(
+			    {.target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
+			     .where = ctx.addresses,
+			     .polarity = polarity,
+			     .polarity_only = true});
 		}
 	}
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
@@ -761,12 +791,12 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	// outside a horizontal menu (`PatchCableStrength::getModelStack`).
 	const Node* focused = focused_of(state);
 	const bool in_horizontal = focused != nullptr && renders_horizontal(*focused, ctx);
-	const Polarity polarity =
-	    in_horizontal ? PatchCable::getDefaultPolarity(strength_source(state, which_)) : state.walk.patch_polarity;
+	const instrument::Polarity polarity =
+	    in_horizontal ? default_polarity(strength_source(state, which_)) : state.walk.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, polarity);
-	if (request && ctx.sink != nullptr) {
-		(void)ctx.sink->write(*request);
+	if (request && ctx.ports.writes != nullptr) {
+		(void)ctx.ports.writes->write(*request);
 	}
 }
 
@@ -778,10 +808,11 @@ deluge::ui::shell::Result PatchCableStrengthItem::handle(const deluge::ui::shell
 	using deluge::ui::shell::ButtonId;
 	if (event.kind != deluge::ui::shell::UiEvent::Kind::Button || !event.on
 	    || (event.button != ButtonId::Midi && event.button != ButtonId::Cv)
-	    || !PatchCable::hasPolarity(strength_source(state, which_))) {
+	    || !instrument::has_polarity(strength_source(state, which_))) {
 		return {};
 	}
-	set_polarity(ctx, state, event.button == ButtonId::Midi ? Polarity::BIPOLAR : Polarity::UNIPOLAR);
+	set_polarity(ctx, state,
+	             event.button == ButtonId::Midi ? instrument::Polarity::BIPOLAR : instrument::Polarity::UNIPOLAR);
 	return deluge::ui::shell::Result{.handled = true};
 }
 
@@ -790,11 +821,11 @@ void PatchCableStrengthItem::leds(deluge::ui::LedFrame& f, const MenuContext& /*
 	// CV for a unipolar one, neither for a source with no polarity.
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	const bool polarised = PatchCable::hasPolarity(strength_source(state, which_));
+	const bool polarised = instrument::has_polarity(strength_source(state, which_));
 	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Midi),
-	            polarised && state.walk.patch_polarity == Polarity::BIPOLAR ? kOn : kOff);
+	            polarised && state.walk.patch_polarity == instrument::Polarity::BIPOLAR ? kOn : kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(deluge::ui::shell::ButtonId::Cv),
-	            polarised && state.walk.patch_polarity == Polarity::UNIPOLAR ? kOn : kOff);
+	            polarised && state.walk.patch_polarity == instrument::Polarity::UNIPOLAR ? kOn : kOff);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -831,8 +862,9 @@ const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {
 	                                                            : &patch_cable_strength_range;
 }
 
-std::optional<deluge::scenes::bind::WriteRequest>
-cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity) {
+std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx,
+                                                                deluge::synth::CableTarget learn, int32_t menu_value,
+                                                                instrument::Polarity polarity) {
 	const std::optional<deluge::project::ParamAddress> address =
 	    cable_address(ctx, learn.bottom_source(), learn.modulated());
 	if (!address) {
@@ -841,13 +873,13 @@ cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t 
 	// `PatchCableStrength::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`):
 	// "rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision
 	// ((1<<(30+32))/5000)".
-	const int64_t magic_constant = (INT64_C(922337203685477) * 5000) / kMaxMenuPatchCableValue;
+	const int64_t magic_constant = (INT64_C(922337203685477) * 5000) / plugin::kCableMenuMax;
 	return deluge::scenes::bind::WriteRequest{
 	    .target = {.kind = deluge::scenes::bind::Target::Kind::CABLE, .param = address->id},
 	    .where = ctx.addresses,
 	    .menu_value = menu_value,
 	    .param_value = static_cast<int32_t>((magic_constant * menu_value) >> 32),
-	    .polarity = static_cast<deluge::instrument::Polarity>(polarity)};
+	    .polarity = polarity};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -858,8 +890,8 @@ namespace {
 
 /// The volume triple is one param to the user: its two other members blink POST_FX's pad.
 uint8_t folded_volume(uint8_t param) {
-	if (param == params::GLOBAL_VOLUME_POST_REVERB_SEND || param == params::LOCAL_VOLUME) {
-		return params::GLOBAL_VOLUME_POST_FX;
+	if (param == kPostReverbSendVolume || param == kLocalVolume) {
+		return kPostFxVolume;
 	}
 	return param;
 }
@@ -987,8 +1019,11 @@ const Node patch_cable_strength_range =
 
 namespace deluge::scenes::menu::patching {
 
-namespace params = deluge::modulation::params;
 using nodes::find_cable;
+using nodes::kFirstGlobal;
+using nodes::kLocalVolume;
+using nodes::kPostFxVolume;
+using nodes::kPostReverbSendVolume;
 using nodes::sound_state_of;
 
 bool source_may_patch(const MenuContext& ctx, PatchSource source, int32_t param) {
@@ -1006,18 +1041,17 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth
 	// to another cable's range: a global source can control any range, a local one only a cable that goes to a local
 	// param.
 	if (!destination.is_param()) {
-		if (source < kFirstLocalSource) {
+		if (source < PatchSource::ENVELOPE_0) {
 			return true;
 		}
-		return destination.param_index() < params::FIRST_GLOBAL;
+		return destination.param_index() < kFirstGlobal;
 	}
 	const int32_t p = destination.param_index();
 	const auto allowed = [&](int32_t target) { return source_may_patch(ctx, source, target); };
 	// Also main's `sourceIsAllowed`: the volume triple is one destination as far as the user is concerned, so any of
 	// the three accepting the source makes it offerable.
-	if (p == params::GLOBAL_VOLUME_POST_FX) {
-		return allowed(params::GLOBAL_VOLUME_POST_FX) || allowed(params::LOCAL_VOLUME)
-		       || allowed(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+	if (p == kPostFxVolume) {
+		return allowed(kPostFxVolume) || allowed(kLocalVolume) || allowed(kPostReverbSendVolume);
 	}
 	return allowed(p);
 }
@@ -1026,12 +1060,11 @@ bool source_is_patched(const MenuContext& ctx, PatchSource source, deluge::synth
 	if (find_cable(ctx, source, destination).has_value()) {
 		return true;
 	}
-	if (destination.param_index() != params::GLOBAL_VOLUME_POST_FX) {
+	if (destination.param_index() != kPostFxVolume) {
 		return false;
 	}
 	// The three volume params are one destination to the user.
-	for (const int32_t p :
-	     {static_cast<int32_t>(params::GLOBAL_VOLUME_POST_REVERB_SEND), static_cast<int32_t>(params::LOCAL_VOLUME)}) {
+	for (const int32_t p : {static_cast<int32_t>(kPostReverbSendVolume), static_cast<int32_t>(kLocalVolume)}) {
 		destination = destination.with_param(p);
 		if (find_cable(ctx, source, destination).has_value()) {
 			return true;

@@ -21,8 +21,8 @@ std::optional<int32_t> played_bend_of(project::SettingGroupId group, std::string
 
 } // namespace
 
-ModelReader::ModelReader(const project::Song& model, project::SettingAddress address, const RuntimeFacts& facts)
-    : model_{&model}, address_{address}, facts_{&facts} {
+ModelReader::ModelReader(const project::Song& model, project::SettingAddress address, const Ports& ports)
+    : model_{&model}, address_{address}, ports_{&ports} {
 	const auto table = project::table_of(address.group);
 	resolved_ = !table.empty() && project::read_setting(model, address, table.front().path).has_value();
 }
@@ -37,13 +37,13 @@ std::optional<int32_t> ModelReader::read(std::string_view path) const {
 		const auto* lane = std::get_if<project::LaneAddress>(&address_.owner);
 		const project::DocDrum* drum = lane != nullptr ? model_->drum_structure.find(lane->drum_id) : nullptr;
 		if (drum != nullptr && drum->drum_type == project::DrumType::SOUND
-		    && !facts_->allows_note_tails({project::SlotAddress::Kind::DRUM, lane->drum_id}, std::nullopt)) {
+		    && !ports_->controls->allows_note_tails({project::SlotAddress::Kind::DRUM, lane->drum_id}, std::nullopt)) {
 			return 0;
 		}
 	}
 	if (const std::optional<int32_t> which = played_bend_of(address_.group, path);
 	    which && !project::holds_setting(*model_, address_, path)) {
-		return facts_->played_bend_range(address_, *which);
+		return ports_->tracks->played_bend_range(address_, *which);
 	}
 	const std::optional<serialization::Value> value = project::read_setting(*model_, address_, path);
 	if (!value) {

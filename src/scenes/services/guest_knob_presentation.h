@@ -8,6 +8,7 @@
 
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
+#include "synth/modulation/patch_source.h"
 
 #include <array>
 #include <cstdint>
@@ -41,7 +42,7 @@ public:
 	/// (`origin/main:src/deluge/gui/views/view.cpp`))?
 	bool suppress_value_popup(const ModTurn& turn) override;
 	/// @brief Hand the turn to the popup, push it if it is not stacked yet, and owe a repaint when it redrew.
-	void show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,
+	void show_value_popup(const ModTurn& turn, deluge::synth::PatchSource source1, deluge::synth::PatchSource source2,
 	                      const overlay::PopupContext& context, uint32_t now_ms) override;
 	void value_written() override {}
 	void blink_indicator(int32_t knob, bool bipolar) override;

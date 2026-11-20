@@ -71,11 +71,13 @@ struct ParamFlags {
 	return ParamFlags{a} | ParamFlags{b};
 }
 
+/// @brief A cable's menu number at full depth: the menu shows −5000..5000 hundredths.
+inline constexpr int32_t kCableMenuMax = 5000;
+
 namespace mapping_detail {
 constexpr int32_t kKnobMax = 64;
 constexpr int32_t kMenuMax = 50;
 constexpr int32_t kPanMenuMax = 25;
-constexpr int32_t kCableMenuMax = 5000;
 constexpr int32_t kWordMax = std::numeric_limits<int32_t>::max();
 constexpr int32_t kWordMin = std::numeric_limits<int32_t>::min();
 constexpr int64_t kHalfWordSpan = int64_t{1} << 31;

@@ -33,7 +33,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/services/view_state.h"
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "unit/ui/support/frames.h"
 
 #include "shell/profiles/deluge.h"
@@ -699,7 +699,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 
 	it("inserts a range beside the current one exactly as MultiRange's Shift arm does, and refuses one of one note", _ {
 		// Shift and a select turn on four ranges whose second holds a single note (41): the planner's answer applied by
-		// hand, and the picker driven through the sink, both against main's.
+		// hand, and the picker driven through the host, both against main's.
 		const int16_t tops[] = {40, 41, 60, 32767};
 		int32_t inserts = 0;
 		int32_t refusals = 0;
@@ -766,7 +766,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 			expect(path + " " + spans(ported)).to_equal(path + " " + frozen(path, "ranges"));
 			expect(path + " cursor " + std::to_string(plan->cursor)).to_equal(path + " cursor " + table().value(path, "cursor"));
 
-			// And through the sink, as SAVE with Shift reaches it.
+			// And through the host, as SAVE with Shift reaches it.
 			menu::MenuState state{};
 			state.list[0].cursor = static_cast<int16_t>(index);
 			nodes::range_delete_press(f.ctx, state);
@@ -818,7 +818,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		}
 	});
 
-	it("deletes through the sink, the cursor going to the range below, and not while a popup is up", _ {
+	it("deletes through the sound port, the cursor going to the range below, and not while a popup is up", _ {
 		// `deletePress` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::deletePress`): nothing
 		// while an edge is edited or a popup is up.
 		RangeFixture f{3};
@@ -826,8 +826,8 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		menu::MenuState state{};
 		state.list[0].cursor = 2;
 		MenuContext gated = f.ctx;
-		const spec::ForwardingFacts popup{*f.ctx.facts, {.popup_showing = true}};
-		gated.facts = &popup;
+		spec::HeldPorts popup{gated};
+		popup.ui.popup = true;
 		nodes::range_delete_press(gated, state);
 		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
 		state.edit_edge = deluge::ui::oled::RangeEdge::Left;

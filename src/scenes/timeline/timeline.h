@@ -76,8 +76,6 @@
 /// would be two places to get the slot wrong.
 // clang-format on
 
-#include "definitions_cxx.hpp"
-
 #include <cstdint>
 
 class Song;

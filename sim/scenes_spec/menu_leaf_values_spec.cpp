@@ -39,16 +39,16 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/project_bridge/patch_cable_words.h"
-#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
+#include "plugin-api/types/arp_rhythm.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/patch_source.h"
 
 #include "support/fake_note_bridge.h"
-#include "support/forwarding_facts.h"
+#include "support/fake_ports.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -397,8 +397,8 @@ describe leaf_turns("scenes::menu full-screen turn rules", $ {
 			cables.items[cables.count++].depth =
 			    deluge::bridge::cable_depth(source, deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ));
 		}
-		const deluge::scenes::spec::ForwardingFacts facts{*r.ctx.facts, {.cables = cables}};
-		r.ctx.facts = &facts;
+		const deluge::scenes::spec::CablesOverSound sound{*r.ctx.ports.sound, cables};
+		r.ctx.ports.sound = &sound;
 		r.open(nodes::patch_cables);
 		deluge::ui::test::Rig48 rig;
 		rig.input.turn = 1;
@@ -446,8 +446,9 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("names the arpeggiator's rhythm 'index: pattern' in the digits' place, as main's rhythm screen does", _ {
 		Rig r;
-		for (int32_t i = 0; i <= kMaxPresetArpRhythm; i++) {
-			const std::string want = (std::to_string(i) + ": " + arpRhythmPatternNames[i]).substr(0, 11); // its buffer
+		for (int32_t i = 0; i <= deluge::plugin::kMaxMenuSteps; i++) {
+			const std::string name{deluge::plugin::kArpRhythms[i].name};
+			const std::string want = (std::to_string(i) + ": " + name).substr(0, 11); // its buffer
 			expect(screen_text(nodes::arp_rhythm, r.ctx, i)).to_equal(want);
 		}
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
@@ -511,8 +512,9 @@ describe leaf_texts("scenes::menu full-screen value texts", $ {
 
 	it("names a MIDI or CV arpeggiator's rhythm by its pattern", _ {
 		Rig r;
-		for (int32_t i = 0; i <= kMaxPresetArpRhythm; i++) {
-			expect(screen_text(nodes::arp_rhythm_midi, r.ctx, i)).to_equal(std::string{arpRhythmPatternNames[i]});
+		for (int32_t i = 0; i <= deluge::plugin::kMaxMenuSteps; i++) {
+			const std::string name{deluge::plugin::kArpRhythms[i].name};
+			expect(screen_text(nodes::arp_rhythm_midi, r.ctx, i)).to_equal(name);
 		}
 	});
 

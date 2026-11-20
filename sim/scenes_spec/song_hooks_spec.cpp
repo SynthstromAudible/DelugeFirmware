@@ -1,8 +1,9 @@
 // The song-level items a menu builds from hooks -- the swing interval, the reverb sidechain's volume and sync level, a
 // song scale's toggle -- write the song's record through the menu's sink, as SONG requests.
 
+#include "fakes.h"
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -33,7 +34,7 @@ MenuContext song_context(spec::SongFixture& f) {
 }
 
 /// @brief Whether @p recording holds exactly one SONG request, for @p path, of @p value.
-bool one_song_request(const bind::RecordingSink& recording, std::string_view path, int32_t value) {
+bool one_song_request(const bind::test::RecordingWrites& recording, std::string_view path, int32_t value) {
 	return recording.requests.size() == 1 && recording.requests[0].target.kind == bind::Target::Kind::MODEL
 	       && recording.requests[0].target.group == deluge::project::SettingGroupId::SONG
 	       && recording.requests[0].target.path == path && recording.requests[0].menu_value == value;
@@ -46,9 +47,9 @@ describe song_hooks("the song's hook-built items, by address", ${
 	it("hands the swing interval to the sink as a SONG request, and the record holds it", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = song_context(f);
-		bind::RecordingSink recording;
+		bind::test::RecordingWrites recording;
 		MenuContext recorded = ctx;
-		recorded.sink = &recording;
+		recorded.ports.writes = &recording;
 		menu::bindings::write(nodes::swing_interval, recorded, 3);
 		expect(one_song_request(recording, "swingInterval", 3)).to_be_true();
 		menu::bindings::write(nodes::swing_interval, ctx, 3);
@@ -59,8 +60,8 @@ describe song_hooks("the song's hook-built items, by address", ${
 	it("hands the reverb sidechain's volume and sync level to the sink as SONG requests", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = song_context(f);
-		bind::RecordingSink recording;
-		ctx.sink = &recording;
+		bind::test::RecordingWrites recording;
+		ctx.ports.writes = &recording;
 		menu::bindings::write(nodes::reverb_sidechain_volume, ctx, 10);
 		expect(one_song_request(recording, "reverb/compressor/volume", 10 * 21474836)).to_be_true();
 		recording.requests.clear();
@@ -74,9 +75,9 @@ describe song_hooks("the song's hook-built items, by address", ${
 	it("hands a song scale's toggle to the sink as a SONG request, and the record holds it", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = song_context(f);
-		bind::RecordingSink recording;
+		bind::test::RecordingWrites recording;
 		MenuContext recorded = ctx;
-		recorded.sink = &recording;
+		recorded.ports.writes = &recording;
 		nodes::kSongActiveScalesItem.set_disabled(recorded, 2, true);
 		expect(one_song_request(recording, "scales/disabled/2", 1)).to_be_true();
 		nodes::kSongActiveScalesItem.set_disabled(ctx, 2, true);

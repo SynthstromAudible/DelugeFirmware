@@ -13,8 +13,6 @@
 #include <cstdint>
 #include <optional>
 
-class MIDICable;
-
 namespace deluge::scenes::menu {
 
 /// @brief Learn mode and the learn delivery for the menu. Its state belongs to one visit of the scene.
@@ -31,22 +29,14 @@ public:
 	/// @brief Whether the focused item wants the LEARN LED blinking.
 	bool wants_blink(const MenuState& st) const;
 
-	/// @brief Deliver a note-on to the learn node's item; true if it used it.
-	bool note_on(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t note) const;
-	/// @brief Deliver a CC to the learn node's item; true if it used it.
-	bool cc(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc,
-	        int32_t value) const;
-	/// @brief Deliver a program change to the learn node's item; true if it used it.
-	bool program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
-	                    int32_t program) const;
 	/// @brief Learn a knob onto the learn node's param -- `MenuItemWithCCLearning::learnKnob`, with its LEARNED popup.
 	/// @param ctx          The menu context.
 	/// @param st           The menu state.
-	/// @param cable        The cable a MIDI knob was heard on; null for a gold knob.
+	/// @param device       The device a MIDI knob was heard on; none for a gold knob.
 	/// @param which_knob   The gold knob (0 lower, 1 upper), or the CC number (128 for pitch bend).
 	/// @param midi_channel The channel a MIDI knob was heard on, or 255 for a gold knob.
 	/// @return Whether a knob was learned: false where the node has no param.
-	bool knob(const MenuContext& ctx, const MenuState& st, ::MIDICable* cable, int32_t which_knob,
+	bool knob(const MenuContext& ctx, const MenuState& st, deluge::midi::DeviceId device, int32_t which_knob,
 	          int32_t midi_channel) const;
 	/// @brief A gold-knob turn in learn mode: learn that knob, except on a kit's affect-entire menu, where
 	///        `SoundEditor::modEncoderAction` learns nothing. Outside learn mode the turn is not the menu's.

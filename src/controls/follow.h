@@ -21,7 +21,9 @@
 /// @brief MIDI follow: which param a followed CC names on the clip the knobs point at, as an address.
 
 #include "controls/knob_focus.h"
+#include "deluge-project/owner_plugin.h"
 #include "deluge-project/param_address.h"
+#include "plugin-api/types/param_kind.h"
 #include "plugin-api/types/plugin_id.h"
 
 #include <cstdint>
@@ -55,5 +57,47 @@ struct FollowTables {
 /// @brief The plugin whose descriptor rows the params follow names on @p focus have: a sound's, or the global
 /// effectable's for a chain or the song.
 [[nodiscard]] plugin::PluginId follow_plugin(const KnobFocus& focus);
+
+/// @brief The param MIDI follow names for a knob's param, in the plugin the context follows.
+///
+/// A sound's context follows the patched, unpatched-sound and cable params, a global effectable's the unpatched-global
+/// ones; a MIDI CC and an expression axis follow in either. A cable's depth id is in no plugin's table; every other
+/// engine id must be in its owner's.
+///
+/// @tparam InTable Callable `bool(plugin::PluginId, plugin::ParamId)`: whether the plugin's table has the param.
+/// @param owner    Whose params the context follows.
+/// @param kind     The kind of the param the knob turned.
+/// @param id       The param's id: a MIDI CC number, an expression axis, or the owner plugin's id.
+/// @param in_table The plugin table's membership test.
+/// @return The followed target, or nullopt for a param of the other owner's plugin, a kind with no follow (none,
+///         static, or not a kind), or an id its owner's table lacks.
+// TODO(c++26): take std::function_ref<bool(plugin::PluginId, plugin::ParamId)> once the device's libstdc++ provides it
+// (arm-none-eabi GCC 16; 15.2.1 does not).
+template <class InTable>
+[[nodiscard]] std::optional<project::ParamTarget> follow_target(project::OwnerPlugin owner, plugin::ParamKind kind,
+                                                                plugin::ParamId id, const InTable& in_table) {
+	switch (kind) {
+	case plugin::ParamKind::MIDI:
+		return project::ParamTarget{.space = project::ParamSpace::MIDI_CC, .id = id};
+	case plugin::ParamKind::EXPRESSION:
+		return project::ParamTarget{.space = project::ParamSpace::EXPRESSION, .id = id};
+	case plugin::ParamKind::PATCH_CABLE:
+		return owner == project::OwnerPlugin::INSTRUMENT ? std::optional{project::engine_target(id.value)}
+		                                                 : std::nullopt;
+	case plugin::ParamKind::PATCHED:
+	case plugin::ParamKind::UNPATCHED_SOUND:
+		return owner == project::OwnerPlugin::INSTRUMENT && in_table(plugin::kDelugeInstrument, id)
+		           ? std::optional{project::engine_target(id.value)}
+		           : std::nullopt;
+	case plugin::ParamKind::UNPATCHED_GLOBAL:
+		return owner == project::OwnerPlugin::GLOBAL_EFFECTABLE && in_table(plugin::kGlobalEffectable, id)
+		           ? std::optional{project::engine_target(id.value)}
+		           : std::nullopt;
+	case plugin::ParamKind::NONE:
+	case plugin::ParamKind::STATIC:
+		break;
+	}
+	return std::nullopt; // a kind with no follow, or a value that is no kind
+}
 
 } // namespace deluge::controls

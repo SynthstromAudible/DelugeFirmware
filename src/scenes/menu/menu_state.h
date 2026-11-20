@@ -4,6 +4,8 @@
 /// @brief The menu's state: the path, the widgets' own state, the mailboxes `after_render` drains, and what
 ///        `save_state` keeps.
 
+#include "instruments/deluge/cables.h"
+#include "midi/device_id.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
@@ -15,11 +17,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-
-/// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
-///        `modulation/patch/patch_cable.h`; a scoped enum with an explicit underlying type is
-///        complete enough to store by value from its declaration alone.
-enum class Polarity : uint8_t;
 
 namespace deluge::scenes::menu {
 
@@ -128,15 +125,15 @@ struct MenuWalkState {
 	/// and `after_render` -- which owns the scene's own mutable `ctx_` -- writes `MenuContext::source_index`, *before*
 	/// the same tick's select press consults `select_chain`.
 	int8_t source_choice = -1;
-	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
+	/// @brief The MIDI device the focused device list chose this tick, or none.
 	///
-	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession`
+	/// `midi::Devices` assigns `soundEditor`'s current MIDI cable from both `beginSession`
 	/// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) and `selectEncoderAction`
-	/// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); the port's counterpart is `MenuContext::midi_cable`,
-	/// written by `after_render` from what `MidiDevicesItem` records here. A pointer rather than an index because that
+	/// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); the port's counterpart is `MenuContext::midi_device`,
+	/// written by `after_render` from what `MidiDevicesItem` records here. A handle rather than an index because that
 	/// is what the context field is, and because legacy's own index space (`lowestDeviceNum`.. ,
 	/// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) is not the row order the list renders.
-	::MIDICable* midi_cable_choice = nullptr;
+	deluge::midi::DeviceId midi_device_choice{};
 	/// @name The patch-cable pages' shared selection -- legacy's three globals, as scene state.
 	///
 	/// Legacy spreads these across `SoundEditor::patchingParamSelected`
@@ -165,30 +162,23 @@ struct MenuWalkState {
 	///
 	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's worth of state; here
 	/// the item is `const`, so it lives beside the rest of the page's navigation state. `on_focus` seeds it (from the
-	/// cable, or `PatchCable::getDefaultPolarity`), the render writes it, and `commit` applies it to a cable it has
-	/// just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on
-	/// the `!patch_cable_exists_` path (`PatchCableStrength::getModelStack` in
+	/// cable, or `instrument::fixed_polarity`, then the device default), the render writes it, and `commit` applies it
+	/// to a cable it has just created -- which is legacy's `getModelStack(..., allowCreation = true)` doing
+	/// `setPatchCablePolarity` on the `!patch_cable_exists_` path (`PatchCableStrength::getModelStack` in
 	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
-	///
-	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
-	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which
-	///       the `scenes-model-stack` ratchet confines to `bindings.cpp` and `context.cpp`, and
-	///       which every translation unit that includes this header would otherwise inherit. A
-	///       scoped enum with an explicit underlying type is completely specified by its
-	///       declaration, so storing one by value needs nothing more.
-	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
+	instrument::Polarity patch_polarity = instrument::Polarity::BIPOLAR;
 	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
 	///
 	/// `mpe::DirectionSelector::whichDirection` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) and
 	/// `mpe::ZoneSelector::whichZone` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`) are members of two
 	/// singleton menu items that a **third** page reads: `ZoneNumMemberChannels::getPort()` indexes
-	/// `currentMIDICable->ports[directionSelectorMenu.whichDirection]` (`ZoneNumMemberChannels::getPort` in
+	/// the current cable's `ports[directionSelectorMenu.whichDirection]` (`ZoneNumMemberChannels::getPort` in
 	/// `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`) and its read/write/bounds all branch on
 	/// `zoneSelectorMenu.whichZone` (`ZoneNumMemberChannels::getMaxValue`, `readCurrentValue` and `writeCurrentValue`).
 	///
 	/// Exactly the shape `patching_param`/`patch_source` above have, and placed here by the same
 	/// two-part test (`nodes/midi_device.h` argues it in full, and says why "legacy kept it on a
-	/// menu item" is only a proxy -- `MenuContext::midi_cable` is a `soundEditor.current*` member
+	/// menu item" is only a proxy -- `MenuContext::midi_device` is a `soundEditor.current*` member
 	/// that a menu item nonetheless writes):
 	///
 	///   1. Could a `Binding::get`/`set`, handed only a `const MenuContext&`, ever need to see it?
@@ -313,11 +303,11 @@ struct DxState {
 /// `CustomItem`'s `on_focus`, `handle` or `render`; a widget's response) writes a request, and
 /// `MenuScene::after_render` -- the first hook each tick that owns both a mutable `MenuContext`
 /// and a `Result` -- performs it and clears the slot. They are `range_choice`, `source_choice`,
-/// `midi_cable_choice`, the `value_changed`/`value_node` pair, `pending_action` and
-/// `pending_scene`, and between them they use four "empty" conventions (`-1` for the two signed
-/// indices, `nullptr` for the two pointers, `MenuAction::None` for the request, `SceneKind::Null`
-/// for the scene id) because each field's own type supplies the sentinel. `range_picker_pending`
-/// / `pending_after_range` are *not* mailboxes -- they are a two-tick handshake the picker's
+/// `midi_device_choice`, the `value_changed`/`value_node` pair, `pending_action` and
+/// `pending_scene`, and between them they use five "empty" conventions (`-1` for the two signed
+/// indices, `nullptr` for the pointer, the default `midi::DeviceId` for the device, `MenuAction::None` for the
+/// request, `SceneKind::Null` for the scene id) because each field's own type supplies the sentinel.
+/// `range_picker_pending` / `pending_after_range` are *not* mailboxes -- they are a two-tick handshake the picker's
 /// `select_chain` reads, and they outlive a single `after_render`.
 ///
 /// **The contract, in one sentence: everything that changes what the *next* navigation step will
@@ -332,7 +322,7 @@ struct DxState {
 ///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
 ///      output. Legacy assigns `soundEditor.currentSourceIndex` on the way *through*
 ///      `selectButtonPress` (`origin/main:src/deluge/gui/menu_item/gate/selection.h` `selectButtonPress`).
-///   3. **`midi_cable_choice`** -- above navigation, same shape: `ctx_.midi_cable` is read by the
+///   3. **`midi_device_choice`** -- above navigation, same shape: `ctx_.midi_device` is read by the
 ///      device subtree a descent would enter (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp` `beginSession`).
 ///   4. **`value_changed` / `value_node`** -- above navigation: the commit must happen before an
 ///      ascend leaves the node that owns the value. It also sets `repaint`.

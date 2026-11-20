@@ -12,7 +12,7 @@
 ///       `bindings_spec.cpp` runs under.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
@@ -1065,8 +1065,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		if (!target) {
 			return;
 		}
-		expect(ctx.sink->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
-		                       std::nullopt))
+		expect(ctx.ports.learn->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
+		                              std::nullopt))
 		    .to_be_true();
 		expect(ctx.model->mappings.find(*target)).not_().to_be_null();
 		r.button(kShiftX, kShiftY, true, 100);
@@ -2103,7 +2103,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("inserts a range on a Shift turn and deletes one on Shift+SAVE, the cursor following each", _ {
-		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sink.
+		// `MultiRange::selectEncoderAction`'s Shift arm and `deletePress`, through the host's sound port.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2628,7 +2628,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			(void)r.open(nodes::lpf_freq);
 			r.shell.tick(0);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+			expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 			changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 			actionLogger.deleteAllLogs();
@@ -2662,7 +2662,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(215);
 			expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
+			expect(menu::host_ports().controls_sink->write_param(lpf, 0x20000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 			r.button(kShiftX, kShiftY, true, 230);
 			r.enter(240);
 			r.shell.tick(250);

@@ -9,7 +9,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/profile.h"
@@ -108,7 +108,7 @@ inline std::string paths_in_root(const std::vector<std::string>& paths, std::str
 inline bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
-	return request.has_value() && ctx.sink->write(*request);
+	return request.has_value() && ctx.ports.writes->write(*request);
 }
 
 /// @brief Seed, once, cables on the fixture's sound for the source blinks to find: both layers of one pad pair, a

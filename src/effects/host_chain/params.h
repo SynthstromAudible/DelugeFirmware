@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <utility>
 
 /// @brief The params a host chain has: the song master's, a kit's affect-entire's and an audio track's.
 namespace deluge::host_chain {
@@ -181,10 +182,21 @@ inline constexpr std::array<plugin::ParamId, 1> kNotInitialised{param::kTempo};
 /// @brief The one run of ids the params are stored in.
 inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
-/// @brief The runtime's index of the param @p id, or nullopt when there is no such param.
-[[nodiscard]] constexpr std::optional<uint8_t> runtime_index(plugin::ParamId id) {
+/// @brief The runtime's index of the param @p id, or nullopt when there is no such param. For an id known only at run
+/// time; a constant id takes @c runtime_index.
+[[nodiscard]] constexpr std::optional<uint8_t> find_runtime_index(plugin::ParamId id) {
 	if (!kParamBlock.contains(id)) {
 		return std::nullopt;
+	}
+	return static_cast<uint8_t>(id.value - kFirstId);
+}
+
+/// @brief The runtime's index of the param @p id, for a constant id: an id of no param does not compile.
+/// @param id A param id of the host chain.
+/// @return The index in the runtime's unpatched set.
+[[nodiscard]] consteval uint8_t runtime_index(plugin::ParamId id) {
+	if (!kParamBlock.contains(id)) {
+		std::unreachable();
 	}
 	return static_cast<uint8_t>(id.value - kFirstId);
 }

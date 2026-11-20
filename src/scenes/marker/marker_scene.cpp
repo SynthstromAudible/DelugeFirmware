@@ -3,6 +3,7 @@
 
 #include "scenes/marker/marker_scene.h"
 
+#include "definitions_cxx.hpp" // MarkerType, kNumMarkerTypes, kNumSources
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
 #include "ui/grid/frame.h"
@@ -14,8 +15,7 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
-#include "scenes/bind/runtime_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/sound_writes.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
@@ -38,6 +38,10 @@
 #include <vector>
 
 namespace deluge::scenes::marker {
+
+/// @brief The pad grid's main columns and rows.
+constexpr int32_t kMainCols = deluge::gfx::grid::kDelugeGrid.main_cols;
+constexpr int32_t kRows = deluge::gfx::grid::kDelugeGrid.rows;
 
 using deluge::l10n::String;
 using deluge::ui::shell::Action;
@@ -120,10 +124,10 @@ std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::Men
 }
 
 const deluge::instrument::SoundState* MarkerScene::sound_state() const {
-	if (ctx_.is_audio_clip || ctx_.facts == nullptr || where_.source >= kNumSources) {
+	if (ctx_.is_audio_clip || ctx_.ports.sound == nullptr || where_.source >= kNumSources) {
 		return nullptr;
 	}
-	return ctx_.facts->sound_state(where_.slot);
+	return ctx_.ports.sound->sound_state(where_.slot);
 }
 
 deluge::instrument::SourceId MarkerScene::source_id() const {
@@ -181,7 +185,8 @@ std::optional<services::ViewKey> MarkerScene::view_key_of() const {
 		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
 	}
 	const std::optional<uint64_t> range =
-	    ctx_.facts != nullptr ? ctx_.facts->range_identity(where_.slot, where_.source, where_.range) : std::nullopt;
+	    ctx_.ports.sound != nullptr ? ctx_.ports.sound->range_identity(where_.slot, where_.source, where_.range)
+	                                : std::nullopt;
 	if (!range) {
 		return std::nullopt;
 	}
@@ -396,17 +401,17 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 		which = marker_type_;
 	}
 
-	if (ctx_.sink == nullptr) {
-		return;
-	}
 	if (ctx_.is_audio_clip) {
 		// An audio clip's markers are rows of its record; the app moves one with the clip's voice taken off the
 		// sample, the moved part's clusters claimed and a playing clip resumed.
-		if (which == MarkerType::START || which == MarkerType::END) {
-			(void)ctx_.sink->move_audio_clip_marker(where_.clip,
-			                                        which == MarkerType::START ? "startSamplePos" : "endSamplePos",
-			                                        static_cast<int64_t>(value));
+		if (ctx_.ports.clip_writes != nullptr && (which == MarkerType::START || which == MarkerType::END)) {
+			(void)ctx_.ports.clip_writes->move_audio_clip_marker(
+			    where_.clip, which == MarkerType::START ? "startSamplePos" : "endSamplePos",
+			    static_cast<int64_t>(value));
 		}
+		return;
+	}
+	if (ctx_.ports.sound_writes == nullptr) {
 		return;
 	}
 
@@ -456,8 +461,9 @@ void MarkerScene::write_value(uint32_t value, MarkerType which) {
 	else if (which == MarkerType::END) {
 		range.end_pos = value;
 	}
-	(void)ctx_.sink->write_ranges(where_.slot, where_.source, ranges,
-	                              {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
+	(void)ctx_.ports.sound_writes->write_ranges(
+	    where_.slot, where_.source, ranges,
+	    {.kind = bind::RangesCause::Kind::MARKER, .marker = static_cast<int8_t>(which)});
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -507,14 +513,14 @@ void MarkerScene::select_encoder(int32_t offset) {
 	write_value(static_cast<uint32_t>(new_pos));
 
 	// If marker was on-screen...
-	if (old_col >= 0 && old_col < kDisplayWidth) {
+	if (old_col >= 0 && old_col < kMainCols) {
 		cols_on_screen(cols);
 		// It might have changed, and despite having a new_col variable above, that's only our
 		// desired value - we might have run into the end of the sample
 		new_col = cols[idx(marker_type_)].colOnScreen;
 
 		// But isn't anymore...
-		if (new_col < 0 || new_col >= kDisplayWidth) {
+		if (new_col < 0 || new_col >= kMainCols) {
 			nav_.xScroll += nav_.xZoom * offset;
 			if (nav_.xScroll < 0) {
 				nav_.xScroll = 0; // Shouldn't happen...
@@ -911,7 +917,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Pad: {
 		const int32_t x = event.x;
-		if (x == kDisplayWidth) {
+		if (x == kMainCols) {
 			// The mute column: legacy exits on a press with no UI mode up.
 			if (event.on && !mode_up()) {
 				r.handled = true;
@@ -922,7 +928,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 			return r;
 		}
-		if (x > kDisplayWidth) {
+		if (x > kMainCols) {
 			// The audition column is the host's (`grid_pad_claim`); one that arrives anyway is swallowed, as legacy
 			// swallows it on an audio clip.
 			r.handled = true;
@@ -937,7 +943,7 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// shortcut (`potentialShortcutPadAction`'s `ignoreAction`): with SHIFT they go on to the editor's own arms
 		// below, under any mode.
 		const bool root_keeps_pad = ctx_.root_is_automation && x == 0 && (event.y == 6 || event.y == 7);
-		if (event.on && ctx.shift && !root_keeps_pad && x < kDisplayWidth && !only_auditioning) {
+		if (event.on && ctx.shift && !root_keeps_pad && x < kMainCols && !only_auditioning) {
 			r.handled = true;
 			if (!mode_up()) {
 				if (const std::optional<SceneId> page =
@@ -1000,7 +1006,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
 	if (playing_
-	    || (menu::host_runtime_facts().flash_cursor() != bind::FlashCursor::Off
+	    || (menu::host_ports().ui->flash_cursor() != bind::FlashCursor::Off
 	        && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
@@ -1069,7 +1075,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	follow_waveform(*info);
 
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
+	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kMainCols);
 	const gfx::grid::GridDimensions main_dims{static_cast<uint8_t>(main_cols), 0, static_cast<uint8_t>(f.bounds().h)};
 
 	// The zoom slide (`PadLEDs::renderZoom`), over the main pads alone. It starts from the last settled frame and
@@ -1180,12 +1186,12 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	const bind::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
 	playing_ = false;
 	if (cursor == bind::FlashCursor::Off) {
 		return;
 	}
-	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
 	const std::optional<int64_t> pos = waveforms().play_position(where_);
 	playing_ = pos.has_value();
 	if (pos.has_value() && *pos >= nav_.xScroll && nav_.xZoom > 0) {
