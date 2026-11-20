@@ -37,6 +37,7 @@
 
 #include "support/song_fixture.h"
 
+#include "support/menu_context.h"
 #include "support/mocks/fake_surfaces.h"
 
 #include <cstdint>
@@ -179,8 +180,8 @@ struct Rig {
 
 	MenuContext ctx() {
 		// `context_for` resolves the range only when the source has exactly one, as it has here.
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 
 	/// @brief The key the scene remembers the range's view under: the range's own identity.
@@ -350,8 +351,8 @@ struct AudioRig {
 	/// @brief Open the scene on @p marker over the audio clip.
 	/// @param clip_writes Where the scene's clip edits go; the app's when null.
 	void open(MarkerType marker, bind::ClipWrites* clip_writes = nullptr) {
-		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		if (clip_writes != nullptr) {
 			c.ports.clip_writes = clip_writes;
 		}

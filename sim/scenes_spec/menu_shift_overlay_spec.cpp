@@ -38,6 +38,7 @@
 
 #include <functional>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -79,8 +80,8 @@ struct Rig {
 	~Rig() { spec::reset_menu_singleton(shell); }
 
 	MenuContext menu_context() const {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 	/// @brief Open the menu on @p at, after @p adjust has had the context.
 	void open(const Node& at, const std::function<void(MenuContext&)>& adjust = {}) {

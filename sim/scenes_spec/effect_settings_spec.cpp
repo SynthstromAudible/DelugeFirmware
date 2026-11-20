@@ -23,6 +23,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <array>
@@ -78,18 +79,18 @@ std::set<std::string> paths_of(const Node& root) {
 }
 
 /// The effects of the owner @p ctx edits: its sound's, else its chain's.
-const deluge::effects::EffectStates* owner_effects(const MenuContext& ctx) {
-	if (::Sound* sound = spec::menu_engine(ctx).sound; sound != nullptr) {
+const deluge::effects::EffectStates* owner_effects(const MenuContext& ctx, ::Song& song) {
+	if (::Sound* sound = spec::menu_engine(ctx, song).sound; sound != nullptr) {
 		return &sound->effects();
 	}
 	const std::optional<deluge::model::EffectsOwner> owner =
-	    ctx.addresses.chain ? deluge::bridge::chainAt(*ctx.addresses.chain, *ctx.song) : std::nullopt;
+	    ctx.addresses.chain ? deluge::bridge::chainAt(*ctx.addresses.chain, song) : std::nullopt;
 	return owner ? &owner->effects() : nullptr;
 }
 
 /// Where an EFFECT node disagrees with the binding library on @p ctx: its read, its range, or a write at its ends and
 /// middle that does not land on the context's owner and read back. Empty when it agrees.
-std::string disagreements(const Node& node, const MenuContext& ctx) {
+std::string disagreements(const Node& node, const MenuContext& ctx, ::Song& song) {
 	const std::string path(node.bind.target.path);
 	const auto shown = bind::view(node.bind.target, ctx.model, ctx.addresses, ctx.ports);
 	if (!shown) {
@@ -122,7 +123,7 @@ std::string disagreements(const Node& node, const MenuContext& ctx) {
 			found +=
 			    path + " write(" + std::to_string(v) + ")->" + std::to_string(menu::bindings::read(node, ctx)) + " ";
 		}
-		const auto* effects = owner_effects(ctx);
+		const auto* effects = owner_effects(ctx, song);
 		if (!stored || effects == nullptr || deluge::effects::held_effect_setting(*effects, path) != stored->first) {
 			found += path + " owner(" + std::to_string(v) + ") ";
 		}
@@ -131,10 +132,10 @@ std::string disagreements(const Node& node, const MenuContext& ctx) {
 	return found;
 }
 
-std::string all_disagreements(const Node& root, const MenuContext& ctx) {
+std::string all_disagreements(const Node& root, const MenuContext& ctx, ::Song& song) {
 	std::string found;
 	for (const Node* node : effect_nodes(root)) {
-		found += disagreements(*node, ctx);
+		found += disagreements(*node, ctx, song);
 	}
 	return found;
 }
@@ -169,36 +170,36 @@ describe effect_settings_targets("the effect menus on targets, on every owner", 
 
 	it("reads, ranges and writes every effect node on a synth", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(all_disagreements(menu::nodes::sound_root, ctx)).to_equal(std::string{});
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		expect(all_disagreements(menu::nodes::sound_root, ctx, *f.song)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on a kit row", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(all_disagreements(menu::nodes::root_drum, ctx)).to_equal(std::string{});
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		expect(all_disagreements(menu::nodes::root_drum, ctx, *f.song)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on the whole kit", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		spec::add_drum<SoundDrum>(f);
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
-		expect(all_disagreements(menu::nodes::root_kit_global_fx, ctx)).to_equal(std::string{});
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
+		expect(all_disagreements(menu::nodes::root_kit_global_fx, ctx, *f.song)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on an audio track", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(all_disagreements(menu::nodes::root_audio_clip, ctx)).to_equal(std::string{});
+		const MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		expect(all_disagreements(menu::nodes::root_audio_clip, ctx, *f.song)).to_equal(std::string{});
 	});
 
 	it("reads, ranges and writes every effect node on the master, from the song and from performance view", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const MenuContext song = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
-		expect(all_disagreements(menu::nodes::root_song, song)).to_equal(std::string{});
-		const MenuContext performance = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
-		expect(all_disagreements(menu::nodes::root_performance, performance)).to_equal(std::string{});
+		const MenuContext song = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
+		expect(all_disagreements(menu::nodes::root_song, song, *f.song)).to_equal(std::string{});
+		const MenuContext performance = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, true, false, false, false);
+		expect(all_disagreements(menu::nodes::root_performance, performance, *f.song)).to_equal(std::string{});
 	});
 });
 

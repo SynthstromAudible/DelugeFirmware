@@ -67,6 +67,7 @@
 #include <span>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -405,8 +406,8 @@ struct Rig {
 
 	/// @brief Resolve a `MenuContext` from the fixture's synth clip and open @p root on it.
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -781,7 +782,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `gate_selection` lives there,
 		                                               // not in this file's synthetic `settings_root`.
 		menu_scene().open(nodes::gate_selection, ctx);
@@ -846,7 +847,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree, not this file's synthetic one
 		menu_scene().open(nodes::runtime_features, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::runtime_features)});
@@ -1178,7 +1179,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `cv_selection` lives there
 		menu_scene().open(nodes::cv_selection, ctx);
 		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::cv_selection)});
@@ -2298,7 +2299,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::ui::shell::SceneState saved{};
 		menu_scene().save_state(saved);
 
-		menu_scene().open(settings_root, menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false));
+		menu_scene().open(settings_root, spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false));
 		expect(depth_of()).to_equal(0);
 
 		menu_scene().restore_state(saved);

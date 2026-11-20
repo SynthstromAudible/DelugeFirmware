@@ -129,11 +129,11 @@ struct NodeException {
 struct UnsetProbe {
 	std::string_view path;
 	int32_t stored;
-	void (*set)(const deluge::scenes::menu::MenuContext&);
+	void (*set)(const deluge::scenes::menu::MenuContext&, Song&);
 };
 
-void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx) {
-	spec::menu_engine(ctx).sound->setOutputMidiNoteForDrum(MIDI_NOTE_NONE);
+void unset_note_for_drum(const deluge::scenes::menu::MenuContext& ctx, Song& song) {
+	spec::menu_engine(ctx, song).sound->setOutputMidiNoteForDrum(MIDI_NOTE_NONE);
 }
 
 const UnsetProbe* unset_probe_of(std::string_view path) {
@@ -368,7 +368,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 
 	// Where the row has no value, what the node shows.
 	if (const UnsetProbe* probe = unset_probe_of(c.path); probe != nullptr) {
-		probe->set(ctx);
+		probe->set(ctx, song_of(c.where));
 		const int32_t got = bindings::read(node, ctx);
 		const int32_t want = to_menu(row, probe->stored);
 		if (got != want) {

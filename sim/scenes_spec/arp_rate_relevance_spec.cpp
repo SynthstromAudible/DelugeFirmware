@@ -38,6 +38,7 @@
 #include <cstring>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
@@ -48,7 +49,7 @@ namespace {
 
 /// @brief What a menu opened over @p f's clip edits; @p kit_global_fx as `context_for` takes it.
 MenuContext context_of(const spec::SongFixture& f, bool kit_global_fx = false) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, kit_global_fx);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, kit_global_fx);
 }
 
 bool arp_rate_relevant(const MenuContext& ctx) {

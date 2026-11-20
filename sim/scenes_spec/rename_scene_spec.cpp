@@ -56,6 +56,7 @@
 #include <string>
 #include <string_view>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -271,8 +272,8 @@ spec::SongFixture kit_fixture() {
 
 MenuContext context_of(spec::SongFixture& f) {
 	currentSong = f.song;
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 /// The name the @p group record holds for the owner @p ctx names, or empty.

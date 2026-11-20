@@ -140,7 +140,7 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 		std::set<const AppliesException*> reached;
 		for (const Fixture& fixture : fixtures()) {
 			enter(fixture.where);
-			fixture.setup(settle(fixture.where));
+			fixture.setup(settle(fixture.where), song_of(fixture.where));
 			const MenuContext& ctx = settle(fixture.where);
 			for (Family family : fixture.families) {
 				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
@@ -173,7 +173,7 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 				expect(std::string{fixture.name} + " reads " + (owner.unknown.empty() ? "" : owner.unknown.front()))
 				    .to_equal(std::string{fixture.name} + " reads ");
 			}
-			unload_files(ctx);
+			unload_files(ctx, song_of(fixture.where));
 		}
 		for (const AppliesException& exception : kAppliesExceptions) {
 			const std::string at = std::string{exception.path} + " in " + std::string{exception.fixture};
@@ -184,7 +184,7 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 	it("shows a partner row exactly where its row shows, in every fixture", _ {
 		for (const Fixture& fixture : fixtures()) {
 			enter(fixture.where);
-			fixture.setup(settle(fixture.where));
+			fixture.setup(settle(fixture.where), song_of(fixture.where));
 			const MenuContext& ctx = settle(fixture.where);
 			for (Family family : fixture.families) {
 				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
@@ -200,7 +200,7 @@ describe descriptor_oracle_applicability("Where each row's menu shows, against t
 					    .to_equal(verdict(fixture.name, partner->path, applies));
 				}
 			}
-			unload_files(ctx);
+			unload_files(ctx, song_of(fixture.where));
 		}
 	});
 	it("offers DX7 to the whole kit's sounds, as `osc::Type::mayUseDx` does", _ {

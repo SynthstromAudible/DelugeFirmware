@@ -7,6 +7,7 @@
 #include "deluge-project/song.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/menu/context.h"
+#include "scenes/services/view_state.h"
 
 #include "fakes.h"
 
@@ -22,17 +23,18 @@ struct FakeHostRig {
 	FakeHostRig(const FakeHostRig&) = delete;
 	FakeHostRig& operator=(const FakeHostRig&) = delete;
 
-	/// @brief The settings root's context, field by field as `menu::context_for` resolves one with no clip and no song
-	///        view: resolved, rooted at Settings, with no addresses.
+	/// @brief The settings root's context, as `menu::context_for` resolves one with no clip and no song view over the
+	///        rig's model and fakes: resolved, rooted at Settings, with no addresses.
 	/// @param with_model Whether the context names the rig's model; without it, only what reads no song resolves.
 	/// @return The context; its ports point at this rig's fakes, so it is valid while the rig lives.
-	// TODO: build it with `menu::context_for` once that takes a model song rather than a legacy one.
 	[[nodiscard]] menu::MenuContext settings_context(bool with_model = true) {
-		menu::MenuContext ctx{};
-		ctx.resolved = true;
-		ctx.root = menu::MenuContext::Root::Settings;
-		ctx.model = with_model ? &model : nullptr;
-		ctx.ports = host.ports();
+		const bind::Ports ports = host.ports();
+		menu::MenuContext ctx = menu::context_for(model, &ports, services::MenuView{}, /*source_index=*/0,
+		                                          /*performance_view=*/false, /*session_or_arranger_root=*/false,
+		                                          /*session_view_root=*/false, /*kit_global_fx=*/false);
+		if (!with_model) {
+			ctx.model = nullptr;
+		}
 		return ctx;
 	}
 };

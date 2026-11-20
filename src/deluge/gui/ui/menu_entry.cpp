@@ -40,6 +40,7 @@
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -120,9 +121,10 @@ bool kitGlobalFxLatch = false;
 /// @brief `menu::context_for` plus the two facts about the root UI that `src/scenes` may not read.
 menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                                  bool sessionViewRoot, bool kitGlobalFx) {
-	menu::MenuContext ctx =
-	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
-	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	// The menu opens in the song the app plays, which the app's ports act on.
+	menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(), deluge::gui::menuViewOf(clip),
+	                                          static_cast<int8_t>(sourceIndex), performanceView, sessionOrArrangerRoot,
+	                                          sessionViewRoot, kitGlobalFx);
 	ctx.root_greyout = deluge::gui::menuRootGreyout();
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
 	ctx.root_is_automation = getRootUI() == &automationView;

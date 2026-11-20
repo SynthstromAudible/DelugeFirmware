@@ -82,6 +82,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -441,7 +442,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 			input->cable = &cable;
 			input->channelOrZone = 0;
 		}
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false,
 		                                    false);
 		ctx.midi_device = deluge::midi::id_of(cable);
 		actionLogger.deleteAllLogs();

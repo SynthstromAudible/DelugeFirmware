@@ -87,6 +87,7 @@ using deluge::scenes::spec::shortcuts::FreeverbModel;
 using deluge::scenes::spec::shortcuts::install_sound_context;
 using deluge::scenes::spec::shortcuts::seed_blink_cables;
 using deluge::scenes::spec::shortcuts::select_language;
+using deluge::scenes::spec::shortcuts::sound_fixture;
 using deluge::scenes::spec::shortcuts::text_of;
 
 namespace {
@@ -1092,7 +1093,7 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against main's sh
 		}
 
 		// The patch cables page, on every cable: it plans from its own throttled timer.
-		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
+		PatchCableSet* set = spec::menu_engine(ctx, *sound_fixture().song).params->getPatchCableSetAllowJibberish();
 		for (int32_t i = 0; i < set->numPatchCables; i++) {
 			MenuState st{};
 			st.path[0] = &nodes::patch_cables;

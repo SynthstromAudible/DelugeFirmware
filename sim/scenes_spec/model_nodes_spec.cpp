@@ -29,6 +29,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <optional>
@@ -46,7 +47,7 @@ namespace {
 namespace nodes = menu::nodes;
 
 MenuContext at(Song& song, Clip* clip) {
-	return menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false);
+	return spec::ctx_of(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false);
 }
 
 /// The owner @p group's records take at @p ctx.

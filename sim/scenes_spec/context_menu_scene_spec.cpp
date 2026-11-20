@@ -63,6 +63,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -224,8 +225,8 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
+	return spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+	                    /*kit_global_fx=*/false);
 }
 
 /// @brief Drop the rows the faceplate hides from a PBM.

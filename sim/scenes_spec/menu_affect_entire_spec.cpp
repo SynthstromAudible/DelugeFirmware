@@ -24,6 +24,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -59,8 +60,8 @@ struct KitMenu {
 	/// @brief Open the drum's menu at @p node (a numbered node of the drum root).
 	void open(const Node& node) {
 		currentSong = song.song;
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                               /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::root_drum, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
@@ -143,7 +144,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		// `editingKitRow()` is false for the kit's global FX, so its items toggle the clip's affect-entire.
 		KitMenu k;
 		currentSong = k.song.song;
-		MenuContext ctx = menu::context_for(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*k.song.song, deluge::gui::menuViewOf(k.song.clip), 0, false, false, false,
 		                                    /*kit_global_fx=*/true);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::root_kit_global_fx, ctx);

@@ -182,6 +182,7 @@
 #include <fstream>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge;
@@ -509,7 +510,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Int: nodes::saturation renders and edits through the real Shell", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::saturation, ctx);
 
@@ -552,7 +553,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Decimal: nodes::source0_transpose renders and edits through the real Shell", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::source0_transpose, ctx);
 
@@ -599,7 +600,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Enum: nodes::lpf_mode renders and edits through the real Shell", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::lpf_mode, ctx);
 
@@ -636,7 +637,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Toggle: nodes::osc_sync renders and edits through the real Shell", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::osc_sync, ctx);
 
@@ -679,7 +680,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// raising a notification and staying.
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::lpf, ctx);
 
@@ -720,7 +721,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Shortcut: a real shift+pad jump lands on the LPF page focused on nodes::lpf_freq, then the real Shell edits it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::sound_root, ctx);
 
@@ -774,7 +775,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(kRangePermRoots);
 		menu_scene().open(range_perm_root, ctx);
 
@@ -821,7 +822,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("SyncLevel: nodes::delay_sync draws legacy's note-length string, and only the SELECT encoder moves it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::delay_sync, ctx);
 		// Value 0 is main's literal "OFF" arm (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`
@@ -858,7 +859,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("select_chain: a select press on nodes::unison_count opens nodes::unison_spread, and edits it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::unison_count, ctx);
 
@@ -896,7 +897,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Range: nodes::default_tempo picks an edge with the horizontal encoder; its gold turns move neither end", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		// Process-wide flash-backed state (the `defaults/tempo/*` DEVICE rows), so it is
 		// saved and put back. Set BEFORE `open()`, which is what seeds `MenuState::edit_int` /
@@ -933,7 +934,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("ActiveScales: a select press toggles the row's box and stays on the page", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
 		                                                  /*session_view_root=*/true, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		// Entered from the root, not opened directly: at depth 0 an unwanted `ascend()` is a silent
@@ -962,7 +963,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("ContextMenuItem: a reset item pushes the context menu, and the menu goes up a level when it closes", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::reset_settings, ctx);
 
@@ -988,7 +989,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("ContextMenuScene: the audio-source descriptor opens on its own initial row and walks", _ {
 		reset_globals();
 		spec::AudioSongFixture song = spec::make_audio_clip_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::root_audio_clip, ctx);
 
@@ -1011,7 +1012,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("RenameScene: the menu pushes it, the cursor blinks, a held backspace repeats, and enter commits", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::edit_name, ctx);
 		song.clip->name = "";
@@ -1040,7 +1041,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("MidiCommandItem: the learned readout, the LEARN blink, and a select turn that unlearns", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		const CommandSlots saved = CommandSlots::capture();
 		CommandSlots::clear_all();
@@ -1078,7 +1079,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("CvSelectionItem: the picked row becomes MenuContext::source_index before the chain reads it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::cv_selection, ctx);
 
@@ -1096,7 +1097,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("PatchCablesItem: the mod matrix opens the selected cable's strength page, and that page edits", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 
 		// A synth fixture already has cables of its own (the golden's NOTE and VELO rows), so the
@@ -1107,7 +1108,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		currentSong = song.song;
 		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(ctx, plain, 1234)).to_be_true();
-		PatchCableSet* const set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
+		PatchCableSet* const set = spec::menu_engine(ctx, *song.song).params->getPatchCableSetAllowJibberish();
 		expect(set).not_().to_be_null();
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
 		const uint8_t added = set->getPatchCableIndex(PatchSource::ENVELOPE_1, destination);
@@ -1151,7 +1152,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("ActionItem: the press files a MenuAction and leaves the parent list exactly where it was", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
 		                                                  /*session_view_root=*/true, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::stem_export, ctx);
@@ -1178,7 +1179,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx =
-		    menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false, false);
+		    spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		// `on_focus` seeds the cursor from the performance view's mode (`UiFacts::performance_editing_mode`), so
 		// the view's two bools are put at DISABLED, and put back afterwards like any other global.
@@ -1217,7 +1218,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("the per-device MIDI page: the cable, the direction and the zone all survive to the write", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 
 		const SavedCables saved = SavedCables::capture();
@@ -1282,7 +1283,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::SongFixture song = spec::make_synth_song();
 		(void)install_sample_source(song, nullptr); // an empty holder -> the descriptor's default dir
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::sound_root, ctx);
 
@@ -1309,7 +1310,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::SongFixture song = spec::make_synth_song();
 		MultisampleRange* range = install_sample_source(song, make_sample());
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::sound_root, ctx);
 
@@ -1341,7 +1342,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		spec::QuietAudio quiet;
 		spec::SongFixture song = spec::make_synth_song();
 		MultisampleRange* range = install_sample_source(song, nullptr);
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::sound_root, ctx);
 		// `RecorderScene::can` refuses while a foreground recording is live, and this is the storage

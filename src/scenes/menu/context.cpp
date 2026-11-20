@@ -47,8 +47,8 @@
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.
 ///
-/// **`currentSong` references in this file: 0.** Every place `setup()` reached for `currentSong` or a `getCurrent*()`
-/// helper takes the `Song&` the caller passed to `context_for` (`MenuContext::song`) instead.
+/// Every place `setup()` reached for `currentSong` or a `getCurrent*()` helper takes the song's record and the ports
+/// the caller passed to `context_for` instead.
 
 #include "scenes/menu/context.h"
 
@@ -62,8 +62,6 @@
 #include "deluge-project/features.h"
 #include "deluge-project/track_kind.h"
 #include "instruments/deluge/state_access.h"
-
-#include "model/song/song.h"
 
 #include <array>
 #include <iterator>
@@ -162,11 +160,11 @@ void select_source(MenuContext& ctx, int8_t index) {
 	}
 }
 
-MenuContext context_for(Song& song, const services::MenuView& view, int8_t source_index, bool performance_view,
-                        bool session_or_arranger_root, bool session_view_root, bool kit_global_fx) {
+MenuContext context_for(const project::Song& model, const bind::Ports* ports, const services::MenuView& view,
+                        int8_t source_index, bool performance_view, bool session_or_arranger_root,
+                        bool session_view_root, bool kit_global_fx) {
 	using project::TrackKind;
 	MenuContext ctx{};
-	ctx.song = &song;
 	ctx.source_index = source_index;
 	// Legacy's `!rootUIIsClipMinderScreen()`: performance view is not a clip minder either, whatever its caller says of
 	// the session and arranger.
@@ -175,8 +173,13 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
-	// The device's own settings act on no song, so the device port is bound whichever song the context is over.
-	ctx.ports.device = host_ports().device;
+	// What a target node binds through: the ports the caller passes, which act on the song the app plays, so a caller
+	// over any other song passes none. The device's own settings act on no song, so the device port is bound whatever
+	// the caller passes: its own when it has one, the app's otherwise.
+	if (ports != nullptr) {
+		ctx.ports = *ports;
+	}
+	ctx.ports.device = (ports != nullptr && ports->device != nullptr) ? ports->device : host_ports().device;
 	ctx.horizontal_menus =
 	    bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::HORIZONTAL_MENUS));
 	ctx.shortcut_overlay = bind::read_device<project::ShortcutOverlay>(
@@ -282,12 +285,8 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 		ctx.root = MenuContext::Root::Settings;
 	}
 
-	// What a target node binds through: the model, the addresses, and the app's ports, which act on the song
-	// it plays: a context over any other song binds nothing through them but the device port bound above.
-	ctx.model = &song.project;
-	if (host_binds(song)) {
-		ctx.ports = host_ports();
-	}
+	// The record a model target edits; the addresses follow.
+	ctx.model = &model;
 	// An unresolved context (a kit row with no note row) names nothing to edit.
 	if (ctx.resolved && slot) {
 		ctx.addresses.slot = slot;

@@ -80,6 +80,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -267,8 +268,8 @@ struct SoundRig {
 	///        point: nothing re-resolves it on the way into source 1's page, so an item that opens a
 	///        scene over source 1 has to say so itself.
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -310,8 +311,8 @@ struct ClipRig {
 	}
 
 	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 
 	void focus(const Node& node) { focus_in(shell, ctx(), node); }
@@ -759,11 +760,11 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/true};
 		MenuContext c = r.ctx();
-		expect(spec::menu_engine(c).range).to_equal(r.range[0]);
+		expect(spec::menu_engine(c, *r.song.song).range).to_equal(r.range[0]);
 
 		menu::select_source(c, 1);
 		expect(static_cast<int>(c.source_index)).to_equal(1);
-		const spec::MenuEngine engine = spec::menu_engine(c);
+		const spec::MenuEngine engine = spec::menu_engine(c, *r.song.song);
 		expect(engine.source).to_equal(r.source[1]);
 		expect(engine.range).to_equal(r.range[1]);
 		expect(engine.sample_controls).to_equal(&r.source[1]->sampleControls);
@@ -772,7 +773,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		// `currentMultiRange == nullptr` guard (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is what stops
 		// a range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
-		expect(spec::menu_engine(c).range).to_equal(r.range[1]);
+		expect(spec::menu_engine(c, *r.song.song).range).to_equal(r.range[1]);
 
 		// A context with no `Sound` is left exactly as it is -- the audio-clip case.
 		MenuContext none{};
@@ -798,7 +799,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		for (const OscCase& c : kOscCases) {
 			for (int32_t which = 0; which < 2; which++) {
 				seed_osc_case(*sound, *song.song, sample, c, which);
-				const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip),
+				const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip),
 				                                          static_cast<int8_t>(which), false, false, false, false);
 				const std::string path = std::string{"sample/"} + c.name + "/" + std::to_string(which);
 				const std::vector<std::string>* frozen = table().find(path, "rel");

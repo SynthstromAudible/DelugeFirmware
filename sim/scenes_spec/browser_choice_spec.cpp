@@ -107,6 +107,7 @@
 #include <string>
 #include <string_view>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
@@ -385,8 +386,8 @@ struct SongRig {
 
 	/// @brief The context `SoundEditor::setup` would have resolved for source 0.
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
+		MenuContext c = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                             /*kit_global_fx=*/false);
 		c.range_index = 0;
 		return c;
 	}
@@ -553,8 +554,8 @@ struct MidiRig {
 	void open_browser() {
 		select_language();
 		instrument()->deviceDefinitionFileName.clear();
-		browser::browser_scene().open(menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                                false, /*kit_global_fx=*/false));
+		browser::browser_scene().open(spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
+		                                           false, /*kit_global_fx=*/false));
 		shell.init(
 		    SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::MidiDeviceDefinition)});
 		for (int32_t i = 0; i < 4; i++) {
@@ -820,8 +821,8 @@ struct KitRig {
 
 	void open_browser() {
 		select_language();
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                               /*kit_global_fx=*/false);
 		(void)menu::ensure_first_range(ctx);
 		browser::browser_scene().open(ctx);
 		shell.init(SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::Sample)});

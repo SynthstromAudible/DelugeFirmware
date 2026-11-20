@@ -43,6 +43,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <string>
@@ -91,7 +92,7 @@ void make_sample(SoundDrum& drum) {
 
 /// An affect-entire context on @p f's kit.
 MenuContext whole_kit(spec::SongFixture& f) {
-	MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+	MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 	ctx.affect_entire_held = true;
 	ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 	return ctx;
@@ -115,7 +116,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		deluge::edits::settingFor(*drum, "osc2/type", Value::makeScalar("dx7")); // only the first oscillator offers DX7
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingWrites recorded;
 		ctx.ports.writes = &recorded;
 		bindings::write(kMaxVoices, ctx, 4);
@@ -133,11 +134,11 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 	it("applies a synth's voice count through its Edit, record and runtime alike", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		set_polyphony(*spec::menu_engine(ctx).sound, "poly");
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		set_polyphony(*spec::menu_engine(ctx, *f.song).sound, "poly");
 		bindings::write(kMaxVoices, ctx, 5);
-		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(5);
-		expect(static_cast<int>(spec::menu_engine(ctx).sound->config().voicing.max_voices)).to_equal(5);
+		expect(static_cast<int>(spec::menu_engine(ctx, *f.song).sound->boundState()->max_voice_count)).to_equal(5);
+		expect(static_cast<int>(spec::menu_engine(ctx, *f.song).sound->config().voicing.max_voices)).to_equal(5);
 		expect(bindings::read(kMaxVoices, ctx)).to_equal(5);
 	});
 
@@ -153,7 +154,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		const int before = mono->boundState()->max_voice_count;
 		const auto midi_channel = midi->channel();
 		const auto gate_channel = gate->channel();
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		expect(ctx.addresses.affect_entire).to_be_true();
@@ -235,7 +236,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 			kit->arpeggiator.noteOn(&f.clip->arpSettings, index, 64, &instruction, MIDI_CHANNEL_NONE, mpe);
 			expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_true();
 			const MenuContext ctx =
-			    entire ? whole_kit(f) : menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+			    entire ? whole_kit(f) : spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 			sink_write(menu::nodes::sample0_repeat, ctx,
 			           menu_of("osc1/loopMode", std::to_underlying(deluge::instrument::SampleRepeatMode::ONCE)));
 			expect(kit->arpeggiator.hasAnyInputNotesActive()).to_be_false();
@@ -268,7 +269,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		auto* kit = static_cast<Kit*>(f.instrument);
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		expect(ctx.addresses.affect_entire).to_be_false();
@@ -289,7 +290,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		SoundDrum* selected = spec::add_drum<SoundDrum>(f);
 		static_cast<Kit*>(f.instrument)->selectedDrum = selected;
 		const auto before = other->boundState()->sources[0].osc_type;
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		ctx.affect_entire_held = true;
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		bindings::write(menu::nodes::osc0_type, ctx, 4); // the fifth listed type: saw
@@ -369,7 +370,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 	it("binds nothing through the app for a song it does not play", _ {
 		spec::SongFixture other = spec::make_synth_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the fixture makes the last song built the current one
-		const MenuContext ctx = menu::context_for(*other.song, deluge::gui::menuViewOf(other.clip), 0, false, false, false, false);
+		const MenuContext ctx = spec::ctx_of(*other.song, deluge::gui::menuViewOf(other.clip), 0, false, false, false, false);
 		expect(ctx.ports.controls).to_be_null();
 		expect(ctx.ports.writes).to_be_null();
 		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();
@@ -379,7 +380,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 	it("leaves each sound playing its slot's state after its menus write it", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bindings::write(kMaxVoices, ctx, 7);
 		bindings::write(menu::nodes::osc0_type, ctx, 4);
 		deluge::project::InstrumentSlot* slot = f.song->project.resolveSlot(*ctx.addresses.slot);
@@ -395,21 +396,21 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 	it("refuses a request whose slot does not resolve, and changes nothing", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		const int before = spec::menu_engine(ctx).sound->boundState()->max_voice_count;
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		const int before = spec::menu_engine(ctx, *f.song).sound->boundState()->max_voice_count;
 		const uint32_t refused = deluge::gui::shell_host::edit_refusals();
 		menu::host_ports().writes->write(bind::WriteRequest{
 		    .target = kMaxVoices.bind.target,
 		    .where = bind::Addresses{.slot = deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::DRUM, 9999}},
 		    .menu_value = 2});
 		expect(deluge::gui::shell_host::edit_refusals()).to_equal(refused + 1);
-		expect(static_cast<int>(spec::menu_engine(ctx).sound->boundState()->max_voice_count)).to_equal(before);
+		expect(static_cast<int>(spec::menu_engine(ctx, *f.song).sound->boundState()->max_voice_count)).to_equal(before);
 	});
 
 	it("shows no target node on a kit row with no note row", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		add_drum_without_note_row(f);
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(ctx.resolved).to_be_false();
 		expect(bind::view(kMaxVoices.bind.target, ctx.model, ctx.addresses, ctx.ports).has_value()).to_be_false();
 		expect(bindings::relevant(kMaxVoices, ctx)).to_be_false();

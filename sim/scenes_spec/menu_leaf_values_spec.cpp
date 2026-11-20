@@ -62,6 +62,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -91,8 +92,8 @@ struct Rig {
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
 	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, profile};
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
-	MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-	                                    /*kit_global_fx=*/false);
+	MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+	                               /*kit_global_fx=*/false);
 
 	Rig() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;

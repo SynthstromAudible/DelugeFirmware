@@ -1,8 +1,8 @@
 #pragma once
 
-// The engine objects a menu context addresses, resolved in its song -- what `SoundEditor::setup` resolves for the same
-// visit. The scenes hold addresses only; a spec comparing against legacy items, or setting a fixture up through an
-// engine object, resolves them here.
+// The engine objects a menu context addresses, resolved in the legacy song whose record it names -- what
+// `SoundEditor::setup` resolves for the same visit. The scenes hold addresses only; a spec comparing against legacy
+// items, or setting a fixture up through an engine object, resolves them here.
 
 #include "model/project_bridge/controls_bridge.h"
 #include "scenes/menu/bindings.h"
@@ -37,13 +37,15 @@ struct MenuEngine {
 	ModControllable* mod = nullptr;            ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };
 
-/// @brief Resolve @p ctx's addresses in its song.
-inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
+/// @brief Resolve @p ctx's addresses in @p song.
+/// @param ctx  The menu's context.
+/// @param song The legacy song whose record @p ctx names (`MenuContext::model`).
+/// @return The engine objects; none when @p ctx names another song's record, or none.
+inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx, Song& song) {
 	MenuEngine e{};
-	if (ctx.song == nullptr) {
+	if (ctx.model != &song.project) {
 		return e;
 	}
-	Song& song = *ctx.song;
 	if (ctx.is_song_view) {
 		e.params = &song.paramManager;
 	}

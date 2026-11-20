@@ -116,6 +116,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
@@ -300,7 +301,9 @@ void build_names_contexts() {
 		if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
 			continue;
 		}
-		menu::MenuContext ctx = menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), 0, false, false, false,
+		// The song the app plays, which the app's ports act on.
+		menu::MenuContext ctx = menu::context_for(currentSong->project, &menu::host_ports(),
+		                                          deluge::gui::menuViewOf(clip), 0, false, false, false,
 		                                          /*kit_global_fx=*/false);
 		ctx.root = menu::MenuContext::Root::NoteRowEditor;
 		g_names_contexts.push_back(ctx);

@@ -44,6 +44,7 @@
 #include <tuple>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -82,8 +83,8 @@ struct Rig {
 	~Rig() { spec::reset_menu_singleton(shell); }
 
 	MenuContext menu_context() const {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
+		return spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                    /*kit_global_fx=*/false);
 	}
 	/// @brief Open @p root, landing on @p at (the root itself when it is the root).
 	void open(const Node& root, const Node& at) { open(root, at, menu_context()); }
@@ -531,7 +532,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		select_language();
 		Rig r;
 		spec::SongFixture kit = spec::make_kit_song();
-		const MenuContext ctx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false,
+		const MenuContext ctx = spec::ctx_of(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false,
 		                                          /*kit_global_fx=*/true);
 		(void)menu::assign_node_ids(MenuScene::roots());
 		menu_scene().open(nodes::sound_root, ctx);

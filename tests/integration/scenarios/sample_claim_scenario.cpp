@@ -94,6 +94,7 @@
 #include "notify/notice_queue.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/sample.h"
@@ -1545,9 +1546,10 @@ void actShellSlice() {
 	g_shellBackNoContextRefused = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
-	// What the menu edits: the kit's drum, as the clip view selected it.
+	// What the menu edits: the kit's drum, as the clip view selected it, in the song the app's ports act on.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
-	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
+	    currentSong->project, &deluge::scenes::menu::host_ports(), deluge::gui::menuViewOf(g_kitClip), 0, false, false,
+	    false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
 	auto& scene = deluge::scenes::slicing::slicer_scene();
 	scene.open(nullptr);

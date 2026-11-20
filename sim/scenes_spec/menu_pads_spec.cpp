@@ -20,6 +20,7 @@
 
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -47,7 +48,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 	it("plans no blink while a pushed scene covers the menu, and resumes when it leaves", _ {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                                    /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::lpf_freq;
@@ -69,7 +70,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 	it("asks for no blink wake while covered, and asks again once uncovered", _ {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song();
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                                    /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::lpf_freq;
@@ -88,7 +89,7 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 		// list shows no flashes until the cursor rests.
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song(); // its synth patches NOTE and VELOCITY to the cutoff
-		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
 		                                    /*kit_global_fx=*/false);
 		menu::MenuState st{};
 		st.path[0] = &nodes::patch_cables;

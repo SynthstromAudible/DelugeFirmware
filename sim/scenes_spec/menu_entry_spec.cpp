@@ -102,6 +102,7 @@
 #include <optional>
 #include <string>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 #include "unit/ui/support/frames.h"
 
@@ -354,8 +355,7 @@ bool is_horizontal_page(const menu::Node* node) {
 
 bool openGuestOnPlayCommand(Song& song) {
 	(void)quiet_audio();
-	const menu::MenuContext ctx =
-	    menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+	const menu::MenuContext ctx = spec::ctx_of(song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 	const uint16_t arg = menu::node_id(nodes::midi_command_play);
 	if (arg == 0) {
 		return false;
@@ -473,11 +473,11 @@ describe menu_entry_roots("openMenu resolves the root each site's arguments name
 	it("a UI teardown empties the guest and forgets the song the menu was open on", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(entry::openMenu(f.clip, 0, false, false, false, false)).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().song).not_().to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).not_().to_be_null();
 		// A song load or a clear takes every UI down (`nullifyUIs`) before the song the menu was open on goes.
 		nullifyUIs();
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t{0});
-		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).to_be_null();
 		closeGuest();
 	});
 
@@ -489,9 +489,9 @@ describe menu_entry_roots("openMenu resolves the root each site's arguments name
 		expect(entry::openMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		shellHostUI.closeNow(); // the guest's own close, the clip view beneath
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().song).to_equal(f.song);
+		expect(deluge::scenes::menu_scene().menu_context().model).to_equal(&f.song->project);
 		nullifyUIs();
-		expect(deluge::scenes::menu_scene().menu_context().song).to_be_null();
+		expect(deluge::scenes::menu_scene().menu_context().model).to_be_null();
 		entry::clearMenuKitGlobalFx();
 	});
 
@@ -711,7 +711,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		// The first even-column pad whose node does not apply to this synth.
 		const menu::MenuContext ctx =
-		    menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		    spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		int32_t px = -1;
 		int32_t py = -1;
 		for (int32_t x = 0; x < 14 && px < 0; x += 2) {

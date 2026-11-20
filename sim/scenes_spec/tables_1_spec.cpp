@@ -71,6 +71,7 @@
 #include <string>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 using namespace deluge::scenes;
@@ -652,13 +653,13 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		// `MenuScene::enter_child` is what calls it.
 		RangeFixture f{0};
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
-		expect(spec::menu_engine(f.ctx).range).to_be_null();
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).to_be_null();
 
 		expect(menu::ensure_first_range(f.ctx)).to_be_true();
 		// One range now exists, and the context points at it, so a range-dependent item opens rather than
 		// bouncing to a one-row picker.
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-		expect(spec::menu_engine(f.ctx).range).not_().to_be_null();
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).not_().to_be_null();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
 		expect(menu::permission_for(nodes::source0_transpose, f.ctx)).to_equal(menu::Permission::Yes);
 		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard.
@@ -890,7 +891,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 			sound->sources[0].ranges.getElement(i)->topNote = tops[i];
 		}
 		deluge::edits::recordRanges(*sound, 0);
-		MenuContext ctx = menu::context_for(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
+		MenuContext ctx = spec::ctx_of(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
 		                                    /*kit_global_fx=*/false);
 		menu::MenuState picker{};
 		picker.list[0].cursor = 2;
@@ -907,7 +908,7 @@ describe tables_1_range_picker("scenes::menu sound-subtree tables: the multi-ran
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-		expect(spec::menu_engine(f.ctx).range).to_equal(spec::menu_engine(f.ctx).source->ranges.getElement(2));
+		expect(spec::menu_engine(f.ctx, *f.song.song).range).to_equal(spec::menu_engine(f.ctx, *f.song.song).source->ranges.getElement(2));
 		// Out of range is ignored rather than clamped -- every caller has clamped already.
 		menu::select_range(f.ctx, 7);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);

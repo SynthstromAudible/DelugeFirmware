@@ -264,6 +264,8 @@ Song* g_songBefore = nullptr;
 Clip* g_clipBefore = nullptr;
 /// Compared by address only: once the old song is freed, nothing it held may be dereferenced.
 const void* g_modBefore = nullptr;
+/// The old song's record, which the menu's context names; compared by address only, as `g_modBefore` is.
+const deluge::project::Song* g_modelBefore = nullptr;
 bool g_loadSeen = false;
 
 /// inert_while_empty: what was delivered while the stack was empty, and what reached a UI from before the load.
@@ -590,12 +592,14 @@ void stepEditorSetup() {
 	if (!deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
 	                               /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 	                               /*kitGlobalFx=*/false)
-	    || getCurrentUI() != &shellHostUI || deluge::scenes::menu_scene().menu_context().song != currentSong) {
+	    || getCurrentUI() != &shellHostUI
+	    || deluge::scenes::menu_scene().menu_context().model != &currentSong->project) {
 		g_report.fail("RETIRED the menu could not be opened on the synth clip");
 		g_stage = Stage::Report;
 		return;
 	}
 	g_songBefore = currentSong;
+	g_modelBefore = &currentSong->project;
 	g_clipBefore = clip;
 	g_modBefore = clip->output->toModControllable();
 	g_stackWritesAtLegStart = View::renderStackWrites();
@@ -644,7 +648,7 @@ void stepEditorRun() {
 		return;
 	}
 	// The load took every UI down; nothing may have put the menu back on the song it freed.
-	g_guestOnOldSong = isUIOpen(&shellHostUI) && deluge::scenes::menu_scene().menu_context().song == g_songBefore;
+	g_guestOnOldSong = isUIOpen(&shellHostUI) && deluge::scenes::menu_scene().menu_context().model == g_modelBefore;
 	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d guestOnOldSong=%d "
 	       "renderWrites=%d steps=%d\n",
 	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_guestOnOldSong ? 1 : 0,

@@ -109,6 +109,7 @@
 #include <string_view>
 #include <vector>
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
@@ -487,7 +488,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		const bool had_none = menu::host_ports().sound->sound_state(slot)->sources[0].ranges.empty();
 
-		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext recorded = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::test::RecordingSoundWrites recording;
 		recorded.ports.sound_writes = &recording;
 		if (had_none) {
@@ -502,7 +503,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(recording.calls[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
 		}
 
-		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
+		MenuContext ctx = spec::ctx_of(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
 		expect(menu::host_ports().sound->sound_state(slot)->sources[0].ranges.size()).to_equal(size_t{1});

@@ -30,6 +30,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 #include <algorithm>
 #include <string>
@@ -79,8 +80,8 @@ struct Rig {
 
 	/// @brief Open the sound menu on @p at, as a shortcut landing would.
 	void open(const Node& at) {
-		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
-		                                          false, /*kit_global_fx=*/false);
+		const MenuContext ctx = spec::ctx_of(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                     /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(MenuScene::roots());
 		menu_scene().open(at, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(at)});
@@ -188,7 +189,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		// `exitCompletely()`). Driven at the unit: the page opens only with its walk already chosen.
 		select_language();
 		Rig r;
-		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
+		const MenuContext ctx = spec::ctx_of(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false,
 		                                          false, /*kit_global_fx=*/false);
 		menu::MenuContext core_ctx = ctx;
 		menu::MenuState st{};

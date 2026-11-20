@@ -29,6 +29,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/menu_context.h"
 #include "support/spec_main.h"
 
 #include <string>
@@ -70,11 +71,11 @@ std::string stored_text(SettingGroupId group, std::string_view path, int32_t men
 }
 
 MenuContext song_root(Song& song) {
-	return menu::context_for(song, deluge::gui::menuViewOf(nullptr), 0, false, true, true, false);
+	return spec::ctx_of(song, deluge::gui::menuViewOf(nullptr), 0, false, true, true, false);
 }
 
 MenuContext clip_root(Song& song, Clip* clip) {
-	return menu::context_for(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false);
+	return spec::ctx_of(song, deluge::gui::menuViewOf(clip), 0, false, false, false, false);
 }
 
 } // namespace
