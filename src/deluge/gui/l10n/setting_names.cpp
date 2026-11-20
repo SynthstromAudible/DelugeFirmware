@@ -602,6 +602,21 @@ constexpr SettingNames kMidiClockOutNames{STRING_FOR_MIDI_CLOCK_OUT, STRING_FOR_
 constexpr SettingNames kMidiClockInNames{STRING_FOR_MIDI_CLOCK_IN, STRING_FOR_INPUT, {}, {}};
 constexpr SettingNames kTempoMagnitudeMatchingNames{
     STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING, {}, {}};
+/// The CV outputs' and the gate outputs' rows. Every output's row of a kind shares its names; a gate's mode lists the
+/// clock or the run signal only on the gate whose row has that choice.
+constexpr SettingNames kCvVoltsPerOctaveNames{
+    STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE, STRING_FOR_VOLTS_PER_OCTAVE, {}, {}};
+constexpr SettingNames kCvTransposeNames{STRING_FOR_CV_TRANSPOSE_MENU_TITLE, STRING_FOR_TRANSPOSE, {}, {}};
+constexpr std::array<String, 2> kGateModeChoices{{STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER}};
+constexpr SettingNames kGateModeNames{STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kGateModeChoices, {}};
+constexpr std::array<String, 3> kRunGateModeChoices{
+    {STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER, STRING_FOR_RUN_SIGNAL}};
+constexpr SettingNames kRunGateModeNames{
+    STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kRunGateModeChoices, {}};
+constexpr std::array<String, 3> kClockGateModeChoices{{STRING_FOR_V_TRIGGER, STRING_FOR_S_TRIGGER, STRING_FOR_CLOCK}};
+constexpr SettingNames kClockGateModeNames{
+    STRING_FOR_GATE_MODE_TITLE, STRING_FOR_GATE_MODE_TITLE, kClockGateModeChoices, {}};
+constexpr SettingNames kGateMinOffTimeNames{STRING_FOR_MINIMUM_OFF_TIME, STRING_FOR_MINIMUM_OFF_TIME, {}, {}};
 /// The stem export's options: the plain and the drums' normalization share their item's name.
 constexpr SettingNames kStemNormalizeNames{
     STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, {}, {}};
@@ -710,7 +725,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 211> kEntries{{
+constexpr std::array<Entry, 220> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -751,6 +766,10 @@ constexpr std::array<Entry, 211> kEntries{{
     Entry{SettingGroupId::DEVICE, "clock/triggerIn/autoStart", &kTriggerInAutoStartNames},
     Entry{SettingGroupId::DEVICE, "clock/triggerIn/ppqn", &kTriggerInPpqnNames},
     Entry{SettingGroupId::DEVICE, "clock/triggerOut/ppqn", &kTriggerOutPpqnNames},
+    Entry{SettingGroupId::DEVICE, "cv/0/transpose", &kCvTransposeNames},
+    Entry{SettingGroupId::DEVICE, "cv/0/voltsPerOctave", &kCvVoltsPerOctaveNames},
+    Entry{SettingGroupId::DEVICE, "cv/1/transpose", &kCvTransposeNames},
+    Entry{SettingGroupId::DEVICE, "cv/1/voltsPerOctave", &kCvVoltsPerOctaveNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/clear", &kDefaultAutomationClearNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/interpolate", &kDefaultAutomationInterpolateNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/noAuditionShortcuts",
@@ -805,6 +824,11 @@ constexpr std::array<Entry, 211> kEntries{{
     Entry{SettingGroupId::DEVICE, "features/stickyShift", &kFeatureStickyShiftNames},
     Entry{SettingGroupId::DEVICE, "features/syncScalingAction", &kFeatureSyncScalingActionNames},
     Entry{SettingGroupId::DEVICE, "features/trimFromStartOfAudioClip", &kFeatureTrimFromStartOfAudioClipNames},
+    Entry{SettingGroupId::DEVICE, "gate/0/mode", &kGateModeNames},
+    Entry{SettingGroupId::DEVICE, "gate/1/mode", &kGateModeNames},
+    Entry{SettingGroupId::DEVICE, "gate/2/mode", &kRunGateModeNames},
+    Entry{SettingGroupId::DEVICE, "gate/3/mode", &kClockGateModeNames},
+    Entry{SettingGroupId::DEVICE, "gate/minOffTime", &kGateMinOffTimeNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/active", &kPadColourActiveNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/fill", &kPadColourFillNames},
     Entry{SettingGroupId::DEVICE, "pads/colour/muted", &kPadColourMutedNames},

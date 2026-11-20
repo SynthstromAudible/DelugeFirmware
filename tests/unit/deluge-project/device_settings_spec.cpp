@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 using namespace deluge::project;
 using deluge::plugin::SettingInfo;
@@ -86,6 +87,54 @@ describe device_settings("the DEVICE setting group", ${
 				expect(row->kind).to_equal(want.kind);
 				expect(row->default_value).to_equal(want.default_value);
 			}
+		}
+	});
+
+	it("holds each CV output's and each gate output's rows, the clock's and the run's gates with a third choice", _ {
+		for (size_t output = 0; output < kCvOutputCount; ++output) {
+			const std::string n = std::to_string(output);
+			const SettingInfo* volts = deluge::plugin::find_setting(device_table(), "cv/" + n + "/voltsPerOctave");
+			const SettingInfo* transpose = deluge::plugin::find_setting(device_table(), "cv/" + n + "/transpose");
+			expect(volts).not_().to_be_null(n);
+			expect(transpose).not_().to_be_null(n);
+			if (volts != nullptr && transpose != nullptr) {
+				expect(std::vector{volts->min, volts->max, volts->default_value}).to_equal(std::vector{0, 200, 100});
+				expect(std::vector{transpose->min, transpose->max, transpose->default_value})
+				    .to_equal(std::vector{-9600, 9600, 0});
+			}
+			expect(std::string{device_path::cv_volts_per_octave(output).value_or(device_path::kUseSharps).text()})
+			    .to_equal("cv/" + n + "/voltsPerOctave");
+			expect(std::string{device_path::cv_transpose(output).value_or(device_path::kUseSharps).text()})
+			    .to_equal("cv/" + n + "/transpose");
+		}
+		expect(device_path::cv_transpose(kCvOutputCount).has_value()).to_be_false();
+		for (size_t output = 0; output < kGateOutputCount; ++output) {
+			const std::string path = "gate/" + std::to_string(output) + "/mode";
+			const SettingInfo* mode = deluge::plugin::find_setting(device_table(), path);
+			expect(mode).not_().to_be_null(path);
+			if (mode == nullptr) {
+				continue;
+			}
+			std::vector<std::string> words;
+			for (const std::string_view word : mode->choices) {
+				words.emplace_back(word);
+			}
+			std::vector<std::string> want{"vTrig", "sTrig"};
+			if (output == kClockGateOutput) {
+				want.emplace_back("clock");
+			}
+			else if (output == kRunGateOutput) {
+				want.emplace_back("run");
+			}
+			expect(words).to_equal(want, path);
+			expect(mode->default_value).to_equal(0);
+			expect(std::string{device_path::gate_mode(output).value_or(device_path::kUseSharps).text()}).to_equal(path);
+		}
+		expect(device_path::gate_mode(kGateOutputCount).has_value()).to_be_false();
+		const SettingInfo* off = deluge::plugin::find_setting(device_table(), device_path::kGateMinOffTime);
+		expect(off).not_().to_be_null();
+		if (off != nullptr) {
+			expect(std::vector{off->min, off->max, off->default_value}).to_equal(std::vector{1, 100, 10});
 		}
 	});
 

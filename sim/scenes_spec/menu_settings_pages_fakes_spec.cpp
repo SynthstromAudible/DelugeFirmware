@@ -606,6 +606,61 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
 		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_true();
 	});
+
+	it("reads and writes each CV output's own rows, the output the selector chose", _ {
+		Rig r;
+		hold(r.fakes, device_path::cv_volts_per_octave(1).value(), 150);
+		hold(r.fakes, device_path::cv_transpose(1).value(), -250);
+		const MenuContext ctx = r.open(nodes::root_settings);
+		MenuContext first = ctx;
+		first.source_index = 0;
+		MenuContext second = ctx;
+		second.source_index = 1;
+		expect(menu::bindings::read(nodes::cv_volts, first)).to_equal(100);
+		expect(menu::bindings::read(nodes::cv_volts, second)).to_equal(150);
+		expect(menu::bindings::read(nodes::cv_transpose, first)).to_equal(0);
+		expect(menu::bindings::read(nodes::cv_transpose, second)).to_equal(-250);
+		expect(menu::bindings::range(nodes::cv_volts, second).max).to_equal(200);
+		expect(menu::bindings::range(nodes::cv_transpose, second).min).to_equal(-9600);
+		expect(menu::bindings::range(nodes::cv_transpose, second).max).to_equal(9600);
+		menu::bindings::write(nodes::cv_transpose, second, 1234);
+		menu::bindings::write(nodes::cv_volts, first, 0);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{"cv/1/transpose=1234", "cv/0/voltsPerOctave=0"});
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("reads each gate output's own mode, and offers the clock on the clock's gate and the run signal on the run's", _ {
+		Rig r;
+		hold(r.fakes, device_path::gate_mode(1).value(), 1);
+		hold(r.fakes, device_path::gate_mode(deluge::project::kRunGateOutput).value(), 2);
+		const MenuContext ctx = r.open(nodes::root_settings);
+		const auto at = [&](size_t output) {
+			MenuContext out = ctx;
+			out.source_index = static_cast<int8_t>(output);
+			return out;
+		};
+		expect(menu::bindings::read(nodes::gate_mode, at(0))).to_equal(0);
+		expect(menu::bindings::read(nodes::gate_mode, at(1))).to_equal(1);
+		expect(menu::bindings::read(nodes::gate_mode, at(deluge::project::kRunGateOutput))).to_equal(2);
+		expect(names_of(nodes::gate_mode, at(0))).to_equal(std::vector<std::string>{"V-Trig", "S-Trig"});
+		expect(names_of(nodes::gate_mode, at(1))).to_equal(std::vector<std::string>{"V-Trig", "S-Trig"});
+		expect(names_of(nodes::gate_mode, at(deluge::project::kRunGateOutput)))
+		    .to_equal(std::vector<std::string>{"V-Trig", "S-Trig", "Run signal"});
+		expect(names_of(nodes::gate_mode, at(deluge::project::kClockGateOutput)))
+		    .to_equal(std::vector<std::string>{"V-Trig", "S-Trig", "Clock"});
+		expect(menu::bindings::range(nodes::gate_mode, at(0)).max).to_equal(1);
+		expect(menu::bindings::range(nodes::gate_mode, at(deluge::project::kClockGateOutput)).max).to_equal(2);
+		// The clock is the clock's gate's alone: output 0 has no third choice to write.
+		menu::bindings::write(nodes::gate_mode, at(0), 2);
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+		menu::bindings::write(nodes::gate_mode, at(deluge::project::kClockGateOutput), 2);
+		menu::bindings::write(nodes::gate_off_time, ctx, 25);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{"gate/3/mode=clock", std::string{device_path::kGateMinOffTime} + "=25"});
+		expect(menu::bindings::read(nodes::gate_off_time, ctx)).to_equal(25);
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
 });
 // clang-format on
 

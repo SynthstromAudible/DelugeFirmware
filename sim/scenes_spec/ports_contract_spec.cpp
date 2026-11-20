@@ -15,6 +15,7 @@
 #include "storage/flash_storage.h"
 
 #include "dsp-next/core/stereo_sample.h"
+#include "libdeluge/cv_gate.h"
 #include "model/song/song.h"
 #include "music-theory/preset_scales.h"
 #include "playback/playback_handler.h"
@@ -32,6 +33,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "support/song_fixture.h"
@@ -552,6 +554,75 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		playbackHandler.countInBars = count_in;
 		stemExport.exportMixdown = mixdown;
 		stemExport.includeKitFX = kit_fx;
+	});
+
+	it("does what each CV and gate write implies, as the CV and gate pages' own items do", _ {
+		const bind::Ports& p = menu::host_ports();
+		expect(p.device).not_().to_be_null();
+		if (p.device == nullptr) {
+			return;
+		}
+		using device_path = deluge::project::device_path;
+		const CVChannel cv_channel = cvEngine.cvChannels[1];
+		const uint8_t off_time = cvEngine.minGateOffTime;
+		const GateType run_mode = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode;
+		const bool run_on = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on;
+		const GateType clock_mode = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode;
+		const bool clock_on = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on;
+		const bool clock_scheduled = playbackHandler.triggerClockOutTickScheduled;
+		// Nothing is waiting to go out of a gate in a spec; take anything that is, so the case starts clean.
+		(void)cvEngine.takePendingGateOutputs(true);
+
+		// A CV output's volts and transpose go out at once: each write sends the output's voltage again, which the
+		// host's DAC counts as sent at once.
+		const deluge::project::DevicePath volts = device_path::cv_volts_per_octave(1).value();
+		const deluge::project::DevicePath transpose = device_path::cv_transpose(1).value();
+		uint32_t sent = deluge_cv_sent_count();
+		expect(static_cast<int>(p.device->write(volts, 150))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(static_cast<int>(cvEngine.cvChannels[1].voltsPerOctave)).to_equal(150);
+		expect(deluge_cv_sent_count()).to_equal(sent + 1);
+		// The transpose is one number over the semitones and the cents, split as main's item splits it.
+		sent = deluge_cv_sent_count();
+		(void)p.device->write(transpose, -250);
+		expect(static_cast<int>(cvEngine.cvChannels[1].transpose)).to_equal(-2);
+		expect(static_cast<int>(cvEngine.cvChannels[1].cents)).to_equal(-50);
+		expect(p.device->read(transpose).value_or(0)).to_equal(-250);
+		expect(deluge_cv_sent_count()).to_equal(sent + 1);
+		(void)p.device->write(transpose, 1234);
+		expect(static_cast<int>(cvEngine.cvChannels[1].transpose)).to_equal(12);
+		expect(static_cast<int>(cvEngine.cvChannels[1].cents)).to_equal(34);
+		expect(p.device->read(transpose).value_or(0)).to_equal(1234);
+
+		// A gate's mode switches it at once. The clock's gate set to carry the clock takes the clock's state to send;
+		// set back to a trigger, it switches now, and no clock tick waits to go out of it.
+		const deluge::project::DevicePath clock = device_path::gate_mode(WHICH_GATE_OUTPUT_IS_CLOCK).value();
+		const deluge::project::DevicePath run = device_path::gate_mode(WHICH_GATE_OUTPUT_IS_RUN).value();
+		(void)p.device->write(clock, std::to_underlying(GateType::SPECIAL));
+		expect(static_cast<int>(cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode))
+		    .to_equal(static_cast<int>(GateType::SPECIAL));
+		expect(cvEngine.isAnythingPending()).to_be_true();
+		playbackHandler.triggerClockOutTickScheduled = true;
+		(void)p.device->write(clock, std::to_underlying(GateType::V_TRIG));
+		expect(cvEngine.isAnythingPending()).to_be_false();
+		expect(playbackHandler.triggerClockOutTickScheduled).to_be_false();
+		// The run's gate set to carry the run signal follows playback at once: stopped, it goes off.
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on = true;
+		(void)p.device->write(run, std::to_underlying(GateType::SPECIAL));
+		expect(cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on).to_be_false();
+		expect(p.device->read(run).value_or(-1)).to_equal(int32_t{std::to_underlying(GateType::SPECIAL)});
+
+		// The minimum off-time is one plain store, which the gate tick reads.
+		(void)p.device->write(device_path::kGateMinOffTime, 42);
+		expect(static_cast<int>(cvEngine.minGateOffTime)).to_equal(42);
+
+		cvEngine.cvChannels[1] = cv_channel;
+		cvEngine.minGateOffTime = off_time;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].mode = run_mode;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_RUN].on = run_on;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode = clock_mode;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].on = clock_on;
+		playbackHandler.triggerClockOutTickScheduled = clock_scheduled;
+		(void)cvEngine.takePendingGateOutputs(true);
 	});
 });
 

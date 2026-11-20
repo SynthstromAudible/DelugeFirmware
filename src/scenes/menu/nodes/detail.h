@@ -2,12 +2,12 @@
 
 /// @brief Internal helpers shared by the `nodes/*.cpp` tables. Not part of any public interface.
 ///
-/// The string-id cast (`sid`), the target of a node on a DEVICE row (`device_row`), the words a toggle lists for its
-/// two states, and the `constexpr` post-hoc modifiers, in one place rather than copied into each table. The modifiers
-/// exist because `node.h`'s builders take the arguments the common case needs and nothing more (a deliberate choice,
-/// see `with_range_dependent`); the legacy items that also need a distinct title on a non-`param` kind, a meter hint on
-/// a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape `with_range_dependent`
-/// already established.
+/// The string-id cast (`sid`), the target of a node on a DEVICE row (`device_row`, `device_output_row`), the words a
+/// toggle lists for its two states, and the `constexpr` post-hoc modifiers, in one place rather than copied into each
+/// table. The modifiers exist because `node.h`'s builders take the arguments the common case needs and nothing more (a
+/// deliberate choice, see `with_range_dependent`); the legacy items that also need a distinct title on a non-`param`
+/// kind, a meter hint on a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape
+/// `with_range_dependent` already established.
 
 #include "scenes/bind/target.h"
 #include "scenes/menu/node.h"
@@ -17,6 +17,7 @@
 #include "gui/l10n/strings.h" // the only `gui/` the scenes layer may reach (see CMakeLists.txt)
 
 #include <cstdint>
+#include <string_view>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -31,6 +32,17 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 /// @return The node's target.
 constexpr bind::Target device_row(project::DevicePath path) {
 	return {.kind = bind::Target::Kind::MODEL, .path = path, .group = project::SettingGroupId::DEVICE};
+}
+
+/// @brief What a node on one of a set of per-output DEVICE rows edits: the row of the output the menu's selector chose
+///        (`MenuContext::source_index`).
+/// @param pattern The rows' pattern, its `*` standing for the output's index (`project::device_path::kCvTranspose`).
+/// @return The node's target.
+constexpr bind::Target device_output_row(std::string_view pattern) {
+	return {.kind = bind::Target::Kind::MODEL,
+	        .path = pattern,
+	        .source_indexed = true,
+	        .group = project::SettingGroupId::DEVICE};
 }
 
 /// @brief The words a toggle's own page lists for its two states, off then on (`MenuView::render_leaf_toggle`):

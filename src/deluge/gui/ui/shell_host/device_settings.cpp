@@ -19,10 +19,12 @@
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
 #include "processing/stem_export/stem_export.h"
 #include "serialization/tree.h"
 #include "storage/flash_storage.h"
+#include "util/value_scaling.h"
 
 #include <array>
 #include <cstddef>
@@ -68,6 +70,11 @@ static_assert(PREVIEW_OFF == 0 && PREVIEW_ONLY_WHILE_NOT_PLAYING == 1 && PREVIEW
 static_assert(deluge::gui::RED == 0 && deluge::gui::PINK == 8 && deluge::gui::kNumPadColours == 9);
 static_assert(std::to_underlying(InputMonitoringMode::OFF) == 2 && kNumInputMonitoringModes == 3);
 static_assert(std::to_underlying(usb_audio::OutputSource::LINE_IN) == 1 && usb_audio::kNumOutputSources == 2);
+static_assert(project::kCvOutputCount == NUM_PHYSICAL_CV_CHANNELS && project::kGateOutputCount == NUM_GATE_CHANNELS);
+static_assert(project::kRunGateOutput == WHICH_GATE_OUTPUT_IS_RUN
+              && project::kClockGateOutput == WHICH_GATE_OUTPUT_IS_CLOCK);
+static_assert(std::to_underlying(GateType::V_TRIG) == 0 && std::to_underlying(GateType::S_TRIG) == 1
+              && std::to_underlying(GateType::SPECIAL) == 2);
 
 /// @brief A BOOL row's file form.
 Value flag(bool on) {
@@ -151,11 +158,12 @@ struct ByteHome {
 	uint8_t* value;
 };
 /// Every such row.
-constexpr std::array<ByteHome, 4> kByteHomes{{
+constexpr std::array<ByteHome, 5> kByteHomes{{
     {device_path::kSwingInterval, &FlashStorage::defaultSwingInterval},
     {device_path::kBendRange, &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
     {device_path::kRecordQuantize, &FlashStorage::recordQuantizeLevel},
     {device_path::kCountIn, &playbackHandler.countInBars},
+    {device_path::kGateMinOffTime, &cvEngine.minGateOffTime},
 }};
 
 /// @brief A default range's end: which of the flash settings' ranges, and which end of it.
@@ -217,6 +225,12 @@ std::optional<size_t> disabled_scale_of(std::string_view path) {
 	return static_cast<size_t>(*index);
 }
 
+/// @brief The output a per-output row at @p path is of: the index in @p pattern's `*`, below @p count.
+std::optional<uint8_t> output_at(std::string_view pattern, std::string_view path, size_t count) {
+	const std::optional<size_t> output = plugin::index_in(pattern, path);
+	return output && *output < count ? std::optional{static_cast<uint8_t>(*output)} : std::nullopt;
+}
+
 /// @brief The legacy settings' name for feature @p f, whose enumerators are the features' ids.
 RuntimeFeatureSettingType legacy_type(Feature f) {
 	return static_cast<RuntimeFeatureSettingType>(std::to_underlying(f));
@@ -250,7 +264,8 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 }
 
 /// The device's own settings where the device keeps them: the flash settings, the pad controller's play cursor, the
-/// community features, the audio engine's, USB audio's and the clocks' settings, and the stem export's options. A store
+/// community features, the audio engine's, USB audio's and the clocks' settings, the CV and gate outputs', and the
+/// stem export's options. A store
 /// writes the value as the menu's own item does, with that item's side effects; none saves (the settings menu saves on
 /// its close).
 class HostDeviceSettings final : public scenes::bind::DeviceSettings {
@@ -362,6 +377,18 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		}
 		if (path == device_path::kMidiClockIn) {
 			return flag(playbackHandler.midiInClockEnabled);
+		}
+		if (const auto output = output_at(device_path::kCvVoltsPerOctave, path, NUM_PHYSICAL_CV_CHANNELS)) {
+			return number(cvEngine.cvChannels[*output].voltsPerOctave);
+		}
+		if (const auto output = output_at(device_path::kCvTranspose, path, NUM_PHYSICAL_CV_CHANNELS)) {
+			// One number over the semitones and the cents, as `cv::Transpose::readCurrentValue`
+			// (`origin/main:src/deluge/gui/menu_item/cv/transpose.h`) shows them.
+			const CVChannel& channel = cvEngine.cvChannels[*output];
+			return number(computeCurrentValueForTranspose(channel.transpose, channel.cents));
+		}
+		if (const auto output = output_at(device_path::kGateMode, path, NUM_GATE_CHANNELS)) {
+			return choice(row, std::to_underlying(cvEngine.gateChannels[*output].mode));
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 			return flag(FlashStorage::defaultDisabledPresetScales[*scale]);
@@ -575,6 +602,27 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 			// `ReceiveClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/receive_clock.h`): off, the
 			// song stops following an incoming clock.
 			playbackHandler.setMidiInClockEnabled(stored != 0);
+			return DeviceWrite::STORED;
+		}
+		if (const auto output = output_at(device_path::kCvVoltsPerOctave, path, NUM_PHYSICAL_CV_CHANNELS)) {
+			// `cv::Volts::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/cv/volts.h`): the output's voltage
+			// goes out again at once.
+			cvEngine.setCVVoltsPerOctave(*output, static_cast<uint8_t>(stored));
+			return DeviceWrite::STORED;
+		}
+		if (const auto output = output_at(device_path::kCvTranspose, path, NUM_PHYSICAL_CV_CHANNELS)) {
+			// `cv::Transpose::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/cv/transpose.h`): the number
+			// splits into semitones and cents, and the output's voltage goes out again at once.
+			int32_t semitones = 0;
+			int32_t cents = 0;
+			computeFinalValuesForTranspose(stored, &semitones, &cents);
+			cvEngine.setCVTranspose(*output, semitones, cents);
+			return DeviceWrite::STORED;
+		}
+		if (const auto output = output_at(device_path::kGateMode, path, NUM_GATE_CHANNELS)) {
+			// `gate::Mode::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/gate/mode.h`): the gate switches
+			// at once, and the clock's and the run's gates start or stop carrying their signal.
+			cvEngine.setGateType(*output, static_cast<GateType>(stored));
 			return DeviceWrite::STORED;
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {

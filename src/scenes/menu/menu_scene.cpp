@@ -865,8 +865,8 @@ Result MenuScene::after_render_navigation() {
 	// device list's assignment of `soundEditor`'s current MIDI cable from `getCable(...)` (`Devices::beginSession` in
 	// `origin/main:src/deluge/gui/menu_item/midi/devices.cpp`, `Devices::selectEncoderAction`). Same shape as
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns `currentSourceIndex` on the
-	// way through `selectButtonPress`, so `gate_selection_chain` and `gate_mode_names` must both see the output the
-	// user just picked, not the previous one.
+	// way through `selectButtonPress`, so `gate_selection_chain` and the mode page's per-output row must both see the
+	// output the user just picked, not the previous one.
 	if (st_.walk.source_choice >= 0) {
 		trace_drain(DrainBand::SourceChoice);
 		ctx_.source_index = st_.walk.source_choice;

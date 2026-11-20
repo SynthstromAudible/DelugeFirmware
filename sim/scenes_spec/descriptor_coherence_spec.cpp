@@ -541,10 +541,6 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > MIDI > MIDI-Follow > Channel > Channel C", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel B", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel A", 1},
-    {"Settings > Gate >> Minimum Off-Time", 1},
-    {"Settings > Gate >> Gate out* mode", 1},
-    {"Settings > CV >> CV output * > Transpose", 1},
-    {"Settings > CV >> CV output * > Volts per Octave", 1},
 };
 
 constexpr std::string_view kDeviceReason = "a device setting (FlashStorage, a MIDI device, a CV or gate output): "

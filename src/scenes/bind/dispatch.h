@@ -35,6 +35,14 @@ struct ChoiceName {
 	bool unavailable{false}; ///< the stored choice, listed although it no longer applies; shown marked
 };
 
+/// @brief The target @p target names at @p where: itself, or for a source-indexed target, the same target on the row
+/// whose path is its pattern with Addresses::source_index in place of the `*`.
+/// @param target The target.
+/// @param where  The addresses the target resolves against.
+/// @return The target, or nullopt for a source-indexed target whose table has no row at that index (or whose path has
+///         no `*`).
+[[nodiscard]] std::optional<Target> concrete(const Target& target, const Addresses& where);
+
 /// @brief What the menu shows of @p target.
 /// @param target The target.
 /// @param model  The song; null reads DEVICE targets alone, which no song holds.

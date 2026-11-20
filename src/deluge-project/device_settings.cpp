@@ -23,6 +23,7 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 
@@ -62,6 +63,35 @@ constexpr std::array<ScalePath, kScaleCount> kScalePaths = [] {
 	}
 	return paths;
 }();
+
+/// One output's path, its pattern's `*` replaced by the output's index, as text the table's views point into.
+struct OutputPath {
+	std::array<char, 24> text{}; ///< the pattern, the index in place of its `*`
+	size_t size{0};              ///< how many characters of `text` it is
+};
+
+/// Each of @p Count outputs' paths from @p pattern, built when the image is.
+template <size_t Count>
+constexpr std::array<OutputPath, Count> output_paths(std::string_view pattern) {
+	static_assert(Count <= 10, "an output's index is written as one digit");
+	std::array<OutputPath, Count> paths{};
+	for (size_t output = 0; output < Count; ++output) {
+		OutputPath& path = paths[output];
+		for (const char c : pattern) {
+			path.text[path.size++] = c == '*' ? static_cast<char>('0' + output) : c;
+		}
+	}
+	return paths;
+}
+
+constexpr auto kCvVoltsPaths = output_paths<kCvOutputCount>(device_path::kCvVoltsPerOctave);
+constexpr auto kCvTransposePaths = output_paths<kCvOutputCount>(device_path::kCvTranspose);
+constexpr auto kGateModePaths = output_paths<kGateOutputCount>(device_path::kGateMode);
+
+/// @brief @p path as the row path a view of it is.
+constexpr std::string_view text_of(const OutputPath& path) {
+	return {path.text.data(), path.size};
+}
 
 /// The patch cable's polarities, as the cable's own file words name them (`instrument::to_string`).
 constexpr std::array<std::string_view, 2> kPolarityWords{"unipolar", "bipolar"};
@@ -262,10 +292,38 @@ constexpr std::array kAudioAndClockRows{
     boolean(device_path::kStemMixdown, 0),
 };
 
+/// A gate's modes, in the order the gate's mode numbers them: every gate's two triggers, and the special mode of the
+/// clock's gate and of the run's.
+constexpr std::array<std::string_view, 2> kGateModeWords{"vTrig", "sTrig"};
+constexpr std::array<std::string_view, 3> kClockGateModeWords{"vTrig", "sTrig", "clock"};
+constexpr std::array<std::string_view, 3> kRunGateModeWords{"vTrig", "sTrig", "run"};
+static_assert(kClockGateOutput < kGateOutputCount && kRunGateOutput < kGateOutputCount
+              && kClockGateOutput != kRunGateOutput);
+
+/// The CV outputs' and the gate outputs' rows: each CV output's volts per octave and transpose, each gate's mode, and
+/// the gates' minimum off-time.
+constexpr std::array kCvAndGateRows = [] {
+	std::array<SettingInfo, (2 * kCvOutputCount) + kGateOutputCount + 1> rows{};
+	size_t at = 0;
+	for (size_t output = 0; output < kCvOutputCount; ++output) {
+		rows[at++] = integer(text_of(kCvVoltsPaths[output]), 0, 200, 100);
+		rows[at++] = integer(text_of(kCvTransposePaths[output]), -9600, 9600, 0);
+	}
+	for (size_t output = 0; output < kGateOutputCount; ++output) {
+		using Words = std::span<const std::string_view>;
+		const Words words = output == kClockGateOutput ? Words{kClockGateModeWords}
+		                    : output == kRunGateOutput ? Words{kRunGateModeWords}
+		                                               : Words{kGateModeWords};
+		rows[at++] = choice(text_of(kGateModePaths[output]), words, 0);
+	}
+	rows[at++] = integer(device_path::kGateMinOffTime, 1, 100, 10);
+	return rows;
+}();
+
 /// The rows before the preset scales'.
 constexpr size_t kLeadingRows = 2 + kDefaultsRows.size();
 /// The rows after them, before the community features'.
-constexpr size_t kTrailingRows = kPadsAndScreenRows.size() + kAudioAndClockRows.size();
+constexpr size_t kTrailingRows = kPadsAndScreenRows.size() + kAudioAndClockRows.size() + kCvAndGateRows.size();
 /// How many rows the table has.
 constexpr size_t kRowCount = kLeadingRows + kScaleCount + kTrailingRows + kFeatureCount;
 
@@ -291,6 +349,9 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 		rows[at++] = row;
 	}
 	for (const SettingInfo& row : kAudioAndClockRows) {
+		rows[at++] = row;
+	}
+	for (const SettingInfo& row : kCvAndGateRows) {
 		rows[at++] = row;
 	}
 	for (const FeatureInfo& info : kFeatures) {
@@ -372,6 +433,7 @@ static_assert([] {
 	         device_path::kStemKitFx,
 	         device_path::kStemOffline,
 	         device_path::kStemMixdown,
+	         device_path::kGateMinOffTime,
 	     }) {
 		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {
 			return false;
@@ -383,6 +445,19 @@ static_assert([] {
 		}
 	}
 	return true;
+}());
+// Each output's row holds its own index in its pattern's `*`, as a source-indexed target resolves it.
+static_assert([] {
+	const auto holds = [](std::string_view pattern, std::span<const OutputPath> paths) {
+		for (size_t output = 0; output < paths.size(); ++output) {
+			if (plugin::index_in(pattern, text_of(paths[output])) != output) {
+				return false;
+			}
+		}
+		return true;
+	};
+	return holds(device_path::kCvVoltsPerOctave, kCvVoltsPaths) && holds(device_path::kCvTranspose, kCvTransposePaths)
+	       && holds(device_path::kGateMode, kGateModePaths);
 }());
 static_assert(plugin::mappings_are_valid(kDeviceTable));
 
@@ -399,6 +474,26 @@ std::optional<DevicePath> device_path::disabled_scale(size_t scale) {
 	}
 	const ScalePath& path = kScalePaths[scale];
 	return DevicePath{std::string_view{path.text.data(), path.size}};
+}
+
+namespace {
+/// @brief Output @p output's path among @p paths, or nullopt past them.
+template <size_t Count>
+std::optional<std::string_view> output_path(const std::array<OutputPath, Count>& paths, size_t output) {
+	return output < Count ? std::optional{text_of(paths[output])} : std::nullopt;
+}
+} // namespace
+
+std::optional<DevicePath> device_path::cv_volts_per_octave(size_t output) {
+	return output_path(kCvVoltsPaths, output).transform([](std::string_view text) { return DevicePath{text}; });
+}
+
+std::optional<DevicePath> device_path::cv_transpose(size_t output) {
+	return output_path(kCvTransposePaths, output).transform([](std::string_view text) { return DevicePath{text}; });
+}
+
+std::optional<DevicePath> device_path::gate_mode(size_t output) {
+	return output_path(kGateModePaths, output).transform([](std::string_view text) { return DevicePath{text}; });
 }
 
 } // namespace deluge::project

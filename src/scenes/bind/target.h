@@ -54,7 +54,13 @@ struct Target {
 		NOTE_TAILS, ///< a sound drum takes it only where it can hold note tails (controls::Facts::allows_note_tails)
 	};
 	Kind kind{Kind::NONE};
-	std::string_view path; ///< the row's path, e.g. "osc1/type"
+	/// The row's path, e.g. "osc1/type"; with @ref source_indexed, a pattern for one row per output, e.g.
+	/// "cv/*/transpose".
+	std::string_view path;
+	/// Whether @ref path holds one `*` segment for the output the menu edits: the dispatch fills it with
+	/// Addresses::source_index and resolves the row of that path in the table @ref kind and @ref group name. A path
+	/// with no `*`, or an index the table has no row at, resolves to nothing, as any unresolved target does.
+	bool source_indexed{false};
 	/// Whether a write with affect-entire held on a kit reaches the kit's sound drums. False for the settings legacy
 	/// edits on the selected drum alone (an oscillator's type, a retrigger phase).
 	bool whole_kit{true};
@@ -94,9 +100,10 @@ struct Target {
 	}
 	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
 	constexpr bool operator==(const Target& other) const {
-		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
-		       && fan_out_when.data() == other.fan_out_when.data() && fan_out_when.size() == other.fan_out_when.size()
-		       && group == other.group && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
+		return kind == other.kind && path == other.path && source_indexed == other.source_indexed
+		       && whole_kit == other.whole_kit && fan_out_when.data() == other.fan_out_when.data()
+		       && fan_out_when.size() == other.fan_out_when.size() && group == other.group
+		       && audio_clip_path == other.audio_clip_path && fan_out_fact == other.fan_out_fact
 		       && shown_on == other.shown_on && param == other.param && applies_when.data() == other.applies_when.data()
 		       && applies_when.size() == other.applies_when.size() && applies_any.data() == other.applies_any.data()
 		       && applies_any.size() == other.applies_any.size() && shown_with == other.shown_with;
@@ -119,6 +126,8 @@ struct Addresses {
 	std::optional<project::NoteRowAddress> note_row; ///< the note row edited: a kit row's bend range
 	/// What plays the track or clip, which the model does not hold: the host's root knows it.
 	plugin::SettingContext::Instrument instrument{plugin::SettingContext::Instrument::NONE};
+	/// The output a source-indexed target's `*` names: the menu's selector's choice (`MenuContext::source_index`).
+	int8_t source_index{0};
 	bool operator==(const Addresses&) const = default;
 };
 

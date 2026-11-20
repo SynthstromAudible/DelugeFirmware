@@ -488,6 +488,35 @@ inline constexpr DisplayMapping kLinearMapping{};
 	return nullptr;
 }
 
+/// @brief The index @p path holds in @p pattern's `*` segment: `cv/1/transpose` holds 1 in `cv/*/transpose`.
+/// @param pattern A slash path with exactly one `*`, standing for a decimal index.
+/// @param path    A row's slash path.
+/// @return The index, or nullopt where @p path is not @p pattern with a decimal index (no sign, no leading zero) in
+///         place of its `*`, or @p pattern has no `*` or more than one.
+[[nodiscard]] constexpr std::optional<std::size_t> index_in(std::string_view pattern, std::string_view path) {
+	const std::size_t star = pattern.find('*');
+	if (star == std::string_view::npos || pattern.find('*', star + 1) != std::string_view::npos) {
+		return std::nullopt;
+	}
+	const std::string_view prefix = pattern.substr(0, star);
+	const std::string_view suffix = pattern.substr(star + 1);
+	if (path.size() <= prefix.size() + suffix.size() || !path.starts_with(prefix) || !path.ends_with(suffix)) {
+		return std::nullopt;
+	}
+	const std::string_view digits = path.substr(prefix.size(), path.size() - prefix.size() - suffix.size());
+	if (digits.size() > 1 && digits.front() == '0') {
+		return std::nullopt;
+	}
+	std::size_t index = 0;
+	for (const char c : digits) {
+		if (c < '0' || c > '9' || index > (std::numeric_limits<std::size_t>::max() - 9) / 10) {
+			return std::nullopt;
+		}
+		index = index * 10 + static_cast<std::size_t>(c - '0');
+	}
+	return index;
+}
+
 /// @brief Whether @p value is one @p row can store.
 /// @param row   The setting's row.
 /// @param value A stored value.

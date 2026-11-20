@@ -191,6 +191,56 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(view(sound("polyphonic"), nullptr, at(kSynth), host.ports()).has_value()).to_be_false();
 		expect(host.device.stores.empty()).to_be_true();
 	});
+
+	it("fills a source-indexed target's `*` with the output the addresses name, and resolves nothing past the rows", _ {
+		test::FakeHost host;
+		host.device.values.insert_or_assign("cv/1/transpose", deluge::serialization::Value::makeNumber(250));
+		const Target transpose{.kind = Target::Kind::MODEL,
+		                       .path = deluge::project::device_path::kCvTranspose,
+		                       .source_indexed = true,
+		                       .group = deluge::project::SettingGroupId::DEVICE};
+		const Addresses second{.source_index = 1};
+		const auto named = concrete(transpose, second);
+		expect(named.has_value()).to_be_true();
+		if (named) {
+			expect(std::string{named->path}).to_equal("cv/1/transpose");
+			expect(named->source_indexed).to_be_false();
+		}
+		const auto shown = view(transpose, nullptr, second, host.ports());
+		expect(shown.has_value()).to_be_true();
+		if (shown) {
+			expect(shown->value).to_equal(250);
+		}
+		const auto first = view(transpose, nullptr, Addresses{}, host.ports());
+		expect(first.has_value()).to_be_true();
+		if (first) {
+			expect(first->value).to_equal(0);
+		}
+		// The write asks for the row the index names.
+		const auto request = request_for(transpose, nullptr, second, host.ports(), -120);
+		expect(request.has_value()).to_be_true();
+		if (request) {
+			expect(std::string{request->target.path}).to_equal("cv/1/transpose");
+		}
+
+		// An output the table has no row for, a negative index, or a pattern with no `*`: nothing, as any unresolved
+		// target.
+		const Addresses sixth{.source_index = 5};
+		expect(concrete(transpose, sixth).has_value()).to_be_false();
+		expect(view(transpose, nullptr, sixth, host.ports()).has_value()).to_be_false();
+		expect(request_for(transpose, nullptr, sixth, host.ports(), 0).has_value()).to_be_false();
+		std::array<ChoiceName, 4> out{};
+		const Target mode{.kind = Target::Kind::MODEL,
+		                  .path = deluge::project::device_path::kGateMode,
+		                  .source_indexed = true,
+		                  .group = deluge::project::SettingGroupId::DEVICE};
+		expect(choice_names(mode, nullptr, sixth, host.ports(), out)).to_equal(size_t{0});
+		expect(concrete(transpose, Addresses{.source_index = -1}).has_value()).to_be_false();
+		Target unpatterned = transpose;
+		unpatterned.path = deluge::project::device_path::kGateMinOffTime;
+		expect(concrete(unpatterned, second).has_value()).to_be_false();
+		expect(host.device.stores.empty()).to_be_true();
+	});
 });
 
 CPPSPEC_SPEC(bind_dispatch)

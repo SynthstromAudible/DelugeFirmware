@@ -32,7 +32,7 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, NUM_GATE_CHANNELS
 #include "deluge-project/midi_channels.h"
 #include "gfx/oled/glyphs.h"
 #include "io/midi/device_registry.h"
@@ -40,7 +40,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "music-theory/note_names.h"
-#include "processing/engines/cv_engine.h" // cvEngine -- the CV/gate output pages
 #include "storage/flash_storage.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
@@ -329,93 +328,13 @@ void apply_horizontal_menus(const MenuContext&, int32_t value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 2-3b. The CV and gate output pages (`cvSubmenu`, `gateModeMenu`, `gateOffTimeMenu`) -- the three
-// pages legacy reaches only through a chain, see `nodes/settings.h`'s note.
-//
-// `MenuContext::source_index` stands in for `soundEditor.currentSourceIndex` throughout, and is
-// clamped at every use: legacy indexes the two `cvEngine` arrays with it unchecked because its own
-// selectors are the only writers, whereas here it arrives on a context resolved elsewhere.
-
-namespace {
-/// @brief @p ctx's output index, clamped into `[0, count)`.
-size_t output_index(const MenuContext& ctx, size_t count) {
-	const auto raw = static_cast<int32_t>(ctx.source_index);
-	return raw < 0 ? 0 : static_cast<size_t>(std::min<int32_t>(raw, static_cast<int32_t>(count) - 1));
-}
-} // namespace
-
-int32_t get_cv_volts(const MenuContext& ctx) {
-	// `cv::Volts::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/cv/volts.h`).
-	return cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)].voltsPerOctave;
-}
-void set_cv_volts(const MenuContext& ctx, int32_t value) {
-	// `cv::Volts::writeCurrentValue`.
-	cvEngine.setCVVoltsPerOctave(static_cast<uint8_t>(output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)),
-	                             static_cast<uint8_t>(value));
-}
-
-int32_t get_cv_transpose(const MenuContext& ctx) {
-	// `cv::Transpose::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/cv/transpose.h`), over
-	// `computeCurrentValueForTranspose` (`util/value_scaling.cpp`) -- the same
-	// packing `sound_osc.cpp` and `roots.cpp` transcribe for the other transposes.
-	const CVChannel& channel = cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)];
-	return channel.transpose * 100 + channel.cents;
-}
-void set_cv_transpose(const MenuContext& ctx, int32_t value) {
-	// `computeFinalValuesForTranspose` (`util/value_scaling.cpp`) then `cv::Transpose::writeCurrentValue`.
-	const int32_t current = value + 25600;
-	const int32_t semitones = (current + 50) / 100;
-	cvEngine.setCVTranspose(static_cast<uint8_t>(output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)), semitones - 256,
-	                        current - semitones * 100);
-}
-
-size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out) {
-	// `gate::Mode`'s `options_` as `updateOptions(whichOutput)` leaves it
-	// (`origin/main:src/deluge/gui/menu_item/gate/mode.h`): the two trigger polarities always, plus one extra
-	// on the outputs that carry the clock or the run signal.
-	size_t n = 0;
-	for (const String s : {String::STRING_FOR_V_TRIGGER, String::STRING_FOR_S_TRIGGER}) {
-		if (n < out.size()) {
-			out[n++] = deluge::scenes::text_lookup(sid(s));
-		}
-	}
-	if (n < out.size()) {
-		switch (static_cast<int32_t>(output_index(ctx, NUM_GATE_CHANNELS))) {
-		case WHICH_GATE_OUTPUT_IS_CLOCK:
-			out[n++] = deluge::scenes::text_lookup(sid(String::STRING_FOR_CLOCK));
-			break;
-		case WHICH_GATE_OUTPUT_IS_RUN:
-			out[n++] = deluge::scenes::text_lookup(sid(String::STRING_FOR_RUN_SIGNAL));
-			break;
-		default:
-			break;
-		}
-	}
-	return n;
-}
-int32_t get_gate_mode(const MenuContext& ctx) {
-	// `gate::Mode::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/gate/mode.h`).
-	return static_cast<int32_t>(cvEngine.gateChannels[output_index(ctx, NUM_GATE_CHANNELS)].mode);
-}
-void set_gate_mode(const MenuContext& ctx, int32_t value) {
-	// `gate::Mode::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/gate/mode.h`).
-	cvEngine.setGateType(static_cast<uint8_t>(output_index(ctx, NUM_GATE_CHANNELS)), static_cast<GateType>(value));
-}
-
-int32_t get_gate_off_time(const MenuContext&) {
-	// `gate::OffTime::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/gate/off_time.h`)
-	return cvEngine.minGateOffTime;
-}
-void set_gate_off_time(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/gate/off_time.h`).
-	cvEngine.minGateOffTime = static_cast<uint8_t>(value);
-}
+// 2-3b. The gate selector's chain
 
 const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
 	// `gate::Selection::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/gate/selection.h`): the option one
 	// past the last physical output is the minimum-off-time page; every other option is that output's mode page.
-	// Unclamped on purpose -- the equality is against the exact sentinel legacy tests, and `output_index` clamps at the
-	// point of use inside the mode hooks.
+	// Unclamped on purpose: the equality is against the exact sentinel legacy tests. The mode page's row is the chosen
+	// output's, which an index past the outputs does not have.
 	//
 	// Reads `ctx.source_index`, not `state`'s own cursor: `menu_scene.h`'s mailbox note names this
 	// the *load-bearing* drain-order case, and `tables_3_spec.cpp`'s "drains the selector's output

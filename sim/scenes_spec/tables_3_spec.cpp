@@ -1297,7 +1297,8 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 
 			// The two trigger polarities always, plus CLOCK or RUN SIGNAL on the two outputs that carry them.
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
-			const size_t n = nodes::gate_mode.bind.dynamic_names(ctx, std::span<std::string_view>{names});
+			std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
+			const size_t n = bindings::names(nodes::gate_mode, ctx, names, scratch);
 			const std::vector<std::string>* want = table().find("chain/gate_mode", "options/" + std::to_string(which));
 			expect(want).not_().to_be_null();
 			if (want == nullptr) {
@@ -1313,9 +1314,8 @@ describe tables_3_chaining("scenes::menu settings and other roots tables: select
 		    .to_equal(table().value("chain/gate_off_time", "read"));
 		expect(text_of(nodes::gate_off_time.title)).to_equal(table().value("chain/gate_off_time", "title"));
 		expect(nodes::gate_off_time.bind.decimal_places).to_equal(uint8_t(1));
-		expect(nodes::gate_off_time.bind.fixed_range.has_value()).to_be_true();
-		expect(nodes::gate_off_time.bind.fixed_range->min).to_equal(int32_t(1));
-		expect(nodes::gate_off_time.bind.fixed_range->max).to_equal(int32_t(100));
+		expect(bindings::range(nodes::gate_off_time, settings.ctx).min).to_equal(int32_t(1));
+		expect(bindings::range(nodes::gate_off_time, settings.ctx).max).to_equal(int32_t(100));
 	});
 
 	it("numbers the three chain-only settings pages, which no children span reaches", _ {
@@ -2412,9 +2412,10 @@ describe tables_3_dynamic("scenes::menu settings and other roots tables: the CV/
 	it("offers CLOCK or RUN SIGNAL only on the outputs that carry them, once a selection has been "
 	   "made through the scene",
 	   _ {
-		   // The port's counterpart of the options main rebuilds on the way through the selector is `gate_mode_names`
-		   // reading `MenuContext::source_index`, so this is the second, independent proof that the selector's cursor
-		   // really reached the context -- a different mechanism from the `enum_index` check above, on the same write.
+		   // The port's counterpart of the options main rebuilds on the way through the selector is the mode page's
+		   // per-output row, chosen by `MenuContext::source_index`, so this is the second, independent proof that the
+		   // selector's cursor really reached the context -- a different mechanism from the `enum_index` check above, on
+		   // the same write.
 		   const TablesRoot& settings = roots().back();
 		   install(settings.ctx, settings.song);
 

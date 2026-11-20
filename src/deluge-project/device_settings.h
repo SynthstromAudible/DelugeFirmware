@@ -70,6 +70,15 @@ inline constexpr int32_t kBrightestPadLevel = 25; ///< the brightest level, the 
 inline constexpr int32_t kPadLevelShown = 4;      ///< how many a menu shows for one level, and its step a detent
 /// @}
 
+/// @name The CV and gate outputs: how many there are, and which gates carry the clock and the run signal, whose mode
+///       rows offer a third choice.
+/// @{
+inline constexpr size_t kCvOutputCount = 2;   ///< the CV outputs
+inline constexpr size_t kGateOutputCount = 4; ///< the gate outputs
+inline constexpr size_t kRunGateOutput = 2;   ///< the gate that can carry the run signal
+inline constexpr size_t kClockGateOutput = 3; ///< the gate that can carry the clock
+/// @}
+
 struct device_path;
 
 /// @brief The path of a DEVICE row the table holds. Only `device_path` makes one, from its own constants, so a path a
@@ -234,6 +243,17 @@ struct device_path {
 	static constexpr DevicePath kStemOffline{"stemExport/offline"};
 	/// Whether a stem export renders the whole mix as one stem: BOOL.
 	static constexpr DevicePath kStemMixdown{"stemExport/mixdown"};
+	/// How long a gate output stays off between two notes at least, in tenths of a millisecond: INTEGER.
+	static constexpr DevicePath kGateMinOffTime{"gate/minOffTime"};
+	/// The pattern of each CV output's volts-per-octave rows: INTEGER, in hundredths of a volt, 0 for Hz/V. The `*` is
+	/// the output's index.
+	static constexpr std::string_view kCvVoltsPerOctave = "cv/*/voltsPerOctave";
+	/// The pattern of each CV output's transpose rows: INTEGER, in cents (a hundred a semitone). The `*` is the
+	/// output's index.
+	static constexpr std::string_view kCvTranspose = "cv/*/transpose";
+	/// The pattern of each gate output's mode rows: CHOICE, V-trigger, S-trigger, then the clock on the clock's gate
+	/// and the run signal on the run's. The `*` is the output's index.
+	static constexpr std::string_view kGateMode = "gate/*/mode";
 	/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
 	static constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
 	/// The first part of each community feature's path; the name the feature file writes it under follows it.
@@ -244,6 +264,24 @@ struct device_path {
 	/// @return The row's path, `defaults/scales/disabled/<scale>`, valid for the program's life; nullopt for an index
 	///         past the preset scales.
 	[[nodiscard]] static std::optional<DevicePath> disabled_scale(size_t scale);
+
+	/// @brief CV output @p output's volts-per-octave row.
+	/// @param output A CV output's index.
+	/// @return The row's path, `cv/<output>/voltsPerOctave`, valid for the program's life; nullopt for an index past
+	///         the CV outputs.
+	[[nodiscard]] static std::optional<DevicePath> cv_volts_per_octave(size_t output);
+
+	/// @brief CV output @p output's transpose row.
+	/// @param output A CV output's index.
+	/// @return The row's path, `cv/<output>/transpose`, valid for the program's life; nullopt for an index past the CV
+	///         outputs.
+	[[nodiscard]] static std::optional<DevicePath> cv_transpose(size_t output);
+
+	/// @brief Gate output @p output's mode row.
+	/// @param output A gate output's index.
+	/// @return The row's path, `gate/<output>/mode`, valid for the program's life; nullopt for an index past the gate
+	///         outputs.
+	[[nodiscard]] static std::optional<DevicePath> gate_mode(size_t output);
 
 	/// @brief The DEVICE row of community feature @p f: BOOL for an on/off feature, else CHOICE over its words.
 	/// @param f A feature.

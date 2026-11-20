@@ -9,8 +9,8 @@
 /// features, the battery readout and the firmware version.
 ///
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
-/// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), on `cvEngine`, or is a DEVICE row the device
-/// port keeps (the community features, the audio and the clocks among them). Every one of those is inside
+/// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), or is a DEVICE row the device port keeps
+/// (the community features, the audio, the clocks and the CV and gate outputs among them). Every one of those is inside
 /// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
 /// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
 /// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
@@ -75,7 +75,8 @@
 ///       highlighting, leaving the slow cursor flash clears its tick squares, sticky shift reaches the shift
 ///       machines, rounded corners restyles the display, a default velocity or threshold mode reaches the open song,
 ///       the resolution moves the swing interval, a trigger clock's pulses resync the ticks, a MIDI clock starts or
-///       stops, a USB audio enable that waits for a restart says so), and the open menu's own half is the node's
+///       stops, a CV output's voltage goes out again, a gate switches and starts or stops carrying the clock or the run
+///       signal, a USB audio enable that waits for a restart says so), and the open menu's own half is the node's
 ///       `after_write` (horizontal menus).
 
 #include "scenes/menu/node.h"
@@ -214,23 +215,6 @@ std::optional<int32_t> pad_brightness_turn(const MenuContext& ctx, int32_t value
 ///        context holds the copy it lays out by.
 void apply_horizontal_menus(const MenuContext& ctx, int32_t value);
 
-/// @name The CV and gate output pages -- the three legacy reaches only through a chain.
-///
-/// All four hook pairs address `cvEngine`'s per-output arrays through `MenuContext::source_index`, which is
-/// `soundEditor.currentSourceIndex` (`context.h`), the very global legacy's `cv::Selection::selectButtonPress` /
-/// `gate::Selection::selectButtonPress` assign before navigating
-/// (`origin/main:src/deluge/gui/menu_item/cv/selection.h`, `origin/main:src/deluge/gui/menu_item/gate/selection.h`).
-/// @{
-int32_t get_cv_volts(const MenuContext& ctx);
-void set_cv_volts(const MenuContext& ctx, int32_t value);
-int32_t get_cv_transpose(const MenuContext& ctx);
-void set_cv_transpose(const MenuContext& ctx, int32_t value);
-size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out);
-int32_t get_gate_mode(const MenuContext& ctx);
-void set_gate_mode(const MenuContext& ctx, int32_t value);
-int32_t get_gate_off_time(const MenuContext& ctx);
-void set_gate_off_time(const MenuContext& ctx, int32_t value);
-/// @}
 /// @}
 
 // ---------------------------------------------------------------------------------------------
@@ -262,20 +246,25 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // here, ahead of the two selectors, because a chain hook needs their addresses;
 // `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
 
-/// `cv::Volts` (`origin/main:src/deluge/gui/menu_item/cv/volts.h`): 0..200 at two places, the cursor on the tenths, and
-/// Hz/V at 0 with no cursor (`drawPixelsForOled`, `horizontalEncoderAction`).
+/// `cv::Volts` (`origin/main:src/deluge/gui/menu_item/cv/volts.h`): the chosen output's `cv/<n>/voltsPerOctave` row,
+/// 0..200 at two places, the cursor on the tenths, and Hz/V at 0 with no cursor (`drawPixelsForOled`,
+/// `horizontalEncoderAction`).
 inline constexpr Node cv_volts = with_default_edit_pos(
-    with_decimal_word(with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts,
-                                                             set_cv_volts, IntRange{0, 200, 1}, 2),
-                                                sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
-                                     kTitleArgSourceIndex),
-                      cv_volts_word),
+    with_decimal_word(
+        with_title_arg(
+            with_title(with_decimal_places(setting_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), Kind::Decimal,
+                                                        device_output_row(project::device_path::kCvVoltsPerOctave)),
+                                           2),
+                       sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE)),
+            kTitleArgSourceIndex),
+        cv_volts_word),
     1);
-/// `cv::Transpose` (`origin/main:src/deluge/gui/menu_item/cv/transpose.h`) -- the same `{-9600, 9600}` two-place
-/// packing the oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
+/// `cv::Transpose` (`origin/main:src/deluge/gui/menu_item/cv/transpose.h`): the chosen output's `cv/<n>/transpose` row,
+/// the same `{-9600, 9600}` two-place packing the oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
 inline constexpr Node cv_transpose =
-    with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_cv_transpose, set_cv_transpose,
-                                           IntRange{-9600, 9600, 1}, 2),
+    with_title_arg(with_title(with_decimal_places(setting_item(sid(String::STRING_FOR_TRANSPOSE), Kind::Decimal,
+                                                               device_output_row(project::device_path::kCvTranspose)),
+                                                  2),
                               sid(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE)),
                    kTitleArgSourceIndex);
 inline constexpr const Node* kCvSubmenuChildren[] = {&cv_volts, &cv_transpose};
@@ -287,26 +276,27 @@ inline constexpr Node cv_submenu =
 
 /// `gate::Mode` (`origin/main:src/deluge/gui/menu_item/gate/mode.h`): V-TRIG and S-TRIG always, plus CLOCK or RUN
 /// SIGNAL on the two outputs that carry them -- legacy's `updateOptions(value)`, which `gate::Selection` calls on its
-/// way in (`Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`). The port makes
-/// that a `dynamic_names` hook over `MenuContext::source_index` rather than mutable state on the item.
+/// way in (`Selection::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/gate/selection.h`). Here each
+/// output's `gate/<n>/mode` row lists its own choices, and the node edits the row of the output the selector chose.
 ///
 /// Legacy's `gateModeMenu` is default-constructed in `origin/main:src/deluge/gui/ui/menus.cpp`, so it has **no name at
 /// all** -- only a `FormattedTitle` (`Mode::Mode` in `origin/main:src/deluge/gui/menu_item/gate/mode.h`). A
 /// `Node::name` of 0 would trip `validate_tree`'s `MissingTitle` (the builders default `title` to `name`), so the port
 /// uses the title for both, as it does for `gate_off_time` just below.
 inline constexpr Node gate_mode =
-    with_title_arg(with_title(dynamic_enumeration(sid(String::STRING_FOR_GATE_MODE_TITLE), gate_mode_names,
-                                                  get_gate_mode, set_gate_mode),
+    with_title_arg(with_title(setting_item(sid(String::STRING_FOR_GATE_MODE_TITLE), Kind::Enum,
+                                           device_output_row(project::device_path::kGateMode)),
                               sid(String::STRING_FOR_GATE_MODE_TITLE)),
                    kTitleArgSourceIndex);
-/// `gate::OffTime` (`origin/main:src/deluge/gui/menu_item/gate/off_time.h`), over `cvEngine.minGateOffTime` -- the one
-/// page here with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
+/// `gate::OffTime` (`origin/main:src/deluge/gui/menu_item/gate/off_time.h`), the `gate/minOffTime` row -- the one page
+/// here with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
 /// `STRING_FOR_MINIMUM_OFF_TIME` (`gateOffTimeMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`); a `Node` with
 /// `name == 0` would trip `validate_tree`'s `MissingTitle`, so the port uses the title for both. `getDefaultEditPos` is
 /// 1: the cursor starts on the units.
 inline constexpr Node gate_off_time =
-    with_default_edit_pos(decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time, set_gate_off_time,
-                                       IntRange{1, 100, 1}, 1),
+    with_default_edit_pos(with_decimal_places(setting_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), Kind::Decimal,
+                                                           device_row(project::device_path::kGateMinOffTime)),
+                                              1),
                           1);
 
 /// @brief `cv::Selection::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`) and

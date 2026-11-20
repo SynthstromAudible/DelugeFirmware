@@ -28,7 +28,7 @@
 ///
 /// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose `get`/`set` hooks read and
 /// write the device **`MenuContext::midi_device`** names, through the MIDI devices port (`bind::MidiDevices`). Every
-/// other hook reads a device-wide global (`FlashStorage`, `midiEngine`, `playbackHandler`, `cvEngine`) or the context's
+/// other hook reads a device-wide global (`FlashStorage`, `midiEngine`, `playbackHandler`) or the context's
 /// song/sound. `midi_device` is the one `MenuContext` member `context_for()` never assigns -- the device list publishes
 /// it, through `MenuWalkState::midi_device_choice` and
 /// `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so these five are the first nodes in the tree whose value

@@ -347,7 +347,10 @@ std::optional<project::ParamAddress> param_address(const Target& target, const A
 	return std::nullopt;
 }
 
-std::optional<View> view(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports) {
+namespace {
+
+std::optional<View> view_of(const Target& target, const project::Song* model, const Addresses& where,
+                            const Ports& ports) {
 	if (target.kind == Target::Kind::PARAM) {
 		const std::optional<ResolvedParam> resolved =
 		    model != nullptr ? resolve_param(target, *model, where, ports) : std::nullopt;
@@ -388,15 +391,13 @@ std::optional<View> view(const Target& target, const project::Song* model, const
 	return shown;
 }
 
-namespace {
 /// @brief Choice @p index's short spelling in @p names, or `EMPTY_STRING` when the setting has none.
 l10n::String short_choice(const l10n::SettingNames& names, size_t index) {
 	return index < names.short_choices.size() ? names.short_choices[index] : l10n::String::EMPTY_STRING;
 }
-} // namespace
 
-size_t choice_names(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports,
-                    std::span<ChoiceName> out) {
+size_t choice_names_of(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports,
+                       std::span<ChoiceName> out) {
 	const std::optional<Resolved> resolved = resolve(target, model, where, ports);
 	if (!resolved) {
 		return 0;
@@ -437,8 +438,8 @@ size_t choice_names(const Target& target, const project::Song* model, const Addr
 	return written;
 }
 
-std::optional<WriteRequest> request_for(const Target& target, const project::Song* model, const Addresses& where,
-                                        const Ports& ports, int32_t menu) {
+std::optional<WriteRequest> request_of(const Target& target, const project::Song* model, const Addresses& where,
+                                       const Ports& ports, int32_t menu) {
 	if (target.kind == Target::Kind::PARAM) {
 		const std::optional<ResolvedParam> resolved =
 		    model != nullptr ? resolve_param(target, *model, where, ports) : std::nullopt;
@@ -475,6 +476,61 @@ std::optional<WriteRequest> request_for(const Target& target, const project::Son
 		return std::nullopt;
 	}
 	return WriteRequest{.target = target, .where = where, .menu_value = menu};
+}
+
+/// The rows a target of @p target's kind and group is a row of: none for a param or a cable, which name no row.
+std::span<const plugin::SettingInfo> rows_named_by(const Target& target) {
+	switch (target.kind) {
+	case Target::Kind::MODEL:
+		return project::table_of(target.group);
+	case Target::Kind::SOUND:
+		return instrument::kSettings;
+	case Target::Kind::EFFECT:
+		return effects::kEffectSettings;
+	case Target::Kind::NONE:
+	case Target::Kind::PARAM:
+	case Target::Kind::CABLE:
+		break;
+	}
+	return {};
+}
+
+} // namespace
+
+std::optional<Target> concrete(const Target& target, const Addresses& where) {
+	if (!target.source_indexed) {
+		return target;
+	}
+	if (where.source_index < 0) {
+		return std::nullopt;
+	}
+	const auto index = static_cast<size_t>(where.source_index);
+	for (const plugin::SettingInfo& row : rows_named_by(target)) {
+		if (plugin::index_in(target.path, row.path) == index) {
+			Target named = target;
+			named.path = row.path;
+			named.source_indexed = false;
+			return named;
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<View> view(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? view_of(*named, model, where, ports) : std::nullopt;
+}
+
+size_t choice_names(const Target& target, const project::Song* model, const Addresses& where, const Ports& ports,
+                    std::span<ChoiceName> out) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? choice_names_of(*named, model, where, ports, out) : 0;
+}
+
+std::optional<WriteRequest> request_for(const Target& target, const project::Song* model, const Addresses& where,
+                                        const Ports& ports, int32_t menu) {
+	const std::optional<Target> named = concrete(target, where);
+	return named ? request_of(*named, model, where, ports, menu) : std::nullopt;
 }
 
 } // namespace deluge::scenes::bind

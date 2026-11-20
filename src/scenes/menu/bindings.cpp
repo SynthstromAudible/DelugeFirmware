@@ -90,13 +90,21 @@ bool readable(const deluge::scenes::bind::Target& target, const MenuContext& ctx
 	return target.on_device() || (ctx.model != nullptr && ctx.ports.has_bind_ports());
 }
 
+/// The addresses @p ctx's targets resolve against: the context's, with the output its selector chose for a
+/// source-indexed target.
+deluge::scenes::bind::Addresses addresses_of(const MenuContext& ctx) {
+	deluge::scenes::bind::Addresses where = ctx.addresses;
+	where.source_index = ctx.source_index;
+	return where;
+}
+
 /// What @p target shows, or nullopt where it does not resolve or the menu has nothing to read it from.
 std::optional<deluge::scenes::bind::View> target_view(const deluge::scenes::bind::Target& target,
                                                       const MenuContext& ctx) {
 	if (!readable(target, ctx)) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(target, ctx.model, ctx.addresses, ctx.ports);
+	return deluge::scenes::bind::view(target, ctx.model, addresses_of(ctx), ctx.ports);
 }
 
 /// What a target node shows, or nullopt where its target does not resolve or the menu has nothing to read it from.
@@ -155,11 +163,11 @@ void write_device(const deluge::scenes::bind::Target& target, SetFn after_write,
                   const MenuContext& ctx, int32_t value) {
 	using deluge::scenes::bind::DeviceWrite;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(target, ctx.model, ctx.addresses, ctx.ports, value);
+	    deluge::scenes::bind::request_for(target, ctx.model, addresses_of(ctx), ctx.ports, value);
 	if (!request || ctx.ports.device == nullptr) {
 		return;
 	}
-	const DeviceWrite done = ctx.ports.device->write(target.path, request->menu_value);
+	const DeviceWrite done = ctx.ports.device->write(request->target.path, request->menu_value);
 	if (done == DeviceWrite::REFUSED) {
 		return;
 	}
@@ -264,10 +272,11 @@ const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t co
 }
 
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
-	if (ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
+	const std::optional<deluge::scenes::bind::Target> named = deluge::scenes::bind::concrete(target, addresses_of(ctx));
+	if (!named || ctx.model == nullptr || ctx.ports.sound == nullptr || !ctx.addresses.slot) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(target.path);
+	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.ports.sound}.read(named->path);
 }
 
 std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
@@ -276,7 +285,7 @@ std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, 
 		return std::nullopt;
 	}
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(node.bind.target, ctx.model, ctx.addresses, ctx.ports, value);
+	    deluge::scenes::bind::request_for(node.bind.target, ctx.model, addresses_of(ctx), ctx.ports, value);
 	if (!request) {
 		return std::nullopt;
 	}
@@ -318,7 +327,7 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 			return;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
-		    deluge::scenes::bind::request_for(bind.target, ctx.model, ctx.addresses, ctx.ports, value);
+		    deluge::scenes::bind::request_for(bind.target, ctx.model, addresses_of(ctx), ctx.ports, value);
 		if (request && ctx.ports.writes->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
@@ -465,7 +474,8 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		}
 		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
 		const size_t count = std::min(
-		    deluge::scenes::bind::choice_names(node.bind.target, ctx.model, ctx.addresses, ctx.ports, listed), limit);
+		    deluge::scenes::bind::choice_names(node.bind.target, ctx.model, addresses_of(ctx), ctx.ports, listed),
+		    limit);
 		for (size_t i = 0; i < count; ++i) {
 			const std::string_view name =
 			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
@@ -571,7 +581,7 @@ deluge::scenes::bind::Target direction_target(const MenuContext& ctx) {
 /// @brief The addresses the play direction resolves against: the kit row's note row is its lane's, whatever kind of
 ///        drum it plays.
 deluge::scenes::bind::Addresses direction_where(const MenuContext& ctx) {
-	deluge::scenes::bind::Addresses where = ctx.addresses;
+	deluge::scenes::bind::Addresses where = addresses_of(ctx);
 	if (ctx.addresses.lane && ctx.addresses.clip) {
 		where.note_row = deluge::project::NoteRowAddress{.clip_id = ctx.addresses.clip->clip_id,
 		                                                 .is_kit = true,
