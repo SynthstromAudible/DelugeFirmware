@@ -142,18 +142,14 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
 /// @return Its pad, or a `ShortcutPos` with `valid == false`.
 ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion version, const Node& node);
 
-/// @brief The layout in force, which the lookups above take: the device's `pads/shortcutsVersion` row.
-/// @param ctx The menu's context, whose device port holds the row.
-/// @return The row's layout; `V3`, the row's default, where the context binds no device port.
-[[nodiscard]] project::ShortcutsVersion shortcuts_version(const MenuContext& ctx);
-
-/// @brief Select @p version: write the device's `pads/shortcutsVersion` row, which `shortcuts_version` reads.
+/// @brief The layout in force, which the lookups above take: the device's `pads/shortcutsVersion` row, which the
+///        settings item `nodes::shortcuts_version` writes.
 ///
-/// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
+/// @note **The row selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
 ///       ten cells of `paramShortcutsForSounds` / `paramShortcutsForAudioClips` in place
 ///       and its `V3` arm is a comment reading "Uses defaults" -- so on
 ///       device, selecting V1 and then V3 again leaves the V1 cells in place until the next reboot.
-///       Here both layouts are `constexpr` tables and this is a pointer swap, so the round trip
+///       Here both layouts are `constexpr` tables and the row picks one, so the round trip
 ///       restores V3. That difference is deliberate: reproducing a one-way write is not fidelity.
 ///
 /// @note **Two of legacy's ten assignments are the layers' only real difference.** Four of them
@@ -164,8 +160,8 @@ ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion versi
 ///       `[1][6]`, interpolation in V3 and the sample end point in V1. `modSourceShortcuts`
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not in this layer at all -- it is the patching source
 ///       column, which is not table data here (`shortcut_blink.h`).
-/// @param ctx     The menu's context, whose device port takes the write; with none bound, nothing changes.
-/// @param version The layout to use.
-void set_shortcuts_version(const MenuContext& ctx, project::ShortcutsVersion version);
+/// @param ctx The menu's context, whose device port holds the row.
+/// @return The row's layout; `V3`, the row's default, where the context binds no device port.
+[[nodiscard]] project::ShortcutsVersion shortcuts_version(const MenuContext& ctx);
 
 } // namespace deluge::scenes::menu

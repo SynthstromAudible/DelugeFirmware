@@ -616,8 +616,8 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 // clang-format off
 describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 	it("gives its own turn to exactly the items whose turn is not main's add-and-clamp", _ {
-		// The 19 follow channels, the stutter rate, both swing intervals (song and default) and the three MIDI
-		// preset parts. Every other value item adds and clamps.
+		// The 19 follow channels, the stutter rate, both swing intervals (song and default), the three MIDI preset parts
+		// and the pad brightness, which steps four a detent. Every other value item adds and clamps.
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::turn_follow_channel; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::stutter_rate_turn; })).to_equal(size_t(1));
 		expect(address_of(nodes::stutter_rate.bind.turn)).to_equal(address_of(&nodes::stutter_rate_turn));
@@ -625,7 +625,8 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(address_of(nodes::swing_interval.bind.turn)).to_equal(address_of(&nodes::swing_interval_turn));
 		expect(address_of(nodes::default_swing_interval.bind.turn)).to_equal(address_of(&nodes::swing_interval_turn));
 		expect(count_where([](const Node& n) { return n.bind.turn == &nodes::midi_preset_turn; })).to_equal(size_t(3));
-		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(25));
+		expect(address_of(nodes::default_pad_brightness.bind.turn)).to_equal(address_of(&nodes::pad_brightness_turn));
+		expect(count_where([](const Node& n) { return n.bind.turn != nullptr; })).to_equal(size_t(26));
 	});
 
 	it("starts every Decimal's cursor on 2 but the six overrides, which start on 1", _ {
@@ -711,7 +712,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 			expect(menu_scene().state().edit_int).to_equal(std::max(range.min, range.max - 5 * step));
 			walked++;
 		}
-		expect(walked).to_equal(size_t(137));
+		expect(walked).to_equal(size_t(136));
 	});
 
 	it("starts each Decimal's cursor where main does, whichever way it is opened", _ {

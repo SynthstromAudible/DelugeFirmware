@@ -37,9 +37,11 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "support/spec_main.h"
@@ -473,6 +475,77 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		hold(r.fakes, device_path::kNewClipType, 255);
 		expect(menu::bindings::read(nodes::default_new_clip_type, ctx)).to_equal(4);
 		expect(r.fakes.host.device.stores.empty()).to_be_true();
+	});
+
+	it("names the pads' and the screen's choices as their items do, each read from the fake", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::pads_settings);
+		expect(names_of(nodes::pads_keyboard_layout, ctx))
+		    .to_equal(std::vector<std::string>{"QWERTY", "AZERTY", "QWERTZ"});
+		expect(names_of(nodes::pad_colour_active, ctx).size()).to_equal(size_t{9});
+		// Each colour's default is its slot's: green, red, yellow, blue, amber, magenta.
+		const std::array<std::pair<const Node*, int32_t>, 6> colours{{
+		    {&nodes::pad_colour_active, 1},
+		    {&nodes::pad_colour_stopped, 0},
+		    {&nodes::pad_colour_muted, 3},
+		    {&nodes::pad_colour_soloed, 2},
+		    {&nodes::pad_colour_fill, 6},
+		    {&nodes::pad_colour_once, 5},
+		}};
+		for (const auto& [node, colour] : colours) {
+			expect(menu::bindings::read(*node, ctx)).to_equal(colour);
+		}
+		expect(names_of(nodes::screensaver_mode, ctx).size()).to_equal(size_t{4});
+		expect(menu::bindings::read(nodes::screensaver_mode, ctx)).to_equal(3);
+		expect(menu::bindings::read(nodes::screensaver_timeout, ctx)).to_equal(5);
+		expect(names_of(nodes::default_menu_highlighting, ctx).size()).to_equal(size_t{3});
+		expect(menu::bindings::read(nodes::default_menu_highlighting, ctx)).to_equal(1);
+		expect(names_of(nodes::sample_browser_preview, ctx).size()).to_equal(size_t{3});
+		expect(menu::bindings::read(nodes::default_kb_velocity_glide, ctx)).to_equal(1);
+		menu::bindings::write(nodes::pad_colour_muted, ctx, 8);
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kPadColourMuted} + "=pink"});
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("shows a pad-grid layout the menu does not list as the last it lists, as main's list clamps it", _ {
+		Rig r;
+		// The device's chord layout, the fourth of its seven: the menu lists the first three.
+		hold(r.fakes, device_path::kKeyboardLayout, 3);
+		const MenuContext ctx = r.open(nodes::default_ui_keyboard);
+		expect(row_of(nodes::default_ui_keyboard, nodes::default_keyboard_layout, ctx)).to_equal(0);
+		r.select(10);
+		expect(menu_scene().focused()).to_equal(&nodes::default_keyboard_layout);
+		expect(names_of(nodes::default_keyboard_layout, ctx))
+		    .to_equal(std::vector<std::string>{"Isomorphic", "In-Key", "Piano"});
+		expect(static_cast<int32_t>(menu_scene().state().enum_index)).to_equal(2);
+		r.shell.tick(40);
+		// Showing it writes nothing.
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+		// A turn down picks the one before it.
+		r.turn(-1, 60);
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kKeyboardLayout} + "=inKey"});
+	});
+
+	it("shows the pad brightness at four times its level and turns it four at a time, within 4 and 100", _ {
+		Rig r;
+		hold(r.fakes, device_path::kPadBrightness, 10);
+		const MenuContext ctx = r.open(nodes::defaults_settings);
+		expect(menu::bindings::read(nodes::default_pad_brightness, ctx)).to_equal(40);
+		r.turn(row_of(nodes::defaults_settings, nodes::default_pad_brightness, ctx), 10);
+		r.select(30);
+		expect(menu_scene().focused()).to_equal(&nodes::default_pad_brightness);
+		r.turn(1, 50);
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kPadBrightness} + "=11"});
+		expect(menu_scene().state().edit_int).to_equal(44);
+		// The flash's level 0, a device's with no saved settings, shows as 0; a turn down from it lands on the dimmest.
+		hold(r.fakes, device_path::kPadBrightness, 0);
+		expect(menu::bindings::read(nodes::default_pad_brightness, ctx)).to_equal(0);
+		expect(nodes::pad_brightness_turn(ctx, 0, -1)).to_equal(std::optional<int32_t>{4});
+		expect(nodes::pad_brightness_turn(ctx, 100, 1)).to_equal(std::optional<int32_t>{100});
+		expect(nodes::pad_brightness_turn(ctx, 120, -1)).to_equal(std::optional<int32_t>{100});
 	});
 
 	it("leaves the open menu's layout as it was when the port refuses a horizontal-menus write", _ {

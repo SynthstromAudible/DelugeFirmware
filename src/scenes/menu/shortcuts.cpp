@@ -30,10 +30,10 @@
 ///
 /// @note **Both layers are here.** The tables below are the default (`SHORTCUTS_VERSION_3`) layout, which is what the
 ///       legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and `kAudioClipV1Cells` are the pre-3.0 one,
-///       and `set_shortcuts_version` selects between them for every lookup in this file. `nodes::shortcuts_version` is
-///       the setting item that calls it. `SoundEditor::setShortcutsVersion`
+///       and the device's `pads/shortcutsVersion` row (`shortcuts_version`) selects between them for every lookup in
+///       this file; the setting item `nodes::shortcuts_version` writes the row. `SoundEditor::setShortcutsVersion`
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) reaches the same layout by *writing* into the V3 arrays --
-///       see `menu::set_shortcuts_version` for the two ways that differs.
+///       see `menu::shortcuts_version` for the two ways that differs.
 
 #include "scenes/menu/shortcuts.h"
 
@@ -43,7 +43,6 @@
 
 #include <array>
 #include <cstddef>
-#include <utility>
 
 namespace deluge::scenes::menu {
 
@@ -234,7 +233,7 @@ constexpr Cells with_cell(Cells base, uint8_t x, uint8_t y, const Node* node) {
 /// @name The `SHORTCUTS_VERSION_1` layers.
 ///
 /// `SoundEditor::setShortcutsVersion`'s V1 arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), as whole tables
-/// rather than as writes into the V3 ones -- see the note on `menu::set_shortcuts_version`, which
+/// rather than as writes into the V3 ones -- see the note on `menu::shortcuts_version`, which
 /// also accounts for the six of legacy's ten assignments that produce no difference here.
 ///
 /// The `static_assert`s pin what each write is replacing: if a future edit to the V3 table moves
@@ -463,12 +462,6 @@ ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion versi
 
 project::ShortcutsVersion shortcuts_version(const MenuContext& ctx) {
 	return bind::read_device<project::ShortcutsVersion>(ctx.ports.device, project::device_path::kShortcutsVersion);
-}
-
-void set_shortcuts_version(const MenuContext& ctx, project::ShortcutsVersion version) {
-	if (ctx.ports.device != nullptr) {
-		(void)ctx.ports.device->write(project::device_path::kShortcutsVersion, std::to_underlying(version));
-	}
 }
 
 } // namespace deluge::scenes::menu

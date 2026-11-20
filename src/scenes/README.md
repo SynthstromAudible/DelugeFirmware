@@ -311,13 +311,11 @@ one tick, so one slot holds only while its consumer polls every tick.
 from `ShellHostUI::timerCallback` after every `Shell::tick` and above the close check, so no tick
 skips it. If it ever wants to be lazy, the slot has to become a queue first.
 
-**A setting's side effect is a call, not an action.** A settings write `main` applies at once is a synchronous call
-the setter makes into `menu/bind_host.h`, and the host has applied it when the setter returns:
-`host_screensaver_settings_changed` (the screensaver's mode and timeout), `host_pad_brightness_changed`,
-`host_highlighting_changed` and `host_pad_colours_changed`. A setting that is a DEVICE row has no setter: its node
-writes the device port (`Ports::device`), whose host store does what the item's write does, so the play cursor leaving
-its slow flash clears the tick squares there, sticky shift reaches the shift machines and rounded corners restyles the
-display. What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus
+**A setting's side effect is the host's, not an action.** A setting that is a DEVICE row has no setter: its node
+writes the device port (`Ports::device`), whose host store does what the item's write does, and has done it when the
+write returns: both screensavers take a new mode or timeout, the pads dim to a new brightness and re-render for a new
+colour, main's canvas and the guest's panels take a new highlighting, the play cursor leaving its slow flash clears the
+tick squares, sticky shift reaches the shift machines and rounded corners restyles the display. What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus
 feature's re-lays out the menu. The file selector ends a keyboard audition the same way, with
 `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
 
@@ -740,12 +738,12 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** is the device's `pads/shortcutsVersion` row, which `menu::shortcuts_version` reads and
-  `menu::set_shortcuts_version` writes through the device port. The host keeps it in flash byte 60
-  (`FlashStorage::shortcutsVersion`). The settings item writes it.
+* **The shortcut layout** is the device's `pads/shortcutsVersion` row, which `menu::shortcuts_version` reads through
+  the device port. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`). The settings item writes
+  it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
-  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the two screensaver
-  setters reach through `menu::host_screensaver_settings_changed()` (`menu/bind_host.h`).
+  `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the device port's store calls for a
+  write of either screensaver row.
 * **The services** are installed by `gui/ui/shell_guest_services.cpp`, from `deluge_boot` and from
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the

@@ -3,7 +3,6 @@
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -14,7 +13,6 @@
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/bind_host.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstdint>
@@ -115,22 +113,6 @@ void host_end_audition(AuditionEnd how) {
 		}
 		break;
 	}
-}
-
-void host_screensaver_settings_changed() {
-	deluge::hid::display::Screensaver::settingsChanged();
-}
-
-void host_pad_brightness_changed() {
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-}
-
-void host_highlighting_changed() {
-	gui::ui::pushShellHighlighting();
-}
-
-void host_pad_colours_changed() {
-	renderingNeededRegardlessOfUI();
 }
 
 } // namespace deluge::scenes::menu

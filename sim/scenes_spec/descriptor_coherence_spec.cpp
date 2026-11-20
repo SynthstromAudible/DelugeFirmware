@@ -513,7 +513,7 @@ void run_all(auto& self) {
 // The nodes no row reaches.
 
 /// @brief The device settings: the hooked value nodes under the settings root, which hold a device's state
-/// (FlashStorage, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a
+/// (FlashStorage, a MIDI device, a CV or gate output) rather than a song's or a
 /// sound's, so no engine or model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds
 /// it. Each is named by the names from the root to it, with how many nodes carry that path.
 struct DeviceNode {
@@ -524,29 +524,6 @@ struct DeviceNode {
 constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > Recording > Sampling monitoring", 1},
     {"Settings > Recording > Count-in bars", 1},
-    {"Settings > Sample Preview", 1},
-    {"Settings > Pads > Colours > Once", 1},
-    {"Settings > Pads > Colours > Fill", 1},
-    {"Settings > Pads > Colours > Soloed", 1},
-    {"Settings > Pads > Colours > Muted", 1},
-    {"Settings > Pads > Colours > Stopped", 1},
-    {"Settings > Pads > Colours > Active", 1},
-    {"Settings > Pads > Keyboard for Text", 1},
-    {"Settings > Pads > Shortcut Version", 1},
-    {"Settings > Defaults > Screensaver > Timeout", 1},
-    {"Settings > Defaults > Screensaver > Mode", 1},
-    {"Settings > Defaults > Pad Brightness", 1},
-    {"Settings > Defaults > UI > Keyboard > Favourites", 1},
-    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Modwheel", 1},
-    {"Settings > Defaults > UI > Keyboard > Sidebar Controls > Momentary Velocity", 1},
-    {"Settings > Defaults > UI > Keyboard > Layout", 1},
-    {"Settings > Defaults > UI > Song > Grid > Empty pads > Create + Record", 1},
-    {"Settings > Defaults > UI > Song > Grid > Empty pads > Unarm", 1},
-    {"Settings > Defaults > UI > Song > Grid > Select in green mode", 1},
-    {"Settings > Defaults > UI > Song > Grid > Default active mode", 1},
-    {"Settings > Defaults > UI > Song > Layout", 1},
-    {"Settings > Defaults > UI > Accessibility > Menu Highlighting", 1},
-    {"Settings > Defaults > UI > Accessibility > Shortcuts", 1},
     {"Settings > USB audio > Output", 1},
     {"Settings > USB audio > Input", 1},
     {"Settings > USB audio > Enabled", 1},
@@ -582,7 +559,7 @@ constexpr DeviceNode kDeviceSettings[] = {
 };
 
 constexpr std::string_view kDeviceReason =
-    "a device setting (FlashStorage, a MIDI device, a CV or gate output, a pad colour, USB audio): "
+    "a device setting (FlashStorage, a MIDI device, a CV or gate output, USB audio): "
     "the "
     "device's, not a song's or a sound's, so no engine or model row holds it";
 

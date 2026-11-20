@@ -21,16 +21,10 @@
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `Status::readCurrentValue` and
-///         `Status::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/flash/status.h`) is a DEVICE row's
-///           node, which the device port reads and writes. `shortcuts_version` (`FlashStorage::shortcutsVersion`) and
-///           the six `pad_colour_*` (`menu_item::Colour::value`) are ordinary `Kind::Enum` nodes with get/set hooks,
-///           because none needed a bespoke item, only a reachable byte:
-///             - The six pad-colour bytes live in `FlashStorage::padColours` (`storage/flash_storage.h`),
-///               where the persistence code that reads and writes them
-///               (`readSettings` in `storage/flash_storage.cpp`, `writeSettings`) lives, and `Colour::value` is a
-///               reference onto one of them. A member of a `gui/` class could not be reached from here.
-///             - `shortcutsVersion` is the device's `pads/shortcutsVersion` row, which selects a shortcut
-///               *layer* of this layer's own tables (`menu::shortcuts_version`).
+///         `Status::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/flash/status.h`), `shortcuts_version`
+///           and the six `pad_colour_*` (`menu_item::Colour::value`) are DEVICE rows' nodes, which the device port
+///           reads and writes. `pads/shortcutsVersion` selects a shortcut *layer* of this layer's own tables
+///           (`menu::shortcuts_version`).
 ///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
 ///           `batteryMV` is a plain global set from `src/deluge/deluge.cpp`'s main loop, the same one
 ///           `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s `extern uint16_t batteryMV` reads with its own bare
@@ -76,14 +70,13 @@
 ///       third chain, `midi_devices` -> the per-device page, is declared just below; the page
 ///       itself is `nodes/midi_device.h`.)
 ///
-/// @note **What a write does besides storing, main's `hid/` calls, is a host call at the write**
-///       (`scenes/menu/bind_host.h`): the screensaver's `settingsChanged()` (`host_screensaver_settings_changed`),
-///       pad brightness (`host_pad_brightness_changed`), the menu highlighting (`host_highlighting_changed`) and a pad
-///       colour (`host_pad_colours_changed`). The value itself is stored by the setter. A DEVICE row's node has no
-///       setter: the host's device port stores the value and does what storing it implies (leaving the slow cursor
-///       flash clears its tick squares, sticky shift reaches the shift machines, rounded corners restyles the
-///       display, a default velocity or threshold mode reaches the open song, the resolution moves the swing interval),
-///       and the open menu's own half is the node's `after_write` (horizontal menus).
+/// @note **What a write does besides storing is the host's.** A DEVICE row's node has no setter: the host's device
+///       port stores the value and does what storing it implies (both screensavers take a new mode or timeout, the
+///       pads dim to a new brightness and re-render for a new colour, main's canvas and the guest's panels take a new
+///       highlighting, leaving the slow cursor flash clears its tick squares, sticky shift reaches the shift
+///       machines, rounded corners restyles the display, a default velocity or threshold mode reaches the open song,
+///       the resolution moves the swing interval), and the open menu's own half is the node's `after_write`
+///       (horizontal menus).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -103,6 +96,7 @@
 #include "plugin-api/types/display_mapping.h"
 
 #include <limits>
+#include <optional>
 #include <span>
 
 namespace deluge::scenes::menu {
@@ -220,50 +214,23 @@ void set_midi_takeover(const MenuContext& ctx, int32_t value);
 int32_t get_midi_input_differentiation(const MenuContext& ctx);
 void set_midi_input_differentiation(const MenuContext& ctx, int32_t value);
 
-int32_t get_default_accessibility_shortcuts(const MenuContext& ctx);
-void set_default_accessibility_shortcuts(const MenuContext& ctx, int32_t value);
-int32_t get_default_menu_highlighting(const MenuContext& ctx);
-void set_default_menu_highlighting(const MenuContext& ctx, int32_t value);
-int32_t get_default_session_layout(const MenuContext& ctx);
-void set_default_session_layout(const MenuContext& ctx, int32_t value);
-int32_t get_default_grid_active_mode(const MenuContext& ctx);
-void set_default_grid_active_mode(const MenuContext& ctx, int32_t value);
-int32_t get_default_grid_green_selection(const MenuContext& ctx);
-void set_default_grid_green_selection(const MenuContext& ctx, int32_t value);
-int32_t get_default_grid_pads_unarm(const MenuContext& ctx);
-void set_default_grid_pads_unarm(const MenuContext& ctx, int32_t value);
-int32_t get_default_grid_pads_create_rec(const MenuContext& ctx);
-void set_default_grid_pads_create_rec(const MenuContext& ctx, int32_t value);
-int32_t get_default_keyboard_layout(const MenuContext& ctx);
-void set_default_keyboard_layout(const MenuContext& ctx, int32_t value);
-int32_t get_default_kb_velocity_glide(const MenuContext& ctx);
-void set_default_kb_velocity_glide(const MenuContext& ctx, int32_t value);
-int32_t get_default_kb_modwheel_glide(const MenuContext& ctx);
-void set_default_kb_modwheel_glide(const MenuContext& ctx, int32_t value);
-int32_t get_default_favourites_layout(const MenuContext& ctx);
-void set_default_favourites_layout(const MenuContext& ctx, int32_t value);
 /// `defaults::SwingInterval::getNoteLengthName`: the default resolution, the DEVICE `defaults/magnitude` row.
 int32_t default_resolution_magnitude(const MenuContext& ctx);
 /// `sync_level::RelativeToSong::getNoteLengthName` names value v as magnitude 3 - v; `syncValueToString` at tick
 /// magnitude 1 is that name.
 int32_t relative_to_song_magnitude(const MenuContext& ctx);
-int32_t get_default_pad_brightness(const MenuContext& ctx);
-void set_default_pad_brightness(const MenuContext& ctx, int32_t value);
-int32_t get_screensaver_mode(const MenuContext& ctx);
-void set_screensaver_mode(const MenuContext& ctx, int32_t value);
-int32_t get_screensaver_timeout(const MenuContext& ctx);
-void set_screensaver_timeout(const MenuContext& ctx, int32_t value);
-
-int32_t get_pads_keyboard_layout(const MenuContext& ctx);
-void set_pads_keyboard_layout(const MenuContext& ctx, int32_t value);
-int32_t get_sample_browser_preview(const MenuContext& ctx);
-void set_sample_browser_preview(const MenuContext& ctx, int32_t value);
+/// @brief The pad brightness item's turn, `PadBrightness::selectEncoderAction`
+///        (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`): four a detent, within 4 and 100.
+/// @param ctx    The menu's context (unused).
+/// @param value  The value shown, four times the level.
+/// @param offset The detents turned.
+/// @return The value the turn lands on.
+std::optional<int32_t> pad_brightness_turn(const MenuContext& ctx, int32_t value, int32_t offset);
 
 int32_t get_record_count_in(const MenuContext& ctx);
 void set_record_count_in(const MenuContext& ctx, int32_t value);
 int32_t get_monitor_mode(const MenuContext& ctx);
 void set_monitor_mode(const MenuContext& ctx, int32_t value);
-size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief The HorizontalMenus feature's half in the open menu (`MenuScene::set_horizontal_menus`), once the device
 ///        stored a write of its row: `HorizontalMenu::renderingStyle()`
@@ -283,42 +250,6 @@ int32_t get_usb_direct_monitoring(const MenuContext& ctx);
 void set_usb_direct_monitoring(const MenuContext& ctx, int32_t value);
 int32_t get_usb_output_source(const MenuContext& ctx);
 void set_usb_output_source(const MenuContext& ctx, int32_t value);
-/// @}
-
-/// @brief `shortcuts::Version`'s read and write (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`).
-///
-/// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
-/// (`SoundEditor::setShortcutsVersion` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)). The port selects a whole
-/// layer of its own tables on the device's `pads/shortcutsVersion` row rather than editing one -- see
-/// `menu::set_shortcuts_version`, which writes the row.
-/// @{
-int32_t get_shortcuts_version(const MenuContext& ctx);
-void set_shortcuts_version(const MenuContext& ctx, int32_t value);
-/// @}
-
-/// @brief `menu_item::Colour`'s read and write (`origin/main:src/deluge/gui/menu_item/colour.h`
-///        `Colour::readCurrentValue`), with the slot as a template argument rather than an object identity.
-///
-/// The six colour items differ in exactly one thing -- which of `FlashStorage::padColours` they
-/// edit -- so they are six distinct addresses of the two templates below. The `Slot` literals are plain
-/// `int`s so this header need not include `storage/flash_storage.h`; `nodes/settings.cpp` pins each one
-/// against `FlashStorage::PadColourSlot` with a `static_assert`, exactly as it pins `ResetItem`'s
-/// `DescriptorId` literals.
-///
-/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` does not come along --
-/// it is the same class of `hid/` immediate-apply the file note lists as a gap. The stored byte,
-/// which is all any renderer reads, is written identically.
-/// @{
-int32_t pad_colour_get(int32_t slot);
-void pad_colour_set(int32_t slot, int32_t value);
-template <int Slot>
-int32_t get_pad_colour(const MenuContext&) {
-	return pad_colour_get(Slot);
-}
-template <int Slot>
-void set_pad_colour(const MenuContext&, int32_t value) {
-	pad_colour_set(Slot, value);
-}
 /// @}
 
 /// @name The CV and gate output pages -- the three legacy reaches only through a chain.
@@ -653,97 +584,68 @@ inline constexpr Node usb_audio_settings = submenu(sid(String::STRING_FOR_USB_AU
 // ---------------------------------------------------------------------------------------------
 // 6. Defaults
 
-/// `AccessibilityMenuHighlighting::getOptions`
-/// (`origin/main:src/deluge/gui/menu_item/defaults/accessibility_menu_highlighting.h`).
-inline constexpr uint16_t kMenuHighlightingNames[] = {
-    sid(String::STRING_FOR_FULL_INVERSION),
-    sid(String::STRING_FOR_PARTIAL_INVERSION),
-    sid(String::STRING_FOR_NO_INVERSION),
-};
 inline constexpr Node default_accessibility_shortcuts =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS), get_default_accessibility_shortcuts,
-                set_default_accessibility_shortcuts);
+    setting_item(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS), Kind::Toggle,
+                 device_row(project::device_path::kAccessibilityShortcuts));
+/// `AccessibilityMenuHighlighting` (`origin/main:src/deluge/gui/menu_item/defaults/accessibility_menu_highlighting.h`):
+/// its write restyles main's canvas and the guest's panels; the device port's store does it.
 inline constexpr Node default_menu_highlighting =
-    enumeration(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING), kMenuHighlightingNames,
-                get_default_menu_highlighting, set_default_menu_highlighting);
+    setting_item(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING), Kind::Enum,
+                 device_row(project::device_path::kMenuHighlighting));
 inline constexpr const Node* kDefaultAccessibilityChildren[] = {&default_accessibility_shortcuts,
                                                                 &default_menu_highlighting};
 inline constexpr Node default_accessibility =
     submenu(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY), kDefaultAccessibilityChildren);
 
-/// `SessionLayout::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/session_layout.h`).
-inline constexpr uint16_t kSessionLayoutNames[] = {
-    sid(String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-    sid(String::STRING_FOR_DEFAULT_UI_GRID),
-};
-/// `DefaultGridDefaultActiveMode::getOptions`
-/// (`origin/main:src/deluge/gui/menu_item/defaults/grid_default_active_mode.h`).
-inline constexpr uint16_t kGridActiveModeNames[] = {
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION),
-    sid(String::STRING_FOR_GREEN),
-    sid(String::STRING_FOR_BLUE),
-};
-
 inline constexpr Node default_grid_pads_unarm =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM), get_default_grid_pads_unarm,
-                set_default_grid_pads_unarm);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM), Kind::Toggle,
+                 device_row(project::device_path::kGridEmptyPadsUnarm));
 inline constexpr Node default_grid_pads_create_rec =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC), get_default_grid_pads_create_rec,
-                set_default_grid_pads_create_rec);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC), Kind::Toggle,
+                 device_row(project::device_path::kGridEmptyPadsCreateRec));
 inline constexpr const Node* kDefaultEmptyPadChildren[] = {&default_grid_pads_unarm, &default_grid_pads_create_rec};
 inline constexpr Node default_empty_pads =
     submenu(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS), kDefaultEmptyPadChildren);
 
+/// `DefaultGridDefaultActiveMode` (`origin/main:src/deluge/gui/menu_item/defaults/grid_default_active_mode.h`).
 inline constexpr Node default_grid_active_mode =
-    enumeration(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE), kGridActiveModeNames,
-                get_default_grid_active_mode, set_default_grid_active_mode);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE), Kind::Enum,
+                 device_row(project::device_path::kGridActiveMode));
 inline constexpr Node default_grid_green_selection =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION), get_default_grid_green_selection,
-                set_default_grid_green_selection);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION), Kind::Toggle,
+                 device_row(project::device_path::kGridAllowGreenSelection));
 inline constexpr const Node* kDefaultSessionGridChildren[] = {&default_grid_active_mode, &default_grid_green_selection,
                                                               &default_empty_pads};
 inline constexpr Node default_session_grid =
     submenu(sid(String::STRING_FOR_DEFAULT_UI_GRID), kDefaultSessionGridChildren);
 
-inline constexpr Node default_session_layout =
-    enumeration(sid(String::STRING_FOR_DEFAULT_UI_LAYOUT), kSessionLayoutNames, get_default_session_layout,
-                set_default_session_layout);
+/// `SessionLayout` (`origin/main:src/deluge/gui/menu_item/defaults/session_layout.h`).
+inline constexpr Node default_session_layout = setting_item(sid(String::STRING_FOR_DEFAULT_UI_LAYOUT), Kind::Enum,
+                                                            device_row(project::device_path::kSessionLayout));
 inline constexpr const Node* kDefaultUiSessionChildren[] = {&default_session_layout, &default_session_grid};
 inline constexpr Node default_ui_session = submenu(sid(String::STRING_FOR_DEFAULT_UI_SONG), kDefaultUiSessionChildren);
 
-/// `defaults::KeyboardLayout::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/keyboard_layout.h`).
-inline constexpr uint16_t kDefaultKeyboardLayoutNames[] = {
-    sid(String::STRING_FOR_KEYBOARD_LAYOUT_ISOMORPHIC),
-    sid(String::STRING_FOR_KEYBOARD_LAYOUT_IN_KEY),
-    sid(String::STRING_FOR_KEYBOARD_LAYOUT_PIANO),
-};
-/// `DefaultFavouritesLayout::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/favourites_layout.h`).
-inline constexpr uint16_t kFavouritesLayoutNames[] = {
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES),
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES_AND_BANKS),
-    sid(String::STRING_FOR_OFF),
-};
-
 // The two keyboard-function toggles are `InvertedToggleBool`s (`origin/main:src/deluge/gui/ui/menus.cpp`'s
-// `defaultUIKeyboardFunctionsVelocityGlide` and `defaultUIKeyboardFunctionsModwheelGlide`): the stored flag is the
-// *glide* mode and the menu shows *momentary*, so read and write both negate.
+// `defaultUIKeyboardFunctionsVelocityGlide` and `defaultUIKeyboardFunctionsModwheelGlide`): the menu shows
+// *momentary*, which is what their rows hold; the device keeps the glide mode, the other sense.
 inline constexpr Node default_kb_velocity_glide =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY), get_default_kb_velocity_glide,
-                set_default_kb_velocity_glide);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY), Kind::Toggle,
+                 device_row(project::device_path::kVelocityMomentary));
 inline constexpr Node default_kb_modwheel_glide =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY), get_default_kb_modwheel_glide,
-                set_default_kb_modwheel_glide);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY), Kind::Toggle,
+                 device_row(project::device_path::kModwheelMomentary));
 inline constexpr const Node* kDefaultKeyboardFunctionsChildren[] = {&default_kb_velocity_glide,
                                                                     &default_kb_modwheel_glide};
 inline constexpr Node default_keyboard_functions =
     submenu(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS), kDefaultKeyboardFunctionsChildren);
 
-inline constexpr Node default_keyboard_layout =
-    enumeration(sid(String::STRING_FOR_DEFAULT_UI_LAYOUT), kDefaultKeyboardLayoutNames, get_default_keyboard_layout,
-                set_default_keyboard_layout);
-inline constexpr Node default_favourites_layout =
-    enumeration(sid(String::STRING_FOR_DEFAULT_UI_FAVOURITES), kFavouritesLayoutNames, get_default_favourites_layout,
-                set_default_favourites_layout);
+/// `defaults::KeyboardLayout` (`origin/main:src/deluge/gui/menu_item/defaults/keyboard_layout.h`) lists three of the
+/// device's seven layouts; one it does not list shows as the last, as its list clamps it.
+inline constexpr Node default_keyboard_layout = setting_item(sid(String::STRING_FOR_DEFAULT_UI_LAYOUT), Kind::Enum,
+                                                             device_row(project::device_path::kKeyboardLayout));
+/// `DefaultFavouritesLayout` (`origin/main:src/deluge/gui/menu_item/defaults/favourites_layout.h`).
+inline constexpr Node default_favourites_layout = setting_item(
+    sid(String::STRING_FOR_DEFAULT_UI_FAVOURITES), Kind::Enum, device_row(project::device_path::kFavouritesLayout));
 inline constexpr const Node* kDefaultUiKeyboardChildren[] = {&default_keyboard_layout, &default_keyboard_functions,
                                                              &default_favourites_layout};
 inline constexpr Node default_ui_keyboard =
@@ -878,12 +780,14 @@ inline constexpr Node default_patch_cable_polarity = setting_item(
 inline constexpr Node default_startup_song = setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE),
                                                           Kind::Enum, device_row(project::device_path::kStartupSong));
 
-/// `PadBrightness` edits in steps of four and stores a quarter of what it shows
-/// (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`).
+/// `PadBrightness` (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`) shows four times the level its
+/// row holds, and turns in steps of four within its own range; its write dims the pads at once, which the device
+/// port's store does.
 inline constexpr Node default_pad_brightness =
-    with_title(int_item(sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS), get_default_pad_brightness,
-                        set_default_pad_brightness, IntRange{kMinLedBrightness << 2, kMaxLedBrightness << 2, 4}),
-               sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE));
+    with_turn(with_title(setting_item(sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS), Kind::Int,
+                                      device_row(project::device_path::kPadBrightness)),
+                         sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE)),
+              pad_brightness_turn);
 
 /// `SliceMode` (`origin/main:src/deluge/gui/menu_item/defaults/slice_mode.h`).
 inline constexpr Node default_slice_mode = with_title(
@@ -897,21 +801,16 @@ inline constexpr Node default_hold_time = with_leaf_text(
     setting_item(sid(String::STRING_FOR_HOLD_TIME), Kind::Int, device_row(project::device_path::kHoldTime)),
     hold_time_text);
 
-/// `ScreensaverModeMenu::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`).
-inline constexpr uint16_t kScreensaverModeNames[] = {
-    sid(String::STRING_FOR_OFF),
-    sid(String::STRING_FOR_SCREENSAVER_MODE_BLANK),
-    sid(String::STRING_FOR_SCREENSAVER_MODE_STARSCAPE),
-    sid(String::STRING_FOR_SCREENSAVER_MODE_DELUGE),
-};
-inline constexpr Node screensaver_mode = enumeration(sid(String::STRING_FOR_SCREENSAVER_MODE), kScreensaverModeNames,
-                                                     get_screensaver_mode, set_screensaver_mode);
+/// `ScreensaverModeMenu` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`): its write reaches both
+/// screensavers at once, which the device port's store does.
+inline constexpr Node screensaver_mode = setting_item(sid(String::STRING_FOR_SCREENSAVER_MODE), Kind::Enum,
+                                                      device_row(project::device_path::kScreensaverMode));
 /// `ScreensaverTimeout` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`): minutes, with `getUnit`'s "
-/// MIN".
-inline constexpr Node screensaver_timeout = with_value_style(
-    int_item(sid(String::STRING_FOR_SCREENSAVER_TIMEOUT), get_screensaver_timeout, set_screensaver_timeout,
-             IntRange{kMinScreensaverTimeoutMinutes, kMaxScreensaverTimeoutMinutes, 1}),
-    {.unit = " MIN"});
+/// MIN"; its write re-arms both screensavers, as the mode's does.
+inline constexpr Node screensaver_timeout =
+    with_value_style(setting_item(sid(String::STRING_FOR_SCREENSAVER_TIMEOUT), Kind::Int,
+                                  device_row(project::device_path::kScreensaverTimeout)),
+                     {.unit = " MIN"});
 inline constexpr const Node* kScreensaverChildren[] = {&screensaver_mode, &screensaver_timeout};
 inline constexpr Node screensaver = submenu(sid(String::STRING_FOR_SCREENSAVER), kScreensaverChildren);
 
@@ -938,49 +837,33 @@ inline constexpr Node defaults_settings = submenu(sid(String::STRING_FOR_DEFAULT
 // ---------------------------------------------------------------------------------------------
 // 7. Pads
 
-/// `shortcuts::Version::getOptions` (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`): the pre-3.0 layout
-/// and the current one, in `SHORTCUTS_VERSION_1` 0 / `_3` 1 value order
-/// (`origin/main:src/deluge/gui/ui/sound_editor.h`, mirrored as `project::ShortcutsVersion` so this layer names no
-/// `gui/` header).
-inline constexpr uint16_t kShortcutsVersionNames[] = {
-    sid(String::STRING_FOR_SHORTCUTS_VERSION_1),
-    sid(String::STRING_FOR_SHORTCUTS_VERSION_3),
-};
-inline constexpr Node shortcuts_version =
-    with_title(enumeration(sid(String::STRING_FOR_SHORTCUTS_VERSION), kShortcutsVersionNames, get_shortcuts_version,
-                           set_shortcuts_version),
-               sid(String::STRING_FOR_SHORTCUTS_VER_MENU_TITLE));
+/// `shortcuts::Version` (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`): the pre-3.0 layout and the
+/// current one, which the shortcut lookups select a layer by (`menu::shortcuts_version`).
+inline constexpr Node shortcuts_version = with_title(setting_item(sid(String::STRING_FOR_SHORTCUTS_VERSION), Kind::Enum,
+                                                                  device_row(project::device_path::kShortcutsVersion)),
+                                                     sid(String::STRING_FOR_SHORTCUTS_VER_MENU_TITLE));
 
-/// `keyboard::Layout::getOptions` (`origin/main:src/deluge/gui/menu_item/keyboard/layout.h`) -- QWERTY / AZERTY /
-/// QWERTZ, three literals with no l10n ids, so the list is dynamic. It is the *text-entry* keyboard, not the pad-grid
-/// one `defaults::KeyboardLayout` sets.
+/// `keyboard::Layout` (`origin/main:src/deluge/gui/menu_item/keyboard/layout.h`): QWERTY, AZERTY, QWERTZ. It is the
+/// *text-entry* keyboard, not the pad-grid one `defaults::KeyboardLayout` sets.
 inline constexpr Node pads_keyboard_layout =
-    with_title(dynamic_enumeration(sid(String::STRING_FOR_KEYBOARD_FOR_TEXT), pads_keyboard_layout_names,
-                                   get_pads_keyboard_layout, set_pads_keyboard_layout),
+    with_title(setting_item(sid(String::STRING_FOR_KEYBOARD_FOR_TEXT), Kind::Enum,
+                            device_row(project::device_path::kTextKeyboardLayout)),
                sid(String::STRING_FOR_KEY_LAYOUT));
 
-/// `menu_item::Colour::getOptions` -- nine names, shared by all six items, in `Colour::Option`
-/// order.
-inline constexpr uint16_t kPadColourNames[] = {
-    sid(String::STRING_FOR_RED),    sid(String::STRING_FOR_GREEN), sid(String::STRING_FOR_BLUE),
-    sid(String::STRING_FOR_YELLOW), sid(String::STRING_FOR_CYAN),  sid(String::STRING_FOR_MAGENTA),
-    sid(String::STRING_FOR_AMBER),  sid(String::STRING_FOR_WHITE), sid(String::STRING_FOR_PINK),
-};
-
-/// The six, in `coloursSubmenu`'s own order (`origin/main:src/deluge/gui/ui/menus.cpp`). The template argument is
-/// `FlashStorage::PadColourSlot`, pinned in `nodes/settings.cpp`.
+/// `menu_item::Colour` (`origin/main:src/deluge/gui/menu_item/colour.h`), the six in `coloursSubmenu`'s own order
+/// (`origin/main:src/deluge/gui/ui/menus.cpp`): each write re-renders every pad, which the device port's store does.
 inline constexpr Node pad_colour_active =
-    enumeration(sid(String::STRING_FOR_ACTIVE), kPadColourNames, get_pad_colour<0>, set_pad_colour<0>);
+    setting_item(sid(String::STRING_FOR_ACTIVE), Kind::Enum, device_row(project::device_path::kPadColourActive));
 inline constexpr Node pad_colour_stopped =
-    enumeration(sid(String::STRING_FOR_STOPPED), kPadColourNames, get_pad_colour<1>, set_pad_colour<1>);
+    setting_item(sid(String::STRING_FOR_STOPPED), Kind::Enum, device_row(project::device_path::kPadColourStopped));
 inline constexpr Node pad_colour_muted =
-    enumeration(sid(String::STRING_FOR_MUTED), kPadColourNames, get_pad_colour<2>, set_pad_colour<2>);
+    setting_item(sid(String::STRING_FOR_MUTED), Kind::Enum, device_row(project::device_path::kPadColourMuted));
 inline constexpr Node pad_colour_soloed =
-    enumeration(sid(String::STRING_FOR_SOLOED), kPadColourNames, get_pad_colour<3>, set_pad_colour<3>);
+    setting_item(sid(String::STRING_FOR_SOLOED), Kind::Enum, device_row(project::device_path::kPadColourSoloed));
 inline constexpr Node pad_colour_fill =
-    enumeration(sid(String::STRING_FOR_FILL), kPadColourNames, get_pad_colour<4>, set_pad_colour<4>);
+    setting_item(sid(String::STRING_FOR_FILL), Kind::Enum, device_row(project::device_path::kPadColourFill));
 inline constexpr Node pad_colour_once =
-    enumeration(sid(String::STRING_FOR_ONCE), kPadColourNames, get_pad_colour<5>, set_pad_colour<5>);
+    setting_item(sid(String::STRING_FOR_ONCE), Kind::Enum, device_row(project::device_path::kPadColourOnce));
 inline constexpr const Node* kColoursChildren[] = {&pad_colour_active, &pad_colour_stopped, &pad_colour_muted,
                                                    &pad_colour_soloed, &pad_colour_fill,    &pad_colour_once};
 inline constexpr Node pad_colours = submenu(sid(String::STRING_FOR_COLOURS), kColoursChildren);
@@ -991,15 +874,9 @@ inline constexpr Node pads_settings = submenu(sid(String::STRING_FOR_PADS), kPad
 // ---------------------------------------------------------------------------------------------
 // 8-9. Sample preview and play cursor
 
-/// `sample::browser_preview::Mode::getOptions` (`origin/main:src/deluge/gui/menu_item/sample/browser_preview/mode.h`).
-inline constexpr uint16_t kSampleBrowserPreviewNames[] = {
-    sid(String::STRING_FOR_DISABLED),
-    sid(String::STRING_FOR_CONDITIONAL),
-    sid(String::STRING_FOR_ENABLED),
-};
+/// `sample::browser_preview::Mode` (`origin/main:src/deluge/gui/menu_item/sample/browser_preview/mode.h`).
 inline constexpr Node sample_browser_preview =
-    enumeration(sid(String::STRING_FOR_SAMPLE_PREVIEW), kSampleBrowserPreviewNames, get_sample_browser_preview,
-                set_sample_browser_preview);
+    setting_item(sid(String::STRING_FOR_SAMPLE_PREVIEW), Kind::Enum, device_row(project::device_path::kSamplePreview));
 
 /// `flash::Status` (`origin/main:src/deluge/gui/menu_item/flash/status.h`): the DEVICE row, listed in its *value*
 /// order, `FLASH_CURSOR_FAST` 0 / `_OFF` 1 / `_SLOW` 2 (`hid/led/pad_leds.h`), not a reading order.

@@ -5,9 +5,12 @@
 ///        host's ports, as the menu itself reads it.
 
 #include "deluge-project/device_settings.h"
+#include "scenes/bind/ports/device_settings.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcuts.h"
+
+#include <utility>
 
 namespace deluge::scenes::spec {
 
@@ -23,9 +26,11 @@ inline project::ShortcutsVersion shortcut_layout() {
 	return menu::shortcuts_version(host_ports_context());
 }
 
-/// @brief Writes @p version to the device's `pads/shortcutsVersion` row.
+/// @brief Writes @p version to the device's `pads/shortcutsVersion` row, as the settings item does.
 inline void set_shortcut_layout(project::ShortcutsVersion version) {
-	menu::set_shortcuts_version(host_ports_context(), version);
+	if (const bind::Ports& ports = menu::host_ports(); ports.device != nullptr) {
+		(void)ports.device->write(project::device_path::kShortcutsVersion, std::to_underlying(version));
+	}
 }
 
 /// @brief The shortcut layout set for a scope and put back after.

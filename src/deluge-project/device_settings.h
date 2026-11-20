@@ -56,6 +56,13 @@ enum class FlashCursor : uint8_t {
 	SLOW = 2, ///< the factory default: the playhead's pixel is substituted in the rendered image
 };
 
+/// @brief Which favourites a browser shows beside its files: the `ui/favouritesLayout` row.
+enum class FavouritesLayout : uint8_t {
+	FAVOURITES = 0,           ///< the favourites row alone, and the default
+	FAVOURITES_AND_BANKS = 1, ///< the favourites row and the bank row
+	OFF = 2,                  ///< no favourites
+};
+
 struct device_path;
 
 /// @brief The path of a DEVICE row the table holds. Only `device_path` makes one, from its own constants, so a path a
@@ -138,6 +145,52 @@ struct device_path {
 	static constexpr DevicePath kShortcutsVersion{"pads/shortcutsVersion"};
 	/// How a playhead is shown on the pads: CHOICE over FlashCursor.
 	static constexpr DevicePath kPlayCursor{"pads/playCursor"};
+	/// Which letter layout the text-entry keyboard on the pads uses: CHOICE, QWERTY, AZERTY, QWERTZ.
+	static constexpr DevicePath kTextKeyboardLayout{"pads/textKeyboardLayout"};
+	/// The colour a playing clip's pad shows: CHOICE over the nine pad colours, red, green, blue, yellow, cyan,
+	/// magenta, amber, white, pink.
+	static constexpr DevicePath kPadColourActive{"pads/colour/active"};
+	/// The colour a stopped clip's pad shows: CHOICE over the nine pad colours.
+	static constexpr DevicePath kPadColourStopped{"pads/colour/stopped"};
+	/// The colour a muted track's pad shows: CHOICE over the nine pad colours.
+	static constexpr DevicePath kPadColourMuted{"pads/colour/muted"};
+	/// The colour a soloed track's pad shows: CHOICE over the nine pad colours.
+	static constexpr DevicePath kPadColourSoloed{"pads/colour/soloed"};
+	/// The colour a fill clip's pad shows: CHOICE over the nine pad colours.
+	static constexpr DevicePath kPadColourFill{"pads/colour/fill"};
+	/// The colour a clip set to play once shows: CHOICE over the nine pad colours.
+	static constexpr DevicePath kPadColourOnce{"pads/colour/once"};
+	/// Whether the accessibility shortcuts are on: BOOL.
+	static constexpr DevicePath kAccessibilityShortcuts{"ui/accessibilityShortcuts"};
+	/// How a menu marks its selected row: CHOICE, full inversion, partial inversion, no inversion.
+	static constexpr DevicePath kMenuHighlighting{"ui/menuHighlighting"};
+	/// How a new song's session view lays its clips out: CHOICE, rows, grid.
+	static constexpr DevicePath kSessionLayout{"ui/sessionLayout"};
+	/// The mode the grid view starts in: CHOICE, selection, green, blue.
+	static constexpr DevicePath kGridActiveMode{"ui/grid/activeMode"};
+	/// Whether the grid's green mode selects a clip too: BOOL.
+	static constexpr DevicePath kGridAllowGreenSelection{"ui/grid/allowGreenSelection"};
+	/// Whether pressing an empty grid pad unarms the clips: BOOL.
+	static constexpr DevicePath kGridEmptyPadsUnarm{"ui/grid/emptyPadsUnarm"};
+	/// Whether pressing an empty grid pad creates a clip and records into it: BOOL.
+	static constexpr DevicePath kGridEmptyPadsCreateRec{"ui/grid/emptyPadsCreateRec"};
+	/// The layout a new keyboard view's pads take: CHOICE, isomorphic, in key, piano.
+	static constexpr DevicePath kKeyboardLayout{"ui/keyboardLayout"};
+	/// Whether the keyboard view's velocity sidebar acts only while held: BOOL.
+	static constexpr DevicePath kVelocityMomentary{"ui/keyboard/velocityMomentary"};
+	/// Whether the keyboard view's mod-wheel sidebar acts only while held: BOOL.
+	static constexpr DevicePath kModwheelMomentary{"ui/keyboard/modwheelMomentary"};
+	/// Which favourites a browser shows: CHOICE over FavouritesLayout.
+	static constexpr DevicePath kFavouritesLayout{"ui/favouritesLayout"};
+	/// How bright the pads light: INTEGER, the level 0 to 25, which a menu shows four times over. A device with no
+	/// saved settings holds 0, which no menu turn sets.
+	static constexpr DevicePath kPadBrightness{"ui/padBrightness"};
+	/// What the screensaver shows: CHOICE, off, blank, starscape, the Deluge's.
+	static constexpr DevicePath kScreensaverMode{"ui/screensaver/mode"};
+	/// How long the device waits for input before the screensaver shows: INTEGER, minutes.
+	static constexpr DevicePath kScreensaverTimeout{"ui/screensaver/timeout"};
+	/// When the sample browser previews a sample: CHOICE, never, while the song is not playing, always.
+	static constexpr DevicePath kSamplePreview{"ui/samplePreview"};
 	/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
 	static constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
 	/// The first part of each community feature's path; the name the feature file writes it under follows it.

@@ -30,7 +30,7 @@
 ///
 ///   * **`settingsChanged()`** (`Screensaver::settingsChanged` in `hid/display/screensaver.cpp`): wake, then re-arm or
 ///     cancel for the new settings -- `shell::Screensaver::set_idle_ms`, reached through
-///     `Shell::set_screensaver_idle_ms` from the boot wiring and `menu::host_screensaver_settings_changed`
+///     `Shell::set_screensaver_idle_ms` from the boot wiring and the device port's store for the screensaver rows
 ///     (`scenes/registry.h`'s boot-wiring record).
 ///   * **The inhibitors** (`Screensaver::timerEvent` in `hid/display/screensaver.cpp`): the working animation, a
 ///     permanent-looking popup or a running stem export takes the screensaver down and re-arms the full timeout. The

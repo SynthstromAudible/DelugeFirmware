@@ -5,6 +5,9 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "deluge-project/device_settings.h"
+#include "gui/colour/pad_colour.h"
+#include "gui/ui/shell_host_ui.h"
+#include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -354,6 +357,97 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		FlashStorage::defaultScale = scale;
 		FlashStorage::defaultMetronomeVolume = metronome;
 		AudioEngine::metronome.setVolume(metronome);
+		// The last click still sounds: render it out, so no later spec hears it.
+		for (int block = 0; AudioEngine::metronome.sounding() && block < 1024; ++block) {
+			std::array<deluge::dsp::StereoSample, 128> scratch{};
+			AudioEngine::metronome.render(scratch, deluge::dsp::q<27>(1.0));
+		}
+		expect(AudioEngine::metronome.sounding()).to_be_false();
+	});
+
+	it("does what each pads-and-screen write implies, as the settings pages' own items do", _ {
+		const bind::Ports& p = menu::host_ports();
+		expect(p.device).not_().to_be_null();
+		if (p.device == nullptr) {
+			return;
+		}
+		using device_path = deluge::project::device_path;
+		const KeyboardLayoutType layout = FlashStorage::defaultKeyboardLayout;
+		const bool velocity_glide = FlashStorage::keyboardFunctionsVelocityGlide;
+		const bool modwheel_glide = FlashStorage::keyboardFunctionsModwheelGlide;
+		const uint8_t brightness = FlashStorage::defaultPadBrightness;
+		const ScreensaverMode screensaver = FlashStorage::screensaverMode;
+		const uint8_t timeout = FlashStorage::screensaverTimeoutMinutes;
+		const KeyboardLayout text_keyboard = FlashStorage::keyboardLayout;
+		const uint8_t stopped = FlashStorage::padColours[FlashStorage::PAD_COLOUR_STOPPED];
+		const uint8_t preview = FlashStorage::sampleBrowserPreviewMode;
+		const FavouritesDefaultLayout favourites = FlashStorage::defaultFavouritesLayout;
+
+		// A pad-grid layout the menu does not list reads as the last it lists, and reading it heals nothing.
+		FlashStorage::defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeChordLibrary;
+		expect(p.device->read(device_path::kKeyboardLayout).value_or(-1)).to_equal(2);
+		expect(static_cast<int>(FlashStorage::defaultKeyboardLayout))
+		    .to_equal(static_cast<int>(KeyboardLayoutType::KeyboardLayoutTypeChordLibrary));
+		(void)p.device->write(device_path::kKeyboardLayout, 1);
+		expect(static_cast<int>(FlashStorage::defaultKeyboardLayout))
+		    .to_equal(static_cast<int>(KeyboardLayoutType::KeyboardLayoutTypeInKey));
+
+		// The sidebars' rows hold "momentary", the flash settings the glide: each is the other's opposite.
+		(void)p.device->write(device_path::kVelocityMomentary, 1);
+		(void)p.device->write(device_path::kModwheelMomentary, 0);
+		expect(FlashStorage::keyboardFunctionsVelocityGlide).to_be_false();
+		expect(FlashStorage::keyboardFunctionsModwheelGlide).to_be_true();
+		expect(p.device->read(device_path::kModwheelMomentary).value_or(-1)).to_equal(0);
+
+		// The brightness shows four times its level; a device with no saved settings holds level 0, shown as 0. The
+		// pads' dimmer taking a write is `menu_actions_spec`'s.
+		const deluge::plugin::SettingInfo* brightness_row =
+		    deluge::plugin::find_setting(deluge::project::device_table(), device_path::kPadBrightness);
+		expect(brightness_row).not_().to_be_null();
+		if (brightness_row != nullptr) {
+			FlashStorage::defaultPadBrightness = 0;
+			expect(deluge::plugin::to_menu(*brightness_row, p.device->read(device_path::kPadBrightness).value_or(-1)))
+			    .to_equal(0);
+			FlashStorage::defaultPadBrightness = 30; // past the brightest, shown as it is
+			expect(deluge::plugin::to_menu(*brightness_row, p.device->read(device_path::kPadBrightness).value_or(-1)))
+			    .to_equal(120);
+		}
+		(void)p.device->write(device_path::kPadBrightness, 44);
+		expect(static_cast<int>(FlashStorage::defaultPadBrightness)).to_equal(11);
+
+		// The screensaver's two rows re-arm the guest's screensaver at the write.
+		(void)p.device->write(device_path::kScreensaverMode, 3);
+		(void)p.device->write(device_path::kScreensaverTimeout, 7);
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
+		expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(7);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t{7 * 60000});
+		(void)p.device->write(device_path::kScreensaverMode, 0);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t{0});
+
+		// The plain rows land where the device keeps them.
+		(void)p.device->write(device_path::kTextKeyboardLayout, 2);
+		expect(static_cast<int>(FlashStorage::keyboardLayout)).to_equal(static_cast<int>(KeyboardLayout::QWERTZ));
+		(void)p.device->write(device_path::kPadColourStopped, 8);
+		expect(static_cast<int>(FlashStorage::padColours[FlashStorage::PAD_COLOUR_STOPPED]))
+		    .to_equal(static_cast<int>(deluge::gui::PINK));
+		(void)p.device->write(device_path::kSamplePreview, 2);
+		expect(static_cast<int>(FlashStorage::sampleBrowserPreviewMode)).to_equal(PREVIEW_ON);
+		(void)p.device->write(device_path::kFavouritesLayout, 1);
+		expect(static_cast<int>(FlashStorage::defaultFavouritesLayout))
+		    .to_equal(static_cast<int>(FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks));
+
+		FlashStorage::defaultKeyboardLayout = layout;
+		FlashStorage::keyboardFunctionsVelocityGlide = velocity_glide;
+		FlashStorage::keyboardFunctionsModwheelGlide = modwheel_glide;
+		FlashStorage::defaultPadBrightness = brightness;
+		PadLEDs::setBrightnessLevel(brightness);
+		FlashStorage::screensaverMode = screensaver;
+		FlashStorage::screensaverTimeoutMinutes = timeout;
+		deluge::hid::display::Screensaver::settingsChanged();
+		FlashStorage::keyboardLayout = text_keyboard;
+		FlashStorage::padColours[FlashStorage::PAD_COLOUR_STOPPED] = stopped;
+		FlashStorage::sampleBrowserPreviewMode = preview;
+		FlashStorage::defaultFavouritesLayout = favourites;
 	});
 });
 

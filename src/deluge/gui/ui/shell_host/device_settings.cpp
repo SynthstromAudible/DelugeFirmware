@@ -1,9 +1,12 @@
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h"
 #include "hid/buttons.h"
+#include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
 #include "io/debug/log.h"
@@ -48,6 +51,16 @@ static_assert(std::to_underlying(StartupSongMode::LASTSAVED) == 3 && kNumStartup
 static_assert(std::to_underlying(SampleRepeatMode::STRETCH) == 3);
 static_assert(std::to_underlying(ThresholdRecordingMode::OFF) == 0 && kLastThresholdRecordingMode == 3);
 static_assert(std::to_underlying(OutputType::SYNTH) == 0 && std::to_underlying(OutputType::AUDIO) == 4);
+static_assert(std::to_underlying(project::FavouritesLayout::FAVOURITES) == FavouritesDefaultLayoutFavorites
+              && std::to_underlying(project::FavouritesLayout::FAVOURITES_AND_BANKS)
+                     == FavouritesDefaultLayoutFavoritesAndBanks
+              && std::to_underlying(project::FavouritesLayout::OFF) == FavouritesDefaultLayoutOff);
+static_assert(std::to_underlying(MenuHighlighting::NO_INVERSION) == 2);
+static_assert(SessionLayoutTypeGrid == 1 && GridDefaultActiveModeBlue == 2 && KeyboardLayoutTypePiano == 2);
+static_assert(std::to_underlying(KeyboardLayout::QWERTZ) == 2);
+static_assert(std::to_underlying(ScreensaverMode::DELUGE) == 3);
+static_assert(PREVIEW_OFF == 0 && PREVIEW_ONLY_WHILE_NOT_PLAYING == 1 && PREVIEW_ON == 2);
+static_assert(deluge::gui::RED == 0 && deluge::gui::PINK == 8 && deluge::gui::kNumPadColours == 9);
 
 /// @brief A BOOL row's file form.
 Value flag(bool on) {
@@ -74,7 +87,11 @@ struct FlagHome {
 	bool* value;
 };
 /// Every such row.
-constexpr std::array<FlagHome, 9> kFlagHomes{{
+constexpr std::array<FlagHome, 13> kFlagHomes{{
+    {device_path::kAccessibilityShortcuts, &FlashStorage::accessibilityShortcuts},
+    {device_path::kGridAllowGreenSelection, &FlashStorage::gridAllowGreenSelection},
+    {device_path::kGridEmptyPadsUnarm, &FlashStorage::gridEmptyPadsUnarm},
+    {device_path::kGridEmptyPadsCreateRec, &FlashStorage::gridEmptyPadsCreateRec},
     {device_path::kUseSharps, &FlashStorage::defaultUseSharps},
     {device_path::kCpuIndicator, &FlashStorage::highCPUUsageIndicator},
     {device_path::kRecordMargins, &FlashStorage::audioClipRecordMargins},
@@ -84,6 +101,29 @@ constexpr std::array<FlagHome, 9> kFlagHomes{{
     {device_path::kAutomationShift, &FlashStorage::automationShift},
     {device_path::kAutomationNudgeNote, &FlashStorage::automationNudgeNote},
     {device_path::kAutomationNoAuditionShortcuts, &FlashStorage::automationDisableAuditionPadShortcuts},
+}};
+
+/// @brief The keyboard view's sidebar rows: the flash settings hold whether a sidebar glides, and the row whether it
+///        acts only while held, the other sense (`InvertedToggleBool` in `origin/main:src/deluge/gui/ui/menus.cpp`).
+///        A store does nothing more.
+constexpr std::array<FlagHome, 2> kGlideHomes{{
+    {device_path::kVelocityMomentary, &FlashStorage::keyboardFunctionsVelocityGlide},
+    {device_path::kModwheelMomentary, &FlashStorage::keyboardFunctionsModwheelGlide},
+}};
+
+/// @brief A pad colour's row: which of the flash settings' colour slots it is.
+struct ColourHome {
+	project::DevicePath path;
+	FlashStorage::PadColourSlot slot;
+};
+/// The six, in the colours page's order.
+constexpr std::array<ColourHome, FlashStorage::NUM_PAD_COLOUR_SLOTS> kColourHomes{{
+    {device_path::kPadColourActive, FlashStorage::PAD_COLOUR_ACTIVE},
+    {device_path::kPadColourStopped, FlashStorage::PAD_COLOUR_STOPPED},
+    {device_path::kPadColourMuted, FlashStorage::PAD_COLOUR_MUTED},
+    {device_path::kPadColourSoloed, FlashStorage::PAD_COLOUR_SOLOED},
+    {device_path::kPadColourFill, FlashStorage::PAD_COLOUR_FILL},
+    {device_path::kPadColourOnce, FlashStorage::PAD_COLOUR_ONCE},
 }};
 
 /// @brief An INTEGER row the flash settings hold as one byte, whose store does nothing more.
@@ -198,6 +238,12 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		if (const FlagHome* home = home_of(kFlagHomes, path)) {
 			return flag(*home->value);
 		}
+		if (const FlagHome* home = home_of(kGlideHomes, path)) {
+			return flag(!*home->value);
+		}
+		if (const ColourHome* home = home_of(kColourHomes, path)) {
+			return choice(row, FlashStorage::padColours[home->slot]);
+		}
 		if (const ByteHome* home = home_of(kByteHomes, path)) {
 			return number(*home->value);
 		}
@@ -243,6 +289,38 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		if (path == device_path::kPlayCursor) {
 			return choice(row, PadLEDs::flashCursor);
 		}
+		if (path == device_path::kTextKeyboardLayout) {
+			return choice(row, std::to_underlying(FlashStorage::keyboardLayout));
+		}
+		if (path == device_path::kMenuHighlighting) {
+			return choice(row, std::to_underlying(FlashStorage::accessibilityMenuHighlighting));
+		}
+		if (path == device_path::kSessionLayout) {
+			return choice(row, FlashStorage::defaultSessionLayout);
+		}
+		if (path == device_path::kGridActiveMode) {
+			return choice(row, FlashStorage::defaultGridActiveMode);
+		}
+		if (path == device_path::kKeyboardLayout) {
+			// The flash may hold any of the device's seven layouts; one past the menu's three reads clamped to the
+			// last, as the menu's list shows it.
+			return choice(row, FlashStorage::defaultKeyboardLayout);
+		}
+		if (path == device_path::kFavouritesLayout) {
+			return choice(row, FlashStorage::defaultFavouritesLayout);
+		}
+		if (path == device_path::kPadBrightness) {
+			return number(FlashStorage::defaultPadBrightness);
+		}
+		if (path == device_path::kScreensaverMode) {
+			return choice(row, std::to_underlying(FlashStorage::screensaverMode));
+		}
+		if (path == device_path::kScreensaverTimeout) {
+			return number(FlashStorage::screensaverTimeoutMinutes);
+		}
+		if (path == device_path::kSamplePreview) {
+			return choice(row, FlashStorage::sampleBrowserPreviewMode);
+		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 			return flag(FlashStorage::defaultDisabledPresetScales[*scale]);
 		}
@@ -263,6 +341,17 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		const int32_t stored = plugin::stored_value(row, value.str()).value_or(row.default_value);
 		if (const FlagHome* home = home_of(kFlagHomes, path)) {
 			*home->value = stored != 0;
+			return DeviceWrite::STORED;
+		}
+		if (const FlagHome* home = home_of(kGlideHomes, path)) {
+			*home->value = stored == 0;
+			return DeviceWrite::STORED;
+		}
+		if (const ColourHome* home = home_of(kColourHomes, path)) {
+			// `Colour::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/colour.h`): every pad re-renders,
+			// whatever the UI.
+			FlashStorage::padColours[home->slot] = static_cast<uint8_t>(stored);
+			renderingNeededRegardlessOfUI();
 			return DeviceWrite::STORED;
 		}
 		if (const ByteHome* home = home_of(kByteHomes, path)) {
@@ -348,6 +437,58 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 				PadLEDs::clearTickSquares(true);
 			}
 			PadLEDs::flashCursor = static_cast<uint8_t>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kTextKeyboardLayout) {
+			FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMenuHighlighting) {
+			// `AccessibilityMenuHighlighting::writeCurrentValue`
+			// (`origin/main:src/deluge/gui/menu_item/defaults/accessibility_menu_highlighting.h`): main's canvas flag
+			// takes it, and the guest's panels with it.
+			FlashStorage::accessibilityMenuHighlighting = static_cast<MenuHighlighting>(stored);
+			gui::ui::pushShellHighlighting();
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kSessionLayout) {
+			FlashStorage::defaultSessionLayout = static_cast<SessionLayoutType>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kGridActiveMode) {
+			FlashStorage::defaultGridActiveMode = static_cast<GridDefaultActiveMode>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kKeyboardLayout) {
+			FlashStorage::defaultKeyboardLayout = static_cast<KeyboardLayoutType>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kFavouritesLayout) {
+			FlashStorage::defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kPadBrightness) {
+			// `PadBrightness::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`):
+			// the pads' dimmer takes the level at once.
+			FlashStorage::defaultPadBrightness = static_cast<uint8_t>(stored);
+			PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kScreensaverMode) {
+			// `ScreensaverModeMenu::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`):
+			// both screensavers take the mode at once.
+			FlashStorage::screensaverMode = static_cast<ScreensaverMode>(stored);
+			deluge::hid::display::Screensaver::settingsChanged();
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kScreensaverTimeout) {
+			// `ScreensaverTimeout::writeCurrentValue`: both screensavers re-arm for the timeout at once.
+			FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(stored);
+			deluge::hid::display::Screensaver::settingsChanged();
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kSamplePreview) {
+			FlashStorage::sampleBrowserPreviewMode = static_cast<uint8_t>(stored);
 			return DeviceWrite::STORED;
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {

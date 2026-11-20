@@ -511,6 +511,82 @@ constexpr std::array<String, 2> kShortcutsVersionChoices{
     {STRING_FOR_SHORTCUTS_VERSION_1, STRING_FOR_SHORTCUTS_VERSION_3}};
 constexpr SettingNames kShortcutsVersionNames{
     STRING_FOR_SHORTCUTS_VER_MENU_TITLE, STRING_FOR_SHORTCUTS_VERSION, kShortcutsVersionChoices, {}};
+/// The pads' and the screen's rows, each named as its menu item is.
+constexpr std::array<String, 3> kTextKeyboardChoices{
+    {STRING_FOR_TEXT_KEYBOARD_QWERTY, STRING_FOR_TEXT_KEYBOARD_AZERTY, STRING_FOR_TEXT_KEYBOARD_QWERTZ}};
+constexpr SettingNames kTextKeyboardNames{
+    STRING_FOR_KEY_LAYOUT, STRING_FOR_KEYBOARD_FOR_TEXT, kTextKeyboardChoices, {}};
+/// The nine pad colours, in the rows' order.
+constexpr std::array<String, 9> kPadColourChoices{{
+    STRING_FOR_RED,
+    STRING_FOR_GREEN,
+    STRING_FOR_BLUE,
+    STRING_FOR_YELLOW,
+    STRING_FOR_CYAN,
+    STRING_FOR_MAGENTA,
+    STRING_FOR_AMBER,
+    STRING_FOR_WHITE,
+    STRING_FOR_PINK,
+}};
+constexpr SettingNames kPadColourActiveNames{STRING_FOR_ACTIVE, STRING_FOR_ACTIVE, kPadColourChoices, {}};
+constexpr SettingNames kPadColourStoppedNames{STRING_FOR_STOPPED, STRING_FOR_STOPPED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourMutedNames{STRING_FOR_MUTED, STRING_FOR_MUTED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourSoloedNames{STRING_FOR_SOLOED, STRING_FOR_SOLOED, kPadColourChoices, {}};
+constexpr SettingNames kPadColourFillNames{STRING_FOR_FILL, STRING_FOR_FILL, kPadColourChoices, {}};
+constexpr SettingNames kPadColourOnceNames{STRING_FOR_ONCE, STRING_FOR_ONCE, kPadColourChoices, {}};
+constexpr SettingNames kAccessibilityShortcutsNames{
+    STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS, STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS, {}, {}};
+constexpr std::array<String, 3> kMenuHighlightingChoices{
+    {STRING_FOR_FULL_INVERSION, STRING_FOR_PARTIAL_INVERSION, STRING_FOR_NO_INVERSION}};
+constexpr SettingNames kMenuHighlightingNames{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                              STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                              kMenuHighlightingChoices,
+                                              {}};
+constexpr std::array<String, 2> kSessionLayoutChoices{
+    {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, STRING_FOR_DEFAULT_UI_GRID}};
+constexpr SettingNames kSessionLayoutNames{
+    STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT, kSessionLayoutChoices, {}};
+constexpr std::array<String, 3> kGridActiveModeChoices{
+    {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, STRING_FOR_GREEN, STRING_FOR_BLUE}};
+constexpr SettingNames kGridActiveModeNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                            STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                            kGridActiveModeChoices,
+                                            {}};
+constexpr SettingNames kGridAllowGreenSelectionNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                     {},
+                                                     {}};
+constexpr SettingNames kGridEmptyPadsUnarmNames{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM, {}, {}};
+constexpr SettingNames kGridEmptyPadsCreateRecNames{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                    {},
+                                                    {}};
+constexpr std::array<String, 3> kKeyboardLayoutChoices{
+    {STRING_FOR_KEYBOARD_LAYOUT_ISOMORPHIC, STRING_FOR_KEYBOARD_LAYOUT_IN_KEY, STRING_FOR_KEYBOARD_LAYOUT_PIANO}};
+constexpr SettingNames kKeyboardLayoutNames{
+    STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT, kKeyboardLayoutChoices, {}};
+constexpr SettingNames kVelocityMomentaryNames{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, {}, {}};
+constexpr SettingNames kModwheelMomentaryNames{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, {}, {}};
+constexpr std::array<String, 3> kFavouritesLayoutChoices{
+    {STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES,
+     STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES_AND_BANKS, STRING_FOR_OFF}};
+constexpr SettingNames kFavouritesLayoutNames{
+    STRING_FOR_DEFAULT_UI_FAVOURITES, STRING_FOR_DEFAULT_UI_FAVOURITES, kFavouritesLayoutChoices, {}};
+constexpr SettingNames kPadBrightnessNames{
+    STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE, STRING_FOR_DEFAULT_PAD_BRIGHTNESS, {}, {}};
+constexpr std::array<String, 4> kScreensaverModeChoices{{STRING_FOR_OFF, STRING_FOR_SCREENSAVER_MODE_BLANK,
+                                                         STRING_FOR_SCREENSAVER_MODE_STARSCAPE,
+                                                         STRING_FOR_SCREENSAVER_MODE_DELUGE}};
+constexpr SettingNames kScreensaverModeNames{
+    STRING_FOR_SCREENSAVER_MODE, STRING_FOR_SCREENSAVER_MODE, kScreensaverModeChoices, {}};
+constexpr SettingNames kScreensaverTimeoutNames{STRING_FOR_SCREENSAVER_TIMEOUT, STRING_FOR_SCREENSAVER_TIMEOUT, {}, {}};
+constexpr std::array<String, 3> kSamplePreviewChoices{
+    {STRING_FOR_DISABLED, STRING_FOR_CONDITIONAL, STRING_FOR_ENABLED}};
+constexpr SettingNames kSamplePreviewNames{
+    STRING_FOR_SAMPLE_PREVIEW, STRING_FOR_SAMPLE_PREVIEW, kSamplePreviewChoices, {}};
 /// The community features' names: each row's name is its menu item's, and a feature with choices of its own names
 /// them in its values' order.
 constexpr std::array<String, 2> kSyncScalingActionChoices{
@@ -606,7 +682,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 171> kEntries{{
+constexpr std::array<Entry, 193> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -695,8 +771,30 @@ constexpr std::array<Entry, 171> kEntries{{
     Entry{SettingGroupId::DEVICE, "features/stickyShift", &kFeatureStickyShiftNames},
     Entry{SettingGroupId::DEVICE, "features/syncScalingAction", &kFeatureSyncScalingActionNames},
     Entry{SettingGroupId::DEVICE, "features/trimFromStartOfAudioClip", &kFeatureTrimFromStartOfAudioClipNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/active", &kPadColourActiveNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/fill", &kPadColourFillNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/muted", &kPadColourMutedNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/once", &kPadColourOnceNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/soloed", &kPadColourSoloedNames},
+    Entry{SettingGroupId::DEVICE, "pads/colour/stopped", &kPadColourStoppedNames},
     Entry{SettingGroupId::DEVICE, "pads/playCursor", &kPlayCursorNames},
     Entry{SettingGroupId::DEVICE, "pads/shortcutsVersion", &kShortcutsVersionNames},
+    Entry{SettingGroupId::DEVICE, "pads/textKeyboardLayout", &kTextKeyboardNames},
+    Entry{SettingGroupId::DEVICE, "ui/accessibilityShortcuts", &kAccessibilityShortcutsNames},
+    Entry{SettingGroupId::DEVICE, "ui/favouritesLayout", &kFavouritesLayoutNames},
+    Entry{SettingGroupId::DEVICE, "ui/grid/activeMode", &kGridActiveModeNames},
+    Entry{SettingGroupId::DEVICE, "ui/grid/allowGreenSelection", &kGridAllowGreenSelectionNames},
+    Entry{SettingGroupId::DEVICE, "ui/grid/emptyPadsCreateRec", &kGridEmptyPadsCreateRecNames},
+    Entry{SettingGroupId::DEVICE, "ui/grid/emptyPadsUnarm", &kGridEmptyPadsUnarmNames},
+    Entry{SettingGroupId::DEVICE, "ui/keyboard/modwheelMomentary", &kModwheelMomentaryNames},
+    Entry{SettingGroupId::DEVICE, "ui/keyboard/velocityMomentary", &kVelocityMomentaryNames},
+    Entry{SettingGroupId::DEVICE, "ui/keyboardLayout", &kKeyboardLayoutNames},
+    Entry{SettingGroupId::DEVICE, "ui/menuHighlighting", &kMenuHighlightingNames},
+    Entry{SettingGroupId::DEVICE, "ui/padBrightness", &kPadBrightnessNames},
+    Entry{SettingGroupId::DEVICE, "ui/samplePreview", &kSamplePreviewNames},
+    Entry{SettingGroupId::DEVICE, "ui/screensaver/mode", &kScreensaverModeNames},
+    Entry{SettingGroupId::DEVICE, "ui/screensaver/timeout", &kScreensaverTimeoutNames},
+    Entry{SettingGroupId::DEVICE, "ui/sessionLayout", &kSessionLayoutNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},

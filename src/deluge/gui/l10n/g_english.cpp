@@ -1055,6 +1055,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NEW_CLIP_TYPE_MIDI, "MIDI"},
         {STRING_FOR_NEW_CLIP_TYPE_CV, "CV"},
         {STRING_FOR_NEW_CLIP_TYPE_AUDIO, "AUDIO"},
+        {STRING_FOR_TEXT_KEYBOARD_QWERTY, "QWERTY"},
+        {STRING_FOR_TEXT_KEYBOARD_AZERTY, "AZERTY"},
+        {STRING_FOR_TEXT_KEYBOARD_QWERTZ, "QWERTZ"},
     },
 };
 } // namespace deluge::l10n::built_in

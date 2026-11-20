@@ -143,7 +143,7 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 
 		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
 		// from the reset menu) and the settings item
-		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
+		// (its `pads/shortcutsVersion` row) each write this one byte, so the example drives the byte and the row
 		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
 		// binary.
 		//

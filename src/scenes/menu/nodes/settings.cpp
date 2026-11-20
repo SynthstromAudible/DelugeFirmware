@@ -28,14 +28,12 @@
 
 #include "scenes/bind/device_reader.h"
 #include "scenes/l10n_bridge.h"
-#include "scenes/menu/bind_host.h" // the settings setters' host calls
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
-#include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, ScreensaverMode
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC
 #include "deluge-project/midi_channels.h"
 #include "gfx/oled/glyphs.h"
 #include "io/midi/device_registry.h"
@@ -66,10 +64,9 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
-/// @brief Read a plain `bool` global; @p invert is the `InvertedToggleBool` spelling
-///        (`origin/main:src/deluge/gui/menu_item/toggle.h`'s two pairs).
-constexpr int32_t from_bool(bool value, bool invert = false) {
-	return (invert ? !value : value) ? 1 : 0;
+/// @brief Read a plain `bool` global as a toggle's value.
+constexpr int32_t from_bool(bool value) {
+	return value ? 1 : 0;
 }
 
 } // namespace
@@ -374,104 +371,6 @@ void set_midi_input_differentiation(const MenuContext&, int32_t value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Defaults: UI
-
-int32_t get_default_accessibility_shortcuts(const MenuContext&) {
-	return from_bool(FlashStorage::accessibilityShortcuts); // `defaultAccessibilityShortcuts`
-	                                                        // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_accessibility_shortcuts(const MenuContext&, int32_t value) {
-	FlashStorage::accessibilityShortcuts = value != 0;
-}
-
-int32_t get_default_menu_highlighting(const MenuContext&) {
-	// `AccessibilityMenuHighlighting::readCurrentValue`
-	// (`origin/main:src/deluge/gui/menu_item/defaults/accessibility_menu_highlighting.h`)
-	return static_cast<int32_t>(FlashStorage::accessibilityMenuHighlighting);
-}
-void set_default_menu_highlighting(const MenuContext&, int32_t value) {
-	// `AccessibilityMenuHighlighting::writeCurrentValue`: the setting, then main's canvas flag and the guest's panels.
-	FlashStorage::accessibilityMenuHighlighting = static_cast<MenuHighlighting>(value);
-	host_highlighting_changed();
-}
-
-int32_t get_default_session_layout(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/session_layout.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultSessionLayout);
-}
-void set_default_session_layout(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/session_layout.h`).
-	FlashStorage::defaultSessionLayout = static_cast<SessionLayoutType>(value);
-}
-
-int32_t get_default_grid_active_mode(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/grid_default_active_mode.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultGridActiveMode);
-}
-void set_default_grid_active_mode(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/grid_default_active_mode.h`).
-	FlashStorage::defaultGridActiveMode = static_cast<GridDefaultActiveMode>(value);
-}
-
-int32_t get_default_grid_green_selection(const MenuContext&) {
-	return from_bool(FlashStorage::gridAllowGreenSelection); // `defaultGridAllowGreenSelection`
-	                                                         // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_grid_green_selection(const MenuContext&, int32_t value) {
-	FlashStorage::gridAllowGreenSelection = value != 0;
-}
-
-int32_t get_default_grid_pads_unarm(const MenuContext&) {
-	// `defaultgridEmptyPadsUnarm` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(FlashStorage::gridEmptyPadsUnarm);
-}
-void set_default_grid_pads_unarm(const MenuContext&, int32_t value) {
-	FlashStorage::gridEmptyPadsUnarm = value != 0;
-}
-
-int32_t get_default_grid_pads_create_rec(const MenuContext&) {
-	return from_bool(FlashStorage::gridEmptyPadsCreateRec); // `defaultGridEmptyPadsCreateRec`
-	                                                        // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_grid_pads_create_rec(const MenuContext&, int32_t value) {
-	FlashStorage::gridEmptyPadsCreateRec = value != 0;
-}
-
-int32_t get_default_keyboard_layout(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/keyboard_layout.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultKeyboardLayout);
-}
-void set_default_keyboard_layout(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/keyboard_layout.h`).
-	FlashStorage::defaultKeyboardLayout = static_cast<KeyboardLayoutType>(value);
-}
-
-int32_t get_default_kb_velocity_glide(const MenuContext&) {
-	return from_bool(FlashStorage::keyboardFunctionsVelocityGlide,
-	                 /*invert=*/true); // `defaultUIKeyboardFunctionsVelocityGlide`
-}
-void set_default_kb_velocity_glide(const MenuContext&, int32_t value) {
-	FlashStorage::keyboardFunctionsVelocityGlide = value == 0;
-}
-
-int32_t get_default_kb_modwheel_glide(const MenuContext&) {
-	return from_bool(FlashStorage::keyboardFunctionsModwheelGlide,
-	                 /*invert=*/true); // `defaultUIKeyboardFunctionsModwheelGlide`
-}
-void set_default_kb_modwheel_glide(const MenuContext&, int32_t value) {
-	FlashStorage::keyboardFunctionsModwheelGlide = value == 0;
-}
-
-int32_t get_default_favourites_layout(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/favourites_layout.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultFavouritesLayout);
-}
-void set_default_favourites_layout(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/favourites_layout.h`).
-	FlashStorage::defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(value);
-}
-
-// ---------------------------------------------------------------------------------------------
 // Defaults: the rest
 
 int32_t default_resolution_magnitude(const MenuContext& ctx) {
@@ -481,66 +380,12 @@ int32_t relative_to_song_magnitude(const MenuContext&) {
 	return 1;
 }
 
-int32_t get_default_pad_brightness(const MenuContext&) {
-	// `PadBrightness::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`), `to_ui`
-	return FlashStorage::defaultPadBrightness << 2;
-}
-void set_default_pad_brightness(const MenuContext&, int32_t value) {
-	// `PadBrightness::writeCurrentValue`: the setting, then the pads' dimmer.
-	FlashStorage::defaultPadBrightness = static_cast<uint8_t>(value >> 2);
-	host_pad_brightness_changed();
-}
-
-int32_t get_screensaver_mode(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/screensaver.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::screensaverMode);
-}
-void set_screensaver_mode(const MenuContext&, int32_t value) {
-	// `ScreensaverModeMenu::writeCurrentValue`: the setting, then both screensavers re-read it.
-	FlashStorage::screensaverMode = static_cast<ScreensaverMode>(value);
-	host_screensaver_settings_changed();
-}
-
-int32_t get_screensaver_timeout(const MenuContext&) {
-	return FlashStorage::screensaverTimeoutMinutes; // `origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`
-	                                                // `readCurrentValue`
-}
-void set_screensaver_timeout(const MenuContext&, int32_t value) {
-	// `ScreensaverTimeout::writeCurrentValue`: the setting, then both screensavers re-read it.
-	FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(value);
-	host_screensaver_settings_changed();
-}
-
-// ---------------------------------------------------------------------------------------------
-// Pads
-
-int32_t get_pads_keyboard_layout(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::keyboardLayout);
-}
-void set_pads_keyboard_layout(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/keyboard/layout.h`).
-	FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(value);
-}
-size_t pads_keyboard_layout_names(const MenuContext&, std::span<std::string_view> out) {
-	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::getOptions`
-	static constexpr std::string_view kNames[] = {"QWERTY", "AZERTY", "QWERTZ"};
-	size_t n = 0;
-	for (std::string_view name : kNames) {
-		if (n < out.size()) {
-			out[n++] = name;
-		}
-	}
-	return n;
-}
-
-int32_t get_sample_browser_preview(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/sample/browser_preview/mode.h` `readCurrentValue`
-	return FlashStorage::sampleBrowserPreviewMode;
-}
-void set_sample_browser_preview(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sample/browser_preview/mode.h`).
-	FlashStorage::sampleBrowserPreviewMode = static_cast<uint8_t>(value);
+std::optional<int32_t> pad_brightness_turn(const MenuContext&, int32_t value, int32_t offset) {
+	// A level is four on the screen; the dimmest a turn reaches is level 1, the brightest level 25.
+	constexpr int32_t kStep = 4;
+	constexpr int32_t kLeast = 1 * kStep;
+	constexpr int32_t kGreatest = 25 * kStep;
+	return std::clamp(value + (offset * kStep), kLeast, kGreatest);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -593,46 +438,6 @@ int32_t get_usb_output_source(const MenuContext&) {
 }
 void set_usb_output_source(const MenuContext&, int32_t value) {
 	usb_audio::outputSource = static_cast<usb_audio::OutputSource>(value);
-}
-
-// ---------------------------------------------------------------------------------------------
-// 7. Pads
-
-// Both hooks qualify their `menu::` callee: `nodes` already has a `shortcuts_version` (the `Node`)
-// and a `set_shortcuts_version` (this hook), and either name would hide the enclosing namespace's.
-int32_t get_shortcuts_version(const MenuContext& ctx) {
-	// `Version::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`)
-	return static_cast<int32_t>(menu::shortcuts_version(ctx));
-}
-void set_shortcuts_version(const MenuContext& ctx, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue`: the device's `pads/shortcutsVersion` row, which the shortcut lookups
-	// read and the settings menu saves on its close.
-	menu::set_shortcuts_version(ctx, value == static_cast<int32_t>(project::ShortcutsVersion::V1)
-	                                     ? project::ShortcutsVersion::V1
-	                                     : project::ShortcutsVersion::V3);
-}
-
-// The six `pad_colour_*` nodes are six instantiations of `nodes/settings.h`'s `get_pad_colour` /
-// `set_pad_colour` over a plain `int`, so that header need not include `storage/flash_storage.h`.
-// Those literals are only correct while `PadColourSlot` keeps its current numbering, so the
-// numbering is pinned here -- the same guard, for the same reason, as the `DescriptorId` asserts
-// below.
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ACTIVE) == 0);
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_STOPPED) == 1);
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_MUTED) == 2);
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_SOLOED) == 3);
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_FILL) == 4);
-static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ONCE) == 5);
-static_assert(static_cast<int>(FlashStorage::NUM_PAD_COLOUR_SLOTS) == 6);
-
-int32_t pad_colour_get(int32_t slot) {
-	// `menu_item::Colour::readCurrentValue`, `origin/main:src/deluge/gui/menu_item/colour.h`
-	return FlashStorage::padColours[slot];
-}
-void pad_colour_set(int32_t slot, int32_t value) {
-	// `Colour::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/colour.h`): the setting, then every pad.
-	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
-	host_pad_colours_changed();
 }
 
 // ---------------------------------------------------------------------------------------------

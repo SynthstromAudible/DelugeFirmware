@@ -69,8 +69,39 @@ constexpr std::array<std::string_view, 2> kPolarityWords{"unipolar", "bipolar"};
 constexpr std::array<std::string_view, 2> kShortcutsVersionWords{"v1", "v3"};
 /// The playhead's forms, in FlashCursor's order.
 constexpr std::array<std::string_view, 3> kPlayCursorWords{"fast", "off", "slow"};
-static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::SLOW) == 2,
+/// The favourites a browser may show, in FavouritesLayout's order.
+constexpr std::array<std::string_view, 3> kFavouritesLayoutWords{"favourites", "favouritesAndBanks", "off"};
+static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::SLOW) == 2
+                  && std::to_underlying(FavouritesLayout::OFF) == 2,
               "an enumerator's value is its choice's index");
+/// The text-entry keyboard's letter layouts.
+constexpr std::array<std::string_view, 3> kTextKeyboardWords{"qwerty", "azerty", "qwertz"};
+/// The nine colours a pad setting may take, in the order the pad colours number them.
+constexpr std::array<std::string_view, 9> kPadColourWords{"red",     "green", "blue",  "yellow", "cyan",
+                                                          "magenta", "amber", "white", "pink"};
+/// How a menu marks its selected row.
+constexpr std::array<std::string_view, 3> kHighlightingWords{"full", "partial", "none"};
+/// How a new song's session view lays its clips out.
+constexpr std::array<std::string_view, 2> kSessionLayoutWords{"rows", "grid"};
+/// The modes the grid view may start in.
+constexpr std::array<std::string_view, 3> kGridModeWords{"selection", "green", "blue"};
+/// The layouts a new keyboard view's pads may take: the three a menu offers of the device's seven. A layout past them
+/// reads clamped to the last.
+constexpr std::array<std::string_view, 3> kKeyboardLayoutWords{"isomorphic", "inKey", "piano"};
+/// What the screensaver may show.
+constexpr std::array<std::string_view, 4> kScreensaverWords{"off", "blank", "starscape", "deluge"};
+/// When the sample browser may preview a sample.
+constexpr std::array<std::string_view, 3> kSamplePreviewWords{"off", "conditional", "on"};
+
+/// The pad colours' indices among kPadColourWords that the colour rows reset to.
+constexpr int32_t kRed = 0;
+constexpr int32_t kGreen = 1;
+constexpr int32_t kBlue = 2;
+constexpr int32_t kYellow = 3;
+constexpr int32_t kMagenta = 5;
+constexpr int32_t kAmber = 6;
+/// The brightest pad level: the default, and the level a zero byte in the saved settings reads as.
+constexpr int32_t kBrightestPads = 25;
 /// The scales a new song may start in: the preset scales in their own order, then a random one, then none. A user
 /// scale is no default, so it has no choice.
 constexpr std::array<std::string_view, kScaleCount + 2> kScaleWords{
@@ -166,10 +197,44 @@ constexpr std::array kDefaultsRows = [] {
 	};
 }();
 
+/// The pads' and the screen's rows.
+constexpr std::array kPadsAndScreenRows{
+    choice(device_path::kShortcutsVersion, kShortcutsVersionWords, std::to_underlying(ShortcutsVersion::V3)),
+    choice(device_path::kPlayCursor, kPlayCursorWords, std::to_underlying(FlashCursor::SLOW)),
+    choice(device_path::kTextKeyboardLayout, kTextKeyboardWords, 0),
+    choice(device_path::kPadColourActive, kPadColourWords, kGreen),
+    choice(device_path::kPadColourStopped, kPadColourWords, kRed),
+    choice(device_path::kPadColourMuted, kPadColourWords, kYellow),
+    choice(device_path::kPadColourSoloed, kPadColourWords, kBlue),
+    choice(device_path::kPadColourFill, kPadColourWords, kAmber),
+    choice(device_path::kPadColourOnce, kPadColourWords, kMagenta),
+    boolean(device_path::kAccessibilityShortcuts, 0),
+    choice(device_path::kMenuHighlighting, kHighlightingWords, 1),
+    choice(device_path::kSessionLayout, kSessionLayoutWords, 0),
+    choice(device_path::kGridActiveMode, kGridModeWords, 0),
+    boolean(device_path::kGridAllowGreenSelection, 1),
+    boolean(device_path::kGridEmptyPadsUnarm, 0),
+    boolean(device_path::kGridEmptyPadsCreateRec, 0),
+    choice(device_path::kKeyboardLayout, kKeyboardLayoutWords, 0),
+    boolean(device_path::kVelocityMomentary, 1),
+    boolean(device_path::kModwheelMomentary, 1),
+    choice(device_path::kFavouritesLayout, kFavouritesLayoutWords, std::to_underlying(FavouritesLayout::FAVOURITES)),
+    // A menu shows four times the level, as the pad brightness item does.
+    SettingInfo{.path = device_path::kPadBrightness,
+                .kind = SettingKind::INTEGER,
+                .min = 0,
+                .max = kBrightestPads,
+                .user = {.user_min = 0, .user_max = 4 * kBrightestPads, .stored_min = 0, .stored_max = kBrightestPads},
+                .default_value = kBrightestPads},
+    choice(device_path::kScreensaverMode, kScreensaverWords, 3),
+    integer(device_path::kScreensaverTimeout, 1, 60, 5),
+    choice(device_path::kSamplePreview, kSamplePreviewWords, 1),
+};
+
 /// The rows before the preset scales'.
 constexpr size_t kLeadingRows = 2 + kDefaultsRows.size();
 /// The rows after them, before the community features'.
-constexpr size_t kTrailingRows = 2;
+constexpr size_t kTrailingRows = kPadsAndScreenRows.size();
 /// How many rows the table has.
 constexpr size_t kRowCount = kLeadingRows + kScaleCount + kTrailingRows + kFeatureCount;
 
@@ -191,9 +256,9 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 	for (const ScalePath& path : kScalePaths) {
 		rows[at++] = boolean(std::string_view{path.text.data(), path.size}, 0);
 	}
-	rows[at++] =
-	    choice(device_path::kShortcutsVersion, kShortcutsVersionWords, std::to_underlying(ShortcutsVersion::V3));
-	rows[at++] = choice(device_path::kPlayCursor, kPlayCursorWords, std::to_underlying(FlashCursor::SLOW));
+	for (const SettingInfo& row : kPadsAndScreenRows) {
+		rows[at++] = row;
+	}
 	for (const FeatureInfo& info : kFeatures) {
 		rows[at++] = feature_row(info);
 	}
@@ -233,6 +298,28 @@ static_assert([] {
 	         device_path::kAutomationNoAuditionShortcuts,
 	         device_path::kShortcutsVersion,
 	         device_path::kPlayCursor,
+	         device_path::kTextKeyboardLayout,
+	         device_path::kPadColourActive,
+	         device_path::kPadColourStopped,
+	         device_path::kPadColourMuted,
+	         device_path::kPadColourSoloed,
+	         device_path::kPadColourFill,
+	         device_path::kPadColourOnce,
+	         device_path::kAccessibilityShortcuts,
+	         device_path::kMenuHighlighting,
+	         device_path::kSessionLayout,
+	         device_path::kGridActiveMode,
+	         device_path::kGridAllowGreenSelection,
+	         device_path::kGridEmptyPadsUnarm,
+	         device_path::kGridEmptyPadsCreateRec,
+	         device_path::kKeyboardLayout,
+	         device_path::kVelocityMomentary,
+	         device_path::kModwheelMomentary,
+	         device_path::kFavouritesLayout,
+	         device_path::kPadBrightness,
+	         device_path::kScreensaverMode,
+	         device_path::kScreensaverTimeout,
+	         device_path::kSamplePreview,
 	     }) {
 		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {
 			return false;
