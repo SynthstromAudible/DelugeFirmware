@@ -138,6 +138,10 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			if (call.target) {
 				expect(*call.target).to_equal(track);
 			}
+			expect(call.command.has_value()).to_be_true();
+			if (call.command) {
+				expect(*call.command).to_equal(deluge::project::MidiCommand{.channel_or_zone = 4, .note_or_cc = 60});
+			}
 			expect(call.input.has_value()).to_be_true();
 			if (call.input) {
 				expect(*call.input).to_equal(input);

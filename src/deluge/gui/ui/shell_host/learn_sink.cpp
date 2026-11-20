@@ -73,13 +73,6 @@ public:
 		}
 		return true;
 	}
-
-private:
-	/// Applies @p edit on the current song.
-	static bool applied(edits::Edit& edit) {
-		edits::Context ctx{*currentSong, currentSong->project};
-		return edits::apply(ctx, edit) == Error::NONE;
-	}
 };
 
 } // namespace

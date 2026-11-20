@@ -420,7 +420,7 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 		}
 		const menu::MenuContext& ctx = menu_scene().menu_context();
 		expect(ctx.ports.learn->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
-		                       std::nullopt))
+		                              std::nullopt))
 		    .to_be_true();
 		currentUIMode = UI_MODE_AUDITIONING;
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
@@ -445,7 +445,7 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 		}
 		const menu::MenuContext& ctx = menu_scene().menu_context();
 		expect(ctx.ports.learn->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
-		                       std::nullopt))
+		                              std::nullopt))
 		    .to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		spec::ShiftHeld shift_held; // legacy's side of the Shift the shortcut pad's gate reads

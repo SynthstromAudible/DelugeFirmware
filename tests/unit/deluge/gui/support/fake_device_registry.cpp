@@ -5,32 +5,27 @@
 #include "io/midi/device_registry.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
-#include <span>
+#include <cstdint>
+#include <vector>
 
 namespace deluge::midi {
 namespace {
 
-std::array<::MIDICable*, kMaxHostedDevices> cables{}; ///< The cables named, in the order they were.
-uint16_t count = 0;                                   ///< How many are named.
+std::vector<::MIDICable*> cables; ///< The cables named, in the order they were.
 
 } // namespace
 
 DeviceId id_of(const ::MIDICable& cable) {
-	const auto seen = std::span{cables}.first(count);
-	if (const auto at = std::ranges::find(seen, &cable); at != seen.end()) {
-		return DeviceId{static_cast<uint16_t>(kFirstHosted.value + (at - seen.begin()))};
+	if (const auto at = std::ranges::find(cables, &cable); at != cables.end()) {
+		return DeviceId{static_cast<uint32_t>(kFirstHosted.value + (at - cables.begin()))};
 	}
-	if (count == kMaxHostedDevices) {
-		return {};
-	}
-	cables[count] = const_cast<::MIDICable*>(&cable);
-	return DeviceId{static_cast<uint16_t>(kFirstHosted.value + count++)};
+	cables.push_back(const_cast<::MIDICable*>(&cable));
+	return DeviceId{static_cast<uint32_t>(kFirstHosted.value + cables.size() - 1)};
 }
 
 ::MIDICable* cable_of(DeviceId id) {
-	if (id.value < kFirstHosted.value || id.value - kFirstHosted.value >= count) {
+	if (id.value < kFirstHosted.value || id.value - kFirstHosted.value >= cables.size()) {
 		return nullptr;
 	}
 	return cables[id.value - kFirstHosted.value];

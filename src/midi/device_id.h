@@ -28,7 +28,7 @@ namespace deluge::midi {
 
 /// @brief One MIDI device (one cable), by its session handle. The default value names none.
 struct DeviceId {
-	uint16_t value{0}; ///< The handle; 0 names no device.
+	uint32_t value{0}; ///< The handle; 0 names no device.
 
 	/// @brief Whether this names a device.
 	/// @return False for the default value.

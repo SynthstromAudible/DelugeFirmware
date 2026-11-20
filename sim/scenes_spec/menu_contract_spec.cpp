@@ -347,7 +347,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		expect(ctx.ports.learn->learn(*column, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
-		                       std::nullopt))
+		                              std::nullopt))
 		    .to_be_true();
 		expect(ctx.model->mappings.find(*column)).not_().to_be_null();
 		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true);

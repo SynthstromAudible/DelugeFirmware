@@ -108,12 +108,6 @@ public:
 	}
 
 private:
-	/// Applies @p edit on the current song.
-	static bool applied(edits::Edit& edit) {
-		edits::Context ctx{*currentSong, currentSong->project};
-		return edits::apply(ctx, edit) == Error::NONE;
-	}
-
 	/// The undo step the last length change opened, and its clip: what a redo of it scrolls the view back to.
 	::Action* resize_action_{nullptr};
 	project::ClipAddress resize_clip_{};

@@ -75,7 +75,7 @@ public:
 	/// @brief Give every synth and sound kit row whose input is @p device its velocity-to-level default, in every
 	///        clip: the device menu's "for everything", a default set up for the user with no undo step.
 	/// @param device The device whose inputs take its default.
-	/// @return Whether it was taken: false where @p device names no device.
+	/// @return Whether it was taken: false where @p device names no cable or no song is loaded.
 	virtual bool velocity_to_level_everywhere(midi::DeviceId device) = 0;
 };
 

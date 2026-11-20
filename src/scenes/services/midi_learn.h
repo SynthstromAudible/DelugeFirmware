@@ -387,8 +387,8 @@ private:
 	void release_pressed_thing();
 	/// @brief `View::midiLearnFlash`'s toggle-and-re-arm (`gui/views/view.cpp`).
 	void flash_step();
-	/// @brief `View::commitLearnedThing`: make @p learned the held target's command -- through the sink for a
-	///        song binding, in place for a global command.
+	/// @brief `View::commitLearnedThing`: make @p learned the held target's command -- through the learn port
+	///        (`bind::LearnSink`) for a song binding, in place for a global command.
 	/// @param learned The command, or a cleared one to unlearn.
 	/// @param input   A note learned on an input: what the learn takes from its device.
 	void commit(const ::LearnedMIDI& learned, std::optional<deluge::scenes::bind::LearnInput> input = std::nullopt);

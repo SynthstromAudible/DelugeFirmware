@@ -8,6 +8,10 @@
 
 class AudioClip;
 
+namespace deluge::edits {
+class Edit;
+} // namespace deluge::edits
+
 namespace deluge::gui::shell_host {
 
 /// @brief The host's AudioFacts.
@@ -37,6 +41,11 @@ namespace deluge::gui::shell_host {
 
 /// @brief The host's LearnSink: the learns, applied to the current song.
 [[nodiscard]] scenes::bind::LearnSink& learn_sink();
+
+/// @brief Apply @p edit to the current song: the one way the write ports apply an Edit.
+/// @param edit The edit. The caller has checked that a song is loaded.
+/// @return Whether the edit applied (`Error::NONE`).
+[[nodiscard]] bool applied(edits::Edit& edit);
 
 /// @brief The audio clip @p clip addresses in the current song, or null: shared by the clip port and the waveforms.
 [[nodiscard]] ::AudioClip* audioClipAt(project::ClipAddress clip);

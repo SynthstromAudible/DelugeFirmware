@@ -200,12 +200,6 @@ private:
 	static ::Sound* soundAt(project::SlotAddress slot) {
 		return currentSong != nullptr ? bridge::soundAt(*currentSong, slot) : nullptr;
 	}
-
-	/// Applies @p edit on the current song.
-	static bool applied(edits::Edit& edit) {
-		edits::Context ctx{*currentSong, currentSong->project};
-		return edits::apply(ctx, edit) == Error::NONE;
-	}
 };
 
 } // namespace

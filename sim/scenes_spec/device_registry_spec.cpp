@@ -62,27 +62,26 @@ describe device_registry("the host's MIDI device handles", ${
 		expect(cable_of(second)).to_equal(static_cast<::MIDICable*>(&other));
 	});
 
-	// Last in the file: it fills the session's table, which is this process's alone (one spec file per process).
-	it("gives no handle once every hosted handle is taken, and keeps the ones it gave", _ {
-		static std::array<SpecCable, kMaxHostedDevices + 1> cables;
+	// Last in the file: it names many cables in the session's table, which is this process's alone (one spec file per
+	// process).
+	it("gives every hosted cable a handle of its own, however many it has named, and keeps the ones it gave", _ {
+		// Far more cables than a session meets (6 connected per USB controller, plus the ones the settings file and a
+		// song name): none is refused.
+		static std::array<SpecCable, 1000> cables;
 		const DeviceId kept = id_of(cables[0]);
 		expect(static_cast<bool>(kept)).to_be_true();
-		size_t refused_at = cables.size();
-		for (size_t i = 1; i < cables.size(); i++) {
-			if (!id_of(cables[i])) {
-				refused_at = i;
-				break;
-			}
+		size_t refused = 0;
+		size_t wrong = 0;
+		for (SpecCable& cable : cables) {
+			const DeviceId id = id_of(cable);
+			refused += id ? 0 : 1;
+			wrong += cable_of(id) == static_cast<::MIDICable*>(&cable) ? 0 : 1;
 		}
-		// The table holds kMaxHostedDevices cables, so the last of these is refused at the latest.
-		expect(refused_at).to_be_less_than(cables.size());
-		if (refused_at == cables.size()) {
-			return;
-		}
-		expect(id_of(cables[refused_at]).value).to_equal(DeviceId{}.value);
+		expect(refused).to_equal(size_t{0});
+		expect(wrong).to_equal(size_t{0});
 		expect(id_of(cables[0]).value).to_equal(kept.value);
 		expect(cable_of(kept)).to_equal(static_cast<::MIDICable*>(&cables[0]));
-		expect(cable_of(DeviceId{static_cast<uint16_t>(kFirstHosted.value + kMaxHostedDevices)})).to_be_null();
+		expect(cable_of(DeviceId{id_of(cables.back()).value + 1})).to_be_null();
 	});
 });
 

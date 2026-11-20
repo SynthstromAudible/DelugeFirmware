@@ -28,18 +28,18 @@
 #include "io/midi/midi_device.h" // MIDICable: `cable_of`'s callers read and write the cable it returns
 #include "midi/device_id.h"
 
-#include <cstdint>
-
 namespace deluge::midi {
 
-/// @brief How many hosted devices can have a handle.
-inline constexpr uint16_t kMaxHostedDevices = 64;
-
 /// @brief @p cable's handle: a fixed port's constant, or a hosted device's, given the first time it is asked for.
+///
+/// Every cable gets one. The hosted table grows with the cables named (one pointer each, on the app loop's task), and
+/// a handle is 32 bits: a hosted cable is a distinct heap object of more than one byte, so the device's 32-bit address
+/// space holds fewer of them than there are handles.
 /// @param cable The cable to name.
-/// @return The handle; none once every hosted handle is taken (@ref kMaxHostedDevices). A learn offer whose event
-///         names none is not taken by any scene: `ShellHostUI` passes it on to the base `UI` learn answer, and when
-///         that does not use it either, `PlaybackHandler` handles the message as usual.
+/// @return The handle; none only where the heap cannot grow the table by one pointer, the same exhaustion in which
+///         `MIDIDeviceManager` refuses to make a hosted cable at all. A learn offer whose event names none is not
+///         taken by any scene: `ShellHostUI` passes it on to the base `UI` learn answer, and when that does not use it
+///         either, `PlaybackHandler` handles the message as usual.
 [[nodiscard]] DeviceId id_of(const ::MIDICable& cable);
 
 /// @brief The cable @p id names.

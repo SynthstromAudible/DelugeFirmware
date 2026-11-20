@@ -1,4 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
+#include "model/edits/edit.h"
+#include "model/song/song.h"
 #include "scenes/menu/bind_host.h"
 
 namespace deluge::scenes::menu {
@@ -20,3 +22,12 @@ const bind::Ports& host_ports() {
 }
 
 } // namespace deluge::scenes::menu
+
+namespace deluge::gui::shell_host {
+
+bool applied(edits::Edit& edit) {
+	edits::Context ctx{*currentSong, currentSong->project};
+	return edits::apply(ctx, edit) == Error::NONE;
+}
+
+} // namespace deluge::gui::shell_host
