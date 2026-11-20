@@ -158,9 +158,9 @@ void ValueSession::commit(MenuCore core, const Node& node) const {
 		if (!bindings::write(node, ctx, st.enum_index)) {
 			refused(ctx, st, node);
 		}
-		// A target's list can change under the write (a stored choice that no longer applies leaves it once the
-		// write moves off it): the cursor follows the value, not the old position.
 		else if (node.bind.target.valid()) {
+			// A target's list can change under the write (a stored choice that no longer applies leaves it once the
+			// write moves off it): the cursor follows the value, not the old position.
 			st.enum_index = bindings::read(node, ctx);
 		}
 		break;
