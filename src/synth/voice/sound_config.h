@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp" // SynthMode, VoicePriority, PolyphonyMode, kNumSources, kNumModulators, LFO_COUNT
 #include "dsp-next/fixed/pitch/fine_tune.h"
-#include "synth/modulation/lfo.h" // LFOConfig
+#include "synth/modulation/lfo_state.h"
 #include "synth/voice/unison.h"
 
 #include <array>
@@ -83,7 +83,7 @@ struct SourceConfig {
 struct SoundConfig {
 	Voicing voicing;
 	EngineSettings engine;
-	std::array<LFOConfig, LFO_COUNT>
+	std::array<LfoState, LFO_COUNT>
 	    lfos{}; ///< each LFO's wave and sync; LFO1 and LFO3 run per sound, 2 and 4 per voice
 	std::array<SourceConfig, kNumSources> sources{}; ///< each oscillator's playback settings
 	bool operator==(const SoundConfig&) const = default;

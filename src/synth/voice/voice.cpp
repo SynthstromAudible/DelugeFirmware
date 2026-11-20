@@ -293,7 +293,7 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 	             static_cast<int32_t>(priority_rating(release.voice_priority, release.num_active_voices)));
 }
 
-dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
+dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LfoState& config, deluge::modulation::params::Local param,
                                                  dsp::UQ<32> synced_phase_increment) {
 	if (config.sync_level == deluge::plugin::SyncLevel::NONE) {
 		// The LFO rate params' words are phase increments (param_format.h)

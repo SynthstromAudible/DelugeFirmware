@@ -334,8 +334,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		expect(snap.voicing.cents == instrument::voicing(d()).master.cents, "cents");
 		expect(sameTuning(snap.voicing.tune, centsTuner(instrument::voicing(d()).master.cents)), "fine_tuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
-			expect(snap.lfos[l].wave_type == static_cast<LFOType>(instrument::lfo(d(), l).shape),
-			       "lfo_config.wave_type");
+			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_config.shape");
 			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instrument::lfo(d(), l).sync_type),
 			       "lfo_config.sync_type");
 			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instrument::lfo(d(), l).sync_level),
@@ -398,13 +397,13 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		                     == otherPhase,
 		          "osc2/retrigPhase");
 		setThrough(sound, "osc2/retrigPhase", phaseText(before.engine.osc_retrigger_phase[1]));
-		const LFOConfig lfo = before.lfos[LFO2_ID];
-		const LFOType otherWave = lfo.wave_type == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
+		const deluge::synth::LfoState lfo = before.lfos[LFO2_ID];
+		const LFOType otherWave = lfo.shape == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
 		roundTrip(setThrough(sound, "lfo2/type", instrument::to_string(otherWave))
-		              && sound.config().lfos[LFO2_ID].wave_type == otherWave
+		              && sound.config().lfos[LFO2_ID].shape == otherWave
 		              && static_cast<LFOType>(instrument::lfo(d(), LFO2_ID).shape) == otherWave,
 		          "lfo2/type");
-		setThrough(sound, "lfo2/type", instrument::to_string(lfo.wave_type));
+		setThrough(sound, "lfo2/type", instrument::to_string(lfo.shape));
 		const SyncLevel otherLevel = lfo.sync_level == SYNC_LEVEL_8TH ? SYNC_LEVEL_16TH : SYNC_LEVEL_8TH;
 		const bool typeLanded =
 		    setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(SYNC_TYPE_TRIPLET)));

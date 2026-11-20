@@ -2192,14 +2192,14 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 
 template <deluge::modulation::params::Global P>
 deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId) {
-	const LFOConfig& config = config_.lfos[lfoId];
+	const deluge::synth::LfoState& config = config_.lfos[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
 		return deluge::synth::matrix::global_param_value<P>(params.param_final_values);
 	}
 	return getSyncedLFOPhaseIncrement(config);
 }
 
-deluge::dsp::UQ<32> Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
+deluge::dsp::UQ<32> Sound::getSyncedLFOPhaseIncrement(const deluge::synth::LfoState& config) {
 	uint32_t phaseIncrement =
 	    (playbackHandler.getTimePerInternalTickInverse())
 	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.sync_level));

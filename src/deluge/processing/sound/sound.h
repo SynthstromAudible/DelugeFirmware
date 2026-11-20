@@ -247,7 +247,7 @@ public:
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// modKnobs was historically force-aligned (alignas(8), and before that a 0xDEADBEEF padding word) to mask
-	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became LFOConfig and shifted
+	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became one per-LFO struct and shifted
 	// Sound's layout. The cause was the offsetof-indexed param/patcher plumbing, since replaced by std::span
 	// over the ParamPlane POD (no offsetof; no layout-sensitive param access). The band-aid is therefore
 	// vestigial — removed here, gated on the golden masters not moving (x86 + ARM) + a #2660-repro hardware
@@ -430,7 +430,7 @@ public:
 	void wontBeRenderedForAWhile();
 	virtual ArpeggiatorBase* getArp() = 0;
 
-	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
+	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const deluge::synth::LfoState& config);
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {

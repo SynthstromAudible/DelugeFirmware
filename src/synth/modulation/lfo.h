@@ -24,25 +24,9 @@
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
 #include "plugin-api/types/sync.h"            // SyncType, SyncLevel
+#include "synth/modulation/lfo_state.h"
 #include <cstdint>
 #include <variant>
-
-/// The preset-level configuration of one LFO: its waveform plus, optionally, how it locks to the transport.
-/// Owned by the app (one per LFO slot on a Sound) and passed into LFO::render — the LFO itself is otherwise
-/// configuration-free.
-class LFOConfig {
-public:
-	LFOConfig()
-	    : wave_type(LFOType::TRIANGLE), sync_type(deluge::plugin::SyncType::EVEN),
-	      sync_level(deluge::plugin::SyncLevel::NONE) {}
-	LFOConfig(LFOType type)
-	    : wave_type(type), sync_type(deluge::plugin::SyncType::EVEN), sync_level(deluge::plugin::SyncLevel::NONE) {}
-	LFOType wave_type;
-	deluge::plugin::SyncType sync_type;
-	deluge::plugin::SyncLevel sync_level;
-
-	bool operator==(const LFOConfig&) const = default;
-};
 
 /// The individual LFO waveform generators.
 ///
@@ -201,16 +185,16 @@ public:
 
 	/// Re-seat the waveform and set the phase for a fresh note (local LFOs always start at the negative
 	/// extreme), resetting the waveform's accumulators.
-	void set_local_initial_phase(const LFOConfig& config);
+	void set_local_initial_phase(const deluge::synth::LfoState& config);
 	/// Set the phase for a transport re-sync (global LFOs). The waveform's accumulators are kept, so a
 	/// sample-and-hold keeps holding across re-syncs, unless @p reset_state (playback start / song swap).
-	void set_global_initial_phase(const LFOConfig& config, bool reset_state = false);
+	void set_global_initial_phase(const deluge::synth::LfoState& config, bool reset_state = false);
 
 	/// Render one block of @p config's wave (see the LFOType overload).
-	[[gnu::always_inline]] deluge::dsp::Q<31> render(int32_t num_samples, const LFOConfig& config,
+	[[gnu::always_inline]] deluge::dsp::Q<31> render(int32_t num_samples, const deluge::synth::LfoState& config,
 	                                                 deluge::dsp::UQ<32> phase_increment,
 	                                                 deluge::dsp::fixed::Cong& noise) {
-		return render(num_samples, config.wave_type, phase_increment, noise);
+		return render(num_samples, config.shape, phase_increment, noise);
 	}
 
 	/// Render one block, returning the LFO's value for it.
