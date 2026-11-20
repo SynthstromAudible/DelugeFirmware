@@ -27,6 +27,7 @@
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/follow_host.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
@@ -192,7 +193,7 @@ public:
 	}
 	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
-	bool learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	bool learn_knob(const deluge::project::OwnerParamTarget& target, deluge::midi::DeviceId device, int32_t which_knob,
 	                int32_t midi_channel) override;
 	bool knob_mode(deluge::project::KnobModeOwner owner, uint8_t mode) override {
 		return deluge::edits::modKnobModeFor(owner, mode);
@@ -560,8 +561,8 @@ bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<d
 	return applied(edit);
 }
 
-bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
-                               int32_t midi_channel) {
+bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, deluge::midi::DeviceId device,
+                               int32_t which_knob, int32_t midi_channel) {
 	if (currentSong == nullptr) {
 		return false;
 	}
@@ -581,7 +582,7 @@ bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, 
 	// `SoundEditor::modEncoderAction` learns a mod knob in the current output's knob mode.
 	Output* output = getCurrentOutput();
 	const int32_t mode = midi_channel >= 16 && output != nullptr ? output->modKnobMode : 0;
-	if (!deluge::edits::learnKnobOn(*owner, knob, cable, which_knob, mode, midi_channel)) {
+	if (!deluge::edits::learnKnobOn(*owner, knob, deluge::midi::cable_of(device), which_knob, mode, midi_channel)) {
 		return false;
 	}
 	// `SoundEditor::markInstrumentAsEdited`.

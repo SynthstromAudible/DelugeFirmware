@@ -18,8 +18,8 @@
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/view_state.h"
 
+#include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
-#include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
 #include "model/output.h"
@@ -366,21 +366,23 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	//
 	// In learn mode only, as the dispatchers reach `View` only then; there, a note-on, a CC and a program change are
 	// used up whatever they learned (`View::pcReceivedForMIDILearn` learns nothing), and a pitch bend is never used. A
-	// null `cable` is the "no message" value `UiEvent` documents and is dropped rather than dereferenced.
+	// device naming no cable is the "no message" value `UiEvent` documents and is dropped.
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
-	case UiEvent::Kind::MidiProgramChange:
-		if (!active_ || event.cable == nullptr) {
+	case UiEvent::Kind::MidiProgramChange: {
+		::MIDICable* const cable = deluge::midi::cable_of(event.device);
+		if (!active_ || cable == nullptr) {
 			return Result::unhandled();
 		}
 		if (event.kind == UiEvent::Kind::MidiNoteOn) {
-			note_on_received(*event.cable, event.channel, event.data1, event.data2);
+			note_on_received(*cable, event.channel, event.data1, event.data2);
 		}
 		else if (event.kind == UiEvent::Kind::MidiCc) {
-			cc_received(*event.cable, event.channel, event.data1, event.data2);
+			cc_received(*cable, event.channel, event.data1, event.data2);
 		}
 		return Result{.handled = true};
+	}
 	case UiEvent::Kind::MidiPitchBend:
 		return Result::unhandled();
 	default:

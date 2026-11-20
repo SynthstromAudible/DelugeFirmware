@@ -10,6 +10,7 @@
 #include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
 #include "instruments/deluge/cables.h"
+#include "midi/device_id.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/target.h"
 #include "serialization/value.h"
@@ -78,14 +79,14 @@ public:
 	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	                   std::optional<LearnInput> input) = 0;
 	/// @brief Learn a knob onto @p target's param -- `MenuItemWithCCLearning::learnKnob`: a mod knob when
-	/// @p midi_channel is 16 or more, in the current output's knob mode; otherwise a MIDI knob heard on @p cable. A
+	/// @p midi_channel is 16 or more, in the current output's knob mode; otherwise a MIDI knob heard on @p device. A
 	/// learned knob marks the current instrument edited.
 	/// @param target       The owner and the param.
-	/// @param cable        The cable a MIDI knob was heard on; null for a mod knob.
+	/// @param device       The device a MIDI knob was heard on; none for a mod knob.
 	/// @param which_knob   The mod knob (0 lower, 1 upper), or the CC number (128 for pitch bend).
 	/// @param midi_channel The channel a MIDI knob was heard on, or 16 or more for a mod knob.
 	/// @return Whether the knob was learned.
-	virtual bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	virtual bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
 	                        int32_t midi_channel) = 0;
 	/// @brief Give every synth and sound kit row whose input is @p cable its velocity-to-level default, in every clip:
 	/// the device menu's "for everything", a default set up for the user with no undo step.
@@ -127,8 +128,8 @@ struct GestureRequest {
 	KnobFocus focus{}; ///< a STUTTER's or GRAB_REGION's focus; a GRAB_REGION's position is @ref value
 	bool begin{false}; ///< a STUTTER's begin (true) or end; a MIDI_CC_SELECT's on
 	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
-	const ::MIDICable* cable{nullptr}; ///< a LEARN_KNOB's cable; its target in @ref mapping, its knob in @ref value
-	int32_t midi_channel{0};           ///< a LEARN_KNOB's channel
+	midi::DeviceId device{}; ///< a LEARN_KNOB's device; its target in @ref mapping, its knob in @ref value
+	int32_t midi_channel{0}; ///< a LEARN_KNOB's channel
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -155,7 +156,7 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
-	bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
 	                int32_t midi_channel) override;
 	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;
 	bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) override;

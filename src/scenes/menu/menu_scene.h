@@ -300,17 +300,17 @@ public:
 	///
 	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s
 	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
-	///       would a CC bind to". The `learn_*` entry points below are the other learn path
+	///       would a CC bind to". `CustomItem`'s learn hooks are the other learn path
 	///       entirely -- `midi::Command`'s, which binds a whole MIDI *message* to a
 	///       `GlobalMIDICommand` transport action and never touches a param. The twelve
 	///       `midi_command_*` nodes have no `bind.param`, so this returns none for every one of them.
 	std::optional<deluge::project::OwnerParamTarget> learn_target() const;
 
-	/// @name MIDI-learn entry points -- the item learns of `SoundEditor`'s learn answers.
+	/// @name MIDI learn -- `SoundEditor`'s learn members.
 	///
-	/// Each delivers one message to the learn node's item, as `getCurrentMenuItem()->learnX(...)` does, and says
-	/// whether it learned; `unlearn` is `unlearnAction()`. In learn mode a real MIDI message reaches the same members
-	/// through `handle()` (`MenuLearn::offer`), which also decides whether the message was used.
+	/// In learn mode a MIDI message reaches the learn node's item through `handle()` (`MenuLearn::offer`), as
+	/// `getCurrentMenuItem()->learnX(...)` does, and `offer` decides whether the message was used; `unlearn` is
+	/// `unlearnAction()`.
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
 	///          `getCurrentMenuItem()->allowsLearnMode()` (`SoundEditor::buttonAction`'s LEARN arm), ported as
@@ -320,25 +320,6 @@ public:
 	///          patched/unpatched params, the transpose items, the MIDI-follow items -- every one of which blinks
 	///          *false*.
 	/// @{
-	/// @brief Offer a note-on to the learn node's item.
-	/// @param cable   The cable it arrived on.
-	/// @param channel Its MIDI channel.
-	/// @param note    Its note number.
-	/// @return Whether it learned.
-	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
-	/// @brief Offer a CC to the learn node's item.
-	/// @param cable   The cable it arrived on.
-	/// @param channel Its MIDI channel.
-	/// @param cc      The controller number.
-	/// @param value   The controller value.
-	/// @return Whether it learned.
-	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
-	/// @brief Offer a program change to the learn node's item.
-	/// @param cable   The cable it arrived on.
-	/// @param channel Its MIDI channel.
-	/// @param program The program number.
-	/// @return Whether it learned.
-	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
 	/// @brief Ask the learn node's item to forget what it learned.
 	void unlearn();
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`

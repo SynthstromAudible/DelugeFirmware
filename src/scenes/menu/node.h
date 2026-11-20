@@ -18,6 +18,7 @@
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
+#include "midi/device_id.h" // CustomItem's learn hooks name the device a message came on
 #include "plugin-api/types/param_kind.h"
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"        // CustomItem::learn_descriptor -- returned by value
@@ -34,12 +35,6 @@
 #include <optional>
 #include <span>
 #include <string_view>
-
-/// Forward declared for `CustomItem`'s learn hooks, which only ever take it by reference -- the
-/// same reason `OledFrame` and friends below are declared rather than included. `io/midi/` is
-/// inside this layer's allow-list, but this header is the model-light one and has no need of the
-/// definition.
-class MIDICable;
 
 namespace deluge::ui {
 class LedFrame;
@@ -774,16 +769,33 @@ struct CustomItem {
 	///       `gui/ui/shell_host_ui.h`'s `@par MIDI learn` for the route.
 	/// @{
 
-	/// @brief Bind a note-on to whatever this item learns. @return Whether it learned.
-	virtual bool learn_note_on(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*note*/) const { return false; }
-
-	/// @brief Bind a CC to whatever this item learns. @return Whether it learned.
-	virtual bool learn_cc(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*cc*/, int32_t /*value*/) const {
+	/// @brief Bind a note-on to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel, or the MPE zone the port mapped it to.
+	/// @param note    Its note number.
+	/// @return Whether it learned.
+	virtual bool learn_note_on(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*note*/) const {
 		return false;
 	}
 
-	/// @brief Bind a program change to whatever this item learns. @return Whether it learned: false for a refusal.
-	virtual bool learn_program_change(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*program*/) const {
+	/// @brief Bind a CC to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel, or the MPE zone the port mapped it to.
+	/// @param cc      The controller number.
+	/// @param value   The controller value.
+	/// @return Whether it learned.
+	virtual bool learn_cc(deluge::midi::DeviceId /*device*/, int32_t /*channel*/, int32_t /*cc*/,
+	                      int32_t /*value*/) const {
+		return false;
+	}
+
+	/// @brief Bind a program change to whatever this item learns.
+	/// @param device  The device it arrived on.
+	/// @param channel Its channel.
+	/// @param program The program number.
+	/// @return Whether it learned: false for a refusal.
+	virtual bool learn_program_change(deluge::midi::DeviceId /*device*/, int32_t /*channel*/,
+	                                  int32_t /*program*/) const {
 		return false;
 	}
 

@@ -36,7 +36,7 @@
 
 #include "definitions_cxx.hpp"
 #include "instruments/deluge/cables.h"
-#include "io/midi/midi_device.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -186,11 +186,12 @@ void follow_channel_set(int32_t which, int32_t value) {
 
 bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event) {
 	using Kind = deluge::ui::shell::UiEvent::Kind;
-	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || event.cable == nullptr) {
+	::MIDICable* const cable = deluge::midi::cable_of(event.device);
+	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || cable == nullptr) {
 		return false;
 	}
 	LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
-	input.cable = event.cable;
+	input.cable = cable;
 	input.channelOrZone = event.channel;
 	return true;
 }

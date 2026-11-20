@@ -444,14 +444,15 @@ RULES = [
         "2026-08-26-ui-toolkit-design.md",
     ),
     (
-        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/** and
-        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) may be included --
+        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/**,
+        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) and midi/** (the
+        # dependency-free MIDI protocol library, whose `midi::DeviceId` a MIDI `UiEvent` carries) may be included --
         # never model/, gui/, hid/, or the root headers (definitions*, board_config.h,
         # board_layout.hpp) that would pull the model layer in by the back door.
         "shell-includes-outside",
         "src/shell/**",
         "include",
-        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
+        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/|midi/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
         "2026-08-26-ui-shell-design.md",
     ),
     (
@@ -477,7 +478,7 @@ RULES = [
     (
         # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
         # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
-        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, and -- being the first UI layer
+        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol library), and -- being the first UI layer
         # allowed to reach into the model -- model/**, modulation/**, playback/**, processing/**,
         # storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the
         # sole exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not
@@ -516,7 +517,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|midi/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|controls/|music-theory/|foundation/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

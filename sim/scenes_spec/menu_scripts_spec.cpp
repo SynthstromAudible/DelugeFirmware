@@ -137,6 +137,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/views/performance_view.h"
 #include "hid/display/display.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -1043,13 +1044,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		const CommandSlots saved = CommandSlots::capture();
 		CommandSlots::clear_all();
-		// Focus the item to learn onto it -- `MenuScene::learn_cc` forwards to `focused()` -- and then
+		// Focus the item to learn onto it -- its own learn hook, as `MenuLearn::offer` reaches it -- and then
 		// re-root on the list the script actually walks. The slot itself is
 		// `midiEngine.globalMIDICommands`, a global, so the binding survives the re-rooting.
 		menu_scene().open(nodes::midi_command_play, ctx);
 		// Channel 3 + `IS_A_CC`, CC 42 -- the same binding `tables_3_spec`'s learned-readout golden
 		// uses, so the three-line shape in `entered` is the one that file already pins at unit level.
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		expect(menu_scene().focused()->custom->learn_cc(deluge::midi::id_of(fake_cable()), 3, 42, 127)).to_be_true();
 		menu_scene().open(nodes::midi_commands, ctx);
 
 		const uitest::RunResult result =

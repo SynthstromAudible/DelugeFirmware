@@ -52,6 +52,7 @@
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -326,6 +327,17 @@ void cursor_on_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	}
 }
 
+/// @brief The handle the host gives `fake_cable()`.
+deluge::midi::DeviceId spec_device() {
+	return deluge::midi::id_of(fake_cable());
+}
+
+/// @brief The focused item's own learn hooks, for an example that reads whether the item learned (which
+///        `offer_while_learning`'s "used" answer does not say) or that must not open learn mode around the learn.
+const deluge::scenes::menu::CustomItem& focused_item() {
+	return *menu_scene().focused()->custom;
+}
+
 /// @brief Offer the menu one MIDI message in learn mode: LEARN held for it, Shift up.
 bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel, uint8_t data1, uint8_t data2) {
 	using deluge::ui::shell::ButtonId;
@@ -334,11 +346,14 @@ bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel
 	const deluge::ui::PadMask pads{};
 	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
-	const bool used =
-	    menu_scene()
-	        .handle(UiEvent{.kind = kind, .channel = channel, .data1 = data1, .data2 = data2, .cable = &fake_cable()},
-	                ui)
-	        .handled;
+	const bool used = menu_scene()
+	                      .handle(UiEvent{.kind = kind,
+	                                      .channel = channel,
+	                                      .data1 = data1,
+	                                      .data2 = data2,
+	                                      .device = deluge::midi::id_of(fake_cable())},
+	                              ui)
+	                      .handled;
 	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
 	return used;
 }
@@ -1602,13 +1617,11 @@ describe tables_3_reset_items("scenes::menu settings and other roots tables: the
 
 describe tables_3_midi_commands("scenes::menu settings and other roots tables: the twelve midi_command_* items", $ {
 	// `midi::Command` is a MIDI *learn* item: focus it, send a message, and the message is bound to one
-	// `GlobalMIDICommand`. The port is one `nodes::MidiCommandItem` parameterised by that command, and
-	// `MenuScene::learn_note_on` / `learn_cc` / `learn_program_change` / `unlearn` are the entry points the MIDI routing
-	// calls. The rows hold the whole `globalMIDICommands` array main's item leaves, which catches an item that learned
-	// onto the wrong command as well as one that learned nothing.
-	//
-	// **What these examples do NOT cover.** Every example below calls the entry points directly, as the MIDI routing
-	// does. The gate in front of them (learn mode and no shift held) reads UI-mode state a scene may not touch.
+	// `GlobalMIDICommand`. The port is one `nodes::MidiCommandItem` parameterised by that command. A message reaches it
+	// in the menu's learn mode through `MenuScene::handle` (`MenuLearn::offer`), which `offer_while_learning` drives;
+	// an example that reads whether the item itself learned calls its learn hooks (`focused_item`). The rows hold the
+	// whole `globalMIDICommands` array main's item leaves, which catches an item that learned onto the wrong command
+	// as well as one that learned nothing.
 
 	it("binds each node to the same GlobalMIDICommand as the legacy item in the same position", _ {
 		expect(std::size(nodes::kMidiCommandsChildren)).to_equal(size_t(12));
@@ -1635,7 +1648,8 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   Rig r;
 			   focus_command_row(r, settings.ctx, i);
 			   expect(menu_scene().focused()).to_equal(nodes::kMidiCommandsChildren[i]);
-			   expect(menu_scene().learn_cc(fake_cable(), 3, cc, 127)).to_be_true();
+			   expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, static_cast<uint8_t>(cc), 127))
+			       .to_be_true();
 			   const std::string got = CommandSlots::capture().describe();
 			   expect(got).to_equal(table().value("learn_cc/" + std::to_string(i), "slot"));
 			   expect(got).not_().to_equal(std::string{"(all clear)"}); // a no-op would match vacuously
@@ -1698,7 +1712,9 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   CommandSlots::clear_all();
 			   Rig note_rig;
 			   focus_command_row(note_rig, settings.ctx, i);
-			   expect(menu_scene().learn_note_on(fake_cable(), 5, static_cast<int32_t>(60 + i))).to_be_true();
+			   expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5,
+			                               static_cast<uint8_t>(60 + i), 100))
+			       .to_be_true();
 			   expect(CommandSlots::capture().describe())
 			       .to_equal(table().value("learn_own/" + std::to_string(i) + "/note", "slot"));
 
@@ -1710,7 +1726,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			   focus_command_row(pc_rig, settings.ctx, i);
 			   const std::string want = table().value("learn_own/" + std::to_string(i) + "/pgm", "slot");
 			   const bool is_fill = want == "refused";
-			   expect(menu_scene().learn_program_change(fake_cable(), 2, static_cast<int32_t>(7 + i)))
+			   expect(focused_item().learn_program_change(spec_device(), 2, static_cast<int32_t>(7 + i)))
 			       .to_equal(!is_fill); // FILL refuses
 			   const std::string pc_got = CommandSlots::capture().describe();
 			   // The port's own half of the refusal: the same `CANT_LEARN_PC` string main pops, and only on FILL.
@@ -1738,7 +1754,8 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 			CommandSlots::clear_all();
 			Rig r;
 			focus_command_row(r, settings.ctx, 0);
-			expect(menu_scene().learn_note_on(fake_cable(), zone, 64)).to_be_true();
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, static_cast<uint8_t>(zone), 64, 100))
+			    .to_be_true();
 			expect(CommandSlots::capture().describe()).to_equal(table().value("learn_mpe/" + std::to_string(zone), "slot"));
 			// A zone, not a channel: `channelOrZone >= 16` is `LearnedMIDI::isForMPEZone()`, and it is below `IS_A_CC`
 			// (18), so the third row still reads "Note".
@@ -1761,7 +1778,7 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 0)).to_be_false();
+		expect(focused_item().learn_cc(spec_device(), 3, 42, 0)).to_be_false();
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 0)).to_be_true();
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
@@ -1778,13 +1795,13 @@ describe tables_3_midi_commands("scenes::menu settings and other roots tables: t
 		{
 			Rig r;
 			focus_command_row(r, settings.ctx, 2);
-			expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 127)).to_be_true();
 		}
 		const std::string learned = CommandSlots::capture().describe();
 		{
 			Rig r;
 			focus_command_row(r, settings.ctx, 0);
-			expect(menu_scene().learn_cc(fake_cable(), 4, 43, 127)).to_be_true();
+			expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 4, 43, 127)).to_be_true();
 			// `MenuScene::unlearn` -> `Command::unlearnAction`
 			// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): only the focused item forgets, so RECORD's
 			// binding survives PLAY's unlearn.
@@ -2607,7 +2624,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		focus_command_row(r, settings.ctx, 0);
 		// Channel 3 + `IS_A_CC`, CC 42: the readout is the cable's display name, "CHANNEL 4"
 		// (1-based, with the CC band subtracted back off) and "CC 42".
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		expect(focused_item().learn_cc(spec_device(), 3, 42, 127)).to_be_true();
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
 		saved.restore();
@@ -2623,7 +2640,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(menu_scene().learn_note_on(fake_cable(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+		expect(focused_item().learn_note_on(spec_device(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
 		saved.restore();
@@ -2635,7 +2652,7 @@ describe tables_3_pixels("scenes::menu settings and other roots tables: pixels",
 		CommandSlots::clear_all();
 		Rig r{board_64(), profile_64()};
 		focus_command_row(r, settings.ctx, 0);
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		expect(focused_item().learn_cc(spec_device(), 3, 42, 127)).to_be_true();
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
 		saved.restore();

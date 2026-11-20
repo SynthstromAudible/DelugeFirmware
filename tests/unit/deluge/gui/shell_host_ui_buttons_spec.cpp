@@ -1,3 +1,4 @@
+#include "io/midi/device_registry.h"
 #include "support/shell_host_ui_rig.h"
 
 #include "cppspec.hpp"
@@ -47,7 +48,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 			expect(r.base.seen[0].ev.channel).to_equal(uint8_t(9));
 			expect(r.base.seen[0].ev.data1).to_equal(c.data1);
 			expect(r.base.seen[0].ev.data2).to_equal(c.data2);
-			expect(r.base.seen[0].ev.cable).to_equal(&fake_cable());
+			expect(deluge::midi::cable_of(r.base.seen[0].ev.device)).to_equal(&fake_cable());
 			// `PatternScene` declines and this rig installs no services, so the base answer decides.
 			expect(fakelegacyui::base_learn_offers).to_equal(1);
 			expect(handled).to_be_false();

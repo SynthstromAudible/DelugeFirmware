@@ -539,30 +539,6 @@ std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const
 	return visit_.learn.target(ctx_, st_);
 }
 
-bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	const bool learned = visit_.learn.note_on(ctx_, st_, cable, channel, note);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
-bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	const bool learned = visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
-bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	const bool learned = visit_.learn.program_change(ctx_, st_, cable, channel, program);
-	if (learned) {
-		read_learned_value_again();
-	}
-	return learned;
-}
-
 void MenuScene::unlearn() {
 	visit_.learn.unlearn(ctx_, st_);
 	read_learned_value_again();

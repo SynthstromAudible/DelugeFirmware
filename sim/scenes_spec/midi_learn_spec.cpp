@@ -86,6 +86,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "io/midi/cable_types/usb_hosted.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -382,7 +383,7 @@ UiEvent midi_note_on(::MIDICable& cable, uint8_t channel, uint8_t note, uint8_t 
 	               .channel = zone_of(cable, channel),
 	               .data1 = note,
 	               .data2 = velocity,
-	               .cable = &cable};
+	               .device = deluge::midi::id_of(cable)};
 }
 
 /// @brief The `UiEvent` a CC producer would build. **There is none in `src/`** -- see the section
@@ -392,7 +393,7 @@ UiEvent midi_cc(::MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) 
 	               .channel = zone_of(cable, channel),
 	               .data1 = cc,
 	               .data2 = value,
-	               .cable = &cable};
+	               .device = deluge::midi::id_of(cable)};
 }
 
 /// @brief The full chain a shell builds, minus the shell: a real `Router` over a real
@@ -1419,9 +1420,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(Learned::of(slot).note_or_cc).to_equal(64);
 	});
 
-	it("a MIDI event with a null cable is dropped, not dereferenced", _ {
-		// `UiEvent::cable`'s documented "no message" value. The service is the only thing in the
-		// tree that may read through it, so it is the only thing that can refuse -- and it refuses
+	it("a MIDI event naming no device is dropped", _ {
+		// `UiEvent::device`'s documented "no message" value. The service is the only thing in the
+		// tree that turns it back into a cable, so it is the only thing that can refuse -- and it refuses
 		// by reporting the event unhandled, which lets `Router` count it rather than silently
 		// swallowing it.
 		static spec::SongFixture fixture = spec::make_synth_song();
@@ -1433,7 +1434,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.begin();
 		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 8), true);
 		const uint32_t dropped_before = rig.router.dropped_events();
-		const bool handled = rig.router.route(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .cable = nullptr}, rig.ctx());
+		const bool handled = rig.router.route(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .device = {}}, rig.ctx());
 
 		expect(handled).to_be_false();
 		expect(rig.router.dropped_events()).to_equal(dropped_before + 1);

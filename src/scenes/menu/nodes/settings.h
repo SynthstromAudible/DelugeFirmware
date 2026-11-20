@@ -48,8 +48,8 @@
 ///           The five `reset_*` items are a real `ResetItem` opening `context_menu::ContextMenuScene`
 ///           through `MenuWalkState::pending_scene` (see "1. Actions" below). The twelve `midi_command_*`
 ///           (`origin/main:src/deluge/gui/menu_item/midi/command.h`, MIDI-learn items) are a real `MidiCommandItem`:
-///           they navigate nowhere, they bind an incoming MIDI message to a `GlobalMIDICommand`, and the entry points
-///           that deliver that message are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.
+///           they navigate nowhere, they bind an incoming MIDI message to a `GlobalMIDICommand`, which reaches them
+///           through `MenuLearn::offer` in learn mode; `MenuScene::unlearn` forgets it.
 ///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
 ///           `default_key` are `Kind::Range` -- exactly the three consumers that
 ///           justify a `Range` kind -- and their `lower`/`upper` live in `FlashStorage::defaultRanges`, not on

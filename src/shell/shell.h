@@ -346,7 +346,7 @@ public:
 	/// the current UI did not use it, so an answer deferred to the next tick would let it act as well.
 	///
 	/// It is not a lowering event and does not open the lowering's tick window: \p event is built
-	/// by the caller (one of the MIDI kinds, with the cable, channel and data bytes), not derived from a
+	/// by the caller (one of the MIDI kinds, with the device, channel and data bytes), not derived from a
 	/// `DelugeInputEvent`, and the held sets, shift latch and press
 	/// bookkeeping `make_context` reads are levels that are as valid between ticks as within one.
 	///

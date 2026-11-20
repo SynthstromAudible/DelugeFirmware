@@ -24,8 +24,8 @@
 ///   * `drawPixelsForOled` -> `render`.
 ///   * `shouldBlinkLearnLed` -> `wants_learn_blink`, which is `true` on all twelve.
 ///   * `allowsLearnMode` has no port: it gates legacy's `UI_MODE_MIDI_LEARN` bookkeeping (`SoundEditor::buttonAction`
-///     in `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is UI-mode state this layer does not own. The
-///     routing that eventually calls `MenuScene::learn_*` is where the equivalent gate belongs.
+///     in `origin/main:src/deluge/gui/ui/sound_editor.cpp`); `MenuLearn::offer`, which calls the learn members, is
+///     where the equivalent gate is.
 ///   * `beginSession` is empty in legacy (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), so `on_focus` keeps
 ///     its do-nothing default rather than being overridden to an empty body.
 ///
@@ -62,9 +62,9 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 
-	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) const override;
-	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const override;
-	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) const override;
+	bool learn_note_on(deluge::midi::DeviceId device, int32_t channel, int32_t note) const override;
+	bool learn_cc(deluge::midi::DeviceId device, int32_t channel, int32_t cc, int32_t value) const override;
+	bool learn_program_change(deluge::midi::DeviceId device, int32_t channel, int32_t program) const override;
 	bool unlearn() const override;
 	bool wants_learn_blink() const override {
 		return true;

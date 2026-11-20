@@ -20,6 +20,7 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
 
 #include "support/menu_rig.h"
@@ -120,7 +121,9 @@ Result button(ButtonId b, bool on) {
 }
 
 Result midi(UiEvent::Kind kind, bool shift = false) {
-	return send(UiEvent{.kind = kind, .channel = 3, .data1 = 64, .data2 = 100, .cable = &spec_cable()}, shift);
+	return send(
+	    UiEvent{.kind = kind, .channel = 3, .data1 = 64, .data2 = 100, .device = deluge::midi::id_of(spec_cable())},
+	    shift);
 }
 
 Result gold(deluge::ui::EncoderRole knob) {
@@ -379,7 +382,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		}
 		(void)button(ButtonId::Learn, true);
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
-		                    .cable = &spec_cable()})
+		                    .device = deluge::midi::id_of(spec_cable())})
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* cc = ctx.model->mappings.find(*target);
@@ -394,7 +397,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 
 		(void)button(ButtonId::Learn, true);
 		expect(send(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5, .data1 = 0, .data2 = 64,
-		                    .cable = &spec_cable()})
+		                    .device = deluge::midi::id_of(spec_cable())})
 		           .handled)
 		    .to_be_true();
 		const deluge::project::Mapping* bend = ctx.model->mappings.find(*target);

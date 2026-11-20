@@ -7,6 +7,8 @@
 #include <cppspec.hpp>
 #include <format>
 #include <limits>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -260,10 +262,24 @@ describe params("the Deluge instrument's param table", ${
 	});
 
 	it("finds a param in the table of the plugin that owns it, and in no other", _ {
-		const deluge::plugin::ParamId sound_only = kParams.front().id;
-		const deluge::plugin::ParamId global_only = deluge::host_chain::kParams.front().id;
-		expect(has_engine_param(deluge::plugin::kDelugeInstrument, sound_only)).to_be_true();
-		expect(has_engine_param(deluge::plugin::kGlobalEffectable, global_only)).to_be_true();
+		// An id each table has and the other lacks, found by looking in the tables themselves.
+		const auto only_in = [](std::span<const deluge::plugin::ParamInfo> in, std::span<const deluge::plugin::ParamInfo> not_in) {
+			const auto at = std::ranges::find_if(in, [&](const deluge::plugin::ParamInfo& p) {
+				return deluge::plugin::find_param(not_in, p.id) == nullptr;
+			});
+			return at == in.end() ? std::optional<deluge::plugin::ParamId>{} : std::optional{at->id};
+		};
+		const std::optional<deluge::plugin::ParamId> sound_only = only_in(kParams, deluge::host_chain::kParams);
+		const std::optional<deluge::plugin::ParamId> global_only = only_in(deluge::host_chain::kParams, kParams);
+		expect(sound_only.has_value()).to_be_true();
+		expect(global_only.has_value()).to_be_true();
+		if (!sound_only || !global_only) {
+			return;
+		}
+		expect(has_engine_param(deluge::plugin::kDelugeInstrument, *sound_only)).to_be_true();
+		expect(has_engine_param(deluge::plugin::kGlobalEffectable, *global_only)).to_be_true();
+		expect(has_engine_param(deluge::plugin::kGlobalEffectable, *sound_only)).to_be_false();
+		expect(has_engine_param(deluge::plugin::kDelugeInstrument, *global_only)).to_be_false();
 		expect(has_engine_param(deluge::plugin::kDelugeInstrument, deluge::plugin::ParamId{4000})).to_be_false();
 		expect(has_engine_param(deluge::plugin::kGlobalEffectable, deluge::plugin::ParamId{4000})).to_be_false();
 	});

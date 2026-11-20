@@ -1,5 +1,6 @@
 # deluge_scenes -- the first UI layer allowed to include the model.
-# May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
+# May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, midi/** (the MIDI protocol
+# library), the standard library,
 # and -- being the first model-aware layer -- model/**, modulation/**, playback/**,
 # processing/**, storage/**, io/**, gui/l10n/**, and the model's words and values: engines/**,
 # plugin-api/**, serialization/**, sequence/**, music-theory/**, and the model's records: deluge-project/** (scenes/bind binds menu nodes
