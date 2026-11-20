@@ -246,8 +246,10 @@ bool takeSequenceDirectionShortcut(int32_t x, int32_t y) {
 	    || instrumentClipView.getNumNoteRowsAuditioning() != 1) {
 		return false;
 	}
-	const deluge::scenes::menu::Node* item = deluge::scenes::menu::shortcut_node(
-	    scene.menu_context().root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	const deluge::scenes::menu::MenuContext& ctx = scene.menu_context();
+	const deluge::scenes::menu::Node* item =
+	    deluge::scenes::menu::shortcut_node(ctx.root, deluge::scenes::menu::shortcuts_version(ctx), false,
+	                                        static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 	if (item != &deluge::scenes::menu::nodes::sequence_direction) {
 		return false;
 	}

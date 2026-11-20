@@ -32,6 +32,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -69,6 +70,12 @@ inline constexpr std::string_view kShortcutsVersion = "pads/shortcutsVersion";
 inline constexpr std::string_view kPlayCursor = "pads/playCursor";
 /// The first part of each community feature's path; the name the feature file writes it under follows it.
 inline constexpr std::string_view kFeaturePrefix = "features/";
+
+/// @brief The BOOL row that says whether preset scale @p scale is disabled by default.
+/// @param scale A preset scale's index.
+/// @return The row's path, `defaults/scales/disabled/<scale>`, valid for the program's life; nullopt for an index
+///         past the preset scales.
+[[nodiscard]] std::optional<std::string_view> disabled_scale(size_t scale);
 } // namespace device_path
 
 namespace feature_paths {
@@ -113,7 +120,8 @@ namespace device_path {
 /// @param f A feature.
 /// @return The row's path, `features/` then the name the feature file writes it under.
 [[nodiscard]] constexpr std::string_view feature(Feature f) {
-	const feature_paths::FeaturePath& path = feature_paths::kPaths[std::to_underlying(f)];
+	// Indexed through `feature_info`, so an id with no entry stops there rather than reading past the paths.
+	const feature_paths::FeaturePath& path = feature_paths::kPaths[std::to_underlying(feature_info(f).id)];
 	return {path.text.data(), path.size};
 }
 } // namespace device_path

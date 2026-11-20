@@ -15,6 +15,7 @@
 #include "gfx/grid/tween.h"
 #include "gfx/oled/icons.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
@@ -94,6 +95,13 @@ const std::array<RGB, kNumMarkerTypes> kMarkerColours{
 /// title face is taller.
 int32_t body_y(const deluge::ui::oled::OledFrame& f) {
 	return f.style.title_height + 5;
+}
+
+/// @brief How the playhead is shown: the device's `pads/playCursor` row; Slow, the row's default, with no device port.
+deluge::project::FlashCursor play_cursor() {
+	return bind::read_device<deluge::project::FlashCursor>(menu::host_ports().device,
+	                                                       deluge::project::device_path::kPlayCursor)
+	    .value_or(deluge::project::FlashCursor::SLOW);
 }
 
 } // namespace
@@ -1007,8 +1015,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
 	if (playing_
-	    || (menu::host_ports().ui->flash_cursor() != deluge::project::FlashCursor::OFF
-	        && waveforms().play_position(where_).has_value())) {
+	    || (play_cursor() != deluge::project::FlashCursor::OFF && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
 	return next;
@@ -1187,7 +1194,7 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const deluge::project::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
+	const deluge::project::FlashCursor cursor = play_cursor();
 	playing_ = false;
 	if (cursor == deluge::project::FlashCursor::OFF) {
 		return;

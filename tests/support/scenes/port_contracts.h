@@ -6,6 +6,7 @@
 
 #include "deluge-project/device_settings.h"
 #include "plugin-api/types/display_mapping.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 
 #include <algorithm>
@@ -20,8 +21,7 @@ namespace deluge::scenes::bind::contract {
 /// @brief A port answers the same thing twice when nothing changed between the calls.
 [[nodiscard]] inline bool ui_facts_are_stable(const UiFacts& ui) {
 	return ui.auditioning() == ui.auditioning() && ui.popup_showing() == ui.popup_showing()
-	       && ui.flash_cursor() == ui.flash_cursor() && ui.performance_editing_mode() == ui.performance_editing_mode()
-	       && ui.dx7_engine_enabled() == ui.dx7_engine_enabled();
+	       && ui.performance_editing_mode() == ui.performance_editing_mode();
 }
 
 /// @brief The card's facts are stable across two calls. No case that the host and a fake both answer the same way
@@ -70,12 +70,6 @@ namespace deluge::scenes::bind::contract {
 	const std::string_view first = ui.firmware_version();
 	const std::string_view second = ui.firmware_version();
 	return !first.empty() && first.data() == second.data() && first == second;
-}
-
-/// @brief The flash cursor is one of its three values.
-[[nodiscard]] inline bool flash_cursor_is_named(const UiFacts& ui) {
-	const auto c = ui.flash_cursor();
-	return c == project::FlashCursor::FAST || c == project::FlashCursor::OFF || c == project::FlashCursor::SLOW;
 }
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.
@@ -270,6 +264,24 @@ namespace deluge::scenes::bind::contract {
 		}
 	}
 	return same;
+}
+
+/// @brief The typed reads answer what `read` reads: the play cursor as one of its three values, the shortcut layout as
+///        one of its two, and a feature's flag as its row's value; a path no row has reads as nothing and as off.
+[[nodiscard]] inline bool device_typed_reads_match(const DeviceSettings& device) {
+	namespace device_path = project::device_path;
+	const std::optional<project::FlashCursor> cursor =
+	    read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
+	const std::optional<project::ShortcutsVersion> version =
+	    read_device<project::ShortcutsVersion>(&device, device_path::kShortcutsVersion);
+	const std::string_view battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
+	const bool named_cursor = cursor == project::FlashCursor::FAST || cursor == project::FlashCursor::OFF
+	                          || cursor == project::FlashCursor::SLOW;
+	const bool named_version = version == project::ShortcutsVersion::V1 || version == project::ShortcutsVersion::V3;
+	return named_cursor && named_version
+	       && read_device_flag(&device, battery) == (device.read(battery).value_or(0) != 0)
+	       && !read_device<project::FlashCursor>(&device, "no/such/row").has_value()
+	       && !read_device_flag(&device, "no/such/row");
 }
 
 /// @}

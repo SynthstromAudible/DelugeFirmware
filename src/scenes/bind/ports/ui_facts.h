@@ -3,8 +3,6 @@
 /// @file
 /// @brief What a scene reads of the UI around it: modes, popups and display settings.
 
-#include "deluge-project/device_settings.h"
-
 #include <cstdint>
 #include <string_view>
 
@@ -25,12 +23,8 @@ public:
 	[[nodiscard]] virtual bool auditioning() const = 0;
 	/// @brief Whether a popup or notification is up.
 	[[nodiscard]] virtual bool popup_showing() const = 0;
-	/// @brief How a playhead is shown.
-	[[nodiscard]] virtual project::FlashCursor flash_cursor() const = 0;
 	/// @brief The performance view's editing mode, which the performance-editing page's cursor starts on.
 	[[nodiscard]] virtual PerformanceEditing performance_editing_mode() const = 0;
-	/// @brief Whether the DX7 engine feature is on, which gives the DX7 parameter page its own pad layout.
-	[[nodiscard]] virtual bool dx7_engine_enabled() const = 0;
 	/// @brief The battery's voltage as the ADC last reported it, which the settings page's battery item shows.
 	/// @return Millivolts; 0 when nothing has been read yet.
 	[[nodiscard]] virtual int32_t battery_millivolts() const = 0;

@@ -46,6 +46,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -1566,7 +1567,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		uint8_t py = 255;
 		for (uint8_t x = 0; x < 14 && px == 255; x++) {
 			for (uint8_t y = 0; y < 8 && px == 255; y++) {
-				const Node* n = menu::shortcut_node(menu_scene().menu_context().root, false, x, y);
+				const Node* n = menu::shortcut_node(menu_scene().menu_context().root, spec::shortcut_layout(), false, x, y);
 				if (n != nullptr && !menu::shortcut_applies(*n, menu_scene().menu_context())) {
 					px = x;
 					py = y;
@@ -1660,7 +1661,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::edits::recordRanges(*sound, 0);
 		(void)r.open(settings_root);
 		r.shell.tick(0);
-		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, false, 2, 1);
+		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, spec::shortcut_layout(), false, 2, 1);
 		expect(target).to_equal(&nodes::source0_transpose);
 
 		r.button(kShiftX, kShiftY, true, 10);
@@ -3011,7 +3012,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			Rig r;
 			(void)r.open(*node);
 			expect(menu_scene().focused()).to_equal(node);
-			expect(menu::shortcut_pos(MenuContext::Root::Sound, *node).valid).to_be_true();
+			expect(menu::shortcut_pos(MenuContext::Root::Sound, spec::shortcut_layout(), *node).valid).to_be_true();
 			expect(menu_scene().next_timer().has_value()).to_be_false();
 
 			for (const uint32_t offset : {uint32_t{0}, uint32_t{menu::kSourceBlinkMs}, uint32_t{100},

@@ -50,16 +50,12 @@ struct FakeCardFacts final : CardFacts {
 struct FakeUiFacts final : UiFacts {
 	bool auditioning_now{false};                                  ///< what `auditioning` answers
 	bool popup{false};                                            ///< what `popup_showing` answers
-	project::FlashCursor cursor{project::FlashCursor::SLOW};      ///< what `flash_cursor` answers
 	PerformanceEditing performance{PerformanceEditing::Disabled}; ///< what `performance_editing_mode` answers
-	bool dx7_engine{false};                                       ///< what `dx7_engine_enabled` answers
 	int32_t battery_mv{0};                                        ///< what `battery_millivolts` answers
 	std::string_view firmware{"2.0.0-test"};                      ///< what `firmware_version` answers
 	[[nodiscard]] bool auditioning() const override { return auditioning_now; }
 	[[nodiscard]] bool popup_showing() const override { return popup; }
-	[[nodiscard]] project::FlashCursor flash_cursor() const override { return cursor; }
 	[[nodiscard]] PerformanceEditing performance_editing_mode() const override { return performance; }
-	[[nodiscard]] bool dx7_engine_enabled() const override { return dx7_engine; }
 	[[nodiscard]] int32_t battery_millivolts() const override { return battery_mv; }
 	[[nodiscard]] std::string_view firmware_version() const override { return firmware; }
 };

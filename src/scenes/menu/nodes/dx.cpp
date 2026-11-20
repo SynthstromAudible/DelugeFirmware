@@ -3,6 +3,7 @@
 
 #include "scenes/menu/nodes/dx.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/browser/browser_scene.h" // DxBrowseItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
@@ -19,6 +20,8 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
+#include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
 #include "foundation/string_format.h"
 #include "instruments/deluge/state_access.h"
 
@@ -40,6 +43,12 @@ using deluge::gfx::oled::kTextSpacingX;
 using deluge::gfx::oled::kTextTitleSizeY;
 using deluge::gfx::oled::kTextTitleSpacingX;
 using deluge::l10n::String;
+
+/// @brief Whether the DX7 engine feature is on, which gives the DX7 parameter page its own pad layout: the device's
+///        row, off where the context binds no device port.
+bool dx7_engine_enabled(const MenuContext& ctx) {
+	return bind::read_device_flag(ctx.ports.device, project::device_path::feature(project::Feature::ENABLE_DX7_ENGINE));
+}
 
 size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
@@ -577,7 +586,7 @@ std::optional<ItemBlink> DxParamItem::own_blink(const MenuContext& ctx, const Me
 }
 
 bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t x, uint8_t y) const {
-	if (ctx.ports.ui == nullptr || !ctx.ports.ui->dx7_engine_enabled()) {
+	if (!dx7_engine_enabled(ctx)) {
 		return false;
 	}
 	if (const std::optional<int16_t> param = dx::pad_param(x, y)) {
@@ -590,7 +599,7 @@ bool DxParamItem::shortcut_pad(const MenuContext& ctx, MenuState& state, uint8_t
 }
 
 bool dx_pad_layout(const MenuContext& ctx, const MenuState& state) {
-	return focused_of(state) == &dx_param && ctx.ports.ui != nullptr && ctx.ports.ui->dx7_engine_enabled();
+	return focused_of(state) == &dx_param && dx7_engine_enabled(ctx);
 }
 
 deluge::ui::shell::Result DxParamItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

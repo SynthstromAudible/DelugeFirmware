@@ -40,6 +40,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -1137,7 +1138,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		spec::SongFixture f = kit_fixture();
 		kit_of(f)->selectedDrum->setName("Snare");
 		const MenuContext ctx = context_of(f);
-		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, false, 11, 5);
+		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, spec::shortcut_layout(), false, 11, 5);
 		expect(node).to_equal(&nodes::drum_name_edit);
 
 		// Shift + (11,5) opens the menu ON the name item, so the item is the menu's root and

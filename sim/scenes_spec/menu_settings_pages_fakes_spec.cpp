@@ -9,6 +9,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/multi_range.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
 #include "scenes/menu/walk.h"
@@ -17,7 +18,10 @@
 
 #include "deluge-project/device_settings.h"
 #include "deluge-project/features.h"
+#include "deluge-project/instrument_slot.h"
+#include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
+#include "instruments/deluge/sound_state.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -313,6 +317,47 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_true();
 		r.shell.tick(100);
 		expect(r.surfaces.pbm(0)).to_equal(horizontal);
+	});
+
+	it("spells a range key with a sharp or a flat as the device's useSharps row says, read as it is drawn", _ {
+		Rig r;
+		MenuContext ctx = r.fakes.settings_context(/*with_model=*/false);
+		ctx.addresses.slot = deluge::project::SlotAddress{.kind = deluge::project::SlotAddress::Kind::OUTPUT, .id = 7};
+		ctx.source_index = 0;
+		deluge::instrument::SoundState& state = r.fakes.host.sound.states[7];
+		state.sources[0].ranges = {deluge::instrument::RangeState{.top_note = 60},
+		                           deluge::instrument::RangeState{.top_note = 72}};
+		// Range 1 starts at the note above range 0's top, 61: C sharp 3 or D flat 3.
+		std::array<char, 32> buf{};
+		deluge::ui::shell::TextScratch scratch;
+		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
+			.to_equal(std::string{"C#3    - top"});
+		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
+		                                            deluge::serialization::Value::makeNumber(0));
+		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
+			.to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph + "3    - top");
+		r.fakes.host.device.values.insert_or_assign(std::string{device_path::kUseSharps},
+		                                            deluge::serialization::Value::makeNumber(1));
+		expect(std::string{nodes::range_row_label(ctx, 1, buf.data(), buf.size(), scratch)})
+			.to_equal(std::string{"C#3    - top"});
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+	});
+
+	it("lists the battery level only while the device's showBatteryLevel row is on", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::root_settings);
+		expect(nodes::battery_level.relevant(ctx)).to_be_true();
+		expect(row_of(nodes::root_settings, nodes::battery_level, ctx)).not_().to_equal(-1);
+		const std::string battery{device_path::feature(Feature::SHOW_BATTERY_LEVEL)};
+		r.fakes.host.device.values.insert_or_assign(battery, deluge::serialization::Value::makeNumber(0));
+		expect(nodes::battery_level.relevant(ctx)).to_be_false();
+		expect(row_of(nodes::root_settings, nodes::battery_level, ctx)).to_equal(-1);
+		r.fakes.host.device.values.insert_or_assign(battery, deluge::serialization::Value::makeNumber(1));
+		expect(nodes::battery_level.relevant(ctx)).to_be_true();
+		// With no device port the readout is hidden.
+		MenuContext unbound = ctx;
+		unbound.ports.device = nullptr;
+		expect(nodes::battery_level.relevant(unbound)).to_be_false();
 	});
 
 	it("leaves the open menu's layout as it was when the port refuses a horizontal-menus write", _ {

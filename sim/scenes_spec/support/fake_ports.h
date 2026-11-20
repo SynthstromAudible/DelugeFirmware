@@ -16,9 +16,9 @@
 namespace deluge::scenes::spec {
 
 /// @brief The host's ports with `ui` and `card` replaced by fakes that start quiet. Every UI and card fact comes from
-///        the fakes, the display settings included: `flash_cursor`, `performance_editing_mode` and
-///        `dx7_engine_enabled` answer the fake's values, not the host's. Its address is what the ports hold, so it
-///        stays where it was declared and outlives every scene that read from it.
+///        the fakes, `performance_editing_mode` included, answer the fake's values, not the host's; the
+///        device's own settings (the play cursor, the DX7 engine feature) stay the host's device port. Its address is
+///        what the ports hold, so it stays where it was declared and outlives every scene that read from it.
 struct HeldPorts {
 	deluge::scenes::bind::test::FakeUiFacts ui;     ///< answers what the example sets; nothing is auditioned
 	deluge::scenes::bind::test::FakeCardFacts card; ///< answers what the example sets; no load runs

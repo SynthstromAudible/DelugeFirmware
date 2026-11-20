@@ -30,14 +30,16 @@
 
 #include "gfx/oled/icons.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/song.h"
 #include "music-theory/preset_scales.h"
-#include "storage/flash_storage.h"
+#include "scenes/bind/device_reader.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -99,7 +101,9 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 		return false;
 	}
 	if (set_ == ScaleSet::Default) {
-		return FlashStorage::defaultDisabledPresetScales[index];
+		// The device's row; not disabled where the context binds no device port.
+		const std::optional<std::string_view> path = project::device_path::disabled_scale(index);
+		return path.has_value() && bind::read_device_flag(ctx.ports.device, *path);
 	}
 	if (ctx.model != nullptr) {
 		return ctx.model->scale.disabled_preset_scales[index];
@@ -114,7 +118,10 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 		return;
 	}
 	if (set_ == ScaleSet::Default) {
-		FlashStorage::defaultDisabledPresetScales[index] = value;
+		const std::optional<std::string_view> path = project::device_path::disabled_scale(index);
+		if (path.has_value() && ctx.ports.device != nullptr) {
+			(void)ctx.ports.device->write(*path, value ? 1 : 0);
+		}
 	}
 	else {
 		bindings::write_song(ctx, disabled_path(index), value ? 1 : 0);

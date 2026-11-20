@@ -821,16 +821,16 @@ void set_usb_output_source(const MenuContext&, int32_t value) {
 
 // Both hooks qualify their `menu::` callee: `nodes` already has a `shortcuts_version` (the `Node`)
 // and a `set_shortcuts_version` (this hook), and either name would hide the enclosing namespace's.
-int32_t get_shortcuts_version(const MenuContext&) {
+int32_t get_shortcuts_version(const MenuContext& ctx) {
 	// `Version::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`)
-	return static_cast<int32_t>(menu::shortcuts_version());
+	return static_cast<int32_t>(menu::shortcuts_version(ctx));
 }
-void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue`: the write that persists, flash byte 60
-	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores.
-	menu::set_shortcuts_version(value == static_cast<int32_t>(project::ShortcutsVersion::V1)
-	                                ? project::ShortcutsVersion::V1
-	                                : project::ShortcutsVersion::V3);
+void set_shortcuts_version(const MenuContext& ctx, int32_t value) {
+	// `shortcuts::Version::writeCurrentValue`: the device's `pads/shortcutsVersion` row, which the shortcut lookups
+	// read and the settings menu saves on its close.
+	menu::set_shortcuts_version(ctx, value == static_cast<int32_t>(project::ShortcutsVersion::V1)
+	                                     ? project::ShortcutsVersion::V1
+	                                     : project::ShortcutsVersion::V3);
 }
 
 // The six `pad_colour_*` nodes are six instantiations of `nodes/settings.h`'s `get_pad_colour` /

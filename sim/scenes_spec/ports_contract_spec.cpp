@@ -64,7 +64,6 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		}
 		if (p.ui != nullptr) {
 			expect(bind::contract::ui_facts_are_stable(*p.ui)).to_be_true();
-			expect(bind::contract::flash_cursor_is_named(*p.ui)).to_be_true();
 			expect(bind::contract::firmware_version_is_a_stable_view(*p.ui)).to_be_true();
 			// The legacy sources themselves; the voltage is set to a value the ADC could report, then put back.
 			expect(std::string{p.ui->firmware_version()}).to_equal(std::string{kFirmwareVersionString});
@@ -146,6 +145,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(bind::contract::device_out_of_range_write_is_refused(*p.device)).to_be_true();
 		expect(bind::contract::device_write_reads_back(*p.device)).to_be_true();
 		expect(bind::contract::device_reader_reads_the_rows(*p.device)).to_be_true();
+		expect(bind::contract::device_typed_reads_match(*p.device)).to_be_true();
 		// Every row the host keeps reads back what it stored. A write that sets a second row (sticky shift lights the
 		// shift LED) is put back by writing every row again in the table's order, which ends as it began.
 		const auto before = bind::contract::device_values(*p.device);

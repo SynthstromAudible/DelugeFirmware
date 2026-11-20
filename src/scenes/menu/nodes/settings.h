@@ -29,7 +29,7 @@
 ///               where the persistence code that reads and writes them
 ///               (`readSettings` in `storage/flash_storage.cpp`, `writeSettings`) lives, and `Colour::value` is a
 ///               reference onto one of them. A member of a `gui/` class could not be reached from here.
-///             - `shortcutsVersion` is flash byte 60 (`FlashStorage::shortcutsVersion`), which selects a shortcut
+///             - `shortcutsVersion` is the device's `pads/shortcutsVersion` row, which selects a shortcut
 ///               *layer* of this layer's own tables (`menu::shortcuts_version`).
 ///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
 ///           `batteryMV` is a plain global set from `src/deluge/deluge.cpp`'s main loop, the same one
@@ -328,8 +328,8 @@ void set_usb_output_source(const MenuContext& ctx, int32_t value);
 ///
 /// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
 /// (`SoundEditor::setShortcutsVersion` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`)). The port selects a whole
-/// layer of its own tables on flash byte 60 (`FlashStorage::shortcutsVersion`) rather than editing one -- see
-/// `menu::set_shortcuts_version`. The write is the byte, which persists it.
+/// layer of its own tables on the device's `pads/shortcutsVersion` row rather than editing one -- see
+/// `menu::set_shortcuts_version`, which writes the row.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);

@@ -52,6 +52,7 @@
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
+#include "support/shortcut_layout.h"
 #include "support/shortcuts_fixtures.h"
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
@@ -203,9 +204,9 @@ std::string diff_column(std::string_view table_name, std::span<const Node* const
 
 /// @brief Select `SHORTCUTS_VERSION_1` for the scope, and put the version back.
 struct PortVersion1 {
-	deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
-	PortVersion1() { menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1); }
-	~PortVersion1() { menu::set_shortcuts_version(saved); }
+	deluge::project::ShortcutsVersion saved = spec::shortcut_layout();
+	PortVersion1() { spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V1); }
+	~PortVersion1() { spec::set_shortcut_layout(saved); }
 	PortVersion1(const PortVersion1&) = delete;
 	PortVersion1& operator=(const PortVersion1&) = delete;
 };
@@ -296,50 +297,50 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	it("matches paramShortcutsForSounds cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("sounds", "v3", menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
+		expect(diff_table("sounds", "v3", menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForSoundsSecondLayer cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("sounds_second", "v3", menu::shortcut_layer(Root::Sound, /*second_layer=*/true)))
+		expect(diff_table("sounds_second", "v3", menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), /*second_layer=*/true)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForAudioClips cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("audio_clips", "v3", menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false)))
+		expect(diff_table("audio_clips", "v3", menu::shortcut_layer(Root::AudioClip, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForSongView cell for cell, for both session roots", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Song, /*second_layer=*/false)))
+		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Song, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
-		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Performance, /*second_layer=*/false)))
+		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Performance, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForKitGlobalFX cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("kit_global_fx", "v3", menu::shortcut_layer(Root::KitGlobalFx, /*second_layer=*/false)))
+		expect(diff_table("kit_global_fx", "v3", menu::shortcut_layer(Root::KitGlobalFx, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches midiOrCVParamShortcuts, in column 11", _ {
 		select_language();
 		// Column 11 is where a pad press and the blink index this table.
-		expect(diff_column("midi_cv", menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
+		expect(diff_column("midi_cv", menu::shortcut_layer(Root::MidiOrCv, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches gateDrumParamShortcuts, in column 11", _ {
 		install_sound_context();
-		expect(diff_column("gate_drum", menu::shortcut_layer(Root::GateDrum, /*second_layer=*/false)))
+		expect(diff_column("gate_drum", menu::shortcut_layer(Root::GateDrum, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
@@ -356,7 +357,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 					const bool want = table_name != nullptr && t.find(cell_key(table_name, "v3", x, y), "soon") != nullptr;
 					soon += want ? 1 : 0;
 					if (menu::shortcut_coming_soon(root, x, y) != want
-					    || (want && menu::shortcut_node(root, false, x, y) != nullptr)) {
+					    || (want && menu::shortcut_node(root, spec::shortcut_layout(), false, x, y) != nullptr)) {
 						diffs += "root(" + std::to_string(static_cast<int>(root)) + ") (" + std::to_string(x) + ","
 						         + std::to_string(y) + ") ";
 					}
@@ -375,10 +376,10 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		const FreeverbModel freeverb;
 		install_sound_context();
 		const std::span<const Node* const> layers[] = {
-		    menu::shortcut_layer(Root::Sound, false),         menu::shortcut_layer(Root::Sound, true),
-		    menu::shortcut_layer(Root::AudioClip, false),     menu::shortcut_layer(Root::Song, false),
-		    menu::shortcut_layer(Root::KitGlobalFx, false),   menu::shortcut_layer(Root::MidiOrCv, false),
-		    menu::shortcut_layer(Root::GateDrum, false),
+		    menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), false),         menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), true),
+		    menu::shortcut_layer(Root::AudioClip, spec::shortcut_layout(), false),     menu::shortcut_layer(Root::Song, spec::shortcut_layout(), false),
+		    menu::shortcut_layer(Root::KitGlobalFx, spec::shortcut_layout(), false),   menu::shortcut_layer(Root::MidiOrCv, spec::shortcut_layout(), false),
+		    menu::shortcut_layer(Root::GateDrum, spec::shortcut_layout(), false),
 		};
 		size_t dynamic = 0;
 		size_t placeholder = 0;
@@ -406,21 +407,21 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots
 		// that arm covers, and none of the others.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
-			expect(menu::shortcut_node(root, false, 4, 7)).to_equal(&nodes::sequence_direction);
-			expect(menu::shortcut_node(root, false, 15, 1)).to_equal(&nodes::spread_velocity_midi);
-			expect(menu::shortcut_node(root, false, 15, 2)).to_equal(&nodes::randomizer_lock);
-			expect(menu::shortcut_node(root, false, 15, 3)).to_equal(&nodes::note_probability_midi);
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 4, 7)).to_equal(&nodes::sequence_direction);
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 15, 1)).to_equal(&nodes::spread_velocity_midi);
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 15, 2)).to_equal(&nodes::randomizer_lock);
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 15, 3)).to_equal(&nodes::note_probability_midi);
 			// The second layer is the same layer here, so the toggle must not lose them.
-			expect(menu::shortcut_node(root, true, 4, 7)).to_equal(&nodes::sequence_direction);
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), true, 4, 7)).to_equal(&nodes::sequence_direction);
 			// The `default:` of the randomizer switch in main's `SoundEditor::get_basic_shortcut_action`
 			// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) -- the randomizer column is y = 1..3 and nothing else.
-			expect(menu::shortcut_node(root, false, 15, 0)).to_be_null();
-			expect(menu::shortcut_node(root, false, 15, 4)).to_be_null();
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 15, 0)).to_be_null();
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 15, 4)).to_be_null();
 		}
 		// Not the sound roots: (4, 7) there is `paramShortcutsForSounds`' own `sequenceDirectionMenu`
 		// cell, and (15, 1..3) the *non*-MIDI randomizer trio -- both from the table, both blinkable.
-		expect(menu::shortcut_node(Root::Sound, false, 15, 1)).to_equal(&nodes::spread_velocity);
-		expect(menu::shortcut_node(Root::AudioClip, false, 15, 1)).to_be_null();
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 15, 1)).to_equal(&nodes::spread_velocity);
+		expect(menu::shortcut_node(Root::AudioClip, spec::shortcut_layout(), false, 15, 1)).to_be_null();
 	});
 
 	it("keeps those four cells out of the layers, so the blink never reports them", _ {
@@ -428,15 +429,15 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// (`SoundEditor::updatePadLightsFor`) scan column 11 and nothing else, so legacy navigates from
 		// these pads and never lights them. Removing the resolve-only split would fail here.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
-			const auto layer = menu::shortcut_layer(root, false);
+			const auto layer = menu::shortcut_layer(root, spec::shortcut_layout(), false);
 			expect(layer[size_t(7) * menu::kShortcutCols + 4]).to_be_null();
 			for (uint8_t y = 1; y <= 3; y++) {
 				expect(layer[size_t(y) * menu::kShortcutCols + 15]).to_be_null();
 			}
-			expect(menu::shortcut_pos(root, nodes::sequence_direction).valid).to_be_false();
-			expect(menu::shortcut_pos(root, nodes::spread_velocity_midi).valid).to_be_false();
-			expect(menu::shortcut_pos(root, nodes::randomizer_lock).valid).to_be_false();
-			expect(menu::shortcut_pos(root, nodes::note_probability_midi).valid).to_be_false();
+			expect(menu::shortcut_pos(root, spec::shortcut_layout(), nodes::sequence_direction).valid).to_be_false();
+			expect(menu::shortcut_pos(root, spec::shortcut_layout(), nodes::spread_velocity_midi).valid).to_be_false();
+			expect(menu::shortcut_pos(root, spec::shortcut_layout(), nodes::randomizer_lock).valid).to_be_false();
+			expect(menu::shortcut_pos(root, spec::shortcut_layout(), nodes::note_probability_midi).valid).to_be_false();
 		}
 	});
 
@@ -449,8 +450,8 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// *formatted* name, which the `*` tolerance downgrades to a presence check. The rows name the item by the
 		// tree paths it sits at, so swapping any two columns fails here even though every name still matches.
 		spec::OracleTable& t = table();
-		const auto layer = menu::shortcut_layer(Root::Sound, false);
-		const auto second = menu::shortcut_layer(Root::Sound, true);
+		const auto layer = menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), false);
+		const auto second = menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), true);
 		std::string bad;
 		size_t pinned = 0;
 		size_t pinned_in_column[menu::kShortcutCols]{};
@@ -490,26 +491,26 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// `randomizerLockMenu` at (15, 2) and `randomizerNoteProbabilityMenu` at (15, 3), but the arm
 		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`SoundEditor::potentialShortcutPadAction`),
 		// so legacy can only ever press column 15 at y == 1.
-		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 1)).to_equal(&nodes::spread_velocity);
-		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 2)).to_be_null();
-		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 3)).to_be_null();
-		expect(menu::shortcut_node(Root::KitGlobalFx, true, 15, 2)).to_be_null();
+		expect(menu::shortcut_node(Root::KitGlobalFx, spec::shortcut_layout(), false, 15, 1)).to_equal(&nodes::spread_velocity);
+		expect(menu::shortcut_node(Root::KitGlobalFx, spec::shortcut_layout(), false, 15, 2)).to_be_null();
+		expect(menu::shortcut_node(Root::KitGlobalFx, spec::shortcut_layout(), false, 15, 3)).to_be_null();
+		expect(menu::shortcut_node(Root::KitGlobalFx, spec::shortcut_layout(), true, 15, 2)).to_be_null();
 		// The guard admits everything up to column 14, so nothing else is lost.
-		expect(menu::shortcut_node(Root::KitGlobalFx, false, 14, 0)).to_equal(&nodes::global_delay_rate);
+		expect(menu::shortcut_node(Root::KitGlobalFx, spec::shortcut_layout(), false, 14, 0)).to_equal(&nodes::global_delay_rate);
 
 		// But the blink side has no such guard (main's `SoundEditor::setupShortcutsBlinkFromTable`,
 		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the two cells are still in the layer and still report a
 		// pad. Removing the press gate, or applying it to the layer as well, fails one half of this.
-		const auto layer = menu::shortcut_layer(Root::KitGlobalFx, false);
+		const auto layer = menu::shortcut_layer(Root::KitGlobalFx, spec::shortcut_layout(), false);
 		expect(layer[size_t(2) * menu::kShortcutCols + 15]).to_equal(&nodes::randomizer_lock);
 		expect(layer[size_t(3) * menu::kShortcutCols + 15]).to_equal(&nodes::note_probability);
-		const ShortcutPos lock = menu::shortcut_pos(Root::KitGlobalFx, nodes::randomizer_lock);
+		const ShortcutPos lock = menu::shortcut_pos(Root::KitGlobalFx, spec::shortcut_layout(), nodes::randomizer_lock);
 		expect(lock.valid).to_be_true();
 		expect(int32_t{lock.x}).to_equal(int32_t{15});
 		expect(int32_t{lock.y}).to_equal(int32_t{2});
 
 		// And no other root grows a gate: the sound table's own column 15 stays pressable.
-		expect(menu::shortcut_node(Root::Sound, false, 15, 2)).to_equal(&nodes::randomizer_lock);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 15, 2)).to_equal(&nodes::randomizer_lock);
 	});
 
 	it("swaps the name editor for the drum one on the two drum roots", _ {
@@ -517,7 +518,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		// `SoundEditor::potentialShortcutPadAction` rewrites
 		// `editNameMenu` to `drumNameEditMenu` for a kit output or a non-audio drum row; the port
 		// bakes that into the drum roots' own layers.
-		const auto at = [](Root root, uint8_t x, uint8_t y) { return menu::shortcut_node(root, false, x, y); };
+		const auto at = [](Root root, uint8_t x, uint8_t y) { return menu::shortcut_node(root, spec::shortcut_layout(), false, x, y); };
 		expect(at(Root::Sound, 11, 5)).to_equal(&nodes::edit_name);
 		expect(at(Root::Drum, 11, 5)).to_equal(&nodes::drum_name_edit);
 		expect(at(Root::MidiOrCv, 11, 5)).to_equal(&nodes::edit_name);
@@ -525,8 +526,8 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		expect(at(Root::GateDrum, 11, 5)).to_equal(&nodes::drum_name_edit);
 
 		// ... and nothing else about those layers differs.
-		const auto sound = menu::shortcut_layer(Root::Sound, false);
-		const auto drum = menu::shortcut_layer(Root::Drum, false);
+		const auto sound = menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), false);
+		const auto drum = menu::shortcut_layer(Root::Drum, spec::shortcut_layout(), false);
 		size_t differing = 0;
 		for (size_t i = 0; i < sound.size(); i++) {
 			differing += size_t(sound[i] != drum[i]);
@@ -539,7 +540,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 	it("gives every root a full 16x8 layer, both layers", _ {
 		for (Root root : all_roots()) {
 			for (bool second : {false, true}) {
-				expect(menu::shortcut_layer(root, second).size())
+				expect(menu::shortcut_layer(root, spec::shortcut_layout(), second).size())
 				    .to_equal(size_t(menu::kShortcutCols) * menu::kShortcutRows);
 			}
 		}
@@ -547,26 +548,26 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 
 	it("resolves nothing outside the 16x8 grid", _ {
 		for (Root root : all_roots()) {
-			expect(menu::shortcut_node(root, false, menu::kShortcutCols, 0)).to_be_null();
-			expect(menu::shortcut_node(root, false, 0, menu::kShortcutRows)).to_be_null();
-			expect(menu::shortcut_node(root, true, 255, 255)).to_be_null();
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, menu::kShortcutCols, 0)).to_be_null();
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), false, 0, menu::kShortcutRows)).to_be_null();
+			expect(menu::shortcut_node(root, spec::shortcut_layout(), true, 255, 255)).to_be_null();
 		}
 	});
 
 	it("gives only the two sound roots a distinct second layer", _ {
 		for (Root root : all_roots()) {
-			const bool distinct = menu::shortcut_layer(root, true).data() != menu::shortcut_layer(root, false).data();
+			const bool distinct = menu::shortcut_layer(root, spec::shortcut_layout(), true).data() != menu::shortcut_layer(root, spec::shortcut_layout(), false).data();
 			expect(distinct).to_equal(root == Root::Sound || root == Root::Drum);
 		}
 	});
 
 	it("shares one table between the two session roots, and leaves settings empty", _ {
-		expect(static_cast<const void*>(menu::shortcut_layer(Root::Song, false).data()))
-		    .to_equal(static_cast<const void*>(menu::shortcut_layer(Root::Performance, false).data()));
-		for (const Node* cell : menu::shortcut_layer(Root::Settings, false)) {
+		expect(static_cast<const void*>(menu::shortcut_layer(Root::Song, spec::shortcut_layout(), false).data()))
+		    .to_equal(static_cast<const void*>(menu::shortcut_layer(Root::Performance, spec::shortcut_layout(), false).data()));
+		for (const Node* cell : menu::shortcut_layer(Root::Settings, spec::shortcut_layout(), false)) {
 			expect(cell).to_be_null();
 		}
-		for (const Node* cell : menu::shortcut_layer(Root::Settings, true)) {
+		for (const Node* cell : menu::shortcut_layer(Root::Settings, spec::shortcut_layout(), true)) {
 			expect(cell).to_be_null();
 		}
 	});
@@ -575,10 +576,10 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 		// Legacy's own rule (`SoundEditor::potentialShortcutPadAction`): the second layer *replaces* a cell only
 		// where it has one, so a second press of a pad without a second-layer item re-opens the
 		// first-layer one rather than nothing.
-		expect(menu::shortcut_node(Root::Sound, true, 8, 0)).to_equal(&nodes::env3_release);
-		expect(menu::shortcut_node(Root::Sound, false, 8, 0)).to_equal(&nodes::env1_release);
-		expect(menu::shortcut_node(Root::Sound, true, 8, 7)).to_equal(&nodes::lpf_freq);
-		expect(menu::shortcut_node(Root::Sound, false, 8, 7)).to_equal(&nodes::lpf_freq);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), true, 8, 0)).to_equal(&nodes::env3_release);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 8, 0)).to_equal(&nodes::env1_release);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), true, 8, 7)).to_equal(&nodes::lpf_freq);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 8, 7)).to_equal(&nodes::lpf_freq);
 	});
 
 	it("round-trips every cell through shortcut_pos", _ {
@@ -586,14 +587,14 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 			// The second layer is searched first, so a node that is only in the first layer must
 			// still be found there, and one in both reports its second-layer pad.
 			for (bool second : {true, false}) {
-				const auto layer = menu::shortcut_layer(root, second);
+				const auto layer = menu::shortcut_layer(root, spec::shortcut_layout(), second);
 				for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
 					for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 						const Node* cell = layer[static_cast<size_t>(y) * menu::kShortcutCols + x];
 						if (cell == nullptr) {
 							continue;
 						}
-						const ShortcutPos pos = menu::shortcut_pos(root, *cell);
+						const ShortcutPos pos = menu::shortcut_pos(root, spec::shortcut_layout(), *cell);
 						expect(pos.valid).to_be_true();
 						// ... and a press finds it again, EXCEPT where the arm's own guard excluded
 						// the pad from the press path in the first place: legacy's kit global-FX arm
@@ -601,7 +602,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 						// blink side scans the whole table. Spelled out here rather than skipped, so
 						// this fails if the gate's shape changes.
 						const bool pressable = root != Root::KitGlobalFx || pos.x <= 14 || pos.y == 1;
-						expect(menu::shortcut_node(root, second, pos.x, pos.y)).to_equal(pressable ? cell : nullptr);
+						expect(menu::shortcut_node(root, spec::shortcut_layout(), second, pos.x, pos.y)).to_equal(pressable ? cell : nullptr);
 					}
 				}
 			}
@@ -611,7 +612,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 	it("reports no pad for a node with no shortcut anywhere", _ {
 		// `root_settings` is a root; nothing in any table points at it.
 		for (Root root : all_roots()) {
-			expect(menu::shortcut_pos(root, nodes::root_settings).valid).to_be_false();
+			expect(menu::shortcut_pos(root, spec::shortcut_layout(), nodes::root_settings).valid).to_be_false();
 		}
 	});
 });
@@ -784,7 +785,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		for (Root root : all_roots()) {
 			for (bool second : {false, true}) {
-				for (const Node* cell : menu::shortcut_layer(root, second)) {
+				for (const Node* cell : menu::shortcut_layer(root, spec::shortcut_layout(), second)) {
 					if (cell != nullptr) {
 						expect(menu::node_id(*cell)).not_().to_equal(uint16_t(0));
 					}
@@ -816,7 +817,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		const PortVersion1 guard;
 		// The same cell-for-cell sweep the V3 group runs, against the cells main's `setShortcutsVersion` rewrites. This
 		// is what makes `nodes::shortcuts_version` a setting that selects something.
-		expect(diff_table("sounds", "v1", menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
+		expect(diff_table("sounds", "v1", menu::shortcut_layer(Root::Sound, spec::shortcut_layout(), /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
@@ -836,26 +837,26 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		}
 		expect(moved).to_equal(std::string{"(0,6) (1,6) "});
 
-		const Node* before_0_6 = menu::shortcut_node(Root::Sound, false, 0, 6);
-		const Node* before_1_6 = menu::shortcut_node(Root::Sound, false, 1, 6);
+		const Node* before_0_6 = menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 0, 6);
+		const Node* before_1_6 = menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 1, 6);
 		expect(before_0_6).to_equal(&nodes::sample0_interpolation);
 		expect(before_1_6).to_equal(&nodes::sample1_interpolation);
 
 		const PortVersion1 guard;
-		expect(menu::shortcut_node(Root::Sound, false, 0, 6)).to_equal(&nodes::sample0_end);
-		expect(menu::shortcut_node(Root::Sound, false, 1, 6)).to_equal(&nodes::sample1_end);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 0, 6)).to_equal(&nodes::sample0_end);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 1, 6)).to_equal(&nodes::sample1_end);
 		expect(t.value(cell_key("sounds", "v1", 0, 6), "item")).to_equal(node_paths(&nodes::sample0_end));
 		expect(t.value(cell_key("sounds", "v1", 1, 6), "item")).to_equal(node_paths(&nodes::sample1_end));
 
 		// The four no-op assignments.
-		expect(menu::shortcut_node(Root::Sound, false, 2, 6)).to_equal(&nodes::source0_wave_index);
-		expect(menu::shortcut_node(Root::Sound, false, 3, 6)).to_equal(&nodes::source1_wave_index);
-		expect(menu::shortcut_node(Root::Sound, false, 2, 7)).to_equal(&nodes::noise);
-		expect(menu::shortcut_node(Root::Sound, false, 3, 7)).to_equal(&nodes::osc_sync);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 2, 6)).to_equal(&nodes::source0_wave_index);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 3, 6)).to_equal(&nodes::source1_wave_index);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 2, 7)).to_equal(&nodes::noise);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 3, 7)).to_equal(&nodes::osc_sync);
 
 		// And the drum root, which reads the same table through its own name-editor swap.
-		expect(menu::shortcut_node(Root::Drum, false, 0, 6)).to_equal(&nodes::sample0_end);
-		expect(menu::shortcut_node(Root::Drum, false, 11, 5)).to_equal(&nodes::drum_name_edit);
+		expect(menu::shortcut_node(Root::Drum, spec::shortcut_layout(), false, 0, 6)).to_equal(&nodes::sample0_end);
+		expect(menu::shortcut_node(Root::Drum, spec::shortcut_layout(), false, 11, 5)).to_equal(&nodes::drum_name_edit);
 	});
 
 	it("matches paramShortcutsForAudioClips: the marker editor on START at (0..1, 7) and on END at (0..1, 6)", _ {
@@ -866,7 +867,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		// no name and no root lists it, so its frozen rows read `name:`; the port's `audio_clip_waveform_start` is that
 		// nameless unlisted node, and every cell compares against its frozen row.
 		spec::OracleTable& t = table();
-		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false);
+		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, spec::shortcut_layout(), /*second_layer=*/false);
 		std::string diffs;
 		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
@@ -878,8 +879,8 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		for (uint8_t x = 0; x < 2; x++) {
 			expect(t.value(cell_key("audio_clips", "v1", x, 7), "item")).to_equal(std::string{"name:"});
 			expect(t.value(cell_key("audio_clips", "v1", x, 6), "item")).to_equal(node_paths(&nodes::audio_clip_waveform));
-			expect(menu::shortcut_node(Root::AudioClip, false, x, 7)).to_equal(&nodes::audio_clip_waveform_start);
-			expect(menu::shortcut_node(Root::AudioClip, false, x, 6)).to_equal(&nodes::audio_clip_waveform);
+			expect(menu::shortcut_node(Root::AudioClip, spec::shortcut_layout(), false, x, 7)).to_equal(&nodes::audio_clip_waveform_start);
+			expect(menu::shortcut_node(Root::AudioClip, spec::shortcut_layout(), false, x, 6)).to_equal(&nodes::audio_clip_waveform);
 		}
 	});
 
@@ -897,18 +898,18 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 	it("leaves every other root's layer alone, and restores V3 when the version goes back", _ {
 		install_sound_context();
 		// The version selects a layer here rather than editing one, so the round trip is total.
-		const Node* song_before = menu::shortcut_node(Root::Song, false, 0, 7);
-		const Node* second_before = menu::shortcut_node(Root::Sound, true, 8, 0);
-		const Node* midi_before = menu::shortcut_node(Root::MidiOrCv, false, 11, 0);
+		const Node* song_before = menu::shortcut_node(Root::Song, spec::shortcut_layout(), false, 0, 7);
+		const Node* second_before = menu::shortcut_node(Root::Sound, spec::shortcut_layout(), true, 8, 0);
+		const Node* midi_before = menu::shortcut_node(Root::MidiOrCv, spec::shortcut_layout(), false, 11, 0);
 		{
 			const PortVersion1 guard;
-			expect(menu::shortcut_node(Root::Song, false, 0, 7)).to_equal(song_before);
-			expect(menu::shortcut_node(Root::Sound, true, 8, 0)).to_equal(second_before);
-			expect(menu::shortcut_node(Root::MidiOrCv, false, 11, 0)).to_equal(midi_before);
+			expect(menu::shortcut_node(Root::Song, spec::shortcut_layout(), false, 0, 7)).to_equal(song_before);
+			expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), true, 8, 0)).to_equal(second_before);
+			expect(menu::shortcut_node(Root::MidiOrCv, spec::shortcut_layout(), false, 11, 0)).to_equal(midi_before);
 		}
-		expect(menu::shortcut_node(Root::Sound, false, 0, 6)).to_equal(&nodes::sample0_interpolation);
-		expect(menu::shortcut_node(Root::AudioClip, false, 0, 6)).to_equal(&nodes::audio_clip_interpolation);
-		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
+		expect(menu::shortcut_node(Root::Sound, spec::shortcut_layout(), false, 0, 6)).to_equal(&nodes::sample0_interpolation);
+		expect(menu::shortcut_node(Root::AudioClip, spec::shortcut_layout(), false, 0, 6)).to_equal(&nodes::audio_clip_interpolation);
+		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V3);
 	});
 
 	it("finds the V1 pad through shortcut_pos too, so the blink follows the version", _ {
@@ -916,7 +917,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		const PortVersion1 guard;
 		// The reverse lookup reads the same layers, so it must move with them -- otherwise the pad a press opens and
 		// the pad that blinks for the item it opened would disagree.
-		const ShortcutPos pos = menu::shortcut_pos(Root::Sound, nodes::sample0_end);
+		const ShortcutPos pos = menu::shortcut_pos(Root::Sound, spec::shortcut_layout(), nodes::sample0_end);
 		expect(pos.valid).to_be_true();
 		expect(pos.x).to_equal(uint8_t(0));
 		expect(pos.y).to_equal(uint8_t(6));
@@ -1204,13 +1205,13 @@ describe shortcut_landing("scenes::menu shortcut landing against main's chain se
 		size_t by_name = 0;
 		for (const LandingRoot& lr : kLandingRoots) {
 			for (const bool second : {false, true}) {
-				if (second && menu::shortcut_layer(lr.root, true).data() == menu::shortcut_layer(lr.root, false).data()) {
+				if (second && menu::shortcut_layer(lr.root, spec::shortcut_layout(), true).data() == menu::shortcut_layer(lr.root, spec::shortcut_layout(), false).data()) {
 					continue; // the root has no second layer of its own
 				}
 				for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 					for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
 						const Node* node =
-						    menu::shortcut_layer(lr.root, second)[static_cast<size_t>(y) * menu::kShortcutCols + x];
+						    menu::shortcut_layer(lr.root, spec::shortcut_layout(), second)[static_cast<size_t>(y) * menu::kShortcutCols + x];
 						if (node == nullptr) {
 							continue;
 						}

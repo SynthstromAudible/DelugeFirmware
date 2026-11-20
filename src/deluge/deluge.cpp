@@ -680,12 +680,12 @@ static void deluge_boot(const DelugeBoard* board) {
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
 	//   * **The shortcut layout** (flash byte 60) needs no push: the scenes read `FlashStorage::shortcutsVersion`
-	//     where they select a layout.
+	//     through the device port's `pads/shortcutsVersion` row where they select a layout.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
 	//     settings item, a factory reset, the menu's highlighting setter (`menu::host_highlighting_changed`) and the
 	//     call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
-	//     `UiFacts::flash_cursor` where they draw it.
+	//     the device port's `pads/playCursor` row where they draw it.
 
 	// Number the menu tree. Idempotent (a function-local static), and normally already done by
 	// `shellHostUI`'s construction through `scenes::scene_registry()`; called anyway because that is

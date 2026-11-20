@@ -27,6 +27,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -169,10 +170,17 @@ static_assert(std::to_underlying(Feature::SHORTCUT_OVERLAY) + 1 == kFeatureCount
               "every Feature has an entry: point this at the last enumerator when adding one");
 
 /// @brief The table's entry for @p f.
+///
+/// An id with no entry stops the program: a constant-evaluated call with one does not compile, because `std::abort`
+/// is no constant expression, and a run-time one aborts rather than read past the table.
 /// @param f A feature.
 /// @return Its entry in `kFeatures`.
 [[nodiscard]] constexpr const FeatureInfo& feature_info(Feature f) {
-	return kFeatures[std::to_underlying(f)];
+	const size_t index = std::to_underlying(f);
+	if (index >= kFeatures.size()) {
+		std::abort();
+	}
+	return kFeatures[index];
 }
 
 /// @brief Whether @p info is an on/off feature: its values are off and on.

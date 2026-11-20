@@ -84,6 +84,7 @@
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
 #include "support/reset_witness.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
 
@@ -2844,7 +2845,7 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 	it("round-trips the shortcuts version through the port's own copy", _ {
 		const TablesRoot& settings = installed_root("settings");
-		const auto saved = menu::shortcuts_version();
+		const auto saved = spec::shortcut_layout();
 
 		// Main's two options are the generic options row of the shortcuts-version path, checked by the options example;
 		// the port's own copy is what this node reads, so it is excluded from the value rows and round-tripped here.
@@ -2855,18 +2856,18 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 		// The round trip, each direction driven from the other value. The layer it selects is checked cell for cell in
 		// `shortcuts_spec.cpp`, which is where the tables live.
-		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V3);
+		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V3);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 0);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(0));
-		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V1);
+		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V1);
 
-		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1);
+		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V1);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 1);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(1));
-		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
+		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V3);
 
 		covered.insert(&nodes::shortcuts_version);
-		menu::set_shortcuts_version(saved);
+		spec::set_shortcut_layout(saved);
 	});
 
 	it("round-trips all six pad colours through writeSettings and readSettings", _ {

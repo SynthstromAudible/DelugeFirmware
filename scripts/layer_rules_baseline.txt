@@ -130,15 +130,10 @@ src/scenes/browser/listing.h	scenes-reads-outside-bind	1
 src/scenes/context_menu/context_menu_scene.cpp	scenes-reads-outside-bind	5
 src/scenes/marker/marker_scene.cpp	scenes-reads-outside-bind	1
 src/scenes/marker/marker_scene.h	scenes-reads-outside-bind	1
-src/scenes/menu/context.cpp	scenes-reads-outside-bind	2
+src/scenes/menu/context.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/midi_command.cpp	scenes-reads-outside-bind	2
-src/scenes/menu/nodes/multi_range.cpp	scenes-reads-outside-bind	1
-src/scenes/menu/nodes/patch_cables.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/roots.cpp	scenes-reads-outside-bind	1
-src/scenes/menu/nodes/scales.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/settings.cpp	scenes-reads-outside-bind	11
-src/scenes/menu/relevance.cpp	scenes-reads-outside-bind	1
-src/scenes/menu/shortcuts.cpp	scenes-reads-outside-bind	1
 src/scenes/overlay/count_in_scene.cpp	scenes-reads-outside-bind	1
 src/scenes/overlay/screensaver_scene.cpp	scenes-reads-outside-bind	1
 src/scenes/recorder/recorder_scene.cpp	scenes-reads-outside-bind	5

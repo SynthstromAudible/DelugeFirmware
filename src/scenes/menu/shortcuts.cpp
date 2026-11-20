@@ -37,12 +37,13 @@
 
 #include "scenes/menu/shortcuts.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
-#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstddef>
+#include <utility>
 
 namespace deluge::scenes::menu {
 
@@ -369,9 +370,9 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
-const Layers& layers_for(MenuContext::Root root) {
+const Layers& layers_for(MenuContext::Root root, project::ShortcutsVersion version) {
 	const auto i = static_cast<size_t>(root);
-	const Layers* by_root = shortcuts_version() == project::ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	const Layers* by_root = version == project::ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
 	return i < static_cast<size_t>(MenuContext::Root::Count)
 	           ? by_root[i]
 	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
@@ -404,13 +405,15 @@ ShortcutPos find_in(const Cells& cells, const Node& node) {
 
 } // namespace
 
-std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer) {
-	const Layers& l = layers_for(root);
+std::span<const Node* const> shortcut_layer(MenuContext::Root root, project::ShortcutsVersion version,
+                                            bool second_layer) {
+	const Layers& l = layers_for(root, version);
 	return second_layer ? std::span<const Node* const>{*l.second} : std::span<const Node* const>{*l.first};
 }
 
-const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y) {
-	const Layers& l = layers_for(root);
+const Node* shortcut_node(MenuContext::Root root, project::ShortcutsVersion version, bool second_layer, uint8_t x,
+                          uint8_t y) {
+	const Layers& l = layers_for(root, version);
 	// First: the arm's own guard on which pads reach the table at all -- a cell the guard excludes
 	// is transcribed (and so still blinks) but was never pressable (`kit_global_fx_press_gate`).
 	if (l.press_gate != nullptr && !l.press_gate(x, y)) {
@@ -445,8 +448,8 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
 	}
 }
 
-ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
-	const Layers& l = layers_for(root);
+ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion version, const Node& node) {
+	const Layers& l = layers_for(root, version);
 	// Second layer first, the order `updatePadLightsFor` scans in -- an item that is in both layers blinks at the pad
 	// it is reached from second.
 	if (l.second != l.first) {
@@ -458,16 +461,15 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	return find_in(*l.first, node);
 }
 
-static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(project::ShortcutsVersion::V1));
-static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(project::ShortcutsVersion::V3));
-
-project::ShortcutsVersion shortcuts_version() {
-	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? project::ShortcutsVersion::V1
-	                                                                          : project::ShortcutsVersion::V3;
+project::ShortcutsVersion shortcuts_version(const MenuContext& ctx) {
+	return bind::read_device<project::ShortcutsVersion>(ctx.ports.device, project::device_path::kShortcutsVersion)
+	    .value_or(project::ShortcutsVersion::V3);
 }
 
-void set_shortcuts_version(project::ShortcutsVersion version) {
-	FlashStorage::shortcutsVersion = static_cast<uint8_t>(version);
+void set_shortcuts_version(const MenuContext& ctx, project::ShortcutsVersion version) {
+	if (ctx.ports.device != nullptr) {
+		(void)ctx.ports.device->write(project::device_path::kShortcutsVersion, std::to_underlying(version));
+	}
 }
 
 } // namespace deluge::scenes::menu

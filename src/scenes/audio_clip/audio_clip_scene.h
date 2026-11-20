@@ -208,6 +208,7 @@
 #include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/ports/ports.h"
 #include "scenes/services/waveform_address.h"
 #include "ui/grid/columns.h"
@@ -624,9 +625,11 @@ private:
 	/// @}
 
 	/// `PadLEDs::flashCursor`. See the class docstring's warning.
-	/// @brief The flash-cursor setting, from the host (`UiFacts::flash_cursor`); the factory's Slow with none.
+	/// @brief The flash-cursor setting: the device's `pads/playCursor` row; the factory's Slow, the row's default, with
+	///        no device port.
 	project::FlashCursor flash_cursor() const {
-		return ports_.ui != nullptr ? ports_.ui->flash_cursor() : project::FlashCursor::SLOW;
+		return bind::read_device<project::FlashCursor>(ports_.device, project::device_path::kPlayCursor)
+		    .value_or(project::FlashCursor::SLOW);
 	}
 
 	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.

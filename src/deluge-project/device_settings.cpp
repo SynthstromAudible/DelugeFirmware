@@ -21,6 +21,8 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 namespace deluge::project {
@@ -114,6 +116,14 @@ static_assert(plugin::mappings_are_valid(kDeviceTable));
 
 std::span<const plugin::SettingInfo> device_table() {
 	return kDeviceTable;
+}
+
+std::optional<std::string_view> device_path::disabled_scale(size_t scale) {
+	if (scale >= kScalePaths.size()) {
+		return std::nullopt;
+	}
+	const ScalePath& path = kScalePaths[scale];
+	return std::string_view{path.text.data(), path.size};
 }
 
 } // namespace deluge::project

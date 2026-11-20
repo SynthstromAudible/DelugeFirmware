@@ -391,7 +391,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/menu_entry.cpp`'s tabl
   searches the operators forever stays put (DIFFERENCES D87).
 * **Shortcut pad (4,0)** on a DX7 sound opens the parameter page on the param it showed last, from a clip view (site 9)
   and inside the menu alike (`nodes::dx_shortcut_fallback`).
-* **The parameter page has its own pads** while the DX7 engine feature is on (`UiFacts::dx7_engine_enabled`):
+* **The parameter page has its own pads** while the DX7 engine feature is on (the device's `features/EnableDX7Engine` row):
   `DxParamItem::shortcut_pad` takes every Shift + pad before it is a shortcut (`CustomItem::shortcut_pad`, asked
   first by `menu::pads`), a pad picking its param (`dx::pad_param`, the inverse of the blink's `dx::param_pad`), and
   the Shift overlay is `main`'s DX7 map (`kDxShortcutColours`).
@@ -740,8 +740,9 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
-  and `menu::set_shortcuts_version` writes. The settings item writes it.
+* **The shortcut layout** is the device's `pads/shortcutsVersion` row, which `menu::shortcuts_version` reads and
+  `menu::set_shortcuts_version` writes through the device port. The host keeps it in flash byte 60
+  (`FlashStorage::shortcutsVersion`). The settings item writes it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
   `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`, which the two screensaver
   setters reach through `menu::host_screensaver_settings_changed()` (`menu/bind_host.h`).
@@ -749,8 +750,8 @@ and `gui/ui/menu_entry.cpp`'s table names all fourteen.
   `ShellHostUI::opened()`.
 * **The node ids**: `deluge_boot` calls `assigned_node_ids()` explicitly, rather than relying on the
   registry's construction reaching it first.
-* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the host answers
-  `UiFacts::flash_cursor`, which the audio clip view, the slicer and the marker editor read each frame: Slow
+* **The play-cursor flash** (`PadLEDs::flashCursor`, flash byte 36) is read where it is drawn: the device's
+  `pads/playCursor` row, which the audio clip view, the slicer and the marker editor read each frame: Slow
   paints the playhead, Fast flashes it through the PIC (`ui::grid::flash_tick_squares`), Off shows nothing.
 
 ## Defects this port found in shipping firmware

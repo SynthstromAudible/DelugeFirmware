@@ -53,6 +53,7 @@ struct ShortcutPos {
 /// and `updatePadLightsFor` index it at.
 ///
 /// @param root         Which menu root is open.
+/// @param version      The shortcut layout in force (`shortcuts_version`).
 /// @param second_layer Legacy's second shortcut layer -- see `shortcut_node`.
 /// @note This is the **transcription only**, and it is what `shortcut_pos` searches -- so it is the
 ///       blink's view, not the press's. Three roots resolve four further pads that are in no layer,
@@ -63,7 +64,8 @@ struct ShortcutPos {
 ///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks a
 ///         shortcut while the settings menu is open (`updatePadLightsFor`'s `!inSettingsMenu()`
 ///         guard).
-std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer);
+std::span<const Node* const> shortcut_layer(MenuContext::Root root, project::ShortcutsVersion version,
+                                            bool second_layer);
 
 /// @brief The node the shortcut pad at (@p x, @p y) opens, or `nullptr` for a pad with no
 ///        shortcut.
@@ -74,6 +76,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 /// `ClipType::AUDIO` / output-type tests does.
 ///
 /// @param root         Which menu root is open, i.e. which table applies.
+/// @param version      The shortcut layout in force (`shortcuts_version`).
 /// @param second_layer Take the cell from the second layer where that layer has one. This is
 ///                     legacy's `secondLayerShortcutsToggled` --
 ///                     pressing the focused item's *own* shortcut pad a second time -- **not**
@@ -104,7 +107,8 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 /// @param x            Absolute pad column.
 /// @param y            Absolute pad row.
 /// @return The node, or `nullptr`.
-const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y);
+const Node* shortcut_node(MenuContext::Root root, project::ShortcutsVersion version, bool second_layer, uint8_t x,
+                          uint8_t y);
 
 /// @brief Whether legacy's first-layer table holds `comingSoonMenu` at (@p x, @p y) for @p root: the cells
 ///        `shortcut_node` answers `nullptr` for and `SoundEditor::potentialShortcutPadAction` answers with "Feature not
@@ -132,16 +136,18 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
 ///       signature does not carry, and both only *withhold* a blink; a blink on the right pad is the failure mode
 ///       either way.
 ///
-/// @param root Which menu root is open.
-/// @param node The node to locate.
+/// @param root    Which menu root is open.
+/// @param version The shortcut layout in force (`shortcuts_version`).
+/// @param node    The node to locate.
 /// @return Its pad, or a `ShortcutPos` with `valid == false`.
-ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
+ShortcutPos shortcut_pos(MenuContext::Root root, project::ShortcutsVersion version, const Node& node);
 
-/// @brief The layout in force: which of the two (`project::ShortcutsVersion`) every lookup above resolves. `V3` until
-///        something sets otherwise.
-project::ShortcutsVersion shortcuts_version();
+/// @brief The layout in force, which the lookups above take: the device's `pads/shortcutsVersion` row.
+/// @param ctx The menu's context, whose device port holds the row.
+/// @return The row's layout; `V3`, the row's default, where the context binds no device port.
+[[nodiscard]] project::ShortcutsVersion shortcuts_version(const MenuContext& ctx);
 
-/// @brief Select @p version: write flash byte 60 (`FlashStorage::shortcutsVersion`), which every lookup above reads.
+/// @brief Select @p version: write the device's `pads/shortcutsVersion` row, which `shortcuts_version` reads.
 ///
 /// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
 ///       ten cells of `paramShortcutsForSounds` / `paramShortcutsForAudioClips` in place
@@ -158,7 +164,8 @@ project::ShortcutsVersion shortcuts_version();
 ///       `[1][6]`, interpolation in V3 and the sample end point in V1. `modSourceShortcuts`
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not in this layer at all -- it is the patching source
 ///       column, which is not table data here (`shortcut_blink.h`).
+/// @param ctx     The menu's context, whose device port takes the write; with none bound, nothing changes.
 /// @param version The layout to use.
-void set_shortcuts_version(project::ShortcutsVersion version);
+void set_shortcuts_version(const MenuContext& ctx, project::ShortcutsVersion version);
 
 } // namespace deluge::scenes::menu

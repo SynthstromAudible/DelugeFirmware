@@ -403,17 +403,23 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		add(out, Issue::Kind::TooManyCustom, last_custom, static_cast<uint16_t>(custom_count));
 	}
 
-	// --- Every shortcut cell points at a node the tree reaches --------------------------------
-	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`.
+	// --- Every shortcut cell points at a node the tree reaches ----------------------------------
+	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`. Both layouts are swept; a cell the two share is
+	// reported once.
+	using project::ShortcutsVersion;
 	for (uint8_t root = 0; !options.skip_shortcut_sweep && root < static_cast<uint8_t>(MenuContext::Root::Count);
 	     root++) {
+		const auto menu_root = static_cast<MenuContext::Root>(root);
 		for (uint8_t layer = 0; layer < 2; layer++) {
 			for (uint8_t y = 0; y < deluge::gfx::grid::kMaxGridRows; y++) {
 				for (uint8_t x = 0; x < deluge::gfx::grid::kMaxGridCols; x++) {
-					const Node* cell = shortcut_node(static_cast<MenuContext::Root>(root), layer != 0, x, y);
-					if (cell != nullptr && !seen.contains(cell)) {
-						add(out, Issue::Kind::ShortcutToNothing, cell,
-						    static_cast<uint16_t>(static_cast<uint16_t>(y) * 256 + x));
+					const Node* current = shortcut_node(menu_root, ShortcutsVersion::V3, layer != 0, x, y);
+					const Node* older = shortcut_node(menu_root, ShortcutsVersion::V1, layer != 0, x, y);
+					for (const Node* cell : {current, older != current ? older : nullptr}) {
+						if (cell != nullptr && !seen.contains(cell)) {
+							add(out, Issue::Kind::ShortcutToNothing, cell,
+							    static_cast<uint16_t>(static_cast<uint16_t>(y) * 256 + x));
+						}
 					}
 				}
 			}

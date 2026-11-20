@@ -6,6 +6,8 @@
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
 
+#include <cstddef>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -58,6 +60,8 @@ describe device_settings("the DEVICE setting group", ${
 				expect(row->kind).to_equal(SettingKind::BOOL);
 				expect(row->default_value).to_equal(0);
 			}
+			const std::optional<std::string_view> named = device_path::disabled_scale(static_cast<size_t>(scale));
+			expect(std::string{named.value_or("")}).to_equal(path);
 		}
 		// Each named row's kind and the default the device's settings reset to.
 		struct Named {
@@ -79,6 +83,11 @@ describe device_settings("the DEVICE setting group", ${
 				expect(row->default_value).to_equal(want.default_value);
 			}
 		}
+	});
+
+	it("names no disabled-by-default row past the preset scales", _ {
+		expect(device_path::disabled_scale(static_cast<size_t>(deluge::music::NUM_PRESET_SCALES)).has_value())
+			.to_be_false();
 	});
 
 	it("holds a row per community feature, of its kind, its words and its default", _ {

@@ -7,6 +7,8 @@
 #include "support/printers/mapping_printer.h"
 
 #include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
+#include "scenes/bind/device_reader.h"
 
 #include <cppspec.hpp>
 
@@ -38,7 +40,6 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.audio.threshold = 2;
 		host.audio.sidechain_type = deluge::plugin::SyncType::DOTTED;
 		host.card.sample_loading = true;
-		host.ui.cursor = deluge::project::FlashCursor::OFF;
 		host.ui.performance = PerformanceEditing::Param;
 		host.ui.battery_mv = 3712;
 		host.ui.firmware = "1.2.3-spec";
@@ -52,7 +53,6 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 		expect(p.card->sample_load_in_flight()).to_be_true();
 		expect(p.card->output_may_be_replaced()).to_be_false();
-		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(deluge::project::FlashCursor::OFF));
 		expect(static_cast<int>(p.ui->performance_editing_mode())).to_equal(static_cast<int>(PerformanceEditing::Param));
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
 		expect(p.ui->battery_millivolts()).to_equal(3712);
@@ -66,7 +66,6 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.card.replacing = true;
 		expect(p.card->output_may_be_replaced()).to_be_true();
 		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
-		expect(contract::flash_cursor_is_named(*p.ui)).to_be_true();
 	});
 	it("answers a sound's facts as the spec set them, and an unknown slot as empty", _ {
 		test::FakeHost host;
@@ -294,6 +293,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::device_out_of_range_write_is_refused(*p.device)).to_be_true();
 		expect(contract::device_write_reads_back(*p.device)).to_be_true();
 		expect(contract::device_reader_reads_the_rows(*p.device)).to_be_true();
+		expect(contract::device_typed_reads_match(*p.device)).to_be_true();
 		// Each write in range reached the fake's store (and was put back after).
 		expect(host.device.stores.empty()).to_be_false();
 
@@ -330,6 +330,33 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		// Its refusals are the front's, which no port can skip.
 		expect(contract::device_unknown_path_write_is_refused(forgetful)).to_be_true();
 		expect(contract::device_out_of_range_write_is_refused(forgetful)).to_be_true();
+	});
+	it("reads a device row typed: what the port holds, and with no port the row's default or off", _ {
+		using deluge::project::Feature;
+		using deluge::project::FlashCursor;
+		using deluge::project::ShortcutsVersion;
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const std::string_view battery = device_path::feature(Feature::SHOW_BATTERY_LEVEL);
+		expect(read_device_flag(p.device, battery)).to_be_true();
+		expect(static_cast<int>(p.device->write(battery, 0))).to_equal(static_cast<int>(DeviceWrite::STORED));
+		expect(read_device_flag(p.device, battery)).to_be_false();
+		expect(static_cast<int>(p.device->write(device_path::kPlayCursor, 1))).to_equal(static_cast<int>(DeviceWrite::STORED));
+		expect(static_cast<int>(read_device<FlashCursor>(p.device, device_path::kPlayCursor).value_or(FlashCursor{0xff})))
+			.to_equal(static_cast<int>(FlashCursor::OFF));
+		expect(static_cast<int>(p.device->write(device_path::kShortcutsVersion, 0)))
+			.to_equal(static_cast<int>(DeviceWrite::STORED));
+		expect(static_cast<int>(read_device<ShortcutsVersion>(p.device, device_path::kShortcutsVersion).value_or(ShortcutsVersion{0xff})))
+			.to_equal(static_cast<int>(ShortcutsVersion::V1));
+		expect(contract::device_typed_reads_match(*p.device)).to_be_true();
+
+		// No port: an enum row reads its default, a flag reads off, and a path no row has reads nothing.
+		expect(static_cast<int>(read_device<FlashCursor>(nullptr, device_path::kPlayCursor).value_or(FlashCursor{0xff})))
+			.to_equal(static_cast<int>(FlashCursor::SLOW));
+		expect(static_cast<int>(read_device<ShortcutsVersion>(nullptr, device_path::kShortcutsVersion).value_or(ShortcutsVersion{0xff})))
+			.to_equal(static_cast<int>(ShortcutsVersion::V3));
+		expect(read_device_flag(nullptr, battery)).to_be_false();
+		expect(read_device<FlashCursor>(nullptr, "no/such/row").has_value()).to_be_false();
 	});
 });
 

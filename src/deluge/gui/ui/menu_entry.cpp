@@ -345,7 +345,8 @@ bool openMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, 
 		return false;
 	}
 	// A pad with no node opens nothing and says nothing: legacy's item is null there.
-	const menu::Node* node = menu::shortcut_node(ctx.root, false, static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+	const menu::Node* node = menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, static_cast<uint8_t>(x),
+	                                             static_cast<uint8_t>(y));
 	const menu::Node* root = rootNodeFor(ctx);
 	if (node == nullptr || menu::node_id(*node) == 0 || root == nullptr) {
 		return false;
@@ -440,7 +441,7 @@ ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return ActionResult::DEALT_WITH;
 	}
-	const menu::Node* const padNode = menu::shortcut_node(ctx.root, false, px, py);
+	const menu::Node* const padNode = menu::shortcut_node(ctx.root, menu::shortcuts_version(ctx), false, px, py);
 	// With the menu current over the automation view, only a parameter's shortcut is taken; any other pad is swallowed
 	// before the sequence-direction arm and before `setup()`.
 	if (padNode != nullptr && getCurrentUI() == &shellHostUI && getRootUI() == &automationView

@@ -28,6 +28,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -88,7 +89,7 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
 		const MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
-		expect(menu::shortcut_node(ctx.root, false, 11, 0)).to_equal(&menu::nodes::arp_rate);
+		expect(menu::shortcut_node(ctx.root, spec::shortcut_layout(), false, 11, 0)).to_equal(&menu::nodes::arp_rate);
 		const RGB pad = menu::shortcut_colour(ctx, 11, 0);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);
@@ -157,7 +158,7 @@ describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomi
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, true))).to_be_false();
 		// The kit's own menu is latched: its overlay paints (11,3) black and Shift + pad refuses it.
 		const MenuContext menu_ctx = kit_table_context(f, true);
-		expect(menu::shortcut_node(menu_ctx.root, false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
+		expect(menu::shortcut_node(menu_ctx.root, spec::shortcut_layout(), false, 11, 3)).to_equal(&menu::nodes::arp_octaves);
 		const RGB pad = menu::shortcut_colour(menu_ctx, 11, 3);
 		expect(pad.r).to_equal(0);
 		expect(pad.g).to_equal(0);

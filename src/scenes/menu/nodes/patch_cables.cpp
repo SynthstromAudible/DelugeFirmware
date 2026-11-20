@@ -21,9 +21,9 @@
 
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
-#include "scenes/menu/shortcuts.h"
 #include "scenes/services/source_names.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/menu/bindings.h"
@@ -38,6 +38,7 @@
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
+#include "deluge-project/device_settings.h"
 #include "gui/l10n/param_names.h"
 #include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/cable_codec.h"
@@ -45,7 +46,6 @@
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 #include "plugin-api/types/param_mapping.h"
-#include "storage/flash_storage.h"
 #include "synth/modulation/cable.h"
 
 #include <algorithm>
@@ -71,16 +71,19 @@ constexpr uint8_t kPostReverbSendVolume =
 constexpr uint8_t kFirstGlobal = deluge::instrument::runtime_index(deluge::instrument::kFirstGlobalParam);
 
 /// @brief The polarity a cable made without one takes where its source fixes none: the device's setting.
-/// @return The device's default cable polarity.
-instrument::Polarity default_patch_cable_polarity() {
-	return FlashStorage::defaultPatchCablePolarity;
+/// @param ctx The menu's context, whose device port holds the setting.
+/// @return The device's default cable polarity; bipolar, the row's default, where the context binds no device port.
+instrument::Polarity default_patch_cable_polarity(const MenuContext& ctx) {
+	return bind::read_device<instrument::Polarity>(ctx.ports.device, project::device_path::kPatchCablePolarity)
+	    .value_or(instrument::Polarity::BIPOLAR);
 }
 
 /// @brief The polarity a new cable from @p source takes.
+/// @param ctx    The menu's context, whose device port holds the default polarity.
 /// @param source The cable's source.
 /// @return The source's fixed polarity, or the device's default where it fixes none.
-instrument::Polarity default_polarity(PatchSource source) {
-	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity());
+instrument::Polarity default_polarity(const MenuContext& ctx, PatchSource source) {
+	return instrument::fixed_polarity(source).value_or(default_patch_cable_polarity(ctx));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -631,7 +634,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	const PatchSource source = strength_source(state, which_);
 	const std::optional<deluge::scenes::bind::CableFact> existing =
 	    find_cable(ctx, source, strength_destination(state, which_));
-	state.walk.patch_polarity = existing.has_value() ? existing->polarity : default_polarity(source);
+	state.walk.patch_polarity = existing.has_value() ? existing->polarity : default_polarity(ctx, source);
 
 	// `Decimal::beginSession` plus `getDefaultEditPos()`
 	// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): the cursor starts on the hundredths' place.
@@ -721,7 +724,7 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	}
 	else {
 		// A param with no polarity shows only the default one, full width, uninverted.
-		const std::string_view only = instrument::to_string(default_polarity(source));
+		const std::string_view only = instrument::to_string(default_polarity(ctx, source));
 		deluge::ui::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
 		                                   kNoPolarityWidth, -1);
 	}
@@ -792,7 +795,7 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	const Node* focused = focused_of(state);
 	const bool in_horizontal = focused != nullptr && renders_horizontal(*focused, ctx);
 	const instrument::Polarity polarity =
-	    in_horizontal ? default_polarity(strength_source(state, which_)) : state.walk.patch_polarity;
+	    in_horizontal ? default_polarity(ctx, strength_source(state, which_)) : state.walk.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
 	    cable_request(ctx, learn_descriptor(ctx, state), state.edit_int, polarity);
 	if (request && ctx.ports.writes != nullptr) {
@@ -1092,13 +1095,13 @@ constexpr PatchSource kModSourcesSecondLayer[2][8] = {
 
 } // namespace
 
-PatchSource mod_source_shortcut(uint8_t sx, uint8_t y, bool second_layer) {
+PatchSource mod_source_shortcut(project::ShortcutsVersion version, uint8_t sx, uint8_t y, bool second_layer) {
 	if (sx >= 2 || y >= 8) {
 		return PatchSource::NOT_AVAILABLE;
 	}
 	// `setShortcutsVersion(SHORTCUTS_VERSION_1)` clears the X/Y pads
 	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s V1 arm).
-	if (!second_layer && y == 7 && shortcuts_version() == project::ShortcutsVersion::V1) {
+	if (!second_layer && y == 7 && version == project::ShortcutsVersion::V1) {
 		return PatchSource::NOT_AVAILABLE;
 	}
 	return second_layer ? kModSourcesSecondLayer[sx][y] : kModSources[sx][y];

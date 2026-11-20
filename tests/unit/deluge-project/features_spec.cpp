@@ -5,9 +5,18 @@
 #include <cstddef>
 #include <set>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 using namespace deluge::project;
+
+namespace {
+/// Whether `feature_info(F)` is a constant expression: false for an id the table has no entry for.
+template <Feature F>
+concept resolves_at_compile_time =
+    requires { typename std::integral_constant<size_t, feature_info(F).choices.size()>; };
+} // namespace
 
 // clang-format off
 describe features("the community features' table", ${
@@ -20,6 +29,14 @@ describe features("the community features' table", ${
 			expect(seen.insert(std::string{info.path}).second).to_be_true(std::string{info.path} + " is listed twice");
 		}
 		expect(kFeatures.size()).to_equal(size_t{23});
+	});
+
+	it("resolves a valid id, and a constant-evaluated lookup of an id past the table does not compile", _ {
+		static_assert(resolves_at_compile_time<Feature::QUANTIZE>);
+		static_assert(!resolves_at_compile_time<static_cast<Feature>(kFeatureCount)>);
+		constexpr const FeatureInfo& last = feature_info(Feature::SHORTCUT_OVERLAY);
+		expect(&last).to_equal(&kFeatures.back());
+		expect(feature_info(Feature::QUANTIZE).path).to_equal(std::string_view{"quantize"});
 	});
 
 	it("gives each feature a default among its values", _ {

@@ -3,8 +3,6 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/performance_view.h"
-#include "hid/led/pad_leds.h"
-#include "model/settings/runtime_feature_settings.h"
 
 #include <version.h>
 
@@ -19,13 +17,9 @@ extern uint16_t batteryMV;
 namespace deluge::gui::shell_host {
 namespace {
 
-using project::FlashCursor;
 using scenes::bind::PerformanceEditing;
 
-// The ports convert these by value.
-static_assert(std::to_underlying(FlashCursor::FAST) == FLASH_CURSOR_FAST);
-static_assert(std::to_underlying(FlashCursor::OFF) == FLASH_CURSOR_OFF);
-static_assert(std::to_underlying(FlashCursor::SLOW) == FLASH_CURSOR_SLOW);
+// The port converts these by value.
 static_assert(std::to_underlying(PerformanceEditing::Disabled) == std::to_underlying(PerformanceEditingMode::DISABLED));
 static_assert(std::to_underlying(PerformanceEditing::Value) == std::to_underlying(PerformanceEditingMode::VALUE));
 static_assert(std::to_underlying(PerformanceEditing::Param) == std::to_underlying(PerformanceEditingMode::PARAM));
@@ -43,16 +37,12 @@ public:
 		}
 		return false;
 	}
-	[[nodiscard]] FlashCursor flash_cursor() const override { return static_cast<FlashCursor>(PadLEDs::flashCursor); }
 	[[nodiscard]] PerformanceEditing performance_editing_mode() const override {
 		// `EditingMode::readCurrentValue`: `defaultEditingMode` first, then `editingParam`.
 		if (!performanceView.defaultEditingMode) {
 			return PerformanceEditing::Disabled;
 		}
 		return performanceView.editingParam ? PerformanceEditing::Param : PerformanceEditing::Value;
-	}
-	[[nodiscard]] bool dx7_engine_enabled() const override {
-		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
 	}
 	[[nodiscard]] int32_t battery_millivolts() const override { return batteryMV; }
 	[[nodiscard]] std::string_view firmware_version() const override { return kFirmwareVersionString; }

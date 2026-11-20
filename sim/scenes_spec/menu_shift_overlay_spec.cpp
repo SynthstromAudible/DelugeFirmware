@@ -26,6 +26,7 @@
 #include "modulation/params/param.h"
 
 #include "support/menu_rig.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -106,7 +107,7 @@ struct Rig {
 /// Whether either layer's source on pad (14 + sx, y) passes @p allowed.
 bool either_layer(uint8_t sx, uint8_t y, const std::function<bool(PatchSource)>& allowed) {
 	for (const bool second : {false, true}) {
-		const PatchSource s = menu::patching::mod_source_shortcut(sx, y, second);
+		const PatchSource s = menu::patching::mod_source_shortcut(spec::shortcut_layout(), sx, y, second);
 		if (s < kLastPatchSource && allowed(s)) {
 			return true;
 		}

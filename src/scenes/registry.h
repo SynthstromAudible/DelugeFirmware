@@ -55,10 +55,11 @@ uint16_t assigned_node_ids();
 /// the top of `main` either, because two of the three are settings the user can change while the
 /// firmware is running.
 ///
-///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, flash byte 60 --
-///     `FlashStorage::shortcutsVersion` itself, which this layer reads where it needs it, so no push is wired.
-///     `FlashStorage::readSettings` fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item
-///     reaches that) and `nodes::set_shortcuts_version` writes it from the settings item. Covered by
+///   * **`menu::shortcuts_version(ctx)` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, the device's
+///     `pads/shortcutsVersion` row, which this layer reads through the device port where it needs it, so no push is
+///     wired. The host keeps it in flash byte 60 (`FlashStorage::shortcutsVersion`): `FlashStorage::readSettings`
+///     fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item reaches that) and
+///     `nodes::set_shortcuts_version` writes the row from the settings item. Covered by
 ///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
 ///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///

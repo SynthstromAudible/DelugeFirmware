@@ -23,6 +23,7 @@
 #include "modulation/patch/patch_cable.h"
 
 #include "support/menu_rig.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -216,19 +217,19 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		Rig r;
 		r.open(nodes::synth_mode);
 		r.shift_press(15, 1);
-		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, false, 15, 1);
+		const Node* randomizer = menu::shortcut_node(MenuContext::Root::Sound, spec::shortcut_layout(), false, 15, 1);
 		expect(randomizer).not_().to_be_null();
 		expect(menu_scene().focused_value()).to_equal(randomizer);
 	});
 
 	it("swallows a source cell past the last patch source", _ {
 		select_language();
-		const deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
-		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1); // (15, 7) names no source
+		const deluge::project::ShortcutsVersion saved = spec::shortcut_layout();
+		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V1); // (15, 7) names no source
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);
-		menu::set_shortcuts_version(saved);
+		spec::set_shortcut_layout(saved);
 		deluge::notify::Notice notice;
 		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
@@ -248,7 +249,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		select_language();
 		Rig r;
 		r.open(nodes::vibrato);
-		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, nodes::vibrato);
+		const menu::ShortcutPos own = menu::shortcut_pos(MenuContext::Root::Sound, spec::shortcut_layout(), nodes::vibrato);
 		expect(own.valid).to_be_true();
 		r.shift_press(own.x, own.y);
 		expect(r.st().second_layer).to_be_false();

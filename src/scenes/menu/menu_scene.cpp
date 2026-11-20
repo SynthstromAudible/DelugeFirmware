@@ -328,7 +328,7 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 	}
 	// Over the automation view any item is taken: `potentialShortcutPadAction` refuses a non-param one only while
 	// the editor itself is the current UI, and here the scene over the menu is.
-	const Node* target = shortcut_node(press.root, false, x, y);
+	const Node* target = shortcut_node(press.root, shortcuts_version(press), false, x, y);
 	if (target == nullptr) {
 		return std::nullopt;
 	}

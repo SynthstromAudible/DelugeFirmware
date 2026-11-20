@@ -21,6 +21,7 @@
 #include "scenes/menu/nodes/multi_range.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
+#include "instruments/deluge/words.h"
 #include "music-theory/note_names.h"
 
 #include "scenes/menu/context.h"
@@ -34,7 +35,8 @@
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
-#include "storage/flash_storage.h"
+#include "deluge-project/device_settings.h"
+#include "scenes/bind/device_reader.h"
 
 #include <algorithm>
 #include <array>
@@ -60,12 +62,19 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 	}
 }
 
+/// @brief Whether a note's name takes a sharp rather than a flat: the device's `defaults/useSharps` row, read where
+///        the name is drawn so a change on the Defaults page shows at once. Sharps, the row's default, where the
+///        context binds no device port.
+bool sharps_preferred(const MenuContext& ctx) {
+	return bind::read_device_value(ctx.ports.device, project::device_path::kUseSharps).value_or(1) != 0;
+}
+
 /// @brief A note's name with its octave, as `noteCodeToString(noteCode, buffer, nullptr, true)` spells it
 ///        (`origin/main:src/deluge/util/functions.cpp`), appended into a caller-owned buffer.
 ///
-/// The sharps-vs-flats choice is the device's preference (`FlashStorage::defaultUseSharps`), not menu state.
-void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
-	const deluge::music::NoteName name = deluge::music::note_name(note_code, FlashStorage::defaultUseSharps);
+/// @p sharps is the device's preference (`sharps_preferred`), not menu state.
+void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code, bool sharps) {
+	const deluge::music::NoteName name = deluge::music::note_name(note_code, sharps);
 	append(out, len, cap, std::string_view{&name.letter, 1});
 	if (name.accidental != deluge::music::Accidental::NONE) {
 		const char sign = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
@@ -90,7 +99,7 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
 	else { // the previous range's top, plus one
-		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
+		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1, sharps_preferred(ctx));
 	}
 	// Pad the lower end out to column 7, so the two halves line up down the list.
 	// Reproduced rather than replaced by a single separator, because it is what makes this function
@@ -103,7 +112,7 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 		append(buf, len, cap, "top");
 	}
 	else { // any other range's upper end
-		append_note_name(buf, len, cap, range_top_note(ctx, index));
+		append_note_name(buf, len, cap, range_top_note(ctx, index), sharps_preferred(ctx));
 	}
 	return {buf, len};
 }
@@ -121,7 +130,7 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 	const instrument::SoundState* sound =
 	    ctx.ports.sound != nullptr && ctx.addresses.slot ? ctx.ports.sound->sound_state(*ctx.addresses.slot) : nullptr;
 	if (sound == nullptr
-	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != OscType::SAMPLE) {
+	    || instrument::source_type(*sound, static_cast<instrument::SourceId>(source)) != instrument::OscType::SAMPLE) {
 		return 0;
 	}
 	char* buf = out.data();
@@ -133,14 +142,14 @@ size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<
 		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
 	}
 	else {
-		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
+		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1, sharps_preferred(ctx));
 	}
 	append(buf, len, cap, "-");
 	if (index == count - 1) {
 		append(buf, len, cap, "top");
 	}
 	else {
-		append_note_name(buf, len, cap, range_top_note(ctx, index));
+		append_note_name(buf, len, cap, range_top_note(ctx, index), sharps_preferred(ctx));
 	}
 	append(buf, len, cap, ")");
 	return len;
