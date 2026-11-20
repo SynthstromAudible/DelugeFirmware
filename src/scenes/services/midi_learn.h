@@ -120,7 +120,7 @@
 ///     which happens for free on the next `leds()` pass. Recorded here so the absence is not read
 ///     as an omission.
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/learn_sink.h"
 #include "scenes/services/learn_mode.h"
 
 #include "definitions_cxx.hpp"
@@ -137,7 +137,6 @@
 #include <optional>
 
 class LearnedMIDI;
-class MIDICable;
 class Song;
 
 namespace deluge::scenes::services {
@@ -259,8 +258,8 @@ public:
 	/// arms skip the parts that need it, and the three-field write still happens.
 	/// @param song The song, or null.
 	void set_song(::Song* song) { song_ = song; }
-	/// @brief Where the learns go; the app's sink, over the song the app plays, when null.
-	void set_sink(deluge::scenes::bind::WriteSink* sink) { sink_ = sink; }
+	/// @brief Where the learns go; the app's learn port, over the song the app plays, when null.
+	void set_sink(deluge::scenes::bind::LearnSink* sink) { sink_ = sink; }
 
 	/// @name The mode
 	/// @{
@@ -329,9 +328,9 @@ public:
 	///
 	/// Does nothing unless something is held. Clears the delete-on-release flag
 	/// -- learning something is what stops the release from wiping it -- and then writes
-	/// `cable`/`channelOrZone`/`noteOrCC` into the held `LearnedMIDI`, with the per-kind extras
+	/// the device's `cable`/`channelOrZone`/`noteOrCC` into the held `LearnedMIDI`, with the per-kind extras
 	/// the arms carry. See the implementation for the four arms, one comment each.
-	/// @param cable          The cable the note arrived on.
+	/// @param device         The device the note arrived on.
 	/// @param channel_or_zone The channel, MPE zone, or `channel + IS_A_CC` when re-entered from
 	///                        `cc_received`.
 	/// @param note           The note number, or the CC number on that same re-entry.
@@ -341,18 +340,18 @@ public:
 	/// @note **Routed, not called.** Its transport is `UiEvent::Kind::MidiNoteOn`, routed by
 	///       `ShellHostUI::noteOnReceivedForMidiLearn` after the input-top scene declines it; `handle()` is its
 	///       caller. Public because the spec drives it directly against legacy, and `cc_received` re-enters it.
-	void note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t velocity);
+	void note_on_received(deluge::midi::DeviceId device, int32_t channel_or_zone, int32_t note, int32_t velocity);
 	/// @brief `View::ccReceivedForMIDILearn`.
 	///
 	/// Two arms: a MIDI-output instrument learns its input *channel* from a CC, and
 	/// everything else treats a non-zero CC as a note-on with `channel + IS_A_CC`.
-	/// @param cable   The cable.
+	/// @param device  The device the CC arrived on.
 	/// @param channel The channel.
 	/// @param cc      The CC number.
 	/// @param value   The CC value; zero is ignored by the second arm.
 	///
 	/// @note Routed like `note_on_received`, as `UiEvent::Kind::MidiCc`.
-	void cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
+	void cc_received(deluge::midi::DeviceId device, int32_t channel, int32_t cc, int32_t value);
 	/// @}
 
 	/// @name The flash
@@ -391,14 +390,14 @@ private:
 	/// @brief `View::commitLearnedThing`: make @p learned the held target's command -- through the sink for a
 	///        song binding, in place for a global command.
 	/// @param learned The command, or a cleared one to unlearn.
-	/// @param input   A note learned on an input: what the learn takes from its cable.
+	/// @param input   A note learned on an input: what the learn takes from its device.
 	void commit(const ::LearnedMIDI& learned, std::optional<deluge::scenes::bind::LearnInput> input = std::nullopt);
-	/// @brief The sink the learns go to, or null.
-	[[nodiscard]] deluge::scenes::bind::WriteSink* sink() const;
+	/// @brief The learn port the learns go to, or null.
+	[[nodiscard]] deluge::scenes::bind::LearnSink* sink() const;
 
 	deluge::ui::shell::SceneStack& stack_;
 	::Song* song_ = nullptr;
-	deluge::scenes::bind::WriteSink* sink_ = nullptr;
+	deluge::scenes::bind::LearnSink* sink_ = nullptr;
 
 	/// `currentUIMode == UI_MODE_MIDI_LEARN`, and the only gate on the MIDI kinds. The guest's close does not reset
 	/// it: a root scene left learning with LEARN held would swallow note-ons after a reopen until LEARN is pressed

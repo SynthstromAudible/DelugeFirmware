@@ -323,7 +323,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		if (backed == nullptr) {
 			return;
 		}
-		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(f.song->project.mappings.find(knob)).to_be_null("the unlearned knob's mapping");
 		expect(valueOf(*backed, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);
 		// The zeroing main's unlearn runs does reach those params: with no knob left, it zeroes the pitch adjust.

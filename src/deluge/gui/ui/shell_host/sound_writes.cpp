@@ -4,10 +4,12 @@
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/state_access.h"
+#include "io/midi/device_registry.h"
 #include "model/edits/attach_recorded_sample.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/edits/set_velocity_to_level.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -182,6 +184,15 @@ public:
 			return took;
 		}
 		return where.slot && one(*where.slot, range);
+	}
+
+	bool velocity_to_level_everywhere(midi::DeviceId device) override {
+		::MIDICable* const cable = midi::cable_of(device);
+		if (currentSong == nullptr || cable == nullptr) {
+			return false;
+		}
+		edits::SetVelocityToLevelEverywhere edit{*cable};
+		return applied(edit);
 	}
 
 private:

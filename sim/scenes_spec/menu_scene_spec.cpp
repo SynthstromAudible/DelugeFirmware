@@ -1065,7 +1065,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		if (!target) {
 			return;
 		}
-		expect(ctx.sink->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
+		expect(ctx.ports.learn->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
 		                       std::nullopt))
 		    .to_be_true();
 		expect(ctx.model->mappings.find(*target)).not_().to_be_null();

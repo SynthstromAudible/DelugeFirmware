@@ -1,6 +1,9 @@
 #include "fakes.h"
 #include "port_contracts.h"
 
+#include "support/printers/learn_input_printer.h"
+#include "support/printers/mapping_printer.h"
+
 #include <cppspec.hpp>
 
 using namespace deluge::scenes::bind;
@@ -94,9 +97,54 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 			expect(host.sound_writes.calls[1].kind).to_equal(test::RecordingSoundWrites::Call::Kind::DX_PROGRAM);
 			expect(host.sound_writes.calls[1].value).to_equal(int64_t{5});
 		}
+		expect(p.sound_writes->velocity_to_level_everywhere(deluge::midi::kUpstreamUsb2)).to_be_true();
+		expect(host.sound_writes.calls.size()).to_equal(size_t{3});
+		if (host.sound_writes.calls.size() == 3) {
+			expect(host.sound_writes.calls[2].kind).to_equal(test::RecordingSoundWrites::Call::Kind::VELOCITY_EVERYWHERE);
+			expect(host.sound_writes.calls[2].device.value).to_equal(deluge::midi::kUpstreamUsb2.value);
+		}
 		host.sound_writes.accept = false;
+		expect(contract::velocity_of_no_device_is_refused(*p.sound_writes)).to_be_true();
 		expect(contract::unknown_sound_is_refused(*p.sound_writes, deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 54321}))
 		    .to_be_true();
+	});
+	it("records each learn in order with its arguments, and answers as the spec set", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		const deluge::project::OwnerParamTarget knob{
+		    {deluge::project::ControlsAddress::Kind::OUTPUT, 7}, deluge::project::engine_target(3)};
+		expect(p.learn->learn_knob(knob, deluge::midi::kDin, 74, 3)).to_be_true();
+		expect(host.learn.calls.size()).to_equal(size_t{1});
+		if (host.learn.calls.size() == 1) {
+			const auto& call = host.learn.calls[0];
+			expect(call.kind).to_equal(test::RecordingLearnSink::Call::Kind::LEARN_KNOB);
+			expect(call.target.has_value()).to_be_true();
+			if (call.target) {
+				expect(*call.target).to_equal(deluge::project::MappingTarget{knob});
+			}
+			expect(call.device.value).to_equal(deluge::midi::kDin.value);
+			expect(call.which_knob).to_equal(74);
+			expect(call.midi_channel).to_equal(3);
+		}
+		const LearnInput input{.device = deluge::midi::kUpstreamUsb1, .channel_or_zone = 4};
+		const deluge::project::MappingTarget track{deluge::project::TrackInputTarget{9}};
+		expect(p.learn->learn(track, deluge::project::MidiCommand{.channel_or_zone = 4, .note_or_cc = 60}, input))
+		    .to_be_true();
+		expect(host.learn.calls.size()).to_equal(size_t{2});
+		if (host.learn.calls.size() == 2) {
+			const auto& call = host.learn.calls[1];
+			expect(call.kind).to_equal(test::RecordingLearnSink::Call::Kind::LEARN);
+			expect(call.target.has_value()).to_be_true();
+			if (call.target) {
+				expect(*call.target).to_equal(track);
+			}
+			expect(call.input.has_value()).to_be_true();
+			if (call.input) {
+				expect(*call.input).to_equal(input);
+			}
+		}
+		host.learn.accept = false;
+		expect(contract::unknown_owner_knob_is_refused(*p.learn, knob)).to_be_true();
 	});
 });
 

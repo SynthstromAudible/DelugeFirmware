@@ -20,6 +20,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.controls).not_().to_be_null();
 		expect(p.clip_writes).not_().to_be_null();
 		expect(p.sound_writes).not_().to_be_null();
+		expect(p.learn).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		}
@@ -50,6 +51,15 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 			expect(bind::contract::unknown_sound_is_refused(
 			           *p.sound_writes,
 			           deluge::project::SlotAddress{deluge::project::SlotAddress::Kind::OUTPUT, 0xFFFF'FFF0}))
+			    .to_be_true();
+			expect(bind::contract::velocity_of_no_device_is_refused(*p.sound_writes)).to_be_true();
+		}
+		if (p.learn != nullptr) {
+			// An output id no song holds.
+			expect(bind::contract::unknown_owner_knob_is_refused(
+			           *p.learn, deluge::project::OwnerParamTarget{
+			                         {deluge::project::ControlsAddress::Kind::OUTPUT, 0xFFFF'FFF0},
+			                         deluge::project::engine_target(3)}))
 			    .to_be_true();
 		}
 		if (p.tracks != nullptr) {

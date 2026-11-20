@@ -46,25 +46,6 @@ void RecordingSink::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = GestureRequest::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
 }
 
-bool RecordingSink::learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
-                          std::optional<LearnInput> input) {
-	gestures.push_back({.kind = GestureRequest::Kind::LEARN,
-	                    .mapping = std::move(target),
-	                    .command = std::move(command),
-	                    .input = input});
-	return true;
-}
-
-bool RecordingSink::learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
-                               int32_t midi_channel) {
-	gestures.push_back({.kind = GestureRequest::Kind::LEARN_KNOB,
-	                    .value = which_knob,
-	                    .mapping = project::MappingTarget{target},
-	                    .device = device,
-	                    .midi_channel = midi_channel});
-	return true;
-}
-
 bool RecordingSink::knob_mode(project::KnobModeOwner owner, uint8_t mode) {
 	gestures.push_back({.kind = GestureRequest::Kind::KNOB_MODE, .value = mode, .knob_owner = owner});
 	return true;
@@ -97,11 +78,6 @@ bool RecordingSink::write_effect(const EffectOwner& owner, std::string_view path
 
 bool RecordingSink::midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) {
 	gestures.push_back({.kind = GestureRequest::Kind::MIDI_CC_SELECT, .value = knob, .focus = focus, .begin = on});
-	return true;
-}
-
-bool RecordingSink::velocity_to_level_everywhere(const ::MIDICable& cable) {
-	gestures.push_back({.kind = GestureRequest::Kind::VELOCITY_EVERYWHERE, .input = LearnInput{.cable = &cable}});
 	return true;
 }
 

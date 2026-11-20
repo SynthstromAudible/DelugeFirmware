@@ -27,7 +27,6 @@
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
-#include "io/midi/device_registry.h"
 #include "io/midi/follow_host.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
@@ -39,7 +38,6 @@
 #include "model/drum/drum.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
-#include "model/edits/learn_mapping.h"
 #include "model/edits/set_cable_polarity.h"
 #include "model/edits/set_chain_view.h"
 #include "model/edits/set_controls.h"
@@ -52,7 +50,6 @@
 #include "model/edits/set_param_value.h"
 #include "model/edits/set_patch_cable.h"
 #include "model/edits/set_setting.h"
-#include "model/edits/set_velocity_to_level.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -191,10 +188,6 @@ public:
 	void set_default_audio_input_channel(int32_t channel) override {
 		defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
 	}
-	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
-	           std::optional<deluge::scenes::bind::LearnInput> input) override;
-	bool learn_knob(const deluge::project::OwnerParamTarget& target, deluge::midi::DeviceId device, int32_t which_knob,
-	                int32_t midi_channel) override;
 	bool knob_mode(deluge::project::KnobModeOwner owner, uint8_t mode) override {
 		return deluge::edits::modKnobModeFor(owner, mode);
 	}
@@ -212,10 +205,6 @@ public:
 		return currentSong != nullptr && applied(edit);
 	}
 	bool instrument_edited(const deluge::scenes::bind::KnobFocus& focus) override;
-	bool velocity_to_level_everywhere(const ::MIDICable& cable) override {
-		deluge::edits::SetVelocityToLevelEverywhere edit{cable};
-		return currentSong != nullptr && applied(edit);
-	}
 	[[nodiscard]] uint32_t refusals() const { return refusals_; }
 
 private:
@@ -532,64 +521,6 @@ bool ShellEditSink::write_text(const deluge::scenes::bind::Target& target, const
 	deluge::edits::SetSetting edit{*address, std::string{target.path},
 	                               deluge::serialization::Value::makeScalar(std::string{text})};
 	return applied(edit);
-}
-
-bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
-                          std::optional<deluge::scenes::bind::LearnInput> input) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	if (!command) {
-		// `MenuItemWithCCLearning::unlearnAction`: the menu unlearns only a param's knob, which marks the current
-		// instrument edited (`SoundEditor::markInstrumentAsEdited`), as `learn_knob` does for the learn.
-		deluge::edits::UnlearnMapping edit{std::move(target)};
-		if (!applied(edit)) {
-			return false;
-		}
-		if (Instrument* instrument = getCurrentInstrument()) {
-			instrument->beenEdited();
-		}
-		return true;
-	}
-	std::optional<deluge::edits::InputLearn> learned_input;
-	if (input) {
-		learned_input = deluge::edits::InputLearn{.cable = input->cable, .channel_or_zone = input->channel_or_zone};
-	}
-	deluge::edits::LearnMapping edit{
-	    deluge::project::Mapping{.source = std::move(*command), .target = std::move(target)}, std::nullopt,
-	    learned_input};
-	return applied(edit);
-}
-
-bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, deluge::midi::DeviceId device,
-                               int32_t which_knob, int32_t midi_channel) {
-	if (currentSong == nullptr) {
-		return false;
-	}
-	const std::optional<deluge::model::EffectsOwner> effects =
-	    deluge::bridge::effectsOwnerAt(*currentSong, target.owner);
-	::ModControllable* owner = deluge::bridge::controlsSlotAt(*currentSong, target.owner);
-	if (!effects || owner == nullptr) {
-		return false;
-	}
-	const bool isSound = effects->sound != nullptr;
-	namespace params = deluge::modulation::params;
-	const deluge::modulation::KnobTarget knob = deluge::bridge::knobOfControl(
-	    target.param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL);
-	if (!knob) {
-		return false;
-	}
-	// `SoundEditor::modEncoderAction` learns a mod knob in the current output's knob mode.
-	Output* output = getCurrentOutput();
-	const int32_t mode = midi_channel >= 16 && output != nullptr ? output->modKnobMode : 0;
-	if (!deluge::edits::learnKnobOn(*owner, knob, deluge::midi::cable_of(device), which_knob, mode, midi_channel)) {
-		return false;
-	}
-	// `SoundEditor::markInstrumentAsEdited`.
-	if (Instrument* instrument = getCurrentInstrument()) {
-		instrument->beenEdited();
-	}
-	return true;
 }
 
 bool ShellEditSink::write(const WriteRequest& request) {

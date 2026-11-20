@@ -171,14 +171,15 @@ struct RecordingSoundWrites final : SoundWrites {
 	struct Call {
 		/// @brief Which request it was.
 		enum class Kind : uint8_t {
-			RANGES,        ///< write_ranges
-			DEFAULT_RANGE, ///< set_default_range
-			INSERT_RANGE,  ///< insert_range
-			DELETE_RANGE,  ///< delete_range
-			ATTACH,        ///< attach_recording
-			DX_PATCH,      ///< write_dx_patch
-			DX_PROGRAM,    ///< load_dx_program
-			TRANSPOSE,     ///< write_source_transpose
+			RANGES,              ///< write_ranges
+			DEFAULT_RANGE,       ///< set_default_range
+			INSERT_RANGE,        ///< insert_range
+			DELETE_RANGE,        ///< delete_range
+			ATTACH,              ///< attach_recording
+			DX_PATCH,            ///< write_dx_patch
+			DX_PROGRAM,          ///< load_dx_program
+			TRANSPOSE,           ///< write_source_transpose
+			VELOCITY_EVERYWHERE, ///< velocity_to_level_everywhere
 		};
 		Kind kind{Kind::RANGES};     ///< which request it was
 		project::SlotAddress slot{}; ///< the sound it named (not TRANSPOSE's)
@@ -196,6 +197,7 @@ struct RecordingSoundWrites final : SoundWrites {
 		std::string text;                                 ///< ATTACH's path
 		std::optional<instrument::DxPatchState> dx_patch; ///< DX_PATCH's patch
 		Addresses where{};                                ///< TRANSPOSE's owner
+		midi::DeviceId device{};                          ///< VELOCITY_EVERYWHERE's device
 	};
 	std::vector<Call> calls; ///< every request taken, in order
 	bool accept{true};       ///< what each request answers (set_default_range answers nothing)
@@ -211,6 +213,32 @@ struct RecordingSoundWrites final : SoundWrites {
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
+	bool velocity_to_level_everywhere(midi::DeviceId device) override;
+};
+
+/// @brief LearnSink that records every learn, in order, and answers each with @ref accept.
+struct RecordingLearnSink final : LearnSink {
+	/// @brief One recorded learn: its kind and its arguments.
+	struct Call {
+		/// @brief Which learn it was.
+		enum class Kind : uint8_t {
+			LEARN,      ///< learn
+			LEARN_KNOB, ///< learn_knob
+		};
+		Kind kind{Kind::LEARN};                       ///< which learn it was
+		std::optional<project::MappingTarget> target; ///< LEARN's target, or LEARN_KNOB's owner and param
+		std::optional<project::MidiCommand> command;  ///< LEARN's command; none for an unlearn
+		std::optional<LearnInput> input;              ///< LEARN's input note
+		midi::DeviceId device{};                      ///< LEARN_KNOB's device; none for a mod knob
+		int32_t which_knob{0};                        ///< LEARN_KNOB's mod knob or CC number
+		int32_t midi_channel{0};                      ///< LEARN_KNOB's channel, 16 or more for a mod knob
+	};
+	std::vector<Call> calls; ///< every learn taken, in order
+	bool accept{true};       ///< what each learn answers
+	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
+	           std::optional<LearnInput> input) override;
+	bool learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
+	                int32_t midi_channel) override;
 };
 
 /// @brief One of every fake, and the Ports that point at them: a spec's whole host.
@@ -224,6 +252,7 @@ struct FakeHost {
 	FakeControlFacts controls;         ///< the knobs' port's fake
 	RecordingClipWrites clip_writes;   ///< the clip port's recorder
 	RecordingSoundWrites sound_writes; ///< the sound port's recorder
+	RecordingLearnSink learn;          ///< the learn port's recorder
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
@@ -234,7 +263,8 @@ struct FakeHost {
 		        .tracks = &tracks,
 		        .controls = &controls,
 		        .clip_writes = &clip_writes,
-		        .sound_writes = &sound_writes};
+		        .sound_writes = &sound_writes,
+		        .learn = &learn};
 	}
 };
 

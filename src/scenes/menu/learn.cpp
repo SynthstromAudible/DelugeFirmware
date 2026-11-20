@@ -176,7 +176,8 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, deluge::midi::DeviceId device, int32_t which_knob,
                      int32_t midi_channel) const {
 	const std::optional<deluge::project::OwnerParamTarget> param = target(ctx, st);
-	if (!param || ctx.sink == nullptr || !ctx.sink->learn_knob(*param, device, which_knob, midi_channel)) {
+	if (!param || ctx.ports.learn == nullptr
+	    || !ctx.ports.learn->learn_knob(*param, device, which_knob, midi_channel)) {
 		return false;
 	}
 	deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LEARNED));
@@ -213,8 +214,8 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	// `MenuItemWithCCLearning::unlearnAction`: a param's learned knob goes,
 	// with a popup when there was one.
 	const std::optional<deluge::project::OwnerParamTarget> learned = target(ctx, st);
-	if (learned && ctx.model != nullptr && ctx.sink != nullptr && ctx.model->mappings.find(*learned) != nullptr
-	    && ctx.sink->learn(*learned, std::nullopt, std::nullopt)) {
+	if (learned && ctx.model != nullptr && ctx.ports.learn != nullptr && ctx.model->mappings.find(*learned) != nullptr
+	    && ctx.ports.learn->learn(*learned, std::nullopt, std::nullopt)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
 	}
 }

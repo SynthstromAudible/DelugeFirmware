@@ -188,4 +188,26 @@ bool RecordingSoundWrites::write_source_transpose(const Addresses& where, uint8_
 	return accept;
 }
 
+bool RecordingSoundWrites::velocity_to_level_everywhere(midi::DeviceId device) {
+	calls.push_back({.kind = Call::Kind::VELOCITY_EVERYWHERE, .device = device});
+	return accept;
+}
+
+bool RecordingLearnSink::learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
+                               std::optional<LearnInput> input) {
+	calls.push_back(
+	    {.kind = Call::Kind::LEARN, .target = std::move(target), .command = std::move(command), .input = input});
+	return accept;
+}
+
+bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, midi::DeviceId device, int32_t which_knob,
+                                    int32_t midi_channel) {
+	calls.push_back({.kind = Call::Kind::LEARN_KNOB,
+	                 .target = project::MappingTarget{target},
+	                 .device = device,
+	                 .which_knob = which_knob,
+	                 .midi_channel = midi_channel});
+	return accept;
+}
+
 } // namespace deluge::scenes::bind::test

@@ -6,6 +6,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/sound_state.h"
+#include "midi/device_id.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>
@@ -71,6 +72,11 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                                    int32_t menu_value) = 0;
+	/// @brief Give every synth and sound kit row whose input is @p device its velocity-to-level default, in every
+	///        clip: the device menu's "for everything", a default set up for the user with no undo step.
+	/// @param device The device whose inputs take its default.
+	/// @return Whether it was taken: false where @p device names no device.
+	virtual bool velocity_to_level_everywhere(midi::DeviceId device) = 0;
 };
 
 } // namespace deluge::scenes::bind

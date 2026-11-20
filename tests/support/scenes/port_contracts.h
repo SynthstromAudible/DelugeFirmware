@@ -72,4 +72,16 @@ namespace deluge::scenes::bind::contract {
 	       && !writes.write_source_transpose(Addresses{.slot = nowhere}, 0, std::nullopt, 0);
 }
 
+/// @brief A velocity default for no device is refused: the host has no cable to read it from. A fake that accepts
+///        everything is set to refuse first.
+[[nodiscard]] inline bool velocity_of_no_device_is_refused(SoundWrites& writes) {
+	return !writes.velocity_to_level_everywhere(midi::DeviceId{});
+}
+
+/// @brief A knob learned onto a param of an owner no song holds is refused, a MIDI knob's and a mod knob's alike. A
+///        fake that accepts everything is set to refuse first.
+[[nodiscard]] inline bool unknown_owner_knob_is_refused(LearnSink& learns, const project::OwnerParamTarget& nowhere) {
+	return !learns.learn_knob(nowhere, midi::kDin, 74, 3) && !learns.learn_knob(nowhere, midi::DeviceId{}, 1, 255);
+}
+
 } // namespace deluge::scenes::bind::contract

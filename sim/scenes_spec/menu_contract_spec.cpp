@@ -4,8 +4,9 @@
 ///        from defaults.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/learn_sink.h"
 #include "scenes/menu/action.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -23,7 +24,10 @@
 #include "gui/l10n/l10n.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "model/project_bridge/midi_command.h"
 
+#include "fakes.h"
 #include "support/menu_rig.h"
 #include "support/song_fixture.h"
 
@@ -34,6 +38,7 @@
 
 #include "cppspec.hpp"
 
+#include <array>
 #include <span>
 #include <string>
 #include <tuple>
@@ -341,7 +346,7 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		if (!column) {
 			return;
 		}
-		expect(ctx.sink->learn(*column, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
+		expect(ctx.ports.learn->learn(*column, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
 		                       std::nullopt))
 		    .to_be_true();
 		expect(ctx.model->mappings.find(*column)).not_().to_be_null();
@@ -423,12 +428,12 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		(void)button(ButtonId::Learn, false);
 	});
 
-	it("hands the sink no device for a gold knob's learn, and the message's device for a MIDI knob's", _ {
+	it("hands the learn port no device for a gold knob's learn, and the message's device for a MIDI knob's", _ {
 		select_language();
 		Rig r;
-		deluge::scenes::bind::RecordingSink recording;
+		deluge::scenes::bind::test::RecordingLearnSink recording;
 		MenuContext ctx = r.menu_context();
-		ctx.sink = &recording;
+		ctx.ports.learn = &recording;
 		r.open(nodes::sound_root, nodes::lpf_res, ctx);
 		r.shell.tick(0);
 		expect(menu_scene().learn_target().has_value()).to_be_true();
@@ -441,10 +446,11 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		    .to_be_true();
 		(void)button(ButtonId::Learn, false);
 
-		std::vector<deluge::scenes::bind::GestureRequest> knobs;
-		for (const deluge::scenes::bind::GestureRequest& g : recording.gestures) {
-			if (g.kind == deluge::scenes::bind::GestureRequest::Kind::LEARN_KNOB) {
-				knobs.push_back(g);
+		using Call = deluge::scenes::bind::test::RecordingLearnSink::Call;
+		std::vector<Call> knobs;
+		for (const Call& call : recording.calls) {
+			if (call.kind == Call::Kind::LEARN_KNOB) {
+				knobs.push_back(call);
 			}
 		}
 		expect(knobs.size()).to_equal(size_t{2});
@@ -452,10 +458,52 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		expect(knobs[0].device.value).to_equal(deluge::midi::DeviceId{}.value); // the gold knob
-		expect(knobs[0].value).to_equal(int64_t{1});
+		expect(knobs[0].which_knob).to_equal(int32_t{1});
 		expect(knobs[1].device.value).to_equal(device.value); // the CC
-		expect(knobs[1].value).to_equal(int64_t{74});
+		expect(knobs[1].which_knob).to_equal(int32_t{74});
 		expect(knobs[1].midi_channel).to_equal(int32_t{2});
+	});
+
+	it("the app's learn port binds a MIDI knob to the cable its device names, and a mod knob to none", _ {
+		// The host's `LearnSink::learn_knob`, called directly: a fixed port's handle must reach the knob's learn as
+		// that port's cable, which the learned mapping names and resolves back to.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_res);
+		r.shell.tick(0);
+		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
+		const MenuContext ctx = r.menu_context();
+		deluge::scenes::bind::LearnSink* const learns = deluge::scenes::menu::host_ports().learn;
+		expect(target.has_value()).to_be_true();
+		expect(learns).not_().to_be_null();
+		if (!target || learns == nullptr) {
+			return;
+		}
+		const std::array<std::pair<deluge::midi::DeviceId, ::MIDICable*>, 2> fixed{{
+		    {deluge::midi::kDin, &MIDIDeviceManager::dinMIDIPorts},
+		    {deluge::midi::kUpstreamUsb2, &MIDIDeviceManager::upstreamUSBMIDICable2},
+		}};
+		for (const auto& [device, cable] : fixed) {
+			expect(learns->learn_knob(*target, device, 74, 3)).to_be_true();
+			const deluge::project::Mapping* learned = ctx.model->mappings.find(*target);
+			expect(learned).not_().to_be_null();
+			if (learned == nullptr) {
+				return;
+			}
+			expect(int(learned->source.channel_or_zone)).to_equal(3);
+			expect(int(learned->source.note_or_cc)).to_equal(74);
+			expect(deluge::bridge::learned_of(learned->source).cable).to_equal(cable);
+			expect(learns->learn(*target, std::nullopt, std::nullopt)).to_be_true(); // unlearn for the next
+			expect(ctx.model->mappings.find(*target)).to_be_null();
+		}
+
+		// A mod knob: no device, a channel of 16 or more, and a knob that did not turn the param now turns it.
+		const uint8_t mode = r.song.clip->output->modKnobMode;
+		const uint8_t knob = knob_param(target->owner, mode, 0) == std::optional{target->param.id} ? 1 : 0;
+		expect(knob_param(target->owner, mode, knob)).not_().to_equal(std::optional{target->param.id});
+		expect(learns->learn_knob(*target, deluge::midi::DeviceId{}, knob, 255)).to_be_true();
+		expect(knob_param(target->owner, mode, knob)).to_equal(std::optional{target->param.id});
+		expect(ctx.model->mappings.find(*target)).to_be_null(); // a mod knob is not a MIDI mapping
 	});
 
 	it("outside learn mode leaves a gold turn to the knobs", _ {

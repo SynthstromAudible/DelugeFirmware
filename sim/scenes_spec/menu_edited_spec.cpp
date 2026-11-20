@@ -419,7 +419,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;
-		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
+		expect(deluge::scenes::menu::host_ports().learn->learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
 	});
 

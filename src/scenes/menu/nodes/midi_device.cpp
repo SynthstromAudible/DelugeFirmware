@@ -33,7 +33,7 @@
 #include "ui/oled/values.h"
 
 #include "definitions_cxx.hpp"
-#include "io/midi/midi_device.h"
+#include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/song/song.h"
 
@@ -176,14 +176,14 @@ int32_t get_device_velocity_to_level(const MenuContext& ctx) {
 
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
 	// `DefaultVelocityToLevel::writeCurrentValue`: the cable's default, then every input on it takes it, by
-	// the app's Edit through the sink (none for a song the app does not play).
+	// the app's Edit through the sound port (none for a song the app does not play).
 	if (ctx.midi_cable == nullptr) {
 		return;
 	}
 	ctx.midi_cable->defaultVelocityToLevel = value * (2147483648 / (kMaxMenuValue * 2));
-	// Every synth and sound row on the cable takes its new default, by the app's Edit.
-	if (ctx.sink != nullptr) {
-		(void)ctx.sink->velocity_to_level_everywhere(*ctx.midi_cable);
+	// Every synth and sound row on the device takes its new default, by the app's Edit.
+	if (ctx.ports.sound_writes != nullptr) {
+		(void)ctx.ports.sound_writes->velocity_to_level_everywhere(deluge::midi::id_of(*ctx.midi_cable));
 	}
 	MIDIDeviceManager::anyChangesToSave = true;
 }
