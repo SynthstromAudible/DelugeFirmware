@@ -47,6 +47,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/clip/deferred_note_ons.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
@@ -598,6 +599,7 @@ void PlaybackHandler::endPlayback() {
 	// remember why I wrote that, and now it needs to happen before so that
 	// Clip::beingRecordedFrom is still set when playback ends, so notes stop)
 	bool shouldDoInstantSongSwap = currentPlaybackMode->endPlayback();
+	DeferredNoteOns::forgetSequenced(); // Nothing held back from the last tick should start now
 
 	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
