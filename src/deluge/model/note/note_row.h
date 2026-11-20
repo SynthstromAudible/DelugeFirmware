@@ -24,6 +24,7 @@
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"
+#include <functional>
 
 #define SQUARE_NEW_NOTE 1
 #define SQUARE_NOTE_HEAD 2
@@ -212,8 +213,14 @@ public:
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
 	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
+	/// Changes a note parameter (velocity, probability, iterance, fill) of the note at editPos and, if the clip is wrap
+	/// (cross-screen) editing, of every copy of it on the other screens. Snapshots the row into `action` for undo.
 	Error changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
 	                                  int32_t changeType, int32_t changeValue);
+	/// Calls `visit` on the note at editPos and, if the clip is wrap (cross-screen) editing, on every copy of it on the
+	/// other screens - before and after editPos's, as addCorrespondingNotes creates them. Doesn't snapshot.
+	Error forNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack,
+	                               const std::function<void(Note&)>& visit);
 	/// Nudge the note at editPos by either +1 (if nudgeOffset > 0) or -1 (if nudgeOffset < 0)
 	///
 	/// The caller must call Clip::expectEvent on the clip containing this `NoteRow` after this.
