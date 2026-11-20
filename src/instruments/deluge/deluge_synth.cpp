@@ -66,10 +66,7 @@ synth::SoundConfig DelugeSynth::derive(const State& state) noexcept {
 		                        .retrigger_phase = phase_word(mods[m].retrigger)};
 	}
 	for (size_t l = 0; l < config.lfos.size(); l++) {
-		const synth::LfoState lfo_state = lfo(state, l);
-		config.lfos[l].wave_type = lfo_state.shape;
-		config.lfos[l].sync_type = lfo_state.sync_type;
-		config.lfos[l].sync_level = lfo_state.sync_level;
+		config.lfos[l] = lfo(state, l);
 	}
 	for (size_t s = 0; s < config.sources.size(); s++) {
 		const auto id = static_cast<SourceId>(s);

@@ -207,11 +207,11 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		    {.top_note = deluge::instrument::kOpenTopNote, .end_pos = deluge::instrument::kUnsetEndPos}};
 		expect(menu::host_write_sink().write_ranges(slot, 0, first)).to_be_true();
 		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
-		expect(std::ssize(sound.sources[0].ranges)).to_equal(1);
+		expect(std::ssize(sound.sourceResources[0].ranges)).to_equal(1);
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(1);
-		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound.sources[1]);
+		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound.sourceResources[1]);
 		const std::vector<deluge::instrument::RangeState> recorded =
 		    deluge::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();

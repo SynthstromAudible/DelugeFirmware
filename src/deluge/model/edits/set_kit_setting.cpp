@@ -22,7 +22,7 @@ bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& 
 	}
 	uint8_t loaded = 0;
 	for (uint8_t s = 0; s < kNumSources; ++s) {
-		if (sound.sources[s].hasAtLeastOneAudioFileLoaded()) {
+		if (sound.sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 			loaded |= static_cast<uint8_t>(1u << s);
 		}
 	}

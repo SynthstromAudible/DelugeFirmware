@@ -379,7 +379,7 @@ struct Rig {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (int32_t s = 0; s < kNumSources; s++) {
 			deluge::test::set(*sound->state_, "osc" + std::to_string(s + 1) + "/type", "square");
-			sound->sources[s].ranges.clear();
+			sound->sourceResources[s].ranges.clear();
 		}
 		sound->projectSnapshot();
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
@@ -984,9 +984,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		::Sound& sound = *spec::menu_engine(ctx).sound;
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound.getOrCreateFirstRange(0);
-		sound.sources[0].ranges.getElement(0)->topNote = 40;
-		sound.sources[0].ranges.insertMultiRange(1)->topNote = 60;
-		sound.sources[0].ranges.insertMultiRange(2)->topNote = 32767;
+		sound.sourceResources[0].ranges.getElement(0)->topNote = 40;
+		sound.sourceResources[0].ranges.insertMultiRange(1)->topNote = 60;
+		sound.sourceResources[0].ranges.insertMultiRange(2)->topNote = 32767;
 		deluge::edits::recordRanges(sound, 0);
 		r.shell.tick(0);
 		char buf[48];
@@ -2411,8 +2411,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
@@ -2460,8 +2460,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kScaleX, kScaleY, 900); // back to page 1 at the same position: the file browser
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(depth_of()).to_equal(0);
-		expect(sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(sound->sources[0].ranges.size()).to_equal(size_t{0});
+		expect(sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(sound->sourceResources[0].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
@@ -2485,7 +2485,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
-		for (const SourceResources& source : sound->sources) {
+		for (const SourceResources& source : sound->sourceResources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2516,7 +2516,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(1);
-		for (const SourceResources& source : sound->sources) {
+		for (const SourceResources& source : sound->sourceResources) {
 			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
 		}
 	});
@@ -2564,8 +2564,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::notify::dirty().drain();
 		Rig r;
 		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		sound->sources[0].ranges.insertMultiRange(0);
-		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		sound->sourceResources[0].ranges.insertMultiRange(0);
+		sound->sourceResources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 		(void)r.open(horiz_page);
 		r.shell.tick(0);

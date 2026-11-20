@@ -201,7 +201,7 @@ Thumb and a low inline threshold (5).
 | L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
 | L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
 | L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/deluge/` | `deluge_instrument` |
-| Effects, for the instrument's sound chain and the host's chains | `src/effects/` | `deluge_effects` |
+| Effects, for the synth's FX section and the host's chains | `src/effects/` | `deluge_effects` |
 | The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
 
 The end state puts every library directly under `src/`, the app among them: `src/dsp/` (today `src/deluge/dsp-next/`,
@@ -444,7 +444,7 @@ boundary will be ready for it.
 
 ### Explicitly out of scope (for this effort)
 
-- The Sound-level FX chain (`SoundChain`, which `Sound` owns through its
+- The Sound-level effects (`FxSection`, which `Sound` owns through its
   `ModControllableAudio` base) — a second, separate untangling. The host's
   chains already have their own owners (`TrackChannel`, `MasterChannel`).
 - The arpeggiator — note-event domain; could later become an L3 event

@@ -83,9 +83,9 @@
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
+#include "processing/sound/fx_section_inputs.h"
 #include "processing/sound/param_dump.h"
 #include "processing/sound/param_manager_view.h"
-#include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -175,7 +175,7 @@ void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages
 } // namespace
 
 Sound::Sound()
-    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+    : fxSection_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
@@ -393,7 +393,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
 	                                                           2147483647);
 	if (is_dx) {
-		sources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
+		sourceResources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
 		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
@@ -734,7 +734,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_LPF_FREQ:
 	case params::LOCAL_LPF_MORPH:
 	case params::LOCAL_LPF_RESONANCE:
-		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
+		if (renderEffects().filter.lpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -742,7 +742,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_HPF_FREQ:
 	case params::LOCAL_HPF_MORPH:
 	case params::LOCAL_HPF_RESONANCE:
-		if (modControllableSnapshot().effects.filter.hpf_mode == FilterMode::OFF) {
+		if (renderEffects().filter.hpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -1320,7 +1320,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 		if (sourceEverActive
 		    && (oscType(s) != OscType::SAMPLE || config_.sources[s].repeat_mode != SampleRepeatMode::ONCE
-		        || (!disregardSampleLoop && sources[s].hasAnyLoopEndPoint()))) {
+		        || (!disregardSampleLoop && sourceResources[s].hasAnyLoopEndPoint()))) {
 			return true;
 		}
 	}
@@ -1341,7 +1341,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		if (sourceEverActive && oscType(s) == OscType::SAMPLE
 		    && config_.sources[s].repeat_mode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
-				return sources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
+				return sourceResources[s].getLengthInSamplesAtSystemSampleRate(note + config_.voicing.transpose, true);
 			}
 			return 1;
 		}
@@ -1381,7 +1381,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 			if (anyLooping && config_.sources[s].repeat_mode == SampleRepeatMode::LOOP) {
 				*anyLooping = true;
 			}
-			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);
+			int32_t length = sourceResources[s].getLengthInSamplesAtSystemSampleRate(note);
 
 			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or
 			// shortened the sample
@@ -1409,7 +1409,7 @@ bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 			continue;
 		}
 
-		if (oscType(s) != OscType::SAMPLE || !sources[s].hasAtLeastOneAudioFileLoaded()
+		if (oscType(s) != OscType::SAMPLE || !sourceResources[s].hasAtLeastOneAudioFileLoaded()
 		    || config_.sources[s].repeat_mode != SampleRepeatMode::CUT) {
 			return false;
 		}
@@ -1443,7 +1443,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		// Sample - generally ok, but not if one-shot
 		case OscType::SAMPLE:
 			if (config_.sources[s].repeat_mode == SampleRepeatMode::ONCE
-			    || !sources[s].hasAtLeastOneAudioFileLoaded()) {
+			    || !sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 				return false; // Not quite sure why the must-be-loaded requirement - maybe something would break if it
 				              // tried to do a late start otherwise?
 			}
@@ -1468,7 +1468,7 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
 	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sources[s].hasAtLeastOneAudioFileLoaded());
+	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
@@ -1481,7 +1481,7 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager*
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
 	       && (getSynthMode() == SynthMode::FM || oscType(s) != OscType::SAMPLE
-	           || sources[s].hasAtLeastOneAudioFileLoaded());
+	           || sourceResources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
@@ -1557,7 +1557,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE)
+			if ((renderEffects().mod_fx.type != ModFXType::NONE)
 			    || core().compressor().dsp().threshold() > deluge::dsp::Q<31>{}) {
 
 				// If we didn't start the wait-time yet, start it now
@@ -1571,7 +1571,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modControllableSnapshot().effects.mod_fx.type) {
+					switch (renderEffects().mod_fx.type) {
 					case ModFXType::NONE: // the compressor's release alone
 						break;
 					case ModFXType::CHORUS:
@@ -1649,7 +1649,7 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
 	    .found = true,
 	    .duck_depth = depth,
 	    .duck_shape = paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
-	    .rates = modControllableSnapshot().effects.sidechain,
+	    .rates = renderEffects().sidechain,
 	};
 }
 
@@ -1814,8 +1814,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
-		if (oscType(s) == OscType::DX7 and sources[s].dxPatch) {
-			sources[s].dxPatch->computeLfo(output.size());
+		if (oscType(s) == OscType::DX7 and sourceResources[s].dxPatch) {
+			sourceResources[s].dxPatch->computeLfo(output.size());
 		}
 	}
 
@@ -1828,9 +1828,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
 		int32_t old = params.source_values[patchSourceSidechainUnderlying];
-		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
-		    output.size(), paramView.knob(params::UNPATCHED_SIDECHAIN_SHAPE),
-		    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
+		params.source_values[patchSourceSidechainUnderlying] =
+		    core().sidechain().render(output.size(), paramView.knob(params::UNPATCHED_SIDECHAIN_SHAPE),
+		                              renderEffects().sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);
 	}
@@ -1909,8 +1909,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 	delayWorkingState.userDelayRate = params.param_final_values[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot().effects.delay, timePerTickInverse,
-	                                 !voices_.empty());
+	core().delay().setupWorkingState(delayWorkingState, renderEffects().delay, timePerTickInverse, !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
 	// Render each voice into a local buffer here
@@ -1936,7 +1935,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
 		int32_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
-		             && (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
+		             && (renderEffects().filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramView.modulated(params::LOCAL_LPF_FREQ) || (lpfFreq < 0x7FFFFFD2)
 		                 || (lpfMorph > std::numeric_limits<int32_t>::min()));
 		bool doHPF = thisHasFilters
@@ -1947,16 +1946,16 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		std::array<bool, kNumSources> sourceEverActives;
 		std::array<bool, kNumSources> sourceActiveCurrentlys;
 		for (int32_t s = 0; s < kNumSources; s++) {
-			dxPatchChangeds[s] = sources[s].dxPatchChanged;
+			dxPatchChangeds[s] = sourceResources[s].dxPatchChanged;
 			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
 			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
 		}
 		const deluge::synth::BlockValues blockValues{
-		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot().effects.filter.lpf_mode)
+		    .low_pass = doLPF ? deluge::effects::low_pass_slot(renderEffects().filter.lpf_mode)
 		                      : deluge::dsp::fixed::LowPassSlot{},
-		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
+		    .high_pass = doHPF ? deluge::effects::high_pass_slot(renderEffects().filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
-		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
+		    .filter_route = deluge::effects::filter_route(renderEffects().filter.route),
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .lfo2_synced_phase_increment = (config_.lfos[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
 		                                       ? deluge::dsp::UQ<32>{}
@@ -1967,7 +1966,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .has_filters = thisHasFilters,
 		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
-		    .clipping_amount = modControllableSnapshot().effects.saturation.clipping_amount,
+		    .clipping_amount = renderEffects().saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
 		    .dx_patch_changed = dxPatchChangeds,
@@ -2084,9 +2083,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	checkStack("delay");
-	if (chain_.process(sound_stereo,
-	                   soundChainInputs(*this, *paramManager, delayWorkingState, !voices_.empty(), reverbSendAmount),
-	                   {reverbBuffer, sound_stereo.size()})) {
+	if (fxSection_.process(sound_stereo,
+	                       fxSectionInputs(*this, *paramManager, delayWorkingState, !voices_.empty(), reverbSendAmount),
+	                       {reverbBuffer, sound_stereo.size()})) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 
@@ -2103,7 +2102,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
-		sources[i].dxPatchChanged = false;
+		sourceResources[i].dxPatchChanged = false;
 	}
 
 	// Unlike all the other possible reasons we might want to start skipping rendering,
@@ -2162,8 +2161,8 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			if (AudioEngine::sizeLastSideChainHit) {
 				core().sidechain().registerHitRetrospectively(
 				    AudioEngine::sizeLastSideChainHit,
-				    AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
-				    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
+				    AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit, renderEffects().sidechain,
+				    playbackHandler.getTimePerInternalTickInverse());
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
@@ -2192,14 +2191,14 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 
 template <deluge::modulation::params::Global P>
 deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId) {
-	const LFOConfig& config = config_.lfos[lfoId];
+	const deluge::synth::LfoState& config = config_.lfos[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
 		return deluge::synth::matrix::global_param_value<P>(params.param_final_values);
 	}
 	return getSyncedLFOPhaseIncrement(config);
 }
 
-deluge::dsp::UQ<32> Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
+deluge::dsp::UQ<32> Sound::getSyncedLFOPhaseIncrement(const deluge::synth::LfoState& config) {
 	uint32_t phaseIncrement =
 	    (playbackHandler.getTimePerInternalTickInverse())
 	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.sync_level));
@@ -2547,8 +2546,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (modControllableSnapshot().effects.filter.lpf_mode != FilterMode::OFF
-	        || modControllableSnapshot().effects.filter.hpf_mode != FilterMode::OFF);
+	return (renderEffects().filter.lpf_mode != FilterMode::OFF || renderEffects().filter.hpf_mode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -2706,7 +2704,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const OscType type = deluge::instrument::source_type(state, id);
-		SourceResources& source = sources[s];
+		SourceResources& source = sourceResources[s];
 		source.setOscType(type);
 		if (const deluge::instrument::DxPatchState* from = deluge::instrument::dx_patch(state, id)) {
 			DxPatch* patch = source.ensureDxPatch();
@@ -2749,8 +2747,8 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 }
 
 MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
-	const bool had = !sources[s].ranges.empty();
-	MultiRange* range = sources[s].getOrCreateFirstRange();
+	const bool had = !sourceResources[s].ranges.empty();
+	MultiRange* range = sourceResources[s].getOrCreateFirstRange();
 	if (range != nullptr && !had) {
 		recordHeldRanges(s);
 	}
@@ -2759,7 +2757,7 @@ MultiRange* Sound::getOrCreateFirstRange(int32_t s) {
 
 void Sound::recordHeldRanges(int32_t s) {
 	const auto id = static_cast<deluge::instrument::SourceId>(s);
-	if (std::vector held = sources[s].heldRanges();
+	if (std::vector held = sourceResources[s].heldRanges();
 	    !std::ranges::equal(held, deluge::instrument::source_ranges(*state_, id))) {
 		*state_ = deluge::instrument::with_ranges(std::move(*state_), id, std::move(held));
 	}
@@ -2768,7 +2766,7 @@ void Sound::recordHeldRanges(int32_t s) {
 void Sound::recordHeldDxPatch(int32_t s) {
 	const auto id = static_cast<deluge::instrument::SourceId>(s);
 	const deluge::instrument::DxPatchState* recorded = deluge::instrument::dx_patch(*state_, id);
-	if (std::optional held = sources[s].heldDxPatch();
+	if (std::optional held = sourceResources[s].heldDxPatch();
 	    held.has_value() != (recorded != nullptr) || (held && *held != *recorded)) {
 		*state_ = deluge::instrument::with_dx_patch(std::move(*state_), id, held);
 	}
@@ -2938,7 +2936,7 @@ deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisito
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (oscType(s) == OscType::SAMPLE || oscType(s) == OscType::WAVETABLE) {
-			if (sources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
+			if (sourceResources[s].walkSampleDemands(visitor, playsReversed(s)) == deluge::storage::Walk::Stop) {
 				return deluge::storage::Walk::Stop;
 			}
 		}
@@ -3015,7 +3013,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 void Sound::detachSourcesFromAudioFiles() {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		sources[s].detachAllAudioFiles();
+		sourceResources[s].detachAllAudioFiles();
 	}
 }
 
@@ -3026,7 +3024,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// AudioExcludedSection.
 	AudioExcludedSection section;
 	killAllVoices();
-	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
+	sourceResources[s].ranges.erase(sourceResources[s].ranges.begin() + r); // Destructs the range
 }
 
 // This function has to give the same outcome as SourceResources::renderInStereo()
@@ -3078,7 +3076,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// Have a look at what samples, if any, each source holds
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources* source = &sources[s];
+		SourceResources* source = &sourceResources[s];
 
 		if (!modelStack->checkSourceEverActive(s)) {
 			continue;

@@ -88,6 +88,21 @@ the host's facts, the transport's synced LFO rates, what the sound's params make
 the voice config and per-voice block, the noise stream, and one control struct per family (`DualSourceControls`,
 `FmControls`, `engine_controls.h`), of which the voice fills its family's.
 
+## Component states
+
+Beside each contract sits the state its component saves: plain value types the instrument's record
+(`instrument::SoundState`) composes, so what a file writes is exactly what the components hold.
+
+- `src/synth/sources/source_state.h`: `Tuning`, `Pitch` (a tuning and an optional retrigger phase), and one state per
+  source kind (`VaState`, `WavetableState`, `SampleState`, `Dx7State`, `InputState`) in the `SlotState` variant.
+- `src/synth/engines/engine_state.h`: `DualSourceState` (two slots and their sync), `SubtractiveState`,
+  `RingModState`, `FmState` (carriers, sync, modulators), in the `EngineState` variant.
+- `src/synth/modulation/lfo_state.h`: `LfoState`, an LFO's shape and sync, read from the record to the render.
+- `src/synth/voice/voicing_state.h`: `VoicingState` and `UnisonState`.
+
+What a switch of engine or kind leaves behind is the instrument's `Recall`, not a component's; the derived render
+settings are `synth::SoundConfig` (`DelugeSynth::derive`).
+
 ## The engines
 
 - **`SlotEngine`** (`slot_engine.h`): the per-source note-on every engine here shares — each source marked active in

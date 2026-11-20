@@ -318,7 +318,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		       "voice_priority");
 		expect(snap.engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d()),
 		       "modulator1_to_modulator0");
-		expect(sound.modControllableSnapshot().effects == sound.effects(), "effects");
+		expect(sound.renderEffects() == sound.effects(), "effects");
 		expect(snap.voicing.unison.count == instrument::unison(d()).count, "num_unison");
 		expect(snap.voicing.unison_detune == instrument::unison(d()).detune, "unison_detune");
 		expect(snap.voicing.unison_spread == instrument::unison(d()).spread, "unison_stereo_spread");
@@ -334,12 +334,11 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		expect(snap.voicing.cents == instrument::voicing(d()).master.cents, "cents");
 		expect(sameTuning(snap.voicing.tune, centsTuner(instrument::voicing(d()).master.cents)), "fine_tuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
-			expect(snap.lfos[l].wave_type == static_cast<LFOType>(instrument::lfo(d(), l).shape),
-			       "lfo_config.wave_type");
+			expect(snap.lfos[l].shape == static_cast<LFOType>(instrument::lfo(d(), l).shape), "lfo_state.shape");
 			expect(snap.lfos[l].sync_type == static_cast<SyncType>(instrument::lfo(d(), l).sync_type),
-			       "lfo_config.sync_type");
+			       "lfo_state.sync_type");
 			expect(snap.lfos[l].sync_level == static_cast<SyncLevel>(instrument::lfo(d(), l).sync_level),
-			       "lfo_config.sync_level");
+			       "lfo_state.sync_level");
 		}
 		for (int32_t i = 0; i < 2; i++) {
 			expect(snap.engine.modulators[i].cents == instrument::modulators(d())[i].tuning.cents, "modulator_cents");
@@ -398,13 +397,13 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		                     == otherPhase,
 		          "osc2/retrigPhase");
 		setThrough(sound, "osc2/retrigPhase", phaseText(before.engine.osc_retrigger_phase[1]));
-		const LFOConfig lfo = before.lfos[LFO2_ID];
-		const LFOType otherWave = lfo.wave_type == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
+		const deluge::synth::LfoState lfo = before.lfos[LFO2_ID];
+		const LFOType otherWave = lfo.shape == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
 		roundTrip(setThrough(sound, "lfo2/type", instrument::to_string(otherWave))
-		              && sound.config().lfos[LFO2_ID].wave_type == otherWave
+		              && sound.config().lfos[LFO2_ID].shape == otherWave
 		              && static_cast<LFOType>(instrument::lfo(d(), LFO2_ID).shape) == otherWave,
 		          "lfo2/type");
-		setThrough(sound, "lfo2/type", instrument::to_string(lfo.wave_type));
+		setThrough(sound, "lfo2/type", instrument::to_string(lfo.shape));
 		const SyncLevel otherLevel = lfo.sync_level == SYNC_LEVEL_8TH ? SYNC_LEVEL_16TH : SYNC_LEVEL_8TH;
 		const bool typeLanded =
 		    setThrough(sound, "lfo2/syncType", std::to_string(std::to_underlying(SYNC_TYPE_TRIPLET)));
@@ -455,7 +454,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				e.filter.route = effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
 				                                                                     : FilterRoute::PARALLEL;
 			});
-			const deluge::effects::EffectStates& ms = sound.modControllableSnapshot().effects;
+			const deluge::effects::EffectStates& ms = sound.renderEffects();
 			roundTrip(ms == sound.effects() && ms.saturation != effectsBefore.saturation
 			              && ms.filter.lpf_mode != effectsBefore.filter.lpf_mode
 			              && ms.filter.hpf_mode != effectsBefore.filter.hpf_mode

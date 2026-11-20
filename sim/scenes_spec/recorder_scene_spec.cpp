@@ -1158,7 +1158,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		rec->status = RecorderStatus::COMPLETE;
 		k.shell.tick(10);
 		expect(recorder_scene().recording()).to_be_false();
-		expect(k.drum->sources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile)
+		expect(k.drum->sourceResources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile)
 		    .to_equal(static_cast<AudioFile*>(take.sample));
 	});
 
@@ -1181,7 +1181,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		k.shell.tick(10);
 		expect(recorder_scene().recording()).to_be_false();
 		// A kit row is a sample source already: the range holding no file is what says nothing was attached.
-		expect(k.drum->sources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
+		expect(k.drum->sourceResources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile).to_be_null();
 		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
 	});
 
@@ -1585,8 +1585,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		}
 		expect(menu_scene().state().path[1]).to_equal(&menu::nodes::sample1_recorder);
 		expect(r.on_stack()).to_be_true();
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{2});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sourceResources[0].ranges.size()).to_equal(size_t{2});
 	});
 
 	it("returns a take begun on the SAMPLE RECORDER page to its source page, the file selector focused", _ {

@@ -37,7 +37,7 @@ deluge::effects::SongDefaults songDefaults() {
 
 EffectsBinding::EffectsBinding() {
 	own_ = deluge::effects::with_song_defaults(own_, songDefaults());
-	snapshot_.effects = own_; // nothing renders this owner yet
+	render_effects_ = own_; // nothing renders this owner yet
 }
 
 void EffectsBinding::store(const deluge::effects::EffectStates& next) {
@@ -65,13 +65,13 @@ void EffectsBinding::project(deluge::effects::ChainCore& core, std::size_t delay
 	deluge::effects::DelayChange delayChange = core.delay().prepare(delayType);
 	{
 		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
-		snapshot_.effects = effects();
+		render_effects_ = effects();
 		if (modFXParam) {
-			snapshot_.mod_fx_param = *modFXParam;
+			render_mod_fx_param_ = *modFXParam;
 		}
-		core.mod_fx().commit(snapshot_.effects.mod_fx.type, ring);
+		core.mod_fx().commit(render_effects_.mod_fx.type, ring);
 		noteStructuralEdit(StructuralContainer::MOD_FX_RING);
-		core.granular().commit(snapshot_.effects.mod_fx.type, grain);
+		core.granular().commit(render_effects_.mod_fx.type, grain);
 		noteStructuralEdit(StructuralContainer::GRAIN_BLOCK);
 		core.delay().commit(delayType, delayChange, delayReserve);
 		noteStructuralEdit(StructuralContainer::DELAY_TAPE);

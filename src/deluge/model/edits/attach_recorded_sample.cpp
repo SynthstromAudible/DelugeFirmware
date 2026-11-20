@@ -48,7 +48,7 @@ Error AttachRecordedSample::apply(Context& ctx) {
 	::Sound* sound = deluge::bridge::soundAt(ctx.song, slot_);
 	::Sample* take = residentSample(path_);
 	if (sound == nullptr || take == nullptr || source_ >= kNumSources
-	    || range_ >= sound->sources[source_].ranges.size()) {
+	    || range_ >= sound->sourceResources[source_].ranges.size()) {
 		return Error::UNSPECIFIED;
 	}
 	sound->killAllVoices();
@@ -57,7 +57,7 @@ Error AttachRecordedSample::apply(Context& ctx) {
 	if (const Error error = type.apply(ctx); error != Error::NONE) {
 		return error;
 	}
-	::SourceResources& source = sound->sources[source_];
+	::SourceResources& source = sound->sourceResources[source_];
 	AudioFileHolder* holder =
 	    range_ < source.ranges.size() ? source.ranges.getElement(range_)->getAudioFileHolder() : nullptr;
 	if (holder == nullptr) {

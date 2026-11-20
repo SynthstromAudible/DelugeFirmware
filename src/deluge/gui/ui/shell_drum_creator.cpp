@@ -51,10 +51,10 @@ bool kitHolds(const Kit& kit, const SoundDrum* drum) {
 
 /// `soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()` for a new drum: its first range's file.
 bool fileChosen(SoundDrum& drum) {
-	if (std::ssize(drum.sources[0].ranges) == 0) {
+	if (std::ssize(drum.sourceResources[0].ranges) == 0) {
 		return false;
 	}
-	const auto* range = static_cast<const MultisampleRange*>(drum.sources[0].ranges.getElement(0));
+	const auto* range = static_cast<const MultisampleRange*>(drum.sourceResources[0].ranges.getElement(0));
 	return !range->sampleHolder.filePath.empty();
 }
 

@@ -371,7 +371,7 @@ struct SongRig {
 
 	SongRig() {
 		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-		source = &sound->sources[0];
+		source = &sound->sourceResources[0];
 		deluge::test::set(*sound->state_, "osc1/type", "sample");
 		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
 		sound->projectSnapshot();

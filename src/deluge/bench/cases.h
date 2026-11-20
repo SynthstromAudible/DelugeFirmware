@@ -1864,7 +1864,7 @@ private:
 
 /// @brief Which home an effect chain case renders.
 enum class FxChainHome : uint8_t {
-	SOUND,  ///< A sound's chain after its voices.
+	SOUND,  ///< A sound's FxSection after its voices.
 	CLIP,   ///< A kit's or an audio track's chain.
 	MASTER, ///< The song's master, both halves, with nothing mixed in between.
 };

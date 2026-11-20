@@ -88,7 +88,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 		expect(int{c.engine.modulators[0].transpose}).to_equal(7);
 		expect(same_tune(c.engine.modulators[1].tune, FineTune::of_cents(-50))).to_equal(true);
 		expect(c.engine.modulators[1].retrigger_phase).to_equal(0xFFFFFFFFU);
-		expect(c.lfos[2].wave_type).to_equal(LFOType::SAW);
+		expect(c.lfos[2].shape).to_equal(LFOType::SAW);
 		expect(c.lfos[1].sync_level).to_equal(deluge::plugin::SyncLevel::EIGHTH);
 	});
 

@@ -92,7 +92,7 @@ TrackChannel::~TrackChannel() {
 	// The delay takes in sound from this block's render
 	rendered_last_time = rendered;
 	effects::Delay::State delay =
-	    delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,
+	    delayWorkingState(paramManager, core().delay(), binding_.renderEffects().delay,
 	                      block.should_limit_delay_feedback, rendered_last_time, conversions_);
 	if (block.output_type == OutputType::AUDIO) {
 		delay.analog_saturation = 5;
@@ -140,7 +140,7 @@ void TrackChannel::tickParamAutomation(ModelStackWithTimelineCounter* modelStack
 }
 
 int32_t TrackChannel::samplesUntilTailsEnd(ParamManager& paramManager) {
-	const ModFXType modFXType = activeModFXType(binding_.snapshot(), paramManager);
+	const ModFXType modFXType = activeModFXType(binding_, paramManager);
 	if (modFXType == ModFXType::NONE && core().compressor().dsp().threshold() <= dsp::Q<31>{}) {
 		return 0;
 	}
@@ -230,7 +230,7 @@ void TrackChannel::stopSkipping(ParamManager& paramManager) {
 		if (AudioEngine::sizeLastSideChainHit != 0) {
 			core().sidechain().registerHitRetrospectively(
 			    AudioEngine::sizeLastSideChainHit, AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
-			    binding_.snapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
+			    binding_.renderEffects().sidechain, playbackHandler.getTimePerInternalTickInverse());
 		}
 		// The post-reverb volume's last value is from before skipping: don't ramp from it
 		core().send_and_volume().forget();
@@ -256,7 +256,7 @@ ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManager
 	    .found = true,
 	    .duck_depth = sidechainDepth(paramManager),
 	    .duck_shape = unpatchedParams->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
-	    .rates = binding_.snapshot().effects.sidechain,
+	    .rates = binding_.renderEffects().sidechain,
 	};
 }
 

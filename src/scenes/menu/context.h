@@ -358,7 +358,7 @@ void select_range(MenuContext& ctx, int32_t index);
 ///              root) is left exactly as it is: there is no source to select, which is precisely
 ///              why `audio_clip::SampleMarkerEditor::beginSession`
 ///              (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`) has no such call.
-/// @param index Which of `Sound::sources`. Negative, or past the last source, is a no-op --
+/// @param index Which of `Sound::sourceResources`. Negative, or past the last source, is a no-op --
 ///              `nodes::MarkerItem` spells "the audio-clip opener, which selects no source" as -1.
 void select_source(MenuContext& ctx, int8_t index);
 

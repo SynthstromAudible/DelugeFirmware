@@ -511,7 +511,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
-		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
+		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sourceResources[1]);
 		const std::vector<deluge::instrument::RangeState> first =
 		    deluge::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();

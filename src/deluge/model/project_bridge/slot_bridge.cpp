@@ -257,7 +257,7 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	}
 	{
 		AudioExcludedSection section; // the render reads the effects' projection
-		sound.projectModControllableSnapshot();
+		sound.projectEffects();
 	}
 	// What loading made of each oscillator reaches its record as the Edits a gesture would make, in this tick: the
 	// ranges' clamped zones and found files, and a DX7 patch the runtime made for one decoded without its own
@@ -266,12 +266,12 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const deluge::instrument::DxPatchState* recordedPatch = deluge::instrument::dx_patch(*sound.boundState(), id);
-		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sources[s]);
+		if (std::optional<deluge::instrument::DxPatchState> patch = dxPatchOf(sound.sourceResources[s]);
 		    patch && (recordedPatch == nullptr || *patch != *recordedPatch)) {
 			deluge::edits::SetDxPatch dx{*address, static_cast<uint8_t>(s), std::move(*patch)};
 			(void)deluge::edits::apply(ctx, dx);
 		}
-		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sources[s]);
+		if (std::vector<deluge::instrument::RangeState> held = rangesOf(sound.sourceResources[s]);
 		    !std::ranges::equal(held, deluge::instrument::source_ranges(*sound.boundState(), id))) {
 			deluge::edits::SetSourceRanges ranges{*address, static_cast<uint8_t>(s), std::move(held)};
 			(void)deluge::edits::apply(ctx, ranges);

@@ -202,7 +202,7 @@ SamplePreviewer::finish(deluge::storage::LatestSampleLoad<Target>::Outcome outco
 	}
 
 	bool hasSample = false;
-	SourceResources& source = AudioEngine::sampleForPreview->sources[0];
+	SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 	if (std::ssize(source.ranges) >= 1) {
 		hasSample = ((MultisampleRange*)source.ranges.getElement(0))->sampleHolder.audioFile != nullptr;
 	}

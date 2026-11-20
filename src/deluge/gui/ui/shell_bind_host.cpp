@@ -216,7 +216,7 @@ public:
 	void set_default_range(deluge::project::SlotAddress slot, uint8_t source, uint16_t range) override {
 		::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
 		if (sound != nullptr && source < kNumSources) {
-			sound->sources[source].defaultRangeI = range;
+			sound->sourceResources[source].defaultRangeI = range;
 		}
 	}
 	bool attach_recording(deluge::project::SlotAddress slot, uint8_t source, uint16_t range,
@@ -344,8 +344,8 @@ public:
 		if (sound == nullptr || source >= kNumSources) {
 			return std::nullopt;
 		}
-		const int32_t i = sound->sources[source].defaultRangeI;
-		if (i < 0 || i >= std::ssize(sound->sources[source].ranges)) {
+		const int32_t i = sound->sourceResources[source].defaultRangeI;
+		if (i < 0 || i >= std::ssize(sound->sourceResources[source].ranges)) {
 			return std::nullopt;
 		}
 		return static_cast<uint16_t>(i);
@@ -353,10 +353,10 @@ public:
 	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
 	                                                     uint16_t range) const override {
 		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sources[source].ranges)) {
+		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sourceResources[source].ranges)) {
 			return std::nullopt;
 		}
-		return sound->sources[source].ranges.getElement(range)->identity();
+		return sound->sourceResources[source].ranges.getElement(range)->identity();
 	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
@@ -456,7 +456,7 @@ std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind
 	if (sound == nullptr) {
 		return std::nullopt;
 	}
-	const MultiRangeArray& ranges = sound->sources[target.source].ranges;
+	const MultiRangeArray& ranges = sound->sourceResources[target.source].ranges;
 	for (int32_t i = 0; i < std::ssize(ranges); i++) {
 		if (ranges.getElement(i)->identity() == *target.range) {
 			return static_cast<uint16_t>(i);
@@ -519,7 +519,7 @@ public:
 				return std::nullopt;
 			}
 			auto* range =
-			    static_cast<MultisampleRange*>(sound->sources[address.source].ranges.getElement(address.range));
+			    static_cast<MultisampleRange*>(sound->sourceResources[address.source].ranges.getElement(address.range));
 			SoundVoice* newest = nullptr;
 			for (const Sound::ActiveVoice& voice : sound->voices()) {
 				if (voice->guides[address.source].audioFileHolder == range->getAudioFileHolder()
@@ -554,7 +554,7 @@ private:
 			if (AudioEngine::sampleForPreview == nullptr) {
 				return {};
 			}
-			::SourceResources& source = AudioEngine::sampleForPreview->sources[0];
+			::SourceResources& source = AudioEngine::sampleForPreview->sourceResources[0];
 			if (source.ranges.size() < 1 || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				return {};
 			}
@@ -579,7 +579,7 @@ private:
 		if (sound == nullptr || address.source >= kNumSources) {
 			return {};
 		}
-		::SourceResources& source = sound->sources[address.source];
+		::SourceResources& source = sound->sourceResources[address.source];
 		if (source.ranges.size() <= address.range || source.ranges.currentElementSize() != sizeof(MultisampleRange)) {
 			return {};
 		}
@@ -1274,7 +1274,7 @@ uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) con
 	uint8_t loaded = 0;
 	if (sound != nullptr) {
 		for (uint8_t s = 0; s < kNumSources; ++s) {
-			if (sound->sources[s].hasAtLeastOneAudioFileLoaded()) {
+			if (sound->sourceResources[s].hasAtLeastOneAudioFileLoaded()) {
 				loaded |= static_cast<uint8_t>(1u << s);
 			}
 		}

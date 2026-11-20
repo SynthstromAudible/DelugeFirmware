@@ -456,11 +456,11 @@ MasterFxRender renderMasterFx(ModControllable& master, ParamManager& params) {
 	static int32_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
 	deluge::model::ChainConversions conversions;
-	const deluge::snapshot::ModControllableSnapshot& snapshot = master.effectsOwner()->binding->snapshot();
+	const deluge::model::EffectsBinding& binding = *master.effectsOwner()->binding;
 	const deluge::effects::Delay::State delayState = deluge::model::delayWorkingState(
-	    params, (*master.effectsOwner()->core).delay(), snapshot.effects.delay, false, true, conversions);
+	    params, (*master.effectsOwner()->core).delay(), binding.renderEffects().delay, false, true, conversions);
 	const deluge::effects::FxInputs fx =
-	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState,
+	    deluge::model::hostFxInputs(binding, deluge::model::activeModFXType(binding, params), params, delayState,
 	                                deluge::dsp::Q<31>{}, conversions);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
@@ -853,7 +853,7 @@ bool setupLeg() {
 	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
-		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
+		SourceResources& source = static_cast<SoundInstrument*>(g_clip->output)->sourceResources[0];
 		if (static_cast<SoundInstrument*>(g_clip->output)->getOrCreateFirstRange(0) == nullptr
 		    || source.ranges.insertMultiRange(1) == nullptr) {
 			return setupFailed("no memory for two multi-ranges");

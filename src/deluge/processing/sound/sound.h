@@ -27,7 +27,6 @@
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/mod_controllable_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -67,7 +66,7 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-#include "effects/sound_chain.h"
+#include "effects/fx_section.h"
 #include "instruments/deluge/sound_state.h"
 #include <optional>
 #include <utility>
@@ -128,18 +127,16 @@ public:
 	}
 
 	/// @brief The sound's effects after its voices.
-	/// @return The sound's chain.
-	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const { return chain_.core(); }
+	/// @return The sound's FxSection.
+	[[nodiscard]] deluge::effects::FxSection& fxSection() { return fxSection_; }
+	[[nodiscard]] deluge::effects::ChainCore& core() { return fxSection_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const { return fxSection_.core(); }
 	/// @brief The sound's effect settings: its bound record's, else its binding's own.
 	/// @return The effect settings.
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
 	/// @brief The render's copy of the effect settings: it reads nothing else of them.
 	/// @return The render's copy.
-	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
-		return effectsBinding_.snapshot();
-	}
+	[[nodiscard]] const deluge::effects::EffectStates& renderEffects() const { return effectsBinding_.renderEffects(); }
 	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
 	/// @param next The new effect settings.
 	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
@@ -147,10 +144,10 @@ public:
 	/// @param record The record that holds the settings, or nullptr.
 	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
 	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
-	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
+	void projectEffects() { deluge::model::projectEffects(*effectsOwner()); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
 		return deluge::model::EffectsOwner{
-		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
+		    .core = &fxSection_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
@@ -218,7 +215,7 @@ public:
 	[[nodiscard]] OscType oscType(int32_t s) const { return config_.sources[s].osc_type; }
 	/// @brief Whether source @p s plays backwards now: its configured direction, inverted for an arpeggiated note.
 	[[nodiscard]] bool playsReversed(int32_t s) const {
-		return config_.sources[s].reversed != sources[s].invertReversed;
+		return config_.sources[s].reversed != sourceResources[s].invertReversed;
 	}
 
 	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
@@ -230,7 +227,7 @@ public:
 
 	ParamLPF paramLPF{};
 
-	SourceResources sources[kNumSources];
+	SourceResources sourceResources[kNumSources];
 
 	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
@@ -247,7 +244,7 @@ public:
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
 	// modKnobs was historically force-aligned (alignas(8), and before that a 0xDEADBEEF padding word) to mask
-	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became LFOConfig and shifted
+	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became one per-LFO struct and shifted
 	// Sound's layout. The cause was the offsetof-indexed param/patcher plumbing, since replaced by std::span
 	// over the ParamPlane POD (no offsetof; no layout-sensitive param access). The band-aid is therefore
 	// vestigial — removed here, gated on the golden masters not moving (x86 + ARM) + a #2660-repro hardware
@@ -430,7 +427,7 @@ public:
 	void wontBeRenderedForAWhile();
 	virtual ArpeggiatorBase* getArp() = 0;
 
-	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
+	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const deluge::synth::LfoState& config);
 
 	/// @brief Does this sound have any active voices?
 	[[nodiscard]] bool hasActiveVoices() const override {
@@ -507,7 +504,7 @@ private:
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
-	deluge::effects::SoundChain chain_;
+	deluge::effects::FxSection fxSection_;
 	/// @brief The learned knobs the sound holds outside a song's table.
 	deluge::model::KnobCarrier knobs_;
 	/// @brief Set by a read whose element held an arpeggiator.

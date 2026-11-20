@@ -225,7 +225,7 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	// The sound's sources follow the record; a new type reshapes a source's ranges.
 	bool squareCameOrWent = false;
 	for (int32_t s = 0; s < kNumSources; s++) {
-		SourceResources& source = sound.sources[s];
+		SourceResources& source = sound.sourceResources[s];
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const bool reversedNow = deluge::instrument::sample_playback(after, id).reversed;
 		if (changed(slotPart(Part::SOURCE_A_TYPE, s))) {
@@ -281,11 +281,11 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		const deluge::instrument::DxPatchState* wantedPatch = deluge::instrument::dx_patch(after, id);
 		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
 		const std::optional<deluge::instrument::DxPatchState> heldPatch =
-		    retyped ? sound.sources[s].heldDxPatch() : optionalOf(deluge::instrument::dx_patch(before, id));
+		    retyped ? sound.sourceResources[s].heldDxPatch() : optionalOf(deluge::instrument::dx_patch(before, id));
 		// Ranges are copied only when they may differ: a retyped slot's runtime reshaped its own
-		const bool rangesDiffer = retyped
-		                              ? sound.sources[s].heldRanges() != deluge::instrument::source_ranges(after, id)
-		                              : !deluge::instrument::same_ranges(before, after, id);
+		const bool rangesDiffer =
+		    retyped ? sound.sourceResources[s].heldRanges() != deluge::instrument::source_ranges(after, id)
+		            : !deluge::instrument::same_ranges(before, after, id);
 		Error error = Error::NONE;
 		if (wantedPatch != nullptr && heldPatch != *wantedPatch && sound.oscType(s) == OscType::DX7) {
 			error = applyDxPatch(sound, s, *wantedPatch);
@@ -296,8 +296,8 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 		if (error != Error::NONE) {
 			if (deluge::instrument::SoundState* record = sound.boundRecord()) {
 				*record = deluge::instrument::with_ranges(
-				    deluge::instrument::with_dx_patch(std::move(*record), id, sound.sources[s].heldDxPatch()), id,
-				    sound.sources[s].heldRanges());
+				    deluge::instrument::with_dx_patch(std::move(*record), id, sound.sourceResources[s].heldDxPatch()),
+				    id, sound.sourceResources[s].heldRanges());
 			}
 			return error;
 		}
@@ -356,8 +356,8 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 		return instrument::with_loop_mode(*sound.boundState(), id, mode);
 	}
 	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
-	const std::vector<instrument::RangeState> held = sound.sources[s].heldRanges();
-	const bool heldAreWavetable = sound.sources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
+	const std::vector<instrument::RangeState> held = sound.sourceResources[s].heldRanges();
+	const bool heldAreWavetable = sound.sourceResources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
 	return instrument::switch_source(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held,
 	                                 heldAreWavetable);
 }

@@ -76,7 +76,7 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 		e.sound = deluge::bridge::soundAt(song, *ctx.addresses.slot);
 		e.mod = e.sound;
 		if (e.sound != nullptr) {
-			e.source = &e.sound->sources[ctx.source_index];
+			e.source = &e.sound->sourceResources[ctx.source_index];
 			if (ctx.range_index >= 0 && ctx.range_index < std::ssize(e.source->ranges)) {
 				e.range = e.source->ranges.getElement(ctx.range_index);
 			}

@@ -53,11 +53,11 @@ using deluge::serialization::Value;
 /// ranges, and the effects the render plays. The rest the sound plays through its config, which the snapshot check
 /// holds to the record; its routing's runtime copies the song-settings check holds to the routing's record.
 deluge::instrument::SoundState heldBy(const ::Sound& sound, deluge::instrument::SoundState record) {
-	deluge::instrument::sound_effects(record) = sound.modControllableSnapshot().effects;
+	deluge::instrument::sound_effects(record) = sound.renderEffects();
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
-		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sources[s].heldDxPatch());
-		record = deluge::instrument::with_ranges(std::move(record), id, sound.sources[s].heldRanges());
+		record = deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch());
+		record = deluge::instrument::with_ranges(std::move(record), id, sound.sourceResources[s].heldRanges());
 	}
 	return record;
 }
@@ -202,10 +202,10 @@ std::string chainDifference(const deluge::model::EffectsOwner& owner, const delu
 	if (const std::string d = deluge::serialization::first_difference(decoded.encode(context), encoded); !d.empty()) {
 		return "decode at " + d;
 	}
-	if (owner.binding->snapshot().effects != owner.effects()) {
+	if (owner.binding->renderEffects() != owner.effects()) {
 		return "render copy";
 	}
-	if (owner.binding->snapshot().mod_fx_param != owner.view->modFXParam()) {
+	if (owner.binding->renderModFXParam() != owner.view->modFXParam()) {
 		return "render copy's mod FX knob";
 	}
 	return {};

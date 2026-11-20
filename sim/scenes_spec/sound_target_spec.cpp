@@ -32,7 +32,7 @@ using deluge::gui::SoundTarget;
 struct SourceRig {
 	deluge::scenes::spec::SongFixture song = deluge::scenes::spec::make_synth_song();
 	Sound* sound = song.instrument->toModControllable()->effectsOwner()->sound;
-	SourceResources* source = &sound->sources[0];
+	SourceResources* source = &sound->sourceResources[0];
 	SoundTarget target{};
 
 	SourceRig(int32_t count, int16_t index) {
@@ -113,7 +113,7 @@ describe sound_target_retype("gui::retargetRangeAfterRetype over SourceResources
 
 	it("hears only the source it watches", _ {
 		SourceRig r{1, 0};
-		SourceResources* const other = &r.sound->sources[1];
+		SourceResources* const other = &r.sound->sourceResources[1];
 		const RangesRetypeWatch watch{*other};
 		RangesRetypeWatch::rangesRetyped(*r.source, false);
 		expect(watch.result().reallocated).to_be_false();

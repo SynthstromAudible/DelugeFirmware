@@ -301,7 +301,7 @@ effect, the table names their ids in the effect's order (`host_chain::kFilterIds
 `kBitcrushIds`; `instrument::kEqIds`, `kBitcrushIds`), and `effects::built_from` checks each list against the effect's
 params at compile time.
 
-The app's adapters (`model/fx/chain_inputs.cpp`, `processing/sound/sound_chain_inputs.cpp`) read by those ids through
+The app's adapters (`model/fx/chain_inputs.cpp`, `processing/sound/fx_section_inputs.cpp`) read by those ids through
 `model/fx/effect_reads.h` and know nothing of the curves. A chain's init (`model/fx/chain_params.cpp`) sets every row
 of its owner's table: the shared ids 90–115 for a sound and a host chain, then a host chain's own rows, except those in
 `host_chain::kNotInitialised` (the tempo, which the song writes).

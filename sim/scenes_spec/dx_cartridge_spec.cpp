@@ -128,7 +128,7 @@ struct DxSong {
 		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
-	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sources[0]).value(); }
+	deluge::instrument::DxPatchState patch() { return deluge::bridge::dxPatchOf(sound->sourceResources[0]).value(); }
 };
 
 /// @brief The card these examples list: `tests/fixtures/scenes_spec/dx_cartridge`, installed for this file before boot
@@ -476,11 +476,11 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(3);
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		const deluge::instrument::DxPatchState before = deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value();
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]).value()).to_equal(before);
+		expect(deluge::bridge::dxPatchOf(r.sound->sourceResources[0]).value()).to_equal(before);
 	});
 
 	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {

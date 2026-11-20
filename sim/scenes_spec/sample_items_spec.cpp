@@ -244,7 +244,7 @@ struct SoundRig {
 	}
 
 	void setup_source(int32_t i, int32_t num_clusters) {
-		source[i] = &sound->sources[i];
+		source[i] = &sound->sourceResources[i];
 		const std::string osc = "osc" + std::to_string(i + 1) + "/";
 		*sound->state_ =
 		    deluge::test::with_kind(*sound->state_, static_cast<deluge::instrument::SourceId>(i), OscType::SAMPLE);
@@ -684,13 +684,13 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		CleanScenes clean;
 		ScratchCard card;
 		SoundRig r{/*second_source=*/false};
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{0});
 
 		r.focus(nodes::sample1_recorder);
 		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
 		expect(recorder::recorder_scene().recording()).to_be_true();
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sourceResources[0].ranges.size()).to_equal(size_t{1});
 	});
 
 	it("sample1_recorder asks about source 1's ranges, not the menu's multisampled source 0, as main's whichThing", _ {
@@ -709,8 +709,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 
 		focus_in(r.shell, c, nodes::sample1_recorder);
 		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{2});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sourceResources[0].ranges.size()).to_equal(size_t{2});
 	});
 
 	it("sample1_recorder makes a range on source 1 alone, never on the menu's source 0", _ {
@@ -729,8 +729,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 
 		focus_in(r.shell, c, nodes::sample1_recorder);
 		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
-		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{0});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sourceResources[0].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("sample1_recorder whose first range cannot be made refuses to open, as main's refused permission", _ {
@@ -748,7 +748,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		menu_scene().open(nodes::sample1_recorder, c);
 		expect(menu_scene().on_enter(SceneId{menu::kMenuSceneKind, menu::node_id(nodes::sample1_recorder)})).to_be_false();
 		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_false();
-		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
+		expect(r.sound->sourceResources[1].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("does not leave source 0's range behind when it selects source 1", _ {

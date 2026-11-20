@@ -24,7 +24,7 @@
 #include "effects/master_chain.h"
 #include "effects/track_chain.h"
 #include "model/fx/chain_conversions.h"
-#include "model/snapshot/mod_controllable_snapshot.h"
+#include "model/fx/effects_binding.h"
 
 #include <cstdint>
 
@@ -62,23 +62,23 @@ class TrackChannel;
 
 /// @brief The mod FX, EQ and delay inputs a host chain reads from its unpatched params: the type in effect (NONE in its
 /// soft off), the rate and depth finals and the knobs.
-/// @param snapshot The chain's render copy of its settings and view.
+/// @param binding The chain's effects binding, whose render copy of its settings and view it reads.
 /// @param activeType The mod FX type in effect this block (see activeModFXType).
 /// @param paramManager The owner's param manager.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param grainSend The granular's reverb send.
 /// @param conversions The owner's remembered conversions.
 /// @return The block's mod FX, EQ and delay inputs.
-[[nodiscard]] effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
+[[nodiscard]] effects::FxInputs hostFxInputs(const EffectsBinding& binding, ModFXType activeType,
                                              ParamManager& paramManager, const effects::Delay::State& delay,
                                              dsp::Q<31> grainSend, ChainConversions& conversions);
 
 /// @brief The mod FX type a host chain runs this block: NONE while its selected mod FX knob is at its minimum (the soft
 /// off), else its setting.
-/// @param snapshot The chain's render copy of its settings and view.
+/// @param binding The chain's effects binding, whose render copy of its settings and view it reads.
 /// @param paramManager The owner's param manager.
 /// @return The mod FX type in effect.
-[[nodiscard]] ModFXType activeModFXType(const snapshot::ModControllableSnapshot& snapshot, ParamManager& paramManager);
+[[nodiscard]] ModFXType activeModFXType(const EffectsBinding& binding, ParamManager& paramManager);
 
 /// @brief A host chain's delay working state for one block, from its unpatched params, set up on @p delay.
 /// @param paramManager The owner's param manager.
