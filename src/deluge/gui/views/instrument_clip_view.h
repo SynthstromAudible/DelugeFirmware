@@ -59,8 +59,9 @@ struct EditPadPress {
 	bool isBlurredSquare;
 	bool mpeCachedYet;
 	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-	uint32_t intendedPos;    // For "blurred squares", means start of square
-	uint32_t intendedLength; // For "blurred squares", means length of square
+	uint32_t intendedPos;     // For "blurred squares", means start of square
+	uint32_t intendedLength;  // For "blurred squares", means length of square
+	uint16_t intendedLockSet; // The note's parameter locks while it's lifted out of its row by a vertical drag
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3

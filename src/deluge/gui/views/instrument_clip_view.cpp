@@ -1244,6 +1244,9 @@ ramError:
 					newNote->lift = noteToCopy->lift;
 					newNote->iterance = noteToCopy->iterance;
 					newNote->fill = noteToCopy->fill;
+					// Out of memory: the note is copied without its locks
+					newNote->lockSet =
+					    newCopiedNoteRow->locks.intern(currentSong->noteLocks.get(noteToCopy->lockSet)).value_or(0);
 
 					if (copyToFile) {
 
@@ -1692,6 +1695,7 @@ ramError:
 								newNote->lift = lift;
 								newNote->iterance = iterance;
 								newNote->fill = fill;
+								newNote->lockSet = 0; // Locks aren't in the clipboard file format
 
 								currentNote++;
 							}
@@ -2632,6 +2636,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					    firstNote->pos,
 					    std::max((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
 					    modelStackWithNoteRow->noteRowId);
+
+					editPadPresses[i].intendedLockSet = 0; // Only meaningful once a vertical drag lifts the note
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
 					for (int32_t t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
@@ -4667,6 +4673,9 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
+					Note* liftedNote = thisNoteRow->notes.getElement(thisNoteRow->notes.search(pos, GREATER_OR_EQUAL));
+					editPadPresses[i].intendedLockSet =
+					    (liftedNote && liftedNote->pos == pos) ? liftedNote->lockSet : 0;
 					thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
 					ParamCollectionSummary* mpeParamsSummary = thisNoteRow->paramManager.getExpressionParamSetSummary();
@@ -4832,10 +4841,10 @@ cancelPress:
 
 			int32_t pos = editPadPresses[i].intendedPos;
 
-			bool success =
-			    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-			                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
-			                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
+			bool success = noteRow->attemptNoteAdd(
+			    pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
+			    editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
+			    editPadPresses[i].intendedFill, modelStackWithNoteRow, action, editPadPresses[i].intendedLockSet);
 
 			editPadPresses[i].deleteOnDepress = false;
 			editPadPresses[i].deleteOnScroll = success;
@@ -6528,6 +6537,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		uint8_t probability;
 		Iterance iterance;
 		uint8_t fill;
+		uint16_t lockSet;
 		StolenParamNodes stolenMPE[kNumExpressionDimensions]{0};
 	};
 
@@ -6568,6 +6578,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 					ntm.probability = note->probability;
 					ntm.iterance = note->iterance;
 					ntm.fill = note->fill;
+					ntm.lockSet = note->lockSet;
 
 					// Steal expression/MPE parameter data
 					ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
@@ -6613,7 +6624,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 			if (destRow) {
 				// Use attemptNoteAdd like scrollVertical_placeNotesPressed does
 				bool success = destRow->attemptNoteAdd(ntm.pos, ntm.length, ntm.velocity, ntm.probability, ntm.iterance,
-				                                       ntm.fill, destModelStack, action);
+				                                       ntm.fill, destModelStack, action, ntm.lockSet);
 
 				if (success) {
 					// Check if there are any MPE nodes to restore

@@ -171,7 +171,7 @@ public:
 	Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet = 0);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,

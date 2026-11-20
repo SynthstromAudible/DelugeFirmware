@@ -141,6 +141,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setLift(oldNote->getLift());
 						newNote->setIterance(oldNote->getIterance());
 						newNote->setFill(oldNote->getFill());
+						newNote->setLockSet(oldNote->getLockSet());
 					}
 				}
 
@@ -158,6 +159,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 				}
 			}
 
@@ -186,6 +188,7 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 				}
 			}
 		}
@@ -722,7 +725,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
-                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action, uint16_t lockSet) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -780,6 +783,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 	newNote->setProbability(probability);
 	newNote->setIterance(iterance);
 	newNote->setFill(fill);
+	newNote->setLockSet(lockSet);
 
 	// Record consequence
 	if (action) {
@@ -1087,6 +1091,7 @@ modifyNote:
 			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
+			uint16_t lockSet = note->getLockSet();
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
 			notes.insertAtIndex(i); // Shouldn't be able to fail.
@@ -1095,6 +1100,7 @@ modifyNote:
 			note->setVelocity(noteOnVelocity);
 			note->setIterance(iterance);
 			note->setFill(fill);
+			note->setLockSet(lockSet);
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -2921,6 +2927,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 
 					highestNoteIndex = iNew;
 				}
@@ -2971,6 +2978,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setLift(oldNote->getLift());
 					newNote->setIterance(oldNote->getIterance());
 					newNote->setFill(oldNote->getFill());
+					newNote->setLockSet(oldNote->getLockSet());
 
 					highestNoteIndex = iNew;
 				}
@@ -4083,8 +4091,17 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::min(newLength, maxPos - newPos);
 
 		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
-		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
-		               noteSource->fill, modelStack, nullptr);
+		int32_t added = attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability,
+		                               noteSource->iterance, noteSource->fill, modelStack, nullptr);
+		if (added && noteSource->lockSet) {
+			int32_t i = notes.search(newPos, GREATER_OR_EQUAL);
+			Note* pasted = notes.getElement(i);
+			if (pasted && pasted->pos == newPos) {
+				// Out of memory: the note is pasted without its locks
+				pasted->lockSet =
+				    modelStack->song->noteLocks.intern(copiedNoteRow->locks.get(noteSource->lockSet)).value_or(0);
+			}
+		}
 
 		minPos = newPos + newLength;
 	}
@@ -4236,6 +4253,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
 			}
 		}
 
@@ -4266,6 +4284,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setLift(oldNote->getLift());
 				newNote->setIterance(oldNote->getIterance());
 				newNote->setFill(oldNote->getFill());
+				newNote->setLockSet(oldNote->getLockSet());
 			}
 		}
 	}
@@ -4283,6 +4302,7 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			newNote->probability = oldNote->probability;
 			newNote->iterance = oldNote->iterance;
 			newNote->fill = oldNote->fill;
+			newNote->lockSet = oldNote->lockSet;
 		}
 	}
 
