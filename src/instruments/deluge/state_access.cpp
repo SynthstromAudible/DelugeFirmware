@@ -16,7 +16,6 @@
  */
 
 #include "instruments/deluge/state_access.h"
-#include "instruments/deluge/flat_layout.h"
 
 #include <utility>
 #include <variant>
@@ -46,13 +45,19 @@ namespace {
 	return parked ? *parked : new_synth_kind;
 }
 
-/// @p state with @p change made to its flat layout and composed again: a slot's ranges and DX7 patch are written where
-/// the file's layout puts them, whatever the slot's kind.
-template <class Change>
-[[nodiscard]] SoundState changed_flat(const SoundState& state, const Change& change) {
-	FlatSoundState flat = to_flat(state);
-	change(flat);
-	return to_record(flat);
+/// @copydoc memory_of(const SoundState&, SourceId)
+[[nodiscard]] SlotMemory& memory_of(SoundState& state, SourceId id) noexcept {
+	return state.recall.slots[slot_index(id)];
+}
+
+/// Slot @p id's kind as a write reaches it: the one it plays, or while FM plays the one it parks; null when FM plays
+/// and the slot parks none (a new synth's square, which holds no ranges or patch).
+[[nodiscard]] synth::SlotState* kind_to_write(SoundState& state, SourceId id) noexcept {
+	if (synth::DualSourceState* slots = dual_of(state.plays)) {
+		return &slots->slots[slot_index(id)];
+	}
+	std::optional<synth::SlotState>& parked = memory_of(state, id).parked;
+	return parked ? &*parked : nullptr;
 }
 
 } // namespace
@@ -193,11 +198,30 @@ synth::LfoState lfo(const SoundState& state, size_t index) noexcept {
 }
 
 SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
-	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[slot_index(id)].ranges = std::move(ranges); });
+	synth::SlotState* kind = kind_to_write(state, id);
+	if (auto* wavetable = kind != nullptr ? std::get_if<synth::WavetableState>(kind) : nullptr) {
+		wavetable->ranges.clear();
+		for (const RangeState& r : ranges) {
+			wavetable->ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
+		}
+		return state;
+	}
+	// A sample's ranges are its own; any other kind's are the ones the slot keeps for a sample
+	auto* sample = kind != nullptr ? std::get_if<synth::SampleState>(kind) : nullptr;
+	std::vector<synth::SampleRange>& held = sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
+	held.clear();
+	for (const RangeState& r : ranges) {
+		held.push_back(sample_range_of(r));
+	}
+	return state;
 }
 
 SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch) {
-	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[slot_index(id)].dx_patch = patch; });
+	synth::SlotState* kind = kind_to_write(state, id);
+	// A DX7's patch is its own; any other kind's is the one the slot keeps for a DX7
+	auto* dx = kind != nullptr ? std::get_if<synth::Dx7State>(kind) : nullptr;
+	(dx != nullptr ? dx->patch : memory_of(state, id).patch) = patch;
+	return state;
 }
 
 } // namespace deluge::instrument

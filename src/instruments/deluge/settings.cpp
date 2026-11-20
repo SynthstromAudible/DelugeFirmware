@@ -628,7 +628,8 @@ bool write_top_level(SoundState& state, std::string_view path, const serializati
 	return true;
 }
 
-// One branch per oscillator key, each written through the slot's whole source:
+// One branch per oscillator key, each written to the part of the state that holds it; a type switch through the slot's
+// whole source:
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 bool write_oscillator(SoundState& state, std::string_view path, const serialization::Value& value) {
 	const std::optional<size_t> s = indexAfter(path, 3, '2');
@@ -643,39 +644,43 @@ bool write_oscillator(SoundState& state, std::string_view path, const serializat
 	if (std::ranges::find(kSlotKeys, rest) == kSlotKeys.end() && (rest != "oscillatorSync" || *s != 1)) {
 		return false;
 	}
-	edit_slot(state, *s, [&](SlotEdit& edit) {
-		SourceState& src = edit.source;
-		if (rest == "linearInterpolation") {
-			src.interpolation_mode = n != 0 ? plugin::InterpolationMode::LINEAR : plugin::InterpolationMode::SMOOTH;
-		}
-		else if (rest == "loopMode") {
-			src.repeat_mode = static_cast<SampleRepeatMode>(n);
-		}
-		else if (rest == "reversed") {
-			src.reversed = n != 0;
-		}
-		else if (rest == "timeStretchEnable") {
-			src.pitch_and_speed_independent = n != 0;
-		}
-		else if (rest == "timeStretchAmount") {
-			src.time_stretch_amount = static_cast<int8_t>(n);
-		}
-		else if (rest == "type") {
-			src.osc_type = parse_osc_type(value.str());
-		}
-		else if (rest == "transpose") {
-			src.transpose = static_cast<int16_t>(n);
+	if (rest == "type") {
+		edit_slot(state, *s, [&](SlotEdit& edit) { edit.source.osc_type = parse_osc_type(value.str()); });
+		return true;
+	}
+	if (rest == "oscillatorSync") { // on the second oscillator
+		set_oscillator_sync(state, n != 0);
+		return true;
+	}
+	if (rest == "transpose" || rest == "cents" || rest == "retrigPhase") {
+		synth::Pitch& pitch = source_pitch_of(state, *s);
+		if (rest == "transpose") {
+			pitch.tuning.transpose = static_cast<int16_t>(n);
 		}
 		else if (rest == "cents") {
-			src.cents = static_cast<int8_t>(n);
+			pitch.tuning.cents = static_cast<int8_t>(n);
 		}
-		else if (rest == "retrigPhase") {
-			edit.phase = static_cast<uint32_t>(n); // the phase as a file writes it, signed
+		else {
+			pitch.retrigger = retrigger_of_word(static_cast<uint32_t>(n)); // the phase as a file writes it, signed
 		}
-		else { // oscillatorSync on the second oscillator
-			edit.sync = n != 0;
-		}
-	});
+		return true;
+	}
+	synth::SamplePlayback& playback = sample_playback_of(state, *s);
+	if (rest == "linearInterpolation") {
+		playback.interpolation = n != 0 ? plugin::InterpolationMode::LINEAR : plugin::InterpolationMode::SMOOTH;
+	}
+	else if (rest == "loopMode") {
+		playback.repeat_mode = static_cast<SampleRepeatMode>(n);
+	}
+	else if (rest == "reversed") {
+		playback.reversed = n != 0;
+	}
+	else if (rest == "timeStretchEnable") {
+		playback.pitch_and_speed_independent = n != 0;
+	}
+	else { // timeStretchAmount
+		playback.time_stretch_amount = static_cast<int8_t>(n);
+	}
 	return true;
 }
 

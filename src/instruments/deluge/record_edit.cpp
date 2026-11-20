@@ -132,6 +132,47 @@ void set_engine(SoundState& state, SynthMode mode) {
 	}
 }
 
+synth::Pitch& source_pitch_of(SoundState& state, size_t slot) noexcept {
+	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		return fm->carriers[slot];
+	}
+	synth::SlotState& kind = dual_of(state.plays)->slots[slot];
+	if (auto* va = std::get_if<synth::VaState>(&kind)) {
+		return va->pitch;
+	}
+	if (auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
+		return wavetable->pitch;
+	}
+	if (auto* dx = std::get_if<synth::Dx7State>(&kind)) {
+		return dx->pitch;
+	}
+	if (auto* input = std::get_if<synth::InputState>(&kind)) {
+		return input->pitch;
+	}
+	return state.recall.slots[slot].sample_pitch;
+}
+
+synth::SamplePlayback& sample_playback_of(SoundState& state, size_t slot) noexcept {
+	SlotMemory& memory = state.recall.slots[slot];
+	synth::SlotState* kind = nullptr; // what the slot plays, or parks while FM plays
+	if (synth::DualSourceState* dual = dual_of(state.plays)) {
+		kind = &dual->slots[slot];
+	}
+	else if (memory.parked) {
+		kind = &*memory.parked;
+	}
+	auto* sample = kind != nullptr ? std::get_if<synth::SampleState>(kind) : nullptr;
+	return sample != nullptr ? sample->playback : memory.playback;
+}
+
+void set_oscillator_sync(SoundState& state, bool sync) {
+	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		fm->sync = sync;
+		return;
+	}
+	place_sync(state, *dual_of(state.plays), sync);
+}
+
 synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept {
 	// LFO1 and LFO3 run per sound, LFO2 and LFO4 per voice
 	auto& pair = (index % 2 == 0) ? state.plays.instrument_lfos : state.plays.voice_lfos;
