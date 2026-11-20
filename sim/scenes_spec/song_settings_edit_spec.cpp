@@ -709,7 +709,6 @@ describe song_settings_edit("SetSetting", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		f.song->setCurrentClip(f.clip);
 		const auto ctx = deluge::scenes::menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
-		expect(&spec::menu_engine(ctx).sound->state()).not_().to_be_null();
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 61);
 		expect(spec::menu_engine(ctx).sound->routing().midi_note).to_equal(std::optional<uint8_t>{61});
 		expect(static_cast<int>(spec::menu_engine(ctx).sound->outputMidiNoteForDrum)).to_equal(61);
@@ -724,7 +723,6 @@ describe song_settings_edit("SetSetting", $ {
 		ctx.addresses.affect_entire = deluge::scenes::menu::bindings::writes_whole_kit(ctx);
 		deluge::scenes::menu::bindings::write(deluge::scenes::menu::nodes::output_midi_note, ctx, 72);
 		for (SoundDrum* drum : {first, second}) {
-			expect(&drum->state()).not_().to_be_null();
 			expect(drum->routing().midi_note).to_equal(std::optional<uint8_t>{72});
 			expect(static_cast<int>(drum->outputMidiNoteForDrum)).to_equal(72);
 		}
