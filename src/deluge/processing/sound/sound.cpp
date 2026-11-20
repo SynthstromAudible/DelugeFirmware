@@ -273,10 +273,6 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	const deluge::instrument::SoundState before = *state_;
 
-	config_.voicing.polyphony = PolyphonyMode::AUTO;
-	deluge::model::changeEffects(
-	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
-
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
@@ -352,10 +348,6 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	}
 
 	setupDefaultExpressionPatching(paramManager);
-
-	deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
-		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
-	}); // Good for samples, I think
 
 	doneReadingFromFile();
 	adoptState(deluge::instrument::as_default_synth(before));
@@ -2616,21 +2608,17 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		}
 	}
 
+	// Old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
+	if (deluge::instrument::synth_mode(decoded) == SynthMode::FM
+	    && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
+		deluge::instrument::sound_effects(decoded).filter.hpf_mode = FilterMode::OFF;
+		deluge::instrument::sound_effects(decoded).filter.lpf_mode = FilterMode::OFF;
+	}
 	if (Error error = applyState(decoded); error != Error::NONE) {
 		return error;
 	}
 	*routing_ = routing;
 	applyRouting();
-
-	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
-	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		deluge::model::changeEffects(*effectsOwner(),
-		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
-		deluge::model::changeEffects(*effectsOwner(),
-		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
-		deluge::instrument::sound_effects(decoded).filter.hpf_mode = FilterMode::OFF;
-		deluge::instrument::sound_effects(decoded).filter.lpf_mode = FilterMode::OFF;
-	}
 
 	// A sound with params files them with the Song
 	if (paramManager.containsAnyMainParamCollections()) {
