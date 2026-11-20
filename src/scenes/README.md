@@ -315,8 +315,10 @@ skips it. If it ever wants to be lazy, the slot has to become a queue first.
 writes the device port (`Ports::device`), whose host store does what the item's write does, and has done it when the
 write returns: both screensavers take a new mode or timeout, the pads dim to a new brightness and re-render for a new
 colour, main's canvas and the guest's panels take a new highlighting, the play cursor leaving its slow flash clears
-the tick squares, sticky shift reaches the shift machines and rounded corners restyles the display. What the open menu
-does with a written row is its node's `Binding::after_write`: the horizontal-menus feature's re-lays out the menu. The
+the tick squares, sticky shift reaches the shift machines, rounded corners restyles the display, a trigger clock's
+pulses resync the ticks and a MIDI clock starts or stops. A write the device applies only after a restart (USB audio's
+enable) says so, and the menu raises "restart to apply". What the open menu does with a written row is its node's
+`Binding::after_write`: the horizontal-menus feature's re-lays out the menu. The
 file selector ends a keyboard audition the same way, with `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`

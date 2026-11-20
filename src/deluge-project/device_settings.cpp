@@ -114,6 +114,13 @@ constexpr std::array<std::string_view, 4> kSliceModeWords{"cut", "once", "loop",
 constexpr std::array<std::string_view, 4> kThresholdWords{"off", "low", "medium", "high"};
 /// The kinds of clip a new clip may be, in the order an output's type numbers them.
 constexpr std::array<std::string_view, 5> kNewClipTypeWords{"synth", "kit", "midi", "cv", "audio"};
+/// When an input being recorded is heard, in the order the monitoring mode numbers them.
+constexpr std::array<std::string_view, 3> kMonitorModeWords{"smart", "on", "off"};
+/// What the device sends the USB host, in the order the USB output source numbers them.
+constexpr std::array<std::string_view, 2> kUsbOutputSourceWords{"mainMix", "lineIn"};
+constexpr int32_t kLeastPpqn = 1;      ///< the fewest trigger-clock pulses a quarter note a menu sets
+constexpr int32_t kGreatestPpqn = 192; ///< the most
+constexpr int32_t kDefaultPpqn = 24;   ///< what the device's settings reset to
 
 /// The bounds a default range's two ends share: the least and greatest end, and the end a reset gives both.
 struct EndBounds {
@@ -232,10 +239,33 @@ constexpr std::array kPadsAndScreenRows{
     choice(device_path::kSamplePreview, kSamplePreviewWords, 1),
 };
 
+/// The recording page's count-in and monitoring, USB audio's and the clocks' rows, and the stem export's options,
+/// which nothing saves.
+constexpr std::array kAudioAndClockRows{
+    integer(device_path::kCountIn, 0, 4, 0),
+    choice(device_path::kMonitorMode, kMonitorModeWords, 0),
+    boolean(device_path::kUsbAudioEnabled, 1),
+    boolean(device_path::kUsbDirectMonitoring, 1),
+    choice(device_path::kUsbOutputSource, kUsbOutputSourceWords, 0),
+    integer(device_path::kTriggerInPpqn, kLeastPpqn, kGreatestPpqn, kDefaultPpqn),
+    boolean(device_path::kTriggerInAutoStart, 1),
+    integer(device_path::kTriggerOutPpqn, kLeastPpqn, kGreatestPpqn, kDefaultPpqn),
+    boolean(device_path::kMidiClockOut, 1),
+    boolean(device_path::kMidiClockIn, 1),
+    boolean(device_path::kTempoMagnitudeMatching, 0),
+    boolean(device_path::kStemNormalize, 0),
+    boolean(device_path::kStemNormalizeDrums, 1),
+    boolean(device_path::kStemToSilence, 1),
+    boolean(device_path::kStemSongFx, 0),
+    boolean(device_path::kStemKitFx, 0),
+    boolean(device_path::kStemOffline, 1),
+    boolean(device_path::kStemMixdown, 0),
+};
+
 /// The rows before the preset scales'.
 constexpr size_t kLeadingRows = 2 + kDefaultsRows.size();
 /// The rows after them, before the community features'.
-constexpr size_t kTrailingRows = kPadsAndScreenRows.size();
+constexpr size_t kTrailingRows = kPadsAndScreenRows.size() + kAudioAndClockRows.size();
 /// How many rows the table has.
 constexpr size_t kRowCount = kLeadingRows + kScaleCount + kTrailingRows + kFeatureCount;
 
@@ -258,6 +288,9 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 		rows[at++] = boolean(std::string_view{path.text.data(), path.size}, 0);
 	}
 	for (const SettingInfo& row : kPadsAndScreenRows) {
+		rows[at++] = row;
+	}
+	for (const SettingInfo& row : kAudioAndClockRows) {
 		rows[at++] = row;
 	}
 	for (const FeatureInfo& info : kFeatures) {
@@ -321,6 +354,24 @@ static_assert([] {
 	         device_path::kScreensaverMode,
 	         device_path::kScreensaverTimeout,
 	         device_path::kSamplePreview,
+	         device_path::kCountIn,
+	         device_path::kMonitorMode,
+	         device_path::kUsbAudioEnabled,
+	         device_path::kUsbDirectMonitoring,
+	         device_path::kUsbOutputSource,
+	         device_path::kTriggerInPpqn,
+	         device_path::kTriggerInAutoStart,
+	         device_path::kTriggerOutPpqn,
+	         device_path::kMidiClockOut,
+	         device_path::kMidiClockIn,
+	         device_path::kTempoMagnitudeMatching,
+	         device_path::kStemNormalize,
+	         device_path::kStemNormalizeDrums,
+	         device_path::kStemToSilence,
+	         device_path::kStemSongFx,
+	         device_path::kStemKitFx,
+	         device_path::kStemOffline,
+	         device_path::kStemMixdown,
 	     }) {
 		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {
 			return false;

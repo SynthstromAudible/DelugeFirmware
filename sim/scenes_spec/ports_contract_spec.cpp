@@ -10,15 +10,18 @@
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
+#include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
 #include "dsp-next/core/stereo_sample.h"
 #include "model/song/song.h"
 #include "music-theory/preset_scales.h"
+#include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/metronome/metronome.h"
+#include "processing/stem_export/stem_export.h"
 
 #include <version.h>
 
@@ -448,6 +451,76 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		FlashStorage::padColours[FlashStorage::PAD_COLOUR_STOPPED] = stopped;
 		FlashStorage::sampleBrowserPreviewMode = preview;
 		FlashStorage::defaultFavouritesLayout = favourites;
+	});
+
+	it("does what each audio, clock and stem-export write implies, as the settings pages' own items do", _ {
+		const bind::Ports& p = menu::host_ports();
+		expect(p.device).not_().to_be_null();
+		if (p.device == nullptr) {
+			return;
+		}
+		using device_path = deluge::project::device_path;
+		const bool usb_enabled = FlashStorage::usbAudioEnabled;
+		const bool direct_monitoring = deluge::usb_audio::directMonitoring;
+		const deluge::usb_audio::OutputSource output_source = deluge::usb_audio::outputSource;
+		const InputMonitoringMode monitoring = AudioEngine::inputMonitoringMode;
+		const uint32_t in_ppqn = playbackHandler.analogInTicksPPQN;
+		const uint32_t out_ppqn = playbackHandler.analogOutTicksPPQN;
+		const bool clock_out = playbackHandler.midiOutClockEnabled;
+		const bool clock_in = playbackHandler.midiInClockEnabled;
+		const uint8_t count_in = playbackHandler.countInBars;
+		const bool mixdown = stemExport.exportMixdown;
+		const bool kit_fx = stemExport.includeKitFX;
+
+		// USB audio's enable takes effect at the next start: a value that no longer matches what this session
+		// presents is stored for a restart, and one that matches it is in effect now.
+		const bool presented = deluge::usb_audio::present();
+		expect(static_cast<int>(p.device->write(device_path::kUsbAudioEnabled, presented ? 0 : 1)))
+		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED_FOR_RESTART));
+		expect(FlashStorage::usbAudioEnabled).to_equal(!presented);
+		expect(static_cast<int>(p.device->write(device_path::kUsbAudioEnabled, presented ? 1 : 0)))
+		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(FlashStorage::usbAudioEnabled).to_equal(presented);
+
+		// The audio tier's settings, each one plain store.
+		(void)p.device->write(device_path::kUsbDirectMonitoring, 0);
+		expect(deluge::usb_audio::directMonitoring).to_be_false();
+		(void)p.device->write(device_path::kUsbOutputSource, 1);
+		expect(static_cast<int>(deluge::usb_audio::outputSource))
+		    .to_equal(static_cast<int>(deluge::usb_audio::OutputSource::LINE_IN));
+		(void)p.device->write(device_path::kMonitorMode, 2);
+		expect(static_cast<int>(AudioEngine::inputMonitoringMode)).to_equal(static_cast<int>(InputMonitoringMode::OFF));
+
+		// The clocks: with no external clock playing, the trigger input's resync waits; the MIDI clocks switch.
+		(void)p.device->write(device_path::kTriggerInPpqn, 48);
+		expect(playbackHandler.analogInTicksPPQN).to_equal(uint32_t{48});
+		(void)p.device->write(device_path::kTriggerOutPpqn, 96);
+		expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t{96});
+		(void)p.device->write(device_path::kMidiClockOut, clock_out ? 0 : 1);
+		expect(playbackHandler.midiOutClockEnabled).to_equal(!clock_out);
+		(void)p.device->write(device_path::kMidiClockIn, clock_in ? 0 : 1);
+		expect(playbackHandler.midiInClockEnabled).to_equal(!clock_in);
+		(void)p.device->write(device_path::kCountIn, 3);
+		expect(static_cast<int>(playbackHandler.countInBars)).to_equal(3);
+
+		// The stem export's options are the export's own.
+		(void)p.device->write(device_path::kStemMixdown, mixdown ? 0 : 1);
+		expect(stemExport.exportMixdown).to_equal(!mixdown);
+		(void)p.device->write(device_path::kStemKitFx, kit_fx ? 0 : 1);
+		expect(stemExport.includeKitFX).to_equal(!kit_fx);
+		expect(p.device->read(device_path::kStemKitFx).value_or(-1)).to_equal(kit_fx ? 0 : 1);
+
+		FlashStorage::usbAudioEnabled = usb_enabled;
+		deluge::usb_audio::directMonitoring = direct_monitoring;
+		deluge::usb_audio::outputSource = output_source;
+		AudioEngine::inputMonitoringMode = monitoring;
+		playbackHandler.analogInTicksPPQN = in_ppqn;
+		playbackHandler.analogOutTicksPPQN = out_ppqn;
+		playbackHandler.setMidiOutClockMode(clock_out);
+		playbackHandler.setMidiInClockEnabled(clock_in);
+		playbackHandler.countInBars = count_in;
+		stemExport.exportMixdown = mixdown;
+		stemExport.includeKitFX = kit_fx;
 	});
 });
 

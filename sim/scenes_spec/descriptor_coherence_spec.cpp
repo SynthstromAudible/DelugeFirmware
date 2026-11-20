@@ -522,11 +522,6 @@ struct DeviceNode {
 };
 
 constexpr DeviceNode kDeviceSettings[] = {
-    {"Settings > Recording > Sampling monitoring", 1},
-    {"Settings > Recording > Count-in bars", 1},
-    {"Settings > USB audio > Output", 1},
-    {"Settings > USB audio > Input", 1},
-    {"Settings > USB audio > Enabled", 1},
     {"Settings > MIDI > Devices >> MIDI devices > MIDI-Thru", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Use Relative CC", 1},
     {"Settings > MIDI > Devices >> MIDI devices > Clock In", 1},
@@ -546,22 +541,15 @@ constexpr DeviceNode kDeviceSettings[] = {
     {"Settings > MIDI > MIDI-Follow > Channel > Channel C", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel B", 1},
     {"Settings > MIDI > MIDI-Follow > Channel > Channel A", 1},
-    {"Settings > MIDI > Clock > Tempo Magnitude Matching", 1},
-    {"Settings > MIDI > Clock > Input", 1},
-    {"Settings > MIDI > Clock > Output", 1},
-    {"Settings > Trigger Clock > Output > PPQN", 1},
-    {"Settings > Trigger Clock > Input > Auto-Start", 1},
-    {"Settings > Trigger Clock > Input > PPQN", 1},
     {"Settings > Gate >> Minimum Off-Time", 1},
     {"Settings > Gate >> Gate out* mode", 1},
     {"Settings > CV >> CV output * > Transpose", 1},
     {"Settings > CV >> CV output * > Volts per Octave", 1},
 };
 
-constexpr std::string_view kDeviceReason =
-    "a device setting (FlashStorage, a MIDI device, a CV or gate output, USB audio): "
-    "the "
-    "device's, not a song's or a sound's, so no engine or model row holds it";
+constexpr std::string_view kDeviceReason = "a device setting (FlashStorage, a MIDI device, a CV or gate output): "
+                                           "the "
+                                           "device's, not a song's or a sound's, so no engine or model row holds it";
 
 /// @brief A subtree whose value nodes have no row, and why.
 struct Subtree {
@@ -574,8 +562,6 @@ const std::vector<Subtree>& subtrees() {
 	    {&nodes::note_editor_root,
 	     "the selected note's property, edited as an offset over every note under a zoomed-out square: no row"},
 	    {&nodes::note_row_editor_root, "the selected note row's property, edited as an offset over its notes: no row"},
-	    {&nodes::configure_stem_export, "an option of the stem export, which the export reads: no row"},
-	    {&nodes::kit_fx_configure_stem_export, "an option of the stem export, which the export reads: no row"},
 	    {&nodes::song_threshold_recording, "the song's recording threshold mode: a runtime field seeded from "
 	                                       "FlashStorage when the song is made, and not saved: no row"},
 	    {&nodes::voice_usage, "a readout of the voices sounding, which the scene samples: no row"},

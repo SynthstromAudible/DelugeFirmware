@@ -1,4 +1,5 @@
 #include "deluge-project/device_settings.h"
+#include "definitions_cxx.hpp"
 #include "deluge-project/features.h"
 #include "gui/colour/pad_colour.h"
 #include "gui/ui/shell_action_dispatch.h"
@@ -10,13 +11,16 @@
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
 #include "io/debug/log.h"
+#include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "music-theory/preset_scales.h"
+#include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/metronome/metronome.h"
+#include "processing/stem_export/stem_export.h"
 #include "serialization/tree.h"
 #include "storage/flash_storage.h"
 
@@ -62,6 +66,8 @@ static_assert(std::to_underlying(KeyboardLayout::QWERTZ) == 2);
 static_assert(std::to_underlying(ScreensaverMode::DELUGE) == 3);
 static_assert(PREVIEW_OFF == 0 && PREVIEW_ONLY_WHILE_NOT_PLAYING == 1 && PREVIEW_ON == 2);
 static_assert(deluge::gui::RED == 0 && deluge::gui::PINK == 8 && deluge::gui::kNumPadColours == 9);
+static_assert(std::to_underlying(InputMonitoringMode::OFF) == 2 && kNumInputMonitoringModes == 3);
+static_assert(std::to_underlying(usb_audio::OutputSource::LINE_IN) == 1 && usb_audio::kNumOutputSources == 2);
 
 /// @brief A BOOL row's file form.
 Value flag(bool on) {
@@ -82,13 +88,15 @@ Value number(int64_t value) {
 	return Value::makeNumber(value);
 }
 
-/// @brief A BOOL row the flash settings hold as one `bool`, whose store does nothing more.
+/// @brief A BOOL row the device holds as one `bool`, whose store does nothing more. The audio tier and the clock read
+///        some of them as they are; a store stays the one plain store the menu's item made.
 struct FlagHome {
 	project::DevicePath path;
 	bool* value;
 };
-/// Every such row.
-constexpr std::array<FlagHome, 13> kFlagHomes{{
+/// Every such row: the flash settings', the clocks' and USB audio's, and the stem export's options, which the export
+/// keeps and nothing saves.
+constexpr std::array<FlagHome, 23> kFlagHomes{{
     {device_path::kAccessibilityShortcuts, &FlashStorage::accessibilityShortcuts},
     {device_path::kGridAllowGreenSelection, &FlashStorage::gridAllowGreenSelection},
     {device_path::kGridEmptyPadsUnarm, &FlashStorage::gridEmptyPadsUnarm},
@@ -102,6 +110,16 @@ constexpr std::array<FlagHome, 13> kFlagHomes{{
     {device_path::kAutomationShift, &FlashStorage::automationShift},
     {device_path::kAutomationNudgeNote, &FlashStorage::automationNudgeNote},
     {device_path::kAutomationNoAuditionShortcuts, &FlashStorage::automationDisableAuditionPadShortcuts},
+    {device_path::kTriggerInAutoStart, &playbackHandler.analogClockInputAutoStart},
+    {device_path::kTempoMagnitudeMatching, &playbackHandler.tempoMagnitudeMatchingEnabled},
+    {device_path::kUsbDirectMonitoring, &usb_audio::directMonitoring},
+    {device_path::kStemNormalize, &stemExport.allowNormalization},
+    {device_path::kStemNormalizeDrums, &stemExport.allowNormalizationForDrums},
+    {device_path::kStemToSilence, &stemExport.exportToSilence},
+    {device_path::kStemSongFx, &stemExport.includeSongFX},
+    {device_path::kStemKitFx, &stemExport.includeKitFX},
+    {device_path::kStemOffline, &stemExport.renderOffline},
+    {device_path::kStemMixdown, &stemExport.exportMixdown},
 }};
 
 /// @brief The keyboard view's sidebar rows: the flash settings hold whether a sidebar glides, and the row whether it
@@ -127,16 +145,17 @@ constexpr std::array<ColourHome, FlashStorage::NUM_PAD_COLOUR_SLOTS> kColourHome
     {device_path::kPadColourOnce, FlashStorage::PAD_COLOUR_ONCE},
 }};
 
-/// @brief An INTEGER row the flash settings hold as one byte, whose store does nothing more.
+/// @brief An INTEGER row the device holds as one byte, whose store does nothing more.
 struct ByteHome {
 	project::DevicePath path;
 	uint8_t* value;
 };
 /// Every such row.
-constexpr std::array<ByteHome, 3> kByteHomes{{
+constexpr std::array<ByteHome, 4> kByteHomes{{
     {device_path::kSwingInterval, &FlashStorage::defaultSwingInterval},
     {device_path::kBendRange, &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
     {device_path::kRecordQuantize, &FlashStorage::recordQuantizeLevel},
+    {device_path::kCountIn, &playbackHandler.countInBars},
 }};
 
 /// @brief A default range's end: which of the flash settings' ranges, and which end of it.
@@ -230,9 +249,10 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 	}
 }
 
-/// The device's own settings where the device keeps them: the flash settings, the pad controller's play cursor and the
-/// community features. A store writes the value as the menu's own item does, with that item's side effects; none saves
-/// (the settings menu saves on its close).
+/// The device's own settings where the device keeps them: the flash settings, the pad controller's play cursor, the
+/// community features, the audio engine's, USB audio's and the clocks' settings, and the stem export's options. A store
+/// writes the value as the menu's own item does, with that item's side effects; none saves (the settings menu saves on
+/// its close).
 class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		const std::string_view path = row.path;
@@ -321,6 +341,27 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		}
 		if (path == device_path::kSamplePreview) {
 			return choice(row, FlashStorage::sampleBrowserPreviewMode);
+		}
+		if (path == device_path::kMonitorMode) {
+			return choice(row, std::to_underlying(AudioEngine::inputMonitoringMode));
+		}
+		if (path == device_path::kUsbAudioEnabled) {
+			return flag(FlashStorage::usbAudioEnabled);
+		}
+		if (path == device_path::kUsbOutputSource) {
+			return choice(row, std::to_underlying(usb_audio::outputSource));
+		}
+		if (path == device_path::kTriggerInPpqn) {
+			return number(playbackHandler.analogInTicksPPQN);
+		}
+		if (path == device_path::kTriggerOutPpqn) {
+			return number(playbackHandler.analogOutTicksPPQN);
+		}
+		if (path == device_path::kMidiClockOut) {
+			return flag(playbackHandler.midiOutClockEnabled);
+		}
+		if (path == device_path::kMidiClockIn) {
+			return flag(playbackHandler.midiInClockEnabled);
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 			return flag(FlashStorage::defaultDisabledPresetScales[*scale]);
@@ -490,6 +531,50 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		}
 		if (path == device_path::kSamplePreview) {
 			FlashStorage::sampleBrowserPreviewMode = static_cast<uint8_t>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMonitorMode) {
+			AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kUsbAudioEnabled) {
+			// `usb::Audio::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/usb/audio.h`): the device offers
+			// USB audio as it starts, so a value that no longer matches what this session presents waits for a restart.
+			FlashStorage::usbAudioEnabled = stored != 0;
+			return FlashStorage::usbAudioEnabled != usb_audio::present() ? DeviceWrite::STORED_FOR_RESTART
+			                                                             : DeviceWrite::STORED;
+		}
+		if (path == device_path::kUsbOutputSource) {
+			usb_audio::outputSource = static_cast<usb_audio::OutputSource>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kTriggerInPpqn) {
+			// `trigger::in::PPQN::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/trigger/in/ppqn.h`): while
+			// the song follows the trigger clock, its ticks resync to the clock's at once.
+			playbackHandler.analogInTicksPPQN = static_cast<uint32_t>(stored);
+			if (playbackHandler.isExternalClockActive() && playbackHandler.usingAnalogClockInput
+			    && currentSong != nullptr) {
+				playbackHandler.resyncInternalTicksToInputTicks(currentSong);
+			}
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kTriggerOutPpqn) {
+			// `trigger::out::PPQN::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/trigger/out/ppqn.h`): the
+			// clock's output resyncs to the song's ticks at once.
+			playbackHandler.analogOutTicksPPQN = static_cast<uint32_t>(stored);
+			playbackHandler.resyncAnalogOutTicksToInternalTicks();
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMidiClockOut) {
+			// `SendClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/send_clock.h`): the clock
+			// starts or stops at once.
+			playbackHandler.setMidiOutClockMode(stored != 0);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMidiClockIn) {
+			// `ReceiveClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/receive_clock.h`): off, the
+			// song stops following an incoming clock.
+			playbackHandler.setMidiInClockEnabled(stored != 0);
 			return DeviceWrite::STORED;
 		}
 		if (const std::optional<size_t> scale = disabled_scale_of(path)) {

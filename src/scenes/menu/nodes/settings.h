@@ -9,9 +9,8 @@
 /// features, the battery readout and the firmware version.
 ///
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
-/// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), on `playbackHandler`
-/// (`playback/playback_handler.h`), on `AudioEngine`, or is a DEVICE row the device port keeps (the community features
-/// among them). Every one of those is inside
+/// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), on `cvEngine`, or is a DEVICE row the device
+/// port keeps (the community features, the audio and the clocks among them). Every one of those is inside
 /// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
 /// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
 /// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
@@ -75,8 +74,9 @@
 ///       pads dim to a new brightness and re-render for a new colour, main's canvas and the guest's panels take a new
 ///       highlighting, leaving the slow cursor flash clears its tick squares, sticky shift reaches the shift
 ///       machines, rounded corners restyles the display, a default velocity or threshold mode reaches the open song,
-///       the resolution moves the swing interval), and the open menu's own half is the node's `after_write`
-///       (horizontal menus).
+///       the resolution moves the swing interval, a trigger clock's pulses resync the ticks, a MIDI clock starts or
+///       stops, a USB audio enable that waits for a restart says so), and the open menu's own half is the node's
+///       `after_write` (horizontal menus).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -105,28 +105,8 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief What a node on DEVICE row @p path edits: the row, through the device port.
-/// @param path A DEVICE row's path.
-/// @return The node's target.
-constexpr bind::Target device_row(project::DevicePath path) {
-	return {.kind = bind::Target::Kind::MODEL, .path = path, .group = project::SettingGroupId::DEVICE};
-}
-
 /// @name Hooks. Bodies (and their legacy citations) in `nodes/settings.cpp`.
 /// @{
-int32_t get_trigger_in_ppqn(const MenuContext& ctx);
-void set_trigger_in_ppqn(const MenuContext& ctx, int32_t value);
-int32_t get_trigger_in_auto_start(const MenuContext& ctx);
-void set_trigger_in_auto_start(const MenuContext& ctx, int32_t value);
-int32_t get_trigger_out_ppqn(const MenuContext& ctx);
-void set_trigger_out_ppqn(const MenuContext& ctx, int32_t value);
-
-int32_t get_midi_clock_out(const MenuContext& ctx);
-void set_midi_clock_out(const MenuContext& ctx, int32_t value);
-int32_t get_midi_clock_in(const MenuContext& ctx);
-void set_midi_clock_in(const MenuContext& ctx, int32_t value);
-int32_t get_tempo_magnitude_matching(const MenuContext& ctx);
-void set_tempo_magnitude_matching(const MenuContext& ctx, int32_t value);
 
 /// @brief `midi::FollowChannel`'s read and write over `midiEngine.midiFollowChannelType[which]`
 ///        (`origin/main:src/deluge/gui/menu_item/midi/follow/follow_channel.h`), with the channel type as an argument
@@ -228,30 +208,11 @@ int32_t relative_to_song_magnitude(const MenuContext& ctx);
 /// @return The value the turn lands on.
 std::optional<int32_t> pad_brightness_turn(const MenuContext& ctx, int32_t value, int32_t offset);
 
-int32_t get_record_count_in(const MenuContext& ctx);
-void set_record_count_in(const MenuContext& ctx, int32_t value);
-int32_t get_monitor_mode(const MenuContext& ctx);
-void set_monitor_mode(const MenuContext& ctx, int32_t value);
-
 /// @brief The HorizontalMenus feature's half in the open menu (`MenuScene::set_horizontal_menus`), once the device
 ///        stored a write of its row: `HorizontalMenu::renderingStyle()`
 ///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the setting live, and the open menu's
 ///        context holds the copy it lays out by.
 void apply_horizontal_menus(const MenuContext& ctx, int32_t value);
-
-/// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes
-/// (`origin/main:src/deluge/gui/menu_item/usb/audio.h`).
-///
-/// The enable takes effect at the next USB start, so its write raises legacy's "restart to apply" notice when the
-/// setting no longer matches what this session presents.
-/// @{
-int32_t get_usb_audio_enabled(const MenuContext& ctx);
-void set_usb_audio_enabled(const MenuContext& ctx, int32_t value);
-int32_t get_usb_direct_monitoring(const MenuContext& ctx);
-void set_usb_direct_monitoring(const MenuContext& ctx, int32_t value);
-int32_t get_usb_output_source(const MenuContext& ctx);
-void set_usb_output_source(const MenuContext& ctx, int32_t value);
-/// @}
 
 /// @name The CV and gate output pages -- the three legacy reaches only through a chain.
 ///
@@ -380,21 +341,23 @@ inline constexpr Node gate_selection =
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock
 
-/// `menu_item::PPQN::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/ppqn.h`).
-inline constexpr IntRange kPpqnRange{1, 192, 1};
-
+/// `trigger::in::PPQN` (`origin/main:src/deluge/gui/menu_item/trigger/in/ppqn.h`), whose range is
+/// `menu_item::PPQN`'s (`origin/main:src/deluge/gui/menu_item/ppqn.h`): its write resyncs the song's ticks to the
+/// trigger clock it follows; the device port's store does it.
 inline constexpr Node trigger_in_ppqn =
-    with_title(int_item(sid(String::STRING_FOR_PPQN), get_trigger_in_ppqn, set_trigger_in_ppqn, kPpqnRange),
+    with_title(setting_item(sid(String::STRING_FOR_PPQN), Kind::Int, device_row(project::device_path::kTriggerInPpqn)),
                sid(String::STRING_FOR_INPUT_PPQN));
-inline constexpr Node trigger_in_auto_start =
-    toggle_item(sid(String::STRING_FOR_AUTO_START), get_trigger_in_auto_start, set_trigger_in_auto_start);
+inline constexpr Node trigger_in_auto_start = setting_item(sid(String::STRING_FOR_AUTO_START), Kind::Toggle,
+                                                           device_row(project::device_path::kTriggerInAutoStart));
 inline constexpr const Node* kTriggerClockInChildren[] = {&trigger_in_ppqn, &trigger_in_auto_start};
 inline constexpr Node trigger_clock_in =
     submenu(sid(String::STRING_FOR_INPUT), kTriggerClockInChildren, Layout::Vertical, nullptr,
             sid(String::STRING_FOR_T_CLOCK_INPUT_MENU_TITLE));
 
+/// `trigger::out::PPQN` (`origin/main:src/deluge/gui/menu_item/trigger/out/ppqn.h`): its write resyncs the trigger
+/// clock's output to the song's ticks; the device port's store does it.
 inline constexpr Node trigger_out_ppqn =
-    with_title(int_item(sid(String::STRING_FOR_PPQN), get_trigger_out_ppqn, set_trigger_out_ppqn, kPpqnRange),
+    with_title(setting_item(sid(String::STRING_FOR_PPQN), Kind::Int, device_row(project::device_path::kTriggerOutPpqn)),
                sid(String::STRING_FOR_OUTPUT_PPQN));
 inline constexpr const Node* kTriggerClockOutChildren[] = {&trigger_out_ppqn};
 inline constexpr Node trigger_clock_out =
@@ -407,14 +370,18 @@ inline constexpr Node trigger_clock = submenu(sid(String::STRING_FOR_TRIGGER_CLO
 // ---------------------------------------------------------------------------------------------
 // 5. MIDI
 
-inline constexpr Node midi_clock_out =
-    with_title(toggle_item(sid(String::STRING_FOR_OUTPUT), get_midi_clock_out, set_midi_clock_out),
-               sid(String::STRING_FOR_MIDI_CLOCK_OUT));
-inline constexpr Node midi_clock_in =
-    with_title(toggle_item(sid(String::STRING_FOR_INPUT), get_midi_clock_in, set_midi_clock_in),
-               sid(String::STRING_FOR_MIDI_CLOCK_IN));
-inline constexpr Node tempo_magnitude_matching = toggle_item(
-    sid(String::STRING_FOR_TEMPO_MAGNITUDE_MATCHING), get_tempo_magnitude_matching, set_tempo_magnitude_matching);
+/// `midi::SendClock` (`origin/main:src/deluge/gui/menu_item/midi/send_clock.h`) and `midi::ReceiveClock`
+/// (`origin/main:src/deluge/gui/menu_item/midi/receive_clock.h`): a write starts or stops the clock at once, which the
+/// device port's store does.
+inline constexpr Node midi_clock_out = with_title(
+    setting_item(sid(String::STRING_FOR_OUTPUT), Kind::Toggle, device_row(project::device_path::kMidiClockOut)),
+    sid(String::STRING_FOR_MIDI_CLOCK_OUT));
+inline constexpr Node midi_clock_in = with_title(
+    setting_item(sid(String::STRING_FOR_INPUT), Kind::Toggle, device_row(project::device_path::kMidiClockIn)),
+    sid(String::STRING_FOR_MIDI_CLOCK_IN));
+inline constexpr Node tempo_magnitude_matching =
+    setting_item(sid(String::STRING_FOR_TEMPO_MAGNITUDE_MATCHING), Kind::Toggle,
+                 device_row(project::device_path::kTempoMagnitudeMatching));
 inline constexpr const Node* kMidiClockChildren[] = {&midi_clock_out, &midi_clock_in, &tempo_magnitude_matching};
 inline constexpr Node midi_clock = submenu(sid(String::STRING_FOR_CLOCK), kMidiClockChildren, Layout::Vertical, nullptr,
                                            sid(String::STRING_FOR_MIDI_CLOCK));
@@ -565,19 +532,18 @@ inline constexpr Node midi_settings = submenu(sid(String::STRING_FOR_MIDI), kMid
 // `usbAudioMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): whether USB audio is offered, the host's audio mixed
 // straight into the outputs, and what the host receives.
 
-inline constexpr Node usb_audio_enabled =
-    with_title(toggle_item(sid(String::STRING_FOR_ENABLED), get_usb_audio_enabled, set_usb_audio_enabled),
-               sid(String::STRING_FOR_USB_AUDIO));
-inline constexpr Node usb_audio_input =
-    with_title(toggle_item(sid(String::STRING_FOR_INPUT), get_usb_direct_monitoring, set_usb_direct_monitoring),
-               sid(String::STRING_FOR_USB_INPUT));
-/// `usb::OutputSource::getOptions`, in `usb_audio::OutputSource` value order.
-inline constexpr uint16_t kUsbOutputSourceNames[] = {
-    sid(String::STRING_FOR_MAIN_MIX),
-    sid(String::STRING_FOR_LINE_IN),
-};
+/// `usb::Audio` (`origin/main:src/deluge/gui/menu_item/usb/audio.h`): the enable takes effect at the next USB start, so
+/// the device port answers a write that no longer matches what this session presents as one for a restart, and the
+/// menu says "restart to apply".
+inline constexpr Node usb_audio_enabled = with_title(
+    setting_item(sid(String::STRING_FOR_ENABLED), Kind::Toggle, device_row(project::device_path::kUsbAudioEnabled)),
+    sid(String::STRING_FOR_USB_AUDIO));
+inline constexpr Node usb_audio_input = with_title(
+    setting_item(sid(String::STRING_FOR_INPUT), Kind::Toggle, device_row(project::device_path::kUsbDirectMonitoring)),
+    sid(String::STRING_FOR_USB_INPUT));
+/// `usb::OutputSource` (`origin/main:src/deluge/gui/menu_item/usb/audio.h`): the main mix, then the line input.
 inline constexpr Node usb_audio_output = with_title(
-    enumeration(sid(String::STRING_FOR_OUTPUT), kUsbOutputSourceNames, get_usb_output_source, set_usb_output_source),
+    setting_item(sid(String::STRING_FOR_OUTPUT), Kind::Enum, device_row(project::device_path::kUsbOutputSource)),
     sid(String::STRING_FOR_USB_OUTPUT));
 inline constexpr const Node* kUsbAudioChildren[] = {&usb_audio_enabled, &usb_audio_input, &usb_audio_output};
 inline constexpr Node usb_audio_settings = submenu(sid(String::STRING_FOR_USB_AUDIO), kUsbAudioChildren);
@@ -890,7 +856,7 @@ inline constexpr Node flash_status =
 /// `record::CountIn` is an `IntegerWithOff` capped at 4 (`CountIn::getMaxValue` in
 /// `origin/main:src/deluge/gui/menu_item/record/countin.h`).
 inline constexpr Node record_count_in = with_value_style(
-    with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
+    with_title(setting_item(sid(String::STRING_FOR_COUNT_IN), Kind::Int, device_row(project::device_path::kCountIn)),
                sid(String::STRING_FOR_REC_COUNT_IN)),
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
 /// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), the DEVICE row's range --
@@ -902,15 +868,10 @@ inline constexpr Node record_quantize =
 inline constexpr Node record_margins =
     setting_item(sid(String::STRING_FOR_LOOP_MARGINS), Kind::Toggle, device_row(project::device_path::kRecordMargins));
 
-/// `monitor::Mode::getOptions` (`origin/main:src/deluge/gui/menu_item/monitor/mode.h`).
-inline constexpr uint16_t kMonitorModeNames[] = {
-    sid(String::STRING_FOR_CONDITIONAL),
-    sid(String::STRING_FOR_ENABLED),
-    sid(String::STRING_FOR_DISABLED),
-};
-inline constexpr Node monitor_mode = with_title(
-    enumeration(sid(String::STRING_FOR_SAMPLING_MONITORING), kMonitorModeNames, get_monitor_mode, set_monitor_mode),
-    sid(String::STRING_FOR_MONITORING));
+/// `monitor::Mode` (`origin/main:src/deluge/gui/menu_item/monitor/mode.h`): conditional, enabled, disabled.
+inline constexpr Node monitor_mode = with_title(setting_item(sid(String::STRING_FOR_SAMPLING_MONITORING), Kind::Enum,
+                                                             device_row(project::device_path::kMonitorMode)),
+                                                sid(String::STRING_FOR_MONITORING));
 
 /// `record::ThresholdMode`'s default kind (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`): its write
 /// sets the open song's own mode too; the device port's store does it.

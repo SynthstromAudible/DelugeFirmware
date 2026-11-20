@@ -587,6 +587,34 @@ constexpr std::array<String, 3> kSamplePreviewChoices{
     {STRING_FOR_DISABLED, STRING_FOR_CONDITIONAL, STRING_FOR_ENABLED}};
 constexpr SettingNames kSamplePreviewNames{
     STRING_FOR_SAMPLE_PREVIEW, STRING_FOR_SAMPLE_PREVIEW, kSamplePreviewChoices, {}};
+constexpr SettingNames kCountInNames{STRING_FOR_REC_COUNT_IN, STRING_FOR_COUNT_IN, {}, {}};
+constexpr std::array<String, 3> kMonitorModeChoices{{STRING_FOR_CONDITIONAL, STRING_FOR_ENABLED, STRING_FOR_DISABLED}};
+constexpr SettingNames kMonitorModeNames{
+    STRING_FOR_MONITORING, STRING_FOR_SAMPLING_MONITORING, kMonitorModeChoices, {}};
+constexpr SettingNames kUsbAudioEnabledNames{STRING_FOR_USB_AUDIO, STRING_FOR_ENABLED, {}, {}};
+constexpr SettingNames kUsbDirectMonitoringNames{STRING_FOR_USB_INPUT, STRING_FOR_INPUT, {}, {}};
+constexpr std::array<String, 2> kUsbOutputSourceChoices{{STRING_FOR_MAIN_MIX, STRING_FOR_LINE_IN}};
+constexpr SettingNames kUsbOutputSourceNames{STRING_FOR_USB_OUTPUT, STRING_FOR_OUTPUT, kUsbOutputSourceChoices, {}};
+constexpr SettingNames kTriggerInPpqnNames{STRING_FOR_INPUT_PPQN, STRING_FOR_PPQN, {}, {}};
+constexpr SettingNames kTriggerInAutoStartNames{STRING_FOR_AUTO_START, STRING_FOR_AUTO_START, {}, {}};
+constexpr SettingNames kTriggerOutPpqnNames{STRING_FOR_OUTPUT_PPQN, STRING_FOR_PPQN, {}, {}};
+constexpr SettingNames kMidiClockOutNames{STRING_FOR_MIDI_CLOCK_OUT, STRING_FOR_OUTPUT, {}, {}};
+constexpr SettingNames kMidiClockInNames{STRING_FOR_MIDI_CLOCK_IN, STRING_FOR_INPUT, {}, {}};
+constexpr SettingNames kTempoMagnitudeMatchingNames{
+    STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING, {}, {}};
+/// The stem export's options: the plain and the drums' normalization share their item's name.
+constexpr SettingNames kStemNormalizeNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, {}, {}};
+constexpr SettingNames kStemToSilenceNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, {}, {}};
+constexpr SettingNames kStemSongFxNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, {}, {}};
+constexpr SettingNames kStemKitFxNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, {}, {}};
+constexpr SettingNames kStemOfflineNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, {}, {}};
+constexpr SettingNames kStemMixdownNames{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, {}, {}};
 /// The community features' names: each row's name is its menu item's, and a feature with choices of its own names
 /// them in its values' order.
 constexpr std::array<String, 2> kSyncScalingActionChoices{
@@ -682,7 +710,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 193> kEntries{{
+constexpr std::array<Entry, 211> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -717,6 +745,12 @@ constexpr std::array<Entry, 193> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
+    Entry{SettingGroupId::DEVICE, "clock/midiIn", &kMidiClockInNames},
+    Entry{SettingGroupId::DEVICE, "clock/midiOut", &kMidiClockOutNames},
+    Entry{SettingGroupId::DEVICE, "clock/tempoMagnitudeMatching", &kTempoMagnitudeMatchingNames},
+    Entry{SettingGroupId::DEVICE, "clock/triggerIn/autoStart", &kTriggerInAutoStartNames},
+    Entry{SettingGroupId::DEVICE, "clock/triggerIn/ppqn", &kTriggerInPpqnNames},
+    Entry{SettingGroupId::DEVICE, "clock/triggerOut/ppqn", &kTriggerOutPpqnNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/clear", &kDefaultAutomationClearNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/interpolate", &kDefaultAutomationInterpolateNames},
     Entry{SettingGroupId::DEVICE, "defaults/automation/noAuditionShortcuts",
@@ -780,6 +814,15 @@ constexpr std::array<Entry, 193> kEntries{{
     Entry{SettingGroupId::DEVICE, "pads/playCursor", &kPlayCursorNames},
     Entry{SettingGroupId::DEVICE, "pads/shortcutsVersion", &kShortcutsVersionNames},
     Entry{SettingGroupId::DEVICE, "pads/textKeyboardLayout", &kTextKeyboardNames},
+    Entry{SettingGroupId::DEVICE, "recording/countIn", &kCountInNames},
+    Entry{SettingGroupId::DEVICE, "recording/monitorMode", &kMonitorModeNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/kitFx", &kStemKitFxNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/mixdown", &kStemMixdownNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/normalize", &kStemNormalizeNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/normalizeDrums", &kStemNormalizeNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/offline", &kStemOfflineNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/songFx", &kStemSongFxNames},
+    Entry{SettingGroupId::DEVICE, "stemExport/toSilence", &kStemToSilenceNames},
     Entry{SettingGroupId::DEVICE, "ui/accessibilityShortcuts", &kAccessibilityShortcutsNames},
     Entry{SettingGroupId::DEVICE, "ui/favouritesLayout", &kFavouritesLayoutNames},
     Entry{SettingGroupId::DEVICE, "ui/grid/activeMode", &kGridActiveModeNames},
@@ -795,6 +838,9 @@ constexpr std::array<Entry, 193> kEntries{{
     Entry{SettingGroupId::DEVICE, "ui/screensaver/mode", &kScreensaverModeNames},
     Entry{SettingGroupId::DEVICE, "ui/screensaver/timeout", &kScreensaverTimeoutNames},
     Entry{SettingGroupId::DEVICE, "ui/sessionLayout", &kSessionLayoutNames},
+    Entry{SettingGroupId::DEVICE, "usbAudio/directMonitoring", &kUsbDirectMonitoringNames},
+    Entry{SettingGroupId::DEVICE, "usbAudio/enabled", &kUsbAudioEnabledNames},
+    Entry{SettingGroupId::DEVICE, "usbAudio/outputSource", &kUsbOutputSourceNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},

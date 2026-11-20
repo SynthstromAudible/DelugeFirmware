@@ -121,6 +121,7 @@
 #include "scenes/menu/nodes/sound_voice.h"
 #include "scenes/menu/relevance.h"
 
+#include "deluge-project/device_settings.h"
 #include "plugin-api/types/display_mapping.h"
 
 #include <span>
@@ -135,22 +136,6 @@ int32_t get_swing_interval(const MenuContext& ctx);
 void set_swing_interval(const MenuContext& ctx, int32_t value);
 int32_t get_song_threshold_recording(const MenuContext& ctx);
 void set_song_threshold_recording(const MenuContext& ctx, int32_t value);
-
-int32_t get_stem_normalization(const MenuContext& ctx);
-void set_stem_normalization(const MenuContext& ctx, int32_t value);
-int32_t get_stem_normalization_drums(const MenuContext& ctx);
-void set_stem_normalization_drums(const MenuContext& ctx, int32_t value);
-int32_t get_stem_silence(const MenuContext& ctx);
-void set_stem_silence(const MenuContext& ctx, int32_t value);
-int32_t get_stem_song_fx(const MenuContext& ctx);
-void set_stem_song_fx(const MenuContext& ctx, int32_t value);
-int32_t get_stem_kit_fx(const MenuContext& ctx);
-void set_stem_kit_fx(const MenuContext& ctx, int32_t value);
-int32_t get_stem_offline(const MenuContext& ctx);
-void set_stem_offline(const MenuContext& ctx, int32_t value);
-int32_t get_stem_mixdown(const MenuContext& ctx);
-void set_stem_mixdown(const MenuContext& ctx, int32_t value);
-/// @}
 
 using deluge::l10n::String;
 
@@ -559,24 +544,25 @@ inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_
 
 // --------------------------------------------------------------------------------------------- Stem export
 // (`startStemExportMenu` and its siblings in `origin/main:src/deluge/gui/ui/menus.cpp`), shared by the song and
-// kit-global-FX roots
+// kit-global-FX roots. The export's options are DEVICE rows, which the device port keeps on the export itself and
+// saves nowhere.
 
 inline constexpr Node start_stem_export = custom(sid(String::STRING_FOR_START_EXPORT), &kStartStemExportItem);
-inline constexpr Node stem_normalization = toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION),
-                                                       get_stem_normalization, set_stem_normalization);
+inline constexpr Node stem_normalization = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION),
+                                                        Kind::Toggle, device_row(project::device_path::kStemNormalize));
 inline constexpr Node stem_normalization_drums =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION), get_stem_normalization_drums,
-                set_stem_normalization_drums);
-inline constexpr Node stem_silence =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE), get_stem_silence, set_stem_silence);
-inline constexpr Node stem_song_fx =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX), get_stem_song_fx, set_stem_song_fx);
-inline constexpr Node stem_kit_fx =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX), get_stem_kit_fx, set_stem_kit_fx);
-inline constexpr Node stem_offline =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING), get_stem_offline, set_stem_offline);
-inline constexpr Node stem_mixdown =
-    toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN), get_stem_mixdown, set_stem_mixdown);
+    setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION), Kind::Toggle,
+                 device_row(project::device_path::kStemNormalizeDrums));
+inline constexpr Node stem_silence = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE), Kind::Toggle,
+                                                  device_row(project::device_path::kStemToSilence));
+inline constexpr Node stem_song_fx = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX), Kind::Toggle,
+                                                  device_row(project::device_path::kStemSongFx));
+inline constexpr Node stem_kit_fx = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX), Kind::Toggle,
+                                                 device_row(project::device_path::kStemKitFx));
+inline constexpr Node stem_offline = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING),
+                                                  Kind::Toggle, device_row(project::device_path::kStemOffline));
+inline constexpr Node stem_mixdown = setting_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN), Kind::Toggle,
+                                                  device_row(project::device_path::kStemMixdown));
 
 inline constexpr const Node* kConfigureStemExportChildren[] = {&stem_normalization, &stem_silence, &stem_song_fx,
                                                                &stem_offline, &stem_mixdown};

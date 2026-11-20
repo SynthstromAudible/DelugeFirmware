@@ -9,8 +9,11 @@
 /// on a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape
 /// `with_range_dependent` already established.
 
+#include "scenes/bind/target.h"
 #include "scenes/menu/node.h"
 
+#include "deluge-project/device_settings.h"
+#include "deluge-project/setting_group.h"
 #include "gui/l10n/strings.h" // the only `gui/` the scenes layer may reach (see CMakeLists.txt)
 
 #include <cstdint>
@@ -21,6 +24,13 @@ namespace deluge::scenes::menu::nodes {
 ///        as numbers so the data model stays free of `gui/l10n`).
 constexpr uint16_t sid(deluge::l10n::String s) {
 	return static_cast<uint16_t>(s);
+}
+
+/// @brief What a node on DEVICE row @p path edits: the row, through the device port.
+/// @param path A DEVICE row's path.
+/// @return The node's target.
+constexpr bind::Target device_row(project::DevicePath path) {
+	return {.kind = bind::Target::Kind::MODEL, .path = path, .group = project::SettingGroupId::DEVICE};
 }
 
 /// @brief The words a toggle's own page lists for its two states, off then on (`MenuView::render_leaf_toggle`):

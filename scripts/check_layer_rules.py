@@ -79,16 +79,13 @@ ROOT_UI_GLOBALS = (
 # above, and `Screensaver::settingsChanged` lives in `hid/display/screensaver.h`, which
 # `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
 # `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
-# `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
-# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s in
-# `menu/nodes/roots.cpp` (the stem-export block, `DELUGE_STEM_TOGGLE`) read and write `allowNormalization`,
-# `exportMixdown` and five more through one macro. So
-# `MenuAction::StartStemExport` is the one
-# verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
+# `processing/**` is on `scenes-includes-outside`' allow-list on purpose, so
+# `MenuAction::StartStemExport` is the one verb whose target the scenes layer could reach through an
+# allowed include. The export's seven options are DEVICE rows the host stores on `stemExport`, so the
+# menu reaches them through the device port, not the global.
 #
 # The split is `CATALOGUE_DISPATCH_CALLS`' split, for the same reason: the *settings* stay readable
-# and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's. A row on
-# the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
+# and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's.
 #
 # The other public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
 # `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT

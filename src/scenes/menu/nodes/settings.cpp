@@ -20,9 +20,8 @@
 ///        in `nodes/settings.h`, which also lists what stayed behind and why.
 ///
 /// Every hook is a transcription of the legacy `readCurrentValue`/`writeCurrentValue` cited above
-/// it. None of them reads `MenuContext` except the two that edit the song (`defaults::Velocity`'s
-/// tail): a setting is device-wide, which is exactly why the settings root's `MenuContext` has a
-/// null `params` and a null `sound`.
+/// it. None of them reads the song: a setting is device-wide, which is exactly why the settings root's `MenuContext`
+/// has a null `params` and a null `sound`.
 
 #include "scenes/menu/nodes/settings.h"
 
@@ -40,11 +39,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
-#include "io/usb/usb_audio.h"
 #include "music-theory/note_names.h"
-#include "notify/notice_queue.h" // the USB enable's "restart to apply"
-#include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h" // cvEngine -- the CV/gate output pages
 #include "storage/flash_storage.h"
 
@@ -70,68 +65,6 @@ constexpr int32_t from_bool(bool value) {
 }
 
 } // namespace
-
-// ---------------------------------------------------------------------------------------------
-// Trigger clock
-
-int32_t get_trigger_in_ppqn(const MenuContext&) {
-	// `trigger::in::PPQN::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/trigger/in/ppqn.h`)
-	return static_cast<int32_t>(playbackHandler.analogInTicksPPQN);
-}
-void set_trigger_in_ppqn(const MenuContext& ctx, int32_t value) {
-	// `trigger::in::PPQN::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/trigger/in/ppqn.h`)
-	playbackHandler.analogInTicksPPQN = value;
-	if (playbackHandler.isExternalClockActive() && playbackHandler.usingAnalogClockInput) {
-		playbackHandler.resyncInternalTicksToInputTicks(ctx.song);
-	}
-}
-
-int32_t get_trigger_in_auto_start(const MenuContext&) {
-	// `triggerInAutoStartMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(playbackHandler.analogClockInputAutoStart);
-}
-void set_trigger_in_auto_start(const MenuContext&, int32_t value) {
-	playbackHandler.analogClockInputAutoStart = value != 0;
-}
-
-int32_t get_trigger_out_ppqn(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/trigger/out/ppqn.h` `readCurrentValue`
-	return static_cast<int32_t>(playbackHandler.analogOutTicksPPQN);
-}
-void set_trigger_out_ppqn(const MenuContext&, int32_t value) {
-	// `trigger::out::PPQN::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/trigger/out/ppqn.h`)
-	playbackHandler.analogOutTicksPPQN = value;
-	playbackHandler.resyncAnalogOutTicksToInternalTicks();
-}
-
-// ---------------------------------------------------------------------------------------------
-// MIDI clock
-
-int32_t get_midi_clock_out(const MenuContext&) {
-	// `send_clock_menu` (`origin/main:src/deluge/gui/ui/menus.cpp`), a `ToggleBool` over it
-	return from_bool(playbackHandler.midiOutClockEnabled);
-}
-void set_midi_clock_out(const MenuContext&, int32_t value) {
-	// `SendClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/send_clock.h`)
-	playbackHandler.setMidiOutClockMode(value != 0);
-}
-
-int32_t get_midi_clock_in(const MenuContext&) {
-	// `receive_clock_menu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(playbackHandler.midiInClockEnabled);
-}
-void set_midi_clock_in(const MenuContext&, int32_t value) {
-	// `ReceiveClock::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/receive_clock.h`)
-	playbackHandler.setMidiInClockEnabled(value != 0);
-}
-
-int32_t get_tempo_magnitude_matching(const MenuContext&) {
-	// `tempoMagnitudeMatchingMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(playbackHandler.tempoMagnitudeMatchingEnabled);
-}
-void set_tempo_magnitude_matching(const MenuContext&, int32_t value) {
-	playbackHandler.tempoMagnitudeMatchingEnabled = value != 0;
-}
 
 // ---------------------------------------------------------------------------------------------
 // MIDI follow
@@ -389,55 +322,10 @@ std::optional<int32_t> pad_brightness_turn(const MenuContext&, int32_t value, in
 }
 
 // ---------------------------------------------------------------------------------------------
-// Recording
-
-int32_t get_record_count_in(const MenuContext&) {
-	return playbackHandler.countInBars; // `origin/main:src/deluge/gui/menu_item/record/countin.h` `readCurrentValue`
-}
-void set_record_count_in(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/countin.h`).
-	playbackHandler.countInBars = static_cast<uint8_t>(value);
-}
-
-int32_t get_monitor_mode(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/monitor/mode.h` `readCurrentValue`
-	return static_cast<int32_t>(AudioEngine::inputMonitoringMode);
-}
-void set_monitor_mode(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/monitor/mode.h`).
-	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(value);
-}
-
-// ---------------------------------------------------------------------------------------------
 // Community features
 
 void apply_horizontal_menus(const MenuContext&, int32_t value) {
 	menu_scene().set_horizontal_menus(value != 0);
-}
-
-// ---------------------------------------------------------------------------------------------
-// 8-9. Sample preview and play cursor
-
-int32_t get_usb_audio_enabled(const MenuContext&) {
-	return from_bool(FlashStorage::usbAudioEnabled);
-}
-void set_usb_audio_enabled(const MenuContext&, int32_t value) {
-	FlashStorage::usbAudioEnabled = value != 0;
-	if (FlashStorage::usbAudioEnabled != usb_audio::present()) {
-		deluge::notify::notice_string(sid(String::STRING_FOR_RESTART_TO_APPLY));
-	}
-}
-int32_t get_usb_direct_monitoring(const MenuContext&) {
-	return from_bool(usb_audio::directMonitoring);
-}
-void set_usb_direct_monitoring(const MenuContext&, int32_t value) {
-	usb_audio::directMonitoring = value != 0;
-}
-int32_t get_usb_output_source(const MenuContext&) {
-	return static_cast<int32_t>(usb_audio::outputSource);
-}
-void set_usb_output_source(const MenuContext&, int32_t value) {
-	usb_audio::outputSource = static_cast<usb_audio::OutputSource>(value);
 }
 
 // ---------------------------------------------------------------------------------------------

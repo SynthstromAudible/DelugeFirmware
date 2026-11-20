@@ -198,6 +198,42 @@ struct device_path {
 	static constexpr DevicePath kScreensaverTimeout{"ui/screensaver/timeout"};
 	/// When the sample browser previews a sample: CHOICE, never, while the song is not playing, always.
 	static constexpr DevicePath kSamplePreview{"ui/samplePreview"};
+	/// How many bars a recording counts in before it starts: INTEGER, 0 for none.
+	static constexpr DevicePath kCountIn{"recording/countIn"};
+	/// When an input being recorded is heard through the outputs: CHOICE, smart, on, off.
+	static constexpr DevicePath kMonitorMode{"recording/monitorMode"};
+	/// Whether the device offers itself as a USB audio interface, from its next start: BOOL.
+	static constexpr DevicePath kUsbAudioEnabled{"usbAudio/enabled"};
+	/// Whether audio from the USB host is mixed straight into the outputs: BOOL.
+	static constexpr DevicePath kUsbDirectMonitoring{"usbAudio/directMonitoring"};
+	/// What the device sends the USB host: CHOICE, the main mix or the line input.
+	static constexpr DevicePath kUsbOutputSource{"usbAudio/outputSource"};
+	/// How many trigger-clock input pulses make a quarter note: INTEGER.
+	static constexpr DevicePath kTriggerInPpqn{"clock/triggerIn/ppqn"};
+	/// Whether a trigger-clock input pulse starts playback: BOOL.
+	static constexpr DevicePath kTriggerInAutoStart{"clock/triggerIn/autoStart"};
+	/// How many trigger-clock output pulses make a quarter note: INTEGER.
+	static constexpr DevicePath kTriggerOutPpqn{"clock/triggerOut/ppqn"};
+	/// Whether the device sends MIDI clock: BOOL.
+	static constexpr DevicePath kMidiClockOut{"clock/midiOut"};
+	/// Whether the device follows an incoming MIDI clock: BOOL.
+	static constexpr DevicePath kMidiClockIn{"clock/midiIn"};
+	/// Whether an incoming clock's tempo is doubled or halved to sit near the song's: BOOL.
+	static constexpr DevicePath kTempoMagnitudeMatching{"clock/tempoMagnitudeMatching"};
+	/// Whether a stem export normalizes each stem but a drum's: BOOL.
+	static constexpr DevicePath kStemNormalize{"stemExport/normalize"};
+	/// Whether a stem export normalizes each drum's stem: BOOL.
+	static constexpr DevicePath kStemNormalizeDrums{"stemExport/normalizeDrums"};
+	/// Whether a stem export runs each stem on until it falls silent: BOOL.
+	static constexpr DevicePath kStemToSilence{"stemExport/toSilence"};
+	/// Whether a stem export renders the song's effects into each stem: BOOL.
+	static constexpr DevicePath kStemSongFx{"stemExport/songFx"};
+	/// Whether a stem export renders a kit's effects into each drum's stem: BOOL.
+	static constexpr DevicePath kStemKitFx{"stemExport/kitFx"};
+	/// Whether a stem export renders faster than real time, with no audio out: BOOL.
+	static constexpr DevicePath kStemOffline{"stemExport/offline"};
+	/// Whether a stem export renders the whole mix as one stem: BOOL.
+	static constexpr DevicePath kStemMixdown{"stemExport/mixdown"};
 	/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
 	static constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
 	/// The first part of each community feature's path; the name the feature file writes it under follows it.

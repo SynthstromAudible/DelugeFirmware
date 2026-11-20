@@ -251,16 +251,66 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		expect(deluge::notify::notices().pop(notice)).to_be_false();
 	});
 
-	it("says a setting the device applies after a restart, as the USB audio item does", _ {
+	it("says restart to apply for a USB audio enable the device takes at its next start, and only then", _ {
 		Rig r;
-		const MenuContext ctx = r.open(nodes::defaults_settings);
-		r.fakes.host.device.accept_restart.insert(std::string{device_path::kPlayCursor});
-		menu::bindings::write(nodes::flash_status, ctx, 0);
-		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
+		const MenuContext ctx = r.open(nodes::usb_audio_settings);
+		expect(row_of(nodes::usb_audio_settings, nodes::usb_audio_enabled, ctx)).to_equal(0);
+		expect(menu::bindings::read(nodes::usb_audio_enabled, ctx)).to_equal(1);
+		// A write the device has in effect at once says nothing.
+		menu::bindings::write(nodes::usb_audio_enabled, ctx, 0);
 		deluge::notify::Notice notice{};
+		expect(deluge::notify::notices().pop(notice)).to_be_false();
+		// One it takes only at its next start says so.
+		r.fakes.host.device.accept_restart.insert(std::string{device_path::kUsbAudioEnabled});
+		menu::bindings::write(nodes::usb_audio_enabled, ctx, 1);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kUsbAudioEnabled} + "=0",
+		                                       std::string{device_path::kUsbAudioEnabled} + "=1"});
 		expect(deluge::notify::notices().pop(notice)).to_be_true();
 		expect(static_cast<int>(notice.string_id))
 			.to_equal(static_cast<int>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("names the audio and clock choices as their items do, and reads each row from the fake", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::root_settings);
+		expect(names_of(nodes::usb_audio_output, ctx)).to_equal(std::vector<std::string>{"Main mix", "Line in"});
+		expect(names_of(nodes::monitor_mode, ctx))
+		    .to_equal(std::vector<std::string>{"Conditional", "Enabled", "Disabled"});
+		expect(menu::bindings::read(nodes::trigger_in_ppqn, ctx)).to_equal(24);
+		expect(menu::bindings::range(nodes::trigger_in_ppqn, ctx).min).to_equal(1);
+		expect(menu::bindings::range(nodes::trigger_out_ppqn, ctx).max).to_equal(192);
+		expect(menu::bindings::read(nodes::record_count_in, ctx)).to_equal(0);
+		expect(menu::bindings::range(nodes::record_count_in, ctx).max).to_equal(4);
+		expect(menu::bindings::read(nodes::midi_clock_out, ctx)).to_equal(1);
+		expect(menu::bindings::read(nodes::tempo_magnitude_matching, ctx)).to_equal(0);
+		hold(r.fakes, device_path::kTriggerInPpqn, 96);
+		expect(menu::bindings::read(nodes::trigger_in_ppqn, ctx)).to_equal(96);
+		menu::bindings::write(nodes::trigger_out_ppqn, ctx, 48);
+		menu::bindings::write(nodes::midi_clock_in, ctx, 0);
+		menu::bindings::write(nodes::monitor_mode, ctx, 2);
+		expect(last_stores(r.fakes, 3))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kTriggerOutPpqn} + "=48",
+		                                       std::string{device_path::kMidiClockIn} + "=0",
+		                                       std::string{device_path::kMonitorMode} + "=off"});
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("stores a stem-export option through the device port and reads it back, with no song edit", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::root_settings);
+		// The export's own defaults: drums normalized, plain stems not.
+		expect(menu::bindings::read(nodes::stem_normalization, ctx)).to_equal(0);
+		expect(menu::bindings::read(nodes::stem_normalization_drums, ctx)).to_equal(1);
+		menu::bindings::write(nodes::stem_normalization_drums, ctx, 0);
+		menu::bindings::write(nodes::stem_mixdown, ctx, 1);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kStemNormalizeDrums} + "=0",
+		                                       std::string{device_path::kStemMixdown} + "=1"});
+		expect(menu::bindings::read(nodes::stem_normalization_drums, ctx)).to_equal(0);
+		expect(menu::bindings::read(nodes::stem_mixdown, ctx)).to_equal(1);
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
 	});
 
 	it("shows the play cursor's three forms in their value order, read from the fake", _ {
