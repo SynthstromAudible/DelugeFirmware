@@ -8,7 +8,7 @@
 namespace deluge::scenes::menu {
 
 const bind::Ports& host_ports() {
-	// The UI tier alone reads it, so it sits in SDRAM with the scenes' other statics.
+	// Only the UI tier reads it, so it sits in SDRAM, off the audio tier's SRAM budget.
 	PLACE_SDRAM_BSS static const bind::Ports ports{
 	    .audio = &gui::shell_host::audio_facts(),
 	    .card = &gui::shell_host::card_facts(),

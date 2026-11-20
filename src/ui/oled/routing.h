@@ -66,9 +66,8 @@ void routing_chain(OledFrame& f, gfx::oled::Rect rect, std::span<const std::stri
 ///
 /// Ports `PatchCableStrength::renderOLED`'s polarity switcher
 /// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) -- the BI / UNI box -- as an N-slot widget,
-/// because nothing about it is specific to polarity: it is "here are the modes, this is the one you are in", and the
-/// no-polarity arm (the `else` after that function's `PatchCable::hasPolarity` test, origin/main) is the same box with
-/// one full-width label and nothing inverted.
+/// because nothing about it is specific to polarity: it is "here are the modes, this is the one you are in". The same
+/// function draws a cable without polarity as this box with one full-width label and nothing inverted.
 ///
 /// @warning **@p area is the slot band, NOT the widget's bounds: this widget inks outside the
 ///          rectangle it is handed, by two rows above and two columns on each side.** That breaks
