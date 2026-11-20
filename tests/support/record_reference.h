@@ -109,10 +109,7 @@ inline std::string readers_text(const in::SoundState& state) {
 	for (size_t l = 0; l < 4; l++) {
 		os << in::lfo(state, l) << " ";
 	}
-	const in::HostFields host = in::host_fields(state);
-	os << "] effects " << in::sound_effects(state) << " unison " << in::unison(state)
-	   << std::format(" host {} {} {}", host.side_chain_send_level, host.output_midi_channel,
-	                  host.output_midi_note_for_drum);
+	os << "] effects " << in::sound_effects(state) << " unison " << in::unison(state);
 	return std::move(os).str();
 }
 

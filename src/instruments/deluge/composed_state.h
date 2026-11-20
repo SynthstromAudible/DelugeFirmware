@@ -40,9 +40,6 @@ struct ComposedState {
 	std::array<synth::LfoState, 2> voice_lfos;      ///< LFO2, LFO4: one per voice
 	effects::EffectStates fx;
 	// Settings the sound's host owns: its owner's sidechain send and, as a kit row, its MIDI output
-	int32_t side_chain_send_level{0};
-	uint8_t output_midi_channel{255};
-	uint8_t output_midi_note_for_drum{255};
 	bool operator==(const ComposedState&) const = default;
 };
 

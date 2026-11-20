@@ -1,6 +1,5 @@
 #include "deluge-project/sound_routing_codec.h"
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/state_access.h"
 #include "serialization/tree.h"
 #include "support/printers/sound_routing_printer.h"
 #include "support/record_state.h"
@@ -71,17 +70,25 @@ describe sound_routing_codec("a sound's routing in its element", ${
 		expect(decode_routing(element)).to_equal(SoundRouting{});
 	});
 
-	it("is placed by the instrument where the sound's own fields were written", _ {
+	it("is placed by the instrument in the file's order: the send in the head after the voice priority, the MIDI output as its own piece", _ {
 		for (const instrument::SoundState& sound : sounds()) {
+			const instrument::SoundPieces own = instrument::encode_pieces(sound, {});
 			for (const SoundRouting& routing : routings()) {
-				const instrument::SoundState own = instrument::with_host_fields(
-				    sound, {.side_chain_send_level = routing.side_chain_send,
-				            .output_midi_channel = routing.midi_channel.value_or(255),
-				            .output_midi_note_for_drum = routing.midi_note.value_or(255)});
 				const Value host = encode_routing(routing);
-				expect(pieces_difference(instrument::encode_pieces(own, {}),
-				                         instrument::encode_pieces(sound, {}, std::nullopt, &host)))
-				    .to_equal(std::string{});
+				const instrument::SoundPieces placed = instrument::encode_pieces(sound, {}, std::nullopt, &host);
+				Value head = Value::makeMap();
+				for (const auto& [key, value] : own.head.entries()) {
+					head.set(key, value);
+					if (key == "voicePriority" && routing.side_chain_send != 0) {
+						head.set("sideChainSend", *host.find("sideChainSend"));
+					}
+				}
+				Value midi_output = Value::makeMap();
+				midi_output.set("midiOutput", *host.find("midiOutput"));
+				instrument::SoundPieces want = own;
+				want.head = head;
+				want.midi_output = midi_output;
+				expect(pieces_difference(placed, want)).to_equal(std::string{});
 			}
 		}
 	});

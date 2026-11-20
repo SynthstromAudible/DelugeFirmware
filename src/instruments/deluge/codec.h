@@ -57,7 +57,7 @@ struct SoundPieces {
 /// the render last applied it.
 /// @param host                 The host's entries of the element, which the instrument places where the file holds
 /// them: the sound's routing (`sideChainSend`, `midiOutput`) as its owner records it, each written as given and an
-/// absent one not at all. nullptr writes the state's own.
+/// absent one not at all. nullptr writes neither.
 /// @return The pieces, in file order.
 [[nodiscard]] SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
                                         std::optional<int32_t> compressor_threshold = std::nullopt,

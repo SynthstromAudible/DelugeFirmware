@@ -131,23 +131,6 @@ using synth::SamplePlayback;
 /// @param index 0..3.
 [[nodiscard]] synth::LfoState lfo(const SoundState& state, size_t index) noexcept;
 
-/// @brief The settings the sound's host owns in its state: its sidechain send and, as a kit row, its MIDI output.
-struct HostFields {
-	int32_t side_chain_send_level{0};
-	uint8_t output_midi_channel{255};       ///< 255 = none
-	uint8_t output_midi_note_for_drum{255}; ///< 255 = none
-	bool operator==(const HostFields&) const = default;
-};
-
-/// @brief The host's fields of @p state.
-/// @param state The sound's state.
-[[nodiscard]] HostFields host_fields(const SoundState& state) noexcept;
-
-/// @brief @p state with the host's fields replaced.
-/// @param state The sound's state.
-/// @param fields The host's new fields.
-[[nodiscard]] SoundState with_host_fields(SoundState state, const HostFields& fields);
-
 /// @brief @p state with one oscillator slot's ranges replaced.
 /// @param state The sound's state.
 /// @param id The slot.

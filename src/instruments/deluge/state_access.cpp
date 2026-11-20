@@ -192,19 +192,6 @@ synth::LfoState lfo(const SoundState& state, size_t index) noexcept {
 	return pair[index / 2];
 }
 
-HostFields host_fields(const SoundState& state) noexcept {
-	return {.side_chain_send_level = state.plays.side_chain_send_level,
-	        .output_midi_channel = state.plays.output_midi_channel,
-	        .output_midi_note_for_drum = state.plays.output_midi_note_for_drum};
-}
-
-SoundState with_host_fields(SoundState state, const HostFields& fields) {
-	state.plays.side_chain_send_level = fields.side_chain_send_level;
-	state.plays.output_midi_channel = fields.output_midi_channel;
-	state.plays.output_midi_note_for_drum = fields.output_midi_note_for_drum;
-	return state;
-}
-
 SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
 	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[slot_index(id)].ranges = std::move(ranges); });
 }

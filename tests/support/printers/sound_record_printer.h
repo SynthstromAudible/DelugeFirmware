@@ -180,9 +180,7 @@ inline std::ostream& operator<<(std::ostream& os, const RangeState& r) {
 inline std::ostream& operator<<(std::ostream& os, const ComposedState& s) {
 	return os << "{voicing " << s.voicing << ", engine " << s.engine << ", instrument_lfos [" << s.instrument_lfos[0]
 	          << " " << s.instrument_lfos[1] << "], voice_lfos [" << s.voice_lfos[0] << " " << s.voice_lfos[1]
-	          << "], fx " << s.fx
-	          << std::format(", side_chain_send_level {}, output_midi_channel {}, output_midi_note_for_drum {}}}",
-	                         s.side_chain_send_level, s.output_midi_channel, s.output_midi_note_for_drum);
+	          << "], fx " << s.fx << "}";
 }
 
 /// @brief Prints what a slot keeps for a switch back.

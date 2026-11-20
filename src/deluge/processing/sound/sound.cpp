@@ -2688,10 +2688,6 @@ static_assert(deluge::instrument::kMaxUnisonVoices == kMaxNumVoicesUnison
 Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	// The config the rest of the read plays with, until the read's state is adopted
 	config_ = deluge::instrument::DelugeSynth::derive(state);
-	const deluge::instrument::HostFields host = deluge::instrument::host_fields(state);
-	sideChainSendLevel = host.side_chain_send_level;
-	outputMidiChannel = host.output_midi_channel;
-	outputMidiNoteForDrum = host.output_midi_note_for_drum;
 	resyncGlobalLFOs();
 
 	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio

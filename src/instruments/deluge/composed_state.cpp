@@ -320,9 +320,6 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	    .instrument_lfos = {lfo_from_flat(f, 0), lfo_from_flat(f, 2)},
 	    .voice_lfos = {lfo_from_flat(f, 1), lfo_from_flat(f, 3)},
 	    .fx = f.effects,
-	    .side_chain_send_level = f.side_chain_send_level,
-	    .output_midi_channel = f.output_midi_channel,
-	    .output_midi_note_for_drum = f.output_midi_note_for_drum,
 	};
 	Recall recall;
 	std::array<synth::Pitch, 2> modulators{};
@@ -378,9 +375,6 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 	put_lfo(f, 1, state.voice_lfos[0]);
 	put_lfo(f, 3, state.voice_lfos[1]);
 	f.effects = state.fx;
-	f.side_chain_send_level = state.side_chain_send_level;
-	f.output_midi_channel = state.output_midi_channel;
-	f.output_midi_note_for_drum = state.output_midi_note_for_drum;
 	const auto put_modulators = [&](const std::array<synth::Pitch, 2>& modulators, bool m1_to_m0) {
 		for (size_t m = 0; m < 2; m++) {
 			f.modulator_transpose[m] = modulators[m].tuning.transpose;

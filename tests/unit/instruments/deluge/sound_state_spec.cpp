@@ -28,9 +28,6 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 		const SoundState s{};
 		expect(voicing(s).priority).to_equal(deluge::plugin::VoicePriority::MEDIUM);
 		expect(voicing(s).max_voices).to_equal(uint8_t{8});
-		expect(host_fields(s).side_chain_send_level).to_equal(int32_t{0});
-		expect(host_fields(s).output_midi_channel).to_equal(uint8_t{255});
-		expect(host_fields(s).output_midi_note_for_drum).to_equal(uint8_t{255});
 		expect(oscillator_sync(s)).to_equal(false);
 		expect(voicing(s).polyphony).to_equal(PolyphonyMode::POLY);
 		expect(synth_mode(s)).to_equal(SynthMode::SUBTRACTIVE);
@@ -68,8 +65,6 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 	it("records what a new synth starts as", _ {
 		const SoundState s = SoundState{};
 		expect(voicing(s).max_voices).to_equal(uint8_t{8});
-		expect(host_fields(s).output_midi_channel).to_equal(uint8_t{255});
-		expect(host_fields(s).output_midi_note_for_drum).to_equal(uint8_t{255});
 		expect(voicing(s).polyphony).to_equal(PolyphonyMode::POLY);
 		expect(unison(s).count).to_equal(uint8_t{1});
 		expect(unison(s).detune).to_equal(int8_t{8});

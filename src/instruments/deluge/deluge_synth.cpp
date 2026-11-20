@@ -137,7 +137,6 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 	mark(parts, Part::LFO_WAVE, lfo_wave);
 	mark(parts, Part::LFO_SYNC, lfo_sync);
 	mark(parts, Part::EFFECTS, sound_effects(before) != sound_effects(after));
-	mark(parts, Part::HOST, host_fields(before) != host_fields(after));
 	return parts;
 }
 

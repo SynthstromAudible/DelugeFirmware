@@ -387,6 +387,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 		}
 		if (output.instrument && plugins.instruments.encode != nullptr) {
 			plugins.instruments.encode(output.instrument->state, element, magnitude);
+			append_entries(element, encode_routing(output.instrument->routing)); // the host's, beside the instrument's
 		}
 		if (output.arp) {
 			// A sound's element holds the arp's sync level relative to the song's tick magnitude.
@@ -412,6 +413,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				}
 				if (drumRecord.instrument && plugins.instruments.encode != nullptr) {
 					plugins.instruments.encode(drumRecord.instrument->state, drumElement, magnitude);
+					append_entries(drumElement, encode_routing(drumRecord.instrument->routing));
 				}
 				if (drumRecord.arp && drumRecord.drum_type == DrumType::SOUND) {
 					// A sound's element holds the arp's sync level relative to the song's tick magnitude.

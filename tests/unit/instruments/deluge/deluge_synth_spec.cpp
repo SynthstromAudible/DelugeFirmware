@@ -122,13 +122,6 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 		    {"lfo wave", [](SoundState& s) { test::set(s, "lfo1/type", to_string(LFOType::SQUARE)); }, Part::LFO_WAVE},
 		    {"lfo sync", [](SoundState& s) { test::set(s, "lfo4/syncType", number(deluge::plugin::SyncType::TRIPLET)); }, Part::LFO_SYNC},
 		    {"effects", [](SoundState& s) { sound_effects(s).saturation.clipping_amount = 4; }, Part::EFFECTS},
-		    {"sidechain send",
-		     [](SoundState& s) {
-			     HostFields host = host_fields(s);
-			     host.side_chain_send_level = 7;
-			     s = with_host_fields(std::move(s), host);
-		     },
-		     Part::HOST},
 		};
 		const SoundState before = fm_state();
 		for (const Change& change : changes) {
