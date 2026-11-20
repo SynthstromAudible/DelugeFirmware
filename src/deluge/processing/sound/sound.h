@@ -103,6 +103,11 @@ public:
 	/// looking at voices' locks entirely in the usual case.
 	bool voicesMayHaveNoteLocks{false};
 
+	/// Sets one parameter lock on the voices started from a held pad's live (uncommitted) lock edits (those with
+	/// that VoiceNoteLocks::liveEditTag) and re-patches them, so the edit is heard while the note sounds. UI context
+	/// only.
+	void updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack);
+
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];

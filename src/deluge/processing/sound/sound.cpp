@@ -1637,6 +1637,25 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
+void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, ModelStackWithSoundFlags* modelStack) {
+	if (tag == 0) {
+		return;
+	}
+	// FM modulators skip their phase increments while off (Voice::calculatePhaseIncrements), as a knob turn up
+	// from -inf would also recalculate (patchedParamPresetValueChanged)
+	bool volume = param == params::LOCAL_MODULATOR_0_VOLUME || param == params::LOCAL_MODULATOR_1_VOLUME
+	              || param == params::LOCAL_OSC_A_VOLUME || param == params::LOCAL_OSC_B_VOLUME;
+	for (const ActiveVoice& voice : voices_) {
+		if (voice->noteLocks.liveEditTag == tag && voice->noteLocks.set(param, value)) {
+			voicesMayHaveNoteLocks = true;
+			voice->patcher.performInitialPatching(*this, *modelStack->paramManager);
+			if (volume) {
+				voice->calculatePhaseIncrements(modelStack);
+			}
+		}
+	}
+}
+
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
                                   int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {

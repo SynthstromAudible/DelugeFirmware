@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_view.h"
+#include "gui/views/note_lock_editor.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/iterance/iterance.h"
@@ -284,6 +285,9 @@ public:
 	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
+
+	/// Per-note parameter locks: knob turns on held note pads, and the note editor's "Param locks" menu
+	NoteLockEditor noteLocks{*this};
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange, bool display_value = true);
