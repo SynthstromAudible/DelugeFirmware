@@ -2845,7 +2845,7 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 	it("round-trips the shortcuts version through the port's own copy", _ {
 		const TablesRoot& settings = installed_root("settings");
-		const auto saved = spec::shortcut_layout();
+		const spec::ShortcutLayout layout{deluge::project::ShortcutsVersion::V3};
 
 		// Main's two options are the generic options row of the shortcuts-version path, checked by the options example;
 		// the port's own copy is what this node reads, so it is excluded from the value rows and round-tripped here.
@@ -2867,7 +2867,6 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 		expect(spec::shortcut_layout()).to_equal(deluge::project::ShortcutsVersion::V3);
 
 		covered.insert(&nodes::shortcuts_version);
-		spec::set_shortcut_layout(saved);
 	});
 
 	it("round-trips all six pad colours through writeSettings and readSettings", _ {

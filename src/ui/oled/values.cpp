@@ -390,7 +390,7 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 }
 
 Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Range range, RangeEdge& edge,
-                     RangeFormatFn format, RangeClamp clamp, bool focused) {
+                     RangeFormatFn format, RangeClamp clamp, bool focused, const void* hook_ctx) {
 	Response resp{};
 	resp.focused = focused;
 
@@ -481,9 +481,10 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 	// `getText(buffer, &leftLength, &rightLength, editingRangeEdge == RangeEdit::OFF)`.
 	std::array<char, kRangeTextMax> left_scratch{};
 	std::array<char, kRangeTextMax> right_scratch{};
-	const std::string_view left = format(lower, std::span{left_scratch});
+	const std::string_view left = format(lower, hook_ctx, std::span{left_scratch});
 	const bool show_just_one = edge == RangeEdge::Off && lower == upper;
-	const std::string_view right = show_just_one ? std::string_view{} : format(upper, std::span{right_scratch});
+	const std::string_view right =
+	    show_just_one ? std::string_view{} : format(upper, hook_ctx, std::span{right_scratch});
 
 	const auto left_len = static_cast<int32_t>(left.size());
 	const auto right_len = static_cast<int32_t>(right.size());

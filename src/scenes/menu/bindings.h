@@ -113,6 +113,19 @@ int32_t read(const Node& node, const MenuContext& ctx);
 /// @param value The new value, in menu units.
 void write(const Node& node, const MenuContext& ctx, int32_t value);
 
+/// @brief The upper edge of the `Kind::Range` @p node, in menu units: its `RangeSpec::upper_path` row, read as the
+///        node's own target reads the lower edge.
+/// @param node A range node.
+/// @param ctx  What is being edited.
+/// @return The value; 0 for a node with no upper row, or one the menu cannot read.
+int32_t read_upper(const Node& node, const MenuContext& ctx);
+
+/// @brief Writes @p value to the upper edge of the `Kind::Range` @p node, as `write` writes the lower edge.
+/// @param node  A range node.
+/// @param ctx   What is being edited.
+/// @param value The new value, in menu units.
+void write_upper(const Node& node, const MenuContext& ctx, int32_t value);
+
 /// @brief Commit an offset edit through `node.bind.adjust`.
 ///
 /// Mirrors `write`'s `get`/`set` hook arm: call the hook, then raise `Dirty::Oled` -- the hook

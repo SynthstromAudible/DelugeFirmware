@@ -60,15 +60,11 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		// the two ends differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
 		// `RangeSpec::focus_left_when_split` says.
 		st.edit_int = bindings::read(node, ctx); // the lower edge
-		st.edit_upper = st.edit_int;
+		st.edit_upper = bindings::read_upper(node, ctx);
 		st.edit_edge = deluge::ui::oled::RangeEdge::Off;
-		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr) {
-			if (spec->get_upper != nullptr) {
-				st.edit_upper = spec->get_upper(ctx);
-			}
-			if (spec->focus_left_when_split && st.edit_int != st.edit_upper) {
-				st.edit_edge = deluge::ui::oled::RangeEdge::Left;
-			}
+		if (const RangeSpec* spec = node.bind.range_spec;
+		    spec != nullptr && spec->focus_left_when_split && st.edit_int != st.edit_upper) {
+			st.edit_edge = deluge::ui::oled::RangeEdge::Left;
 		}
 		break;
 	}
@@ -136,14 +132,11 @@ void ValueSession::commit(MenuCore core, const Node& node) const {
 		bindings::write(node, ctx, st.edit_bool ? 1 : 0);
 		break;
 	case Kind::Range:
-		// Both ends, every commit. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
-		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the
-		// storage (`FlashStorage::defaultRanges`, `storage/flash_storage.h`). A commit that wrote
-		// only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
+		// Both ends, every commit, the lower first. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
+		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the storage. A commit
+		// that wrote only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
 		bindings::write(node, ctx, st.edit_int);
-		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr && spec->set_upper != nullptr) {
-			spec->set_upper(ctx, st.edit_upper);
-		}
+		bindings::write_upper(node, ctx, st.edit_upper);
 		break;
 	default:
 		bindings::write(node, ctx, st.edit_int);
@@ -172,10 +165,7 @@ void ValueSession::read_again(MenuCore core) const {
 		break;
 	case Kind::Range:
 		st.edit_int = bindings::read(*node, ctx);
-		st.edit_upper = st.edit_int;
-		if (const RangeSpec* spec = node->bind.range_spec; spec != nullptr && spec->get_upper != nullptr) {
-			st.edit_upper = spec->get_upper(ctx);
-		}
+		st.edit_upper = bindings::read_upper(*node, ctx);
 		break;
 	case Kind::Custom:
 		// The item's own re-read (`CustomItem::on_reread`), not its `on_focus`: `beginSession` loads programs, opens

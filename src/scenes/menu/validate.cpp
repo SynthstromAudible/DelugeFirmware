@@ -319,8 +319,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// A target node takes everything a hook would give from its descriptor -- see `Flag::TargetWithHooks`.
 		if (n.bind.target.valid()
 		    && (n.bind.get != nullptr || n.bind.set != nullptr || n.bind.range != nullptr || n.bind.fixed_range
-		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.bind.adjust != nullptr
-		        || n.bind.range_spec != nullptr)) {
+		        || !n.bind.names.empty() || n.bind.dynamic_names != nullptr || n.bind.adjust != nullptr)) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
 		}
 
@@ -336,7 +335,9 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 
 		// A range node's upper edge lives entirely in `range_spec` -- see `Issue::Kind::RangeWithoutSpec`.
-		if (n.kind == Kind::Range && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr)) {
+		if (n.kind == Kind::Range
+		    && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr
+		        || n.bind.range_spec->upper_path.empty() || !n.bind.target.valid())) {
 			add(out, Issue::Kind::RangeWithoutSpec, &n);
 		}
 

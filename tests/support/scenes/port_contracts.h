@@ -181,7 +181,7 @@ namespace deluge::scenes::bind::contract {
 	return values;
 }
 
-/// @brief The first DEVICE row of @p kind, or null where the group has none yet.
+/// @brief The first DEVICE row of @p kind, or null where the group has none.
 [[nodiscard]] inline const plugin::SettingInfo* first_device_row(plugin::SettingKind kind) {
 	const auto table = project::device_table();
 	const auto found = std::ranges::find(table, kind, &plugin::SettingInfo::kind);
@@ -200,18 +200,15 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief A menu value past a row's range is refused and the row reads as it did: an INTEGER row's max + 1, a CHOICE
-///        row's past its last choice, a BOOL row's 2, each kind the group has.
+///        row's past its last choice, a BOOL row's 2; the group has a row of each kind.
 [[nodiscard]] inline bool device_out_of_range_write_is_refused(DeviceSettings& device) {
 	const auto before = device_values(device);
 	bool refused = true;
 	for (const plugin::SettingKind kind :
 	     {plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE, plugin::SettingKind::BOOL}) {
 		const plugin::SettingInfo* row = first_device_row(kind);
-		if (row == nullptr) {
-			continue;
-		}
-		const int32_t past = plugin::menu_range(*row).second + 1;
-		refused = refused && device.write(row->path, past) == DeviceWrite::REFUSED;
+		refused = refused && row != nullptr
+		          && device.write(row->path, plugin::menu_range(*row).second + 1) == DeviceWrite::REFUSED;
 	}
 	return refused && device_values(device) == before;
 }
@@ -243,15 +240,14 @@ namespace deluge::scenes::bind::contract {
 	return read_back && restored && device.read(path) == was;
 }
 
-/// @brief A write in range is stored and reads back as written: for the first BOOL, INTEGER and CHOICE row, each kind
-///        the group has, and the BOOL and CHOICE kinds at least.
+/// @brief A write in range is stored and reads back as written: for the first BOOL, INTEGER and CHOICE row, which the
+///        group has each of.
 [[nodiscard]] inline bool device_write_reads_back(DeviceSettings& device) {
 	const plugin::SettingInfo* boolean = first_device_row(plugin::SettingKind::BOOL);
 	const plugin::SettingInfo* choice = first_device_row(plugin::SettingKind::CHOICE);
 	const plugin::SettingInfo* integer = first_device_row(plugin::SettingKind::INTEGER);
-	return boolean != nullptr && choice != nullptr && device_row_reads_back(device, boolean->path)
-	       && device_row_reads_back(device, choice->path)
-	       && (integer == nullptr || device_row_reads_back(device, integer->path));
+	return boolean != nullptr && choice != nullptr && integer != nullptr && device_row_reads_back(device, boolean->path)
+	       && device_row_reads_back(device, choice->path) && device_row_reads_back(device, integer->path);
 }
 
 /// @brief The port's reader reads what `read` reads, for the first row of each kind and a path no row has.
@@ -260,9 +256,8 @@ namespace deluge::scenes::bind::contract {
 	bool same = reader("no/such/row") == device.read("no/such/row");
 	for (const plugin::SettingKind kind :
 	     {plugin::SettingKind::BOOL, plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE}) {
-		if (const plugin::SettingInfo* row = first_device_row(kind)) {
-			same = same && reader(row->path).has_value() && reader(row->path) == device.read(row->path);
-		}
+		const plugin::SettingInfo* row = first_device_row(kind);
+		same = same && row != nullptr && reader(row->path).has_value() && reader(row->path) == device.read(row->path);
 	}
 	return same;
 }

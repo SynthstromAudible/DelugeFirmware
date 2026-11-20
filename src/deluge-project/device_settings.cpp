@@ -18,6 +18,7 @@
 #include "deluge-project/device_settings.h"
 
 #include "music-theory/preset_scales.h"
+#include "plugin-api/types/display_mapping.h"
 
 #include <array>
 #include <cstddef>
@@ -34,6 +35,7 @@ inline namespace menu_tables {
 
 using plugin::SettingInfo;
 using plugin::SettingKind;
+using plugin::SettingUnits;
 
 /// How many preset scales a "disabled by default" row is kept for.
 constexpr size_t kScaleCount = music::NUM_PRESET_SCALES;
@@ -69,6 +71,35 @@ constexpr std::array<std::string_view, 2> kShortcutsVersionWords{"v1", "v3"};
 constexpr std::array<std::string_view, 3> kPlayCursorWords{"fast", "off", "slow"};
 static_assert(std::to_underlying(ShortcutsVersion::V3) == 1 && std::to_underlying(FlashCursor::SLOW) == 2,
               "an enumerator's value is its choice's index");
+/// The scales a new song may start in: the preset scales in their own order, then a random one, then none. A user
+/// scale is no default, so it has no choice.
+constexpr std::array<std::string_view, kScaleCount + 2> kScaleWords{
+    "major",     "minor",        "dorian",          "phrygian",       "lydian", "mixolydian",
+    "locrian",   "melodicMinor", "harmonicMinor",   "hungarianMinor", "marva",  "arabian",
+    "wholeTone", "blues",        "pentatonicMinor", "hirajoshi",      "random", "none"};
+/// The song the device opens as it starts, in the order the flash setting numbers them.
+constexpr std::array<std::string_view, 4> kStartupSongWords{"blank", "template", "lastOpened", "lastSaved"};
+/// How a new slice plays its sample, in the order a sample's repeat mode numbers them.
+constexpr std::array<std::string_view, 4> kSliceModeWords{"cut", "once", "loop", "stretch"};
+/// How loud a sound starts a threshold recording, in the order the recording mode numbers them.
+constexpr std::array<std::string_view, 4> kThresholdWords{"off", "low", "medium", "high"};
+/// The kinds of clip a new clip may be, in the order an output's type numbers them.
+constexpr std::array<std::string_view, 5> kNewClipTypeWords{"synth", "kit", "midi", "cv", "audio"};
+
+/// The bounds a default range's two ends share: the least and greatest end, and the end a reset gives both.
+struct EndBounds {
+	int32_t least;
+	int32_t greatest;
+	int32_t reset;
+};
+/// A new song's tempo, in beats a minute.
+constexpr EndBounds kTempoEnds{.least = 60, .greatest = 240, .reset = 120};
+/// A new song's swing, in percent.
+constexpr EndBounds kSwingEnds{.least = 1, .greatest = 99, .reset = 50};
+/// A new song's key, in semitones above C.
+constexpr EndBounds kKeyEnds{.least = 0, .greatest = 11, .reset = 0};
+/// The magnitude a reset gives: 96 << 2 ticks a quarter note.
+constexpr int32_t kResetMagnitude = 2;
 
 constexpr SettingInfo boolean(std::string_view path, int32_t default_value) {
 	return SettingInfo{.path = path, .kind = SettingKind::BOOL, .default_value = default_value};
@@ -78,8 +109,64 @@ constexpr SettingInfo choice(std::string_view path, std::span<const std::string_
 	return SettingInfo{.path = path, .kind = SettingKind::CHOICE, .choices = choices, .default_value = default_value};
 }
 
+/// An INTEGER row of @p least to @p greatest, counting @p units.
+constexpr SettingInfo integer(std::string_view path, int32_t least, int32_t greatest, int32_t default_value,
+                              SettingUnits units = SettingUnits::NONE) {
+	return SettingInfo{.path = path,
+	                   .kind = SettingKind::INTEGER,
+	                   .min = least,
+	                   .max = greatest,
+	                   .default_value = default_value,
+	                   .units = units};
+}
+
+/// The rows a default range's two ends are.
+constexpr std::array<SettingInfo, 2> ends(DevicePath lower, DevicePath upper, EndBounds bounds) {
+	return {integer(lower, bounds.least, bounds.greatest, bounds.reset),
+	        integer(upper, bounds.least, bounds.greatest, bounds.reset)};
+}
+
+/// The defaults' rows, in the order the defaults page lists them, the magnitude before the swing interval it moves.
+constexpr std::array kDefaultsRows = [] {
+	const auto tempo = ends(device_path::kTempoLower, device_path::kTempoUpper, kTempoEnds);
+	const auto swing = ends(device_path::kSwingLower, device_path::kSwingUpper, kSwingEnds);
+	const auto key = ends(device_path::kKeyLower, device_path::kKeyUpper, kKeyEnds);
+	return std::array{
+	    tempo[0],
+	    tempo[1],
+	    swing[0],
+	    swing[1],
+	    key[0],
+	    key[1],
+	    integer(device_path::kMagnitude, 0, 6, kResetMagnitude),
+	    // 16th notes at the reset magnitude.
+	    integer(device_path::kSwingInterval, 0, plugin::kNumSwingIntervals - 1, 8 - kResetMagnitude,
+	            SettingUnits::SYNC_LEVEL),
+	    choice(device_path::kScale, kScaleWords, 0),
+	    integer(device_path::kVelocity, 1, 127, 64),
+	    integer(device_path::kBendRange, 0, 96, 2),
+	    integer(device_path::kMetronomeVolume, 1, 50, 50),
+	    choice(device_path::kStartupSong, kStartupSongWords, 0),
+	    choice(device_path::kSliceMode, kSliceModeWords, 0),
+	    boolean(device_path::kCpuIndicator, 0),
+	    integer(device_path::kHoldTime, 1, 20, 2),
+	    // Quantised to 16th notes; no triplet or dotted level.
+	    integer(device_path::kRecordQuantize, 0, std::to_underlying(plugin::SyncType::TRIPLET) - 1, 8,
+	            SettingUnits::SYNC_LEVEL),
+	    boolean(device_path::kRecordMargins, 1),
+	    choice(device_path::kThresholdRecording, kThresholdWords, 0),
+	    choice(device_path::kNewClipType, kNewClipTypeWords, 0),
+	    boolean(device_path::kUseLastClipType, 1),
+	    boolean(device_path::kAutomationInterpolate, 1),
+	    boolean(device_path::kAutomationClear, 1),
+	    boolean(device_path::kAutomationShift, 1),
+	    boolean(device_path::kAutomationNudgeNote, 1),
+	    boolean(device_path::kAutomationNoAuditionShortcuts, 1),
+	};
+}();
+
 /// The rows before the preset scales'.
-constexpr size_t kLeadingRows = 2;
+constexpr size_t kLeadingRows = 2 + kDefaultsRows.size();
 /// The rows after them, before the community features'.
 constexpr size_t kTrailingRows = 2;
 /// How many rows the table has.
@@ -97,6 +184,9 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 	size_t at = 0;
 	rows[at++] = boolean(device_path::kUseSharps, 1);
 	rows[at++] = choice(device_path::kPatchCablePolarity, kPolarityWords, 1);
+	for (const SettingInfo& row : kDefaultsRows) {
+		rows[at++] = row;
+	}
 	for (const ScalePath& path : kScalePaths) {
 		rows[at++] = boolean(std::string_view{path.text.data(), path.size}, 0);
 	}
@@ -111,8 +201,38 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 static_assert(plugin::conditions_are_valid(kDeviceTable));
 // Every path the scenes name is a row of the table; a feature's and a scale's rows are made from the same lists.
 static_assert([] {
-	for (const DevicePath path : {device_path::kUseSharps, device_path::kPatchCablePolarity,
-	                              device_path::kShortcutsVersion, device_path::kPlayCursor}) {
+	for (const DevicePath path : {
+	         device_path::kUseSharps,
+	         device_path::kPatchCablePolarity,
+	         device_path::kTempoLower,
+	         device_path::kTempoUpper,
+	         device_path::kSwingLower,
+	         device_path::kSwingUpper,
+	         device_path::kKeyLower,
+	         device_path::kKeyUpper,
+	         device_path::kMagnitude,
+	         device_path::kSwingInterval,
+	         device_path::kScale,
+	         device_path::kVelocity,
+	         device_path::kBendRange,
+	         device_path::kMetronomeVolume,
+	         device_path::kStartupSong,
+	         device_path::kSliceMode,
+	         device_path::kCpuIndicator,
+	         device_path::kHoldTime,
+	         device_path::kRecordQuantize,
+	         device_path::kRecordMargins,
+	         device_path::kThresholdRecording,
+	         device_path::kNewClipType,
+	         device_path::kUseLastClipType,
+	         device_path::kAutomationInterpolate,
+	         device_path::kAutomationClear,
+	         device_path::kAutomationShift,
+	         device_path::kAutomationNudgeNote,
+	         device_path::kAutomationNoAuditionShortcuts,
+	         device_path::kShortcutsVersion,
+	         device_path::kPlayCursor,
+	     }) {
 		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {
 			return false;
 		}

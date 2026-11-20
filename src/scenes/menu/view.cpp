@@ -394,7 +394,7 @@ void MenuView::render_leaf_range(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	// digits at a rect-relative `kValueY` calibrated for the whole panel.
 	const deluge::ui::Response r =
 	    deluge::ui::oled::range_value(f, f.bounds(), st.edit_int, st.edit_upper, bindings::range(node, ctx),
-	                                  st.edit_edge, spec->format, spec->clamp, /*focused=*/true);
+	                                  st.edit_edge, spec->format, spec->clamp, /*focused=*/true, &ctx);
 	st.tick.render_resp = r;
 	if (r.changed) {
 		st.tick.value_changed = true;

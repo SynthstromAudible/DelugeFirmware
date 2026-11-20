@@ -8,11 +8,16 @@
 #include "instruments/deluge/cables.h"
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
 #include "music-theory/preset_scales.h"
+#include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/setting.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/metronome/metronome.h"
 #include "serialization/tree.h"
 #include "storage/flash_storage.h"
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -39,6 +44,10 @@ static_assert(std::to_underlying(ShortcutsVersion::V1) == FlashStorage::kShortcu
 static_assert(std::to_underlying(ShortcutsVersion::V3) == FlashStorage::kShortcutsVersion3);
 static_assert(std::to_underlying(instrument::Polarity::UNIPOLAR) == 0
               && std::to_underlying(instrument::Polarity::BIPOLAR) == 1);
+static_assert(std::to_underlying(StartupSongMode::LASTSAVED) == 3 && kNumStartupSongMode == 4);
+static_assert(std::to_underlying(SampleRepeatMode::STRETCH) == 3);
+static_assert(std::to_underlying(ThresholdRecordingMode::OFF) == 0 && kLastThresholdRecordingMode == 3);
+static_assert(std::to_underlying(OutputType::SYNTH) == 0 && std::to_underlying(OutputType::AUDIO) == 4);
 
 /// @brief A BOOL row's file form.
 Value flag(bool on) {
@@ -47,9 +56,93 @@ Value flag(bool on) {
 
 /// @brief A CHOICE row's file form for choice @p index: its word, or, for an index the row has no choice at (a value
 ///        the device's flash held that no menu offers), the index itself as a number, which the port's read clamps.
-Value choice(const SettingInfo& row, size_t index) {
-	return index < row.choices.size() ? Value::makeScalar(std::string{row.choices[index]})
-	                                  : Value::makeNumber(static_cast<int64_t>(index));
+Value choice(const SettingInfo& row, int64_t index) {
+	return index >= 0 && static_cast<size_t>(index) < row.choices.size()
+	           ? Value::makeScalar(std::string{row.choices[static_cast<size_t>(index)]})
+	           : Value::makeNumber(index);
+}
+
+/// @brief An INTEGER row's file form: the value as the device holds it, which the port reads unclamped, as the menu's
+///        number widget shows a value past its range until a turn clamps it.
+Value number(int64_t value) {
+	return Value::makeNumber(value);
+}
+
+/// @brief A BOOL row the flash settings hold as one `bool` that nothing else follows.
+struct FlagHome {
+	project::DevicePath path;
+	bool* value;
+};
+/// Every such row.
+constexpr std::array<FlagHome, 9> kFlagHomes{{
+    {device_path::kUseSharps, &FlashStorage::defaultUseSharps},
+    {device_path::kCpuIndicator, &FlashStorage::highCPUUsageIndicator},
+    {device_path::kRecordMargins, &FlashStorage::audioClipRecordMargins},
+    {device_path::kUseLastClipType, &FlashStorage::defaultUseLastClipType},
+    {device_path::kAutomationInterpolate, &FlashStorage::automationInterpolate},
+    {device_path::kAutomationClear, &FlashStorage::automationClear},
+    {device_path::kAutomationShift, &FlashStorage::automationShift},
+    {device_path::kAutomationNudgeNote, &FlashStorage::automationNudgeNote},
+    {device_path::kAutomationNoAuditionShortcuts, &FlashStorage::automationDisableAuditionPadShortcuts},
+}};
+
+/// @brief An INTEGER row the flash settings hold as one byte that nothing else follows.
+struct ByteHome {
+	project::DevicePath path;
+	uint8_t* value;
+};
+/// Every such row.
+constexpr std::array<ByteHome, 3> kByteHomes{{
+    {device_path::kSwingInterval, &FlashStorage::defaultSwingInterval},
+    {device_path::kBendRange, &FlashStorage::defaultBendRange[BEND_RANGE_MAIN]},
+    {device_path::kRecordQuantize, &FlashStorage::recordQuantizeLevel},
+}};
+
+/// @brief A default range's end: which of the flash settings' ranges, and which end of it.
+struct EndHome {
+	project::DevicePath path;
+	FlashStorage::DefaultRangeSlot slot;
+	bool upper;
+};
+/// The six ends.
+constexpr std::array<EndHome, 6> kEndHomes{{
+    {device_path::kTempoLower, FlashStorage::DEFAULT_RANGE_TEMPO, false},
+    {device_path::kTempoUpper, FlashStorage::DEFAULT_RANGE_TEMPO, true},
+    {device_path::kSwingLower, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, false},
+    {device_path::kSwingUpper, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT, true},
+    {device_path::kKeyLower, FlashStorage::DEFAULT_RANGE_KEY, false},
+    {device_path::kKeyUpper, FlashStorage::DEFAULT_RANGE_KEY, true},
+}};
+
+/// @brief Where the home of the row at @p path is among @p homes, or null.
+template <typename Home, size_t N>
+const Home* home_of(const std::array<Home, N>& homes, std::string_view path) {
+	for (const Home& home : homes) {
+		if (home.path == path) {
+			return &home;
+		}
+	}
+	return nullptr;
+}
+
+/// @brief The end @p home names, where the flash settings keep it.
+int32_t& end_value(const EndHome& home) {
+	FlashStorage::DefaultRange& range = FlashStorage::defaultRanges[home.slot];
+	return home.upper ? range.upper : range.lower;
+}
+
+/// @brief The `defaults/scale` row's choice for the flash setting's scale code: the scale's index with the user scale's
+///        slot removed, as `defaults::DefaultScale::readCurrentValue`
+///        (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`) reads it.
+int64_t scale_choice(uint8_t code) {
+	const music::Scale scale = music::flashStorageCodeToScale(code);
+	return scale >= music::USER_SCALE ? int64_t{scale} - 1 : int64_t{scale};
+}
+
+/// @brief The flash setting's scale code for the `defaults/scale` row's choice @p index, as `writeCurrentValue` there
+///        writes it.
+uint8_t scale_code(int32_t index) {
+	return music::scaleToFlashStorageCode(static_cast<music::Scale>(index >= music::USER_SCALE ? index + 1 : index));
 }
 
 /// @brief The preset scale a `defaults/scales/disabled/<i>` path names, or nullopt.
@@ -102,8 +195,41 @@ void store_feature(const FeatureInfo& info, int32_t stored) {
 class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 	[[nodiscard]] Value load(const SettingInfo& row) const override {
 		const std::string_view path = row.path;
-		if (path == device_path::kUseSharps) {
-			return flag(FlashStorage::defaultUseSharps);
+		if (const FlagHome* home = home_of(kFlagHomes, path)) {
+			return flag(*home->value);
+		}
+		if (const ByteHome* home = home_of(kByteHomes, path)) {
+			return number(*home->value);
+		}
+		if (const EndHome* home = home_of(kEndHomes, path)) {
+			return number(end_value(*home));
+		}
+		if (path == device_path::kMagnitude) {
+			return number(FlashStorage::defaultMagnitude);
+		}
+		if (path == device_path::kScale) {
+			return choice(row, scale_choice(FlashStorage::defaultScale));
+		}
+		if (path == device_path::kVelocity) {
+			return number(FlashStorage::defaultVelocity);
+		}
+		if (path == device_path::kMetronomeVolume) {
+			return number(FlashStorage::defaultMetronomeVolume);
+		}
+		if (path == device_path::kHoldTime) {
+			return number(FlashStorage::defaultHoldTime);
+		}
+		if (path == device_path::kStartupSong) {
+			return choice(row, std::to_underlying(FlashStorage::defaultStartupSongMode));
+		}
+		if (path == device_path::kSliceMode) {
+			return choice(row, std::to_underlying(FlashStorage::defaultSliceMode));
+		}
+		if (path == device_path::kThresholdRecording) {
+			return choice(row, std::to_underlying(FlashStorage::defaultThresholdRecordingMode));
+		}
+		if (path == device_path::kNewClipType) {
+			return choice(row, std::to_underlying(FlashStorage::defaultNewClipType));
 		}
 		if (path == device_path::kPatchCablePolarity) {
 			return choice(row, std::to_underlying(FlashStorage::defaultPatchCablePolarity));
@@ -135,8 +261,75 @@ class HostDeviceSettings final : public scenes::bind::DeviceSettings {
 		const std::string_view path = row.path;
 		// The front checked the value against the row, so it is a choice's word, a bool or an integer in range.
 		const int32_t stored = plugin::stored_value(row, value.str()).value_or(row.default_value);
-		if (path == device_path::kUseSharps) {
-			FlashStorage::defaultUseSharps = stored != 0;
+		if (const FlagHome* home = home_of(kFlagHomes, path)) {
+			*home->value = stored != 0;
+			return DeviceWrite::STORED;
+		}
+		if (const ByteHome* home = home_of(kByteHomes, path)) {
+			*home->value = static_cast<uint8_t>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (const EndHome* home = home_of(kEndHomes, path)) {
+			end_value(*home) = stored;
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMagnitude) {
+			// `defaults::Magnitude::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/magnitude.h`):
+			// the swing interval moves by the same delta, so its note length survives the resolution change.
+			const int32_t old_magnitude = FlashStorage::defaultMagnitude;
+			FlashStorage::defaultMagnitude = static_cast<int8_t>(stored);
+			const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
+			FlashStorage::defaultSwingInterval =
+			    static_cast<uint8_t>(plugin::clamp_swing_interval(FlashStorage::defaultSwingInterval - delta));
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kScale) {
+			FlashStorage::defaultScale = scale_code(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kVelocity) {
+			// `defaults::Velocity::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/velocity.h`): the
+			// open song's instruments take the new default too.
+			FlashStorage::defaultVelocity = static_cast<uint8_t>(stored);
+			if (currentSong != nullptr) {
+				currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
+			}
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kMetronomeVolume) {
+			// `defaults::MetronomeVolume::writeCurrentValue`
+			// (`origin/main:src/deluge/gui/menu_item/defaults/metronome_volume.h`): the metronome sounds at it at once.
+			FlashStorage::defaultMetronomeVolume = static_cast<uint8_t>(stored);
+			AudioEngine::metronome.setVolume(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kHoldTime) {
+			// `defaults::HoldTime::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`):
+			// the press timer reads the hold in samples.
+			FlashStorage::defaultHoldTime = static_cast<uint8_t>(stored);
+			FlashStorage::holdTime = (FlashStorage::defaultHoldTime * kSampleRate) / 20;
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kStartupSong) {
+			FlashStorage::defaultStartupSongMode = static_cast<StartupSongMode>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kSliceMode) {
+			FlashStorage::defaultSliceMode = static_cast<SampleRepeatMode>(stored);
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kThresholdRecording) {
+			// `record::ThresholdMode::writeCurrentValue`
+			// (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`), the default kind: the flash setting,
+			// then the open song's own mode too.
+			FlashStorage::defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(stored);
+			if (currentSong != nullptr) {
+				currentSong->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(stored);
+			}
+			return DeviceWrite::STORED;
+		}
+		if (path == device_path::kNewClipType) {
+			FlashStorage::defaultNewClipType = static_cast<OutputType>(stored);
 			return DeviceWrite::STORED;
 		}
 		if (path == device_path::kPatchCablePolarity) {

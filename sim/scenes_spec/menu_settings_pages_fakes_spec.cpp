@@ -12,6 +12,7 @@
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
+#include "scenes/menu/present.h"
 #include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -22,6 +23,7 @@
 #include "gfx/oled/glyphs.h"
 #include "gui/l10n/l10n.h"
 #include "instruments/deluge/sound_state.h"
+#include "music-theory/preset_scales.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
@@ -56,6 +58,7 @@ namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
 
+constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
@@ -96,6 +99,12 @@ struct Rig {
 		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 		shell.tick(at_ms + 5);
 	}
+	/// @brief @p detents clicks of the horizontal encoder, which picks a range's end.
+	void horizontal(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kHorizontalEncoder, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+		shell.tick(at_ms + 5);
+	}
 	/// @brief Press and release the select encoder.
 	void select(uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, 255}, at_ms);
@@ -122,6 +131,21 @@ std::vector<std::string> names_of(const Node& node, const MenuContext& ctx) {
 	std::array<deluge::ui::shell::TextScratch, menu::kMaxDynamicNames> scratch{};
 	const size_t count = menu::bindings::names(node, ctx, out, scratch, menu::bindings::NameForm::Full);
 	return {out.begin(), out.begin() + static_cast<std::ptrdiff_t>(count)};
+}
+
+/// @brief Sets the fake's DEVICE row at @p path to the number @p value.
+void hold(spec::FakeHostRig& fakes, deluge::project::DevicePath path, int64_t value) {
+	fakes.host.device.values.insert_or_assign(std::string{path}, deluge::serialization::Value::makeNumber(value));
+}
+
+/// @brief The last @p count stores the fake saw, each as "<path>=<text>", in order.
+std::vector<std::string> last_stores(const spec::FakeHostRig& fakes, size_t count) {
+	const auto& stores = fakes.host.device.stores;
+	std::vector<std::string> out;
+	for (size_t i = stores.size() > count ? stores.size() - count : 0; i < stores.size(); ++i) {
+		out.push_back(stores[i].first + "=" + stores[i].second.str());
+	}
+	return out;
 }
 
 /// @brief The community features' nodes, in the page's order, each with its feature.
@@ -358,6 +382,97 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 		MenuContext unbound = ctx;
 		unbound.ports.device = nullptr;
 		expect(nodes::battery_level.relevant(unbound)).to_be_true();
+	});
+
+	it("pushes the tempo range's other end, as main's IntegerRange does, and stores both ends, the lower first", _ {
+		Rig r;
+		hold(r.fakes, device_path::kTempoLower, 100);
+		hold(r.fakes, device_path::kTempoUpper, 150);
+		(void)r.open(nodes::default_tempo);
+		// A split range opens on its left end.
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
+		r.turn(60, 20);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kTempoLower} + "=160",
+		                                       std::string{device_path::kTempoUpper} + "=160"});
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("bounds the key range's end by the other, as main's KeyRange does", _ {
+		Rig r;
+		hold(r.fakes, device_path::kKeyLower, 2);
+		hold(r.fakes, device_path::kKeyUpper, 9);
+		(void)r.open(nodes::default_key);
+		// A key range opens on neither end; the horizontal encoder picks the left one.
+		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		r.horizontal(-1, 20);
+		r.turn(10, 40);
+		expect(last_stores(r.fakes, 2))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kKeyLower} + "=9",
+		                                       std::string{device_path::kKeyUpper} + "=9"});
+	});
+
+	it("spells the key range's ends as the device's useSharps row says", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::default_key);
+		std::array<char, deluge::ui::oled::kRangeTextMax> scratch{};
+		expect(std::string{nodes::format_range_key(1, &ctx, scratch)}).to_equal(std::string{"C#"});
+		hold(r.fakes, device_path::kUseSharps, 0);
+		expect(std::string{nodes::format_range_key(1, &ctx, scratch)})
+		    .to_equal(std::string{"D"} + deluge::gfx::oled::kFlatGlyph);
+	});
+
+	it("names the default swing interval against the magnitude row, which a resolution turn writes", _ {
+		Rig r;
+		hold(r.fakes, device_path::kMagnitude, 1);
+		const MenuContext ctx = r.open(nodes::default_magnitude);
+		std::array<char, 32> buf{};
+		expect(std::string{menu::sync_level_name(nodes::default_swing_interval, ctx, 5, buf)})
+		    .to_equal(std::string{"4th-notes"});
+		r.turn(2, 20);
+		expect(last_stores(r.fakes, 1))
+		    .to_equal(std::vector<std::string>{std::string{device_path::kMagnitude} + "=3"});
+		expect(std::string{menu::sync_level_name(nodes::default_swing_interval, ctx, 5, buf)})
+		    .to_equal(std::string{"16th-notes"});
+	});
+
+	it("lists every scale name but the user scale's, and stores the chosen one's index", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::default_scales);
+		std::vector<std::string> want;
+		for (size_t i = 0; i < deluge::music::NUM_SCALELIKE; ++i) {
+			if (i != deluge::music::USER_SCALE) {
+				want.emplace_back(deluge::music::scalelikeNames[i]);
+			}
+		}
+		expect(names_of(nodes::default_scale, ctx)).to_equal(want);
+		expect(menu::bindings::read(nodes::default_scale, ctx)).to_equal(0);
+		menu::bindings::write(nodes::default_scale, ctx, 16);
+		expect(last_stores(r.fakes, 1)).to_equal(std::vector<std::string>{std::string{device_path::kScale} + "=random"});
+		expect(menu::bindings::read(nodes::default_scale, ctx)).to_equal(16);
+	});
+
+	it("shows a stored number past its row's range as it is, as main's number widget does", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::defaults_settings);
+		hold(r.fakes, device_path::kVelocity, 200);
+		expect(menu::bindings::read(nodes::default_velocity, ctx)).to_equal(200);
+		expect(menu::bindings::range(nodes::default_velocity, ctx).max).to_equal(127);
+	});
+
+	it("names the threshold mode, the startup song, the slice mode and the new clip type as their items do", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::defaults_settings);
+		expect(names_of(nodes::default_threshold_recording_mode, ctx))
+		    .to_equal(std::vector<std::string>{"Disabled", "Low", "Medium", "High"});
+		expect(names_of(nodes::default_new_clip_type, ctx))
+		    .to_equal(std::vector<std::string>{"SYNTH", "KIT", "MIDI", "CV", "AUDIO"});
+		expect(names_of(nodes::default_slice_mode, ctx).size()).to_equal(size_t{4});
+		expect(names_of(nodes::default_startup_song, ctx).size()).to_equal(size_t{4});
+		// A new clip type the menu does not offer (the flash's NONE) shows as the last, as main's list clamps it.
+		hold(r.fakes, device_path::kNewClipType, 255);
+		expect(menu::bindings::read(nodes::default_new_clip_type, ctx)).to_equal(4);
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
 	});
 
 	it("leaves the open menu's layout as it was when the port refuses a horizontal-menus write", _ {

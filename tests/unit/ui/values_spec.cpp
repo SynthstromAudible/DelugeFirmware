@@ -67,7 +67,7 @@ namespace {
 /// @brief `range_value`'s formatter for a plain integer -- the spec's own `intToString`, written out
 ///        rather than borrowed from the port, so a broken `int_to_string` cannot make both sides
 ///        agree.
-std::string_view fmt_int(int32_t value, std::span<char> scratch) {
+std::string_view fmt_int(int32_t value, const void* /*hook_ctx*/, std::span<char> scratch) {
 	char digits[12];
 	size_t d = 0;
 	uint32_t magnitude = value < 0 ? static_cast<uint32_t>(-static_cast<int64_t>(value)) : static_cast<uint32_t>(value);
@@ -88,16 +88,20 @@ std::string_view fmt_int(int32_t value, std::span<char> scratch) {
 /// @brief A note-letter formatter, standing in for `KeyRange::getText`. Deliberately unrelated to
 ///        the port's own `format_range_key`: the point of the example that uses it is that the
 ///        widget lays out on whatever lengths the *caller's* formatter returns.
-std::string_view fmt_note(int32_t value, std::span<char> scratch) {
-	static constexpr char kLetters[] = "CCDDEFFGGAAB";
-	static constexpr bool kSharp[] = {false, true, false, true, false, false, true, false, true, false, true, false};
+/// @p hook_ctx, when set, is a `bool` saying whether a black key is spelled as the sharp of the letter below (the
+/// default) or the flat of the letter above, written `b`.
+std::string_view fmt_note(int32_t value, const void* hook_ctx, std::span<char> scratch) {
+	static constexpr char kSharpLetters[] = "CCDDEFFGGAAB";
+	static constexpr char kFlatLetters[] = "CDDEEFGGAABB";
+	static constexpr bool kBlack[] = {false, true, false, true, false, false, true, false, true, false, true, false};
+	const bool sharps = hook_ctx == nullptr || *static_cast<const bool*>(hook_ctx);
 	const int32_t note = value < 0 ? 0 : (value > 11 ? 11 : value);
 	size_t len = 0;
 	if (len < scratch.size()) {
-		scratch[len++] = kLetters[note];
+		scratch[len++] = sharps ? kSharpLetters[note] : kFlatLetters[note];
 	}
-	if (kSharp[note] && len < scratch.size()) {
-		scratch[len++] = '#';
+	if (kBlack[note] && len < scratch.size()) {
+		scratch[len++] = sharps ? '#' : 'b';
 	}
 	return std::string_view{scratch.data(), len};
 }
@@ -1211,6 +1215,20 @@ describe values_w("ui::oled::values", $ {
 		r.reference.draw_string("C#-E", 28, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "ui/widgets/range_value_notes_48.pbm", r.pbm());
+	});
+
+	it("gives the caller's formatter the context it was handed", _ {
+		// A spelling that reads a setting (`KeyRange`'s sharps or flats) reads it through the context the caller
+		// passes: the same two ends spelled as flats.
+		uitest::Rig48 r;
+		int32_t lower = 1, upper = 4;
+		RangeEdge edge = RangeEdge::Off;
+		const bool sharps = false;
+		range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_note,
+		            RangeClamp::Bound, /*focused=*/true, &sharps);
+		// "Db-E": textLength 4, as the sharps' "C#-E" is.
+		r.reference.draw_string("Db-E", 28, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 });
 DELUGE_SPEC(values_spec, values_w)

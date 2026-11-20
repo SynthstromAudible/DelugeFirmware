@@ -11,7 +11,10 @@
 #include "storage/flash_storage.h"
 
 #include "model/song/song.h"
+#include "music-theory/preset_scales.h"
+#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/metronome/metronome.h"
 
 #include <version.h>
 
@@ -20,6 +23,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
@@ -243,6 +248,91 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		    .to_equal(static_cast<int>(bind::DeviceWrite::STORED));
 		expect(static_cast<bool>(FlashStorage::defaultDisabledPresetScales[3])).to_equal(!disabled);
 		FlashStorage::defaultDisabledPresetScales[3] = disabled;
+	});
+
+	it("does what each defaults write implies, as the defaults page's own items do", _ {
+		const bind::Ports& p = menu::host_ports();
+		expect(p.device).not_().to_be_null();
+		if (p.device == nullptr) {
+			return;
+		}
+		using device_path = deluge::project::device_path;
+		spec::SongFixture f = spec::make_synth_song();
+		const uint8_t velocity = FlashStorage::defaultVelocity;
+		const int8_t magnitude = FlashStorage::defaultMagnitude;
+		const uint8_t interval = FlashStorage::defaultSwingInterval;
+		const ThresholdRecordingMode threshold = FlashStorage::defaultThresholdRecordingMode;
+		const uint8_t hold = FlashStorage::defaultHoldTime;
+		const int32_t hold_samples = FlashStorage::holdTime;
+		const uint8_t scale = FlashStorage::defaultScale;
+		const uint8_t metronome = FlashStorage::defaultMetronomeVolume;
+
+		// The menu's bounds are main's.
+		const auto bounds = [](deluge::project::DevicePath path) {
+			const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(deluge::project::device_table(), path);
+			return row != nullptr ? std::to_string(row->min) + " " + std::to_string(row->max) : std::string{"no row"};
+		};
+		expect(bounds(device_path::kMetronomeVolume))
+		    .to_equal(std::to_string(kMinMenuMetronomeVolumeValue) + " " + std::to_string(kMaxMenuMetronomeVolumeValue));
+		expect(bounds(device_path::kSwingInterval)).to_equal("0 " + std::to_string(deluge::plugin::kNumSwingIntervals - 1));
+
+		// A default velocity reaches the open song's instruments; with no song, the flash setting alone.
+		f.instrument->setDefaultVelocity(64);
+		expect(static_cast<int>(p.device->write(device_path::kVelocity, 100))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(static_cast<int>(FlashStorage::defaultVelocity)).to_equal(100);
+		expect(static_cast<int>(f.instrument->defaultVelocity)).to_equal(100);
+		currentSong = nullptr;
+		expect(static_cast<int>(p.device->write(device_path::kVelocity, 90))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(static_cast<int>(FlashStorage::defaultVelocity)).to_equal(90);
+		expect(static_cast<int>(f.instrument->defaultVelocity)).to_equal(100);
+
+		// A default threshold mode is the open song's mode too; with no song, the flash setting alone.
+		expect(static_cast<int>(p.device->write(device_path::kThresholdRecording, 2))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(static_cast<int>(FlashStorage::defaultThresholdRecordingMode)).to_equal(static_cast<int>(ThresholdRecordingMode::MEDIUM));
+		spec::make_current(f.song);
+		f.song->thresholdRecordingMode = ThresholdRecordingMode::OFF;
+		expect(static_cast<int>(p.device->write(device_path::kThresholdRecording, 3))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+		expect(static_cast<int>(FlashStorage::defaultThresholdRecordingMode)).to_equal(static_cast<int>(ThresholdRecordingMode::HIGH));
+		expect(static_cast<int>(f.song->thresholdRecordingMode)).to_equal(static_cast<int>(ThresholdRecordingMode::HIGH));
+
+		// The resolution moves the swing interval by the same delta, clamped.
+		FlashStorage::defaultMagnitude = 2;
+		FlashStorage::defaultSwingInterval = 6;
+		(void)p.device->write(device_path::kMagnitude, 4);
+		expect(static_cast<int>(FlashStorage::defaultMagnitude)).to_equal(4);
+		expect(p.device->read(device_path::kSwingInterval).value_or(-1)).to_equal(4);
+		(void)p.device->write(device_path::kMagnitude, 0);
+		expect(p.device->read(device_path::kSwingInterval).value_or(-1)).to_equal(deluge::plugin::clamp_swing_interval(8));
+
+		// The hold time is the press timer's hold in samples too.
+		(void)p.device->write(device_path::kHoldTime, 10);
+		expect(static_cast<int>(FlashStorage::defaultHoldTime)).to_equal(10);
+		expect(FlashStorage::holdTime).to_equal(10 * kSampleRate / 20);
+
+		// The metronome's volume is stored as the menu shows it.
+		(void)p.device->write(device_path::kMetronomeVolume, 7);
+		expect(static_cast<int>(FlashStorage::defaultMetronomeVolume)).to_equal(7);
+
+		// The scale is the flash setting's code: the menu's choices skip the user scale.
+		(void)p.device->write(device_path::kScale, 16);
+		expect(static_cast<int>(FlashStorage::defaultScale))
+		    .to_equal(static_cast<int>(deluge::music::scaleToFlashStorageCode(deluge::music::RANDOM_SCALE)));
+		(void)p.device->write(device_path::kScale, 15);
+		expect(static_cast<int>(FlashStorage::defaultScale))
+		    .to_equal(static_cast<int>(deluge::music::scaleToFlashStorageCode(deluge::music::HIRAJOSHI_SCALE)));
+		// A user scale's code reads as the slot before it, as main's item shows it.
+		FlashStorage::defaultScale = deluge::music::scaleToFlashStorageCode(deluge::music::USER_SCALE);
+		expect(p.device->read(device_path::kScale).value_or(-1)).to_equal(15);
+
+		FlashStorage::defaultVelocity = velocity;
+		FlashStorage::defaultMagnitude = magnitude;
+		FlashStorage::defaultSwingInterval = interval;
+		FlashStorage::defaultThresholdRecordingMode = threshold;
+		FlashStorage::defaultHoldTime = hold;
+		FlashStorage::holdTime = hold_samples;
+		FlashStorage::defaultScale = scale;
+		FlashStorage::defaultMetronomeVolume = metronome;
+		AudioEngine::metronome.setVolume(metronome);
 	});
 });
 

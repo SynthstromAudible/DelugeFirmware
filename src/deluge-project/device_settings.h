@@ -82,6 +82,58 @@ struct device_path {
 	static constexpr DevicePath kUseSharps{"defaults/useSharps"};
 	/// The polarity a new patch cable takes: CHOICE over the patch cable's two polarities, unipolar then bipolar.
 	static constexpr DevicePath kPatchCablePolarity{"defaults/patchCablePolarity"};
+	/// The least tempo a new song draws its tempo from: INTEGER, beats a minute.
+	static constexpr DevicePath kTempoLower{"defaults/tempo/lower"};
+	/// The greatest tempo a new song draws its tempo from: INTEGER, beats a minute.
+	static constexpr DevicePath kTempoUpper{"defaults/tempo/upper"};
+	/// The least swing a new song draws its swing from: INTEGER, percent.
+	static constexpr DevicePath kSwingLower{"defaults/swing/lower"};
+	/// The greatest swing a new song draws its swing from: INTEGER, percent.
+	static constexpr DevicePath kSwingUpper{"defaults/swing/upper"};
+	/// The first key a new song draws its key from: INTEGER, semitones above C.
+	static constexpr DevicePath kKeyLower{"defaults/key/lower"};
+	/// The last key a new song draws its key from: INTEGER, semitones above C.
+	static constexpr DevicePath kKeyUpper{"defaults/key/upper"};
+	/// A new song's tick resolution: INTEGER, the power of two that multiplies 96 ticks a quarter note.
+	static constexpr DevicePath kMagnitude{"defaults/magnitude"};
+	/// A new song's swing interval: INTEGER, a sync level, named against the magnitude row.
+	static constexpr DevicePath kSwingInterval{"defaults/swingInterval"};
+	/// A new song's scale: CHOICE over the preset scales, then random, then none.
+	static constexpr DevicePath kScale{"defaults/scale"};
+	/// The velocity a new instrument plays at: INTEGER, 1 to 127.
+	static constexpr DevicePath kVelocity{"defaults/velocity"};
+	/// A new MIDI or CV instrument's pitch-bend range: INTEGER, semitones.
+	static constexpr DevicePath kBendRange{"defaults/bendRange"};
+	/// The metronome's volume: INTEGER, in the menu's steps.
+	static constexpr DevicePath kMetronomeVolume{"defaults/metronomeVolume"};
+	/// The song the device opens as it starts: CHOICE, blank, template, last opened, last saved.
+	static constexpr DevicePath kStartupSong{"defaults/startupSong"};
+	/// How a new slice plays its sample: CHOICE, cut, once, loop, stretch.
+	static constexpr DevicePath kSliceMode{"defaults/sliceMode"};
+	/// Whether a pad lights while the CPU is near its limit: BOOL.
+	static constexpr DevicePath kCpuIndicator{"defaults/cpuIndicator"};
+	/// How long a press is held to count as a hold: INTEGER, twentieths of a second.
+	static constexpr DevicePath kHoldTime{"defaults/holdTime"};
+	/// What a recording is quantised to: INTEGER, a sync level named against a magnitude of one.
+	static constexpr DevicePath kRecordQuantize{"defaults/recordQuantize"};
+	/// Whether an audio clip recorded from an outside input keeps margins past its loop's ends: BOOL.
+	static constexpr DevicePath kRecordMargins{"defaults/recordMargins"};
+	/// How loud a sound starts a threshold recording: CHOICE, off, low, medium, high.
+	static constexpr DevicePath kThresholdRecording{"defaults/thresholdRecording"};
+	/// The kind of clip a new clip is: CHOICE, synth, kit, MIDI, CV, audio.
+	static constexpr DevicePath kNewClipType{"defaults/newClipType"};
+	/// Whether a new clip takes the kind the last one had instead: BOOL.
+	static constexpr DevicePath kUseLastClipType{"defaults/useLastClipType"};
+	/// Whether the automation editor interpolates between its steps: BOOL.
+	static constexpr DevicePath kAutomationInterpolate{"defaults/automation/interpolate"};
+	/// Whether a clear outside the automation editor leaves a clip's automation, clearing its notes alone: BOOL.
+	static constexpr DevicePath kAutomationClear{"defaults/automation/clear"};
+	/// Whether a shift outside the automation editor leaves a clip's automation where it is: BOOL.
+	static constexpr DevicePath kAutomationShift{"defaults/automation/shift"};
+	/// Whether a note's nudge leaves the automation where it is: BOOL.
+	static constexpr DevicePath kAutomationNudgeNote{"defaults/automation/nudgeNote"};
+	/// Whether the automation editor's shortcuts are off while a pad auditions: BOOL.
+	static constexpr DevicePath kAutomationNoAuditionShortcuts{"defaults/automation/noAuditionShortcuts"};
 	/// The grid's shortcut layout: CHOICE over ShortcutsVersion.
 	static constexpr DevicePath kShortcutsVersion{"pads/shortcutsVersion"};
 	/// How a playhead is shown on the pads: CHOICE over FlashCursor.

@@ -306,8 +306,8 @@ struct CommandSlots {
 
 /// @brief Save and restore one `FlashStorage::defaultRanges` entry around a `Kind::Range` script.
 ///
-/// `nodes::default_tempo` edits process-wide flash-backed state (`nodes/settings.cpp`
-/// `get_default_tempo_lower`), and the script deliberately moves both ends of it. Every other spec in
+/// `nodes::default_tempo` edits process-wide flash-backed state (its DEVICE rows, which the host keeps in
+/// `FlashStorage::defaultRanges`), and the script deliberately moves both ends of it. Every other spec in
 /// this executable reads the same array.
 struct SavedRange {
 	int32_t index;
@@ -898,10 +898,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		// Process-wide flash-backed state (`nodes/settings.cpp` `get_default_tempo_lower`), so it is
+		// Process-wide flash-backed state (the `defaults/tempo/*` DEVICE rows), so it is
 		// saved and put back. Set BEFORE `open()`, which is what seeds `MenuState::edit_int` /
 		// `edit_upper` from the model (`ValueSession::enter_leaf`'s `Kind::Range` arm). A split pair well
-		// inside `kDefaultTempoRange{60, 240, 1}`, so the two ends are visibly distinct in `idle`,
+		// inside the rows' 60..240, so the two ends are visibly distinct in `idle`,
 		// neither detent below clamps, and `focus_left_when_split` has a split to act on.
 		const SavedRange saved = SavedRange::capture(FlashStorage::DEFAULT_RANGE_TEMPO);
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower = 100;

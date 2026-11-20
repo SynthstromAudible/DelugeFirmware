@@ -49,10 +49,9 @@
 ///           through `MenuLearn::offer` in learn mode; `MenuScene::unlearn` forgets it.
 ///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
 ///           `default_key` are `Kind::Range` -- exactly the three consumers that
-///           justify a `Range` kind -- and their `lower`/`upper` live in `FlashStorage::defaultRanges`, not on
-///           menu-item members, for the same reason `padColours` does (a member of a `gui/` class has
-///           no bare-`extern` escape). See `kDefaultTempoRange` below and `ui/oled/values.h`'s
-///           `range_value`. `default_active_scale` is `nodes::ActiveScalesItem` (`nodes/scales.h`); legacy's
+///           justify a `Range` kind -- and each end is a DEVICE row (`defaults/tempo/lower`, `.../upper`), not a
+///           menu-item member. See `kDefaultTempoSpec` below and `ui/oled/values.h`'s `range_value`.
+///           `default_active_scale` is `nodes::ActiveScalesItem` (`nodes/scales.h`); legacy's
 ///           `ActiveScaleMenu` (`origin/main:src/deluge/gui/menu_item/active_scales.h`) renders through
 ///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::oled::list` already is.
 ///
@@ -83,7 +82,8 @@
 ///       colour (`host_pad_colours_changed`). The value itself is stored by the setter. A DEVICE row's node has no
 ///       setter: the host's device port stores the value and does what storing it implies (leaving the slow cursor
 ///       flash clears its tick squares, sticky shift reaches the shift machines, rounded corners restyles the
-///       display), and the open menu's own half is the node's `after_write` (horizontal menus).
+///       display, a default velocity or threshold mode reaches the open song, the resolution moves the swing interval),
+///       and the open menu's own half is the node's `after_write` (horizontal menus).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -92,7 +92,7 @@
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
 #include "scenes/menu/nodes/midi_device.h"  // the per-device page `midi_devices` chains to
-#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames
+#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, swing_interval_turn
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
 
@@ -110,6 +110,13 @@ struct MenuContext;
 } // namespace deluge::scenes::menu
 
 namespace deluge::scenes::menu::nodes {
+
+/// @brief What a node on DEVICE row @p path edits: the row, through the device port.
+/// @param path A DEVICE row's path.
+/// @return The node's target.
+constexpr bind::Target device_row(project::DevicePath path) {
+	return {.kind = bind::Target::Kind::MODEL, .path = path, .group = project::SettingGroupId::DEVICE};
+}
 
 /// @name Hooks. Bodies (and their legacy citations) in `nodes/settings.cpp`.
 /// @{
@@ -235,52 +242,13 @@ int32_t get_default_kb_modwheel_glide(const MenuContext& ctx);
 void set_default_kb_modwheel_glide(const MenuContext& ctx, int32_t value);
 int32_t get_default_favourites_layout(const MenuContext& ctx);
 void set_default_favourites_layout(const MenuContext& ctx, int32_t value);
-int32_t get_default_new_clip_type(const MenuContext& ctx);
-void set_default_new_clip_type(const MenuContext& ctx, int32_t value);
-int32_t get_default_use_last_clip_type(const MenuContext& ctx);
-void set_default_use_last_clip_type(const MenuContext& ctx, int32_t value);
-int32_t get_default_use_sharps(const MenuContext& ctx);
-void set_default_use_sharps(const MenuContext& ctx, int32_t value);
-
-int32_t get_default_automation_interpolate(const MenuContext& ctx);
-void set_default_automation_interpolate(const MenuContext& ctx, int32_t value);
-int32_t get_default_automation_clear(const MenuContext& ctx);
-void set_default_automation_clear(const MenuContext& ctx, int32_t value);
-int32_t get_default_automation_shift(const MenuContext& ctx);
-void set_default_automation_shift(const MenuContext& ctx, int32_t value);
-int32_t get_default_automation_nudge(const MenuContext& ctx);
-void set_default_automation_nudge(const MenuContext& ctx, int32_t value);
-int32_t get_default_automation_no_audition(const MenuContext& ctx);
-void set_default_automation_no_audition(const MenuContext& ctx, int32_t value);
-
-int32_t get_default_swing_interval(const MenuContext& ctx);
-void set_default_swing_interval(const MenuContext& ctx, int32_t value);
-/// `defaults::SwingInterval::getNoteLengthName`: the default resolution, `FlashStorage::defaultMagnitude`.
+/// `defaults::SwingInterval::getNoteLengthName`: the default resolution, the DEVICE `defaults/magnitude` row.
 int32_t default_resolution_magnitude(const MenuContext& ctx);
 /// `sync_level::RelativeToSong::getNoteLengthName` names value v as magnitude 3 - v; `syncValueToString` at tick
 /// magnitude 1 is that name.
 int32_t relative_to_song_magnitude(const MenuContext& ctx);
-int32_t get_default_scale(const MenuContext& ctx);
-void set_default_scale(const MenuContext& ctx, int32_t value);
-size_t default_scale_names(const MenuContext& ctx, std::span<std::string_view> out);
-int32_t get_default_velocity(const MenuContext& ctx);
-void set_default_velocity(const MenuContext& ctx, int32_t value);
-int32_t get_default_magnitude(const MenuContext& ctx);
-void set_default_magnitude(const MenuContext& ctx, int32_t value);
-int32_t get_default_bend_range(const MenuContext& ctx);
-void set_default_bend_range(const MenuContext& ctx, int32_t value);
-int32_t get_default_metronome_volume(const MenuContext& ctx);
-void set_default_metronome_volume(const MenuContext& ctx, int32_t value);
-int32_t get_default_startup_song(const MenuContext& ctx);
-void set_default_startup_song(const MenuContext& ctx, int32_t value);
 int32_t get_default_pad_brightness(const MenuContext& ctx);
 void set_default_pad_brightness(const MenuContext& ctx, int32_t value);
-int32_t get_default_slice_mode(const MenuContext& ctx);
-void set_default_slice_mode(const MenuContext& ctx, int32_t value);
-int32_t get_default_cpu_indicator(const MenuContext& ctx);
-void set_default_cpu_indicator(const MenuContext& ctx, int32_t value);
-int32_t get_default_hold_time(const MenuContext& ctx);
-void set_default_hold_time(const MenuContext& ctx, int32_t value);
 int32_t get_screensaver_mode(const MenuContext& ctx);
 void set_screensaver_mode(const MenuContext& ctx, int32_t value);
 int32_t get_screensaver_timeout(const MenuContext& ctx);
@@ -293,15 +261,8 @@ void set_sample_browser_preview(const MenuContext& ctx, int32_t value);
 
 int32_t get_record_count_in(const MenuContext& ctx);
 void set_record_count_in(const MenuContext& ctx, int32_t value);
-int32_t get_record_quantize(const MenuContext& ctx);
-void set_record_quantize(const MenuContext& ctx, int32_t value);
-int32_t get_record_margins(const MenuContext& ctx);
-void set_record_margins(const MenuContext& ctx, int32_t value);
 int32_t get_monitor_mode(const MenuContext& ctx);
 void set_monitor_mode(const MenuContext& ctx, int32_t value);
-int32_t get_default_threshold_recording(const MenuContext& ctx);
-void set_default_threshold_recording(const MenuContext& ctx, int32_t value);
-size_t new_clip_type_names(const MenuContext& ctx, std::span<std::string_view> out);
 size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief The HorizontalMenus feature's half in the open menu (`MenuScene::set_horizontal_menus`), once the device
@@ -792,33 +753,34 @@ inline constexpr Node default_ui_keyboard =
 /// (`origin/main:src/deluge/gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h`) returns five **literal**
 /// strings rather than l10n ids -- there is no `STRING_FOR_SYNTH` / `_KIT` / `_AUDIO` to name -- so the list is dynamic
 /// here too, and is the same five literals.
-inline constexpr Node default_new_clip_type =
-    dynamic_enumeration(sid(String::STRING_FOR_DEFAULT_NEW_CLIP_TYPE), new_clip_type_names, get_default_new_clip_type,
-                        set_default_new_clip_type);
-inline constexpr Node default_use_last_clip_type = toggle_item(
-    sid(String::STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE), get_default_use_last_clip_type, set_default_use_last_clip_type);
+inline constexpr Node default_new_clip_type = setting_item(sid(String::STRING_FOR_DEFAULT_NEW_CLIP_TYPE), Kind::Enum,
+                                                           device_row(project::device_path::kNewClipType));
+inline constexpr Node default_use_last_clip_type =
+    setting_item(sid(String::STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE), Kind::Toggle,
+                 device_row(project::device_path::kUseLastClipType));
 inline constexpr const Node* kDefaultClipTypeChildren[] = {&default_new_clip_type, &default_use_last_clip_type};
 inline constexpr Node default_clip_type = submenu(sid(String::STRING_FOR_DEFAULT_CLIP_TYPE), kDefaultClipTypeChildren);
 
 inline constexpr Node default_use_sharps =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_UI_SHARPS), get_default_use_sharps, set_default_use_sharps);
+    setting_item(sid(String::STRING_FOR_DEFAULT_UI_SHARPS), Kind::Toggle, device_row(project::device_path::kUseSharps));
 
 inline constexpr const Node* kDefaultUiChildren[] = {&default_accessibility, &default_ui_session, &default_ui_keyboard,
                                                      &default_clip_type, &default_use_sharps};
 inline constexpr Node default_ui = submenu(sid(String::STRING_FOR_DEFAULT_UI), kDefaultUiChildren);
 
 inline constexpr Node default_automation_interpolate =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION), get_default_automation_interpolate,
-                set_default_automation_interpolate);
-inline constexpr Node default_automation_clear = toggle_item(
-    sid(String::STRING_FOR_DEFAULT_AUTOMATION_CLEAR), get_default_automation_clear, set_default_automation_clear);
-inline constexpr Node default_automation_shift = toggle_item(
-    sid(String::STRING_FOR_DEFAULT_AUTOMATION_SHIFT), get_default_automation_shift, set_default_automation_shift);
-inline constexpr Node default_automation_nudge = toggle_item(
-    sid(String::STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE), get_default_automation_nudge, set_default_automation_nudge);
+    setting_item(sid(String::STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION), Kind::Toggle,
+                 device_row(project::device_path::kAutomationInterpolate));
+inline constexpr Node default_automation_clear = setting_item(
+    sid(String::STRING_FOR_DEFAULT_AUTOMATION_CLEAR), Kind::Toggle, device_row(project::device_path::kAutomationClear));
+inline constexpr Node default_automation_shift = setting_item(
+    sid(String::STRING_FOR_DEFAULT_AUTOMATION_SHIFT), Kind::Toggle, device_row(project::device_path::kAutomationShift));
+inline constexpr Node default_automation_nudge =
+    setting_item(sid(String::STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE), Kind::Toggle,
+                 device_row(project::device_path::kAutomationNudgeNote));
 inline constexpr Node default_automation_no_audition =
-    toggle_item(sid(String::STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS),
-                get_default_automation_no_audition, set_default_automation_no_audition);
+    setting_item(sid(String::STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS), Kind::Toggle,
+                 device_row(project::device_path::kAutomationNoAuditionShortcuts));
 inline constexpr const Node* kDefaultAutomationChildren[] = {&default_automation_interpolate, &default_automation_clear,
                                                              &default_automation_shift, &default_automation_nudge,
                                                              &default_automation_no_audition};
@@ -827,122 +789,94 @@ inline constexpr Node default_automation = submenu(sid(String::STRING_FOR_AUTOMA
 /// @name The three `Kind::Range` items -- `Kind::Range`'s entire consumer set (`node.h`).
 ///
 /// `defaultTempoMenu` / `defaultSwingAmountMenu` are `IntegerRange`
-/// (`origin/main:src/deluge/gui/ui/menus.cpp`), `defaultKeyMenu` is `KeyRange`. Their `lower`/`upper`
-/// are `FlashStorage::defaultRanges[...]` (`storage/flash_storage.h`) here.
-///
-/// The bounds are the constructor arguments and, for the key, `KeyRange::selectEncoderAction`'s own
-/// `KEY_MIN`/`KEY_MAX` locals (`origin/main:src/deluge/gui/menu_item/key_range.cpp`) -- `KeyRange` has no
-/// `minValue`/`maxValue` members at all.
+/// (`origin/main:src/deluge/gui/ui/menus.cpp`), `defaultKeyMenu` is `KeyRange`. Each end is a DEVICE row, whose bounds
+/// are the constructor arguments and, for the key, `KeyRange::selectEncoderAction`'s own `KEY_MIN`/`KEY_MAX` locals
+/// (`origin/main:src/deluge/gui/menu_item/key_range.cpp`) -- `KeyRange` has no `minValue`/`maxValue` members at all.
 /// @{
-inline constexpr IntRange kDefaultTempoRange{60, 240, 1};
-inline constexpr IntRange kDefaultSwingAmountRange{1, 99, 1};
-inline constexpr IntRange kDefaultKeyRange{0, 11, 1};
 
 /// `IntegerRange::getText` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`), which is `intToString` per end;
-/// `KeyRange::getText` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`), the note letter plus an accidental.
-/// Bodies in the `.cpp`.
+/// `KeyRange::getText` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`), the note letter plus an accidental,
+/// spelled as the device's `defaults/useSharps` row says. @p hook_ctx is the menu's `MenuContext`, or null. Bodies in
+/// the `.cpp`.
 /// @{
-std::string_view format_range_integer(int32_t value, std::span<char> scratch);
-std::string_view format_range_key(int32_t value, std::span<char> scratch);
-/// @}
-
-/// @name The six edge hooks. Each is one `FlashStorage::defaultRanges` field; bodies in the `.cpp`.
-/// @{
-int32_t get_default_tempo_lower(const MenuContext& ctx);
-void set_default_tempo_lower(const MenuContext& ctx, int32_t value);
-int32_t get_default_tempo_upper(const MenuContext& ctx);
-void set_default_tempo_upper(const MenuContext& ctx, int32_t value);
-int32_t get_default_swing_lower(const MenuContext& ctx);
-void set_default_swing_lower(const MenuContext& ctx, int32_t value);
-int32_t get_default_swing_upper(const MenuContext& ctx);
-void set_default_swing_upper(const MenuContext& ctx, int32_t value);
-int32_t get_default_key_lower(const MenuContext& ctx);
-void set_default_key_lower(const MenuContext& ctx, int32_t value);
-int32_t get_default_key_upper(const MenuContext& ctx);
-void set_default_key_upper(const MenuContext& ctx, int32_t value);
+std::string_view format_range_integer(int32_t value, const void* hook_ctx, std::span<char> scratch);
+std::string_view format_range_key(int32_t value, const void* hook_ctx, std::span<char> scratch);
 /// @}
 
 /// `IntegerRange`: the ends push each other, and opening a split range lands on LEFT
 /// (`IntegerRange::selectEncoderAction` for the push, `IntegerRange::beginSession` for the landing, in
 /// `origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
-inline constexpr RangeSpec kDefaultTempoSpec{.get_upper = get_default_tempo_upper,
-                                             .set_upper = set_default_tempo_upper,
+inline constexpr RangeSpec kDefaultTempoSpec{.upper_path = project::device_path::kTempoUpper,
                                              .format = format_range_integer,
                                              .clamp = deluge::ui::oled::RangeClamp::Push,
                                              .focus_left_when_split = true};
-inline constexpr RangeSpec kDefaultSwingSpec{.get_upper = get_default_swing_upper,
-                                             .set_upper = set_default_swing_upper,
+inline constexpr RangeSpec kDefaultSwingSpec{.upper_path = project::device_path::kSwingUpper,
                                              .format = format_range_integer,
                                              .clamp = deluge::ui::oled::RangeClamp::Push,
                                              .focus_left_when_split = true};
 /// `KeyRange` clamps each end against the other and has **no** `beginSession` override, so it takes
 /// `Range::beginSession`'s bare OFF (`origin/main:src/deluge/gui/menu_item/range.cpp`).
-inline constexpr RangeSpec kDefaultKeySpec{.get_upper = get_default_key_upper,
-                                           .set_upper = set_default_key_upper,
+inline constexpr RangeSpec kDefaultKeySpec{.upper_path = project::device_path::kKeyUpper,
                                            .format = format_range_key,
                                            .clamp = deluge::ui::oled::RangeClamp::Bound,
                                            .focus_left_when_split = false};
 
-inline constexpr Node default_tempo =
-    range_item(sid(String::STRING_FOR_TEMPO), sid(String::STRING_FOR_DEFAULT_TEMPO), get_default_tempo_lower,
-               set_default_tempo_lower, &kDefaultTempoSpec, kDefaultTempoRange);
+inline constexpr Node default_tempo = range_item(sid(String::STRING_FOR_TEMPO), sid(String::STRING_FOR_DEFAULT_TEMPO),
+                                                 device_row(project::device_path::kTempoLower), &kDefaultTempoSpec);
 inline constexpr Node default_swing_amount =
-    range_item(sid(String::STRING_FOR_SWING_AMOUNT), sid(String::STRING_FOR_DEFAULT_SWING), get_default_swing_lower,
-               set_default_swing_lower, &kDefaultSwingSpec, kDefaultSwingAmountRange);
-inline constexpr Node default_key =
-    range_item(sid(String::STRING_FOR_KEY), sid(String::STRING_FOR_DEFAULT_KEY), get_default_key_lower,
-               set_default_key_lower, &kDefaultKeySpec, kDefaultKeyRange);
+    range_item(sid(String::STRING_FOR_SWING_AMOUNT), sid(String::STRING_FOR_DEFAULT_SWING),
+               device_row(project::device_path::kSwingLower), &kDefaultSwingSpec);
+inline constexpr Node default_key = range_item(sid(String::STRING_FOR_KEY), sid(String::STRING_FOR_DEFAULT_KEY),
+                                               device_row(project::device_path::kKeyLower), &kDefaultKeySpec);
 /// @}
 
-inline constexpr Node default_swing_interval = with_sync_name_magnitude(
-    with_turn(sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),
-                              get_default_swing_interval, set_default_swing_interval, kSwingIntervalRange),
-              swing_interval_turn),
-    default_resolution_magnitude);
+/// `defaults::SwingInterval` (`origin/main:src/deluge/gui/menu_item/defaults/swing_interval.h`): the song's swing
+/// interval's turn, naming its levels against the default resolution.
+inline constexpr Node default_swing_interval =
+    with_sync_name_magnitude(with_turn(with_title(setting_item(sid(String::STRING_FOR_SWING_INTERVAL), Kind::SyncLevel,
+                                                               device_row(project::device_path::kSwingInterval)),
+                                                  sid(String::STRING_FOR_DEFAULT_SWING)),
+                                       swing_interval_turn),
+                             default_resolution_magnitude);
 
+/// `defaults::DefaultScale` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`): every scale name but the user
+/// scale's, which is no default.
 inline constexpr Node default_scale =
-    dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
+    setting_item(sid(String::STRING_FOR_INIT_SCALE), Kind::Enum, device_row(project::device_path::kScale));
 inline constexpr Node default_active_scale =
     with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem), preset_scale_names);
 inline constexpr const Node* kDefaultScalesChildren[] = {&default_scale, &default_active_scale};
 inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kDefaultScalesChildren);
 
-inline constexpr Node default_velocity = with_title(
-    int_item(sid(String::STRING_FOR_VELOCITY), get_default_velocity, set_default_velocity, IntRange{1, 127, 1}),
-    sid(String::STRING_FOR_DEFAULT_VELOC_MENU_TITLE));
+/// `defaults::Velocity`'s write reaches the open song's instruments; the device port's store does it.
+inline constexpr Node default_velocity =
+    with_title(setting_item(sid(String::STRING_FOR_VELOCITY), Kind::Int, device_row(project::device_path::kVelocity)),
+               sid(String::STRING_FOR_DEFAULT_VELOC_MENU_TITLE));
 /// `defaults::Magnitude` (`origin/main:src/deluge/gui/menu_item/defaults/magnitude.h`): an `Enumeration` of seven whose
-/// screen is one number, `96 << value`; it turns and clamps as an integer does.
+/// screen is one number, `96 << value`; it turns and clamps as an integer does. Its write moves the default swing
+/// interval by the same delta; the device port's store does it.
 inline constexpr Node default_magnitude =
-    with_leaf_text(with_title(int_item(sid(String::STRING_FOR_RESOLUTION), get_default_magnitude, set_default_magnitude,
-                                       IntRange{0, 6, 1}),
+    with_leaf_text(with_title(setting_item(sid(String::STRING_FOR_RESOLUTION), Kind::Int,
+                                           device_row(project::device_path::kMagnitude)),
                               sid(String::STRING_FOR_DEFAULT_RESOL_MENU_TITLE)),
                    default_magnitude_text);
 inline constexpr Node default_bend_range = with_title(
-    int_item(sid(String::STRING_FOR_BEND_RANGE), get_default_bend_range, set_default_bend_range, IntRange{0, 96, 1}),
+    setting_item(sid(String::STRING_FOR_BEND_RANGE), Kind::Int, device_row(project::device_path::kBendRange)),
     sid(String::STRING_FOR_DEFAULT_BEND_R));
-inline constexpr Node default_metronome_volume =
-    with_title(int_item(sid(String::STRING_FOR_METRONOME), get_default_metronome_volume, set_default_metronome_volume,
-                        IntRange{kMinMenuMetronomeVolumeValue, kMaxMenuMetronomeVolumeValue, 1}),
-               sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
+/// `defaults::MetronomeVolume`'s write sets the metronome's volume at once; the device port's store does it.
+inline constexpr Node default_metronome_volume = with_title(
+    setting_item(sid(String::STRING_FOR_METRONOME), Kind::Int, device_row(project::device_path::kMetronomeVolume)),
+    sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
 
 /// `PatchCablePolarity` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`): the DEVICE row,
 /// whose two choices the name table names as `polarityToString`
 /// (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`) spells them.
-inline constexpr Node default_patch_cable_polarity = setting_item(sid(String::STRING_FOR_DEFAULT_POLARITY), Kind::Enum,
-                                                                  {.kind = bind::Target::Kind::MODEL,
-                                                                   .path = project::device_path::kPatchCablePolarity,
-                                                                   .group = project::SettingGroupId::DEVICE});
+inline constexpr Node default_patch_cable_polarity = setting_item(
+    sid(String::STRING_FOR_DEFAULT_POLARITY), Kind::Enum, device_row(project::device_path::kPatchCablePolarity));
 
-/// `StartupSongModeMenu::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h`).
-inline constexpr uint16_t kStartupSongNames[] = {
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_BLANK),
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE),
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED),
-    sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED),
-};
-inline constexpr Node default_startup_song =
-    enumeration(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE), kStartupSongNames,
-                get_default_startup_song, set_default_startup_song);
+/// `StartupSongModeMenu` (`origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h`).
+inline constexpr Node default_startup_song = setting_item(sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE),
+                                                          Kind::Enum, device_row(project::device_path::kStartupSong));
 
 /// `PadBrightness` edits in steps of four and stores a quarter of what it shows
 /// (`origin/main:src/deluge/gui/menu_item/defaults/pad_brightness.h`).
@@ -951,21 +885,16 @@ inline constexpr Node default_pad_brightness =
                         set_default_pad_brightness, IntRange{kMinLedBrightness << 2, kMaxLedBrightness << 2, 4}),
                sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE));
 
-/// `SliceMode::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/slice_mode.h`).
-inline constexpr uint16_t kSliceModeNames[] = {
-    sid(String::STRING_FOR_CUT),
-    sid(String::STRING_FOR_ONCE),
-    sid(String::STRING_FOR_LOOP),
-    sid(String::STRING_FOR_STRETCH),
-};
-inline constexpr Node default_slice_mode =
-    with_title(enumeration(sid(String::STRING_FOR_DEFAULT_SLICE_MODE), kSliceModeNames, get_default_slice_mode,
-                           set_default_slice_mode),
-               sid(String::STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE));
-inline constexpr Node default_cpu_indicator = toggle_item(sid(String::STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR),
-                                                          get_default_cpu_indicator, set_default_cpu_indicator);
+/// `SliceMode` (`origin/main:src/deluge/gui/menu_item/defaults/slice_mode.h`).
+inline constexpr Node default_slice_mode = with_title(
+    setting_item(sid(String::STRING_FOR_DEFAULT_SLICE_MODE), Kind::Enum, device_row(project::device_path::kSliceMode)),
+    sid(String::STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE));
+inline constexpr Node default_cpu_indicator =
+    setting_item(sid(String::STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR), Kind::Toggle,
+                 device_row(project::device_path::kCpuIndicator));
+/// `HoldTime`'s write also sets the press timer's hold in samples; the device port's store does it.
 inline constexpr Node default_hold_time = with_leaf_text(
-    int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1}),
+    setting_item(sid(String::STRING_FOR_HOLD_TIME), Kind::Int, device_row(project::device_path::kHoldTime)),
     hold_time_text);
 
 /// `ScreensaverModeMenu::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`).
@@ -1074,10 +1003,8 @@ inline constexpr Node sample_browser_preview =
 
 /// `flash::Status` (`origin/main:src/deluge/gui/menu_item/flash/status.h`): the DEVICE row, listed in its *value*
 /// order, `FLASH_CURSOR_FAST` 0 / `_OFF` 1 / `_SLOW` 2 (`hid/led/pad_leds.h`), not a reading order.
-inline constexpr Node flash_status = setting_item(sid(String::STRING_FOR_PLAY_CURSOR), Kind::Enum,
-                                                  {.kind = bind::Target::Kind::MODEL,
-                                                   .path = project::device_path::kPlayCursor,
-                                                   .group = project::SettingGroupId::DEVICE});
+inline constexpr Node flash_status =
+    setting_item(sid(String::STRING_FOR_PLAY_CURSOR), Kind::Enum, device_row(project::device_path::kPlayCursor));
 
 // ---------------------------------------------------------------------------------------------
 // 10. Recording
@@ -1088,15 +1015,14 @@ inline constexpr Node record_count_in = with_value_style(
     with_title(int_item(sid(String::STRING_FOR_COUNT_IN), get_record_count_in, set_record_count_in, IntRange{0, 4, 1}),
                sid(String::STRING_FOR_REC_COUNT_IN)),
     deluge::ui::oled::ValueStyle{.off_at_zero = true});
-/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), here
-/// `plugin::SyncType::TRIPLET` -- "can't do triplets/dots for quantize"
-/// (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
-inline constexpr Node record_quantize = with_sync_name_magnitude(
-    sync_level_item(sid(String::STRING_FOR_QUANTIZATION), 0, get_record_quantize, set_record_quantize,
-                    IntRange{0, std::to_underlying(deluge::plugin::SyncType::TRIPLET) - 1, 1}),
-    relative_to_song_magnitude);
+/// `record::Quantize::size()` is `SYNC_TYPE_TRIPLET` (`origin/main:src/deluge/model/sync.h`), the DEVICE row's range --
+/// "can't do triplets/dots for quantize" (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
+inline constexpr Node record_quantize =
+    with_sync_name_magnitude(setting_item(sid(String::STRING_FOR_QUANTIZATION), Kind::SyncLevel,
+                                          device_row(project::device_path::kRecordQuantize)),
+                             relative_to_song_magnitude);
 inline constexpr Node record_margins =
-    toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);
+    setting_item(sid(String::STRING_FOR_LOOP_MARGINS), Kind::Toggle, device_row(project::device_path::kRecordMargins));
 
 /// `monitor::Mode::getOptions` (`origin/main:src/deluge/gui/menu_item/monitor/mode.h`).
 inline constexpr uint16_t kMonitorModeNames[] = {
@@ -1108,9 +1034,10 @@ inline constexpr Node monitor_mode = with_title(
     enumeration(sid(String::STRING_FOR_SAMPLING_MONITORING), kMonitorModeNames, get_monitor_mode, set_monitor_mode),
     sid(String::STRING_FOR_MONITORING));
 
+/// `record::ThresholdMode`'s default kind (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`): its write
+/// sets the open song's own mode too; the device port's store does it.
 inline constexpr Node default_threshold_recording_mode =
-    enumeration(sid(String::STRING_FOR_MODE), kThresholdModeNames, get_default_threshold_recording,
-                set_default_threshold_recording);
+    setting_item(sid(String::STRING_FOR_MODE), Kind::Enum, device_row(project::device_path::kThresholdRecording));
 inline constexpr const Node* kDefaultThresholdRecordingChildren[] = {&default_threshold_recording_mode};
 inline constexpr Node default_threshold_recording =
     submenu(sid(String::STRING_FOR_THRESHOLD_RECORDING), kDefaultThresholdRecordingChildren);
@@ -1134,10 +1061,7 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 /// @param kind    How it is shown: Toggle for an on/off feature, Enum for one with choices of its own.
 /// @return The node.
 constexpr Node feature_item(uint16_t name, project::Feature feature, Kind kind = Kind::Toggle) {
-	return setting_item(name, kind,
-	                    {.kind = bind::Target::Kind::MODEL,
-	                     .path = project::device_path::feature(feature),
-	                     .group = project::SettingGroupId::DEVICE});
+	return setting_item(name, kind, device_row(project::device_path::feature(feature)));
 }
 
 inline constexpr Node feature_drum_randomizer =

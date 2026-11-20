@@ -90,12 +90,29 @@ bool readable(const deluge::scenes::bind::Target& target, const MenuContext& ctx
 	return target.on_device() || (ctx.model != nullptr && ctx.ports.has_bind_ports());
 }
 
-/// What a target node shows, or nullopt where its target does not resolve or the menu has nothing to read it from.
-std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
-	if (!readable(node.bind.target, ctx)) {
+/// What @p target shows, or nullopt where it does not resolve or the menu has nothing to read it from.
+std::optional<deluge::scenes::bind::View> target_view(const deluge::scenes::bind::Target& target,
+                                                      const MenuContext& ctx) {
+	if (!readable(target, ctx)) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(node.bind.target, ctx.model, ctx.addresses, ctx.ports);
+	return deluge::scenes::bind::view(target, ctx.model, ctx.addresses, ctx.ports);
+}
+
+/// What a target node shows, or nullopt where its target does not resolve or the menu has nothing to read it from.
+std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
+	return target_view(node.bind.target, ctx);
+}
+
+/// The upper edge of range node @p node: its own target with the spec's upper row, or nullopt for a node with none.
+std::optional<deluge::scenes::bind::Target> upper_target(const Node& node) {
+	const RangeSpec* spec = node.bind.range_spec;
+	if (!node.bind.target.valid() || spec == nullptr || spec->upper_path.empty()) {
+		return std::nullopt;
+	}
+	deluge::scenes::bind::Target upper = node.bind.target;
+	upper.path = spec->upper_path;
+	return upper;
 }
 
 /// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
@@ -130,28 +147,30 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 	return std::min(node.bind.names.size(), kMaxDynamicNames);
 }
 
-/// @brief A DEVICE target's write of menu value @p value: through the device port, never the song's sink. A setting
-///        the device applies only after a restart says so, as the USB audio item does (`STRING_FOR_RESTART_TO_APPLY`);
-///        a stored write then reaches the open menu through the node's `after_write`.
-void write_device(const Binding& bind, const MenuContext& ctx, int32_t value) {
+/// @brief A write of menu value @p value to DEVICE target @p target: through the device port, never the song's sink.
+///        A setting the device applies only after a restart says so, as the USB audio item does
+///        (`STRING_FOR_RESTART_TO_APPLY`); a stored write then reaches the open menu through @p after_write, and
+///        repaints the pad grid too where @p repaints_grid says the grid shows it.
+void write_device(const deluge::scenes::bind::Target& target, SetFn after_write, bool repaints_grid,
+                  const MenuContext& ctx, int32_t value) {
 	using deluge::scenes::bind::DeviceWrite;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(bind.target, ctx.model, ctx.addresses, ctx.ports, value);
+	    deluge::scenes::bind::request_for(target, ctx.model, ctx.addresses, ctx.ports, value);
 	if (!request || ctx.ports.device == nullptr) {
 		return;
 	}
-	const DeviceWrite done = ctx.ports.device->write(bind.target.path, request->menu_value);
+	const DeviceWrite done = ctx.ports.device->write(target.path, request->menu_value);
 	if (done == DeviceWrite::REFUSED) {
 		return;
 	}
 	if (done == DeviceWrite::STORED_FOR_RESTART) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
 	}
-	if (bind.after_write != nullptr) {
-		bind.after_write(ctx, request->menu_value);
+	if (after_write != nullptr) {
+		after_write(ctx, request->menu_value);
 	}
 	notify::raise(notify::Dirty::Oled);
-	if (bind.repaints_grid) {
+	if (repaints_grid) {
 		notify::raise(notify::Dirty::GridMain);
 	}
 }
@@ -292,7 +311,7 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	// unresolved target and a refused write ask for nothing and raise nothing.
 	if (bind.target.valid()) {
 		if (bind.target.on_device()) {
-			write_device(bind, ctx, value);
+			write_device(bind.target, bind.after_write, bind.repaints_grid, ctx, value);
 			return;
 		}
 		if (!readable(bind.target, ctx) || ctx.ports.writes == nullptr) {
@@ -348,6 +367,21 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 		bind.set(ctx, value);
 		notify::raise(notify::Dirty::Oled);
 		return;
+	}
+}
+
+int32_t read_upper(const Node& node, const MenuContext& ctx) {
+	const std::optional<deluge::scenes::bind::Target> upper = upper_target(node);
+	const std::optional<deluge::scenes::bind::View> shown = upper ? target_view(*upper, ctx) : std::nullopt;
+	return shown ? shown->value : 0;
+}
+
+void write_upper(const Node& node, const MenuContext& ctx, int32_t value) {
+	// A range's ends are DEVICE rows; the upper edge writes as the lower one does, and the node's after-write is the
+	// lower edge's alone.
+	const std::optional<deluge::scenes::bind::Target> upper = upper_target(node);
+	if (upper && upper->on_device()) {
+		write_device(*upper, nullptr, node.bind.repaints_grid, ctx, value);
 	}
 }
 

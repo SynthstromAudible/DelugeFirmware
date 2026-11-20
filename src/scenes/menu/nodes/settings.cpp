@@ -26,6 +26,7 @@
 
 #include "scenes/menu/nodes/settings.h"
 
+#include "scenes/bind/device_reader.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bind_host.h" // the settings setters' host calls
 #include "scenes/menu/context.h"
@@ -34,7 +35,7 @@
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 #include "scenes/registry.h"        // menu_scene()
 
-#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, OutputType, ThresholdRecordingMode, ScreensaverMode
+#include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, ScreensaverMode
 #include "deluge-project/midi_channels.h"
 #include "gfx/oled/glyphs.h"
 #include "io/midi/device_registry.h"
@@ -42,15 +43,11 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
-#include "model/song/song.h"
 #include "music-theory/note_names.h"
-#include "music-theory/preset_scales.h"
 #include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
-#include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/engines/cv_engine.h"   // cvEngine -- the CV/gate output pages
-#include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
+#include "processing/engines/cv_engine.h" // cvEngine -- the CV/gate output pages
 #include "storage/flash_storage.h"
 
 #include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
@@ -474,161 +471,14 @@ void set_default_favourites_layout(const MenuContext&, int32_t value) {
 	FlashStorage::defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(value);
 }
 
-int32_t get_default_new_clip_type(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultNewClipType);
-}
-void set_default_new_clip_type(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h`).
-	FlashStorage::defaultNewClipType = static_cast<OutputType>(value);
-}
-
-int32_t get_default_use_last_clip_type(const MenuContext&) {
-	return from_bool(FlashStorage::defaultUseLastClipType); // `defaultUseLastClipTypeMenu`
-	                                                        // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_use_last_clip_type(const MenuContext&, int32_t value) {
-	FlashStorage::defaultUseLastClipType = value != 0;
-}
-
-int32_t get_default_use_sharps(const MenuContext&) {
-	return from_bool(FlashStorage::defaultUseSharps); // `defaultUseSharps` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_use_sharps(const MenuContext&, int32_t value) {
-	FlashStorage::defaultUseSharps = value != 0;
-}
-
-// ---------------------------------------------------------------------------------------------
-// Defaults: automation
-
-int32_t get_default_automation_interpolate(const MenuContext&) {
-	return from_bool(FlashStorage::automationInterpolate); // `defaultAutomationInterpolateMenu`
-}
-void set_default_automation_interpolate(const MenuContext&, int32_t value) {
-	FlashStorage::automationInterpolate = value != 0;
-}
-int32_t get_default_automation_clear(const MenuContext&) {
-	return from_bool(FlashStorage::automationClear); // `defaultAutomationClearMenu`
-}
-void set_default_automation_clear(const MenuContext&, int32_t value) {
-	FlashStorage::automationClear = value != 0;
-}
-int32_t get_default_automation_shift(const MenuContext&) {
-	return from_bool(FlashStorage::automationShift); // `defaultAutomationShiftMenu`
-}
-void set_default_automation_shift(const MenuContext&, int32_t value) {
-	FlashStorage::automationShift = value != 0;
-}
-int32_t get_default_automation_nudge(const MenuContext&) {
-	return from_bool(FlashStorage::automationNudgeNote); // `defaultAutomationNudgeNoteMenu`
-	                                                     // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_automation_nudge(const MenuContext&, int32_t value) {
-	FlashStorage::automationNudgeNote = value != 0;
-}
-int32_t get_default_automation_no_audition(const MenuContext&) {
-	// `defaultAutomationDisableAuditionPadShortcutsMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(FlashStorage::automationDisableAuditionPadShortcuts);
-}
-void set_default_automation_no_audition(const MenuContext&, int32_t value) {
-	FlashStorage::automationDisableAuditionPadShortcuts = value != 0;
-}
-
 // ---------------------------------------------------------------------------------------------
 // Defaults: the rest
 
-int32_t default_resolution_magnitude(const MenuContext&) {
-	return FlashStorage::defaultMagnitude;
+int32_t default_resolution_magnitude(const MenuContext& ctx) {
+	return bind::read_device_value(ctx.ports.device, project::device_path::kMagnitude);
 }
 int32_t relative_to_song_magnitude(const MenuContext&) {
 	return 1;
-}
-int32_t get_default_swing_interval(const MenuContext&) {
-	return FlashStorage::defaultSwingInterval; // `origin/main:src/deluge/gui/menu_item/defaults/swing_interval.h`
-	                                           // `readCurrentValue`
-}
-void set_default_swing_interval(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/swing_interval.h`).
-	FlashStorage::defaultSwingInterval = static_cast<uint8_t>(value);
-}
-
-int32_t get_default_scale(const MenuContext&) {
-	// `defaults::DefaultScale::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`) with its own
-	// `scaleToOptionIndex`: USER_SCALE is not offerable as a default, so the option index
-	// is the scale index with that one slot removed.
-	const deluge::music::Scale scale = deluge::music::flashStorageCodeToScale(FlashStorage::defaultScale);
-	return scale >= deluge::music::USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
-}
-void set_default_scale(const MenuContext&, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/scale.h` `writeCurrentValue` over `optionIndexToScale`
-	int32_t index = value;
-	if (index >= deluge::music::USER_SCALE) {
-		index += 1;
-	}
-	FlashStorage::defaultScale = deluge::music::scaleToFlashStorageCode(static_cast<deluge::music::Scale>(index));
-}
-size_t default_scale_names(const MenuContext&, std::span<std::string_view> out) {
-	size_t n = 0; // `DefaultScale::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/scale.h`)
-	for (uint8_t i = 0; i < deluge::music::NUM_SCALELIKE && n < out.size(); i++) {
-		if (i != deluge::music::USER_SCALE) {
-			out[n++] = deluge::music::scalelikeNames[i];
-		}
-	}
-	return n;
-}
-
-int32_t get_default_velocity(const MenuContext&) {
-	return FlashStorage::defaultVelocity; // `origin/main:src/deluge/gui/menu_item/defaults/velocity.h`
-	                                      // `readCurrentValue`
-}
-void set_default_velocity(const MenuContext& ctx, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/velocity.h` `writeCurrentValue`
-	FlashStorage::defaultVelocity = static_cast<uint8_t>(value);
-	if (ctx.song != nullptr) {
-		ctx.song->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
-	}
-}
-
-int32_t get_default_magnitude(const MenuContext&) {
-	return FlashStorage::defaultMagnitude; // `origin/main:src/deluge/gui/menu_item/defaults/magnitude.h`
-	                                       // `readCurrentValue`
-}
-void set_default_magnitude(const MenuContext&, int32_t value) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/magnitude.h` `writeCurrentValue`: the swing interval is nudged by
-	// the same delta so its musical meaning survives the resolution change.
-	const int32_t old_magnitude = FlashStorage::defaultMagnitude;
-	FlashStorage::defaultMagnitude = static_cast<int8_t>(value);
-	const int32_t delta = FlashStorage::defaultMagnitude - old_magnitude;
-	FlashStorage::defaultSwingInterval =
-	    deluge::plugin::clamp_swing_interval(FlashStorage::defaultSwingInterval - delta);
-}
-
-int32_t get_default_bend_range(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/bend_range.h` `readCurrentValue`
-	return FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
-}
-void set_default_bend_range(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/bend_range.h`).
-	FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = static_cast<uint8_t>(value);
-}
-
-int32_t get_default_metronome_volume(const MenuContext&) {
-	return FlashStorage::defaultMetronomeVolume; // `origin/main:src/deluge/gui/menu_item/defaults/metronome_volume.h`
-	                                             // `readCurrentValue`
-}
-void set_default_metronome_volume(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/metronome_volume.h`).
-	FlashStorage::defaultMetronomeVolume = static_cast<uint8_t>(value);
-	AudioEngine::metronome.setVolume(value);
-}
-
-int32_t get_default_startup_song(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultStartupSongMode);
-}
-void set_default_startup_song(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h`).
-	FlashStorage::defaultStartupSongMode = static_cast<StartupSongMode>(value);
 }
 
 int32_t get_default_pad_brightness(const MenuContext&) {
@@ -639,33 +489,6 @@ void set_default_pad_brightness(const MenuContext&, int32_t value) {
 	// `PadBrightness::writeCurrentValue`: the setting, then the pads' dimmer.
 	FlashStorage::defaultPadBrightness = static_cast<uint8_t>(value >> 2);
 	host_pad_brightness_changed();
-}
-
-int32_t get_default_slice_mode(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/slice_mode.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultSliceMode);
-}
-void set_default_slice_mode(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/slice_mode.h`).
-	FlashStorage::defaultSliceMode = static_cast<SampleRepeatMode>(value);
-}
-
-int32_t get_default_cpu_indicator(const MenuContext&) {
-	return from_bool(FlashStorage::highCPUUsageIndicator); // `defaultHighCPUUsageIndicatorMode`
-	                                                       // (`origin/main:src/deluge/gui/ui/menus.cpp`)
-}
-void set_default_cpu_indicator(const MenuContext&, int32_t value) {
-	FlashStorage::highCPUUsageIndicator = value != 0;
-}
-
-int32_t get_default_hold_time(const MenuContext&) {
-	return FlashStorage::defaultHoldTime; // `HoldTime::readCurrentValue`
-	                                      // (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`)
-}
-void set_default_hold_time(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/hold_time.h`).
-	FlashStorage::defaultHoldTime = static_cast<uint8_t>(value);
-	FlashStorage::holdTime = (FlashStorage::defaultHoldTime * kSampleRate) / 20;
 }
 
 int32_t get_screensaver_mode(const MenuContext&) {
@@ -731,23 +554,6 @@ void set_record_count_in(const MenuContext&, int32_t value) {
 	playbackHandler.countInBars = static_cast<uint8_t>(value);
 }
 
-int32_t get_record_quantize(const MenuContext&) {
-	return FlashStorage::recordQuantizeLevel; // `Quantize::readCurrentValue`
-	                                          // (`origin/main:src/deluge/gui/menu_item/record/quantize.h`)
-}
-void set_record_quantize(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/quantize.h`).
-	FlashStorage::recordQuantizeLevel = static_cast<uint8_t>(value);
-}
-
-int32_t get_record_margins(const MenuContext&) {
-	// `recordMarginsMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`)
-	return from_bool(FlashStorage::audioClipRecordMargins);
-}
-void set_record_margins(const MenuContext&, int32_t value) {
-	FlashStorage::audioClipRecordMargins = value != 0;
-}
-
 int32_t get_monitor_mode(const MenuContext&) {
 	// `origin/main:src/deluge/gui/menu_item/monitor/mode.h` `readCurrentValue`
 	return static_cast<int32_t>(AudioEngine::inputMonitoringMode);
@@ -757,38 +563,11 @@ void set_monitor_mode(const MenuContext&, int32_t value) {
 	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(value);
 }
 
-int32_t get_default_threshold_recording(const MenuContext&) {
-	// `ThresholdMode::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
-	return static_cast<int32_t>(FlashStorage::defaultThresholdRecordingMode);
-}
-void set_default_threshold_recording(const MenuContext& ctx, int32_t value) {
-	// `ThresholdMode::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`): the DEFAULT
-	// kind writes the flash setting **and then**, if there is a song, the song's own mode too -- both arms run, which
-	// is why this is not an either/or.
-	FlashStorage::defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
-	if (ctx.song != nullptr) {
-		ctx.song->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
-	}
-}
-
 // ---------------------------------------------------------------------------------------------
 // Community features
 
 void apply_horizontal_menus(const MenuContext&, int32_t value) {
 	menu_scene().set_horizontal_menus(value != 0);
-}
-
-size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {
-	// `DefaultNewClipType::getOptions`
-	// (`origin/main:src/deluge/gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h`).
-	static constexpr std::string_view kNames[] = {"SYNTH", "KIT", "MIDI", "CV", "AUDIO"};
-	size_t n = 0;
-	for (std::string_view name : kNames) {
-		if (n < out.size()) {
-			out[n++] = name;
-		}
-	}
-	return n;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1109,27 +888,9 @@ void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The three `Kind::Range` items (see `nodes/settings.h`)
-//
-// `FlashStorage::defaultRanges` (`storage/flash_storage.h`) holds the six values main's
-// `IntegerRange::lower`/`upper` and `KeyRange::lower`/`upper` hold
-// (`origin/main:src/deluge/gui/menu_item/integer_range.h`, `origin/main:src/deluge/gui/menu_item/key_range.h`),
-// and these twelve hooks address them.
+// Defaults: the range ends' spellings
 
-namespace {
-
-/// The slot each node's hooks address. Pinned against the enum here, in a translation unit that
-/// sees both, so a reordering of `DefaultRangeSlot` fires instead of silently repointing an item at
-/// the wrong setting -- the same guard `nodes/settings.cpp`'s pad-colour slots and `ResetItem`'s
-/// descriptor ids already carry.
-static_assert(FlashStorage::DEFAULT_RANGE_TEMPO == 0);
-static_assert(FlashStorage::DEFAULT_RANGE_SWING_AMOUNT == 1);
-static_assert(FlashStorage::DEFAULT_RANGE_KEY == 2);
-static_assert(FlashStorage::NUM_DEFAULT_RANGE_SLOTS == 3);
-
-} // namespace
-
-std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
+std::string_view format_range_integer(int32_t value, const void* /*hook_ctx*/, std::span<char> scratch) {
 	// `IntegerRange::getText` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`) spells each end with
 	// `intToString(value, buffer)`, i.e. `intToString(value, buffer, 1)` -- at least one digit, and a
 	// leading '-' for a negative one. `int_to_string` is the toolkit's port of exactly that call
@@ -1137,11 +898,14 @@ std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
 	return deluge::ui::oled::detail::int_to_string(value, 1, scratch);
 }
 
-std::string_view format_range_key(int32_t value, std::span<char> scratch) {
+std::string_view format_range_key(int32_t value, const void* hook_ctx, std::span<char> scratch) {
 	// `KeyRange::getText` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`), one end at a time: the note
-	// letter, then an accidental on a black key. The device's `defaultUseSharps` picks both the letter and the sign.
-	const deluge::music::NoteName name =
-	    deluge::music::note_name(std::clamp<int32_t>(value, 0, 11), FlashStorage::defaultUseSharps);
+	// letter, then an accidental on a black key. The device's `defaults/useSharps` row picks both the letter and the
+	// sign.
+	const auto* ctx = static_cast<const MenuContext*>(hook_ctx);
+	const bool sharps =
+	    bind::read_device_flag(ctx != nullptr ? ctx->ports.device : nullptr, project::device_path::kUseSharps);
+	const deluge::music::NoteName name = deluge::music::note_name(std::clamp<int32_t>(value, 0, 11), sharps);
 	size_t len = 0;
 	if (len < scratch.size()) {
 		scratch[len++] = name.letter;
@@ -1150,45 +914,6 @@ std::string_view format_range_key(int32_t value, std::span<char> scratch) {
 		scratch[len++] = name.accidental == deluge::music::Accidental::SHARP ? '#' : deluge::gfx::oled::kFlatGlyph;
 	}
 	return std::string_view{scratch.data(), len};
-}
-
-int32_t get_default_tempo_lower(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower;
-}
-void set_default_tempo_lower(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower = value;
-}
-int32_t get_default_tempo_upper(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper;
-}
-void set_default_tempo_upper(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper = value;
-}
-
-int32_t get_default_swing_lower(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].lower;
-}
-void set_default_swing_lower(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].lower = value;
-}
-int32_t get_default_swing_upper(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].upper;
-}
-void set_default_swing_upper(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].upper = value;
-}
-
-int32_t get_default_key_lower(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower;
-}
-void set_default_key_lower(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower = value;
-}
-int32_t get_default_key_upper(const MenuContext&) {
-	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper;
-}
-void set_default_key_upper(const MenuContext&, int32_t value) {
-	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper = value;
 }
 
 // ---------------------------------------------------------------------------------------------

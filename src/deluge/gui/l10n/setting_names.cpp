@@ -418,6 +418,92 @@ constexpr std::array<String, 2> kPatchCablePolarityChoices{{STRING_FOR_POLARITY_
 constexpr SettingNames kPatchCablePolarityNames{
     STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY, kPatchCablePolarityChoices, {}};
 constexpr SettingNames kUseSharpsNames{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS, {}, {}};
+/// The defaults page's rows. A default range's two ends are named as their one item is.
+constexpr SettingNames kDefaultTempoNames{STRING_FOR_DEFAULT_TEMPO, STRING_FOR_TEMPO, {}, {}};
+constexpr SettingNames kDefaultSwingNames{STRING_FOR_DEFAULT_SWING, STRING_FOR_SWING_AMOUNT, {}, {}};
+constexpr SettingNames kDefaultKeyNames{STRING_FOR_DEFAULT_KEY, STRING_FOR_KEY, {}, {}};
+constexpr SettingNames kDefaultMagnitudeNames{STRING_FOR_DEFAULT_RESOL_MENU_TITLE, STRING_FOR_RESOLUTION, {}, {}};
+constexpr SettingNames kDefaultSwingIntervalNames{STRING_FOR_DEFAULT_SWING, STRING_FOR_SWING_INTERVAL, {}, {}};
+/// The preset scales in their own order, then random and none: the scales' own names.
+constexpr std::array<String, 18> kDefaultScaleChoices{{
+    STRING_FOR_SCALE_MAJOR,
+    STRING_FOR_SCALE_MINOR,
+    STRING_FOR_SCALE_DORIAN,
+    STRING_FOR_SCALE_PHRYGIAN,
+    STRING_FOR_SCALE_LYDIAN,
+    STRING_FOR_SCALE_MIXOLYDIAN,
+    STRING_FOR_SCALE_LOCRIAN,
+    STRING_FOR_SCALE_MELODIC_MINOR,
+    STRING_FOR_SCALE_HARMONIC_MINOR,
+    STRING_FOR_SCALE_HUNGARIAN_MINOR,
+    STRING_FOR_SCALE_MARVA,
+    STRING_FOR_SCALE_ARABIAN,
+    STRING_FOR_SCALE_WHOLE_TONE,
+    STRING_FOR_SCALE_BLUES,
+    STRING_FOR_SCALE_PENTATONIC_MINOR,
+    STRING_FOR_SCALE_HIRAJOSHI,
+    STRING_FOR_SCALE_RANDOM,
+    STRING_FOR_SCALE_NONE,
+}};
+constexpr SettingNames kDefaultScaleNames{STRING_FOR_INIT_SCALE, STRING_FOR_INIT_SCALE, kDefaultScaleChoices, {}};
+constexpr SettingNames kDefaultVelocityNames{STRING_FOR_DEFAULT_VELOC_MENU_TITLE, STRING_FOR_VELOCITY, {}, {}};
+constexpr SettingNames kDefaultBendRangeNames{STRING_FOR_DEFAULT_BEND_R, STRING_FOR_BEND_RANGE, {}, {}};
+constexpr SettingNames kDefaultMetronomeVolumeNames{STRING_FOR_DEFAULT_METRO_MENU_TITLE, STRING_FOR_METRONOME, {}, {}};
+constexpr std::array<String, 4> kDefaultStartupSongChoices{{
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_BLANK,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_OPENED,
+    STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_LAST_SAVED,
+}};
+constexpr SettingNames kDefaultStartupSongNames{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                kDefaultStartupSongChoices,
+                                                {}};
+constexpr std::array<String, 4> kDefaultSliceModeChoices{{
+    STRING_FOR_CUT,
+    STRING_FOR_ONCE,
+    STRING_FOR_LOOP,
+    STRING_FOR_STRETCH,
+}};
+constexpr SettingNames kDefaultSliceModeNames{
+    STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE, STRING_FOR_DEFAULT_SLICE_MODE, kDefaultSliceModeChoices, {}};
+constexpr SettingNames kDefaultCpuIndicatorNames{
+    STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, {}, {}};
+constexpr SettingNames kDefaultHoldTimeNames{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME, {}, {}};
+constexpr SettingNames kDefaultRecordQuantizeNames{STRING_FOR_QUANTIZATION, STRING_FOR_QUANTIZATION, {}, {}};
+constexpr SettingNames kDefaultRecordMarginsNames{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, {}, {}};
+constexpr std::array<String, 4> kDefaultThresholdRecordingChoices{{
+    STRING_FOR_DISABLED,
+    STRING_FOR_LOW,
+    STRING_FOR_MEDIUM,
+    STRING_FOR_HIGH,
+}};
+constexpr SettingNames kDefaultThresholdRecordingNames{
+    STRING_FOR_MODE, STRING_FOR_MODE, kDefaultThresholdRecordingChoices, {}};
+constexpr std::array<String, 5> kDefaultNewClipTypeChoices{{
+    STRING_FOR_NEW_CLIP_TYPE_SYNTH,
+    STRING_FOR_NEW_CLIP_TYPE_KIT,
+    STRING_FOR_NEW_CLIP_TYPE_MIDI,
+    STRING_FOR_NEW_CLIP_TYPE_CV,
+    STRING_FOR_NEW_CLIP_TYPE_AUDIO,
+}};
+constexpr SettingNames kDefaultNewClipTypeNames{
+    STRING_FOR_DEFAULT_NEW_CLIP_TYPE, STRING_FOR_DEFAULT_NEW_CLIP_TYPE, kDefaultNewClipTypeChoices, {}};
+constexpr SettingNames kDefaultUseLastClipTypeNames{
+    STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, {}, {}};
+constexpr SettingNames kDefaultAutomationInterpolateNames{
+    STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION, STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION, {}, {}};
+constexpr SettingNames kDefaultAutomationClearNames{
+    STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR, {}, {}};
+constexpr SettingNames kDefaultAutomationShiftNames{
+    STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT, {}, {}};
+constexpr SettingNames kDefaultAutomationNudgeNoteNames{
+    STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, {}, {}};
+constexpr SettingNames kDefaultAutomationNoAuditionShortcutsNames{
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    {},
+    {}};
 /// The play cursor's forms, in the row's order: fast, off, slow.
 constexpr std::array<String, 3> kPlayCursorChoices{{STRING_FOR_FAST, STRING_FOR_DISABLED, STRING_FOR_SLOW}};
 constexpr SettingNames kPlayCursorNames{STRING_FOR_PLAY_CURSOR, STRING_FOR_PLAY_CURSOR, kPlayCursorChoices, {}};
@@ -520,7 +606,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 145> kEntries{{
+constexpr std::array<Entry, 171> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -555,8 +641,35 @@ constexpr std::array<Entry, 145> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
+    Entry{SettingGroupId::DEVICE, "defaults/automation/clear", &kDefaultAutomationClearNames},
+    Entry{SettingGroupId::DEVICE, "defaults/automation/interpolate", &kDefaultAutomationInterpolateNames},
+    Entry{SettingGroupId::DEVICE, "defaults/automation/noAuditionShortcuts",
+          &kDefaultAutomationNoAuditionShortcutsNames},
+    Entry{SettingGroupId::DEVICE, "defaults/automation/nudgeNote", &kDefaultAutomationNudgeNoteNames},
+    Entry{SettingGroupId::DEVICE, "defaults/automation/shift", &kDefaultAutomationShiftNames},
+    Entry{SettingGroupId::DEVICE, "defaults/bendRange", &kDefaultBendRangeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/cpuIndicator", &kDefaultCpuIndicatorNames},
+    Entry{SettingGroupId::DEVICE, "defaults/holdTime", &kDefaultHoldTimeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/key/lower", &kDefaultKeyNames},
+    Entry{SettingGroupId::DEVICE, "defaults/key/upper", &kDefaultKeyNames},
+    Entry{SettingGroupId::DEVICE, "defaults/magnitude", &kDefaultMagnitudeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/metronomeVolume", &kDefaultMetronomeVolumeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/newClipType", &kDefaultNewClipTypeNames},
     Entry{SettingGroupId::DEVICE, "defaults/patchCablePolarity", &kPatchCablePolarityNames},
+    Entry{SettingGroupId::DEVICE, "defaults/recordMargins", &kDefaultRecordMarginsNames},
+    Entry{SettingGroupId::DEVICE, "defaults/recordQuantize", &kDefaultRecordQuantizeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/scale", &kDefaultScaleNames},
+    Entry{SettingGroupId::DEVICE, "defaults/sliceMode", &kDefaultSliceModeNames},
+    Entry{SettingGroupId::DEVICE, "defaults/startupSong", &kDefaultStartupSongNames},
+    Entry{SettingGroupId::DEVICE, "defaults/swing/lower", &kDefaultSwingNames},
+    Entry{SettingGroupId::DEVICE, "defaults/swing/upper", &kDefaultSwingNames},
+    Entry{SettingGroupId::DEVICE, "defaults/swingInterval", &kDefaultSwingIntervalNames},
+    Entry{SettingGroupId::DEVICE, "defaults/tempo/lower", &kDefaultTempoNames},
+    Entry{SettingGroupId::DEVICE, "defaults/tempo/upper", &kDefaultTempoNames},
+    Entry{SettingGroupId::DEVICE, "defaults/thresholdRecording", &kDefaultThresholdRecordingNames},
+    Entry{SettingGroupId::DEVICE, "defaults/useLastClipType", &kDefaultUseLastClipTypeNames},
     Entry{SettingGroupId::DEVICE, "defaults/useSharps", &kUseSharpsNames},
+    Entry{SettingGroupId::DEVICE, "defaults/velocity", &kDefaultVelocityNames},
     Entry{SettingGroupId::DEVICE, "features/EnableDX7Engine", &kFeatureEnableDX7EngineNames},
     Entry{SettingGroupId::DEVICE, "features/altGoldenKnobDelayParams", &kFeatureAltGoldenKnobDelayParamsNames},
     Entry{SettingGroupId::DEVICE, "features/alternativePlaybackStartBehaviour",

@@ -95,9 +95,9 @@ enum class Kind : uint8_t {
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.h`, `KeyRange` in
 	///        `origin/main:src/deluge/gui/menu_item/key_range.h`).
 	///
-	/// `Binding::get`/`set` are the **lower** edge; `Binding::range_spec` carries the upper edge's
-	/// hooks and the two per-item rules (how the ends spell themselves, and what happens when they
-	/// would cross). Rendered by `ui::oled::range_value`.
+	/// `Binding::target` is the **lower** edge's row; `Binding::range_spec` names the upper edge's row and carries
+	/// the two per-item rules (how the ends spell themselves, and what happens when they would cross). Rendered by
+	/// `ui::oled::range_value`.
 	Range,
 	Custom,
 };
@@ -365,24 +365,23 @@ inline constexpr size_t kMaxNodes = 1024;
 ///       `param` (model code, out of reach here).
 /// @brief The half of a `Kind::Range` binding that a `Kind::Int` one has no room for.
 ///
-/// A `Binding` names one value through `get`/`set`; a range is two. Rather than grow four more
-/// fields on a struct every node pays for, the three range nodes point at one of these -- the same
-/// trade `Node::chain_targets`' span makes for the seven chaining nodes.
+/// A `Binding` names one value through its target; a range is two. Rather than grow more fields on a struct every node
+/// pays for, the three range nodes point at one of these -- the same trade `Node::chain_targets`' span makes for the
+/// seven chaining nodes.
 ///
-/// `get`/`set` on the `Binding` itself stay the **lower** edge, so `bindings::read`/`write` and
-/// `validate_tree`'s "a value node has something to read" rule keep working on a range node without
-/// a special case.
+/// The `Binding`'s own target stays the **lower** edge, so `bindings::read`/`write`/`range` and `validate_tree`'s "a
+/// value node has something to read" rule keep working on a range node without a special case;
+/// `bindings::read_upper`/`write_upper` reach the other end.
 struct RangeSpec {
-	/// @brief The upper edge: main's `IntegerRange::upper` / `KeyRange::upper`
+	/// @brief The upper edge's row: main's `IntegerRange::upper` / `KeyRange::upper`
 	///        (`origin/main:src/deluge/gui/menu_item/integer_range.h`,
-	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), held in `FlashStorage::defaultRanges`
-	///        (`storage/flash_storage.h`).
-	GetFn get_upper = nullptr;
-	SetFn set_upper = nullptr;
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), a row of the node's own target's group, which
+	///        shares the lower edge's bounds.
+	std::string_view upper_path;
 
 	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half (`IntegerRange::getText` in
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::getText`
-	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)).
+	///        (`origin/main:src/deluge/gui/menu_item/key_range.cpp`)). Its context is the menu's `MenuContext`.
 	deluge::ui::oled::RangeFormatFn format = nullptr;
 
 	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
@@ -1638,22 +1637,21 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 
 /// @brief A `Kind::Range` leaf -- `menu_item::Range` (`origin/main:src/deluge/gui/menu_item/range.h`).
 ///
-/// @param get_lower/@param set_lower The lower edge, which is also what `bindings::read`/`write`
-///                                   see (`RangeSpec`).
-/// @param spec  The upper edge and the two per-item rules. Required: a null one is a
-///              `validate_tree` issue, not a defaulted-to-something.
-/// @param r The bounds both ends live inside, and the select detent's step -- `IntegerRange::minValue`/`maxValue`, or
-///              `KeyRange`'s own `KEY_MIN`/`KEY_MAX` locals (`KeyRange::selectEncoderAction` in
-///              `origin/main:src/deluge/gui/menu_item/key_range.cpp`).
-constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
-                          IntRange r, RelevantFn rel = nullptr) {
+/// @param name  The node's name.
+/// @param title Its title; 0 for its name.
+/// @param lower The lower edge's row, which is also what `bindings::read`/`write` see, and whose range both ends live
+///              inside (`RangeSpec`).
+/// @param spec  The upper edge's row and the two per-item rules. Required: a null one is a `validate_tree` issue, not a
+///              defaulted-to-something.
+/// @param rel   When the node is listed; null for always.
+/// @return The node.
+constexpr Node range_item(uint16_t name, uint16_t title, deluge::scenes::bind::Target lower, const RangeSpec* spec,
+                          RelevantFn rel = nullptr) {
 	Node n{};
 	n.name = name;
 	n.title = title != 0 ? title : name;
 	n.kind = Kind::Range;
-	n.bind.get = get_lower;
-	n.bind.set = set_lower;
-	n.bind.fixed_range = r;
+	n.bind.target = lower;
 	n.bind.range_spec = spec;
 	n.relevant = rel;
 	return n;
