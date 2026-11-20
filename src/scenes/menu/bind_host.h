@@ -40,10 +40,6 @@ void host_screensaver_settings_changed();
 void host_pad_brightness_changed();
 /// @brief Main's canvas flag and the guest's panels take the stored menu highlighting.
 void host_highlighting_changed();
-/// @brief Main's canvas flag and the guest's panels take the stored rounded-corners setting.
-void host_rounded_corners_changed();
-/// @brief The guest's shift machine takes the stored sticky-shift setting; turned off, both shift latches release.
-void host_shift_sticky_changed();
 /// @brief Every pad re-renders, whatever the UI (`renderingNeededRegardlessOfUI`): a pad colour changed.
 void host_pad_colours_changed();
 /// @}

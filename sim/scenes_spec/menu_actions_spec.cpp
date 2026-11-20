@@ -2490,7 +2490,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		Rig r;
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
-		const menu::MenuContext ctx{};
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
@@ -2538,7 +2539,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		Rig r;
 		(void)r.open(nodes::root_settings);
 		r.shell.tick(5);
-		const menu::MenuContext ctx{};
+		menu::MenuContext ctx{};
+		ctx.ports = menu::host_ports(); // a DEVICE row is written through the device port
 		shellHostUI.shell().lowering().set_shift_is_sticky(false);
 
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);

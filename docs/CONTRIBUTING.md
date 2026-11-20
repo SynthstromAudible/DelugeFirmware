@@ -92,20 +92,21 @@ missing from the description; it never blocks a merge.
 
 When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
 
-1. **Declare the Setting Enum**:
-   - In `src/deluge/model/settings/runtime_feature_settings.h`, add your setting identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`).
-   - If your setting has more states than simple On/Off, define a corresponding enum (e.g., `RuntimeFeatureState...`).
+1. **Declare the Setting**:
+   - In `src/deluge-project/features.h`, add your feature to `enum class Feature` after the last one, and its entry to `kFeatures`: the name `CommunityFeatures.XML` writes it under, the words for its values (`kFeatureToggleWords` for On/Off) and its factory value. The menu's DEVICE row `features/<name>` is made from that entry.
+   - If your setting has more states than simple On/Off, give it a neutral `enum class` and its words beside `ShortcutOverlay` in `features.h`.
+   - In `src/deluge/model/settings/runtime_feature_settings.h`, add the matching identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`), and its display name to `kDisplayNames`; `runtime_feature_settings.cpp` asserts each identifier equal to its `Feature`.
 
 2. **Add Localization (l10n) Strings**:
    - `src/deluge/gui/l10n/strings.h`: Add a `STRING_FOR_COMMUNITY_FEATURE_...` identifier to `enum class String`.
    - `src/deluge/gui/l10n/english.json`: Add the key and the OLED display name string.
    - Run `./dbt build` (or `python3 src/deluge/gui/l10n/generate.py ...`) to regenerate `g_english.cpp`.
 
-3. **Initialize the Setting**:
-   - In `src/deluge/model/settings/runtime_feature_settings.cpp`, inside `RuntimeFeatureSettings::init()`, configure the setting using `SetupOnOffSetting(...)` (or custom setup function), providing the setting slot, the l10n string identifier, the XML attribute name for `CommunityFeatures.XML`, and the default state.
+3. **Name the Setting's Row**:
+   - In `src/deluge/gui/l10n/setting_names.cpp`, add the row's names and its `Entry` under `SettingGroupId::DEVICE` at `features/<name>`, keeping `kEntries` sorted. A setting with more states names its choices there, in its values' order. `RuntimeFeatureSettings::init()` gives every feature its factory value from `kFeatures`.
 
 4. **Create the Associated Menu Item**:
-   - In `src/scenes/menu/nodes/settings.h`, in the "Community features" section, declare the node. An On/Off setting is one line, `DELUGE_RUNTIME_TOGGLE(feature_your_setting, N, STRING_FOR_COMMUNITY_FEATURE_...);`, where `N` is the integer value of `RuntimeFeatureSettingType::YourSetting`. A setting with more states is an `enumeration(...)` node over its option names, read and written by `get_runtime_feature<N>` and `set_runtime_feature<N>` (see `feature_shortcut_overlay`). A setting that must take effect the moment it is written gets its own setter in `src/scenes/menu/nodes/settings.cpp` (see `set_shift_is_sticky`).
+   - In `src/scenes/menu/nodes/settings.h`, in the "Community features" section, declare the node: `feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_...), project::Feature::YOUR_SETTING)`, with `Kind::Enum` as a third argument for a setting with more states (see `feature_shortcut_overlay`). A setting that must take effect the moment it is written does so in the host's store, `store_feature` in `src/deluge/gui/ui/shell_host/device_settings.cpp` (see sticky shift); one the open menu lays itself out by also takes `with_after_write` (see `feature_horizontal_menus`).
    - Add a pointer to the node at the end of `kRuntimeFeatureChildren`, the list the Community Features menu shows.
    - The menu's specs check every node against upstream `main`'s menu, recorded in `tests/golden/ui/menu_oracle/tables_3.tsv`: the Community Features rows are those whose path starts `settings/11/`, and `settings/11`'s `kids` row counts them. Its rows hold what `main`'s source answers (`tests/golden/README.md`, "Menu reference tables"), never what the scenes' menu renders, except the rows that README lists as accepted differences.
    - A setting `main` also has: write its rows from `main`'s item (`git show origin/main:src/deluge/gui/menu_item/runtime_feature/settings.cpp`) under `settings/11/N`, `N` being the node's index in `kRuntimeFeatureChildren` (the paths count the scenes' menu's children, which D156 leaves two short of `main`'s). Copy a neighbouring toggle's rows (every row whose path is `settings/11/0`), give them the item's own name and title, and raise the `kids` row by one.

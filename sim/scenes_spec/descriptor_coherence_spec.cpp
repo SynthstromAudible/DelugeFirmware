@@ -513,7 +513,7 @@ void run_all(auto& self) {
 // The nodes no row reaches.
 
 /// @brief The device settings: the hooked value nodes under the settings root, which hold a device's state
-/// (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a
+/// (FlashStorage, a MIDI device, a CV or gate output, a pad colour) rather than a song's or a
 /// sound's, so no engine or model row holds them. A node on a DEVICE row has no hooks and is not listed: its row holds
 /// it. Each is named by the names from the root to it, with how many nodes carry that path.
 struct DeviceNode {
@@ -522,29 +522,6 @@ struct DeviceNode {
 };
 
 constexpr DeviceNode kDeviceSettings[] = {
-    {"Settings > Community Features > Shortcut Overlay", 1},
-    {"Settings > Community Features > Show Battery Level", 1},
-    {"Settings > Community Features > Trim From Start Of Audio Clips", 1},
-    {"Settings > Community Features > Rounded Corners", 1},
-    {"Settings > Community Features > Horizontal Menus", 1},
-    {"Settings > Community Features > Alternative Tap Tempo Behaviour", 1},
-    {"Settings > Community Features > Grid View Loop Layer Pads", 1},
-    {"Settings > Community Features > Alternative Playback Start Behaviour", 1},
-    {"Settings > Community Features > Chord Keyboards", 1},
-    {"Settings > Community Features > Launch Event Playhead", 1},
-    {"Settings > Community Features > KB View Sidebar Menu Exit", 1},
-    {"Settings > Community Features > DX7 Engine", 1},
-    {"Settings > Community Features > Light Shift", 1},
-    {"Settings > Community Features > Sticky Shift", 1},
-    {"Settings > Community Features > Display Norns Layout", 1},
-    {"Settings > Community Features > Highlight Incoming Notes", 1},
-    {"Settings > Community Features > Sync Scaling Action", 1},
-    {"Settings > Community Features > Alternative Golden Knob Delay Params", 1},
-    {"Settings > Community Features > Delete Unused Kit Rows", 1},
-    {"Settings > Community Features > Catch Notes", 1},
-    {"Settings > Community Features > Quantize", 1},
-    {"Settings > Community Features > Fine Tempo Knob", 1},
-    {"Settings > Community Features > Drum Randomizer", 1},
     {"Settings > Recording > Threshold Recording > Mode", 1},
     {"Settings > Recording > Sampling monitoring", 1},
     {"Settings > Recording > Loop margins", 1},
@@ -629,7 +606,7 @@ constexpr DeviceNode kDeviceSettings[] = {
 };
 
 constexpr std::string_view kDeviceReason =
-    "a device setting (FlashStorage, a runtime feature, a MIDI device, a CV or gate output, a pad colour, USB audio): "
+    "a device setting (FlashStorage, a MIDI device, a CV or gate output, a pad colour, USB audio): "
     "the "
     "device's, not a song's or a sound's, so no engine or model row holds it";
 

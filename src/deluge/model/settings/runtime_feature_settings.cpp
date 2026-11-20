@@ -25,7 +25,9 @@
 #include "util/c_string.h"
 #include "util/notify.h"
 #include <cstring>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define RUNTIME_FEATURE_SETTINGS_FILE "SETTINGS/CommunityFeatures.XML"
@@ -42,149 +44,59 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
-                              std::string_view xmlName, RuntimeFeatureStateToggle def) {
-	setting.displayName = displayName;
-	setting.xmlName = xmlName;
-	setting.value = static_cast<uint32_t>(def);
+namespace {
 
-	setting.options = {
-	    {
-	        .displayName = "Off",
-	        .value = RuntimeFeatureStateToggle::Off,
-	    },
-	    {
-	        .displayName = "On",
-	        .value = RuntimeFeatureStateToggle::On,
-	    },
-	};
+using deluge::project::Feature;
+using deluge::project::FeatureInfo;
+
+/// Each enumerator is its feature's id, so a type names the feature the table holds at that index.
+constexpr bool same_feature(RuntimeFeatureSettingType type, Feature feature) {
+	return static_cast<uint32_t>(type) == std::to_underlying(feature);
 }
+static_assert(same_feature(DrumRandomizer, Feature::DRUM_RANDOMIZER));
+static_assert(same_feature(Quantize, Feature::QUANTIZE));
+static_assert(same_feature(FineTempoKnob, Feature::FINE_TEMPO_KNOB));
+static_assert(same_feature(CatchNotes, Feature::CATCH_NOTES));
+static_assert(same_feature(DeleteUnusedKitRows, Feature::DELETE_UNUSED_KIT_ROWS));
+static_assert(same_feature(AltGoldenKnobDelayParams, Feature::ALT_GOLDEN_KNOB_DELAY_PARAMS));
+static_assert(same_feature(SyncScalingAction, Feature::SYNC_SCALING_ACTION));
+static_assert(same_feature(HighlightIncomingNotes, Feature::HIGHLIGHT_INCOMING_NOTES));
+static_assert(same_feature(DisplayNornsLayout, Feature::DISPLAY_NORNS_LAYOUT));
+static_assert(same_feature(ShiftIsSticky, Feature::SHIFT_IS_STICKY));
+static_assert(same_feature(LightShiftLed, Feature::LIGHT_SHIFT_LED));
+static_assert(same_feature(EnableDX7Engine, Feature::ENABLE_DX7_ENGINE));
+static_assert(same_feature(EnableKeyboardViewSidebarMenuExit, Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT));
+static_assert(same_feature(EnableLaunchEventPlayhead, Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD));
+static_assert(same_feature(DisplayChordKeyboard, Feature::DISPLAY_CHORD_KEYBOARD));
+static_assert(same_feature(AlternativePlaybackStartBehaviour, Feature::ALTERNATIVE_PLAYBACK_START_BEHAVIOUR));
+static_assert(same_feature(EnableGridViewLoopPads, Feature::ENABLE_GRID_VIEW_LOOP_PADS));
+static_assert(same_feature(AlternativeTapTempoBehaviour, Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR));
+static_assert(same_feature(HorizontalMenus, Feature::HORIZONTAL_MENUS));
+static_assert(same_feature(TrimFromStartOfAudioClip, Feature::TRIM_FROM_START_OF_AUDIO_CLIP));
+static_assert(same_feature(ShowBatteryLevel, Feature::SHOW_BATTERY_LEVEL));
+static_assert(same_feature(RoundedCorners, Feature::ROUNDED_CORNERS));
+static_assert(same_feature(ShortcutOverlay, Feature::SHORTCUT_OVERLAY));
+static_assert(MaxElement == deluge::project::kFeatureCount);
 
-static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
-                                          std::string_view xmlName, RuntimeFeatureStateSyncScalingAction def) {
-	setting.displayName = displayName;
-	setting.xmlName = xmlName;
-	setting.value = static_cast<uint32_t>(def);
+// A state enum's values are its feature's value indices.
+static_assert(RuntimeFeatureStateToggle::Off == 0 && RuntimeFeatureStateToggle::On == 1);
+static_assert(RuntimeFeatureStateSyncScalingAction::SyncScaling
+                  == std::to_underlying(deluge::project::SyncScalingAction::SYNC_SCALING)
+              && RuntimeFeatureStateSyncScalingAction::Fill
+                     == std::to_underlying(deluge::project::SyncScalingAction::FILL));
+static_assert(std::to_underlying(RuntimeFeatureStateShortcutOverlay::Off)
+                  == std::to_underlying(deluge::project::ShortcutOverlay::OFF)
+              && std::to_underlying(RuntimeFeatureStateShortcutOverlay::MenuOnly)
+                     == std::to_underlying(deluge::project::ShortcutOverlay::MENU_ONLY)
+              && std::to_underlying(RuntimeFeatureStateShortcutOverlay::MenuAndClip)
+                     == std::to_underlying(deluge::project::ShortcutOverlay::MENU_AND_CLIP));
 
-	setting.options = {
-	    {
-	        .displayName = "Sync Scaling",
-	        .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
-	    },
-	    {
-	        .displayName = "Fill mode",
-	        .value = RuntimeFeatureStateSyncScalingAction::Fill,
-	    },
-	};
-}
+} // namespace
 
 void RuntimeFeatureSettings::init() {
-	using enum deluge::l10n::String;
-	// Drum randomizer
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER,
-	                  "drumRandomizer", RuntimeFeatureStateToggle::On);
-	// Quantize
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "quantize",
-	                  RuntimeFeatureStateToggle::On);
-	// FineTempoKnob
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
-	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
-	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
-	                  "catchNotes", RuntimeFeatureStateToggle::On);
-	// DeleteUnusedKitRows
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
-	                  STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "deleteUnusedKitRows",
-	                  RuntimeFeatureStateToggle::On);
-	// AltGoldenKnobDelayParams
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
-	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
-	                  RuntimeFeatureStateToggle::Off);
-	// SyncScalingAction
-	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction],
-	                              STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "syncScalingAction",
-	                              RuntimeFeatureStateSyncScalingAction::SyncScaling);
-	// HighlightIncomingNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes],
-	                  STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "highlightIncomingNotes",
-	                  RuntimeFeatureStateToggle::On);
-	// DisplayNornsLayout
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
-	                  STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "displayNornsLayout", RuntimeFeatureStateToggle::Off);
-
-	// ShiftIsSticky
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT,
-	                  "stickyShift", RuntimeFeatureStateToggle::Off);
-
-	// LightShiftLed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
-	                  "lightShift", RuntimeFeatureStateToggle::Off);
-
-	// EnableDX7Engine
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDX7Engine], STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE,
-	                  "EnableDX7Engine", RuntimeFeatureStateToggle::Off);
-
-	// EnableKeyboardViewSidebarMenuExit
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit],
-	                  STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT, "enableKeyboardViewSidebarMenuExit",
-	                  RuntimeFeatureStateToggle::Off);
-
-	// EnableLaunchEventPlayhead
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableLaunchEventPlayhead],
-	                  STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, "enableLaunchEventPlayhead",
-	                  RuntimeFeatureStateToggle::On);
-
-	// DisplayChordKeyboard
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayChordKeyboard],
-	                  STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "displayChordKeyboard",
-	                  RuntimeFeatureStateToggle::Off);
-
-	// AlternativePlaybackStartBehaviour
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour],
-	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
-	                  "alternativePlaybackStartBehaviour", RuntimeFeatureStateToggle::Off);
-
-	// EnableGridViewLoopPads
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGridViewLoopPads],
-	                  STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads",
-	                  RuntimeFeatureStateToggle::Off);
-
-	// AlternativeTapTempoBehaviour
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativeTapTempoBehaviour],
-	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR, "alternativeTapTempoBehaviour",
-	                  RuntimeFeatureStateToggle::Off);
-
-	// Horizontal menus
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
-	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
-	                  RuntimeFeatureStateToggle::On);
-
-	// Trim from start of audio clip
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
-	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
-	                  RuntimeFeatureStateToggle::On);
-
-	// Show Battery Level
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
-	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
-	                  RuntimeFeatureStateToggle::On);
-
-	// Rounded Corners
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
-	                  "roundedCorners", RuntimeFeatureStateToggle::On);
-
-	// Shortcut Overlay
-	auto& overlay = settings[RuntimeFeatureSettingType::ShortcutOverlay];
-	overlay.displayName = STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY;
-	overlay.xmlName = "shortcutOverlay";
-	overlay.value = static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly);
-	overlay.options = {
-	    {deluge::l10n::getView(STRING_FOR_OFF), static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off)},
-	    {deluge::l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
-	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly)},
-	    {deluge::l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
-	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
-	};
+	for (const FeatureInfo& feature : deluge::project::kFeatures) {
+		values[std::to_underlying(feature.id)] = feature.default_value;
+	}
 
 	// A card may still say `legacyMenu` or `shellMenu`, names of settings that chose between two menus. No setting
 	// here has either name, so `parseSettings` keeps each as an unknown setting and writes it back untouched.
@@ -305,16 +217,11 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 			currentValue = reader.readTagOrAttributeValueInt();
 			reader.exitTag();
 
-			bool found = false;
-			for (auto& setting : settings) {
-				if (strcmp(setting.xmlName.data(), currentName.c_str()) == 0) {
-					found = true;
-					setting.value = currentValue;
-				}
+			// A feature takes its value; an unknown setting is remembered for writing it back.
+			if (const FeatureInfo* feature = deluge::project::find_feature(currentName)) {
+				values[std::to_underlying(feature->id)] = currentValue;
 			}
-
-			// Remember unknown settings for writing them back
-			if (!found) {
+			else {
 				try {
 					unknownSettings.push_back(UnknownSetting{currentName, static_cast<uint32_t>(currentValue)});
 				} catch (deluge::exception&) {
@@ -364,10 +271,10 @@ void RuntimeFeatureSettings::serialiseSettings(Serializer& writer) {
 	writer.writeAttribute("startupSong", currentSong->getSongFullPath().c_str());
 	writer.writeOpeningTagEnd();
 
-	for (auto& setting : settings) {
+	for (const FeatureInfo& feature : deluge::project::kFeatures) {
 		writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
-		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
+		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, std::string{feature.path}.c_str(), false);
+		writer.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, values[std::to_underlying(feature.id)], false);
 		writer.writeOpeningTagEnd(false);
 		writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}

@@ -1,17 +1,14 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host/shell_host.h"
-#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "hid/buttons.h"
 #include "hid/display/screensaver.h"
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/favourite/favourite_manager.h"
 #include "model/sample/last_file_path_loaded.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -130,20 +127,6 @@ void host_pad_brightness_changed() {
 
 void host_highlighting_changed() {
 	gui::ui::pushShellHighlighting();
-}
-
-void host_rounded_corners_changed() {
-	gui::ui::pushShellRoundedCorners();
-}
-
-void host_shift_sticky_changed() {
-	// The guest's shift machine takes the setting (`opened()` seeds it only on the way in), and off, legacy's latch
-	// goes with the guest's.
-	const bool on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShiftIsSticky);
-	shellHostUI.shell().lowering().set_shift_is_sticky(on);
-	if (!on) {
-		Buttons::clearShiftSticky();
-	}
 }
 
 void host_pad_colours_changed() {

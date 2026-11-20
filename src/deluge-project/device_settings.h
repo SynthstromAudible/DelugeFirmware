@@ -25,11 +25,16 @@
 /// A CHOICE row's value is its choice's index, so the scenes need no legacy type for it. The enums here exist only for
 /// the rows whose value a scene branches on; each enumerator's value is its choice's index in the row.
 
+#include "deluge-project/features.h"
 #include "plugin-api/types/setting.h"
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::project {
 
@@ -62,6 +67,65 @@ inline constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabl
 inline constexpr std::string_view kShortcutsVersion = "pads/shortcutsVersion";
 /// How a playhead is shown on the pads: CHOICE over FlashCursor.
 inline constexpr std::string_view kPlayCursor = "pads/playCursor";
+/// The first part of each community feature's path; the name the feature file writes it under follows it.
+inline constexpr std::string_view kFeaturePrefix = "features/";
 } // namespace device_path
+
+namespace feature_paths {
+/// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
+/// image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
+inline namespace menu_tables {
+
+/// @brief How long the longest feature's path is.
+inline constexpr size_t kLongest = [] {
+	size_t longest = 0;
+	for (const FeatureInfo& info : kFeatures) {
+		longest = std::max(longest, device_path::kFeaturePrefix.size() + info.path.size());
+	}
+	return longest;
+}();
+
+/// @brief One feature's path, as text the table's views point into.
+struct FeaturePath {
+	std::array<char, kLongest> text{}; ///< the prefix, then the feature's file name
+	size_t size{0};                    ///< how many characters of `text` it is
+};
+
+/// @brief Every feature's path, `features/<name>`, indexed by its id.
+inline constexpr std::array<FeaturePath, kFeatureCount> kPaths = [] {
+	std::array<FeaturePath, kFeatureCount> paths{};
+	for (const FeatureInfo& info : kFeatures) {
+		FeaturePath& path = paths[std::to_underlying(info.id)];
+		for (const std::string_view part : {device_path::kFeaturePrefix, info.path}) {
+			for (const char c : part) {
+				path.text[path.size++] = c;
+			}
+		}
+	}
+	return paths;
+}();
+
+} // namespace menu_tables
+} // namespace feature_paths
+
+namespace device_path {
+/// @brief The DEVICE row of community feature @p f: BOOL for an on/off feature, else CHOICE over its words.
+/// @param f A feature.
+/// @return The row's path, `features/` then the name the feature file writes it under.
+[[nodiscard]] constexpr std::string_view feature(Feature f) {
+	const feature_paths::FeaturePath& path = feature_paths::kPaths[std::to_underlying(f)];
+	return {path.text.data(), path.size};
+}
+} // namespace device_path
+
+/// @brief The community feature whose DEVICE row is at @p path.
+/// @param path A DEVICE row's path.
+/// @return The feature's entry, or null for a path no feature's row has.
+[[nodiscard]] constexpr const FeatureInfo* feature_at(std::string_view path) {
+	if (!path.starts_with(device_path::kFeaturePrefix)) {
+		return nullptr;
+	}
+	return find_feature(path.substr(device_path::kFeaturePrefix.size()));
+}
 
 } // namespace deluge::project

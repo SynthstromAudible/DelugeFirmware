@@ -10,8 +10,8 @@
 ///
 /// Unlike the sound tree, almost nothing here is a `ParamRef`: a setting lives in `FlashStorage`
 /// (`storage/flash_storage.h`), on `midiEngine` (`io/midi/midi_engine.h`), on `playbackHandler`
-/// (`playback/playback_handler.h`), on `runtimeFeatureSettings`
-/// (`model/settings/runtime_feature_settings.h`) or on `AudioEngine`. Every one of those is inside
+/// (`playback/playback_handler.h`), on `AudioEngine`, or is a DEVICE row the device port keeps (the community features
+/// among them). Every one of those is inside
 /// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
 /// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
 /// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
@@ -79,11 +79,11 @@
 ///
 /// @note **What a write does besides storing, main's `hid/` calls, is a host call at the write**
 ///       (`scenes/menu/bind_host.h`): the screensaver's `settingsChanged()` (`host_screensaver_settings_changed`),
-///       pad brightness (`host_pad_brightness_changed`), the menu highlighting (`host_highlighting_changed`), rounded
-///       corners (`host_rounded_corners_changed`), sticky shift (`host_shift_sticky_changed`) and a pad colour
-///       (`host_pad_colours_changed`). The value itself is stored by the setter. A DEVICE row's node has no setter:
-///       the host's device port stores the value and does what storing it implies (leaving the slow cursor flash
-///       clears its tick squares).
+///       pad brightness (`host_pad_brightness_changed`), the menu highlighting (`host_highlighting_changed`) and a pad
+///       colour (`host_pad_colours_changed`). The value itself is stored by the setter. A DEVICE row's node has no
+///       setter: the host's device port stores the value and does what storing it implies (leaving the slow cursor
+///       flash clears its tick squares, sticky shift reaches the shift machines, rounded corners restyles the
+///       display), and the open menu's own half is the node's `after_write` (horizontal menus).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -98,6 +98,7 @@
 
 #include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
 #include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
 #include "deluge-project/setting_group.h"
 #include "plugin-api/types/display_mapping.h"
 
@@ -303,36 +304,11 @@ void set_default_threshold_recording(const MenuContext& ctx, int32_t value);
 size_t new_clip_type_names(const MenuContext& ctx, std::span<std::string_view> out);
 size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_view> out);
 
-/// @brief `runtime_feature::Setting`'s read and write
-///        (`origin/main:src/deluge/gui/menu_item/runtime_feature/setting.cpp`), with the `RuntimeFeatureSettingType` as
-///        a template argument rather than a member.
-///
-/// Every setting's option list holds its values in index order from 0 (`runtime_feature_settings.cpp`), so
-/// legacy's option-scan collapses to the value itself.
-/// @{
-int32_t runtime_feature_get(int32_t type);
-void runtime_feature_set(int32_t type, int32_t value);
-template <int Type>
-int32_t get_runtime_feature(const MenuContext&) {
-	return runtime_feature_get(Type);
-}
-template <int Type>
-void set_runtime_feature(const MenuContext&, int32_t value) {
-	runtime_feature_set(Type, value);
-}
-/// @}
-
-/// @brief `ShiftIsSticky::writeCurrentValue`: the setting, the shift LED, and `host_shift_sticky_changed` for the
-///        shift machines (`hid/` and the guest's, see the file note).
-void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
-/// @brief `RoundedCornersSettingToggle::writeCurrentValue`: the setting, and `host_rounded_corners_changed` for the
-///        canvas flag and the guest's panels.
-void set_rounded_corners(const MenuContext& ctx, int32_t value);
-/// @brief The HorizontalMenus setting, and the open menu's copy of it (`MenuScene::set_horizontal_menus`):
-///        `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads it
-///        live.
-void set_horizontal_menus(const MenuContext& ctx, int32_t value);
-size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
+/// @brief The HorizontalMenus feature's half in the open menu (`MenuScene::set_horizontal_menus`), once the device
+///        stored a write of its row: `HorizontalMenu::renderingStyle()`
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the setting live, and the open menu's
+///        context holds the copy it lays out by.
+void apply_horizontal_menus(const MenuContext& ctx, int32_t value);
 
 /// @brief `usb::Audio`, `usb::DirectMonitoring` and `usb::OutputSource`'s reads and writes
 /// (`origin/main:src/deluge/gui/menu_item/usb/audio.h`).
@@ -363,8 +339,7 @@ void set_shortcuts_version(const MenuContext& ctx, int32_t value);
 ///        `Colour::readCurrentValue`), with the slot as a template argument rather than an object identity.
 ///
 /// The six colour items differ in exactly one thing -- which of `FlashStorage::padColours` they
-/// edit -- so they are six distinct addresses of the two templates below, the shape
-/// `get_runtime_feature`/`set_runtime_feature` above already uses. The `Slot` literals are plain
+/// edit -- so they are six distinct addresses of the two templates below. The `Slot` literals are plain
 /// `int`s so this header need not include `storage/flash_storage.h`; `nodes/settings.cpp` pins each one
 /// against `FlashStorage::PadColourSlot` with a `static_assert`, exactly as it pins `ResetItem`'s
 /// `DescriptorId` literals.
@@ -1153,58 +1128,75 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 // (`origin/main:src/deluge/gui/menu_item/runtime_feature/setting.h`) -- which is `Kind::Toggle` here;
 // `SyncScalingAction` is a plain two-option `Setting` and `ShortcutOverlay` a three-option one.
 
-/// One community-feature toggle. `n` is the `RuntimeFeatureSettingType` enumerator's value
-/// (`model/settings/runtime_feature_settings.h`).
-#define DELUGE_RUNTIME_TOGGLE(node_name, n, name_id)                                                                   \
-	inline constexpr Node node_name =                                                                                  \
-	    toggle_item(sid(String::name_id), get_runtime_feature<(n)>, set_runtime_feature<(n)>)
+/// @brief A community feature's node: its DEVICE row, `features/<name>` (`project::device_path::feature`).
+/// @param name    The node's name and title.
+/// @param feature The feature it edits.
+/// @param kind    How it is shown: Toggle for an on/off feature, Enum for one with choices of its own.
+/// @return The node.
+constexpr Node feature_item(uint16_t name, project::Feature feature, Kind kind = Kind::Toggle) {
+	return setting_item(name, kind,
+	                    {.kind = bind::Target::Kind::MODEL,
+	                     .path = project::device_path::feature(feature),
+	                     .group = project::SettingGroupId::DEVICE});
+}
 
-DELUGE_RUNTIME_TOGGLE(feature_drum_randomizer, 0, STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER);
-DELUGE_RUNTIME_TOGGLE(feature_quantize, 1, STRING_FOR_COMMUNITY_FEATURE_QUANTIZE);
-DELUGE_RUNTIME_TOGGLE(feature_fine_tempo, 2, STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB);
-DELUGE_RUNTIME_TOGGLE(feature_catch_notes, 3, STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES);
-DELUGE_RUNTIME_TOGGLE(feature_delete_unused_kit_rows, 4, STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS);
-DELUGE_RUNTIME_TOGGLE(feature_alt_delay_params, 5, STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS);
-DELUGE_RUNTIME_TOGGLE(feature_highlight_incoming_notes, 7, STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES);
-DELUGE_RUNTIME_TOGGLE(feature_norns_layout, 8, STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT);
-DELUGE_RUNTIME_TOGGLE(feature_light_shift, 10, STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT);
-DELUGE_RUNTIME_TOGGLE(feature_dx7_engine, 11, STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE);
-DELUGE_RUNTIME_TOGGLE(feature_kb_sidebar_menu_exit, 12, STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT);
-DELUGE_RUNTIME_TOGGLE(feature_launch_event_playhead, 13, STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD);
-DELUGE_RUNTIME_TOGGLE(feature_chord_keyboard, 14, STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD);
-DELUGE_RUNTIME_TOGGLE(feature_alt_playback_start, 15,
-                      STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR);
-DELUGE_RUNTIME_TOGGLE(feature_grid_loop_pads, 16, STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS);
-DELUGE_RUNTIME_TOGGLE(feature_alt_tap_tempo, 17, STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR);
-DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
-DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
-
-#undef DELUGE_RUNTIME_TOGGLE
-
-/// `ShortcutOverlay` (index 22) is a three-option `Setting`, in `RuntimeFeatureStateShortcutOverlay` value order.
-inline constexpr uint16_t kShortcutOverlayNames[] = {
-    sid(String::STRING_FOR_OFF),
-    sid(String::STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
-    sid(String::STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
-};
-inline constexpr Node feature_shortcut_overlay =
-    enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY), kShortcutOverlayNames,
-                get_runtime_feature<22>, set_runtime_feature<22>);
-
-/// `ShiftIsSticky` (index 9) has a write of its own
-/// (`origin/main:src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp`).
+inline constexpr Node feature_drum_randomizer =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), project::Feature::DRUM_RANDOMIZER);
+inline constexpr Node feature_quantize =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), project::Feature::QUANTIZE);
+inline constexpr Node feature_fine_tempo =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB), project::Feature::FINE_TEMPO_KNOB);
+inline constexpr Node feature_catch_notes =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES), project::Feature::CATCH_NOTES);
+inline constexpr Node feature_delete_unused_kit_rows = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS), project::Feature::DELETE_UNUSED_KIT_ROWS);
+inline constexpr Node feature_alt_delay_params = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS), project::Feature::ALT_GOLDEN_KNOB_DELAY_PARAMS);
+inline constexpr Node feature_highlight_incoming_notes = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES), project::Feature::HIGHLIGHT_INCOMING_NOTES);
+inline constexpr Node feature_norns_layout =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT), project::Feature::DISPLAY_NORNS_LAYOUT);
+inline constexpr Node feature_light_shift =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT), project::Feature::LIGHT_SHIFT_LED);
+inline constexpr Node feature_dx7_engine =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE), project::Feature::ENABLE_DX7_ENGINE);
+inline constexpr Node feature_kb_sidebar_menu_exit =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT),
+                 project::Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT);
+inline constexpr Node feature_launch_event_playhead = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD), project::Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD);
+inline constexpr Node feature_chord_keyboard =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD), project::Feature::DISPLAY_CHORD_KEYBOARD);
+inline constexpr Node feature_alt_playback_start =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR),
+                 project::Feature::ALTERNATIVE_PLAYBACK_START_BEHAVIOUR);
+inline constexpr Node feature_grid_loop_pads = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS), project::Feature::ENABLE_GRID_VIEW_LOOP_PADS);
+inline constexpr Node feature_alt_tap_tempo =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR),
+                 project::Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR);
+inline constexpr Node feature_trim_from_start =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP),
+                 project::Feature::TRIM_FROM_START_OF_AUDIO_CLIP);
+inline constexpr Node feature_show_battery_level =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL), project::Feature::SHOW_BATTERY_LEVEL);
+/// `ShortcutOverlay` is a three-option `Setting`, named in its values' order.
+inline constexpr Node feature_shortcut_overlay = feature_item(
+    sid(String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY), project::Feature::SHORTCUT_OVERLAY, Kind::Enum);
+/// `ShiftIsSticky`'s write also lights the shift LED and reaches the shift machines
+/// (`origin/main:src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp`); the device port's store does both.
 inline constexpr Node feature_sticky_shift =
-    toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), get_runtime_feature<9>, set_shift_is_sticky);
-/// `RoundedCorners` (index 21) restyles main's canvas and the guest's panels as it is written.
-inline constexpr Node feature_rounded_corners = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS),
-                                                            get_runtime_feature<21>, set_rounded_corners);
-/// `HorizontalMenus` (index 18) reaches the open menu as it is written.
-inline constexpr Node feature_horizontal_menus = toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS),
-                                                             get_runtime_feature<18>, set_horizontal_menus);
-/// `SyncScalingAction` (index 6) -- two literal options, not l10n ids.
-inline constexpr Node feature_sync_scaling =
-    dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), sync_scaling_action_names,
-                        get_runtime_feature<6>, set_runtime_feature<6>);
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), project::Feature::SHIFT_IS_STICKY);
+/// `RoundedCorners` restyles main's canvas and the guest's panels as it is written; the device port's store does it.
+inline constexpr Node feature_rounded_corners =
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS), project::Feature::ROUNDED_CORNERS);
+/// `HorizontalMenus` reaches the open menu once it is stored.
+inline constexpr Node feature_horizontal_menus = with_after_write(
+    feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS), project::Feature::HORIZONTAL_MENUS),
+    apply_horizontal_menus);
+/// `SyncScalingAction` is a plain two-option `Setting`.
+inline constexpr Node feature_sync_scaling = feature_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION),
+                                                          project::Feature::SYNC_SCALING_ACTION, Kind::Enum);
 
 inline constexpr const Node* kRuntimeFeatureChildren[] = {&feature_drum_randomizer,
                                                           &feature_fine_tempo,

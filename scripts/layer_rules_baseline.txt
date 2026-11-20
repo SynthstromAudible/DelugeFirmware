@@ -136,7 +136,7 @@ src/scenes/menu/nodes/multi_range.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/patch_cables.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/roots.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/nodes/scales.cpp	scenes-reads-outside-bind	1
-src/scenes/menu/nodes/settings.cpp	scenes-reads-outside-bind	12
+src/scenes/menu/nodes/settings.cpp	scenes-reads-outside-bind	11
 src/scenes/menu/relevance.cpp	scenes-reads-outside-bind	1
 src/scenes/menu/shortcuts.cpp	scenes-reads-outside-bind	1
 src/scenes/overlay/count_in_scene.cpp	scenes-reads-outside-bind	1

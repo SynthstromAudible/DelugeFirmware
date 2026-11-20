@@ -78,12 +78,20 @@ constexpr SettingInfo choice(std::string_view path, std::span<const std::string_
 
 /// The rows before the preset scales'.
 constexpr size_t kLeadingRows = 2;
-/// The rows after them.
+/// The rows after them, before the community features'.
 constexpr size_t kTrailingRows = 2;
+/// How many rows the table has.
+constexpr size_t kRowCount = kLeadingRows + kScaleCount + kTrailingRows + kFeatureCount;
+
+/// @brief Community feature @p info's row: BOOL for an on/off feature, else CHOICE over its words.
+constexpr SettingInfo feature_row(const FeatureInfo& info) {
+	const std::string_view path = device_path::feature(info.id);
+	return is_toggle(info) ? boolean(path, info.default_value) : choice(path, info.choices, info.default_value);
+}
 
 /// The DEVICE table: each row's default is the one the device's settings reset to.
-constexpr std::array<SettingInfo, kLeadingRows + kScaleCount + kTrailingRows> kDeviceTable = [] {
-	std::array<SettingInfo, kLeadingRows + kScaleCount + kTrailingRows> rows{};
+constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
+	std::array<SettingInfo, kRowCount> rows{};
 	size_t at = 0;
 	rows[at++] = boolean(device_path::kUseSharps, 1);
 	rows[at++] = choice(device_path::kPatchCablePolarity, kPolarityWords, 1);
@@ -93,6 +101,9 @@ constexpr std::array<SettingInfo, kLeadingRows + kScaleCount + kTrailingRows> kD
 	rows[at++] =
 	    choice(device_path::kShortcutsVersion, kShortcutsVersionWords, std::to_underlying(ShortcutsVersion::V3));
 	rows[at++] = choice(device_path::kPlayCursor, kPlayCursorWords, std::to_underlying(FlashCursor::SLOW));
+	for (const FeatureInfo& info : kFeatures) {
+		rows[at++] = feature_row(info);
+	}
 	return rows;
 }();
 static_assert(plugin::conditions_are_valid(kDeviceTable));

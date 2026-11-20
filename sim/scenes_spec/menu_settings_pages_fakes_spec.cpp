@@ -7,13 +7,16 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/settings.h"
+#include "scenes/menu/walk.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
 #include "deluge-project/device_settings.h"
+#include "deluge-project/features.h"
 #include "gui/l10n/l10n.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
@@ -43,6 +46,7 @@ using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 namespace device_path = deluge::project::device_path;
+using deluge::project::Feature;
 
 namespace {
 
@@ -115,6 +119,37 @@ std::vector<std::string> names_of(const Node& node, const MenuContext& ctx) {
 	const size_t count = menu::bindings::names(node, ctx, out, scratch, menu::bindings::NameForm::Full);
 	return {out.begin(), out.begin() + static_cast<std::ptrdiff_t>(count)};
 }
+
+/// @brief The community features' nodes, in the page's order, each with its feature.
+struct FeatureNode {
+	const Node* node;
+	Feature feature;
+};
+constexpr std::array<FeatureNode, deluge::project::kFeatureCount> kFeatureNodes{{
+    {&nodes::feature_drum_randomizer, Feature::DRUM_RANDOMIZER},
+    {&nodes::feature_fine_tempo, Feature::FINE_TEMPO_KNOB},
+    {&nodes::feature_quantize, Feature::QUANTIZE},
+    {&nodes::feature_catch_notes, Feature::CATCH_NOTES},
+    {&nodes::feature_delete_unused_kit_rows, Feature::DELETE_UNUSED_KIT_ROWS},
+    {&nodes::feature_alt_delay_params, Feature::ALT_GOLDEN_KNOB_DELAY_PARAMS},
+    {&nodes::feature_sync_scaling, Feature::SYNC_SCALING_ACTION},
+    {&nodes::feature_highlight_incoming_notes, Feature::HIGHLIGHT_INCOMING_NOTES},
+    {&nodes::feature_norns_layout, Feature::DISPLAY_NORNS_LAYOUT},
+    {&nodes::feature_sticky_shift, Feature::SHIFT_IS_STICKY},
+    {&nodes::feature_light_shift, Feature::LIGHT_SHIFT_LED},
+    {&nodes::feature_dx7_engine, Feature::ENABLE_DX7_ENGINE},
+    {&nodes::feature_kb_sidebar_menu_exit, Feature::ENABLE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT},
+    {&nodes::feature_launch_event_playhead, Feature::ENABLE_LAUNCH_EVENT_PLAYHEAD},
+    {&nodes::feature_chord_keyboard, Feature::DISPLAY_CHORD_KEYBOARD},
+    {&nodes::feature_alt_playback_start, Feature::ALTERNATIVE_PLAYBACK_START_BEHAVIOUR},
+    {&nodes::feature_grid_loop_pads, Feature::ENABLE_GRID_VIEW_LOOP_PADS},
+    {&nodes::feature_alt_tap_tempo, Feature::ALTERNATIVE_TAP_TEMPO_BEHAVIOUR},
+    {&nodes::feature_horizontal_menus, Feature::HORIZONTAL_MENUS},
+    {&nodes::feature_rounded_corners, Feature::ROUNDED_CORNERS},
+    {&nodes::feature_trim_from_start, Feature::TRIM_FROM_START_OF_AUDIO_CLIP},
+    {&nodes::feature_show_battery_level, Feature::SHOW_BATTERY_LEVEL},
+    {&nodes::feature_shortcut_overlay, Feature::SHORTCUT_OVERLAY},
+}};
 
 } // namespace
 
@@ -206,6 +241,87 @@ describe menu_settings_pages_fakes("the settings pages' DEVICE rows, over the po
 			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::SLOW));
 		expect(names_of(nodes::flash_status, ctx)).to_equal(std::vector<std::string>{"Fast", "Disabled", "Slow"});
 		expect(menu::bindings::range(nodes::flash_status, ctx).max).to_equal(2);
+	});
+
+	it("lists every community feature on its page, in the page's order, each read from the fake", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::runtime_features);
+		for (size_t at = 0; at < kFeatureNodes.size(); ++at) {
+			const FeatureNode& want = kFeatureNodes[at];
+			const deluge::project::FeatureInfo& info = deluge::project::feature_info(want.feature);
+			const std::string label{info.path};
+			expect(row_of(nodes::runtime_features, *want.node, ctx)).to_equal(static_cast<int32_t>(at), label);
+			expect(std::string{want.node->bind.target.path}).to_equal(std::string{device_path::feature(want.feature)}, label);
+			expect(static_cast<int>(want.node->kind))
+			    .to_equal(static_cast<int>(deluge::project::is_toggle(info) ? menu::Kind::Toggle : menu::Kind::Enum), label);
+			expect(menu::bindings::read(*want.node, ctx)).to_equal(static_cast<int32_t>(info.default_value), label);
+		}
+		// The fake's value is what a feature shows.
+		r.fakes.host.device.values.insert_or_assign(std::string{device_path::feature(Feature::QUANTIZE)},
+		                                            deluge::serialization::Value::makeNumber(0));
+		expect(menu::bindings::read(nodes::feature_quantize, ctx)).to_equal(0);
+		r.fakes.host.device.values.insert_or_assign(std::string{device_path::feature(Feature::SHORTCUT_OVERLAY)},
+		                                            deluge::serialization::Value::makeScalar("menuAndClip"));
+		expect(menu::bindings::read(nodes::feature_shortcut_overlay, ctx))
+			.to_equal(static_cast<int32_t>(deluge::project::ShortcutOverlay::MENU_AND_CLIP));
+		expect(r.fakes.host.device.stores.empty()).to_be_true();
+	});
+
+	it("names the two features with choices of their own in their values' order", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::runtime_features);
+		expect(names_of(nodes::feature_sync_scaling, ctx))
+			.to_equal(std::vector<std::string>{"Sync Scaling", "Fill mode"});
+		expect(names_of(nodes::feature_shortcut_overlay, ctx))
+			.to_equal(std::vector<std::string>{"Off", "On - Menu only", "On - Menu + Clip"});
+		expect(menu::bindings::range(nodes::feature_shortcut_overlay, ctx).max).to_equal(2);
+	});
+
+	it("stores a feature's write through the device port: a toggle's number, a choice's word", _ {
+		Rig r;
+		const MenuContext ctx = r.open(nodes::runtime_features);
+		menu::bindings::write(nodes::feature_quantize, ctx, 0);
+		menu::bindings::write(nodes::feature_sync_scaling, ctx, 1);
+		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
+		const auto& stores = r.fakes.host.device.stores;
+		expect(stores.size()).to_equal(size_t{3});
+		if (stores.size() == 3) {
+			expect(stores[0].first).to_equal(std::string{device_path::feature(Feature::QUANTIZE)});
+			expect(stores[0].second.str()).to_equal(std::string{"0"});
+			expect(stores[1].first).to_equal(std::string{device_path::feature(Feature::SYNC_SCALING_ACTION)});
+			expect(stores[1].second.str()).to_equal(std::string{"fill"});
+			// The shift LED the sticky-shift write also lights is the host's to store: the menu writes one row.
+			expect(stores[2].first).to_equal(std::string{device_path::feature(Feature::SHIFT_IS_STICKY)});
+		}
+		expect(menu::bindings::read(nodes::feature_sync_scaling, ctx))
+			.to_equal(static_cast<int32_t>(deluge::project::SyncScalingAction::FILL));
+		expect(r.fakes.host.writes.requests.empty()).to_be_true();
+	});
+
+	it("lays the open menu out by a horizontal-menus write on its next render", _ {
+		Rig r;
+		(void)r.open(nodes::voice_usage);
+		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_true();
+		const std::string horizontal = r.surfaces.pbm(0);
+		menu::bindings::write(nodes::feature_horizontal_menus, menu_scene().menu_context(), 0);
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
+		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_false();
+		r.shell.tick(50);
+		const std::string vertical = r.surfaces.pbm(0);
+		expect(vertical).not_().to_equal(horizontal);
+		menu::bindings::write(nodes::feature_horizontal_menus, menu_scene().menu_context(), 1);
+		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_true();
+		r.shell.tick(100);
+		expect(r.surfaces.pbm(0)).to_equal(horizontal);
+	});
+
+	it("leaves the open menu's layout as it was when the port refuses a horizontal-menus write", _ {
+		Rig r;
+		(void)r.open(nodes::voice_usage);
+		r.fakes.host.device.refuse.insert(std::string{device_path::feature(Feature::HORIZONTAL_MENUS)});
+		menu::bindings::write(nodes::feature_horizontal_menus, menu_scene().menu_context(), 0);
+		expect(r.fakes.host.device.stores.size()).to_equal(size_t{1});
+		expect(menu::is_horizontal(menu_scene().menu_context(), nodes::voice_usage)).to_be_true();
 	});
 });
 // clang-format on

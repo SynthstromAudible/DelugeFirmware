@@ -1030,6 +1030,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NEXT_SONG_AFTER_SLICE, "Next song after slice"},
         {STRING_FOR_POLARITY_UNIPOLAR, "unipolar"},
         {STRING_FOR_POLARITY_BIPOLAR, "bipolar"},
+        {STRING_FOR_SYNC_SCALING_ACTION_SYNC_SCALING, "Sync Scaling"},
+        {STRING_FOR_SYNC_SCALING_ACTION_FILL, "Fill mode"},
     },
 };
 } // namespace deluge::l10n::built_in

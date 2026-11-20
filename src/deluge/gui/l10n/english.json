@@ -1016,6 +1016,8 @@
     "STRING_FOR_NEXT_SONG_AFTER_TAKE": "Next song after take",
     "STRING_FOR_NEXT_SONG_AFTER_SLICE": "Next song after slice",
     "STRING_FOR_POLARITY_UNIPOLAR": "unipolar",
-    "STRING_FOR_POLARITY_BIPOLAR": "bipolar"
+    "STRING_FOR_POLARITY_BIPOLAR": "bipolar",
+    "STRING_FOR_SYNC_SCALING_ACTION_SYNC_SCALING": "Sync Scaling",
+    "STRING_FOR_SYNC_SCALING_ACTION_FILL": "Fill mode"
   }
 }

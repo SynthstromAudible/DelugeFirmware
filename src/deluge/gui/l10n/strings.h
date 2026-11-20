@@ -1170,6 +1170,9 @@ enum class String : size_t {
 	// A patch cable's two polarities, as the default polarity's list names them: the cable's own words.
 	STRING_FOR_POLARITY_UNIPOLAR,
 	STRING_FOR_POLARITY_BIPOLAR,
+	// The sync-scaling action's two choices, as the community features page lists them.
+	STRING_FOR_SYNC_SCALING_ACTION_SYNC_SCALING,
+	STRING_FOR_SYNC_SCALING_ACTION_FILL,
 
 	STRING_LAST
 };

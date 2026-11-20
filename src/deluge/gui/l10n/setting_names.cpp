@@ -425,6 +425,75 @@ constexpr std::array<String, 2> kShortcutsVersionChoices{
     {STRING_FOR_SHORTCUTS_VERSION_1, STRING_FOR_SHORTCUTS_VERSION_3}};
 constexpr SettingNames kShortcutsVersionNames{
     STRING_FOR_SHORTCUTS_VER_MENU_TITLE, STRING_FOR_SHORTCUTS_VERSION, kShortcutsVersionChoices, {}};
+/// The community features' names: each row's name is its menu item's, and a feature with choices of its own names
+/// them in its values' order.
+constexpr std::array<String, 2> kSyncScalingActionChoices{
+    {STRING_FOR_SYNC_SCALING_ACTION_SYNC_SCALING, STRING_FOR_SYNC_SCALING_ACTION_FILL}};
+constexpr std::array<String, 3> kShortcutOverlayChoices{
+    {STRING_FOR_OFF, STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY, STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP}};
+constexpr SettingNames kFeatureDrumRandomizerNames{
+    STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, {}, {}};
+constexpr SettingNames kFeatureQuantizeNames{
+    STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, {}, {}};
+constexpr SettingNames kFeatureFineTempoKnobNames{
+    STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, {}, {}};
+constexpr SettingNames kFeatureCatchNotesNames{
+    STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, {}, {}};
+constexpr SettingNames kFeatureDeleteUnusedKitRowsNames{
+    STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, {}, {}};
+constexpr SettingNames kFeatureAltGoldenKnobDelayParamsNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, {}, {}};
+constexpr SettingNames kFeatureSyncScalingActionNames{STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
+                                                      STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
+                                                      kSyncScalingActionChoices,
+                                                      {}};
+constexpr SettingNames kFeatureHighlightIncomingNotesNames{STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
+                                                           STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
+                                                           {},
+                                                           {}};
+constexpr SettingNames kFeatureDisplayNornsLayoutNames{
+    STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, {}, {}};
+constexpr SettingNames kFeatureStickyShiftNames{
+    STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT, {}, {}};
+constexpr SettingNames kFeatureLightShiftNames{
+    STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT, {}, {}};
+constexpr SettingNames kFeatureEnableDX7EngineNames{
+    STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE, {}, {}};
+constexpr SettingNames kFeatureEnableKeyboardViewSidebarMenuExitNames{
+    STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+    STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableLaunchEventPlayheadNames{
+    STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, {}, {}};
+constexpr SettingNames kFeatureDisplayChordKeyboardNames{
+    STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, {}, {}};
+constexpr SettingNames kFeatureAlternativePlaybackStartBehaviourNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableGridViewLoopPadsNames{
+    STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, {}, {}};
+constexpr SettingNames kFeatureAlternativeTapTempoBehaviourNames{
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+    STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+    {},
+    {}};
+constexpr SettingNames kFeatureEnableHorizontalMenusNames{
+    STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, {}, {}};
+constexpr SettingNames kFeatureTrimFromStartOfAudioClipNames{STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
+                                                             STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
+                                                             {},
+                                                             {}};
+constexpr SettingNames kFeatureShowBatteryLevelNames{
+    STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, {}, {}};
+constexpr SettingNames kFeatureRoundedCornersNames{
+    STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, {}, {}};
+constexpr SettingNames kFeatureShortcutOverlayNames{STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
+                                                    STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
+                                                    kShortcutOverlayChoices,
+                                                    {}};
 /// @}
 
 /// @brief The tables several owners' menus show alike, stored once and keyed after the owners: the arp's setting rows
@@ -451,7 +520,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 122> kEntries{{
+constexpr std::array<Entry, 145> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -488,6 +557,31 @@ constexpr std::array<Entry, 122> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
     Entry{SettingGroupId::DEVICE, "defaults/patchCablePolarity", &kPatchCablePolarityNames},
     Entry{SettingGroupId::DEVICE, "defaults/useSharps", &kUseSharpsNames},
+    Entry{SettingGroupId::DEVICE, "features/EnableDX7Engine", &kFeatureEnableDX7EngineNames},
+    Entry{SettingGroupId::DEVICE, "features/altGoldenKnobDelayParams", &kFeatureAltGoldenKnobDelayParamsNames},
+    Entry{SettingGroupId::DEVICE, "features/alternativePlaybackStartBehaviour",
+          &kFeatureAlternativePlaybackStartBehaviourNames},
+    Entry{SettingGroupId::DEVICE, "features/alternativeTapTempoBehaviour", &kFeatureAlternativeTapTempoBehaviourNames},
+    Entry{SettingGroupId::DEVICE, "features/catchNotes", &kFeatureCatchNotesNames},
+    Entry{SettingGroupId::DEVICE, "features/deleteUnusedKitRows", &kFeatureDeleteUnusedKitRowsNames},
+    Entry{SettingGroupId::DEVICE, "features/displayChordKeyboard", &kFeatureDisplayChordKeyboardNames},
+    Entry{SettingGroupId::DEVICE, "features/displayNornsLayout", &kFeatureDisplayNornsLayoutNames},
+    Entry{SettingGroupId::DEVICE, "features/drumRandomizer", &kFeatureDrumRandomizerNames},
+    Entry{SettingGroupId::DEVICE, "features/enableGridViewLoopPads", &kFeatureEnableGridViewLoopPadsNames},
+    Entry{SettingGroupId::DEVICE, "features/enableHorizontalMenus", &kFeatureEnableHorizontalMenusNames},
+    Entry{SettingGroupId::DEVICE, "features/enableKeyboardViewSidebarMenuExit",
+          &kFeatureEnableKeyboardViewSidebarMenuExitNames},
+    Entry{SettingGroupId::DEVICE, "features/enableLaunchEventPlayhead", &kFeatureEnableLaunchEventPlayheadNames},
+    Entry{SettingGroupId::DEVICE, "features/fineTempoKnob", &kFeatureFineTempoKnobNames},
+    Entry{SettingGroupId::DEVICE, "features/highlightIncomingNotes", &kFeatureHighlightIncomingNotesNames},
+    Entry{SettingGroupId::DEVICE, "features/lightShift", &kFeatureLightShiftNames},
+    Entry{SettingGroupId::DEVICE, "features/quantize", &kFeatureQuantizeNames},
+    Entry{SettingGroupId::DEVICE, "features/roundedCorners", &kFeatureRoundedCornersNames},
+    Entry{SettingGroupId::DEVICE, "features/shortcutOverlay", &kFeatureShortcutOverlayNames},
+    Entry{SettingGroupId::DEVICE, "features/showBatteryLevel", &kFeatureShowBatteryLevelNames},
+    Entry{SettingGroupId::DEVICE, "features/stickyShift", &kFeatureStickyShiftNames},
+    Entry{SettingGroupId::DEVICE, "features/syncScalingAction", &kFeatureSyncScalingActionNames},
+    Entry{SettingGroupId::DEVICE, "features/trimFromStartOfAudioClip", &kFeatureTrimFromStartOfAudioClipNames},
     Entry{SettingGroupId::DEVICE, "pads/playCursor", &kPlayCursorNames},
     Entry{SettingGroupId::DEVICE, "pads/shortcutsVersion", &kShortcutsVersionNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},

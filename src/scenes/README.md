@@ -314,10 +314,11 @@ skips it. If it ever wants to be lazy, the slot has to become a queue first.
 **A setting's side effect is a call, not an action.** A settings write `main` applies at once is a synchronous call
 the setter makes into `menu/bind_host.h`, and the host has applied it when the setter returns:
 `host_screensaver_settings_changed` (the screensaver's mode and timeout), `host_pad_brightness_changed`,
-`host_highlighting_changed`, `host_rounded_corners_changed`, `host_shift_sticky_changed` and
-`host_pad_colours_changed`. A setting that is a DEVICE row has no setter: its node writes the device port
-(`Ports::device`), whose host store does what the item's write does, so the play cursor leaving its slow flash clears
-the tick squares there. The file selector ends a keyboard audition the same way, with
+`host_highlighting_changed` and `host_pad_colours_changed`. A setting that is a DEVICE row has no setter: its node
+writes the device port (`Ports::device`), whose host store does what the item's write does, so the play cursor leaving
+its slow flash clears the tick squares there, sticky shift reaches the shift machines and rounded corners restyles the
+display. What the open menu does with a written row is its node's `Binding::after_write`: the horizontal-menus
+feature's re-lays out the menu. The file selector ends a keyboard audition the same way, with
 `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`

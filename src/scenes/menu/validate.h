@@ -119,6 +119,9 @@ enum class Flag : uint16_t {
 	///        target narrows where the descriptor applies, for a legacy `isRelevant` that asks what the editor edits
 	///        rather than the owner's rows (`bindings::relevant` asks both).
 	TargetWithHooks,
+	/// @brief A node with a `Binding::after_write` whose target is not a DEVICE row: only a device write runs it, so
+	///        anywhere else it would never run.
+	AfterWriteOffDevice,
 };
 
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom

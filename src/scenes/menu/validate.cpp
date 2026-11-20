@@ -324,6 +324,11 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::TargetWithHooks));
 		}
 
+		// Only a device write runs a node's after-write -- see `Flag::AfterWriteOffDevice`.
+		if (n.bind.after_write != nullptr && !(n.bind.target.valid() && n.bind.target.on_device())) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::AfterWriteOffDevice));
+		}
+
 		// A chain hook and its static target list are set together or not at all -- see
 		// `Flag::ChainTargetsMismatch`.
 		if ((n.select_chain != nullptr) != !n.chain_targets.empty()) {

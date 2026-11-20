@@ -82,9 +82,8 @@ inline std::vector<TablesRoot>& roots() {
 	static std::vector<TablesRoot> list = [] {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		// `deluge_boot()` calls this (`deluge/deluge.cpp`); nothing else in this spec's world does, and the
-		// community-features page is exactly the part of the settings root that reads it -- an
-		// un-`init`ed `RuntimeFeatureSetting` has an empty `options` vector, which legacy's own
-		// `runtime_feature::Setting::readCurrentValue` indexes unconditionally.
+		// community-features page is exactly the part of the settings root that reads it: it gives every feature its
+		// factory value.
 		runtimeFeatureSettings.init();
 		std::vector<TablesRoot> r;
 

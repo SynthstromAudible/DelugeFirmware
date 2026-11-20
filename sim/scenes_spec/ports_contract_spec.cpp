@@ -7,6 +7,7 @@
 #include "deluge-project/device_settings.h"
 #include "hid/led/pad_leds.h"
 #include "instruments/deluge/cables.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
 #include "model/song/song.h"
@@ -15,6 +16,7 @@
 #include <version.h>
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -144,9 +146,48 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(bind::contract::device_out_of_range_write_is_refused(*p.device)).to_be_true();
 		expect(bind::contract::device_write_reads_back(*p.device)).to_be_true();
 		expect(bind::contract::device_reader_reads_the_rows(*p.device)).to_be_true();
-		// Every row the host keeps reads back what it stored, each put back as it was.
+		// Every row the host keeps reads back what it stored. A write that sets a second row (sticky shift lights the
+		// shift LED) is put back by writing every row again in the table's order, which ends as it began.
+		const auto before = bind::contract::device_values(*p.device);
 		for (const deluge::plugin::SettingInfo& row : deluge::project::device_table()) {
 			expect(bind::contract::device_row_reads_back(*p.device, row.path)).to_be_true(std::string{row.path});
+		}
+		size_t at = 0;
+		for (const deluge::plugin::SettingInfo& row : deluge::project::device_table()) {
+			if (const std::optional<int32_t> was = before[at++]) {
+				(void)p.device->write(row.path, deluge::plugin::to_menu(row, *was));
+			}
+		}
+		const auto after = bind::contract::device_values(*p.device);
+		for (size_t row = 0; row < before.size(); ++row) {
+			expect(after[row].value_or(-1)).to_equal(before[row].value_or(-1), std::string{deluge::project::device_table()[row].path});
+		}
+
+		// The community features are the legacy settings' values; a sticky-shift write lights the shift LED too.
+		{
+			using deluge::project::Feature;
+			const std::string_view sticky = device_path::feature(Feature::SHIFT_IS_STICKY);
+			const std::string_view light = device_path::feature(Feature::LIGHT_SHIFT_LED);
+			const std::string_view overlay = device_path::feature(Feature::SHORTCUT_OVERLAY);
+			const uint32_t saved_sticky = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+			const uint32_t saved_light = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
+			const uint32_t saved_overlay = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay);
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::Off);
+			expect(p.device->read(light).value_or(-1)).to_equal(0);
+			expect(static_cast<int>(p.device->write(sticky, 1))).to_equal(static_cast<int>(bind::DeviceWrite::STORED));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)).to_equal(uint32_t{1});
+			expect(p.device->read(light).value_or(-1)).to_equal(1);
+			// A number the file held that no value names: an on/off feature shows any but 0 as on, as its toggle
+			// does, and a feature with choices reads clamped into them.
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, 2);
+			expect(p.device->read(light).value_or(-1)).to_equal(1);
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, 7);
+			expect(p.device->read(overlay).value_or(-1))
+			    .to_equal(static_cast<int32_t>(deluge::project::ShortcutOverlay::MENU_AND_CLIP));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay)).to_equal(uint32_t{7});
+			(void)p.device->write(sticky, static_cast<int32_t>(saved_sticky != 0));
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, saved_light);
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShortcutOverlay, saved_overlay);
 		}
 
 		// The legacy sources themselves, each put back.

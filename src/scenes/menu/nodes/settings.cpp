@@ -42,7 +42,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "io/usb/usb_audio.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "music-theory/note_names.h"
 #include "music-theory/preset_scales.h"
@@ -775,58 +774,14 @@ void set_default_threshold_recording(const MenuContext& ctx, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Community features
 
-int32_t runtime_feature_get(int32_t type) {
-	// `Setting::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/runtime_feature/setting.cpp`) scans the option
-	// list for the stored value and reports its index; every option list here is `{0, 1}` in index order
-	// (`SetupOnOffSetting` and `SetupSyncScalingActionSetting` in `runtime_feature_settings.cpp`), so the index IS the
-	// value.
-	return static_cast<int32_t>(runtimeFeatureSettings.get(static_cast<RuntimeFeatureSettingType>(type)));
-}
-void runtime_feature_set(int32_t type, int32_t value) {
-	// `Setting::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/runtime_feature/setting.cpp`)
-	runtimeFeatureSettings.set(static_cast<RuntimeFeatureSettingType>(type), static_cast<uint32_t>(value));
-}
-
-void set_rounded_corners(const MenuContext&, int32_t value) {
-	// `RoundedCornersSettingToggle::writeCurrentValue`: the setting, then main's canvas flag and the guest's panels.
-	runtime_feature_set(RuntimeFeatureSettingType::RoundedCorners, value);
-	host_rounded_corners_changed();
-}
-
-void set_horizontal_menus(const MenuContext&, int32_t value) {
-	// `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the setting
-	// live; the open menu's context holds the copy it lays out by.
-	runtime_feature_set(RuntimeFeatureSettingType::HorizontalMenus, value);
+void apply_horizontal_menus(const MenuContext&, int32_t value) {
 	menu_scene().set_horizontal_menus(value != 0);
-}
-
-void set_shift_is_sticky(const MenuContext&, int32_t value) {
-	// `ShiftIsSticky::writeCurrentValue`: the setting and, on, the shift LED; then the guest's shift machine and
-	// legacy's latch.
-	runtime_feature_set(RuntimeFeatureSettingType::ShiftIsSticky, value);
-	if (value != 0) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
-	}
-	host_shift_sticky_changed();
 }
 
 size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {
 	// `DefaultNewClipType::getOptions`
 	// (`origin/main:src/deluge/gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h`).
 	static constexpr std::string_view kNames[] = {"SYNTH", "KIT", "MIDI", "CV", "AUDIO"};
-	size_t n = 0;
-	for (std::string_view name : kNames) {
-		if (n < out.size()) {
-			out[n++] = name;
-		}
-	}
-	return n;
-}
-
-size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view> out) {
-	// `SetupSyncScalingActionSetting` (`runtime_feature_settings.cpp`): two literal option
-	// names, not l10n ids -- exactly as legacy stores them.
-	static constexpr std::string_view kNames[] = {"Sync Scaling", "Fill mode"};
 	size_t n = 0;
 	for (std::string_view name : kNames) {
 		if (n < out.size()) {

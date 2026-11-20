@@ -131,7 +131,8 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 }
 
 /// @brief A DEVICE target's write of menu value @p value: through the device port, never the song's sink. A setting
-///        the device applies only after a restart says so, as the USB audio item does (`STRING_FOR_RESTART_TO_APPLY`).
+///        the device applies only after a restart says so, as the USB audio item does (`STRING_FOR_RESTART_TO_APPLY`);
+///        a stored write then reaches the open menu through the node's `after_write`.
 void write_device(const Binding& bind, const MenuContext& ctx, int32_t value) {
 	using deluge::scenes::bind::DeviceWrite;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
@@ -145,6 +146,9 @@ void write_device(const Binding& bind, const MenuContext& ctx, int32_t value) {
 	}
 	if (done == DeviceWrite::STORED_FOR_RESTART) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+	}
+	if (bind.after_write != nullptr) {
+		bind.after_write(ctx, request->menu_value);
 	}
 	notify::raise(notify::Dirty::Oled);
 	if (bind.repaints_grid) {

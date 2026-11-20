@@ -81,6 +81,30 @@ describe device_settings("the DEVICE setting group", ${
 		}
 	});
 
+	it("holds a row per community feature, of its kind, its words and its default", _ {
+		for (const FeatureInfo& info : kFeatures) {
+			const std::string_view path = device_path::feature(info.id);
+			expect(std::string{path}).to_equal(std::string{device_path::kFeaturePrefix} + std::string{info.path});
+			expect(feature_at(path)).to_equal(&info);
+			const SettingInfo* row = deluge::plugin::find_setting(device_table(), path);
+			expect(row).not_().to_be_null(std::string{path});
+			if (row == nullptr) {
+				continue;
+			}
+			expect(row->kind).to_equal(is_toggle(info) ? SettingKind::BOOL : SettingKind::CHOICE);
+			expect(row->default_value).to_equal(static_cast<int32_t>(info.default_value));
+			if (row->kind == SettingKind::CHOICE) {
+				expect(row->choices.data()).to_equal(info.choices.data());
+				expect(row->choices.size()).to_equal(info.choices.size());
+			}
+		}
+		expect(std::string{device_path::feature(Feature::HORIZONTAL_MENUS)})
+		    .to_equal(std::string{"features/enableHorizontalMenus"});
+		expect(feature_at("features/noSuchFeature")).to_be_null();
+		expect(feature_at("enableHorizontalMenus")).to_be_null();
+		expect(feature_at(device_path::kPlayCursor)).to_be_null();
+	});
+
 	it("is held by no song: a read finds no owner and a write is refused", _ {
 		Song song;
 		const SettingAddress device{SettingGroupId::DEVICE, DeviceAddress{}};

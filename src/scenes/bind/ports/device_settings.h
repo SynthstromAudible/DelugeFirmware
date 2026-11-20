@@ -42,7 +42,7 @@ public:
 	/// @brief Stores @p menu_value, in the row's menu units, in the DEVICE row at @p path.
 	/// @param path A DEVICE row's path.
 	/// @param menu_value The value as the menu shows it.
-	/// @return What the write did. Refused leaves every setting as it was.
+	/// @return What the write did. REFUSED leaves every setting as it was.
 	[[nodiscard]] DeviceWrite write(std::string_view path, int32_t menu_value);
 
 private:

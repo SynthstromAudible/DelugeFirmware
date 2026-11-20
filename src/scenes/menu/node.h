@@ -509,6 +509,11 @@ struct Binding {
 	/// @brief Refuse an edit with legacy's own popup (see `PermittedFn`). Null for
 	///        every ordinary node, which is always permitted.
 	PermittedFn permitted = nullptr;
+
+	/// @brief A DEVICE row's node: what the open menu does once the device port stored a write, given the menu value
+	///        written. It is the menu's own half of a setting it lays itself out by, which no host store may reach
+	///        (the horizontal-menus feature). Null for every other node.
+	SetFn after_write = nullptr;
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own
@@ -1344,6 +1349,12 @@ constexpr Node with_turn(Node n, TurnFn turn) {
 /// @brief `n` naming its full-screen value with @p text while it answers (`Binding::leaf_text`).
 constexpr Node with_leaf_text(Node n, ValueTextFn text) {
 	n.bind.leaf_text = text;
+	return n;
+}
+
+/// @brief `n`, a DEVICE row's node, applying a stored write to the open menu with @p apply (`Binding::after_write`).
+constexpr Node with_after_write(Node n, SetFn apply) {
+	n.bind.after_write = apply;
 	return n;
 }
 

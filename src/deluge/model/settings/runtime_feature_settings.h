@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/features.h"
 #include "gui/l10n/strings.h"
 #include "storage/byte_channel.h"
 #include "util/containers.h"
@@ -35,7 +36,8 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 // Keep the former On value as MenuOnly to preserve existing settings.
 enum class RuntimeFeatureStateShortcutOverlay : uint32_t { Off = 0, MenuOnly = 1, MenuAndClip = 2 };
 
-/// Every setting needs to be declared in here
+/// Every feature, by its `deluge::project::Feature` value: the feature table (`deluge-project/features.h`) declares
+/// them, and each enumerator here is its feature's id.
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	Quantize,
@@ -69,21 +71,6 @@ struct UnknownSetting {
 	uint32_t value{};
 };
 
-/// Definition for selectable options
-struct RuntimeFeatureSettingOption {
-	std::string_view displayName{};
-	uint32_t value{}; // Value to be defined as typed Enum above
-};
-
-/// Every setting keeps its metadata and value in here
-struct RuntimeFeatureSetting {
-	deluge::l10n::String displayName;
-	std::string_view xmlName{};
-	uint32_t value{};
-	// Limited to safe memory
-	deluge::vector<RuntimeFeatureSettingOption> options{};
-};
-
 class Serializer;
 class Deserializer;
 
@@ -93,7 +80,7 @@ public:
 	RuntimeFeatureSettings();
 
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
-	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
+	inline uint32_t get(RuntimeFeatureSettingType type) { return values[type]; };
 	inline bool isOn(RuntimeFeatureSettingType type) { return get(type) == RuntimeFeatureStateToggle::On; }
 
 	/**
@@ -101,7 +88,7 @@ public:
 	 *
 	 * Make sure when you use this the settings are eventually written back to the SDCard!
 	 */
-	inline void set(RuntimeFeatureSettingType type, uint32_t value) { settings[type].value = value; }
+	inline void set(RuntimeFeatureSettingType type, uint32_t value) { values[type] = value; }
 
 	inline const char* getStartupSong() { return startupSong.c_str(); }
 	void init();
@@ -126,8 +113,36 @@ public:
 	///        bytes.
 	static void parseSettingsBytes(void* ctx, char* bytes, uint32_t len);
 
+	/// @brief The name a menu shows for each feature, indexed by `deluge::project::Feature`.
+	static constexpr std::array<deluge::l10n::String, deluge::project::kFeatureCount> kDisplayNames{{
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_QUANTIZE,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
+	    deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
+	}};
+
 protected:
-	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
+	/// Each feature's value, indexed by its `deluge::project::Feature`; `kFeatures` names, words and defaults them.
+	std::array<uint32_t, deluge::project::kFeatureCount> values{};
 	std::string startupSong{};
 
 private:
