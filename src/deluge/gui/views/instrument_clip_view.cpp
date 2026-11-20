@@ -3756,6 +3756,10 @@ void InstrumentClipView::exitNoteEditor() {
 }
 
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
+	// A lock value being edited in the menu belongs to the notes selected now: write it before the selection changes
+	if (soundEditor.getCurrentMenuItem() == &noteParamLockValueMenu) {
+		noteParamLockValueMenu.commit();
+	}
 	char model_stack_memory[MODEL_STACK_MAX_SIZE];
 	auto* model_stack = currentSong->setupModelStackWithCurrentClip(model_stack_memory);
 	auto* row_stack = getCurrentInstrumentClip()->getNoteRowOnScreen(y, model_stack);
@@ -3864,6 +3868,11 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 	// to allow you to switch between items in horizontal menu
 	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
 		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
+	// and between its pages (Param locks is on the second). Never on to the clip view (scale / wrap edit toggles).
+	if (b == CROSS_SCREEN_EDIT || b == SCALE_MODE) {
+		soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		return ActionResult::DEALT_WITH;
 	}
 
 	// to allow you to zoom in / out

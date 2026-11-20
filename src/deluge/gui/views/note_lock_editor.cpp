@@ -332,3 +332,68 @@ bool NoteLockEditor::setHeldValue(ModelStackWithAutoParam* modelStack, int32_t v
 	}
 	return true;
 }
+
+deluge::note_locks::LockSet NoteLockEditor::getMenuLocks() {
+	Note* note = clipView_.getLeftMostNotePressed();
+	if (note == nullptr) {
+		return {};
+	}
+	note_locks::LockSet locks = currentSong->noteLocks.get(note->lockSet);
+	// Plus anything pending on a held pad covering that note
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		const note_locks::LiveEdit& live = note_locks::liveEdits[i];
+		if (!clipView_.editPadPresses[i].isActive || !live.armed() || live.edits.empty()) {
+			continue;
+		}
+		if (std::optional<PressedRow> pressed = getRowOfPress(i)) {
+			forEachNoteOfPress(*pressed->row, clipView_.editPadPresses[i], [&](Note& covered) {
+				if (&covered == note) {
+					locks.merge(live.edits);
+				}
+			});
+		}
+	}
+	return locks;
+}
+
+template <typename Change>
+bool NoteLockEditor::changeMenuLocks(Change change) {
+	// Anything still pending on a held pad goes in first, so it isn't lost or applied on top of this later
+	commitAll();
+	rearmAll();
+	// Each change made from the menu is its own undo step (the note editor otherwise keeps one NOTE_EDIT action
+	// open for as long as notes are selected)
+	actionLogger.closeAction(ActionType::NOTE_EDIT);
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ChangeResult total;
+	for (const EditPadPress& target : clipView_.get_note_edit_targets()) {
+		if (!target.isActive) {
+			continue;
+		}
+		ChangeResult result = changeLocks(clipView_.get_note_edit_row(modelStack, target), target, change);
+		total.changed |= result.changed;
+		total.failed |= result.failed;
+	}
+	actionLogger.closeAction(ActionType::NOTE_EDIT);
+	if (total.changed) {
+		uiNeedsRendering(&clipView_, 0xFFFFFFFF, 0);
+	}
+	if (total.failed) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+	}
+	return total.changed;
+}
+
+bool NoteLockEditor::setMenuLock(int32_t param, int32_t value) {
+	return changeMenuLocks([&](note_locks::LockSet& locks) { locks.set(param, value); });
+}
+
+bool NoteLockEditor::removeMenuLock(int32_t param) {
+	return changeMenuLocks([&](note_locks::LockSet& locks) { locks.remove(param); });
+}
+
+bool NoteLockEditor::clearMenuLocks() {
+	return changeMenuLocks([](note_locks::LockSet& locks) { locks.clear(); });
+}

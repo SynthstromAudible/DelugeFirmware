@@ -386,6 +386,7 @@ private:
 	// note editor selected / remembered note targets
 	Note* get_remembered_note(int32_t selection_index = -1);
 	ModelStackWithNoteRow* get_note_edit_row(ModelStackWithTimelineCounter* model_stack, const EditPadPress& target);
+	friend class NoteLockEditor; // Edits the notes the note editor targets
 	EditPadPress remembered_notes[kEditPadPressBufferSize]{};
 	int32_t remembered_note_row_ids[kEditPadPressBufferSize]{};
 	int32_t remembered_note_count = 0;

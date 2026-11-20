@@ -37,7 +37,8 @@ enum class HeldNoteLock : uint8_t {
 };
 
 /// Per-note parameter locks (model/note/note_locks.h), as entered from the instrument clip view, which owns one of
-/// these: hold a note pad and turn a knob for a local (per-voice) patched param.
+/// these: hold a note pad and turn a knob for a local (per-voice) patched param, or use the note editor's "Param
+/// locks" menu.
 ///
 /// While a pad is held its edits live in note_locks::liveEdits[i] (i = the edit pad press), heard immediately but not
 /// interned. They are committed - one Pool::intern per note, one undoable action - when the press ends, and before
@@ -76,6 +77,15 @@ public:
 	/// The note held in this row locks a sustain (committed or still live), so it has a tail even on a sound without
 	[[nodiscard]] bool heldNoteLocksSustain(int32_t yDisplay);
 
+	// The note editor's "Param locks" menu. Edits apply to every note the note editor is targeting (held or remembered
+	// pads), like the editor's other note parameters, each as its own undo step.
+
+	/// The left-most targeted note's locks, with any pending edits
+	[[nodiscard]] deluge::note_locks::LockSet getMenuLocks();
+	bool setMenuLock(int32_t param, int32_t value);
+	bool removeMenuLock(int32_t param);
+	bool clearMenuLocks();
+
 private:
 	struct PressedRow {
 		Sound* sound;
@@ -88,6 +98,8 @@ private:
 	/// Pads are held in the clip view, and this is one of its params a held-pad knob turn edits
 	[[nodiscard]] bool editsHeldNotes(ModelStackWithAutoParam const* modelStack);
 	[[nodiscard]] int32_t findPressesFor(ModelStackWithAutoParam const* modelStack, bool* matches);
+	template <typename Change>
+	bool changeMenuLocks(Change change);
 
 	InstrumentClipView& clipView_;
 };
