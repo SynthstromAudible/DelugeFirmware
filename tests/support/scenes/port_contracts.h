@@ -4,7 +4,11 @@
 /// @brief Cases every implementation of a port must pass, the fake and the host's alike. Each takes the port under
 ///        test and returns whether it holds; a spec states the case and expects true.
 
+#include "plugin-api/types/display_mapping.h"
 #include "scenes/bind/ports/ports.h"
+
+#include <algorithm>
+#include <cstdint>
 
 namespace deluge::scenes::bind::contract {
 
@@ -26,6 +30,32 @@ namespace deluge::scenes::bind::contract {
 /// @brief The voice count is never negative.
 [[nodiscard]] inline bool voice_count_is_a_count(const AudioFacts& audio) {
 	return audio.live_voice_count() >= 0;
+}
+
+/// @brief The threshold-recording mode is one of the menu's four choices, and the sidechain's sync type one of the
+///        three it lists.
+[[nodiscard]] inline bool audio_runtime_facts_are_choices(const AudioFacts& audio) {
+	const int32_t threshold = audio.song_threshold_recording();
+	const plugin::SyncType type = audio.reverb_sidechain_sync_type();
+	return threshold >= 0 && threshold <= 3 && audio.line_in_plugged() == audio.line_in_plugged()
+	       && std::ranges::find(plugin::kSyncTypeChoices, type) != plugin::kSyncTypeChoices.end();
+}
+
+/// @brief Each runtime write is visible through the audio fact that reads it back. Meaningful on the host, whose
+///        writes land in the engine; the caller restores what it changed.
+[[nodiscard]] inline bool runtime_writes_are_read_back(WriteSink& writes, const AudioFacts& audio) {
+	const int32_t threshold = audio.song_threshold_recording();
+	const plugin::SyncType type = audio.reverb_sidechain_sync_type();
+	const int32_t other_threshold = threshold == 2 ? 1 : 2;
+	const plugin::SyncType other_type =
+	    type == plugin::SyncType::TRIPLET ? plugin::SyncType::DOTTED : plugin::SyncType::TRIPLET;
+	writes.set_song_threshold_recording(other_threshold);
+	writes.set_reverb_sidechain_sync_type(other_type);
+	const bool read_back =
+	    audio.song_threshold_recording() == other_threshold && audio.reverb_sidechain_sync_type() == other_type;
+	writes.set_song_threshold_recording(threshold);
+	writes.set_reverb_sidechain_sync_type(type);
+	return read_back && audio.song_threshold_recording() == threshold && audio.reverb_sidechain_sync_type() == type;
 }
 
 /// @brief The flash cursor is one of its three values.

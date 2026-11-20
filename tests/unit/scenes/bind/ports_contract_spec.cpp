@@ -16,12 +16,20 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		test::FakeHost host;
 		host.audio.inputs = true;
 		host.audio.voices = 3;
+		host.audio.line_in = true;
+		host.audio.threshold = 2;
+		host.audio.sidechain_type = deluge::plugin::SyncType::DOTTED;
 		host.card.sample_loading = true;
 		host.ui.cursor = FlashCursor::Off;
 		host.ui.performance = PerformanceEditing::Param;
 		const Ports p = host.ports();
 		expect(p.audio->audio_inputs_present()).to_be_true();
 		expect(p.audio->live_voice_count()).to_equal(3);
+		expect(p.audio->line_in_plugged()).to_be_true();
+		expect(p.audio->song_threshold_recording()).to_equal(2);
+		expect(static_cast<int>(p.audio->reverb_sidechain_sync_type()))
+			.to_equal(static_cast<int>(deluge::plugin::SyncType::DOTTED));
+		expect(contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 		expect(p.card->sample_load_in_flight()).to_be_true();
 		expect(p.card->output_may_be_replaced()).to_be_false();
 		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(FlashCursor::Off));
@@ -159,8 +167,15 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		const Addresses where{.clip = deluge::project::ClipAddress{5}};
 		expect(p.writes->write_text(name, where, "Lead")).to_be_true();
 		p.writes->set_default_audio_input_channel(3);
-		expect(host.writes.gestures.size()).to_equal(size_t{2});
-		if (host.writes.gestures.size() == 2) {
+		p.writes->set_song_threshold_recording(2);
+		p.writes->set_reverb_sidechain_sync_type(deluge::plugin::SyncType::TRIPLET);
+		expect(host.writes.gestures.size()).to_equal(size_t{4});
+		if (host.writes.gestures.size() == 4) {
+			expect(host.writes.gestures[2].kind).to_equal(test::RecordingWrites::Gesture::Kind::THRESHOLD_RECORDING);
+			expect(host.writes.gestures[2].value).to_equal(int64_t{2});
+			expect(host.writes.gestures[3].kind).to_equal(test::RecordingWrites::Gesture::Kind::SIDECHAIN_SYNC_TYPE);
+			expect(host.writes.gestures[3].value).to_equal(
+			    int64_t{std::to_underlying(deluge::plugin::SyncType::TRIPLET)});
 			const auto& text = host.writes.gestures[0];
 			expect(text.kind).to_equal(test::RecordingWrites::Gesture::Kind::TEXT);
 			expect(text.target).to_equal(name);

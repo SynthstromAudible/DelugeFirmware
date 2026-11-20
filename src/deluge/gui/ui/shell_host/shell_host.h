@@ -68,6 +68,8 @@ public:
 	bool write_text(const scenes::bind::Target& target, const scenes::bind::Addresses& where,
 	                std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_song_threshold_recording(int32_t mode) override;
+	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
 	                 controls::Resolution resolution) override;

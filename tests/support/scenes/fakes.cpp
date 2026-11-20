@@ -249,6 +249,14 @@ void RecordingWrites::set_default_audio_input_channel(int32_t channel) {
 	gestures.push_back({.kind = Gesture::Kind::DEFAULT_INPUT_CHANNEL, .value = channel});
 }
 
+void RecordingWrites::set_song_threshold_recording(int32_t mode) {
+	gestures.push_back({.kind = Gesture::Kind::THRESHOLD_RECORDING, .value = mode});
+}
+
+void RecordingWrites::set_reverb_sidechain_sync_type(plugin::SyncType type) {
+	gestures.push_back({.kind = Gesture::Kind::SIDECHAIN_SYNC_TYPE, .value = std::to_underlying(type)});
+}
+
 bool RecordingControlsSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos,
                                         int32_t length, controls::Resolution resolution) {
 	param_writes.push_back({address, value, pos, length, resolution});

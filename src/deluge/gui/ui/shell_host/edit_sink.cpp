@@ -43,6 +43,7 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "plugin-api/types/setting.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
@@ -362,6 +363,16 @@ bool HostEditSink::write_text(const scenes::bind::Target& target, const Addresse
 
 void HostEditSink::set_default_audio_input_channel(int32_t channel) {
 	defaultAudioOutputInputChannel = static_cast<AudioInputChannel>(channel);
+}
+
+void HostEditSink::set_song_threshold_recording(int32_t mode) {
+	if (currentSong != nullptr) {
+		currentSong->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(mode);
+	}
+}
+
+void HostEditSink::set_reverb_sidechain_sync_type(plugin::SyncType type) {
+	AudioEngine::reverbSidechainSettings.sync_type = type;
 }
 
 bool HostEditSink::write(const WriteRequest& request) {

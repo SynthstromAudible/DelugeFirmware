@@ -37,9 +37,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "definitions_cxx.hpp" // ThresholdRecordingMode
 #include "deluge-project/song.h"
-#include "model/song/song.h"
 #include "notify/dirty_set.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/stem_export/stem_export.h"
@@ -76,12 +74,12 @@ void set_swing_interval(const MenuContext& ctx, int32_t value) {
 int32_t get_song_threshold_recording(const MenuContext& ctx) {
 	// `record::ThresholdMode::readCurrentValue`'s SONG arm
 	// (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`).
-	return ctx.song != nullptr ? static_cast<int32_t>(ctx.song->thresholdRecordingMode) : 0;
+	return ctx.ports.audio != nullptr ? ctx.ports.audio->song_threshold_recording() : 0;
 }
 void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
-	if (ctx.song != nullptr) { // `ThresholdMode::writeCurrentValue`
-		                       // (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
-		ctx.song->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
+	// `ThresholdMode::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
+	if (ctx.ports.writes != nullptr) {
+		ctx.ports.writes->set_song_threshold_recording(value);
 	}
 }
 

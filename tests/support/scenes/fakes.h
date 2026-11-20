@@ -24,10 +24,16 @@ namespace deluge::scenes::bind::test {
 
 /// @brief AudioFacts a spec sets directly.
 struct FakeAudioFacts final : AudioFacts {
-	bool inputs{false}; ///< what `audio_inputs_present` answers
-	int32_t voices{0};  ///< what `live_voice_count` answers
+	bool inputs{false};                                      ///< what `audio_inputs_present` answers
+	int32_t voices{0};                                       ///< what `live_voice_count` answers
+	bool line_in{false};                                     ///< what `line_in_plugged` answers
+	int32_t threshold{0};                                    ///< what `song_threshold_recording` answers
+	plugin::SyncType sidechain_type{plugin::SyncType::EVEN}; ///< what `reverb_sidechain_sync_type` answers
 	[[nodiscard]] bool audio_inputs_present() const override { return inputs; }
 	[[nodiscard]] int32_t live_voice_count() const override { return voices; }
+	[[nodiscard]] bool line_in_plugged() const override { return line_in; }
+	[[nodiscard]] int32_t song_threshold_recording() const override { return threshold; }
+	[[nodiscard]] plugin::SyncType reverb_sidechain_sync_type() const override { return sidechain_type; }
 };
 
 /// @brief CardFacts a spec sets directly.
@@ -261,27 +267,32 @@ struct FakeMidiDevices final : MidiDevices {
 
 /// @brief WriteSink that records every request, in order, and answers each with @ref accept.
 struct RecordingWrites final : WriteSink {
-	/// @brief A text or default-input-channel request, as recorded.
+	/// @brief A text, default-input-channel, threshold or sidechain-type request, as recorded.
 	struct Gesture {
 		/// @brief Which request it was.
 		enum class Kind : uint8_t {
 			TEXT,                  ///< write_text
 			DEFAULT_INPUT_CHANNEL, ///< set_default_audio_input_channel
+			THRESHOLD_RECORDING,   ///< set_song_threshold_recording
+			SIDECHAIN_SYNC_TYPE,   ///< set_reverb_sidechain_sync_type
 		};
 		Kind kind{Kind::TEXT}; ///< which request it was
 		Target target{};       ///< TEXT's row
 		Addresses where{};     ///< TEXT's owner
 		std::string text;      ///< TEXT's text
-		int64_t value{0};      ///< DEFAULT_INPUT_CHANNEL's channel
+		int64_t value{0}; ///< DEFAULT_INPUT_CHANNEL's channel, THRESHOLD_RECORDING's mode, SIDECHAIN_SYNC_TYPE's type
 	};
 	std::vector<WriteRequest> requests;         ///< every write, in order
 	std::vector<project::ParamAddress> deletes; ///< every delete_automation's param, in order
-	std::vector<Gesture> gestures;              ///< every text and default-input-channel request, in order
+	std::vector<Gesture>
+	    gestures;      ///< every text, default-input-channel, threshold and sidechain-type request, in order
 	bool accept{true}; ///< what each request answers (set_default_audio_input_channel answers nothing)
 	bool write(const WriteRequest& request) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
 	void set_default_audio_input_channel(int32_t channel) override;
+	void set_song_threshold_recording(int32_t mode) override;
+	void set_reverb_sidechain_sync_type(plugin::SyncType type) override;
 };
 
 /// @brief controls::Sink that records every request, in order, and answers each with @ref accept; take_for answers

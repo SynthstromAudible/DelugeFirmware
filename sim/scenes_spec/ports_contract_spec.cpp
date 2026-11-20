@@ -26,6 +26,11 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(p.controls_sink).not_().to_be_null();
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
+			expect(bind::contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
+			if (p.writes != nullptr) {
+				// Writes the engine's and song's run-time state; the case puts both back.
+				expect(bind::contract::runtime_writes_are_read_back(*p.writes, *p.audio)).to_be_true();
+			}
 		}
 		if (p.card != nullptr) {
 			expect(bind::contract::card_facts_are_stable(*p.card)).to_be_true();

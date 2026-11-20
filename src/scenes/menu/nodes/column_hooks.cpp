@@ -35,7 +35,6 @@
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/arp_rhythm.h"
 #include "plugin-api/types/display_mapping.h"
-#include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
 
 #include <algorithm>
 #include <array>
@@ -110,7 +109,7 @@ std::optional<ArtColumn> osc_type_art(const Node& node, const MenuContext& ctx, 
 	case OscType::INPUT_STEREO:
 	case OscType::INPUT_L:
 	case OscType::INPUT_R:
-		icon = AudioEngine::lineInPluggedIn ? &icons::input : &icons::mic;
+		icon = ctx.ports.audio != nullptr && ctx.ports.audio->line_in_plugged() ? &icons::input : &icons::mic;
 		break;
 	case OscType::WAVETABLE:
 		icon = &icons::wavetable;

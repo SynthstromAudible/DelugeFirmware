@@ -6,6 +6,7 @@
 #include "controls/sink.h"
 #include "deluge-project/param_address.h"
 #include "instruments/deluge/cables.h"
+#include "plugin-api/types/sync.h"
 #include "scenes/bind/target.h"
 
 #include <cstdint>
@@ -48,6 +49,12 @@ public:
 	/// @brief Make @p channel (an index of the input channel words) the input a new audio track starts on: the song's
 	/// unsaved default, which the audio-source menu sets to whatever it last picked.
 	virtual void set_default_audio_input_channel(int32_t channel) = 0;
+	/// @brief Set the song's threshold-recording mode to the menu choice index @p mode (0 is off). Not an undoable
+	/// edit: the song holds the mode only at run time, with no saved record, so the host owns it.
+	virtual void set_song_threshold_recording(int32_t mode) = 0;
+	/// @brief Set the reverb sidechain's sync type to @p type. Not an undoable edit: the engine holds the type only at
+	/// run time, with no saved record, so the host owns it.
+	virtual void set_reverb_sidechain_sync_type(plugin::SyncType type) = 0;
 };
 
 } // namespace deluge::scenes::bind
