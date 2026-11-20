@@ -85,6 +85,7 @@
 #include "support/menu_over_root.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
+#include "support/slot_record.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -137,13 +138,6 @@ using mf::MarkerDisplay;
 using mf::Rig;
 
 namespace {
-
-/// The first oscillator's ranges the record holds at @p slot, or none where there is no record.
-std::vector<deluge::instrument::RangeState> first_ranges(deluge::project::SlotAddress slot) {
-	const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
-	return state ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
-	             : std::vector<deluge::instrument::RangeState>{};
-}
 
 // --- the fixture ------------------------------------------------------------------------------
 
@@ -492,7 +486,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		deluge::edits::settingFor(*sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
-		const bool had_none = first_ranges(slot).empty();
+		const bool had_none = deluge::scenes::spec::first_ranges(slot).empty();
 
 		MenuContext recorded = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		bind::RecordingSink recording;
@@ -512,14 +506,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		expect(menu::ensure_first_range(ctx)).to_be_true();
 		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
-		expect(first_ranges(slot).size()).to_equal(size_t{1});
+		expect(deluge::scenes::spec::first_ranges(slot).size()).to_equal(size_t{1});
 		expect(deluge::harness::soundIncoherence(*sound, *f.song)).to_equal(std::string{});
 		// The range is the one a source makes for itself, as legacy's getOrCreateFirstRange leaves it.
 		deluge::edits::settingFor(*sound, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
 		(void)sound->getOrCreateFirstRange(1);
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
 		const std::vector<deluge::instrument::RangeState> first =
-		    first_ranges(slot);
+		    deluge::scenes::spec::first_ranges(slot);
 		expect(legacy.empty()).to_be_false();
 		expect(first.empty()).to_be_false();
 		if (!legacy.empty() && !first.empty()) {
@@ -547,7 +541,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		(void)r.load_into(*r.range, "SAMPLES/B.WAV");
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
-		expect(first_ranges(r.slot())[0].file_path)
+		expect(deluge::scenes::spec::first_ranges(r.slot())[0].file_path)
 		    .to_equal(std::string{"SAMPLES/B.WAV"});
 		r.turn_select(1, 40);
 		r.tick(40);

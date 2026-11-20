@@ -34,11 +34,14 @@
 
 #include <array>
 #include <cstdint>
+#include <expected>
 #include <format>
 #include <optional>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 /// @file
@@ -201,12 +204,89 @@ inline std::string cables_text(const in::SoundState& state) {
 	return bits;
 }
 
+inline std::string text_of(std::span<const std::string_view> keys) {
+	std::string text = "[";
+	for (const std::string_view key : keys) {
+		text += key;
+		text += ' ';
+	}
+	return text + "]";
+}
+
+inline std::string text_of(const std::expected<in::SlotChange, plugin::StateError>& change) {
+	if (!change) {
+		return std::format("error {}", static_cast<int>(change.error()));
+	}
+	return text_of(change->state) + " changed " + text_of(std::span{change->changed});
+}
+
+/// What the codec reads back: a fresh read of the sound's encoding, and the encoding of the sound itself and of a new
+/// synth read onto it.
+inline std::string decode_text(const in::SoundState& state) {
+	const plugin::CodecContext context{.input_tick_magnitude = 1};
+	in::SoundState fresh;
+	const auto read = in::decode(in::encode(state, context), fresh, context);
+	std::string text = read ? text_of(fresh) : std::format("error {}", static_cast<int>(read.error()));
+	for (const in::SoundState* from : {&state, static_cast<const in::SoundState*>(nullptr)}) {
+		const in::SoundState blank;
+		const auto onto = in::decode_onto(in::encode(from != nullptr ? *from : blank, context), state, context);
+		text += " | onto ";
+		text += onto ? text_of(*onto) : std::format("error {}", static_cast<int>(onto.error()));
+	}
+	return text;
+}
+
+/// Each settings row's write as the codec makes it, at its least and greatest candidate values.
+inline std::string with_setting_text(const in::SoundState& state) {
+	const plugin::CodecContext context{.input_tick_magnitude = 1};
+	std::string text;
+	for (const plugin::SettingInfo& row : in::kSettings) {
+		if (row.kind == plugin::SettingKind::STRUCTURED || row.kind == plugin::SettingKind::TEXT) {
+			continue;
+		}
+		const std::vector<std::string> candidates = candidates_of(row);
+		for (const std::string& candidate : {candidates.front(), candidates.back()}) {
+			const std::optional<serialization::Value> value =
+			    in::canonical_setting(row.path, serialization::Value::makeScalar(candidate));
+			if (!value) {
+				continue;
+			}
+			text += std::format(" | {} {} ", row.path, candidate);
+			text += text_of(in::with_setting(state, row.path, *value, context));
+		}
+	}
+	return text;
+}
+
+/// The change to each engine and to each kind of the second slot, as the codec reads it from the entries that differ.
+inline std::string change_to_text(const in::SoundState& state) {
+	const plugin::CodecContext context{.input_tick_magnitude = 1};
+	std::vector<in::SoundState> nexts;
+	for (const in::SynthMode mode : {in::SynthMode::SUBTRACTIVE, in::SynthMode::RINGMOD, in::SynthMode::FM}) {
+		nexts.push_back(in::switch_engine(state, mode));
+	}
+	for (const in::OscType type :
+	     {in::OscType::SAW, in::OscType::WAVETABLE, in::OscType::SAMPLE, in::OscType::DX7, in::OscType::INPUT_L}) {
+		nexts.push_back(in::switch_source(state, in::SourceId::B, type, in::source_ranges(state, in::SourceId::B),
+		                                  in::source_type(state, in::SourceId::B) == in::OscType::WAVETABLE));
+	}
+	std::string text;
+	for (const in::SoundState& next : nexts) {
+		const std::vector<std::string_view> changed = in::changed_entries(state, next);
+		const std::vector<std::string_view> differing = in::differing_entries(state, next, context);
+		text += " | changed " + text_of(std::span{changed}) + " differing " + text_of(std::span{differing}) + " ";
+		text += text_of(in::change_to(state, next, changed, context));
+	}
+	return text;
+}
+
 } // namespace reference_detail
 
 /// @brief Every family's answer for @p sound, in a fixed order: the sound itself, its readers, every engine switch,
 /// every kind on each slot (with the slot's ranges, as a sample's and as a wavetable's), every loop mode on each slot,
 /// the setup transforms, each settings row (read, held, taken, and each candidate's acceptance and result), the
-/// encoding at three tick magnitudes, and the cables it accepts.
+/// encoding at three tick magnitudes, the cables it accepts, what the codec reads back (a fresh read and reads onto
+/// it), each row's write as the codec makes it, the change to each engine and second-slot kind, and its dump.
 [[nodiscard]] inline std::vector<ReferenceAnswer> reference_answers(const instrument::SoundState& sound) {
 	namespace in = deluge::instrument;
 	using reference_detail::text_of;
@@ -250,6 +330,10 @@ inline std::string cables_text(const in::SoundState& state) {
 		answers.push_back({std::format("encode {}", magnitude), reference_detail::encode_text(sound, magnitude)});
 	}
 	answers.push_back({"cables", reference_detail::cables_text(sound)});
+	answers.push_back({"decode", reference_detail::decode_text(sound)});
+	answers.push_back({"with_setting", reference_detail::with_setting_text(sound)});
+	answers.push_back({"change_to", reference_detail::change_to_text(sound)});
+	answers.push_back({"dump_state", serialization::write_json(in::dump_state(sound))});
 	return answers;
 }
 

@@ -78,7 +78,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 		expect(int{c.voicing.transpose}).to_equal(5);
 		expect(int{c.voicing.cents}).to_equal(-17);
 		expect(same_tune(c.voicing.tune, FineTune::of_cents(-17))).to_equal(true);
-		expect(c.voicing.unison == deluge::synth::derive_unison(5, 30, 25)).to_equal(true);
+		expect(c.voicing.unison).to_equal(deluge::synth::derive_unison(5, 30, 25));
 		expect(int{c.voicing.unison_detune}).to_equal(30);
 		expect(int{c.voicing.unison_spread}).to_equal(25);
 		expect(c.engine.mode).to_equal(SynthMode::FM);
@@ -130,7 +130,7 @@ describe deluge_synth("the Deluge synth's config and its changed parts", ${
 			change.apply(after);
 			Parts expected;
 			expected.set(std::to_underlying(change.part));
-			expect(DelugeSynth::changes(before, after) == expected).to_equal(true);
+			expect(DelugeSynth::changes(before, after)).to_equal(expected);
 		}
 	});
 });

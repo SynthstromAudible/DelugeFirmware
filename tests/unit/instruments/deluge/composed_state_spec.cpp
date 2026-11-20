@@ -152,6 +152,9 @@ std::string first_reference_difference(const std::string& got, const std::string
 	}
 	for (size_t i = 1; i < got_lines.size(); i++) {
 		const std::vector<std::string> fields = split(got_lines[i], '\t');
+		if (fields.empty()) {
+			return "a blank line";
+		}
 		const auto found = recorded.find(fields.front());
 		if (found == recorded.end()) {
 			return fields.front() + ": not recorded";
@@ -171,8 +174,8 @@ std::string first_reference_difference(const std::string& got, const std::string
 describe composed_state("a sound's flat record as the state it plays and what it keeps for a switch back", ${
 	it("composes a new synth into the components' defaults, with nothing to recall", _ {
 		const auto [state, recall] = compose(FlatSoundState{});
-		expect(state == ComposedState{}).to_equal(true);
-		expect(recall == Recall{}).to_equal(true);
+		expect(state).to_equal(ComposedState{});
+		expect(recall).to_equal(Recall{});
 	});
 
 	it("round-trips every engine with every pair of oscillator kinds, the other kinds' settings kept", _ {
@@ -197,7 +200,7 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		// The sample oscillator is parked whole, its ranges with it, until FM goes
 		expect(recall.slots[0].parked.has_value()).to_equal(true);
 		const auto* parked = std::get_if<deluge::synth::SampleState>(&*recall.slots[0].parked);
-		expect(parked != nullptr).to_equal(true);
+		expect(parked).not_().to_be_null();
 		expect(parked != nullptr ? parked->ranges.size() : size_t{0}).to_equal(size_t{2});
 		expect(fm.sync).to_equal(true); // the file writes it in the second carrier's pitch
 	});

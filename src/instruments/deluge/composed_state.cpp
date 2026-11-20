@@ -131,7 +131,7 @@ synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& 
 	}
 }
 
-// The flat source slot @p slot is, over @p kept (what its kind does not hold); its phase into @p phase.
+// @p slot as a flat source, over @p kept (what its kind does not hold); its retrigger phase word into @p phase.
 SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, const synth::Retrigger& kept_retrigger,
                         uint32_t& phase) {
 	SourceState src = kept;

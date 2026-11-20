@@ -34,29 +34,42 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 /// @file
 /// @brief Building a sound's record in a spec or fixture through the instrument's own surface: a settings row by its
-/// file path and text (what a menu or a file writes), the rules for a switch of engine or oscillator kind, and the
-/// state_access writers for ranges and a DX7 patch. A spec reads the record back through state_access.
+/// file path and text (what a menu or a file writes), and the rule for a switch of oscillator kind. With the
+/// state_access writers for ranges and a DX7 patch, and switch_engine for an engine a menu would refuse, that builds
+/// every sound a file can hold. A spec reads the record back through state_access.
 namespace deluge::test {
 
-/// @brief @p state with settings row @p path written as the file text @p text, as a menu's write makes it. A row or
-/// value the instrument refuses stops the run: a fixture that builds a sound must build the sound it names.
+/// @brief @p state with settings row @p path written as the file text @p text, as a menu's write makes it, or nothing
+/// where the instrument refuses the row or the value.
 /// @param state The record.
 /// @param path A `kSettings` row's path, e.g. "osc1/transpose".
 /// @param text The value as a file writes it, e.g. "5" or "sample".
-/// @return @p state, written.
-inline instrument::SoundState& set(instrument::SoundState& state, std::string_view path, std::string_view text) {
+/// @return The record written, or nothing.
+[[nodiscard]] inline std::optional<instrument::SoundState> try_set(instrument::SoundState state, std::string_view path,
+                                                                   std::string_view text) {
 	const std::optional<serialization::Value> value =
 	    instrument::canonical_setting(path, serialization::Value::makeScalar(std::string(text)));
 	if (!value || !instrument::allows_setting(state, path, *value)) {
+		return std::nullopt;
+	}
+	(void)instrument::write_setting(state, path, *value);
+	return state;
+}
+
+/// @brief @p state with settings row @p path written as the file text @p text (try_set()). A row or value the
+/// instrument refuses stops the run: a fixture that builds a sound must build the sound it names.
+/// @return @p state, written.
+inline instrument::SoundState& set(instrument::SoundState& state, std::string_view path, std::string_view text) {
+	std::optional<instrument::SoundState> written = try_set(state, path, text);
+	if (!written) {
 		std::fprintf(stderr, "record_state: %.*s refuses %.*s\n", static_cast<int>(path.size()), path.data(),
 		             static_cast<int>(text.size()), text.data());
 		std::abort();
 	}
-	(void)instrument::write_setting(state, path, *value);
+	state = std::move(*written);
 	return state;
 }
 
@@ -65,17 +78,6 @@ inline instrument::SoundState& set(instrument::SoundState& state, std::string_vi
                                                  std::string_view text) {
 	set(state, path, text);
 	return state;
-}
-
-/// @brief A new synth playing @p mode with slots of kinds @p a and @p b, switched as the menus switch them (the rules:
-/// what a switch away leaves is kept for a switch back).
-[[nodiscard]] inline instrument::SoundState sound_with(instrument::SynthMode mode, instrument::OscType a,
-                                                       instrument::OscType b) {
-	using instrument::SourceId;
-	instrument::SoundState state;
-	state = instrument::switch_source(state, SourceId::A, a, {}, false);
-	state = instrument::switch_source(state, SourceId::B, b, {}, false);
-	return instrument::switch_engine(state, mode);
 }
 
 /// @brief A copy of @p state with slot @p id switched to kind @p type, as the menu's type row switches it.

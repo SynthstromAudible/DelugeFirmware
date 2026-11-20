@@ -334,8 +334,6 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	return changed;
 }
 
-namespace {} // namespace
-
 std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
                                   std::optional<int32_t> compressor_threshold) {
 	if (deluge::effects::is_effect_key(key)) {

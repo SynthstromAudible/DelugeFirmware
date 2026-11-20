@@ -46,7 +46,8 @@ namespace {
 	return parked ? *parked : new_synth_kind;
 }
 
-/// @p state with @p change made to its flat form: what a write means is what it meant to the flat state.
+/// @p state with @p change made to its flat layout and composed again: a slot's ranges and DX7 patch are written where
+/// the file's layout puts them, whatever the slot's kind.
 template <class Change>
 [[nodiscard]] SoundState changed_flat(const SoundState& state, const Change& change) {
 	FlatSoundState flat = to_flat(state);

@@ -38,10 +38,10 @@ describe state_access("the Deluge instrument's state, as code outside the instru
 		const SoundState s = sample_on_b();
 		expect(source_type(s, SourceId::A)).to_equal(OscType::SQUARE);
 		expect(source_type(s, SourceId::B)).to_equal(OscType::SAMPLE);
-		expect(source_tuning(s, SourceId::A) == Tuning{.transpose = 7, .cents = -3}).to_equal(true);
+		expect(source_tuning(s, SourceId::A)).to_equal(Tuning{.transpose = 7, .cents = -3});
 		expect(sample_playback(s, SourceId::B).repeat_mode).to_equal(SampleRepeatMode::LOOP);
 		expect(sample_playback(s, SourceId::B).reversed).to_equal(true);
-		expect(sample_playback(s, SourceId::A) == SamplePlayback{}).to_equal(true);
+		expect(sample_playback(s, SourceId::A)).to_equal(SamplePlayback{});
 	});
 
 	it("reads a slot's ranges in order, and none for a slot without", _ {
@@ -53,13 +53,13 @@ describe state_access("the Deluge instrument's state, as code outside the instru
 
 	it("reads a DX7 patch only where a slot has one", _ {
 		SoundState s;
-		expect(dx_patch(s, SourceId::A) == nullptr).to_equal(true);
+		expect(dx_patch(s, SourceId::A)).to_be_null();
 		DxPatchState patch;
 		patch.params[0] = 42;
 		s = with_dx_patch(std::move(s), SourceId::A, patch);
-		expect(dx_patch(s, SourceId::A) == nullptr).to_equal(false);
+		expect(dx_patch(s, SourceId::A)).not_().to_be_null();
 		expect(int{dx_patch(s, SourceId::A)->params[0]}).to_equal(42);
-		expect(dx_patch(s, SourceId::B) == nullptr).to_equal(true);
+		expect(dx_patch(s, SourceId::B)).to_be_null();
 	});
 
 	it("writes ranges and a DX7 patch into one slot, leaving the rest", _ {

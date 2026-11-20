@@ -16,7 +16,6 @@
  */
 
 #include "instruments/deluge/state_rules.h"
-#include "instruments/deluge/flat_layout.h"
 
 #include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/dx7_init_voice.h"

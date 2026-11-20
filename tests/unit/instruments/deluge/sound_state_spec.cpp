@@ -61,7 +61,7 @@ describe sound_state("the Deluge instrument's state for a sound", ${
 			expect(sample_playback(s, id).pitch_and_speed_independent).to_equal(false);
 			expect(sample_playback(s, id).reversed).to_equal(false);
 			expect(source_ranges(s, id).size()).to_equal(size_t{0});
-			expect(dx_patch(s, id) != nullptr).to_equal(false);
+			expect(dx_patch(s, id)).to_be_null();
 		}
 	});
 

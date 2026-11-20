@@ -17,7 +17,6 @@
 
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/composed_state.h"
-#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/record_edit.h"
 #include "instruments/deluge/state_access.h"
 

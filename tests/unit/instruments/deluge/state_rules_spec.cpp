@@ -77,14 +77,14 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 	it("takes the ranges the slot plays when their kind stays", _ {
 		const std::vector<RangeState> held = three_samples();
 		const SoundState s = switch_source(SoundState{}, SourceId::A, OscType::SAMPLE, held, false);
-		expect(source_ranges(s, SourceId::A) == held).to_equal(true);
+		expect(source_ranges(s, SourceId::A)).to_equal(held);
 	});
 
 	it("gives a DX7 slot the init voice, and keeps a patch it has", _ {
 		const SoundState fresh = switch_source(SoundState{}, SourceId::A, OscType::DX7, {}, false);
 		const DxPatchState* fresh_patch = dx_patch(fresh, SourceId::A);
-		expect(fresh_patch != nullptr).to_equal(true);
-		expect(fresh_patch->params == kDx7InitVoice).to_equal(true);
+		expect(fresh_patch).not_().to_be_null();
+		expect(fresh_patch->params).to_equal(kDx7InitVoice);
 		DxPatchState patch;
 		patch.params[0] = 7;
 		const SoundState held = with_dx_patch(SoundState{}, SourceId::A, patch);
@@ -143,9 +143,9 @@ describe state_rules("what changes with a sound's engine, oscillator type and lo
 		const SoundState dx = as_blank_synth(SoundState{}, true);
 		expect(source_type(dx, SourceId::A)).to_equal(OscType::DX7);
 		const DxPatchState* patch = dx_patch(dx, SourceId::A);
-		expect(patch != nullptr).to_equal(true);
-		expect(patch->params == kDx7InitVoice).to_equal(true);
-		expect(as_blank_synth(SoundState{}, false) == SoundState{}).to_equal(true);
+		expect(patch).not_().to_be_null();
+		expect(patch->params).to_equal(kDx7InitVoice);
+		expect(as_blank_synth(SoundState{}, false)).to_equal(SoundState{});
 	});
 });
 // clang-format on

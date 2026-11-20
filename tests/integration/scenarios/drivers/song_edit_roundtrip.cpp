@@ -46,6 +46,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "support/record_state.h"
 
 #include <algorithm>
 #include <array>
@@ -266,14 +267,11 @@ std::string phaseText(uint32_t word) {
 /// the current song, else the unslotted write): the value is what the setting reads in the record with @p text written
 /// to a copy. @return Whether the state then holds the value.
 bool setThrough(Sound& sound, std::string_view path, std::string_view text) {
-	deluge::instrument::SoundState wanted = *sound.state_;
-	const std::optional<deluge::serialization::Value> written =
-	    deluge::instrument::canonical_setting(path, deluge::serialization::Value::makeScalar(std::string(text)));
-	if (!written || !deluge::instrument::allows_setting(wanted, path, *written)) {
+	const std::optional<deluge::instrument::SoundState> wanted = deluge::test::try_set(*sound.state_, path, text);
+	if (!wanted) {
 		return false;
 	}
-	(void)deluge::instrument::write_setting(wanted, path, *written);
-	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
+	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(*wanted, path);
 	if (!value) {
 		return false;
 	}
