@@ -49,7 +49,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.ui != nullptr) {
 			expect(bind::contract::ui_facts_are_stable(*p.ui)).to_be_true();
 			expect(bind::contract::flash_cursor_is_named(*p.ui)).to_be_true();
-			expect(bind::contract::battery_and_firmware_are_readings(*p.ui)).to_be_true();
+			expect(bind::contract::firmware_version_is_a_stable_view(*p.ui)).to_be_true();
 			// The legacy sources themselves; the voltage is set to a value the ADC could report, then put back.
 			expect(std::string{p.ui->firmware_version()}).to_equal(std::string{kFirmwareVersionString});
 			const uint16_t saved_mv = batteryMV;

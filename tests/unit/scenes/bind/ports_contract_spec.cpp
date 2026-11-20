@@ -39,9 +39,9 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
 		expect(p.ui->battery_millivolts()).to_equal(3712);
 		expect(std::string{p.ui->firmware_version()}).to_equal(std::string{"1.2.3-spec"});
-		expect(contract::battery_and_firmware_are_readings(*p.ui)).to_be_true();
+		expect(contract::firmware_version_is_a_stable_view(*p.ui)).to_be_true();
 		host.ui.firmware = "";
-		expect(contract::battery_and_firmware_are_readings(*p.ui)).to_be_false();
+		expect(contract::firmware_version_is_a_stable_view(*p.ui)).to_be_false();
 		host.ui.firmware = "1.2.3-spec";
 		expect(contract::voice_count_is_a_count(*p.audio)).to_be_true();
 		expect(contract::card_facts_are_stable(*p.card)).to_be_true();
