@@ -34,6 +34,9 @@
 #define USB_PMIDI_INTERFACE 3
 #define USB_PAUDIO_NUM_INTERFACES 4
 
+// Unit ID of the feature unit (volume and mute) on the stream from the host. Terminal IDs 1-4 are taken
+#define USB_PAUDIO_FEATURE_UNIT_FROM_HOST 5
+
 #define USB_PAUDIO_SAMPLE_RATE 44100
 #define USB_PAUDIO_NUM_CHANNELS 2
 // 24-bit samples, each in a 4-byte subframe and MSB-aligned - which makes them the same as the Deluge's q31 samples,
