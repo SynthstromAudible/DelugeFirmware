@@ -21,6 +21,7 @@
 #include "scenes/menu/nodes/multi_range.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/state_access.h"
+#include "music-theory/note_names.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -29,12 +30,14 @@
 #include "gfx/oled/font.h"
 #include "gfx/oled/glyphs.h"
 #include "notify/notice_queue.h"
+#include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
 #include "storage/flash_storage.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -43,62 +46,11 @@
 #include <string_view>
 #include <vector>
 
-// `util/lookuptables/lookuptables.h` is outside this layer's include allowance
-// (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the three note-name tables
-// `noteCodeToString` reads are declared here at the global scope where they are defined
-// (`util/lookuptables/lookuptables.cpp`) -- the same spelling `sound_sidechain.cpp` uses for
-// the sidechain rate tables.
-extern const uint8_t noteCodeToNoteLetter[];
-extern const uint8_t noteCodeToNoteLetterFlats[];
-extern const bool noteCodeIsSharp[];
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {
 
 using deluge::l10n::String;
-
-/// @brief `noteCodeToString(noteCode, buffer, nullptr, /*appendOctaveNo=*/true)`
-///        (`noteCodeToString` in `util/functions.cpp`), transcribed and appending into a caller-owned buffer.
-///
-/// The sharps-vs-flats choice really is a global preference read
-/// (`FlashStorage::defaultUseSharps`), not menu state, so it is read here exactly as legacy reads it.
-void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
-	// The floor of the twelfths, so a note code below 0 lands in the octave under it
-	int32_t within = note_code % 12;
-	int32_t octave = note_code / 12 - 2;
-	if (within < 0) {
-		within += 12;
-		octave--;
-	}
-	const bool sharps = FlashStorage::defaultUseSharps;
-
-	const auto put = [&](char c) {
-		if (len + 1 < cap) {
-			out[len++] = c;
-		}
-	};
-	put(static_cast<char>(sharps ? noteCodeToNoteLetter[within] : noteCodeToNoteLetterFlats[within]));
-	if (noteCodeIsSharp[within]) {
-		put(sharps ? '#' : deluge::gfx::oled::kFlatGlyph);
-	}
-	// `intToString(octave, thisChar, 1)`: at least one digit, with a leading '-' for a negative
-	// octave (a note code below 24 -- the bottom two octaves of the MIDI range, and below).
-	int64_t magnitude = octave;
-	if (magnitude < 0) {
-		put('-');
-		magnitude = -magnitude;
-	}
-	char digits[10];
-	size_t d = 0;
-	do {
-		digits[d++] = static_cast<char>('0' + magnitude % 10);
-		magnitude /= 10;
-	} while (magnitude != 0 && d < sizeof(digits));
-	while (d > 0) {
-		put(digits[--d]);
-	}
-}
 
 void append(char* out, size_t& len, size_t cap, std::string_view s) {
 	for (const char c : s) {
@@ -106,6 +58,22 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 			out[len++] = c;
 		}
 	}
+}
+
+/// @brief A note's name with its octave, as `noteCodeToString(noteCode, buffer, nullptr, true)` spells it
+///        (`origin/main:src/deluge/util/functions.cpp`), appended into a caller-owned buffer.
+///
+/// The sharps-vs-flats choice is the device's preference (`FlashStorage::defaultUseSharps`), not menu state.
+void append_note_name(char* out, size_t& len, size_t cap, int32_t note_code) {
+	const deluge::music::NoteName name = deluge::music::note_name(note_code, FlashStorage::defaultUseSharps);
+	append(out, len, cap, std::string_view{&name.letter, 1});
+	if (name.accidental != deluge::music::Accidental::None) {
+		const char sign = name.accidental == deluge::music::Accidental::Sharp ? '#' : deluge::gfx::oled::kFlatGlyph;
+		append(out, len, cap, std::string_view{&sign, 1});
+	}
+	// The octave as `intToString(octave, buffer, 1)` writes it: at least one digit, '-' first when negative.
+	std::array<char, 12> octave{};
+	append(out, len, cap, deluge::ui::oled::detail::int_to_string(name.octave, 1, octave));
 }
 
 size_t depth_of(const MenuState& state) {

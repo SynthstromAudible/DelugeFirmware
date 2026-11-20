@@ -45,6 +45,7 @@
 #include "io/usb/usb_audio.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "music-theory/note_names.h"
 #include "music-theory/preset_scales.h"
 #include "notify/notice_queue.h" // the USB enable's "restart to apply"
 #include "playback/playback_handler.h"
@@ -86,14 +87,6 @@ namespace {
 /// `FLASH_CURSOR_SLOW` (`hid/led/pad_leds.h`), named here for the same reason.
 constexpr uint8_t kFlashCursorSlow = 2;
 } // namespace
-
-// The three note-name tables `format_range_key` reads. `util/lookuptables/lookuptables.h` is outside
-// this layer's include allowance (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so
-// they are declared here at the global scope where they are defined
-// (`util/lookuptables/lookuptables.cpp`) -- the same spelling `nodes/multi_range.cpp` uses.
-extern const uint8_t noteCodeToNoteLetter[];
-extern const uint8_t noteCodeToNoteLetterFlats[];
-extern const bool noteCodeIsSharp[];
 
 namespace deluge::scenes::menu::nodes {
 
@@ -1241,16 +1234,15 @@ std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
 
 std::string_view format_range_key(int32_t value, std::span<char> scratch) {
 	// `KeyRange::getText` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`), one end at a time: the note
-	// letter, then an accidental when the note is a sharp. `defaultUseSharps` picks both the table
-	// and the accidental glyph, exactly as legacy reads it (`KeyRange::getText`).
-	const bool sharps = FlashStorage::defaultUseSharps;
-	const int32_t note = std::clamp<int32_t>(value, 0, 11);
+	// letter, then an accidental on a black key. The device's `defaultUseSharps` picks both the letter and the sign.
+	const deluge::music::NoteName name =
+	    deluge::music::note_name(std::clamp<int32_t>(value, 0, 11), FlashStorage::defaultUseSharps);
 	size_t len = 0;
 	if (len < scratch.size()) {
-		scratch[len++] = static_cast<char>(sharps ? noteCodeToNoteLetter[note] : noteCodeToNoteLetterFlats[note]);
+		scratch[len++] = name.letter;
 	}
-	if (noteCodeIsSharp[note] && len < scratch.size()) {
-		scratch[len++] = sharps ? '#' : deluge::gfx::oled::kFlatGlyph;
+	if (name.accidental != deluge::music::Accidental::None && len < scratch.size()) {
+		scratch[len++] = name.accidental == deluge::music::Accidental::Sharp ? '#' : deluge::gfx::oled::kFlatGlyph;
 	}
 	return std::string_view{scratch.data(), len};
 }

@@ -58,12 +58,6 @@ alignas(16) const int16_t hanningWindow[] = {
 1247, 1098, 958, 827, 705, 593, 491, 398, 315, 241, 177, 123, 79, 44, 20, 5,
 0, };
 
-
-alignas(16) const uint8_t noteCodeToNoteLetter[12] = {67, 67, 68, 68, 69, 70, 70, 71, 71, 65, 65, 66};
-alignas(16) const uint8_t noteCodeToNoteLetterFlats[12] = {67, 68, 68, 69, 69, 70, 71, 71, 65, 65, 66, 66};
-//This constant is used for both sharp and flat determination.
-const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
-
 /**
  * @brief How iterance is encoded:
  *

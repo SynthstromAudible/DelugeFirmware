@@ -28,7 +28,6 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "definitions_cxx.hpp" // OutputType
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
 
@@ -46,12 +45,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-// `util/functions.h` is outside this layer's include allowance (`src/scenes/CMakeLists.txt`, and
-// `scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the one function needed is
-// declared here at the global scope where it is defined (`getOutputTypeName` in
-// `util/functions.cpp`) -- the spelling `nodes/multi_range.cpp` uses for the three note-name tables.
-char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 namespace deluge::scenes::menu::nodes {
 
@@ -205,35 +198,16 @@ int32_t next_recordable_index(const MenuContext& ctx, std::span<const bind::Trac
 	return selected;
 }
 
-/// @brief `getOutputTypeName(outputType, channel)` for @p track, with legacy's own channel arm
-///        (`SpecificSourceOutputSelector::drawPixelsForOled` in
+/// @brief @p track's kind name, with legacy's own channel arm (`SpecificSourceOutputSelector::drawPixelsForOled` in
 ///        `origin/main:src/deluge/gui/menu_item/audio_clip/specific_output_source_selector.h`).
 ///
 /// @note That arm is **unreachable today**, and is reproduced rather than dropped so it stays
 ///       correct if it ever becomes reachable: the only tracks that get here can be recorded from,
 ///       which already excludes MIDI and CV. The same filter is why an audio source is labelled from
-///       channel 0 -- i.e. always "Audio Player" (`getOutputTypeName` in `util/functions.cpp`) whatever its mode.
+///       channel 0 -- i.e. always "Audio Player" whatever its mode.
 ///       Legacy has the identical behaviour; it is a fidelity result, not a port decision.
 std::string_view output_type_text(const bind::TrackFact& track) {
-	OutputType type = OutputType::SYNTH;
-	switch (track.kind) {
-	case bind::TrackKind::KIT:
-		type = OutputType::KIT;
-		break;
-	case bind::TrackKind::MIDI_OUT:
-		type = OutputType::MIDI_OUT;
-		break;
-	case bind::TrackKind::CV:
-		type = OutputType::CV;
-		break;
-	case bind::TrackKind::AUDIO:
-		type = OutputType::AUDIO;
-		break;
-	case bind::TrackKind::SYNTH:
-		break;
-	}
-	const char* text = getOutputTypeName(type, track.kind == bind::TrackKind::MIDI_OUT ? track.channel : 0);
-	return text != nullptr ? std::string_view{text} : std::string_view{};
+	return bind::track_kind_name(track.kind, track.kind == bind::TrackKind::MIDI_OUT ? track.channel : 0);
 }
 
 /// @brief Write the track the audio track records from (or none) through the menu's sink.
