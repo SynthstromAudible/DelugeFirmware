@@ -11,6 +11,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 using namespace deluge::project;
 using deluge::plugin::SettingInfo;
@@ -60,8 +61,11 @@ describe device_settings("the DEVICE setting group", ${
 				expect(row->kind).to_equal(SettingKind::BOOL);
 				expect(row->default_value).to_equal(0);
 			}
-			const std::optional<std::string_view> named = device_path::disabled_scale(static_cast<size_t>(scale));
-			expect(std::string{named.value_or("")}).to_equal(path);
+			const std::optional<DevicePath> named = device_path::disabled_scale(static_cast<size_t>(scale));
+			expect(named.has_value()).to_be_true(path);
+			if (named.has_value()) {
+				expect(std::string{named->text()}).to_equal(path);
+			}
 		}
 		// Each named row's kind and the default the device's settings reset to.
 		struct Named {
@@ -83,6 +87,14 @@ describe device_settings("the DEVICE setting group", ${
 				expect(row->default_value).to_equal(want.default_value);
 			}
 		}
+	});
+
+	it("makes a row's path only from its own constants: no text converts to one", _ {
+		static_assert(!std::is_constructible_v<DevicePath, std::string_view>);
+		static_assert(!std::is_constructible_v<DevicePath, const char*>);
+		static_assert(!std::is_convertible_v<std::string_view, DevicePath>);
+		expect(std::string{device_path::kPlayCursor.text()}).to_equal(std::string{"pads/playCursor"});
+		expect(std::string{device_path::feature(Feature::QUANTIZE).text()}).to_equal(std::string{"features/quantize"});
 	});
 
 	it("names no disabled-by-default row past the preset scales", _ {

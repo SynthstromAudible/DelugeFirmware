@@ -56,27 +56,52 @@ enum class FlashCursor : uint8_t {
 	SLOW = 2, ///< the factory default: the playhead's pixel is substituted in the rendered image
 };
 
-/// @brief The paths of the DEVICE rows the scenes name in code.
-namespace device_path {
-/// Whether a note's name uses a sharp or a flat: BOOL, 1 for sharps.
-inline constexpr std::string_view kUseSharps = "defaults/useSharps";
-/// The polarity a new patch cable takes: CHOICE over the patch cable's two polarities, unipolar then bipolar.
-inline constexpr std::string_view kPatchCablePolarity = "defaults/patchCablePolarity";
-/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
-inline constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
-/// The grid's shortcut layout: CHOICE over ShortcutsVersion.
-inline constexpr std::string_view kShortcutsVersion = "pads/shortcutsVersion";
-/// How a playhead is shown on the pads: CHOICE over FlashCursor.
-inline constexpr std::string_view kPlayCursor = "pads/playCursor";
-/// The first part of each community feature's path; the name the feature file writes it under follows it.
-inline constexpr std::string_view kFeaturePrefix = "features/";
+struct device_path;
 
-/// @brief The BOOL row that says whether preset scale @p scale is disabled by default.
-/// @param scale A preset scale's index.
-/// @return The row's path, `defaults/scales/disabled/<scale>`, valid for the program's life; nullopt for an index
-///         past the preset scales.
-[[nodiscard]] std::optional<std::string_view> disabled_scale(size_t scale);
-} // namespace device_path
+/// @brief The path of a DEVICE row the table holds. Only `device_path` makes one, from its own constants, so a path a
+///        caller types cannot be one: a read that takes a DevicePath reads a row that exists.
+class DevicePath {
+public:
+	/// @brief The row's path.
+	[[nodiscard]] constexpr std::string_view text() const { return text_; }
+	/// @brief The row's path, for the checked front (`DeviceSettings::read`, `write`) that takes any path.
+	constexpr operator std::string_view() const { return text_; } // NOLINT(google-explicit-constructor)
+	/// @brief Whether two handles name the same row.
+	constexpr bool operator==(const DevicePath&) const = default;
+
+private:
+	friend struct device_path;
+	constexpr explicit DevicePath(std::string_view text) : text_{text} {}
+	std::string_view text_;
+};
+
+/// @brief The paths of the DEVICE rows the scenes name in code. `device_settings.cpp` checks, when the image is
+///        built, that the table holds a row at each.
+struct device_path {
+	/// Whether a note's name uses a sharp or a flat: BOOL, 1 for sharps.
+	static constexpr DevicePath kUseSharps{"defaults/useSharps"};
+	/// The polarity a new patch cable takes: CHOICE over the patch cable's two polarities, unipolar then bipolar.
+	static constexpr DevicePath kPatchCablePolarity{"defaults/patchCablePolarity"};
+	/// The grid's shortcut layout: CHOICE over ShortcutsVersion.
+	static constexpr DevicePath kShortcutsVersion{"pads/shortcutsVersion"};
+	/// How a playhead is shown on the pads: CHOICE over FlashCursor.
+	static constexpr DevicePath kPlayCursor{"pads/playCursor"};
+	/// The first part of each preset scale's "disabled by default" path; the scale's index follows it.
+	static constexpr std::string_view kDisabledScalePrefix = "defaults/scales/disabled/";
+	/// The first part of each community feature's path; the name the feature file writes it under follows it.
+	static constexpr std::string_view kFeaturePrefix = "features/";
+
+	/// @brief The BOOL row that says whether preset scale @p scale is disabled by default.
+	/// @param scale A preset scale's index.
+	/// @return The row's path, `defaults/scales/disabled/<scale>`, valid for the program's life; nullopt for an index
+	///         past the preset scales.
+	[[nodiscard]] static std::optional<DevicePath> disabled_scale(size_t scale);
+
+	/// @brief The DEVICE row of community feature @p f: BOOL for an on/off feature, else CHOICE over its words.
+	/// @param f A feature.
+	/// @return The row's path, `features/` then the name the feature file writes it under.
+	[[nodiscard]] static constexpr DevicePath feature(Feature f);
+};
 
 namespace feature_paths {
 /// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
@@ -115,16 +140,11 @@ inline constexpr std::array<FeaturePath, kFeatureCount> kPaths = [] {
 } // namespace menu_tables
 } // namespace feature_paths
 
-namespace device_path {
-/// @brief The DEVICE row of community feature @p f: BOOL for an on/off feature, else CHOICE over its words.
-/// @param f A feature.
-/// @return The row's path, `features/` then the name the feature file writes it under.
-[[nodiscard]] constexpr std::string_view feature(Feature f) {
+constexpr DevicePath device_path::feature(Feature f) {
 	// Indexed through `feature_info`, so an id with no entry stops there rather than reading past the paths.
 	const feature_paths::FeaturePath& path = feature_paths::kPaths[std::to_underlying(feature_info(f).id)];
-	return {path.text.data(), path.size};
+	return DevicePath{std::string_view{path.text.data(), path.size}};
 }
-} // namespace device_path
 
 /// @brief The community feature whose DEVICE row is at @p path.
 /// @param path A DEVICE row's path.

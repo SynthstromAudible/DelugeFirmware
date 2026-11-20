@@ -49,7 +49,7 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
-namespace device_path = deluge::project::device_path;
+using device_path = deluge::project::device_path;
 using deluge::project::Feature;
 
 namespace {

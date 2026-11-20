@@ -12,8 +12,11 @@
 
 #include <cppspec.hpp>
 
+#include <string_view>
+#include <type_traits>
+
 using namespace deluge::scenes::bind;
-namespace device_path = deluge::project::device_path;
+using device_path = deluge::project::device_path;
 
 namespace {
 
@@ -337,7 +340,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		using deluge::project::ShortcutsVersion;
 		test::FakeHost host;
 		const Ports p = host.ports();
-		const std::string_view battery = device_path::feature(Feature::SHOW_BATTERY_LEVEL);
+		const deluge::project::DevicePath battery = device_path::feature(Feature::SHOW_BATTERY_LEVEL);
 		expect(read_device_flag(p.device, battery)).to_be_true();
 		expect(static_cast<int>(p.device->write(battery, 0))).to_equal(static_cast<int>(DeviceWrite::STORED));
 		expect(read_device_flag(p.device, battery)).to_be_false();
@@ -349,6 +352,10 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(static_cast<int>(read_device<ShortcutsVersion>(p.device, device_path::kShortcutsVersion)))
 			.to_equal(static_cast<int>(ShortcutsVersion::V1));
 		expect(contract::device_typed_reads_match(*p.device)).to_be_true();
+
+		// Only a DevicePath reads: a path written as text does not compile.
+		static_assert(!std::is_invocable_v<decltype(&read_device_flag), const DeviceSettings*, std::string_view>);
+		static_assert(!std::is_invocable_v<decltype(&read_device_value), const DeviceSettings*, const char*>);
 
 		// No port: every row reads its default.
 		expect(static_cast<int>(read_device<FlashCursor>(nullptr, device_path::kPlayCursor)))

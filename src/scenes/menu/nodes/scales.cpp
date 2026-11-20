@@ -102,7 +102,7 @@ bool ActiveScalesItem::is_disabled(const MenuContext& ctx, size_t index) const {
 	}
 	if (set_ == ScaleSet::Default) {
 		// The device's row; not disabled where the context binds no device port.
-		const std::optional<std::string_view> path = project::device_path::disabled_scale(index);
+		const std::optional<project::DevicePath> path = project::device_path::disabled_scale(index);
 		return path.has_value() && bind::read_device_flag(ctx.ports.device, *path);
 	}
 	if (ctx.model != nullptr) {
@@ -118,7 +118,7 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 		return;
 	}
 	if (set_ == ScaleSet::Default) {
-		const std::optional<std::string_view> path = project::device_path::disabled_scale(index);
+		const std::optional<project::DevicePath> path = project::device_path::disabled_scale(index);
 		if (path.has_value() && ctx.ports.device != nullptr) {
 			(void)ctx.ports.device->write(*path, value ? 1 : 0);
 		}

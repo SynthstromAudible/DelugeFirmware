@@ -29,7 +29,7 @@ using project::FlashCursor;
 using project::ShortcutsVersion;
 using scenes::bind::DeviceWrite;
 using serialization::Value;
-namespace device_path = project::device_path;
+using device_path = project::device_path;
 
 // A CHOICE row's index is the legacy value for these.
 static_assert(std::to_underlying(FlashCursor::FAST) == FLASH_CURSOR_FAST);

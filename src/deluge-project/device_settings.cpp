@@ -109,6 +109,21 @@ constexpr std::array<SettingInfo, kRowCount> kDeviceTable = [] {
 	return rows;
 }();
 static_assert(plugin::conditions_are_valid(kDeviceTable));
+// Every path the scenes name is a row of the table; a feature's and a scale's rows are made from the same lists.
+static_assert([] {
+	for (const DevicePath path : {device_path::kUseSharps, device_path::kPatchCablePolarity,
+	                              device_path::kShortcutsVersion, device_path::kPlayCursor}) {
+		if (plugin::find_setting(kDeviceTable, path.text()) == nullptr) {
+			return false;
+		}
+	}
+	for (const FeatureInfo& info : kFeatures) {
+		if (plugin::find_setting(kDeviceTable, device_path::feature(info.id).text()) == nullptr) {
+			return false;
+		}
+	}
+	return true;
+}());
 static_assert(plugin::mappings_are_valid(kDeviceTable));
 
 } // namespace menu_tables
@@ -118,12 +133,12 @@ std::span<const plugin::SettingInfo> device_table() {
 	return kDeviceTable;
 }
 
-std::optional<std::string_view> device_path::disabled_scale(size_t scale) {
+std::optional<DevicePath> device_path::disabled_scale(size_t scale) {
 	if (scale >= kScalePaths.size()) {
 		return std::nullopt;
 	}
 	const ScalePath& path = kScalePaths[scale];
-	return std::string_view{path.text.data(), path.size};
+	return DevicePath{std::string_view{path.text.data(), path.size}};
 }
 
 } // namespace deluge::project

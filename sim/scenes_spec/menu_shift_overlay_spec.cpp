@@ -27,6 +27,7 @@
 #include "modulation/params/param.h"
 
 #include "support/menu_rig.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -136,6 +137,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 	});
 
 	it("paints the source column blue where a source may patch to the focused param", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.menu_context();
@@ -160,6 +162,7 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 	});
 
 	it("uses the range rule while a source pad is held on a cable page", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.menu_context();

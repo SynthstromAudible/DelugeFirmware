@@ -41,6 +41,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -1133,6 +1134,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 	});
 
 	it("draws no menu title beneath the drum rename opened from its shortcut pad", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		deluge::notify::dirty().drain();
 		spec::SongFixture f = kit_fixture();

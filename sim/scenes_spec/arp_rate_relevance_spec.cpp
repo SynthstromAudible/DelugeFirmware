@@ -29,6 +29,7 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -85,6 +86,7 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 	});
 
 	it("is the kit's own table's (11,0), which the menu's overlay paints black and Shift + pad refuses", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		f.clip->affectEntire = true;
@@ -152,6 +154,7 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 
 describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomizer items: where they are relevant", $ {
 	it("asks the arp octaves of the latch: relevant with it clear, not with it set", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		spec::SongFixture f = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(f);
 		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, false))).to_be_true();

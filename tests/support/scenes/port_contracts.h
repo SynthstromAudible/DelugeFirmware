@@ -270,11 +270,11 @@ namespace deluge::scenes::bind::contract {
 /// @brief The typed reads answer what `read` reads: the play cursor as one of its three values, the shortcut layout as
 ///        one of its two, and a feature's flag as its row's value.
 [[nodiscard]] inline bool device_typed_reads_match(const DeviceSettings& device) {
-	namespace device_path = project::device_path;
+	using device_path = project::device_path;
 	const project::FlashCursor cursor = read_device<project::FlashCursor>(&device, device_path::kPlayCursor);
 	const project::ShortcutsVersion version =
 	    read_device<project::ShortcutsVersion>(&device, device_path::kShortcutsVersion);
-	const std::string_view battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
+	const project::DevicePath battery = device_path::feature(project::Feature::SHOW_BATTERY_LEVEL);
 	const bool named_cursor = cursor == project::FlashCursor::FAST || cursor == project::FlashCursor::OFF
 	                          || cursor == project::FlashCursor::SLOW;
 	const bool named_version = version == project::ShortcutsVersion::V1 || version == project::ShortcutsVersion::V3;

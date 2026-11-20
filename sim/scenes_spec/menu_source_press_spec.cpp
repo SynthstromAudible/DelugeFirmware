@@ -213,6 +213,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("falls through to the randomizer on (15,1) when no item takes it", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		r.open(nodes::synth_mode);
@@ -224,12 +225,10 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 
 	it("swallows a source cell past the last patch source", _ {
 		select_language();
-		const deluge::project::ShortcutsVersion saved = spec::shortcut_layout();
-		spec::set_shortcut_layout(deluge::project::ShortcutsVersion::V1); // (15, 7) names no source
+		const spec::ShortcutLayout v1{deluge::project::ShortcutsVersion::V1}; // (15, 7) names no source
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);
-		spec::set_shortcut_layout(saved);
 		deluge::notify::Notice notice;
 		expect(deluge::notify::notices().pop(notice)).to_be_false(); // no PARAMETER NOT APPLICABLE for a non-source
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
@@ -246,6 +245,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("never toggles the second layer from a fixed cable's own pad", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		select_language();
 		Rig r;
 		r.open(nodes::vibrato);

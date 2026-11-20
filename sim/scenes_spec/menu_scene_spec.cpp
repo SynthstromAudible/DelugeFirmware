@@ -47,6 +47,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
@@ -1555,6 +1556,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a pad whose node does not apply stays put and says PARAMETER NOT APPLICABLE", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::setup`: `checkPermissionToBeginSession` answers NO, it shows the popup and
 		// opens nothing.
 		select_language();
@@ -1649,6 +1651,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a range-dependent jump on a multisampled source lands, after the range pick, on the page", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `setup()` puts the picker first (MUST_SELECT_RANGE); the picker's select answers the item, and
 		// `SoundEditor`'s select arm enters it on its horizontal page, focused on it
 		// (`maybeGetParentMenu`, `focusChild`, then `enterSubmenu`).
@@ -3004,6 +3007,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("flashes no pad for the name editors and the sample-marker editors", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::updatePadLightsFor` sets no shortcut blink
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {

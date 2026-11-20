@@ -139,7 +139,7 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.device == nullptr) {
 			return;
 		}
-		namespace device_path = deluge::project::device_path;
+		using device_path = deluge::project::device_path;
 		expect(bind::contract::device_unknown_path_reads_nothing(*p.device)).to_be_true();
 		expect(bind::contract::device_unknown_path_write_is_refused(*p.device)).to_be_true();
 		expect(bind::contract::device_out_of_range_write_is_refused(*p.device)).to_be_true();

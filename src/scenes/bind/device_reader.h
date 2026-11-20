@@ -4,6 +4,7 @@
 /// @brief The device's own settings, read by DEVICE row: for the bind dispatch, and as typed values for a scene that
 ///        branches on one.
 
+#include "deluge-project/device_settings.h"
 #include "plugin-api/types/setting.h"
 #include "scenes/bind/ports/device_settings.h"
 
@@ -38,15 +39,14 @@ private:
 /// @name Typed reads of the DEVICE rows a scene branches on.
 ///
 /// Every read answers what @p port holds, or the row's default where there is no port (a context that binds none).
-/// @p path must be a DEVICE row's path, a `project::device_path` constant: a path no row has is a programming error,
-/// which the debug build asserts on.
+/// @p path is a `project::DevicePath`, which only `project::device_path` makes, from rows the table is checked to hold.
 /// @{
 
 /// @brief The value of the DEVICE row at @p path, in the row's stored units.
 /// @param port The host's device settings, or null.
 /// @param path A DEVICE row's path.
 /// @return The stored value; the row's default with no port.
-[[nodiscard]] int32_t read_device_value(const DeviceSettings* port, std::string_view path);
+[[nodiscard]] int32_t read_device_value(const DeviceSettings* port, project::DevicePath path);
 
 /// @brief The DEVICE CHOICE row at @p path as the enum whose enumerators are its choices' indices.
 /// @tparam E A scoped enum whose values are the row's choice indices.
@@ -55,7 +55,7 @@ private:
 /// @return The choice; the row's default with no port.
 template <typename E>
 requires std::is_scoped_enum_v<E>
-[[nodiscard]] E read_device(const DeviceSettings* port, std::string_view path) {
+[[nodiscard]] E read_device(const DeviceSettings* port, project::DevicePath path) {
 	return static_cast<E>(read_device_value(port, path));
 }
 
@@ -63,7 +63,7 @@ requires std::is_scoped_enum_v<E>
 /// @param port The host's device settings, or null.
 /// @param path A DEVICE row's path.
 /// @return The row's value; the row's default with no port.
-[[nodiscard]] bool read_device_flag(const DeviceSettings* port, std::string_view path);
+[[nodiscard]] bool read_device_flag(const DeviceSettings* port, project::DevicePath path);
 
 /// @}
 

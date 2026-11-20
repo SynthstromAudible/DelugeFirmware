@@ -87,6 +87,7 @@
 #include "support/card_access.h"
 #include "support/feature_setting.h"
 #include "support/printers/scene_printer.h"
+#include "support/shortcut_layout.h"
 #include "support/song_fixture.h"
 #include "support/ui_mode_guard.h"
 
@@ -665,6 +666,7 @@ describe menu_entry_node_arg("openMenu can name a node, not only a root", $ {
 
 describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the menu on that pad's node", $ {
 	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it, focused on it
 		// (`maybeGetParentMenu` and `parent->focusChild`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -681,6 +683,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("an odd column addresses source 1", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 3, 2);
 		expect(node).not_().to_be_null();
@@ -693,6 +696,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("a cell with no shortcut opens nothing", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, deluge::project::ShortcutsVersion::V3, false, 15, 0)).to_be_null();
 
@@ -701,6 +705,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("a node that does not apply opens nothing and says PARAMETER NOT APPLICABLE, as setup() does", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -762,6 +767,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("Shift + (4,0) on a DX7 sound opens the DX7 parameter page alone, on the param it showed last", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1923,6 +1929,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 
 	it("an audition pad and the sequence-direction pad open the note-row editor on PLAY DIRECTION from a closed menu", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `enterNoteRowEditor`.
 		deluge::gui::ui::wireShellNoteBridge();
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
@@ -2007,6 +2014,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	});
 
 	it("a range-dependent pad on a multisampled source opens the range picker first, as setup() does", _ {
+		const spec::ShortcutLayout pinned_v3{deluge::project::ShortcutsVersion::V3}; // the layout the lookups name
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
