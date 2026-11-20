@@ -93,6 +93,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "instruments/deluge/state_access.h"
 #include "notify/notice_queue.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -102,7 +103,6 @@
 #include "scenes/menu/nodes/sound_root.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
-#include "support/flat_state.h"
 #include "util/functions.h"
 #include "util/menu_entry.h"
 
@@ -760,11 +760,11 @@ Sample* previewedSample() {
 /// oscillators play samples with smooth interpolation (a sample sound's), not a config left at the render's defaults.
 void checkPreviewPlays() {
 	const Sound& preview = *AudioEngine::sampleForPreview;
-	const deluge::test::FlatView state = deluge::test::flat_of(preview.boundState());
+	const deluge::instrument::SoundState* state = preview.boundState();
 	const bool derived =
-	    state.has_value() && preview.config() == deluge::instrument::DelugeSynth::derive(*preview.boundState());
+	    state != nullptr && preview.config() == deluge::instrument::DelugeSynth::derive(*preview.boundState());
 	const deluge::synth::SourceConfig& osc = preview.config().sources[0];
-	if (!derived || state->sources[0].osc_type != OscType::SAMPLE
+	if (!derived || deluge::instrument::source_type(*state, deluge::instrument::SourceId::A) != OscType::SAMPLE
 	    || osc.interpolation_mode != InterpolationMode::SMOOTH) {
 		g_report.fail("PREVIEW leg=%s the preview does not play its sample sound's config (derived=%d smooth=%d)",
 		              legName(g_leg), derived ? 1 : 0, osc.interpolation_mode == InterpolationMode::SMOOTH ? 1 : 0);
@@ -2012,7 +2012,8 @@ void checkLeg() {
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
 		       "ticks=%d\n",
 		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->oscType(0)),
-		       static_cast<int>(deluge::test::flat_of(g_synth->state_)->sources[0].repeat_mode),
+		       static_cast<int>(
+		           deluge::instrument::sample_playback(*g_synth->state_, deluge::instrument::SourceId::A).repeat_mode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
 		       onPage ? 1 : 0, horizontal ? 1 : 0, g_wait.ticks());
 		if (!onPage) {
@@ -2230,11 +2231,15 @@ void checkLeg() {
 		SoundDrum* drum = kitDrum();
 		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(*drum, 0) : nullptr;
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
-		       holder != nullptr ? holder->filePath.c_str() : "",
-		       drum != nullptr ? static_cast<int>(deluge::test::flat_of(drum->state_)->sources[0].repeat_mode) : -1,
-		       drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
-		       g_wait.ticks());
+		printf(
+		    "SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
+		    holder != nullptr ? holder->filePath.c_str() : "",
+		    drum != nullptr
+		        ? static_cast<int>(
+		              deluge::instrument::sample_playback(*drum->state_, deluge::instrument::SourceId::A).repeat_mode)
+		        : -1,
+		    drum != nullptr ? drum->name().c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
+		    g_wait.ticks());
 		if (!bound) {
 			g_report.fail("KIT the claim bound no file");
 		}
@@ -2403,7 +2408,9 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
 				       soundDrum->name().c_str(), holder != nullptr ? holder->filePath.c_str() : "",
 				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
-				       static_cast<int>(deluge::test::flat_of(soundDrum->state_)->sources[0].repeat_mode),
+				       static_cast<int>(
+				           deluge::instrument::sample_playback(*soundDrum->state_, deluge::instrument::SourceId::A)
+				               .repeat_mode),
 				       soundDrum->sideChainSendLevel);
 				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
 				    && soundDrum->name() == kImportKitNames[drums]

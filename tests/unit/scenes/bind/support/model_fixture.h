@@ -122,7 +122,7 @@ struct ModelFixture {
 	FakeFacts facts;
 	ModelFixture();
 	/// Set @p slot's state and re-encode its slot from it, as a coherent song holds them.
-	void set_state(project::SlotAddress slot, const instrument::FlatSoundState& state);
+	void set_state(project::SlotAddress slot, const instrument::SoundState& state);
 };
 
 } // namespace deluge::scenes::bind::test

@@ -23,7 +23,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "support/record_state.h"
 
 #include "support/spec_main.h"
 #include "unit/ui/support/frames.h"
@@ -77,9 +77,7 @@ struct PreviewSound {
 	SoundDrum* const saved = AudioEngine::sampleForPreview;
 	SoundDrum* drum = new (memory) SoundDrum();
 	PreviewSound() {
-		deluge::test::change_flat(*drum->boundRecord(), [&](deluge::instrument::FlatSoundState& f) {
-			f.sources[0].osc_type = OscType::SAMPLE;
-		});
+		deluge::test::set(*drum->boundRecord(), "osc1/type", "sample");
 		drum->projectSnapshot();
 		AudioEngine::sampleForPreview = drum;
 	}
@@ -111,7 +109,7 @@ describe waveforms("a waveform by its address", ${
 
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		SourceResources& source = sound->sources[0];
-		deluge::test::change_flat(*sound->boundRecord(), [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
+		deluge::test::set(*sound->boundRecord(), "osc1/type", "sample");
 		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();
@@ -147,7 +145,7 @@ describe waveforms("a waveform by its address", ${
 		currentSong = synth.song;
 		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		SourceResources& source = sound->sources[0];
-		deluge::test::change_flat(*sound->boundRecord(), [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
+		deluge::test::set(*sound->boundRecord(), "osc1/type", "sample");
 		sound->projectSnapshot();
 		auto* multisample = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		Sample* sample = make_sample();

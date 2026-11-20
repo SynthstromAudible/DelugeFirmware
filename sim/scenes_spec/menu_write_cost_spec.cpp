@@ -27,7 +27,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "instruments/deluge/state_access.h"
 
 #include "support/spec_main.h"
 
@@ -42,6 +42,13 @@ using deluge::scenes::bind::Target;
 using deluge::scenes::menu::MenuContext;
 
 namespace {
+
+/// The first oscillator's ranges the record holds at @p slot, or none where there is no record.
+std::vector<deluge::instrument::RangeState> first_ranges(deluge::project::SlotAddress slot) {
+	const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
+	return state ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
+	             : std::vector<deluge::instrument::RangeState>{};
+}
 
 /// The kit size the probe fans out over: a full kit's worth of sound rows.
 constexpr int32_t kKitDrums = 16;
@@ -235,14 +242,14 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		(void)sound.getOrCreateFirstRange(0);
 		deluge::edits::recordRanges(sound, 0);
 		std::vector<deluge::instrument::RangeState> ranges =
-		    deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot))->sources[0].ranges;
+		    first_ranges(slot);
 		ranges[0].end_pos = 100000;
 		const bind::RangesCause marker{.kind = bind::RangesCause::Kind::MARKER, .marker = 0};
 		report("synth", 0, "marker", time_requests([&](int32_t i) {
 			       ranges[0].start_pos = (i % 2) != 0 ? 1000 : 2000;
 			       (void)menu::host_write_sink().write_ranges(slot, 0, ranges, marker);
 		       }));
-		expect(deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot))->sources[0].ranges[0].end_pos).to_equal(uint64_t{100000});
+		expect(first_ranges(slot)[0].end_pos).to_equal(uint64_t{100000});
 		deluge::scenes::spec::make_current(saved);
 	});
 

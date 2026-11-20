@@ -1,9 +1,12 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
+#include "instruments/deluge/state_rules.h"
 #include "plugin-api/types/setting.h"
 #include "plugin-api/types/sync.h"
 #include "serialization/tree.h"
-#include "support/printers/sound_state_printer.h"
+#include "support/printers/sound_record_printer.h"
+#include "support/record_state.h"
 #include "support/state_matrix.h"
 
 #include <algorithm>
@@ -12,6 +15,7 @@
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 using namespace deluge::instrument;
@@ -139,7 +143,7 @@ std::vector<std::string> write_setting_disagreements() {
 						found.push_back(at + " (with_setting refused)");
 						continue;
 					}
-					FlatSoundState got = state;
+					SoundState got = state;
 					const std::vector<std::string_view> changed = write_setting(got, row.path, *value);
 					if (got == want->state) {
 						const bool named = std::ranges::all_of(
@@ -149,7 +153,7 @@ std::vector<std::string> write_setting_disagreements() {
 						}
 						continue;
 					}
-					FlatSoundState again = want->state;
+					SoundState again = want->state;
 					(void)write_setting(again, row.path, *value);
 					const std::string_view key = row.path.substr(0, row.path.find('/'));
 					const bool one_field =
@@ -165,19 +169,24 @@ std::vector<std::string> write_setting_disagreements() {
 }
 
 /// A subtractive sound whose first source plays two sample ranges and whose second is a saw with a stale range.
-FlatSoundState sampled() {
-	FlatSoundState state = FlatSoundState{};
-	SourceState& sample = state.sources[0];
-	sample.osc_type = OscType::SAMPLE;
-	sample.repeat_mode = SampleRepeatMode::LOOP;
-	sample.reversed = true;
-	sample.ranges = {RangeState{.top_note = 60, .file_path = "SAMPLES/LOW.WAV", .start_pos = 10, .end_pos = 900},
-	                 RangeState{.top_note = 32767, .file_path = "SAMPLES/HIGH.WAV", .start_pos = 0, .end_pos = 700}};
-	state.osc_retrigger_phase[0] = 12345;
-	SourceState& saw = state.sources[1];
-	saw.osc_type = OscType::SAW;
-	saw.ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV"}};
+SoundState sampled() {
+	SoundState state;
+	state = deluge::test::with_kind(state, SourceId::A, OscType::SAMPLE);
+	state = with_loop_mode(std::move(state), SourceId::A, SampleRepeatMode::LOOP);
+	deluge::test::set(state, "osc1/reversed", "1");
+	state =
+	    with_ranges(std::move(state), SourceId::A,
+	                {RangeState{.top_note = 60, .file_path = "SAMPLES/LOW.WAV", .start_pos = 10, .end_pos = 900},
+	                 RangeState{.top_note = 32767, .file_path = "SAMPLES/HIGH.WAV", .start_pos = 0, .end_pos = 700}});
+	deluge::test::set(state, "osc1/retrigPhase", "12345");
+	state = deluge::test::with_kind(state, SourceId::B, OscType::SAW);
+	state = with_ranges(std::move(state), SourceId::B, {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV"}});
 	return state;
+}
+
+/// The file text of the high voice priority.
+std::string high_priority() {
+	return std::to_string(std::to_underlying(deluge::plugin::VoicePriority::HIGH));
 }
 
 } // namespace
@@ -185,142 +194,141 @@ FlatSoundState sampled() {
 // clang-format off
 describe decoding_onto("a slot decoded onto a sound's current state", ${
 	it("reads back a subtractive sound's state as it is", _ {
-		const FlatSoundState state = sampled();
+		const SoundState state = sampled();
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded.has_value()).to_be_true();
 		expect(*decoded).to_equal(state);
 	});
 
 	it("keeps an FM sound's oscillator types, samples and DX patch, which no file holds", _ {
-		FlatSoundState state = sampled();
-		state.synth_mode = SynthMode::FM;
-		state.sources[1].osc_type = OscType::DX7;
-		state.sources[1].dx_patch = DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3};
+		SoundState state = sampled();
+		state = deluge::test::with_kind(state, SourceId::B, OscType::DX7);
+		state = with_dx_patch(std::move(state), SourceId::B, DxPatchState{.params = {}, .engine_mode = 1, .random_detune = 3});
+		state = switch_engine(std::move(state), SynthMode::FM);
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(decoded.has_value()).to_be_true();
 		expect(*decoded).to_equal(state);
 	});
 
 	it("keeps a non-FM sound's modulators", _ {
-		FlatSoundState state = sampled();
-		state.modulator_transpose = {5, -7};
-		state.modulator1_to_modulator0 = true;
+		SoundState state = sampled();
+		deluge::test::set(state, "modulator1/transpose", "5");
+		deluge::test::set(state, "modulator2/transpose", "-7");
+		deluge::test::set(state, "modulator2/toModulator1", "1");
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
-		expect(decoded->modulator_transpose[0]).to_equal(int16_t{5});
-		expect(decoded->modulator_transpose[1]).to_equal(int16_t{-7});
-		expect(decoded->modulator1_to_modulator0).to_be_true();
+		expect(modulators(*decoded)[0].tuning.transpose).to_equal(int16_t{5});
+		expect(modulators(*decoded)[1].tuning.transpose).to_equal(int16_t{-7});
+		expect(modulator1_to_modulator0(*decoded)).to_be_true();
 	});
 
 	it("keeps a ring-mod sound's sample oscillator, which only reading a file clamps", _ {
-		FlatSoundState state = sampled();
-		state.synth_mode = SynthMode::RINGMOD;
+		SoundState state = switch_engine(sampled(), SynthMode::RINGMOD);
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
-		expect(decoded->sources[0].osc_type).to_equal(OscType::SAMPLE);
-		FlatSoundState fresh = FlatSoundState{};
+		expect(source_type(*decoded, SourceId::A)).to_equal(OscType::SAMPLE);
+		SoundState fresh;
 		expect(decode(encode(state, kContext), fresh, kContext).has_value()).to_be_true();
-		expect(fresh.sources[0].osc_type).to_equal(OscType::WAVETABLE);
+		expect(source_type(fresh, SourceId::A)).to_equal(OscType::WAVETABLE);
 	});
 
 	it("takes every value the element holds", _ {
-		FlatSoundState state = sampled();
-		FlatSoundState written = state;
-		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
+		SoundState state = sampled();
+		SoundState written = state;
+		deluge::test::set(written, "voicePriority", high_priority());
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->voice_priority).to_equal(deluge::plugin::VoicePriority::HIGH);
+		expect(voicing(*decoded).priority).to_equal(deluge::plugin::VoicePriority::HIGH);
 	});
 
 	it("keeps a sample source's own transpose and cents, which a file holds only as its ranges'", _ {
-		FlatSoundState state = sampled();
-		state.sources[0].transpose = 7;
-		state.sources[0].cents = -12;
+		SoundState state = sampled();
+		deluge::test::set(state, "osc1/transpose", "7");
+		deluge::test::set(state, "osc1/cents", "-12");
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
 		expect(*decoded).to_equal(state);
 	});
 
 	it("keeps what an unchanged entry says, even where the file could not say it (a sync level)", _ {
-		FlatSoundState state = sampled();
-		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
+		SoundState state = sampled();
+		deluge::test::set(state, "lfo1/syncLevel", "1");
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(state, kSlow), state, kSlow);
 		expect(*decoded).to_equal(state);
 	});
 
 	it("reads a changed entry as a file holds it", _ {
-		FlatSoundState state = sampled();
-		FlatSoundState written = state;
-		written.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
+		SoundState state = sampled();
+		SoundState written = state;
+		deluge::test::set(written, "lfo1/syncLevel", "1");
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
-		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(2); // where magnitude 0's file keeps WHOLE
+		expect(static_cast<int32_t>(lfo(*decoded, 0).sync_level)).to_equal(2); // where magnitude 0's file keeps WHOLE
 	});
 
 	it("keeps the ranges a changed oscillator type carries over", _ {
-		FlatSoundState state = sampled();
-		state.sources[1].ranges = {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500}};
-		FlatSoundState written = state;
-		written.sources[1].osc_type = OscType::SAMPLE;
+		SoundState state = sampled();
+		state = with_ranges(std::move(state), SourceId::B,
+		                    {RangeState{.top_note = 32767, .file_path = "SAMPLES/OLD.WAV", .end_pos = 500}});
+		const SoundState written = deluge::test::with_kind(state, SourceId::B, OscType::SAMPLE);
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->sources[1].ranges).to_equal(state.sources[1].ranges);
+		expect(source_ranges(*decoded, SourceId::B)).to_equal(source_ranges(state, SourceId::B));
 	});
 
 	it("reads the ranges a changed oscillator type reshapes", _ {
-		FlatSoundState state = sampled();
-		FlatSoundState written = state;
-		written.sources[0].osc_type = OscType::WAVETABLE;
-		written.sources[0].ranges = {RangeState{.top_note = 60}, RangeState{.top_note = 32767}};
+		SoundState state = sampled();
+		SoundState written = deluge::test::with_kind(state, SourceId::A, OscType::WAVETABLE);
+		written = with_ranges(std::move(written), SourceId::A, {RangeState{.top_note = 60}, RangeState{.top_note = 32767}});
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->sources[0].ranges).to_equal(written.sources[0].ranges);
+		expect(source_ranges(*decoded, SourceId::A)).to_equal(source_ranges(written, SourceId::A));
 	});
 
 	it("carries no sample range's zone into a wavetable, even one with no file", _ {
-		FlatSoundState state = sampled();
-		state.sources[0].ranges = {RangeState{.top_note = 32767, .end_pos = 9999999}};
-		FlatSoundState written = state;
-		written.sources[0].osc_type = OscType::WAVETABLE;
-		written.sources[0].ranges = {RangeState{.top_note = 32767}};
+		SoundState state = sampled();
+		state = with_ranges(std::move(state), SourceId::A, {RangeState{.top_note = 32767, .end_pos = 9999999}});
+		SoundState written = deluge::test::with_kind(state, SourceId::A, OscType::WAVETABLE);
+		written = with_ranges(std::move(written), SourceId::A, {RangeState{.top_note = 32767}});
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->sources[0].ranges).to_equal(written.sources[0].ranges);
+		expect(source_ranges(*decoded, SourceId::A)).to_equal(source_ranges(written, SourceId::A));
 	});
 
 	it("keeps an LFO's sync level the file could not say when only its other settings change", _ {
-		FlatSoundState state = sampled();
-		state.lfo_sync_level[0] = static_cast<deluge::plugin::SyncLevel>(1);
-		FlatSoundState written = state;
-		written.lfo_wave_type[0] = LFOType::SAW;
+		SoundState state = sampled();
+		deluge::test::set(state, "lfo1/syncLevel", "1");
+		SoundState written = state;
+		deluge::test::set(written, "lfo1/type", to_string(LFOType::SAW));
 		constexpr deluge::plugin::CodecContext kSlow{.input_tick_magnitude = 0};
 		const auto decoded = decode_onto(encode(written, kSlow), state, kSlow);
-		expect(decoded->lfo_wave_type[0]).to_equal(LFOType::SAW);
-		expect(static_cast<int32_t>(decoded->lfo_sync_level[0])).to_equal(1);
+		expect(lfo(*decoded, 0).shape).to_equal(LFOType::SAW);
+		expect(static_cast<int32_t>(lfo(*decoded, 0).sync_level)).to_equal(1);
 	});
 
 	it("reads a changed effect entry and keeps the others", _ {
-		FlatSoundState state = sampled();
-		state.effects.delay.type = deluge::effects::DelayType::ANALOG;
-		FlatSoundState written = state;
-		written.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
+		SoundState state = sampled();
+		sound_effects(state).delay.type = deluge::effects::DelayType::ANALOG;
+		SoundState written = state;
+		sound_effects(written).filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto change = decode_change(encode(written, kContext), encode(state, kContext), state, kContext);
-		expect(change->state.effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
-		expect(change->state.effects.delay.type).to_equal(deluge::effects::DelayType::ANALOG);
+		expect(sound_effects(change->state).filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+		expect(sound_effects(change->state).delay.type).to_equal(deluge::effects::DelayType::ANALOG);
 		expect(change->changed).to_equal(std::vector<std::string_view>{"lpfMode"});
 	});
 
 	it("reads whether a stutter uses the song's from the slot", _ {
-		FlatSoundState state = sampled();
-		state.effects.stutter.use_song_stutter = false;
-		FlatSoundState written = state;
-		written.effects.stutter.use_song_stutter = true;
-		written.effects.stutter.reversed = true;
+		SoundState state = sampled();
+		sound_effects(state).stutter.use_song_stutter = false;
+		SoundState written = state;
+		sound_effects(written).stutter.use_song_stutter = true;
+		sound_effects(written).stutter.reversed = true;
 		const auto decoded = decode_onto(encode(written, kContext), state, kContext);
-		expect(decoded->effects.stutter.reversed).to_be_true();
-		expect(decoded->effects.stutter.use_song_stutter).to_be_true();
-		expect(decode_onto(encode(state, kContext), state, kContext)->effects.stutter.use_song_stutter).to_be_false();
+		expect(sound_effects(*decoded).stutter.reversed).to_be_true();
+		expect(sound_effects(*decoded).stutter.use_song_stutter).to_be_true();
+		expect(sound_effects(*decode_onto(encode(state, kContext), state, kContext)).stutter.use_song_stutter)
+		    .to_be_false();
 	});
 
 	it("keeps an unchanged effect entry", _ {
-		FlatSoundState state = sampled();
-		state.effects.filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
+		SoundState state = sampled();
+		sound_effects(state).filter.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH;
 		const auto decoded = decode_onto(encode(state, kContext), state, kContext);
-		expect(decoded->effects.filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
+		expect(sound_effects(*decoded).filter.lpf_mode).to_equal(deluge::effects::FilterMode::SVF_NOTCH);
 	});
 
 	it("writes a setting into the typed state as decoding the whole slot with the leaf changed does", _ {
@@ -338,21 +346,21 @@ describe decoding_onto("a slot decoded onto a sound's current state", ${
 	});
 
 	it("names each entry whose typed fields differ, in file order", _ {
-		FlatSoundState state = sampled();
-		FlatSoundState written = state;
-		written.lfo_wave_type[1] = LFOType::SAW;
-		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
-		written.effects.delay.ping_pong = !state.effects.delay.ping_pong;
-		written.osc_retrigger_phase[1] = 7;
+		SoundState state = sampled();
+		SoundState written = state;
+		deluge::test::set(written, "lfo2/type", to_string(LFOType::SAW));
+		deluge::test::set(written, "voicePriority", high_priority());
+		sound_effects(written).delay.ping_pong = !sound_effects(state).delay.ping_pong;
+		deluge::test::set(written, "osc2/retrigPhase", "7");
 		expect(changed_entries(state, written))
 		    .to_equal(std::vector<std::string_view>{"voicePriority", "osc2", "lfo2", "delay"});
 	});
 
 	it("tells which entries a change to the slot touches, and reads them as decoding onto the state does", _ {
-		FlatSoundState state = sampled();
-		FlatSoundState written = state;
-		written.lfo_wave_type[1] = LFOType::SAW;
-		written.voice_priority = deluge::plugin::VoicePriority::HIGH;
+		SoundState state = sampled();
+		SoundState written = state;
+		deluge::test::set(written, "lfo2/type", to_string(LFOType::SAW));
+		deluge::test::set(written, "voicePriority", high_priority());
 		const Value element = encode(written, kContext);
 		const auto change = decode_change(element, encode(state, kContext), state, kContext);
 		expect(change->changed).to_equal(std::vector<std::string_view>{"voicePriority", "lfo2"});

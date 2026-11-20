@@ -4,7 +4,8 @@
 /// @brief Sound states across what each instrument entry's encoding and reading depend on, for the codec's specs.
 
 #include "instruments/deluge/codec.h"
-#include "instruments/deluge/flat_layout.h"
+#include "instruments/deluge/state_access.h"
+#include "support/record_state.h"
 
 #include <string>
 #include <utility>
@@ -13,55 +14,57 @@
 namespace deluge::instrument::test {
 
 /// States across what each entry's encoding depends on.
-inline std::vector<std::pair<std::string, FlatSoundState>> matrix() {
-	std::vector<std::pair<std::string, FlatSoundState>> states;
-	states.emplace_back("new", FlatSoundState{});
+inline std::vector<std::pair<std::string, SoundState>> matrix() {
+	namespace record = deluge::test;
+	std::vector<std::pair<std::string, SoundState>> states;
+	states.emplace_back("new", SoundState{});
 
-	FlatSoundState fm = FlatSoundState{};
-	fm.synth_mode = SynthMode::FM;
-	fm.modulator_transpose = {3, -2};
-	fm.modulator1_to_modulator0 = true;
+	SoundState fm = record::with(SoundState{}, "mode", to_string(SynthMode::FM));
+	record::set(fm, "modulator1/transpose", "3");
+	record::set(fm, "modulator2/transpose", "-2");
+	record::set(fm, "modulator2/toModulator1", "1");
+	// A file can hold an FM sound with its filters on, though the engine switch turns them off
+	sound_effects(fm).filter = effects::EffectStates{}.filter;
 	states.emplace_back("fm", fm);
 
-	FlatSoundState ring = FlatSoundState{};
-	ring.synth_mode = SynthMode::RINGMOD;
-	ring.sources[1].osc_type = OscType::SAW;
+	SoundState ring = record::with(SoundState{}, "osc2/type", to_string(OscType::SAW));
+	record::set(ring, "mode", to_string(SynthMode::RINGMOD));
 	states.emplace_back("ringmod", ring);
 
-	FlatSoundState sample = FlatSoundState{};
-	sample.sources[0].osc_type = OscType::SAMPLE;
-	sample.sources[0].repeat_mode = SampleRepeatMode::ONCE;
-	sample.sources[0].ranges = {RangeState{.top_note = 60, .file_path = "SAMPLES/a.wav", .end_pos = 100},
-	                            RangeState{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .end_pos = 200}};
+	SoundState sample = record::with_kind(SoundState{}, SourceId::A, OscType::SAMPLE);
+	record::set(sample, "osc1/loopMode", "1"); // ONCE
+	sample = with_ranges(std::move(sample), SourceId::A,
+	                     {RangeState{.top_note = 60, .file_path = "SAMPLES/a.wav", .end_pos = 100},
+	                      RangeState{.top_note = kOpenTopNote, .file_path = "SAMPLES/b.wav", .end_pos = 200}});
 	states.emplace_back("ranged sample", sample);
 
-	FlatSoundState dx = FlatSoundState{};
-	dx.sources[1].osc_type = OscType::DX7;
-	dx.sources[1].dx_patch = DxPatchState{.engine_mode = 2, .random_detune = 5};
-	dx.sources[1].dx_patch->params[7] = 42;
+	DxPatchState patch{.engine_mode = 2, .random_detune = 5};
+	patch.params[7] = 42;
+	const SoundState dx = with_dx_patch(record::with_kind(SoundState{}, SourceId::B, OscType::DX7), SourceId::B, patch);
 	states.emplace_back("dx7", dx);
 
-	FlatSoundState wavetable = FlatSoundState{};
-	wavetable.sources[0].osc_type = OscType::WAVETABLE;
-	wavetable.sources[0].ranges = {RangeState{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}};
-	wavetable.oscillator_sync = true;
+	SoundState wavetable = record::with_kind(SoundState{}, SourceId::A, OscType::WAVETABLE);
+	wavetable = with_ranges(std::move(wavetable), SourceId::A,
+	                        {RangeState{.top_note = kOpenTopNote, .file_path = "WAVETABLES/w.wav"}});
+	record::set(wavetable, "osc2/oscillatorSync", "1");
 	states.emplace_back("wavetable", wavetable);
 
-	FlatSoundState synced = FlatSoundState{};
-	synced.lfo_sync_level[1] = deluge::plugin::SyncLevel::EIGHTH;
-	synced.effects.delay.sync_level = deluge::plugin::SyncLevel::QUARTER;
-	synced.effects.sidechain.sync_level = deluge::plugin::SyncLevel::SIXTEENTH;
+	SoundState synced = record::with(SoundState{}, "lfo2/syncLevel",
+	                                 std::to_string(std::to_underlying(deluge::plugin::SyncLevel::EIGHTH)));
+	sound_effects(synced).delay.sync_level = deluge::plugin::SyncLevel::QUARTER;
+	sound_effects(synced).sidechain.sync_level = deluge::plugin::SyncLevel::SIXTEENTH;
 	states.emplace_back("synced", synced);
 
-	FlatSoundState nonzero = FlatSoundState{};
-	nonzero.transpose = 5;
-	nonzero.cents = -7;
-	nonzero.side_chain_send_level = 1234;
-	nonzero.effects.saturation.clipping_amount = 4;
-	nonzero.effects.stutter.use_song_stutter = false;
-	nonzero.effects.filter.lpf_mode = deluge::effects::FilterMode::OFF;
-	nonzero.effects.mod_fx.type = deluge::effects::ModFXType::CHORUS;
-	nonzero.effects.compressor.ratio = 7 << 24;
+	SoundState nonzero = SoundState{};
+	record::set(nonzero, "transpose", "5");
+	record::set(nonzero, "cents", "-7");
+	record::set(nonzero, "sideChainSend", "1234");
+	effects::EffectStates& fx = sound_effects(nonzero);
+	fx.saturation.clipping_amount = 4;
+	fx.stutter.use_song_stutter = false;
+	fx.filter.lpf_mode = deluge::effects::FilterMode::OFF;
+	fx.mod_fx.type = deluge::effects::ModFXType::CHORUS;
+	fx.compressor.ratio = 7 << 24;
 	states.emplace_back("non-zero", nonzero);
 	return states;
 }

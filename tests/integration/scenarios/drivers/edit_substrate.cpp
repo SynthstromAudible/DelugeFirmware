@@ -56,6 +56,7 @@
 #include "instruments/deluge/deluge_synth.h"
 #include "instruments/deluge/dx7_init_voice.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/state_access.h"
 #include "io/midi/mapping_index.h"
 #include "model/drum/drum.h"
 #include "model/edits/change_effect.h"
@@ -91,7 +92,6 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
-#include "support/flat_state.h"
 
 using namespace deluge;
 
@@ -848,11 +848,11 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	// Deleted as a track is: its record goes now, the sound when the render lets go of it.
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
 	check(sound.boundState() != nullptr && sound.boundState() != record
-	          && deluge::test::flat_of(sound.boundState())->transpose == 5,
+	          && deluge::instrument::voicing(*sound.boundState()).master.transpose == 5,
 	      "ownership: a synth whose record goes keeps its state");
 	check(deluge::edits::setUnslottedSetting(sound, "transpose", serialization::Value::makeNumber(6), ctx.song)
 	              == Error::NONE
-	          && deluge::test::flat_of(sound.boundState())->transpose == 6 && sound.getTranspose() == 6,
+	          && deluge::instrument::voicing(*sound.boundState()).master.transpose == 6 && sound.getTranspose() == 6,
 	      "ownership: and a setting still writes it");
 
 	ParamManagerForTimeline kitParams;
@@ -870,7 +870,8 @@ void testRecordOwnsState(deluge::edits::Context& ctx) {
 	                                             serialization::Value::makeNumber(-3)};
 	check(deluge::edits::apply(ctx, rowTranspose) == Error::NONE, "ownership: a setting Edit reaches the kit row");
 	kit.removeDrum(removed);
-	check(removed->boundState() != nullptr && deluge::test::flat_of(removed->boundState())->transpose == -3,
+	check(removed->boundState() != nullptr
+	          && deluge::instrument::voicing(*removed->boundState()).master.transpose == -3,
 	      "ownership: a removed kit row keeps its state");
 	AudioEngine::retire(removed);
 	const uint32_t keptId = kept->id().value_or(0);
@@ -948,9 +949,11 @@ void testBlankDxSynth(deluge::edits::Context& ctx) {
 	}
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
 	static_cast<SoundInstrument*>(synth)->setupAsBlankSynth(&paramManager, true);
-	const deluge::test::FlatView state = deluge::test::flat_of(sound.boundState());
-	check(state.has_value() && state->sources[0].osc_type == OscType::DX7 && state->sources[0].dx_patch.has_value()
-	          && state->sources[0].dx_patch->params == deluge::instrument::kDx7InitVoice,
+	const deluge::instrument::SoundState* state = sound.boundState();
+	const deluge::instrument::DxPatchState* patch =
+	    state != nullptr ? deluge::instrument::dx_patch(*state, deluge::instrument::SourceId::A) : nullptr;
+	check(state != nullptr && deluge::instrument::source_type(*state, deluge::instrument::SourceId::A) == OscType::DX7
+	          && patch != nullptr && patch->params == deluge::instrument::kDx7InitVoice,
 	      "blank dx: its state holds a DX7 oscillator on the init voice");
 	check(sound.oscType(0) == OscType::DX7 && sound.sources[0].dxPatch != nullptr,
 	      "blank dx: its runtime plays a DX7 oscillator");
@@ -1336,8 +1339,8 @@ void testTwoOutputsOneIdInFile() {
 	                                       serialization::Value::makeNumber(-3)};
 	check(deluge::edits::apply(readCtx, first) == Error::NONE && deluge::edits::apply(readCtx, second) == Error::NONE,
 	      "read ids: a setting Edit on each synth applies");
-	check(deluge::test::flat_of(synths[0]->boundState())->transpose == 5
-	          && deluge::test::flat_of(synths[1]->boundState())->transpose == -3,
+	check(deluge::instrument::voicing(*synths[0]->boundState()).master.transpose == 5
+	          && deluge::instrument::voicing(*synths[1]->boundState()).master.transpose == -3,
 	      "read ids: a write to one synth reaches only its own record");
 }
 

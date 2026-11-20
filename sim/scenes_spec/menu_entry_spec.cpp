@@ -91,8 +91,8 @@
 #include "support/ui_mode_guard.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
 #include "support/matchers/value_matchers.h"
+#include "support/record_state.h"
 
 #include <algorithm>
 #include <array>
@@ -297,11 +297,8 @@ Sample* make_marker_sample() {
 /// @brief Give @p sound's source 0 one range holding @p sample, recorded as a load records it.
 void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
 	SourceResources& source = sound.sources[0];
-	deluge::test::change_flat(*sound.state_,
-	                          [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
-	deluge::test::change_flat(*sound.state_, [&](deluge::instrument::FlatSoundState& f) {
-		f.sources[0].repeat_mode = SampleRepeatMode::ONCE;
-	});
+	deluge::test::set(*sound.state_, "osc1/type", "sample");
+	deluge::test::set(*sound.state_, "osc1/loopMode", "1"); // ONCE
 	sound.projectSnapshot();
 	auto* range = static_cast<MultisampleRange*>(sound.getOrCreateFirstRange(0));
 	range->sampleHolder.audioFile = sample;

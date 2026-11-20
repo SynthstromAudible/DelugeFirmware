@@ -1,8 +1,9 @@
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/state_access.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
 
-#include "instruments/deluge/flat_layout.h"
+#include "support/record_state.h"
 #include <cppspec.hpp>
 
 using namespace deluge::instrument;
@@ -25,9 +26,9 @@ describe slot_from_state("a slot rebuilt from a state", ${
 		const Value slot = *deluge::serialization::parseXml(R"(<sound polyphonic="mono" lpfMode="24dB"
 			mode="subtractive"><defaultParams volume="0x00000000" /><unison num="1" detune="8" spread="0" />
 			<arpeggiator mode="off" /></sound>)")->find("sound");
-		FlatSoundState state = FlatSoundState{};
-		state.polyphonic = PolyphonyMode::POLY;
-		state.num_unison = 3;
+		SoundState state;
+		deluge::test::set(state, "polyphonic", to_string(PolyphonyMode::POLY));
+		deluge::test::set(state, "unison/num", "3");
 		const Value rebuilt = with_state(slot, state, kContext);
 		expect(*deluge::serialization::text_of(rebuilt.find("polyphonic"))).to_equal(std::string("poly"));
 		expect(*deluge::serialization::text_of(rebuilt.find("unison")->find("num"))).to_equal(std::string("3"));
@@ -44,7 +45,7 @@ describe slot_from_state("a slot rebuilt from a state", ${
 	it("drops an instrument key the state no longer writes, and appends one it now does", _ {
 		const Value slot = *deluge::serialization::parseXml(R"(<sound mode="fm" transpose="3">
 			<modulator1 transpose="0" /><modulator2 transpose="0" /></sound>)")->find("sound");
-		FlatSoundState state = FlatSoundState{}; // subtractive, transpose 0: no modulators, no transpose
+		SoundState state; // subtractive, transpose 0: no modulators, no transpose
 		const Value rebuilt = with_state(slot, state, kContext);
 		expect(rebuilt.find("modulator1")).to_be_null();
 		expect(rebuilt.find("transpose")).to_be_null();
@@ -55,18 +56,18 @@ describe slot_from_state("a slot rebuilt from a state", ${
 		const Value slot = *deluge::serialization::parseXml(
 		                        R"(<sound mode="subtractive"><compressor attack="11" release="22" /></sound>)")
 		                        ->find("sound");
-		FlatSoundState state = FlatSoundState{};
+		SoundState state;
 		expect(decode(slot, state, kContext).has_value()).to_be_true();
 		const Value rebuilt = with_state(slot, state, kContext);
 		expect(rebuilt.find("compressor")).to_be_null();
 		expect(rebuilt.find("sidechain")).not_().to_be_null();
-		FlatSoundState again = FlatSoundState{};
+		SoundState again;
 		expect(decode(rebuilt, again, kContext).has_value()).to_be_true();
-		expect(again.effects.sidechain.attack).to_equal(11);
+		expect(sound_effects(again).sidechain.attack).to_equal(11);
 	});
 	it("leaves the encoding's keys equal to a fresh encode", _ {
-		FlatSoundState state = FlatSoundState{};
-		state.unison_detune = 12;
+		SoundState state;
+		deluge::test::set(state, "unison/detune", "12");
 		const Value rebuilt = with_state(Value::makeMap(), state, kContext);
 		expect(deluge::serialization::first_difference(rebuilt, encode(state, kContext))).to_equal(std::string{});
 	});

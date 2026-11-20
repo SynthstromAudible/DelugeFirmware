@@ -229,17 +229,16 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::FlatSoundState newSynth(
+	const deluge::instrument::SoundState newSynth(
 	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
-	const deluge::instrument::FlatSoundState newDrum(
+	const deluge::instrument::SoundState newDrum(
 	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
 	if (std::string d = deluge::serialization::first_difference(
-	        deluge::instrument::dump_state(newSynth),
-	        deluge::instrument::dump_state(deluge::instrument::FlatSoundState{}));
+	        deluge::instrument::dump_state(newSynth), deluge::instrument::dump_state(deluge::instrument::SoundState{}));
 	    !d.empty()) {
 		const Value fresh = deluge::instrument::dump_state(newSynth);
-		const Value constant = deluge::instrument::dump_state(deluge::instrument::FlatSoundState{});
-		std::fprintf(io.err, "CODEC DIFF: a new synth and FlatSoundState{} differ at %s (synth %s, constant %s)\n",
+		const Value constant = deluge::instrument::dump_state(deluge::instrument::SoundState{});
+		std::fprintf(io.err, "CODEC DIFF: a new synth and SoundState{} differ at %s (synth %s, constant %s)\n",
 		             d.c_str(), valueAt(fresh, d).c_str(), valueAt(constant, d).c_str());
 		return 3;
 	}
@@ -258,7 +257,7 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the file has no element for it\n", entry.name.c_str());
 			return 3;
 		}
-		deluge::instrument::FlatSoundState decoded = entry.drum ? newDrum : newSynth;
+		deluge::instrument::SoundState decoded = entry.drum ? newDrum : newSynth;
 		if (auto result = deluge::instrument::decode(*entry.read, decoded, {.input_tick_magnitude = magnitude});
 		    !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: decode failed (%d)\n", entry.name.c_str(),
@@ -274,9 +273,10 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		}
 		// The decoded state as the state it plays and what it keeps for a switch back, and back again, loses nothing;
 		// and the sound's record, flattened and composed again, is itself
-		const auto flat = deluge::instrument::FlatSoundState(deluge::instrument::SoundState(decoded));
+		const deluge::instrument::FlatSoundState decodedFlat(decoded);
+		const auto flat = deluge::instrument::FlatSoundState(deluge::instrument::SoundState(decodedFlat));
 		const deluge::instrument::FlatSoundState recordFlat(*entry.sound->boundState());
-		if (!(flat == decoded) || !(deluge::instrument::SoundState(recordFlat) == *entry.sound->boundState())) {
+		if (!(flat == decodedFlat) || !(deluge::instrument::SoundState(recordFlat) == *entry.sound->boundState())) {
 			const Value flatDump = deluge::instrument::dump_state(flat);
 			const std::string d = deluge::serialization::first_difference(loaded, flatDump);
 			std::fprintf(io.err,
@@ -285,17 +285,17 @@ int decodeDiff(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 			             valueAt(flatDump, d).c_str());
 			return 3;
 		}
-		if (const std::string encoding = deluge::test::encode_difference(decoded); !encoding.empty()) {
+		if (const std::string encoding = deluge::test::encode_difference(decodedFlat); !encoding.empty()) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the record's and the flat layout's %s\n", entry.name.c_str(),
 			             encoding.c_str());
 			return 3;
 		}
-		if (const std::string setting = deluge::test::setting_difference(decoded); !setting.empty()) {
+		if (const std::string setting = deluge::test::setting_difference(decodedFlat); !setting.empty()) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the record's setting %s and the flat row's differ\n",
 			             entry.name.c_str(), setting.c_str());
 			return 3;
 		}
-		if (const std::string rule = deluge::test::rule_difference(decoded); !rule.empty()) {
+		if (const std::string rule = deluge::test::rule_difference(decodedFlat); !rule.empty()) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the record's %s and the flat rule's differ\n", entry.name.c_str(),
 			             rule.c_str());
 			return 3;
@@ -318,13 +318,13 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 		std::fprintf(io.err, "cannot make a new sound\n");
 		return 2;
 	}
-	const deluge::instrument::FlatSoundState newSynth(
+	const deluge::instrument::SoundState newSynth(
 	    *static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->boundState());
-	const deluge::instrument::FlatSoundState newDrum(
+	const deluge::instrument::SoundState newDrum(
 	    *static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->boundState());
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
-		deluge::instrument::FlatSoundState state = entry.drum ? newDrum : newSynth;
+		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;
 		if (auto result = deluge::instrument::decode(entry.element, state, context); !result) {
 			std::fprintf(io.err, "CODEC DIFF: %s: the written element does not decode\n", entry.name.c_str());
 			return 3;

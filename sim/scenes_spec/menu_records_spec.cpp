@@ -28,7 +28,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "instruments/deluge/state_access.h"
 
 #include "support/spec_main.h"
 
@@ -147,14 +147,15 @@ describe menu_records("a menu's questions, answered from the record", ${
 		std::string dir;
 		std::string name;
 		browser::descriptor(browser::BrowserId::Sample).start_at(ctx, dir, name);
-		const deluge::test::FlatView state = deluge::test::flat_of(menu::host_runtime_facts().sound_state(*ctx.addresses.slot));
-		expect(state.has_value()).to_be_true();
-		if (state.has_value()) {
-			expect(state->sources[0].ranges.empty()).to_be_false();
+		const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(*ctx.addresses.slot);
+		const std::vector<deluge::instrument::RangeState> ranges =
+		    state != nullptr ? deluge::instrument::source_ranges(*state, deluge::instrument::SourceId::A)
+		                     : std::vector<deluge::instrument::RangeState>{};
+		expect(state).not_().to_be_null();
+		if (state != nullptr) {
+			expect(ranges.empty()).to_be_false();
 		}
-		const std::string recorded = state.has_value() && !state->sources[0].ranges.empty()
-		                                 ? state->sources[0].ranges[0].file_path
-		                                 : std::string{};
+		const std::string recorded = !ranges.empty() ? ranges[0].file_path : std::string{};
 		expect(recorded.empty()).to_be_false();
 		expect(dir + "/" + name).to_equal(recorded);
 	});

@@ -3,17 +3,19 @@
 // The instrument codec the model tests give the model: the Deluge instrument's, as the app's is.
 
 #include "deluge-project/instrument_slot.h"
+#include "instruments/deluge/codec.h"
 #include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/flat_layout.h"
+
+#include <utility>
 
 namespace deluge::project::test {
 
 namespace detail {
 
 inline plugin::StateHandle decode_instrument(const serialization::Value& element, int32_t tick_magnitude) {
-	instrument::FlatSoundState state = instrument::FlatSoundState{};
+	instrument::SoundState state;
 	(void)instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
-	return plugin::StateHandle::of<instrument::DelugeSynth>(instrument::SoundState(state));
+	return plugin::StateHandle::of<instrument::DelugeSynth>(std::move(state));
 }
 
 inline void encode_instrument(const plugin::StateHandle& state, serialization::Value& element, int32_t tick_magnitude) {

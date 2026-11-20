@@ -1,80 +1,88 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/sound_state.h"
-#include "support/printers/sound_state_printer.h"
+#include "instruments/deluge/state_access.h"
+#include "support/printers/sound_record_printer.h"
 
 #include <array>
 #include <cppspec.hpp>
+#include <utility>
 
 using namespace deluge::instrument;
 
 // clang-format off
 describe sound_state("the Deluge instrument's state for a sound", ${
 	it("compares equal field by field, ranges and DX7 patch included", _ {
-		FlatSoundState a;
-		FlatSoundState b;
+		SoundState a;
+		SoundState b;
 		expect(a).to_equal(b);
-		b.sources[1].ranges.push_back({.top_note = 60, .file_path = "SAMPLES/A.WAV"});
+		b = with_ranges(std::move(b), SourceId::B, {RangeState{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
 		expect(a).not_().to_equal(b);
-		a.sources[1].ranges.push_back({.top_note = 60, .file_path = "SAMPLES/A.WAV"});
-		a.sources[0].dx_patch.emplace();
+		a = with_ranges(std::move(a), SourceId::B, {RangeState{.top_note = 60, .file_path = "SAMPLES/A.WAV"}});
+		a = with_dx_patch(std::move(a), SourceId::A, DxPatchState{});
 		expect(a).not_().to_equal(b);
-		b.sources[0].dx_patch.emplace();
+		b = with_dx_patch(std::move(b), SourceId::A, DxPatchState{});
 		expect(a).to_equal(b);
 	});
 
 	it("is a new synth by default", _ {
-		const FlatSoundState s{};
-		expect(s.voice_priority).to_equal(deluge::plugin::VoicePriority::MEDIUM);
-		expect(s.max_voice_count).to_equal(uint8_t{8});
-		expect(s.side_chain_send_level).to_equal(int32_t{0});
-		expect(s.output_midi_channel).to_equal(uint8_t{255});
-		expect(s.output_midi_note_for_drum).to_equal(uint8_t{255});
-		expect(s.oscillator_sync).to_equal(false);
-		expect(s.polyphonic).to_equal(PolyphonyMode::POLY);
-		expect(s.synth_mode).to_equal(SynthMode::SUBTRACTIVE);
-		expect(s.transpose).to_equal(int16_t{0});
-		expect(s.cents).to_equal(int8_t{0});
-		expect(s.num_unison).to_equal(uint8_t{1});
-		expect(s.unison_detune).to_equal(int8_t{8});
-		expect(s.unison_stereo_spread).to_equal(uint8_t{0});
-		expect(s.modulator1_to_modulator0).to_equal(false);
-		expect(s.modulator_transpose).to_equal(std::array<int16_t, 2>{0, -12});
-		expect(s.modulator_cents).to_equal(std::array<int8_t, 2>{});
-		expect(s.osc_retrigger_phase).to_equal(std::array<uint32_t, 2>{0xFFFFFFFF, 0xFFFFFFFF});
-		for (const LFOType wave : s.lfo_wave_type) {
-			expect(wave).to_equal(LFOType::TRIANGLE);
+		const SoundState s{};
+		expect(voicing(s).priority).to_equal(deluge::plugin::VoicePriority::MEDIUM);
+		expect(voicing(s).max_voices).to_equal(uint8_t{8});
+		expect(host_fields(s).side_chain_send_level).to_equal(int32_t{0});
+		expect(host_fields(s).output_midi_channel).to_equal(uint8_t{255});
+		expect(host_fields(s).output_midi_note_for_drum).to_equal(uint8_t{255});
+		expect(oscillator_sync(s)).to_equal(false);
+		expect(voicing(s).polyphony).to_equal(PolyphonyMode::POLY);
+		expect(synth_mode(s)).to_equal(SynthMode::SUBTRACTIVE);
+		expect(voicing(s).master.transpose).to_equal(int16_t{0});
+		expect(voicing(s).master.cents).to_equal(int8_t{0});
+		expect(unison(s).count).to_equal(uint8_t{1});
+		expect(unison(s).detune).to_equal(int8_t{8});
+		expect(unison(s).spread).to_equal(uint8_t{0});
+		expect(modulator1_to_modulator0(s)).to_equal(false);
+		expect(modulators(s)[0].tuning.transpose).to_equal(int16_t{0});
+		expect(modulators(s)[1].tuning.transpose).to_equal(int16_t{-12});
+		expect(modulators(s)[0].tuning.cents).to_equal(int8_t{0});
+		expect(modulators(s)[1].tuning.cents).to_equal(int8_t{0});
+		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(uint32_t{0xFFFFFFFF});
+		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(uint32_t{0xFFFFFFFF});
+		for (size_t l = 0; l < 4; ++l) {
+			expect(lfo(s, l).shape).to_equal(LFOType::TRIANGLE);
 		}
-		expect(s.modulator_retrigger_phase).to_equal(std::array<uint32_t, 2>{});
-		for (const SourceState& src : s.sources) {
-			expect(src.osc_type).to_equal(OscType::SQUARE);
-			expect(src.transpose).to_equal(int16_t{0});
-			expect(src.cents).to_equal(int8_t{0});
-			expect(src.repeat_mode).to_equal(SampleRepeatMode::CUT);
-			expect(src.time_stretch_amount).to_equal(int8_t{0});
-			expect(src.interpolation_mode).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
-			expect(src.pitch_and_speed_independent).to_equal(false);
-			expect(src.reversed).to_equal(false);
-			expect(src.ranges.size()).to_equal(size_t{0});
-			expect(src.dx_patch.has_value()).to_equal(false);
+		expect(phase_word(modulators(s)[0].retrigger)).to_equal(uint32_t{0});
+		expect(phase_word(modulators(s)[1].retrigger)).to_equal(uint32_t{0});
+		for (const SourceId id : {SourceId::A, SourceId::B}) {
+			expect(source_type(s, id)).to_equal(OscType::SQUARE);
+			expect(source_tuning(s, id).transpose).to_equal(int16_t{0});
+			expect(source_tuning(s, id).cents).to_equal(int8_t{0});
+			expect(sample_playback(s, id).repeat_mode).to_equal(SampleRepeatMode::CUT);
+			expect(sample_playback(s, id).time_stretch_amount).to_equal(int8_t{0});
+			expect(sample_playback(s, id).interpolation).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
+			expect(sample_playback(s, id).pitch_and_speed_independent).to_equal(false);
+			expect(sample_playback(s, id).reversed).to_equal(false);
+			expect(source_ranges(s, id).size()).to_equal(size_t{0});
+			expect(dx_patch(s, id) != nullptr).to_equal(false);
 		}
 	});
 
 	it("records what a new synth starts as", _ {
-		const FlatSoundState s = FlatSoundState{};
-		expect(s.max_voice_count).to_equal(uint8_t{8});
-		expect(s.output_midi_channel).to_equal(uint8_t{255});
-		expect(s.output_midi_note_for_drum).to_equal(uint8_t{255});
-		expect(s.polyphonic).to_equal(PolyphonyMode::POLY);
-		expect(s.num_unison).to_equal(uint8_t{1});
-		expect(s.unison_detune).to_equal(int8_t{8});
-		expect(s.modulator_transpose).to_equal(std::array<int16_t, 2>{0, -12});
-		expect(s.osc_retrigger_phase).to_equal(std::array<uint32_t, 2>{0xFFFFFFFF, 0xFFFFFFFF});
-		for (const LFOType wave : s.lfo_wave_type) {
-			expect(wave).to_equal(LFOType::TRIANGLE);
+		const SoundState s = SoundState{};
+		expect(voicing(s).max_voices).to_equal(uint8_t{8});
+		expect(host_fields(s).output_midi_channel).to_equal(uint8_t{255});
+		expect(host_fields(s).output_midi_note_for_drum).to_equal(uint8_t{255});
+		expect(voicing(s).polyphony).to_equal(PolyphonyMode::POLY);
+		expect(unison(s).count).to_equal(uint8_t{1});
+		expect(unison(s).detune).to_equal(int8_t{8});
+		expect(modulators(s)[0].tuning.transpose).to_equal(int16_t{0});
+		expect(modulators(s)[1].tuning.transpose).to_equal(int16_t{-12});
+		expect(phase_word(source_retrigger(s, SourceId::A))).to_equal(uint32_t{0xFFFFFFFF});
+		expect(phase_word(source_retrigger(s, SourceId::B))).to_equal(uint32_t{0xFFFFFFFF});
+		for (size_t l = 0; l < 4; ++l) {
+			expect(lfo(s, l).shape).to_equal(LFOType::TRIANGLE);
 		}
-		for (const SourceState& src : s.sources) {
-			expect(src.osc_type).to_equal(OscType::SQUARE);
-			expect(src.interpolation_mode).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
+		for (const SourceId id : {SourceId::A, SourceId::B}) {
+			expect(source_type(s, id)).to_equal(OscType::SQUARE);
+			expect(sample_playback(s, id).interpolation).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
 		}
 	});
 });
