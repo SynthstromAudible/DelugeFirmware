@@ -70,7 +70,7 @@ void unbindChain(EffectsOwner owner) {
 }
 
 void clearModFXMemory(EffectsOwner owner) {
-	const ModFXType type = owner.binding->snapshot().effects.mod_fx.type;
+	const ModFXType type = owner.binding->renderEffects().mod_fx.type;
 	if (type == ModFXType::GRAIN) {
 		owner.core->granular().clear();
 	}

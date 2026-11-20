@@ -165,7 +165,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 				expect(int(record->mod_fx_param)).to_equal(int(ModFXParam::OFFSET), "the record's mod FX view");
 				expect(int(record->filter_type)).to_equal(int(FilterType::HPF), "the record's filter view");
 			}
-			expect(int(owner.binding->snapshot().mod_fx_param)).to_equal(int(ModFXParam::OFFSET), "the render's mod FX view");
+			expect(int(owner.binding->renderModFXParam())).to_equal(int(ModFXParam::OFFSET), "the render's mod FX view");
 		});
 
 		it("seeds a record it binds from what it plays, and takes it back when unbound", _ {
@@ -291,7 +291,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			next.stutter.reversed = true;
 			deluge::model::storeEffects(owner, next);
 			expect(owner.effects()).to_equal(next, "the stored settings");
-			expect(owner.binding->snapshot().effects).to_equal(next, "the render's settings");
+			expect(owner.binding->renderEffects()).to_equal(next, "the render's settings");
 		});
 
 		it("projects a host chain's selected mod FX knob", _ {
@@ -300,7 +300,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			const EffectsOwner owner = *kit.effectsOwner();
 			kit.channel().view().write(ModFXParam::DEPTH, kit.channel().view().filterType());
 			deluge::model::projectEffects(owner);
-			expect(int(owner.binding->snapshot().mod_fx_param)).to_equal(int(ModFXParam::DEPTH), "the render's mod FX view");
+			expect(int(owner.binding->renderModFXParam())).to_equal(int(ModFXParam::DEPTH), "the render's mod FX view");
 		});
 
 		it("plays a bound record's settings, keeps stores in it, and takes them back when unbound", _ {
@@ -312,7 +312,7 @@ describe effects_owner("an owner's EffectsOwner", ${
 			deluge::effects::EffectStates record = held;
 			deluge::model::bindEffects(owner, &record);
 			expect(owner.effects()).to_equal(held, "the settings it plays");
-			expect(owner.binding->snapshot().effects).to_equal(held, "the render's copy");
+			expect(owner.binding->renderEffects()).to_equal(held, "the render's copy");
 			deluge::effects::EffectStates next = held;
 			next.stutter.quantized = !next.stutter.quantized;
 			deluge::model::storeEffects(owner, next);

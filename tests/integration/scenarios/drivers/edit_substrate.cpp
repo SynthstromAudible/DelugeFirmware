@@ -1250,7 +1250,7 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 		check(applied("lpfMode", Value::makeScalar("SVF_Notch")) == Error::NONE, (name + ": lpfMode applied").c_str());
 		check(o.owner->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 		      (name + ": the owner's filter").c_str());
-		check(o.owner->effectsOwner()->binding->snapshot().effects == o.owner->effectsOwner()->effects(),
+		check(o.owner->effectsOwner()->binding->renderEffects() == o.owner->effectsOwner()->effects(),
 		      (name + ": its render copy").c_str());
 		deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
 		const deluge::effects::EffectStates* held =

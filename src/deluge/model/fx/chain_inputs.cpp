@@ -53,16 +53,16 @@ effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched, ChainConve
 	    });
 }
 
-ModFXType activeModFXType(const snapshot::ModControllableSnapshot& snapshot, ParamManager& paramManager) {
-	ModFXType modFXTypeNow = snapshot.effects.mod_fx.type;
+ModFXType activeModFXType(const EffectsBinding& binding, ParamManager& paramManager) {
+	ModFXType modFXTypeNow = binding.renderEffects().mod_fx.type;
 
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	if ((snapshot.mod_fx_param == ModFXParam::DEPTH
+	if ((binding.renderModFXParam() == ModFXParam::DEPTH
 	     && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXDepth)) == -2147483648)
-	    || (snapshot.mod_fx_param == ModFXParam::FEEDBACK
+	    || (binding.renderModFXParam() == ModFXParam::FEEDBACK
 	        && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXFeedback)) == -2147483648)
-	    || (snapshot.mod_fx_param == ModFXParam::OFFSET
+	    || (binding.renderModFXParam() == ModFXParam::OFFSET
 	        && unpatchedParams->getValue(unpatchedIndex(host_chain::param::kModFXOffset)) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}
@@ -97,15 +97,15 @@ dsp::Q<29> sidechainDepth(ParamManager& paramManager) {
 	return add_wrap(as_floor<dsp::Q<29>>(knob), dsp::Q<29>::one());
 }
 
-effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
-                               ParamManager& paramManager, const effects::Delay::State& delay, dsp::Q<31> grainSend,
+effects::FxInputs hostFxInputs(const EffectsBinding& binding, ModFXType activeType, ParamManager& paramManager,
+                               const effects::Delay::State& delay, dsp::Q<31> grainSend,
                                ChainConversions& conversions) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const effects::ModFx::Params modFx =
 	    conversions.mod_fx(modFxWords(*unpatched, host_chain::kModFxIds),
 	                       [](const effects::ModFx::Words& words) { return effects::ModFx::params_from(words); });
 	return {
-	    .settings = &snapshot.effects,
+	    .settings = &binding.renderEffects(),
 	    .mod_fx_type = activeType,
 	    .mod_fx_rate = modFx.rate,
 	    .mod_fx_depth = modFx.depth,
@@ -139,10 +139,10 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	    effects::Reverb::kSend, unpatched->getValue(unpatchedIndex(host_chain::param::kReverbAmount)),
 	    reverbAmountAdjust));
 	const StutterInput stutter = stutterInput(channel.core(), &paramManager);
-	const snapshot::ModControllableSnapshot& snapshot = channel.binding().snapshot();
+	const EffectsBinding& binding = channel.binding();
 
 	return {
-	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount,
+	    .fx = hostFxInputs(binding, activeModFXType(binding, paramManager), paramManager, delay, reverbSendAmount,
 	                       conversions),
 	    .bitcrush = bitcrushKnobs(*unpatched, host_chain::kBitcrushIds),
 	    .filter = chainFilterParams(*unpatched, conversions),
@@ -166,15 +166,15 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 effects::MasterChainInputs masterChainInputs(Song& song, dsp::Q<27> volumePostFX) {
 	MasterChannel& master = song.live.master_channel;
 	ParamManager& paramManager = song.paramManager;
-	const snapshot::ModControllableSnapshot& snapshot = master.binding().snapshot();
-	const effects::Delay::State delay = delayWorkingState(paramManager, master.core().delay(), snapshot.effects.delay,
-	                                                      false, true, master.conversions());
+	const EffectsBinding& binding = master.binding();
+	const effects::Delay::State delay = delayWorkingState(
+	    paramManager, master.core().delay(), binding.renderEffects().delay, false, true, master.conversions());
 	// The send's final value is Q31
 	const auto reverbSendAmount = dsp::Q<31>::from_raw(effects::final_value(
 	    effects::Reverb::kSend,
 	    paramManager.getUnpatchedParamSet()->getValue(unpatchedIndex(host_chain::param::kReverbAmount))));
 	return {
-	    .fx = hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay,
+	    .fx = hostFxInputs(binding, activeModFXType(binding, paramManager), paramManager, delay,
 	                       scale_shr_floor<3>(reverbSendAmount), master.conversions()),
 	    .volume_post_fx = volumePostFX,
 	    .post_reverb_volume = synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>(),

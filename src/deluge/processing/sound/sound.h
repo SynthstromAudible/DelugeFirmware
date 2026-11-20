@@ -27,7 +27,6 @@
 #include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/mod_controllable_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -137,9 +136,7 @@ public:
 	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
 	/// @brief The render's copy of the effect settings: it reads nothing else of them.
 	/// @return The render's copy.
-	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
-		return effectsBinding_.snapshot();
-	}
+	[[nodiscard]] const deluge::effects::EffectStates& renderEffects() const { return effectsBinding_.renderEffects(); }
 	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
 	/// @param next The new effect settings.
 	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
@@ -147,7 +144,7 @@ public:
 	/// @param record The record that holds the settings, or nullptr.
 	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
 	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
-	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
+	void projectEffects() { deluge::model::projectEffects(*effectsOwner()); }
 	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
 		return deluge::model::EffectsOwner{
 		    .core = &fxSection_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};

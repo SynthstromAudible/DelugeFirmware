@@ -1052,12 +1052,12 @@ describe tables_3_writes("scenes::menu settings and other roots tables: writes",
 
 		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
+			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type)
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->renderEffects().mod_fx.type)
 			    .to_equal(ModFXType::FLANGER);
 			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);

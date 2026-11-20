@@ -456,11 +456,11 @@ MasterFxRender renderMasterFx(ModControllable& master, ParamManager& params) {
 	static int32_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
 	deluge::model::ChainConversions conversions;
-	const deluge::snapshot::ModControllableSnapshot& snapshot = master.effectsOwner()->binding->snapshot();
+	const deluge::model::EffectsBinding& binding = *master.effectsOwner()->binding;
 	const deluge::effects::Delay::State delayState = deluge::model::delayWorkingState(
-	    params, (*master.effectsOwner()->core).delay(), snapshot.effects.delay, false, true, conversions);
+	    params, (*master.effectsOwner()->core).delay(), binding.renderEffects().delay, false, true, conversions);
 	const deluge::effects::FxInputs fx =
-	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState,
+	    deluge::model::hostFxInputs(binding, deluge::model::activeModFXType(binding, params), params, delayState,
 	                                deluge::dsp::Q<31>{}, conversions);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};

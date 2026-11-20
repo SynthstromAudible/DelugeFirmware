@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "effects/chain_core.h"
 #include "effects/state.h"
-#include "model/snapshot/mod_controllable_snapshot.h"
 #include <cstddef>
 #include <optional>
 
@@ -51,8 +50,12 @@ public:
 	/// @param record The record that holds the settings, or nullptr.
 	void bind(deluge::effects::EffectStates* record);
 
-	/// @return The render's copy of the settings.
-	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& snapshot() const { return snapshot_; }
+	/// @return The render's copy of the settings: the render reads nothing else of them.
+	[[nodiscard]] const deluge::effects::EffectStates& renderEffects() const { return render_effects_; }
+
+	/// @return The render's copy of a host chain's selected mod FX knob, which its soft off reads; a sound's is not
+	/// read.
+	[[nodiscard]] ModFXParam renderModFXParam() const { return render_mod_fx_param_; }
 
 	/// @brief Copies the settings into the render's copy with the render excluded, committing the ring, grain and
 	/// delay memory @p core needs for them.
@@ -69,7 +72,8 @@ public:
 private:
 	deluge::effects::EffectStates own_{};
 	deluge::effects::EffectStates* bound_{nullptr};
-	deluge::snapshot::ModControllableSnapshot snapshot_{};
+	deluge::effects::EffectStates render_effects_{};
+	ModFXParam render_mod_fx_param_{ModFXParam::FEEDBACK};
 };
 
 } // namespace deluge::model

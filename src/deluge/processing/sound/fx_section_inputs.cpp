@@ -39,8 +39,8 @@ deluge::effects::FxSectionInputs fxSectionInputs(Sound& sound, ParamManager& par
 	return {
 	    .fx =
 	        {
-	            .settings = &sound.modControllableSnapshot().effects,
-	            .mod_fx_type = sound.modControllableSnapshot().effects.mod_fx.type,
+	            .settings = &sound.renderEffects(),
+	            .mod_fx_type = sound.renderEffects().mod_fx.type,
 	            .mod_fx_rate = finals[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL],
 	            .mod_fx_depth = finals[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL],
 	            .mod_fx_offset =

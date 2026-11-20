@@ -257,7 +257,7 @@ void recordLoadedSound(::Sound& sound, ::Song& song) {
 	}
 	{
 		AudioExcludedSection section; // the render reads the effects' projection
-		sound.projectModControllableSnapshot();
+		sound.projectEffects();
 	}
 	// What loading made of each oscillator reaches its record as the Edits a gesture would make, in this tick: the
 	// ranges' clamped zones and found files, and a DX7 patch the runtime made for one decoded without its own

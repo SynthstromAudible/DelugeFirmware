@@ -318,7 +318,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 		       "voice_priority");
 		expect(snap.engine.modulator1_to_modulator0 == instrument::modulator1_to_modulator0(d()),
 		       "modulator1_to_modulator0");
-		expect(sound.modControllableSnapshot().effects == sound.effects(), "effects");
+		expect(sound.renderEffects() == sound.effects(), "effects");
 		expect(snap.voicing.unison.count == instrument::unison(d()).count, "num_unison");
 		expect(snap.voicing.unison_detune == instrument::unison(d()).detune, "unison_detune");
 		expect(snap.voicing.unison_spread == instrument::unison(d()).spread, "unison_stereo_spread");
@@ -454,7 +454,7 @@ int32_t checkSoundConfigs(Song& song, const char* label) {
 				e.filter.route = effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
 				                                                                     : FilterRoute::PARALLEL;
 			});
-			const deluge::effects::EffectStates& ms = sound.modControllableSnapshot().effects;
+			const deluge::effects::EffectStates& ms = sound.renderEffects();
 			roundTrip(ms == sound.effects() && ms.saturation != effectsBefore.saturation
 			              && ms.filter.lpf_mode != effectsBefore.filter.lpf_mode
 			              && ms.filter.hpf_mode != effectsBefore.filter.hpf_mode
