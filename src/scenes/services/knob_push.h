@@ -15,7 +15,7 @@
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/sound_facts.h"
 #include "scenes/bind/ports/track_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
 
 #include <cstdint>

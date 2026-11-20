@@ -4,7 +4,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"

@@ -60,7 +60,7 @@ public:
 		VoiceSample* voice_sample = nullptr;
 		SamplePlaybackGuide* guide = nullptr;
 		if (address.kind == Kind::AUDIO_CLIP) {
-			::AudioClip* clip = audioClipAt(address.clip);
+			::AudioClip* clip = audio_clip_at(address.clip);
 			if (clip == nullptr) {
 				return std::nullopt;
 			}

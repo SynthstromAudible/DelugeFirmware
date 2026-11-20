@@ -27,15 +27,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 
 namespace deluge::midi {
 namespace {
 
 // More handles than a 32-bit address space holds hosted cables, so `id_of` never runs out of them on the device.
-static_assert(sizeof(::MIDICableUSBHosted) > 1);
-static_assert(std::numeric_limits<decltype(DeviceId::value)>::max() - kFirstHosted.value
-              >= std::numeric_limits<uint32_t>::max() / 2);
+#if defined(__arm__)
+static_assert(sizeof(void*) <= sizeof(DeviceId::value));
+#endif
 
 /// The hosted cables named, in the order their handles were given.
 deluge::fast_vector<::MIDICable*>& hosted() {

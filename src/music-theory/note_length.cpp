@@ -44,7 +44,7 @@ NoteLengthName sync_value_name(int32_t combined_value, int32_t tick_magnitude, S
 	const uint32_t shift = static_cast<uint32_t>(plugin::kMaxSyncLevel - plugin::index_of(level));
 	const int32_t magnitude = note_magnitude(uint32_t{3} << shift, tick_magnitude);
 
-	if (form == SyncNameForm::HorizontalLabel) {
+	if (form == SyncNameForm::HORIZONTAL_LABEL) {
 		const NoteLengthName full = note_length_name(magnitude, "", false);
 		NoteLengthName label;
 		for (const char c : full.view()) {

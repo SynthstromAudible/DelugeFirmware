@@ -3,8 +3,8 @@
 // its record; a source's ranges are its slot's; and a request on an address that does not resolve is refused.
 
 #include "gui/ui/menu_view_of.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 

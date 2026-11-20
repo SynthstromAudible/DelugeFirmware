@@ -13,13 +13,19 @@
 namespace deluge::scenes::bind {
 
 /// @brief What kind of track an output is.
-enum class TrackKind : uint8_t { SYNTH, KIT, MIDI_OUT, CV, AUDIO };
+enum class TrackKind : uint8_t {
+	SYNTH,    ///< a synth track
+	KIT,      ///< a kit track
+	MIDI_OUT, ///< a MIDI track, playing an external device
+	CV,       ///< a CV/gate track
+	AUDIO,    ///< an audio track
+};
 
 /// @brief One of the song's tracks, as the host holds them: its id, its kind, and (MIDI and CV) its channel.
 struct TrackFact {
-	uint32_t output_id{0};
-	TrackKind kind{TrackKind::SYNTH};
-	int32_t channel{0};
+	uint32_t output_id{0};            ///< the track's output id
+	TrackKind kind{TrackKind::SYNTH}; ///< what kind of track it is
+	int32_t channel{0};               ///< MIDI and CV only: the channel it plays on
 	bool operator==(const TrackFact&) const = default;
 };
 

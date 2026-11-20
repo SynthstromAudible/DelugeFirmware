@@ -198,7 +198,7 @@
 
 #include "definitions_cxx.hpp" // kSampleMarkerBlinkTime
 #include "deluge-project/clip_address.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/timeline/timeline.h"
 #include "shell/scene.h"
 #include "ui/grid/frame.h"

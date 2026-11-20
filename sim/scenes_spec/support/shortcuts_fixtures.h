@@ -9,7 +9,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/profile.h"

@@ -69,7 +69,7 @@ bool host_binds(const ::Song& song) {
 }
 
 void host_grab_tempo(deluge::project::ClipAddress clip) {
-	if (::AudioClip* audio = gui::shell_host::audioClipAt(clip)) {
+	if (::AudioClip* audio = gui::shell_host::audio_clip_at(clip)) {
 		playbackHandler.grabTempoFromClip(audio);
 	}
 }

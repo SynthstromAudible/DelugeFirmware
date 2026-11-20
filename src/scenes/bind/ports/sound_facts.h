@@ -28,12 +28,17 @@ inline constexpr size_t kMaxCables = 32;
 
 /// @brief A sound's patch cables, as the engine holds them, in its order.
 struct CableList {
-	std::array<CableFact, kMaxCables> items{};
-	size_t count{0};
+	std::array<CableFact, kMaxCables> items{}; ///< the cables; only the first @ref count hold one
+	size_t count{0};                           ///< how many cables the sound holds
+	/// @brief The first cable.
 	[[nodiscard]] const CableFact* begin() const { return items.data(); }
+	/// @brief One past the last cable.
 	[[nodiscard]] const CableFact* end() const { return items.data() + count; }
+	/// @brief How many cables the sound holds.
 	[[nodiscard]] size_t size() const { return count; }
+	/// @brief Whether the sound holds no cable.
 	[[nodiscard]] bool empty() const { return count == 0; }
+	/// @brief The cable at @p i, below @ref count.
 	[[nodiscard]] const CableFact& operator[](size_t i) const { return items[i]; }
 };
 

@@ -12,7 +12,7 @@
 ///       `bindings_spec.cpp` runs under.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"

@@ -30,7 +30,7 @@
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"

@@ -22,7 +22,7 @@
 #include "scenes/menu/nodes/sound_arp.h"
 
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/context.h"
 
 #include <optional>

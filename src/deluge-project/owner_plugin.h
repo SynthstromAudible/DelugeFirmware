@@ -17,6 +17,9 @@
 
 #pragma once
 
+/// @file
+/// @brief Whose param table an owner's ENGINE ids are in.
+
 #include <cstdint>
 
 namespace deluge::project {

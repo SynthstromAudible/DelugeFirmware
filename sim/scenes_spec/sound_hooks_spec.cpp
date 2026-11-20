@@ -4,7 +4,7 @@
 // else the clip). Each is a request to the menu's sink; with the app's sink, the record holds the result.
 
 #include "gui/ui/menu_view_of.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"

@@ -56,7 +56,7 @@ public:
 	}
 
 	void set_default_range(project::SlotAddress slot, uint8_t source, uint16_t range) override {
-		::Sound* sound = soundAt(slot);
+		::Sound* sound = sound_at(slot);
 		if (sound != nullptr && source < kNumSources) {
 			sound->sources[source].defaultRangeI = range;
 		}
@@ -64,7 +64,7 @@ public:
 
 	bool insert_range(project::SlotAddress slot, uint8_t source, uint16_t at, int16_t top_note,
 	                  std::optional<int16_t> previous_top) override {
-		::Sound* sound = soundAt(slot);
+		::Sound* sound = sound_at(slot);
 		if (sound == nullptr || source >= kNumSources) {
 			return false;
 		}
@@ -90,7 +90,7 @@ public:
 
 	bool delete_range(project::SlotAddress slot, uint8_t source, uint16_t index,
 	                  std::optional<int16_t> lower_top) override {
-		::Sound* sound = soundAt(slot);
+		::Sound* sound = sound_at(slot);
 		if (sound == nullptr || source >= kNumSources || index >= std::ssize(sound->sources[source].ranges)) {
 			return false;
 		}
@@ -113,7 +113,7 @@ public:
 	}
 
 	bool write_dx_patch(project::SlotAddress slot, uint8_t source, const instrument::DxPatchState& patch) override {
-		::Sound* sound = soundAt(slot);
+		::Sound* sound = sound_at(slot);
 		if (sound == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7) {
 			return false;
 		}
@@ -124,7 +124,7 @@ public:
 	}
 
 	bool load_dx_program(project::SlotAddress slot, uint8_t source, int32_t program) override {
-		::Sound* sound = soundAt(slot);
+		::Sound* sound = sound_at(slot);
 		DX7Cartridge* bank = dxCartridgeBank();
 		if (sound == nullptr || bank == nullptr || source >= kNumSources
 		    || sound->sources[source].oscType != OscType::DX7 || program < 0 || program >= bank->numPatches()) {
@@ -146,7 +146,7 @@ public:
 		const int32_t transpose = semitones - 256;
 		// One sound: a sample source with ranges (not FM) in its range, any other source in its own setting.
 		const auto one = [&](project::SlotAddress slot, std::optional<uint16_t> in_range) {
-			::Sound* sound = soundAt(slot);
+			::Sound* sound = sound_at(slot);
 			if (sound == nullptr || sound->boundState() == nullptr) {
 				return false;
 			}
@@ -197,7 +197,7 @@ public:
 
 private:
 	/// The sound @p slot addresses in the current song, or null.
-	static ::Sound* soundAt(project::SlotAddress slot) {
+	static ::Sound* sound_at(project::SlotAddress slot) {
 		return currentSong != nullptr ? bridge::soundAt(*currentSong, slot) : nullptr;
 	}
 };

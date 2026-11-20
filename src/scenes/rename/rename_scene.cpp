@@ -20,8 +20,8 @@
 
 #include "scenes/rename/rename_scene.h"
 
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 
 #include "ui/core/blink.h"

@@ -7,7 +7,7 @@
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "serialization/value.h"
 
 #include <cstdint>

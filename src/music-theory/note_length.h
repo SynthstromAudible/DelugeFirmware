@@ -61,8 +61,8 @@ private:
 
 /// @brief Which of a sync value's two printed forms to give.
 enum class SyncNameForm : uint8_t {
-	Full,            ///< the value page's: "16th-notes", "8th-tplts", "2-bar-dtted"
-	HorizontalLabel, ///< the horizontal menu's column label: the length only, without '-'
+	FULL,             ///< the value page's: "16th-notes", "8th-tplts", "2-bar-dtted"
+	HORIZONTAL_LABEL, ///< the horizontal menu's column label: the length only, without '-'
 };
 
 /// @brief A combined sync value's name, as the sync-level menus print it.

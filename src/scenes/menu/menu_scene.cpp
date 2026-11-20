@@ -32,7 +32,7 @@
 
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/knob_focus.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: the browser's load blink
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"

@@ -27,7 +27,7 @@ namespace deluge::l10n {
 
 namespace {
 
-// GENERATED begin: generated from the legacy tables by a script; regenerate, do not hand-edit
+// The names, keyed by neutral id.
 /// @brief The name of a patched param, nullopt for an id that names no param.
 std::optional<std::string_view> patched_name(plugin::ParamId id) {
 	switch (id.value) {
@@ -428,7 +428,6 @@ std::optional<std::string_view> patched_short(plugin::ParamId id) {
 	}
 	return std::nullopt;
 }
-// GENERATED end
 
 /// @brief Whether @p mode's family is the ladder the morph param is renamed for.
 bool is_family(effects::FilterMode mode, effects::FilterFamily family) {

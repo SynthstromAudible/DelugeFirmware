@@ -14,7 +14,7 @@ namespace {
 class HostClipFacts final : public scenes::bind::ClipFacts {
 public:
 	[[nodiscard]] std::optional<scenes::bind::AudioClipFact> audio_clip(project::ClipAddress clip) const override {
-		::AudioClip* audio = audioClipAt(clip);
+		::AudioClip* audio = audio_clip_at(clip);
 		if (audio == nullptr || audio->output == nullptr || !audio->output->id()) {
 			return std::nullopt;
 		}
@@ -27,12 +27,12 @@ public:
 		};
 	}
 	[[nodiscard]] bool clip_playing(project::ClipAddress clip) const override {
-		::AudioClip* audio = audioClipAt(clip);
+		::AudioClip* audio = audio_clip_at(clip);
 		return audio != nullptr && playbackHandler.playbackState != 0u && currentSong->isClipActive(audio)
 		       && playbackHandler.ticksLeftInCountIn == 0u;
 	}
 	[[nodiscard]] int32_t clip_live_pos(project::ClipAddress clip) const override {
-		::AudioClip* audio = audioClipAt(clip);
+		::AudioClip* audio = audio_clip_at(clip);
 		return audio != nullptr ? static_cast<int32_t>(audio->getLivePos()) : 0;
 	}
 	[[nodiscard]] bool clip_arrangement_only(project::ClipAddress clip) const override {
@@ -40,12 +40,12 @@ public:
 		return found != nullptr && found->isArrangementOnlyClip();
 	}
 	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress clip) const override {
-		::AudioClip* audio = audioClipAt(clip);
+		::AudioClip* audio = audio_clip_at(clip);
 		return audio != nullptr && audio->getCurrentlyRecordingLinearly();
 	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override {
-		::AudioClip* audio = audioClipAt(clip);
+		::AudioClip* audio = audio_clip_at(clip);
 		if (audio == nullptr) {
 			return {0, 0};
 		}
@@ -67,7 +67,7 @@ public:
 
 } // namespace
 
-::AudioClip* audioClipAt(project::ClipAddress clip) {
+::AudioClip* audio_clip_at(project::ClipAddress clip) {
 	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
 }

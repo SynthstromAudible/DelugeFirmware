@@ -19,17 +19,17 @@ describe note_length("note-length names", ${
 		expect(note_magnitude(3, 1)).to_equal(-6);
 	});
 	it("names sync values in both forms", _ {
-		expect(sync_value_name(5, 3, SyncNameForm::Full).view()).to_equal(std::string_view{"16th-notes"});
-		expect(sync_value_name(14, 3, SyncNameForm::Full).view()).to_equal(std::string_view{"16th-tplts"});
-		expect(sync_value_name(5, 3, SyncNameForm::HorizontalLabel).view()).to_equal(std::string_view{"16th"});
+		expect(sync_value_name(5, 3, SyncNameForm::FULL).view()).to_equal(std::string_view{"16th-notes"});
+		expect(sync_value_name(14, 3, SyncNameForm::FULL).view()).to_equal(std::string_view{"16th-tplts"});
+		expect(sync_value_name(5, 3, SyncNameForm::HORIZONTAL_LABEL).view()).to_equal(std::string_view{"16th"});
 	});
 	it("names a bar triplet or dotted with its suffix once, and a bar label without the dash", _ {
-		expect(sync_value_name(10, 2, SyncNameForm::Full).view()).to_equal(std::string_view{"2-bar-tplts"});
-		expect(sync_value_name(19, 2, SyncNameForm::Full).view()).to_equal(std::string_view{"2-bar-dtted"});
-		expect(sync_value_name(1, 2, SyncNameForm::HorizontalLabel).view()).to_equal(std::string_view{"2bar"});
+		expect(sync_value_name(10, 2, SyncNameForm::FULL).view()).to_equal(std::string_view{"2-bar-tplts"});
+		expect(sync_value_name(19, 2, SyncNameForm::FULL).view()).to_equal(std::string_view{"2-bar-dtted"});
+		expect(sync_value_name(1, 2, SyncNameForm::HORIZONTAL_LABEL).view()).to_equal(std::string_view{"2bar"});
 	});
 	it("names value 0 as an even length without a suffix", _ {
-		expect(sync_value_name(0, 3, SyncNameForm::Full).view()).to_equal(std::string_view{"2-bar"});
+		expect(sync_value_name(0, 3, SyncNameForm::FULL).view()).to_equal(std::string_view{"2-bar"});
 	});
 	it("holds the longest names", _ {
 		expect(note_length_name(-31, "-notes", false).view()).to_equal(std::string_view{"2147483648th-notes"});

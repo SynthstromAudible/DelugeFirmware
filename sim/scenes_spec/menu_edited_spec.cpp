@@ -26,7 +26,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_core.h"

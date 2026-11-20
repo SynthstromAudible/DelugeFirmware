@@ -21,8 +21,8 @@
 #include "scenes/menu/nodes/output_items.h"
 
 #include "scenes/bind/ports/track_facts.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // MidiDeviceLinkedItem's link arm opens this
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"

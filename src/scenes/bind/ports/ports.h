@@ -5,6 +5,7 @@
 ///        from fakes and leaves null whatever its scene does not use.
 
 #include "controls/facts.h"
+#include "controls/sink.h"
 #include "scenes/bind/ports/audio_facts.h"
 #include "scenes/bind/ports/card_facts.h"
 #include "scenes/bind/ports/clip_facts.h"
@@ -15,7 +16,7 @@
 #include "scenes/bind/ports/sound_writes.h"
 #include "scenes/bind/ports/track_facts.h"
 #include "scenes/bind/ports/ui_facts.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 
 namespace deluge::scenes::bind {
 

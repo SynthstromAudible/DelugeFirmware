@@ -9,8 +9,8 @@
 
 #include "notify/notice_queue.h"
 
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "ui/grid/frame.h"

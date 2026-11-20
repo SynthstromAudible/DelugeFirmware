@@ -21,8 +21,8 @@
 #include "scenes/context_menu/context_menu_scene.h"
 
 #include "scenes/bind/ports/track_facts.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/nodes/context_menu_items.h"

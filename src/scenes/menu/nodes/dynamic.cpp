@@ -34,6 +34,7 @@
 #include "midi/device_id.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -240,7 +241,7 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// already pointed at if it is still in the list, otherwise on the first one -- which is DIN, because
 	// `lowestDeviceNum` is -3 and the walk starts there ("Start on "DIN". That's the only one that'll always be
 	// there.", `Devices::beginSession`).
-	deluge::midi::DeviceId devices[kMaxDeviceRows];
+	std::array<deluge::midi::DeviceId, kMaxDeviceRows> devices{};
 	const size_t n = listed_devices(ctx, devices);
 
 	size_t cursor = 0;
@@ -277,7 +278,7 @@ void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	// `Devices::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) builds
 	// `kOLEDMenuNumOptionsVisible` labels around its own `current_scroll_`; `ui::oled::list` owns the window, so every
 	// connected device becomes a row and the widget picks the slice.
-	deluge::midi::DeviceId devices[kMaxDeviceRows];
+	std::array<deluge::midi::DeviceId, kMaxDeviceRows> devices{};
 	const size_t n = listed_devices(ctx, devices);
 
 	deluge::ui::oled::ListRow rows[kMaxDeviceRows];

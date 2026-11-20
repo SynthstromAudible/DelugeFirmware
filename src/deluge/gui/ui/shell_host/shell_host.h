@@ -118,6 +118,6 @@ private:
 [[nodiscard]] bool applied(edits::Edit& edit);
 
 /// @brief The audio clip @p clip addresses in the current song, or null: shared by the clip port and the waveforms.
-[[nodiscard]] ::AudioClip* audioClipAt(project::ClipAddress clip);
+[[nodiscard]] ::AudioClip* audio_clip_at(project::ClipAddress clip);
 
 } // namespace deluge::gui::shell_host

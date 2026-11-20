@@ -246,7 +246,7 @@ std::string_view sync_level_name(const Node& node, const MenuContext& ctx, int32
 	}
 	const int32_t magnitude =
 	    node.bind.sync_name_magnitude != nullptr ? node.bind.sync_name_magnitude(ctx) : input_tick_magnitude(ctx);
-	return copy(music::sync_value_name(value, magnitude, music::SyncNameForm::Full).view());
+	return copy(music::sync_value_name(value, magnitude, music::SyncNameForm::FULL).view());
 }
 
 void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
@@ -401,7 +401,7 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 			break;
 		}
 		const auto label =
-		    music::sync_value_name(value, input_tick_magnitude(ctx), music::SyncNameForm::HorizontalLabel);
+		    music::sync_value_name(value, input_tick_magnitude(ctx), music::SyncNameForm::HORIZONTAL_LABEL);
 		const size_t copied = std::min(label.view().size(), sizeof(slot.label));
 		std::memcpy(slot.label, label.view().data(), copied);
 		col.label = std::string_view{slot.label, copied};

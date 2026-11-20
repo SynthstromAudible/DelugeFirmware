@@ -38,7 +38,7 @@
 #include "plugin-api/types/display_mapping.h"
 #include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/nodes/sound_sidechain.h"
 #include "serialization/value.h"
 

@@ -38,7 +38,7 @@ SyncLevel syncValueToSyncLevel(int32_t option) {
 
 void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitude) {
 	const auto name =
-	    deluge::music::sync_value_name(static_cast<int32_t>(value), tickMagnitude, deluge::music::SyncNameForm::Full);
+	    deluge::music::sync_value_name(static_cast<int32_t>(value), tickMagnitude, deluge::music::SyncNameForm::FULL);
 	buffer.append(name.view().data(), name.view().size());
 }
 
@@ -46,7 +46,7 @@ void syncValueToStringForHorzMenuLabel(SyncType /*type*/, SyncLevel level, etl::
                                        int32_t tickMagnitude) {
 	// The label ignores the type: the level's index is its even combined value.
 	const auto name = deluge::music::sync_value_name(deluge::plugin::index_of(level), tickMagnitude,
-	                                                 deluge::music::SyncNameForm::HorizontalLabel);
+	                                                 deluge::music::SyncNameForm::HORIZONTAL_LABEL);
 	buffer.clear();
 	buffer.append(name.view().data(), name.view().size());
 }

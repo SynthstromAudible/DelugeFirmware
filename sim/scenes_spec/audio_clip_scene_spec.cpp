@@ -61,7 +61,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/audio_clip/audio_clip_scene.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/relevance.h"

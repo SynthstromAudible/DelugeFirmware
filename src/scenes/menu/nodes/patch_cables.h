@@ -82,7 +82,7 @@
 
 #include "instruments/deluge/cables.h"
 #include "plugin-api/types/param_mapping.h"
-#include "scenes/bind/write_sink.h"
+#include "scenes/bind/ports/write_sink.h"
 
 #include <cstdint>
 #include <optional>

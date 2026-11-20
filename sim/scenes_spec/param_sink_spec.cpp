@@ -4,8 +4,8 @@
 // plays where automation moves it.
 
 #include "scenes/bind/dispatch.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 
 #include "deluge-project/param_address.h"

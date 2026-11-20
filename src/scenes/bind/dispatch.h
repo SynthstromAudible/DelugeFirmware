@@ -7,8 +7,8 @@
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
 #include "scenes/bind/ports/ports.h"
+#include "scenes/bind/ports/write_sink.h"
 #include "scenes/bind/target.h"
-#include "scenes/bind/write_sink.h"
 
 #include <cstddef>
 #include <cstdint>
