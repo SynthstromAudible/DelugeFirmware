@@ -68,7 +68,7 @@ Value number(int64_t value) {
 	return Value::makeNumber(value);
 }
 
-/// @brief A BOOL row the flash settings hold as one `bool` that nothing else follows.
+/// @brief A BOOL row the flash settings hold as one `bool`, whose store does nothing more.
 struct FlagHome {
 	project::DevicePath path;
 	bool* value;
@@ -86,7 +86,7 @@ constexpr std::array<FlagHome, 9> kFlagHomes{{
     {device_path::kAutomationNoAuditionShortcuts, &FlashStorage::automationDisableAuditionPadShortcuts},
 }};
 
-/// @brief An INTEGER row the flash settings hold as one byte that nothing else follows.
+/// @brief An INTEGER row the flash settings hold as one byte, whose store does nothing more.
 struct ByteHome {
 	project::DevicePath path;
 	uint8_t* value;
