@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-19 (Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-19). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-19 (the UI's ports in place, with the menu, the other scenes and the cut still to go; Track A step 3 plan A, the synth state's query surface, merged into `next`, a7b8b95e2; step 1b-i, instrument events, merged, ed5eb290a; P3d-1d / params C4 merged, 77a23d631; the R1 ratchet in place; D18 fixed; the root-view program placed in wave 3; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-19). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -32,7 +32,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 
 | Layer | Contents |
 | --- | --- |
-| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow. The UI's whole contract with the app is `UiEvent` in, reads by address through `scenes/bind`, and writes out as commands through `WriteSink` |
+| Interface (P6) | Menu scenes bound to model addresses; views, learn, param backup follow. The UI's whole contract with the app is `UiEvent` in, reads by address through `scenes/bind`, and writes out as requests through the write ports |
 | Project model, engines, effects | Model owns persistent structure, writes are commands, engines play snapshots. Engines are CLAP-shaped (Deluge instrument, clip player); the synth stays C++. Effects are host chains |
 | libdeluge | The stable C ABI every component crosses |
 | Rust platform | Embassy scheduler, audio/storage/interaction tiers, HAL + BSP in deluge-sdk, async SD stack |
@@ -88,27 +88,37 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 ### UI read interface
 
 The scenes' read side of P6: everything a scene shows comes from a reader that takes an address, never from a
-legacy runtime object. Writes already leave as requests through `bind::WriteSink`, and input arrives as `UiEvent`,
+legacy runtime object. Writes already leave as requests through the write ports, and input arrives as `UiEvent`,
 so once reads go the same way, the UI's contract with the app has three parts. That makes scenes testable against
-a fake reader with no `Song` and keeps the UI unaffected by changes to the model's storage (P5, ModelStack). It also
+fakes with no `Song` and keeps the UI unaffected by changes to the model's storage (P5, ModelStack). It also
 keeps the option open to put the UI behind a C ABI.
 
-**Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`) and takes
-what the model does not hold from `RuntimeFacts`. Layer rules already keep the model stack, Edits, engine pointers
-and `currentSong` out of the layer.
+**Exists.** `scenes/bind` reads the project model by address (`ModelReader`, `SlotReader`, `ChainReader`), and a
+scene's context holds one `bind::Ports` for everything the model does not hold. The read ports are `AudioFacts`,
+`CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts`, `TrackFacts` and `controls::Facts`; the write ports are
+`ClipWrites`, `SoundWrites`, the edit sink, `controls_sink` and `LearnSink`; `MidiDevices` carries the per-device
+settings, and a device is a `midi::DeviceId` the host registry maps to its cable. The ports speak `project::`,
+`plugin::`, `instrument::`, `effects::`, `controls::` and `midi::` words only. The host's implementations are in
+`src/deluge/gui/ui/shell_host/`; the fakes and the contract cases both run against are in `tests/support/scenes/`.
+The value tables the menu reads (sync and swing, note lengths, filter and mod-FX words,
+reverb presets, arp rhythms, DX7 algorithms, cable polarity, param ids and names) are neutral. Layer rules
+keep the model stack, Edits, engine pointers and `currentSong` out of the layer.
 
-**Gap (measured 2026-11-19, the ratchet's baseline).** 54 scene files outside `bind/` include 159 legacy runtime
-headers: `model/` 71, `modulation/` 25, `io/` 21, `processing/` 20, `storage/` 15, `playback/` 7. The menu holds 28 of
-those files, `services/` 8, `browser/` and `overlay/` 4 each. The common reads are the legacy `Song`, flash settings,
-the audio engine, the playback handler and the MIDI device manager. `python3 scripts/check_layer_rules.py --list`
-prints today's per-file counts (the `scenes-reads-outside-bind` rows).
+**Gap (measured 2026-11-19, the ratchet now).** 41 scene files outside `bind/` include 115 legacy runtime headers
+(`scenes-reads-outside-bind`). By directory: the menu 19 files / 55 includes, `services/` 6 / 25, `browser/` 4 / 8,
+`audio_clip/` 2 / 7, `recorder/` and `context_menu/` 1 / 5 each, `slicing/` 2 / 4, `overlay/` and `marker/` 2 / 2
+each, `rename/` and `timeline/` 1 / 1 each. Beyond those, 30 scene files include `definitions_cxx.hpp` directly
+outside `bind/`. The common reads left are the legacy `Song`, flash settings, the playback handler and the MIDI
+engine and device manager. `python3 scripts/check_layer_rules.py --list` prints the per-file counts.
 
 | Stage | Wave | Delivers | Needs first |
 | --- | --- | --- | --- |
 | R1 | 1 | Done: the inventory of the direct reads, shared with the Model lane's ModelStack reader inventory, and the `scenes-reads-outside-bind` layer rule (`scripts/check_layer_rules.py`), whose per-file baseline in `scripts/layer_rules_baseline.txt` may only fall, so later work adds no new reads | n/a |
-| R2 | 2 | Every read moved behind `bind`: model state by address, runtime state (transport, MIDI devices, card, settings) through fact sources the host fills. The ratchet goes to zero; the menu's reads go first, since their legacy readers are gone | 3d (done) |
+| R2 | 2 | In: the ports, their fakes and contract cases, the neutral value tables and the device handles. R2b: the menu's remaining reads. R2c: the remaining scenes' reads, including the shared enums behind `definitions_cxx.hpp`. R2d: the cut, where `deluge_scenes` stops linking `deluge_app`. The ratchet goes to zero | 3d (done) |
 | R3 | 3 | Readers re-keyed onto P5's ids (track = chain, kit = rack of lanes). The scenes' calls do not change, because addresses are already the API | P5 topology |
-| R4 | 4 | P6 closes: `UiEvent`, the readers and `WriteSink` are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
+| R4 | 4 | P6 closes: `UiEvent`, the readers and the ports are the UI's whole interface. The UI stays C++; a C-ABI form is built only if a non-C++ consumer appears (the model moving to Rust, or an SDK app hosting scenes) | R2, P6 |
+
+R2d must also close the transitive leaks a build without `deluge_app` shows: `src/deluge/dsp-next/**` headers reached through `src/effects/*` and `src/synth/*` headers (the sidechain, param fragment, bitcrush, delay, compressor, equalizer, filter, granular, mod-FX, stutter, send-and-volume, chain, master-chain, track-chain, LFO, live-input and sound-config headers); `sequence/iterance.h` and `util/misc.h` through `definitions_cxx.hpp`; and `etl/string.h` through `util/etl_string.h`.
 
 Stage placement is **(proposed)**. Exit for R2: the scene specs run against a fake reader, and no file in
 `src/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.

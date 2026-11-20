@@ -20,7 +20,7 @@ in `website/src/data/generated/menu-tree.json`.
 | `registry.{h,cpp}` | the application's `SceneRegistry` (`scene_registry()`), the menu singleton (`menu_scene()`), `assigned_node_ids()`, and the boot-wiring record |
 | `l10n_bridge.{h,cpp}`, `scenes/profile.{h,cpp}` | the l10n lookups the shell's profile leaves null, and `scenes::deluge_profile()` that fills them in |
 | `menu/` | the `Node` data model (`node.h`), `MenuContext` (`context.h`), `bindings`, the ten root tables (`menu/nodes/`), the shortcut tables, the validator, the node-id registry, and `MenuScene` with its units |
-| `bind/` | `deluge_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; writes leave as requests through `WriteSink` |
+| `bind/` | `deluge_scenes_bind`, its own library: what a node edits (`bind::Target`), read from the model's records and the engines' descriptors; the ports (`bind/ports/`, collected in `bind::Ports`) a scene reads and writes the host through; writes leave as requests |
 | `rename/`, `context_menu/`, `browser/`, `marker/`, `recorder/` | the scenes a menu item opens |
 | `overlay/` | the param popup, the count-in digit and the screensaver drawing |
 | `slicing/`, `audio_clip/`, `timeline/` | the slicer, the audio clip view (the first root scene), and the scroll/zoom state clip views share |
@@ -60,7 +60,7 @@ nothing.
 * **No model stack, no Edits, no engine pointers.** `model/model_stack.h` and
   `modulation/automation/auto_param.h` are not included anywhere in the layer
   (`scenes-model-stack`); a node edits through `bind::Target` and its write leaves as a request a
-  host applies as an Edit (`bind::WriteSink`), so the layer names no `model/edits/` header
+  host applies as an Edit (`bind::WriteSink` and the write ports), so the layer names no `model/edits/` header
   (`scenes-no-edits`) and holds no `Sound*`, `ParamManager*`, `Output*`, `AudioClip*`, …
   (`scenes-no-engine-pointers`). `currentSong` is never named (`scenes-currentSong`): the song
   arrives through `MenuContext` or `Services`.
@@ -668,6 +668,20 @@ shell's; every model-aware implementation is here, as with `Scene`.
   as `Ports::controls_sink` over the `Facts` the host binds as `Ports::controls`. The menu's and the pads'
   learns and unlearns write the mapping table through the learn port (`Ports::learn`, `bind::LearnSink`), which names
   a device by its `midi::DeviceId`; `controls::TakeoverStore` holds the takeover states those entries key.
+
+## The host's ports
+
+A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
+`AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
+`SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
+settings; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
+`instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
+`midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
+
+* **The host side** is `src/deluge/gui/ui/shell_host/`, one file per port, built into `menu::host_ports()` by
+  `ports.cpp`. It is the only code that names legacy objects for the scenes.
+* **The specs' side** is `tests/support/scenes/` (`deluge_scenes_fakes`): one fake per port, the recording write ports,
+  and `port_contracts.h`, whose cases run against both a fake and the host's port.
 
 ## Repaint and timers
 
