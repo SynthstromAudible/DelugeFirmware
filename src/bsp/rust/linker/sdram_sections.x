@@ -112,6 +112,16 @@ SECTIONS {
         __scenes_vtables_start = .;
         *(.rodata._ZTV*6deluge6scenes*)
         __scenes_vtables_end = .;
+        /* The scenes' initialised statics: the scene singletons, whose vtable pointer makes them
+         * initialised data, and the menu's node objects that hold one. The UI tier alone touches
+         * them, as for the scenes' zero-initialised statics in .sdram_bss. Matched by the
+         * `deluge::scenes` namespace in the mangled name, so a rename returns them to SRAM. */
+        __scenes_data_start = .;
+        *(.data.*6deluge6scenes*)
+        __scenes_data_end = .;
+        /* The host's port objects and their vtables (`deluge::gui::shell_host`), which only the
+         * scenes and the GUI's own code, already here, call through. */
+        *(.data.*6deluge3gui10shell_host* .rodata.*6deluge3gui10shell_host*)
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
@@ -164,6 +174,9 @@ SECTIONS {
            "sdram_sections.x: the scenes' vtables fell back to SRAM (no deluge::scenes vtables in .sdram_init)")
     ASSERT(__scenes_bss_end - __scenes_bss_start > 8192,
            "sdram_sections.x: the scenes' statics fell back to SRAM (no deluge::scenes .bss in .sdram_bss)")
+    /* The scenes' initialised statics are about 11 KB (the marker scene's alone is 6.7 KB). */
+    ASSERT(__scenes_data_end - __scenes_data_start > 8192,
+           "sdram_sections.x: the scenes' initialised statics fell back to SRAM (no deluge::scenes .data in .sdram_init)")
 
     /* The SRAM heap's floor: the on-chip memory left between the image and the RTT reserve. rza1-rt's
      * link.x refuses an image that leaves none; this refuses one that leaves less than the floor. The

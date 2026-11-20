@@ -1,4 +1,6 @@
 #include "gui/ui/shell_host/shell_host.h"
+
+#include "board_config.h"
 #include "model/edits/edit.h"
 #include "model/song/song.h"
 #include "scenes/menu/bind_host.h"
@@ -6,7 +8,8 @@
 namespace deluge::scenes::menu {
 
 const bind::Ports& host_ports() {
-	static const bind::Ports ports{
+	// The UI tier alone reads it, so it sits in SDRAM with the scenes' other statics.
+	PLACE_SDRAM_BSS static const bind::Ports ports{
 	    .audio = &gui::shell_host::audio_facts(),
 	    .card = &gui::shell_host::card_facts(),
 	    .ui = &gui::shell_host::ui_facts(),
