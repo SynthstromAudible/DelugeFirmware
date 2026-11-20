@@ -113,7 +113,7 @@ public:
 	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
-	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
+	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
 	void writeToFlash();

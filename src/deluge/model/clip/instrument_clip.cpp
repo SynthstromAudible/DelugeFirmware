@@ -2456,7 +2456,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			}
 			// no matching drum found
 			if (drumIndex != -1) {
-				thisNoteRow->writeToFile(writer, drumIndex, this);
+				thisNoteRow->writeToFile(writer, drumIndex, this, song);
 			}
 		}
 

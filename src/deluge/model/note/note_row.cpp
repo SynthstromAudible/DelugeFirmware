@@ -33,6 +33,7 @@
 #include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
+#include "model/note/note_lock_file.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -3238,6 +3239,8 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
 	                           // before we know what kind of Drum (if any) we have.
 
+	deluge::note_locks::FileReader noteLocksReader;
+
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
@@ -3562,6 +3565,15 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
+		else if (!strcmp(tagName, "lockParams")) {
+			noteLocksReader.readParams(reader);
+		}
+
+		else if (!strcmp(tagName, "noteLocks")) {
+			// Written after the note data, so the notes it refers to exist by now
+			noteLocksReader.readLocks(reader, notes, song->noteLocks);
+		}
+
 		else if (!strcmp(tagName, "expressionData")) {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
@@ -3587,7 +3599,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
+void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip, Song* song) {
 	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
@@ -3643,6 +3655,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.write(buffer);
 		}
 		writer.write("\"");
+
+		deluge::note_locks::writeToFile(writer, notes, song->noteLocks);
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
