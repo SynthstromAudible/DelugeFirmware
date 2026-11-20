@@ -52,7 +52,7 @@ struct CoherenceChecks {
 /// @return The encoding, or nullopt where @p song has no such slot.
 std::optional<deluge::serialization::Value> encodedSlot(::Song& song, deluge::project::SlotAddress address);
 
-/// @brief Find the first equation @p sound breaks. An unbound sound breaks none.
+/// @brief Find the first equation @p sound breaks. A sound with no slot in @p song breaks none.
 /// @param sound  The sound to check.
 /// @param song   The song whose project holds the sound's slot and controls records.
 /// @param checks Which equations to hold the sound to.

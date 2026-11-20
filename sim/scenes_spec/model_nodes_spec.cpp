@@ -233,7 +233,7 @@ describe model_nodes("the model groups' menus edit their records by descriptor",
 		expect(bind::setting_address(nodes::voice_priority.bind.target, on_synth.addresses).has_value()).to_be_false();
 		menu::bindings::write(nodes::voice_priority, on_synth, 2);
 		expect(static_cast<int>(deluge::instrument::voicing(
-		                            *static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument))->boundState())
+		                            static_cast<Sound*>(static_cast<SoundInstrument*>(synth.instrument))->state())
 		                            .priority))
 		    .to_equal(2);
 	});

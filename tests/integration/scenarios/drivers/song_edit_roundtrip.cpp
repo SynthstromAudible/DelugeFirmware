@@ -240,17 +240,13 @@ void forEachBoundSound(Song& song, F&& f) {
 		for (Output* o = first; o != nullptr; o = o->next) {
 			if (o->type == OutputType::SYNTH) {
 				Sound* sound = static_cast<SoundInstrument*>(o);
-				if (sound->state_ != nullptr) {
-					f(*sound);
-				}
+				f(*sound);
 			}
 			else if (o->type == OutputType::KIT) {
 				for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
 					if (d->type == DrumType::SOUND) {
 						Sound* sound = static_cast<SoundDrum*>(d);
-						if (sound->state_ != nullptr) {
-							f(*sound);
-						}
+						f(*sound);
 					}
 				}
 			}

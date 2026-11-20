@@ -37,7 +37,7 @@ bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& 
 		                                                   *static_cast<const deluge::instrument::SoundState*>(self),
 		                                                   path);
 	                                               },
-	                                           .self = sound.boundState()};
+	                                           .self = &sound.state()};
 	return deluge::plugin::conditions_hold(rule, context, reader);
 }
 
@@ -57,9 +57,9 @@ Error SetKitSetting::apply(Context& ctx) {
 		auto& sound = *static_cast<SoundDrum*>(drum);
 		const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
 		deluge::project::InstrumentSlot* slot = address ? ctx.model.resolveSlot(*address) : nullptr;
-		if (slot == nullptr || sound.boundState() == nullptr || !ruleHolds(fan_out_when_, sound)
-		    || !deluge::instrument::takes_setting(*sound.boundState(), path_)
-		    || !deluge::instrument::allows_setting(*sound.boundState(), path_, *value)) {
+		if (slot == nullptr || !ruleHolds(fan_out_when_, sound)
+		    || !deluge::instrument::takes_setting(sound.state(), path_)
+		    || !deluge::instrument::allows_setting(sound.state(), path_, *value)) {
 			continue;
 		}
 		if (commitEngineSetting(sound, slot, path_, *value, ctx.song) == Error::NONE) {

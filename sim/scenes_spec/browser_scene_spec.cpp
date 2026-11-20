@@ -312,7 +312,7 @@ MenuContext sound_context(spec::SongFixture& f) {
 
 /// @brief Make @p sound a ring-mod synth before the browser opens on it: its state, and the config derived from it.
 void ring_mod(Sound& sound) {
-	deluge::test::set(*sound.boundRecord(), "mode", "ringmod");
+	deluge::test::set(sound.record(), "mode", "ringmod");
 	sound.projectSnapshot();
 }
 

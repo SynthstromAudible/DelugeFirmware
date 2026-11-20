@@ -86,7 +86,55 @@ void leave_fm(SoundState& state, SynthMode mode) {
 	play_dual(state.plays, mode, std::move(dual));
 }
 
+/// slot_kind_of for a const or a changeable state.
+template <class State>
+auto slot_kind_in(State& state, size_t slot) noexcept -> decltype(&*state.recall.slots[slot].parked) {
+	if (auto* dual = dual_of(state.plays)) {
+		return &dual->slots[slot];
+	}
+	auto& parked = state.recall.slots[slot].parked;
+	return parked ? &*parked : nullptr;
+}
+
+/// source_pitch_of for a const or a changeable state.
+template <class State>
+auto& source_pitch_in(State& state, size_t slot) noexcept {
+	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		return fm->carriers[slot];
+	}
+	auto& kind = dual_of(state.plays)->slots[slot];
+	if (auto* va = std::get_if<synth::VaState>(&kind)) {
+		return va->pitch;
+	}
+	if (auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
+		return wavetable->pitch;
+	}
+	if (auto* dx = std::get_if<synth::Dx7State>(&kind)) {
+		return dx->pitch;
+	}
+	if (auto* input = std::get_if<synth::InputState>(&kind)) {
+		return input->pitch;
+	}
+	return state.recall.slots[slot].sample_pitch;
+}
+
 } // namespace
+
+const synth::SlotState* slot_kind_of(const SoundState& state, size_t slot) noexcept {
+	return slot_kind_in(state, slot);
+}
+
+synth::SlotState* slot_kind_of(SoundState& state, size_t slot) noexcept {
+	return slot_kind_in(state, slot);
+}
+
+const synth::Pitch& source_pitch_of(const SoundState& state, size_t slot) noexcept {
+	return source_pitch_in(state, slot);
+}
+
+synth::Pitch& source_pitch_of(SoundState& state, size_t slot) noexcept {
+	return source_pitch_in(state, slot);
+}
 
 SlotEdit begin_slot_edit(const SoundState& state, size_t slot) {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
@@ -130,6 +178,20 @@ void set_engine(SoundState& state, SynthMode mode) {
 	else {
 		play_dual(state.plays, mode, std::move(*dual_of(state.plays)));
 	}
+}
+
+synth::SamplePlayback& sample_playback_of(SoundState& state, size_t slot) noexcept {
+	synth::SlotState* kind = slot_kind_of(state, slot);
+	auto* sample = kind != nullptr ? std::get_if<synth::SampleState>(kind) : nullptr;
+	return sample != nullptr ? sample->playback : state.recall.slots[slot].playback;
+}
+
+void set_oscillator_sync(SoundState& state, bool sync) {
+	if (auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		fm->sync = sync;
+		return;
+	}
+	place_sync(state, *dual_of(state.plays), sync);
 }
 
 synth::LfoState& lfo_of(SoundState& state, size_t index) noexcept {

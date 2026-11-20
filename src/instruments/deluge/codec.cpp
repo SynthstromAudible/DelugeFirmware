@@ -423,7 +423,7 @@ serialization::Value with_state(const serialization::Value& element, const Sound
 	if (element.isMap()) {
 		for (const auto& [key, value] : element.entries()) {
 			if (std::ranges::find(kOldStateKeys, key) != kOldStateKeys.end()) {
-				continue; // the encoding says it now, and the old form read after it would undo it
+				continue; // the encoding writes it in its own form, and the old form read after it would undo it
 			}
 			if (!is_state_key(key)) {
 				out.set(key, value);

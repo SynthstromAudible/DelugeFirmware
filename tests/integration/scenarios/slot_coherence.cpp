@@ -126,10 +126,10 @@ std::optional<Value> encodedSlot(::Song& song, deluge::project::SlotAddress addr
 
 std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks checks) {
 	const std::optional<deluge::project::SlotAddress> address = deluge::bridge::slotAddressOf(sound);
-	if (!address || sound.boundState() == nullptr) {
+	if (!address) {
 		return {};
 	}
-	const deluge::instrument::SoundState& record = *sound.boundState();
+	const deluge::instrument::SoundState& record = sound.state();
 	const deluge::project::InstrumentSlot* slot = song.project.resolveSlot(*address);
 	if (slot == nullptr) {
 		return "slot missing";

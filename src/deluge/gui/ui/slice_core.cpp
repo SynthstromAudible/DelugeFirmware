@@ -168,7 +168,10 @@ void SliceCore::tick_audition() {
 		deluge::edits::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
 		return;
 	}
-	// Bound, or Empty: a holder the lookup left empty sounds nothing, as it always has, with no error.
+	// Bound, or Empty: a holder the lookup left empty sounds nothing, as it always has, with no error. The press
+	// pointed the first drum at the file and the load gave it the file's length: its record says so before the
+	// audition's zone is set on it.
+	deluge::edits::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
 	sound_audition(outcome->payload);
 }
 

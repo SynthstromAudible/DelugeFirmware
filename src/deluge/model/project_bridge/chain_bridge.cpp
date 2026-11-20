@@ -196,7 +196,7 @@ void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effec
                       const deluge::effects::EffectStates& got) {
 	TypedWriteAudit& audit = typedWriteAudit();
 	const std::optional<std::string_view> effect = deluge::effects::effect_of_setting(path);
-	if (!audit.enabled || !effect) {
+	if (!typedWriteAuditOn() || !effect) {
 		return;
 	}
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};

@@ -294,11 +294,10 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 			error = applyRanges(sound, s, deluge::instrument::source_ranges(after, id));
 		}
 		if (error != Error::NONE) {
-			if (deluge::instrument::SoundState* record = sound.boundRecord()) {
-				*record = deluge::instrument::with_ranges(
-				    deluge::instrument::with_dx_patch(std::move(*record), id, sound.sourceResources[s].heldDxPatch()),
-				    id, sound.sourceResources[s].heldRanges());
-			}
+			deluge::instrument::SoundState& record = sound.record();
+			record = deluge::instrument::with_ranges(
+			    deluge::instrument::with_dx_patch(std::move(record), id, sound.sourceResources[s].heldDxPatch()), id,
+			    sound.sourceResources[s].heldRanges());
 			return error;
 		}
 	}
@@ -337,11 +336,8 @@ Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view pat
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,
                                                                const deluge::serialization::Value& value) {
 	namespace instrument = deluge::instrument;
-	if (sound.boundState() == nullptr) {
-		return std::nullopt;
-	}
 	if (path == "mode") {
-		return instrument::switch_engine(*sound.boundState(), instrument::parse_synth_mode(value.str()));
+		return instrument::switch_engine(sound.state(), instrument::parse_synth_mode(value.str()));
 	}
 	std::string_view rest;
 	const int32_t s = oscillatorOf(path, rest);
@@ -351,12 +347,12 @@ std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& so
 	const auto id = static_cast<instrument::SourceId>(s);
 	if (rest == "loopMode") {
 		const auto mode = static_cast<SampleRepeatMode>(deluge::serialization::int_of(&value).value_or(0));
-		return instrument::with_loop_mode(*sound.boundState(), id, mode);
+		return instrument::with_loop_mode(sound.state(), id, mode);
 	}
 	// The ranges the slot plays are the runtime's, as the record holds them; their kind is the runtime's too.
 	const std::vector<instrument::RangeState> held = sound.sourceResources[s].heldRanges();
 	const bool heldAreWavetable = sound.sourceResources[s].ranges.currentElementSize() == sizeof(MultiWaveTableRange);
-	return instrument::switch_source(*sound.boundState(), id, instrument::parse_osc_type(value.str()), held,
+	return instrument::switch_source(sound.state(), id, instrument::parse_osc_type(value.str()), held,
 	                                 heldAreWavetable);
 }
 

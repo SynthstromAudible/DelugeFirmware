@@ -1399,7 +1399,7 @@ void Song::removeDocDrum(Drum* drum) {
 	// current) may share its id.
 	if (drum->id() && project.drum_structure.find(*drum->id()) == drum->docDrum_) {
 		if (drum->type == DrumType::SOUND) {
-			static_cast<SoundDrum*>(drum)->unbindState(); // it plays its record's state, which goes now
+			static_cast<SoundDrum*>(drum)->unbindState(); // it plays its record's state, which this removes
 		}
 		project.drum_structure.remove(*drum->id());
 		deluge::bridge::forgetDrumMappings(*this, *drum->id());
@@ -1470,7 +1470,8 @@ void Song::removeDocOutput(Output* output) {
 	// Only the output's own record: an output of another song may share its id.
 	if (output->id() && project.output_structure.find(*output->id()) == output->docOutput_) {
 		if (output->type == OutputType::SYNTH) {
-			// It plays its record's state, which goes now. The double static_cast lands on the Sound base subobject.
+			// It plays its record's state, which this removes. The double static_cast lands on the Sound base
+			// subobject.
 			static_cast<Sound*>(static_cast<SoundInstrument*>(output))->unbindState();
 		}
 		else if (const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainOwnerOf(*output)) {
