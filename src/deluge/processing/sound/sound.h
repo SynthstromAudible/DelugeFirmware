@@ -184,10 +184,10 @@ public:
 	[[nodiscard]] deluge::project::SoundRouting& routingRecord() { return *routing_; }
 	/// @brief Set the render's send and the MIDI output's channel and note from the routing.
 	void applyRouting();
-	/// @brief The bound state.
-	/// @return The bound state, or null while unbound.
+	/// @brief The state this sound plays: its record's once adopted, its own before; never null after construction.
+	/// @return The state.
 	[[nodiscard]] const deluge::instrument::SoundState* boundState() const { return state_; }
-	/// @brief The record this sound plays, to write a change into before applying it; null when unbound.
+	/// @brief The state this sound plays, to write a change into before applying it; never null after construction.
 	[[nodiscard]] deluge::instrument::SoundState* boundRecord() { return state_; }
 	/// @brief Set this sound's runtime fields from @p state (the reader's work for the instrument's own settings).
 	/// @param state The settings to apply.
@@ -197,7 +197,7 @@ public:
 	/// @brief The sound's settings as its voices play them, derived from state_ by projectSnapshot() at bind,
 	/// doneReadingFromFile and after edits; the render reads it.
 	///
-	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
+	/// Always present, so the render never needs a fallback.
 	deluge::synth::SoundConfig config_{};
 	/// @brief Re-derive config_ from state_.
 	void projectSnapshot();

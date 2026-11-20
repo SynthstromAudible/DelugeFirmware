@@ -125,7 +125,7 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 	     instrument::modulator1_to_modulator0(before) != instrument::modulator1_to_modulator0(after));
 	bool lfo_wave = false;
 	bool lfo_sync = false;
-	for (size_t l = 0; l < synth::SoundConfig{}.lfos.size(); l++) {
+	for (size_t l = 0; l < LFO_COUNT; l++) {
 		const synth::LfoState was = lfo(before, l);
 		const synth::LfoState now = lfo(after, l);
 		lfo_wave = lfo_wave || was.shape != now.shape;

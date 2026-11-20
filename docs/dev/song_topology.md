@@ -55,6 +55,9 @@ Song
 - **An instrument** is one device at the L3 boundary: the Deluge synth, the sampler/clip player (live input is one
   of its modes), MIDI out, CV out. Its preset identity, engine state and MIDI channel are its own, not the
   track's.
+- **A sound's routing** beyond its instrument (its send to the song's sidechain, its MIDI output) is its track's or
+  kit row's, not the instrument's: `project::SoundRouting` on the slot it plays. The instrument's own effects after its
+  voices are its `FxSection`, inside the instrument and not a host chain.
 - **A kit** is a track whose instrument is a **`Kit`** of **`KitRow`s**. A kit routes each note to one row (a drum
   rack, not a rack of parallel chains: `Rack` stays free for chains that share an input), and each row is a full
   nested chain with its own name and input routing; a row's instrument may be any instrument. The whole-kit arp is a

@@ -17,13 +17,10 @@
 
 #pragma once
 
-#include "instruments/deluge/cable_acceptance.h"
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/flat_sound_state.h"
-#include "instruments/deluge/settings.h"
 #include "instruments/deluge/sound_state.h"
-#include "instruments/deluge/state_rules.h"
 
 #include <expected>
 #include <optional>

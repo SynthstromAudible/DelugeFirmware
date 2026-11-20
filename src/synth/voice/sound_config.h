@@ -65,7 +65,6 @@ struct EngineSettings {
 	bool operator==(const EngineSettings&) const = default;
 };
 
-/// @brief A sound's settings as its voices play them, derived from its state in one place.
 /// @brief One oscillator's playback settings, as its voices play them.
 struct SourceConfig {
 	OscType osc_type{OscType::SQUARE}; ///< what the oscillator plays
@@ -80,6 +79,7 @@ struct SourceConfig {
 	bool operator==(const SourceConfig&) const = default;
 };
 
+/// @brief A sound's settings as its voices play them, derived from its state in one place (DelugeSynth::derive).
 struct SoundConfig {
 	Voicing voicing;
 	EngineSettings engine;

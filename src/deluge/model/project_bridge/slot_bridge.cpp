@@ -63,7 +63,7 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 
 namespace {
 
-/// The record slot of @p sound, when it is bound.
+/// The record slot of @p sound, when a track or kit row has adopted it.
 deluge::project::InstrumentSlot* slotOf(::Sound& sound) {
 	if (sound.boundState() == nullptr) {
 		return nullptr;

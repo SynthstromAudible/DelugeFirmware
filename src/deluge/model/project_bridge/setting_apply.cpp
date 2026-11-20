@@ -319,8 +319,6 @@ void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song) {
 	}
 }
 
-namespace {} // namespace
-
 Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view path,
                          const deluge::serialization::Value& value) {
 	if (!deluge::effects::check_effect_setting(path, value)) {

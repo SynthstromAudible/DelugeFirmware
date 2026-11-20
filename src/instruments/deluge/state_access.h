@@ -36,7 +36,7 @@
 /// @brief The Deluge instrument's state as code outside the instrument reads and writes it.
 ///
 /// Callers name what they want of a sound (its mode, a slot's type, tuning, playback, ranges or DX7 patch, its
-/// effects), never SoundState's members, so the state's layout belongs to the instrument alone.
+/// effects) rather than reach into SoundState's members (`plays`, `recall`), whose layout belongs to the instrument.
 namespace deluge::instrument {
 
 /// @brief One of a sound's two oscillator slots.

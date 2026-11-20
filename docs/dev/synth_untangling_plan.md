@@ -1,5 +1,8 @@
 # Synth Engine Untangling — Audit, Target Architecture, and Plan
 
+> **The model today:** the voice kernel is `synth_voice_lift.md`; the sound's state is the DelugeSynth state
+> (`roadmap.md`, Track A step 3). This plan records the state it was written against.
+
 Status: **architecture decided; Phase 0 (golden masters) + Phase 1 (`dsp-next` L0
 library — full oscillator migration, wavetable storage port, sample/wavetable
 interpolator unification) complete; Phase 2 in planning** (updated 2026-06-14).

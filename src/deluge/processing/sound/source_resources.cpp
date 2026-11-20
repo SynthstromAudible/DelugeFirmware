@@ -33,10 +33,7 @@
 #include <cstring>
 #include <iterator>
 
-SourceResources::SourceResources() {
-	defaultRangeI = -1;
-	dxPatch = nullptr;
-}
+SourceResources::SourceResources() = default;
 
 SourceResources::~SourceResources() {
 	// destruct dxPatch if it was allocated
