@@ -336,8 +336,8 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 
 		// A range node's upper edge lives entirely in `range_spec` -- see `Issue::Kind::RangeWithoutSpec`.
 		if (n.kind == Kind::Range
-		    && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr
-		        || n.bind.range_spec->upper_path.empty() || !n.bind.target.valid())) {
+		    && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr || !n.bind.target.valid()
+		        || !n.bind.target.on_device())) {
 			add(out, Issue::Kind::RangeWithoutSpec, &n);
 		}
 

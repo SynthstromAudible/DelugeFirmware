@@ -126,7 +126,8 @@ constexpr std::array<SettingInfo, 2> ends(DevicePath lower, DevicePath upper, En
 	        integer(upper, bounds.least, bounds.greatest, bounds.reset)};
 }
 
-/// The defaults' rows, in the order the defaults page lists them, the magnitude before the swing interval it moves.
+/// The defaults' rows: the defaults page's settings and the recording page's three, the magnitude before the swing
+/// interval it moves.
 constexpr std::array kDefaultsRows = [] {
 	const auto tempo = ends(device_path::kTempoLower, device_path::kTempoUpper, kTempoEnds);
 	const auto swing = ends(device_path::kSwingLower, device_path::kSwingUpper, kSwingEnds);

@@ -56,9 +56,9 @@ struct Issue {
 		/// @brief A node whose `title` is 0 (no string id at all -- the builders default `title` to
 		///        `name`, so this means neither was given one).
 		MissingTitle,
-		/// @brief A `Kind::Range` with no `Binding::range_spec`, one whose `format` is null or that names no upper row,
-		///        or one with no target for its lower edge: `render_leaf_range` would draw a title and nothing else, or
-		///        edit an end it cannot store.
+		/// @brief A `Kind::Range` with no `Binding::range_spec`, one whose `format` is null, or one whose lower edge's
+		///        target is no DEVICE row: `render_leaf_range` would draw a title and nothing else, or edit an end it
+		///        cannot store (`bindings::write_upper` writes a DEVICE row's upper edge alone).
 		///
 		/// The `Kind::Range` counterpart of `NullCustom`, and it needs to exist for the same reason:
 		/// the pointer is the *only* thing that says where the upper edge is and how the ends are spelled

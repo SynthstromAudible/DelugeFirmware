@@ -327,7 +327,7 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		for (const Node* n : order) {
 			expect(n->bind.range_spec).not_().to_be_null();
 			expect(n->bind.range_spec->format).not_().to_be_null();
-			expect(n->bind.range_spec->upper_path.empty()).to_be_false();
+			expect(n->bind.range_spec->upper_path.text().empty()).to_be_false();
 			const auto [lower, upper] = slots_of(*n);
 			expect(upper).to_equal(lower);
 			observed.push_back(lower);

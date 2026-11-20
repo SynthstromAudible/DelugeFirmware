@@ -107,7 +107,7 @@ std::optional<deluge::scenes::bind::View> target_view(const Node& node, const Me
 /// The upper edge of range node @p node: its own target with the spec's upper row, or nullopt for a node with none.
 std::optional<deluge::scenes::bind::Target> upper_target(const Node& node) {
 	const RangeSpec* spec = node.bind.range_spec;
-	if (!node.bind.target.valid() || spec == nullptr || spec->upper_path.empty()) {
+	if (!node.bind.target.valid() || spec == nullptr) {
 		return std::nullopt;
 	}
 	deluge::scenes::bind::Target upper = node.bind.target;

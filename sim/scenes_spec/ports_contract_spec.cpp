@@ -10,6 +10,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/flash_storage.h"
 
+#include "dsp-next/core/stereo_sample.h"
 #include "model/song/song.h"
 #include "music-theory/preset_scales.h"
 #include "plugin-api/types/display_mapping.h"
@@ -18,7 +19,9 @@
 
 #include <version.h>
 
+#include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -309,9 +312,27 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		expect(static_cast<int>(FlashStorage::defaultHoldTime)).to_equal(10);
 		expect(FlashStorage::holdTime).to_equal(10 * kSampleRate / 20);
 
-		// The metronome's volume is stored as the menu shows it.
+		// The metronome's volume is stored as the menu shows it, and the metronome clicks at it at once: a click rendered
+		// after the write is as loud as one at that volume, which two volumes show is not every click's level.
+		const auto click_peak = [] {
+			AudioEngine::metronome.trigger(1U << 26);
+			std::array<deluge::dsp::StereoSample, 128> block{};
+			AudioEngine::metronome.render(block, deluge::dsp::q<27>(1.0));
+			int64_t peak = 0;
+			for (const deluge::dsp::StereoSample& frame : block) {
+				peak = std::max(peak, std::abs(int64_t{frame.l.raw()}));
+			}
+			return peak;
+		};
+		AudioEngine::metronome.setVolume(7);
+		const int64_t quiet = click_peak();
+		AudioEngine::metronome.setVolume(40);
+		const int64_t loud = click_peak();
+		expect(quiet).not_().to_equal(loud);
+		expect(quiet).not_().to_equal(int64_t{0});
 		(void)p.device->write(device_path::kMetronomeVolume, 7);
 		expect(static_cast<int>(FlashStorage::defaultMetronomeVolume)).to_equal(7);
+		expect(click_peak()).to_equal(quiet);
 
 		// The scale is the flash setting's code: the menu's choices skip the user scale.
 		(void)p.device->write(device_path::kScale, 16);

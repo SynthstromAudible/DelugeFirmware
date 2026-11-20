@@ -830,8 +830,8 @@ inline constexpr Node default_key = range_item(sid(String::STRING_FOR_KEY), sid(
                                                device_row(project::device_path::kKeyLower), &kDefaultKeySpec);
 /// @}
 
-/// `defaults::SwingInterval` (`origin/main:src/deluge/gui/menu_item/defaults/swing_interval.h`): the song's swing
-/// interval's turn, naming its levels against the default resolution.
+/// `defaults::SwingInterval` (`origin/main:src/deluge/gui/menu_item/defaults/swing_interval.h`): it reuses the song
+/// item's `swing_interval_turn`, and names its levels against the default resolution.
 inline constexpr Node default_swing_interval =
     with_sync_name_magnitude(with_turn(with_title(setting_item(sid(String::STRING_FOR_SWING_INTERVAL), Kind::SyncLevel,
                                                                device_row(project::device_path::kSwingInterval)),

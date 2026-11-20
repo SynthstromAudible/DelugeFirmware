@@ -15,6 +15,7 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
+#include "deluge-project/device_settings.h" // RangeSpec::upper_path
 #include "effects/host_chain/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "instruments/deluge/params.h"
@@ -375,9 +376,9 @@ inline constexpr size_t kMaxNodes = 1024;
 struct RangeSpec {
 	/// @brief The upper edge's row: main's `IntegerRange::upper` / `KeyRange::upper`
 	///        (`origin/main:src/deluge/gui/menu_item/integer_range.h`,
-	///        `origin/main:src/deluge/gui/menu_item/key_range.h`), a row of the node's own target's group, which
+	///        `origin/main:src/deluge/gui/menu_item/key_range.h`): a DEVICE row, as the node's own target is, which
 	///        shares the lower edge's bounds.
-	std::string_view upper_path;
+	deluge::project::DevicePath upper_path;
 
 	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half (`IntegerRange::getText` in
 	///        `origin/main:src/deluge/gui/menu_item/integer_range.cpp`, `KeyRange::getText`
