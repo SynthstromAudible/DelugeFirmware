@@ -1,6 +1,6 @@
 #include "instruments/deluge/composed_state.h"
 #include "instruments/deluge/dx7_init_voice.h"
-#include "support/flat_state.h"
+#include "instruments/deluge/flat_layout.h"
 #include "support/golden_update.h"
 #include "support/record_reference.h"
 
@@ -104,7 +104,7 @@ std::string reference_table() {
 	std::string table;
 	bool header = true;
 	for_each_named_sound([&](const std::string& name, const FlatSoundState& sound) {
-		const std::vector<deluge::test::ReferenceAnswer> answers = deluge::test::reference_answers(SoundState(sound));
+		const std::vector<deluge::test::ReferenceAnswer> answers = deluge::test::reference_answers(to_record(sound));
 		if (header) {
 			table += "sound";
 			for (const deluge::test::ReferenceAnswer& answer : answers) {
@@ -177,24 +177,6 @@ describe composed_state("a sound's flat record as the state it plays and what it
 
 	it("round-trips every engine with every pair of oscillator kinds, the other kinds' settings kept", _ {
 		for_each_sound([&](const FlatSoundState& sound) { expect(round_trips(sound)).to_equal(true); });
-	});
-
-	it("reads every engine with every pair of oscillator kinds as its flat layout holds them", _ {
-		for_each_sound([&](const FlatSoundState& sound) {
-			expect(deluge::test::reader_difference(SoundState(sound))).to_equal(std::string{});
-		});
-	});
-
-	it("switches engines and oscillator kinds on the record as the flat rules do", _ {
-		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::rule_difference(sound)).to_equal(std::string{}); });
-	});
-
-	it("reads and writes every setting on the record as the flat rows do", _ {
-		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::setting_difference(sound)).to_equal(std::string{}); });
-	});
-
-	it("encodes the record as the flat codec encodes the flat layout", _ {
-		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::encode_difference(sound)).to_equal(std::string{}); });
 	});
 
 	it("answers every question about every engine with every pair of oscillator kinds as recorded", _ {

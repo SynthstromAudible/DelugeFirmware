@@ -49,9 +49,9 @@ namespace {
 /// @p state with @p change made to its flat form: what a write means is what it meant to the flat state.
 template <class Change>
 [[nodiscard]] SoundState changed_flat(const SoundState& state, const Change& change) {
-	FlatSoundState flat(state);
+	FlatSoundState flat = to_flat(state);
 	change(flat);
-	return SoundState(flat);
+	return to_record(flat);
 }
 
 } // namespace

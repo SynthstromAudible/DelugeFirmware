@@ -414,14 +414,13 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 	return f;
 }
 
-SoundState::SoundState(const FlatSoundState& flat) {
-	auto [composed, kept] = compose(flat);
-	plays = std::move(composed);
-	recall = std::move(kept);
+SoundState to_record(const FlatSoundState& flat) {
+	auto [plays, recall] = compose(flat);
+	return SoundState{.plays = std::move(plays), .recall = std::move(recall)};
 }
 
-SoundState::operator FlatSoundState() const {
-	return flatten(plays, recall);
+FlatSoundState to_flat(const SoundState& state) {
+	return flatten(state.plays, state.recall);
 }
 
 } // namespace deluge::instrument

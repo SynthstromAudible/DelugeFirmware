@@ -86,126 +86,10 @@ std::string hex(std::span<const uint8_t> bytes) {
 	return out;
 }
 
-/// The sample positions of a range's zone.
-Value zone(const RangeState& range) {
-	auto map = Value::makeMap();
-	map.set("startSamplePos", number(static_cast<int64_t>(range.start_pos)));
-	map.set("endSamplePos", number(static_cast<int64_t>(range.end_pos)));
-	if (range.loop_start_pos != 0) {
-		map.set("startLoopPos", number(range.loop_start_pos));
-	}
-	if (range.loop_end_pos != 0) {
-		map.set("endLoopPos", number(range.loop_end_pos));
-	}
-	return map;
-}
-
-/// A sample range's file, tuning and zone, into @p map.
-void sampleRange(Value& map, const RangeState& range) {
-	map.set("fileName", text(range.file_path));
-	if (range.transpose != 0) {
-		map.set("transpose", number(range.transpose));
-	}
-	if (range.cents != 0) {
-		map.set("cents", number(range.cents));
-	}
-	map.set("zone", zone(range));
-}
-
 Value boxed(std::string_view name, Value value) {
 	auto box = Value::makeMap();
 	box.set(std::string(name), std::move(value));
 	return box;
-}
-
-// An oscillator element, one branch per kind of source and per key the file writes for it:
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-Value source(const FlatSoundState& state, size_t s) {
-	const SourceState& src = state.sources[s];
-	const bool fm = state.synth_mode == SynthMode::FM;
-	auto map = Value::makeMap();
-	if (!fm) {
-		map.set("type", text(to_string(src.osc_type)));
-	}
-	const auto numRanges = src.ranges.size();
-	if (src.osc_type == OscType::SAMPLE && !fm) {
-		map.set("loopMode", number(std::to_underlying(src.repeat_mode)));
-		map.set("reversed", number(src.reversed ? 1 : 0));
-		map.set("timeStretchEnable", number(src.pitch_and_speed_independent ? 1 : 0));
-		map.set("timeStretchAmount", number(src.time_stretch_amount));
-		if (src.interpolation_mode == plugin::InterpolationMode::LINEAR) {
-			map.set("linearInterpolation", number(1));
-		}
-		if (numRanges == 1) {
-			sampleRange(map, src.ranges.front());
-		}
-		else if (numRanges > 1) {
-			auto list = Value::makeArray();
-			for (size_t e = 0; e < numRanges; e++) {
-				auto range = Value::makeMap();
-				if (e != numRanges - 1) {
-					range.set("rangeTopNote", number(src.ranges[e].top_note));
-				}
-				sampleRange(range, src.ranges[e]);
-				list.append(boxed("sampleRange", std::move(range)));
-			}
-			map.set("sampleRanges", std::move(list));
-		}
-		return map;
-	}
-	map.set("transpose", number(src.transpose));
-	map.set("cents", number(src.cents));
-	if (s == 1 && state.oscillator_sync) {
-		map.set("oscillatorSync", number(1));
-	}
-	map.set("retrigPhase", number(state.osc_retrigger_phase[s]));
-	if (src.osc_type == OscType::WAVETABLE && !fm) {
-		if (numRanges == 1) {
-			map.set("fileName", text(src.ranges.front().file_path));
-		}
-		else if (numRanges > 1) {
-			auto list = Value::makeArray();
-			for (size_t e = 0; e < numRanges; e++) {
-				auto range = Value::makeMap();
-				if (e != numRanges - 1) {
-					range.set("rangeTopNote", number(src.ranges[e].top_note));
-				}
-				range.set("fileName", text(src.ranges[e].file_path));
-				list.append(boxed("wavetableRange", std::move(range)));
-			}
-			map.set("wavetableRanges", std::move(list));
-		}
-	}
-	else if (src.osc_type == OscType::DX7 && !fm && src.dx_patch) {
-		map.set("dx7patch", text(hex(src.dx_patch->params)));
-		if (src.dx_patch->engine_mode != 0) {
-			map.set("dx7enginemode", number(src.dx_patch->engine_mode));
-		}
-		if (src.dx_patch->random_detune != 0) {
-			map.set("dx7randomdetune", number(src.dx_patch->random_detune));
-		}
-	}
-	return map;
-}
-
-Value lfo(const FlatSoundState& state, size_t l, const plugin::CodecContext& context) {
-	auto map = Value::makeMap();
-	map.set("type", text(to_string(state.lfo_wave_type[l])));
-	map.set("syncLevel", number(plugin::sync_level_to_file(plugin::index_of(state.lfo_sync_level[l]),
-	                                                       context.input_tick_magnitude)));
-	map.set("syncType", number(std::to_underlying(state.lfo_sync_type[l])));
-	return map;
-}
-
-Value modulator(const FlatSoundState& state, size_t m) {
-	auto map = Value::makeMap();
-	map.set("transpose", number(state.modulator_transpose[m]));
-	map.set("cents", number(state.modulator_cents[m]));
-	map.set("retrigPhase", number(state.modulator_retrigger_phase[m]));
-	if (m == 1) {
-		map.set("toModulator1", number(state.modulator1_to_modulator0 ? 1 : 0));
-	}
-	return map;
 }
 
 void append(Value& to, const Value& from) {
@@ -214,8 +98,7 @@ void append(Value& to, const Value& from) {
 	}
 }
 
-// The components' entries: each writes its own keys. The flat writers above stay their own code, so the record's
-// encoding is checked against an independent reference.
+// The components' entries: each writes its own keys.
 
 /// A sample range's file, tuning and zone, into @p map.
 void sample_range_entry(Value& map, const synth::SampleRange& range) {
@@ -390,68 +273,6 @@ std::optional<Value> scalar_entry(const SoundState& state, std::string_view key)
 	return std::nullopt;
 }
 
-/// Whether @p a and @p b differ in the fields of one top-level entry.
-using EntryDiffers = bool (*)(const FlatSoundState& a, const FlatSoundState& b);
-
-/// Whether @p a and @p b differ in a field @p field picks, as one entry's comparison.
-template <auto field>
-bool differs(const FlatSoundState& a, const FlatSoundState& b) {
-	return !(field(a) == field(b));
-}
-
-template <size_t s>
-bool source_differs(const FlatSoundState& a, const FlatSoundState& b) {
-	return !(a.sources[s] == b.sources[s]) || a.osc_retrigger_phase[s] != b.osc_retrigger_phase[s]
-	       || (s == 1 && a.oscillator_sync != b.oscillator_sync);
-}
-
-template <size_t l>
-bool lfo_differs(const FlatSoundState& a, const FlatSoundState& b) {
-	return a.lfo_wave_type[l] != b.lfo_wave_type[l] || a.lfo_sync_level[l] != b.lfo_sync_level[l]
-	       || a.lfo_sync_type[l] != b.lfo_sync_type[l];
-}
-
-template <size_t m>
-bool modulator_differs(const FlatSoundState& a, const FlatSoundState& b) {
-	return a.modulator_transpose[m] != b.modulator_transpose[m] || a.modulator_cents[m] != b.modulator_cents[m]
-	       || a.modulator_retrigger_phase[m] != b.modulator_retrigger_phase[m]
-	       || (m == 1 && a.modulator1_to_modulator0 != b.modulator1_to_modulator0);
-}
-
-/// The fields of each of kStateKeys' entries, in its order.
-constexpr std::array<EntryDiffers, kStateKeys.size()> kEntryDiffers{
-    differs<[](const FlatSoundState& s) { return s.polyphonic; }>,
-    differs<[](const FlatSoundState& s) { return s.voice_priority; }>,
-    differs<[](const FlatSoundState& s) { return s.side_chain_send_level; }>,
-    differs<[](const FlatSoundState& s) { return s.synth_mode; }>,
-    differs<[](const FlatSoundState& s) { return s.transpose; }>,
-    differs<[](const FlatSoundState& s) { return s.cents; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.mod_fx; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.filter.lpf_mode; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.filter.hpf_mode; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.filter.route; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.saturation; }>,
-    differs<[](const FlatSoundState& s) { return s.max_voice_count; }>,
-    source_differs<0>,
-    source_differs<1>,
-    lfo_differs<0>,
-    lfo_differs<1>,
-    lfo_differs<2>,
-    lfo_differs<3>,
-    modulator_differs<0>,
-    modulator_differs<1>,
-    differs<[](const FlatSoundState& s) { return std::tuple{s.num_unison, s.unison_detune, s.unison_stereo_spread}; }>,
-    differs<[](const FlatSoundState& s) { return std::pair{s.output_midi_channel, s.output_midi_note_for_drum}; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.delay; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.sidechain; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.compressor; }>,
-    differs<[](const FlatSoundState& s) { return s.effects.stutter; }>,
-};
-
-} // namespace
-
-namespace {
-
 /// Whether slot @p s differs between @p a and @p b in anything its entry writes or keeps.
 bool slot_differs(const SoundState& a, const SoundState& b, size_t s) {
 	const auto id = static_cast<SourceId>(s);
@@ -513,80 +334,7 @@ std::vector<std::string_view> changed_entries(const SoundState& a, const SoundSt
 	return changed;
 }
 
-std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b) {
-	std::vector<std::string_view> changed;
-	for (size_t k = 0; k < kStateKeys.size(); k++) {
-		if (kEntryDiffers[k](a, b)) {
-			changed.push_back(kStateKeys[k]);
-		}
-	}
-	return changed;
-}
-
-namespace {
-
-/// The entry @p key names when it is one of the sound's scalar settings; nullopt for any other key, or for a setting
-/// whose value is its default and so is not written.
-std::optional<Value> scalar_entry(const FlatSoundState& state, std::string_view key) {
-	if (key == "polyphonic") {
-		return text(to_string(state.polyphonic));
-	}
-	if (key == "voicePriority") {
-		return number(std::to_underlying(state.voice_priority));
-	}
-	if (key == "sideChainSend") {
-		return state.side_chain_send_level != 0 ? std::optional{number(state.side_chain_send_level)} : std::nullopt;
-	}
-	if (key == "mode") {
-		return text(to_string(state.synth_mode));
-	}
-	if (key == "transpose") {
-		return state.transpose != 0 ? std::optional{number(state.transpose)} : std::nullopt;
-	}
-	if (key == "cents") {
-		return state.cents != 0 ? std::optional{number(state.cents)} : std::nullopt;
-	}
-	if (key == "maxVoices") {
-		return number(state.max_voice_count);
-	}
-	return std::nullopt;
-}
-
-} // namespace
-
-std::optional<Value> encode_entry(const FlatSoundState& state, std::string_view key,
-                                  const plugin::CodecContext& context, std::optional<int32_t> compressor_threshold) {
-	if (deluge::effects::is_effect_key(key)) {
-		return deluge::effects::encode_entry(state.effects, key, context, compressor_threshold);
-	}
-	if (std::optional<Value> scalar = scalar_entry(state, key)) {
-		return scalar;
-	}
-	if (key == "osc1" || key == "osc2") {
-		return source(state, key == "osc1" ? 0 : 1);
-	}
-	if (key.size() == 4 && key.starts_with("lfo") && key[3] >= '1' && key[3] <= '4') {
-		return lfo(state, static_cast<size_t>(key[3] - '1'), context);
-	}
-	if (key == "modulator1" || key == "modulator2") {
-		return state.synth_mode == SynthMode::FM ? std::optional{modulator(state, key == "modulator1" ? 0 : 1)}
-		                                         : std::nullopt;
-	}
-	if (key == "unison") {
-		auto unison = Value::makeMap();
-		unison.set("num", number(state.num_unison));
-		unison.set("detune", number(state.unison_detune));
-		unison.set("spread", number(state.unison_stereo_spread));
-		return unison;
-	}
-	if (key == "midiOutput") {
-		auto midi = Value::makeMap();
-		midi.set("channel", number(state.output_midi_channel));
-		midi.set("noteForDrum", number(state.output_midi_note_for_drum));
-		return midi;
-	}
-	return std::nullopt;
-}
+namespace {} // namespace
 
 std::optional<Value> encode_entry(const SoundState& state, std::string_view key, const plugin::CodecContext& context,
                                   std::optional<int32_t> compressor_threshold) {
@@ -627,12 +375,8 @@ std::optional<Value> encode_entry(const SoundState& state, std::string_view key,
 	return std::nullopt;
 }
 
-namespace {
-
-/// The pieces of @p state's encoding, a flat state's or a record's.
-template <class State>
-SoundPieces pieces_of(const State& state, const plugin::CodecContext& context,
-                      std::optional<int32_t> compressor_threshold) {
+SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
+                          std::optional<int32_t> compressor_threshold) {
 	SoundPieces pieces{.head = Value::makeMap(),
 	                   .effect_attributes = Value::makeMap(),
 	                   .max_voices = Value::makeMap(),
@@ -659,9 +403,8 @@ SoundPieces pieces_of(const State& state, const plugin::CodecContext& context,
 	return pieces;
 }
 
-template <class State>
-Value encoded(const State& state, const plugin::CodecContext& context) {
-	SoundPieces pieces = pieces_of(state, context, std::nullopt);
+Value encode(const SoundState& state, const plugin::CodecContext& context) {
+	SoundPieces pieces = encode_pieces(state, context, std::nullopt);
 	auto map = Value::makeMap();
 	append(map, pieces.head);
 	append(map, pieces.effect_attributes);
@@ -673,35 +416,12 @@ Value encoded(const State& state, const plugin::CodecContext& context) {
 	return map;
 }
 
-} // namespace
-
-SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
-                          std::optional<int32_t> compressor_threshold) {
-	return pieces_of(state, context, compressor_threshold);
-}
-
-SoundPieces encode_pieces(const SoundState& state, const plugin::CodecContext& context,
-                          std::optional<int32_t> compressor_threshold) {
-	return pieces_of(state, context, compressor_threshold);
-}
-
-Value encode(const FlatSoundState& state, const plugin::CodecContext& context) {
-	return encoded(state, context);
-}
-
-Value encode(const SoundState& state, const plugin::CodecContext& context) {
-	return encoded(state, context);
-}
-
 bool is_state_key(std::string_view key) {
 	return std::ranges::find(kStateKeys, key) != kStateKeys.end();
 }
 
-namespace {
-
-template <class State>
-serialization::Value with_state_of(const serialization::Value& element, const State& state,
-                                   const plugin::CodecContext& context) {
+serialization::Value with_state(const serialization::Value& element, const SoundState& state,
+                                const plugin::CodecContext& context) {
 	const serialization::Value encoded = encode(state, context);
 	serialization::Value out = serialization::Value::makeMap();
 	std::vector<std::string_view> placed;
@@ -726,18 +446,6 @@ serialization::Value with_state_of(const serialization::Value& element, const St
 		}
 	}
 	return out;
-}
-
-} // namespace
-
-serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
-                                const plugin::CodecContext& context) {
-	return with_state_of(element, state, context);
-}
-
-serialization::Value with_state(const serialization::Value& element, const SoundState& state,
-                                const plugin::CodecContext& context) {
-	return with_state_of(element, state, context);
 }
 
 namespace {
@@ -1188,9 +896,9 @@ void keep_entry(std::string_view key, FlatSoundState& state, const FlatSoundStat
 
 std::expected<void, plugin::StateError> decode(const Value& element, SoundState& state,
                                                const plugin::CodecContext& context) {
-	FlatSoundState flat(state);
+	FlatSoundState flat = to_flat(state);
 	auto result = decode(element, flat, context);
-	state = SoundState(flat);
+	state = to_record(flat);
 	return result;
 }
 
@@ -1308,7 +1016,7 @@ std::expected<FlatSlotChange, plugin::StateError> decode_change(const Value& ele
 		FlatSoundState carried = current;
 		carried.synth_mode = decoded.synth_mode;
 		carried.sources[s].osc_type = type;
-		if (sameRanges(element.find(key), encode(carried, context).find(key))) {
+		if (sameRanges(element.find(key), encode(to_record(carried), context).find(key))) {
 			decoded.sources[s].ranges = current.sources[s].ranges;
 		}
 	}
@@ -1333,76 +1041,13 @@ void set_leaf(Value& tree, std::string_view path, Value leaf) {
 
 } // namespace
 
-std::vector<std::string_view> differing_entries(const FlatSoundState& a, const FlatSoundState& b,
-                                                const plugin::CodecContext& context) {
-	std::vector<std::string_view> keys;
-	for (const std::string_view key : kStateKeys) {
-		const std::optional<Value> ea = encode_entry(a, key, context);
-		const std::optional<Value> eb = encode_entry(b, key, context);
-		if (ea.has_value() != eb.has_value() || (ea && !(*ea == *eb))) {
-			keys.push_back(key);
-		}
-	}
-	return keys;
-}
+namespace {
 
-std::expected<FlatSlotChange, plugin::StateError> change_to(const FlatSoundState& state, const FlatSoundState& next,
-                                                            std::span<const std::string_view> keys,
-                                                            const plugin::CodecContext& context) {
-	Value previous = Value::makeMap();
-	Value element = Value::makeMap();
-	const auto add = [&](std::string_view key) {
-		if (previous.find(key) != nullptr || element.find(key) != nullptr) {
-			return;
-		}
-		if (std::optional<Value> was = encode_entry(state, key, context)) {
-			previous.set(std::string(key), std::move(*was));
-		}
-		if (std::optional<Value> now = encode_entry(next, key, context)) {
-			element.set(std::string(key), std::move(*now));
-		}
-	};
-	for (const std::string_view key : keys) {
-		add(key);
-	}
-	add("mode"); // a source's and a modulator's reading depends on it
-	return decode_change(element, previous, state, context);
-}
-
-std::expected<FlatSlotChange, plugin::StateError> with_setting(const FlatSoundState& state, std::string_view path,
-                                                               const serialization::Value& value,
-                                                               const plugin::CodecContext& context) {
-	const std::string_view key = path.substr(0, path.find('/'));
-	// The slot as far as this write reads it: the entry it changes, and the mode its reading may depend on. Every other
-	// entry is absent from both, so it compares equal and keeps the state's value.
-	Value previous = Value::makeMap();
-	for (const std::string_view k : {key, std::string_view{"mode"}}) {
-		if (previous.find(k) == nullptr) {
-			if (std::optional<Value> entry = encode_entry(state, k, context)) {
-				previous.set(std::string(k), std::move(*entry));
-			}
-		}
-	}
-	Value element = previous;
-	Value leaf = value;
-	if (path.ends_with("/syncLevel")) { // a sync level is written relative to the slot's magnitude
-		leaf = number(plugin::sync_level_to_file(intOf(value), context.input_tick_magnitude));
-	}
-	set_leaf(element, path, std::move(leaf));
-	return decode_change(element, previous, state, context);
-}
-
-std::expected<FlatSoundState, plugin::StateError> decode_onto(const Value& element, const FlatSoundState& current,
-                                                              const plugin::CodecContext& context) {
-	return decode_change(element, encode(current, context), current, context).transform([](FlatSlotChange change) {
-		return std::move(change.state);
-	});
-}
-
-Value dump_state(const FlatSoundState& state) {
+/// dump_state() of @p record, whose flat layout is @p state: its encoding's entries, then every field by name.
+Value dump_flat(const SoundState& record, const FlatSoundState& state) {
 	// The effects are compared on their own (their defaults are the song's, not the instrument's).
 	Value map = Value::makeMap();
-	for (const auto& [key, value] : encode(state, {.input_tick_magnitude = 1}).entries()) {
+	for (const auto& [key, value] : encode(record, {.input_tick_magnitude = 1}).entries()) {
 		if (!deluge::effects::is_effect_key(key)) {
 			map.set(key, value);
 		}
@@ -1446,12 +1091,10 @@ Value dump_state(const FlatSoundState& state) {
 	return map;
 }
 
-namespace {
-
 /// @p change composed into a record's.
 std::expected<SlotChange, plugin::StateError> composed(std::expected<FlatSlotChange, plugin::StateError> change) {
 	return std::move(change).transform([](FlatSlotChange flat) {
-		return SlotChange{.state = SoundState(flat.state), .changed = std::move(flat.changed)};
+		return SlotChange{.state = to_record(flat.state), .changed = std::move(flat.changed)};
 	});
 }
 
@@ -1460,13 +1103,30 @@ std::expected<SlotChange, plugin::StateError> composed(std::expected<FlatSlotCha
 std::expected<SlotChange, plugin::StateError> decode_change(const Value& element, const Value& previous,
                                                             const SoundState& current,
                                                             const plugin::CodecContext& context) {
-	return composed(decode_change(element, previous, FlatSoundState(current), context));
+	return composed(decode_change(element, previous, to_flat(current), context));
 }
 
 std::expected<SlotChange, plugin::StateError> with_setting(const SoundState& state, std::string_view path,
                                                            const serialization::Value& value,
                                                            const plugin::CodecContext& context) {
-	return composed(with_setting(FlatSoundState(state), path, value, context));
+	const std::string_view key = path.substr(0, path.find('/'));
+	// The slot as far as this write reads it: the entry it changes, and the mode its reading may depend on. Every other
+	// entry is absent from both, so it compares equal and keeps the state's value.
+	Value previous = Value::makeMap();
+	for (const std::string_view k : {key, std::string_view{"mode"}}) {
+		if (previous.find(k) == nullptr) {
+			if (std::optional<Value> entry = encode_entry(state, k, context)) {
+				previous.set(std::string(k), std::move(*entry));
+			}
+		}
+	}
+	Value element = previous;
+	Value leaf = value;
+	if (path.ends_with("/syncLevel")) { // a sync level is written relative to the slot's magnitude
+		leaf = number(plugin::sync_level_to_file(intOf(value), context.input_tick_magnitude));
+	}
+	set_leaf(element, path, std::move(leaf));
+	return decode_change(element, previous, state, context);
 }
 
 std::vector<std::string_view> differing_entries(const SoundState& a, const SoundState& b,
@@ -1485,18 +1145,35 @@ std::vector<std::string_view> differing_entries(const SoundState& a, const Sound
 std::expected<SlotChange, plugin::StateError> change_to(const SoundState& state, const SoundState& next,
                                                         std::span<const std::string_view> keys,
                                                         const plugin::CodecContext& context) {
-	return composed(change_to(FlatSoundState(state), FlatSoundState(next), keys, context));
+	Value previous = Value::makeMap();
+	Value element = Value::makeMap();
+	const auto add = [&](std::string_view key) {
+		if (previous.find(key) != nullptr || element.find(key) != nullptr) {
+			return;
+		}
+		if (std::optional<Value> was = encode_entry(state, key, context)) {
+			previous.set(std::string(key), std::move(*was));
+		}
+		if (std::optional<Value> now = encode_entry(next, key, context)) {
+			element.set(std::string(key), std::move(*now));
+		}
+	};
+	for (const std::string_view key : keys) {
+		add(key);
+	}
+	add("mode"); // a source's and a modulator's reading depends on it
+	return decode_change(element, previous, state, context);
 }
 
 std::expected<SoundState, plugin::StateError> decode_onto(const Value& element, const SoundState& current,
                                                           const plugin::CodecContext& context) {
-	return decode_onto(element, FlatSoundState(current), context).transform([](const FlatSoundState& flat) {
-		return SoundState(flat);
+	return decode_change(element, encode(current, context), current, context).transform([](SlotChange change) {
+		return std::move(change.state);
 	});
 }
 
 serialization::Value dump_state(const SoundState& state) {
-	return dump_state(FlatSoundState(state));
+	return dump_flat(state, to_flat(state));
 }
 
 } // namespace deluge::instrument

@@ -93,54 +93,6 @@ void switch_filters(effects::FilterState& filter, SynthMode from, SynthMode to) 
 
 } // namespace
 
-FlatSoundState with_mode(FlatSoundState state, SynthMode mode) {
-	switch_filters(state.effects.filter, state.synth_mode, mode);
-	state.synth_mode = mode;
-	return state;
-}
-
-FlatSoundState with_osc_type(FlatSoundState state, SourceId id, OscType type, std::span<const RangeState> held,
-                             bool held_are_wavetable) {
-	apply_osc_type(state.sources[slot_index(id)], type, held, held_are_wavetable);
-	return state;
-}
-
-FlatSoundState with_loop_mode(FlatSoundState state, SourceId id, SampleRepeatMode mode) {
-	apply_loop_mode(state.sources[slot_index(id)], mode);
-	return state;
-}
-
-FlatSoundState with_song_defaults(FlatSoundState state, const effects::SongDefaults& defaults) {
-	state.effects = effects::with_song_defaults(state.effects, defaults);
-	return state;
-}
-
-FlatSoundState as_sample_sound(FlatSoundState state) {
-	state.polyphonic = PolyphonyMode::AUTO;
-	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
-	state.sources[0].osc_type = OscType::SAMPLE;
-	state.sources[1].osc_type = OscType::SAMPLE;
-	return state;
-}
-
-FlatSoundState as_default_synth(FlatSoundState state) {
-	state.effects.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
-	state.sources[0].osc_type = OscType::SAW;
-	state.sources[1].transpose = -12;
-	state.num_unison = 4;
-	state.unison_detune = 10;
-	state.transpose = -12;
-	return state;
-}
-
-FlatSoundState as_blank_synth(FlatSoundState state, bool dx) {
-	if (dx) {
-		state.sources[0].osc_type = OscType::DX7;
-		ensure_init_patch(state.sources[0]);
-	}
-	return state;
-}
-
 SoundState switch_engine(SoundState state, SynthMode mode) {
 	switch_filters(state.plays.fx.filter, synth_mode(state), mode);
 	set_engine(state, mode);
