@@ -448,6 +448,87 @@ void write_output(DocOutput& o, std::string_view path, const Value& value) {
 
 constexpr SettingInfo kLaneTable[] = {text("name")};
 
+// SOUND_ROUTING (InstrumentSlot::routing on a synth track's DocOutput or a sound kit row's DocDrum)
+/// The MIDI output channel as a file writes it: 0–15, or 255 for none. Nothing between is a channel.
+constexpr std::array<std::string_view, 17> kMidiChannels{"0", "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",
+                                                         "9", "10", "11", "12", "13", "14", "15", "255"};
+/// The channel row's choice for none ("255").
+constexpr int32_t kNoMidiChannel = 16;
+/// The file's word for no channel and no note.
+constexpr int32_t kNoneWord = 255;
+/// The MIDI output channel menu lists none first, then channels 1–16 (stored 0–15).
+constexpr std::array<uint8_t, 17> kMidiChannelOrder{16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+constexpr plugin::SettingDescriptorExtras kMidiChannelExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::CHOICE_ORDER, .order = kMidiChannelOrder}};
+/// The send and the note show on a kit lane alone.
+constexpr std::array<int32_t, 1> kKitLaneOwner{std::to_underlying(plugin::SettingContext::Owner::KIT_LANE)};
+constexpr std::array kOnKitLane{plugin::owner_is(kKitLaneOwner)};
+/// The sidechain send menu: fiftieths of the whole send, rounded to the nearest.
+constexpr plugin::SettingDescriptorExtras kSendExtras{.mapping = {.kind = plugin::DisplayMappingKind::FIFTIETHS},
+                                                      .applies_when = kOnKitLane};
+/// An unset note shows as the one a kit row plays at its own pitch.
+constexpr int32_t kUnsetDrumNoteShownAs = 60;
+constexpr plugin::SettingDescriptorExtras kNoteForDrumExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::CLAMP_HIGH, .clamp_to = kUnsetDrumNoteShownAs},
+    .applies_when = kOnKitLane};
+constexpr SettingInfo kSoundRoutingTable[] = {
+    SettingInfo{.path = "sideChainSend", .min = 0, .max = INT32_MAX, .extras = &kSendExtras},
+    SettingInfo{.path = "midiOutput/channel",
+                .kind = plugin::SettingKind::CHOICE,
+                .choices = kMidiChannels,
+                .default_value = kNoMidiChannel,
+                .extras = &kMidiChannelExtras},
+    // An unset note (255, outside the row) reads as none: its menu shows kUnsetDrumNoteShownAs, and no menu value
+    // stores it.
+    SettingInfo{.path = "midiOutput/noteForDrum",
+                .min = 0,
+                .max = 127,
+                .user = {.user_min = 0, .user_max = 127, .stored_min = 0, .stored_max = 127},
+                .extras = &kNoteForDrumExtras},
+};
+static_assert(plugin::conditions_are_valid(kSoundRoutingTable));
+static_assert(plugin::mappings_are_valid(kSoundRoutingTable));
+
+/// The routing record @p owner names: a synth track's or a sound kit row's, or nullptr where it has no instrument.
+template <class SongT>
+auto* routing_of(SongT& song, const SettingOwner& owner) {
+	using Routing = decltype(&song.output_structure.find(0)->instrument->routing);
+	if (const auto* track = std::get_if<TrackAddress>(&owner)) {
+		auto* output = song.output_structure.find(track->output_id);
+		return output != nullptr && output->instrument ? static_cast<Routing>(&output->instrument->routing) : nullptr;
+	}
+	if (const auto* lane = std::get_if<LaneAddress>(&owner)) {
+		auto* drum = song.drum_structure.find(lane->drum_id);
+		return drum != nullptr && drum->instrument ? static_cast<Routing>(&drum->instrument->routing) : nullptr;
+	}
+	return static_cast<Routing>(nullptr);
+}
+
+std::optional<Value> read_routing(const SoundRouting& routing, std::string_view path) {
+	if (path == "sideChainSend") {
+		return number(routing.side_chain_send);
+	}
+	if (path == "midiOutput/channel") {
+		return Value::makeScalar(std::to_string(routing.midi_channel.value_or(kNoneWord)));
+	}
+	if (routing.midi_note) {
+		return number(*routing.midi_note);
+	}
+	return std::nullopt; // unset: the menu shows its default there and writes only a note
+}
+
+void write_routing(SoundRouting& routing, std::string_view path, int32_t v) {
+	if (path == "sideChainSend") {
+		routing.side_chain_send = v;
+	}
+	else if (path == "midiOutput/channel") {
+		routing.midi_channel = v == kNoneWord ? std::nullopt : std::optional{static_cast<uint8_t>(v)};
+	}
+	else {
+		routing.midi_note = static_cast<uint8_t>(v);
+	}
+}
+
 // ---------------------------------------------------------------------------------------------
 // NOTE_ROW (on DocNoteRow)
 
@@ -785,6 +866,8 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
 		return plugin::kArpRows;
+	case SettingGroupId::SOUND_ROUTING:
+		return kSoundRoutingTable;
 	}
 	return {};
 }
@@ -851,6 +934,10 @@ std::optional<Value> read_setting(const Song& song, const SettingAddress& addres
 	case SettingGroupId::LANE_ARP: {
 		const std::optional<ArpRecord>* record = arp_record_of(song, address);
 		return record != nullptr ? read_arp(record->value_or(ArpRecord{}), path) : std::nullopt;
+	}
+	case SettingGroupId::SOUND_ROUTING: {
+		const SoundRouting* routing = routing_of(song, address.owner);
+		return routing != nullptr ? read_routing(*routing, path) : std::nullopt;
 	}
 	}
 	return std::nullopt;
@@ -954,6 +1041,14 @@ bool write_setting(Song& song, const SettingAddress& address, std::string_view p
 		write_arp(record->has_value() ? **record : record->emplace(), path, value);
 		return true;
 	}
+	case SettingGroupId::SOUND_ROUTING: {
+		SoundRouting* routing = routing_of(song, address.owner);
+		if (routing == nullptr) {
+			return false;
+		}
+		write_routing(*routing, path, v);
+		return true;
+	}
 	}
 	return false;
 }
@@ -1019,6 +1114,14 @@ void forget_setting(Song& song, const SettingAddress& address, std::string_view 
 	else if (std::optional<int32_t>* slot = own_slot(song, address, path)) {
 		slot->reset();
 	}
+}
+
+const SoundRouting* sound_routing(const Song& song, const SettingOwner& owner) {
+	return routing_of(song, owner);
+}
+
+SoundRouting* sound_routing(Song& song, const SettingOwner& owner) {
+	return routing_of(song, owner);
 }
 
 } // namespace deluge::project

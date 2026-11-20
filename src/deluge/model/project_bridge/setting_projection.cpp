@@ -17,6 +17,7 @@
 #include "model/output.h"
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
@@ -292,6 +293,18 @@ Error applyLaneSetting(::Drum& drum, std::string_view path, const Value& value) 
 		return Error::UNSPECIFIED;
 	}
 	drum.setName(value.str());
+	return Error::NONE;
+}
+
+/// @brief @p sound's runtime copies of its routing, from the record: the render's send and the MIDI output's channel
+/// and note (255 for none).
+Error applyRouting(::Sound* sound, const project::SoundRouting* routing) {
+	if (sound == nullptr || routing == nullptr) {
+		return Error::UNSPECIFIED;
+	}
+	sound->sideChainSendLevel = routing->side_chain_send;
+	sound->outputMidiChannel = routing->midi_channel.value_or(MIDI_CHANNEL_NONE);
+	sound->outputMidiNoteForDrum = routing->midi_note.value_or(MIDI_NOTE_NONE);
 	return Error::NONE;
 }
 
@@ -809,6 +822,14 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		}
 		auto* kit = static_cast<::Kit*>(findOutput(song, lane.kit_id));
 		return applyArpSetting(drum->arpSettings, {.drum = drum, .kit = kit}, song, path, *value);
+	}
+	case SettingGroupId::SOUND_ROUTING: {
+		const auto* lane = std::get_if<project::LaneAddress>(&address.owner);
+		const project::SlotAddress slot =
+		    lane != nullptr ? project::SlotAddress{.kind = project::SlotAddress::Kind::DRUM, .id = lane->drum_id}
+		                    : project::SlotAddress{.kind = project::SlotAddress::Kind::OUTPUT,
+		                                           .id = std::get<project::TrackAddress>(address.owner).output_id};
+		return applyRouting(bridge::soundAt(song, slot), project::sound_routing(song.project, address.owner));
 	}
 	}
 	return Error::UNSPECIFIED;

@@ -21,15 +21,28 @@
 #include "serialization/value.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace deluge::project {
+
+/// @brief Where a sound's output goes outside its instrument: its send to the song's sidechain and its MIDI output. The
+/// host routes them, as a plugin host routes a plugin's output ports and note output.
+struct SoundRouting {
+	int32_t side_chain_send{0};          ///< the send to the song's sidechain: 0 (none) to INT32_MAX (the whole level)
+	std::optional<uint8_t> midi_channel; ///< the MIDI channel its notes go out on, 0–15; none sends nothing
+	/// The note a kit row's notes go out as, each moved from it as far as it is from the row's own; none sends each
+	/// note as it plays.
+	std::optional<uint8_t> midi_note;
+	bool operator==(const SoundRouting&) const = default;
+};
 
 /// @brief The instrument a synth track or a sound kit row plays: which plugin, and its state, which the model holds
 /// without knowing its type. The sound playing it binds to that state.
 struct InstrumentSlot {
 	std::string plugin;        ///< the plugin's id, e.g. "deluge.instrument"
 	plugin::StateHandle state; ///< the plugin's state
+	SoundRouting routing;      ///< where the sound playing it sends its output beyond the instrument
 	/// The song's input tick magnitude when the slot was filled: the context an edit reads and writes its sync levels
 	/// in.
 	int32_t tick_magnitude{1};

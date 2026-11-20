@@ -12,6 +12,7 @@
 
 #include "deluge-project/arp_record.h"
 #include "deluge-project/clip_address.h"
+#include "deluge-project/instrument_slot.h"
 #include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
 #include "plugin-api/types/setting.h"
@@ -48,6 +49,8 @@ enum class SettingGroupId : uint8_t {
 	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's. CLIP,
 	                   ///< the track's (KIT for the whole kit's)
 	LANE_ARP,          ///< a kit row's arp, its lane's note device. KIT_LANE, the lane's drum
+	SOUND_ROUTING,     ///< a synth track's or a sound kit row's routing beyond its instrument: the sidechain send and
+	                   ///< the MIDI output. TRACK and the track's synth, or KIT_LANE and the lane's drum
 };
 
 /// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
@@ -55,7 +58,7 @@ enum class SettingGroupId : uint8_t {
 ///
 /// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, and raise this by one.
 /// Both a missing case and a missing bump fail to compile.
-inline constexpr uint8_t kSettingGroupCount = 11;
+inline constexpr uint8_t kSettingGroupCount = 12;
 
 /// @brief Whether kSettingGroupCount counts @p group, for the static_assert below. The switch names every group, so a
 /// new one fails to compile (-Werror=switch) until it has a case here; a named group is counted when its value is below
@@ -75,6 +78,7 @@ inline constexpr uint8_t kSettingGroupCount = 11;
 	case SettingGroupId::AUDIO_INPUT:
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
+	case SettingGroupId::SOUND_ROUTING:
 		return static_cast<uint8_t>(group) < kSettingGroupCount;
 	}
 	return true;
@@ -194,5 +198,13 @@ void forget_setting(Song& song, const SettingAddress& address, std::string_view 
 ///         path, or the row refuses the value.
 [[nodiscard]] bool write_setting(Song& song, const SettingAddress& address, std::string_view path,
                                  const serialization::Value& value);
+
+/// @brief The routing record @p owner names: a synth track's (a TrackAddress) or a sound kit row's (a LaneAddress).
+/// @param song  The song whose records hold it.
+/// @param owner The track or lane.
+/// @return The record, or nullptr when the owner does not resolve or plays no instrument.
+[[nodiscard]] const SoundRouting* sound_routing(const Song& song, const SettingOwner& owner);
+/// @copydoc sound_routing
+[[nodiscard]] SoundRouting* sound_routing(Song& song, const SettingOwner& owner);
 
 } // namespace deluge::project

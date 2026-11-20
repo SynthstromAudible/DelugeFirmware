@@ -160,6 +160,41 @@ describe setting_groups_owners("the owner setting groups", $ {
 		expect(round_trip(song, SettingGroupId::LANE, LaneAddress{.kit_id = 7, .drum_id = 5})).to_equal(std::string{});
 	});
 
+	it("round-trips the sound routing group through a synth track's and a sound kit row's instrument", _ {
+		Song song;
+		song.output_structure.getOrCreate(7).instrument.emplace();
+		song.drum_structure.getOrCreate(5).instrument.emplace();
+		expect(round_trip(song, SettingGroupId::SOUND_ROUTING, TrackAddress{.output_id = 7})).to_equal(std::string{});
+		expect(round_trip(song, SettingGroupId::SOUND_ROUTING, LaneAddress{.kit_id = 7, .drum_id = 5}))
+		    .to_equal(std::string{});
+	});
+
+	it("reads a new sound's routing as no send, no channel (255) and no note, and keeps none in the record", _ {
+		Song song;
+		DocDrum& drum = song.drum_structure.getOrCreate(5);
+		drum.instrument.emplace();
+		const SettingAddress lane{SettingGroupId::SOUND_ROUTING, LaneAddress{.kit_id = 7, .drum_id = 5}};
+		expect(read_setting(song, lane, "sideChainSend")->str()).to_equal(std::string{"0"});
+		expect(read_setting(song, lane, "midiOutput/channel")->str()).to_equal(std::string{"255"});
+		expect(read_setting(song, lane, "midiOutput/noteForDrum").has_value()).to_be_false();
+		expect(write_setting(song, lane, "midiOutput/channel", Value::makeScalar("3"))).to_be_true();
+		expect(drum.instrument->routing.midi_channel).to_equal(std::optional<uint8_t>{3});
+		expect(write_setting(song, lane, "midiOutput/channel", Value::makeScalar("255"))).to_be_true();
+		expect(drum.instrument->routing.midi_channel.has_value()).to_be_false();
+		expect(write_setting(song, lane, "midiOutput/noteForDrum", Value::makeScalar("72"))).to_be_true();
+		expect(drum.instrument->routing.midi_note).to_equal(std::optional<uint8_t>{72});
+		expect(sound_routing(std::as_const(song), lane.owner)).to_equal(&drum.instrument->routing);
+	});
+
+	it("refuses a track or row that plays no instrument", _ {
+		Song song;
+		(void)song.output_structure.getOrCreate(7);
+		const SettingAddress track{SettingGroupId::SOUND_ROUTING, TrackAddress{.output_id = 7}};
+		expect(write_setting(song, track, "sideChainSend", Value::makeScalar("1"))).to_be_false();
+		expect(read_setting(song, track, "sideChainSend").has_value()).to_be_false();
+		expect(sound_routing(song, track.owner)).to_be_null();
+	});
+
 	it("round-trips the note-row group through a melodic row and a kit row", _ {
 		Song song;
 		DocClip& clip = song.clip_structure.getOrCreate(11);

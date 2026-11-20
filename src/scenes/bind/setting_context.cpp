@@ -71,6 +71,14 @@ plugin::SettingContext setting_context(const project::Song& model, const project
 	case SettingGroupId::CLIP_VALUES:
 	case SettingGroupId::CLIP_ARP:
 		break;
+	case SettingGroupId::SOUND_ROUTING:
+		if (const auto* lane = std::get_if<project::LaneAddress>(&address.owner)) {
+			context = lane_of(lane->drum_id);
+		}
+		else {
+			context = {.owner = Owner::TRACK, .instrument = instrument};
+		}
+		break;
 	}
 	context.audio_inputs_present = facts.audio_inputs_present();
 	return context;
