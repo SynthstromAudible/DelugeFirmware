@@ -24,31 +24,15 @@
 namespace deluge::instrument {
 namespace {
 
-/// The index of slot @p id in a state's slot arrays.
-[[nodiscard]] constexpr size_t index_of(SourceId id) noexcept {
-	return std::to_underlying(id);
-}
-
-/// The oscillator slots the engine plays, or null for FM (whose carriers have only a pitch).
-[[nodiscard]] const synth::DualSourceState* slots_of(const ComposedState& plays) noexcept {
-	if (const auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
-		return &sub->oscillators;
-	}
-	if (const auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
-		return &ring->oscillators;
-	}
-	return nullptr;
-}
-
 /// What slot @p id plays, or null when the engine is FM.
 [[nodiscard]] const synth::SlotState* slot_of(const SoundState& state, SourceId id) noexcept {
-	const synth::DualSourceState* slots = slots_of(state.plays);
-	return slots != nullptr ? &slots->slots[index_of(id)] : nullptr;
+	const synth::DualSourceState* slots = dual_of(state.plays);
+	return slots != nullptr ? &slots->slots[slot_index(id)] : nullptr;
 }
 
 /// What slot @p id remembers of the kinds it is not playing.
 [[nodiscard]] const SlotMemory& memory_of(const SoundState& state, SourceId id) noexcept {
-	return state.recall.slots[index_of(id)];
+	return state.recall.slots[slot_index(id)];
 }
 
 /// Slot @p id's kind with its parts: the one it plays, or while FM plays the one it parks.
@@ -62,18 +46,6 @@ namespace {
 	return parked ? *parked : new_synth_kind;
 }
 
-/// A sample range in the file's layout.
-[[nodiscard]] RangeState range_of(const synth::SampleRange& r) {
-	return {.top_note = r.top_note,
-	        .file_path = r.file_path,
-	        .start_pos = r.zone.start,
-	        .end_pos = r.zone.end,
-	        .loop_start_pos = r.zone.loop_start,
-	        .loop_end_pos = r.zone.loop_end,
-	        .transpose = r.tuning.transpose,
-	        .cents = r.tuning.cents};
-}
-
 /// @p state with @p change made to its flat form: what a write means is what it meant to the flat state.
 template <class Change>
 [[nodiscard]] SoundState changed_flat(const SoundState& state, const Change& change) {
@@ -85,39 +57,17 @@ template <class Change>
 } // namespace
 
 SynthMode synth_mode(const SoundState& state) noexcept {
-	switch (state.plays.engine.index()) {
-	case 1:
-		return SynthMode::RINGMOD;
-	case 2:
+	if (std::holds_alternative<synth::FmState>(state.plays.engine)) {
 		return SynthMode::FM;
-	default:
-		return SynthMode::SUBTRACTIVE;
 	}
+	if (std::holds_alternative<synth::RingModState>(state.plays.engine)) {
+		return SynthMode::RINGMOD;
+	}
+	return SynthMode::SUBTRACTIVE;
 }
 
 OscType source_type(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState& kind = kind_of(state, id);
-	if (const auto* va = std::get_if<synth::VaState>(&kind)) {
-		return static_cast<OscType>(std::to_underlying(va->shape));
-	}
-	if (std::holds_alternative<synth::WavetableState>(kind)) {
-		return OscType::WAVETABLE;
-	}
-	if (std::holds_alternative<synth::SampleState>(kind)) {
-		return OscType::SAMPLE;
-	}
-	if (std::holds_alternative<synth::Dx7State>(kind)) {
-		return OscType::DX7;
-	}
-	switch (std::get_if<synth::InputState>(&kind)->channel) {
-	case synth::InputChannel::RIGHT:
-		return OscType::INPUT_R;
-	case synth::InputChannel::STEREO:
-		return OscType::INPUT_STEREO;
-	case synth::InputChannel::LEFT:
-		break;
-	}
-	return OscType::INPUT_L;
+	return osc_type_of(kind_of(state, id));
 }
 
 namespace {
@@ -125,7 +75,7 @@ namespace {
 /// Slot @p id's pitch as its kind or an FM carrier plays it; a sample's is the one its memory keeps for other kinds.
 [[nodiscard]] const synth::Pitch& pitch_of(const SoundState& state, SourceId id) noexcept {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
-		return fm->carriers[index_of(id)];
+		return fm->carriers[slot_index(id)];
 	}
 	const synth::SlotState& kind = kind_of(state, id);
 	if (const auto* va = std::get_if<synth::VaState>(&kind)) {
@@ -146,18 +96,12 @@ namespace {
 } // namespace
 
 Tuning source_tuning(const SoundState& state, SourceId id) noexcept {
-	const synth::Tuning& tuning = pitch_of(state, id).tuning;
-	return {.transpose = tuning.transpose, .cents = tuning.cents};
+	return pitch_of(state, id).tuning;
 }
 
 SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
 	const auto* sample = std::get_if<synth::SampleState>(&kind_of(state, id));
-	const synth::SamplePlayback& p = sample != nullptr ? sample->playback : memory_of(state, id).playback;
-	return {.repeat_mode = p.repeat_mode,
-	        .time_stretch_amount = p.time_stretch_amount,
-	        .interpolation = p.interpolation,
-	        .pitch_and_speed_independent = p.pitch_and_speed_independent,
-	        .reversed = p.reversed};
+	return sample != nullptr ? sample->playback : memory_of(state, id).playback;
 }
 
 std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
@@ -174,9 +118,24 @@ std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
 	const std::vector<synth::SampleRange>& held = sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
 	ranges.reserve(held.size());
 	for (const synth::SampleRange& r : held) {
-		ranges.push_back(range_of(r));
+		ranges.push_back(range_state_of(r));
 	}
 	return ranges;
+}
+
+bool same_ranges(const SoundState& a, const SoundState& b, SourceId id) {
+	const auto* wa = std::get_if<synth::WavetableState>(&kind_of(a, id));
+	const auto* wb = std::get_if<synth::WavetableState>(&kind_of(b, id));
+	if (wa != nullptr && wb != nullptr) {
+		return wa->ranges == wb->ranges;
+	}
+	if (wa == nullptr && wb == nullptr) {
+		const auto* sa = std::get_if<synth::SampleState>(&kind_of(a, id));
+		const auto* sb = std::get_if<synth::SampleState>(&kind_of(b, id));
+		return (sa != nullptr ? sa->ranges : memory_of(a, id).ranges)
+		       == (sb != nullptr ? sb->ranges : memory_of(b, id).ranges);
+	}
+	return source_ranges(a, id) == source_ranges(b, id); // a wavetable's and a sample's, compared as the file has them
 }
 
 const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
@@ -205,7 +164,7 @@ bool oscillator_sync(const SoundState& state) noexcept {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
 		return fm->sync;
 	}
-	const synth::DualSourceState* slots = slots_of(state.plays);
+	const synth::DualSourceState* slots = dual_of(state.plays);
 	if (std::holds_alternative<synth::SampleState>(slots->slots[1])) {
 		return state.recall.sync; // the file writes it in the second oscillator's pitch, which a sample lacks
 	}
@@ -246,11 +205,11 @@ SoundState with_host_fields(SoundState state, const HostFields& fields) {
 }
 
 SoundState with_ranges(SoundState state, SourceId id, std::vector<RangeState> ranges) {
-	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[index_of(id)].ranges = std::move(ranges); });
+	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[slot_index(id)].ranges = std::move(ranges); });
 }
 
 SoundState with_dx_patch(SoundState state, SourceId id, std::optional<DxPatchState> patch) {
-	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[index_of(id)].dx_patch = patch; });
+	return changed_flat(state, [&](FlatSoundState& flat) { flat.sources[slot_index(id)].dx_patch = patch; });
 }
 
 } // namespace deluge::instrument

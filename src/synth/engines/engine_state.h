@@ -44,7 +44,7 @@ struct RingModState {
 };
 
 /// @brief What the FM engine saves: two carriers and two modulators, the second modulating the first when
-/// @c modulator1_to_modulator0, and the oscillators' sync, which the file still writes in the second carrier's pitch.
+/// @c modulator1_to_modulator0, and the oscillators' sync, which the file writes in the second carrier's pitch.
 struct FmState {
 	std::array<Pitch, 2> carriers{};
 	bool sync{false};

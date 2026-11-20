@@ -153,7 +153,7 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 	return {};
 }
 
-/// @brief The first rule on which the record's native form and the flat oracle disagree for @p flat; empty where none
+/// @brief The first rule on which the record and the flat reference disagree for @p flat; empty where none
 /// does: every engine switch, every oscillator kind on each slot (with the held ranges of either kind), every loop
 /// mode, and the setup transforms.
 [[nodiscard]] inline std::string rule_difference(const instrument::FlatSoundState& flat) {
@@ -198,7 +198,7 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 	return {};
 }
 
-/// @brief The first settings row on which the record's native form and the flat oracle disagree for @p flat: what a
+/// @brief The first settings row on which the record and the flat reference disagree for @p flat: what a
 /// row reads, holds, takes and allows, and what writing it makes (the state and the entries it changes), for each
 /// row's candidate values (every choice, both bools, an integer's least, greatest, default and middle values).
 /// Empty where none does.
@@ -253,12 +253,18 @@ void change_flat(instrument::SoundState& record, Change&& change) {
 			if (entries != flat_entries) {
 				return path + " entries " + text;
 			}
+			for (const in::SourceId id : {in::SourceId::A, in::SourceId::B}) {
+				if (in::same_ranges(record, written, id)
+				    != (in::source_ranges(record, id) == in::source_ranges(written, id))) {
+					return path + " same_ranges " + text;
+				}
+			}
 		}
 	}
 	return {};
 }
 
-/// @brief Where the record's encoding and the flat oracle's first differ for @p flat: the whole element, each entry
+/// @brief Where the record's encoding and the flat reference's first differ for @p flat: the whole element, each entry
 /// (with and without a compressor threshold in place of the state's), and an element's entries replaced, at three tick
 /// magnitudes. Empty where none does.
 [[nodiscard]] inline std::string encode_difference(const instrument::FlatSoundState& flat) {

@@ -69,8 +69,8 @@ struct FlatSoundState {
 	bool modulator1_to_modulator0{false};
 	std::array<int16_t, 2> modulator_transpose{0, -12};
 	std::array<int8_t, 2> modulator_cents{};
-	std::array<uint32_t, 2> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF}; ///< 0xFFFFFFFF = free-running
-	std::array<uint32_t, 2> modulator_retrigger_phase{};                 ///< 0xFFFFFFFF = free-running
+	std::array<uint32_t, 2> osc_retrigger_phase{kFreeRunningPhase, kFreeRunningPhase};
+	std::array<uint32_t, 2> modulator_retrigger_phase{}; ///< kFreeRunningPhase where a modulator runs free
 	std::array<LFOType, 4> lfo_wave_type{LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE, LFOType::TRIANGLE};
 	std::array<plugin::SyncType, 4> lfo_sync_type{};
 	std::array<plugin::SyncLevel, 4> lfo_sync_level{};

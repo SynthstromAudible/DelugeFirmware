@@ -1095,9 +1095,14 @@ bool write_oscillator(SoundState& state, std::string_view path, const serializat
 	}
 	const std::string_view rest = path.substr(5);
 	const int32_t n = intOf(value);
-	bool known = true;
+	constexpr std::array<std::string_view, 9> kSlotKeys{
+	    "linearInterpolation", "loopMode", "reversed",   "timeStretchEnable", "timeStretchAmount", "type",
+	    "transpose",           "cents",    "retrigPhase"};
+	if (std::ranges::find(kSlotKeys, rest) == kSlotKeys.end() && (rest != "oscillatorSync" || *s != 1)) {
+		return false;
+	}
 	edit_slot(state, *s, [&](SlotEdit& edit) {
-		SourceState& src = edit.full;
+		SourceState& src = edit.source;
 		if (rest == "linearInterpolation") {
 			src.interpolation_mode = n != 0 ? plugin::InterpolationMode::LINEAR : plugin::InterpolationMode::SMOOTH;
 		}
@@ -1125,14 +1130,11 @@ bool write_oscillator(SoundState& state, std::string_view path, const serializat
 		else if (rest == "retrigPhase") {
 			edit.phase = static_cast<uint32_t>(n); // the phase as a file writes it, signed
 		}
-		else if (rest == "oscillatorSync" && *s == 1) {
+		else { // oscillatorSync on the second oscillator
 			edit.sync = n != 0;
 		}
-		else {
-			known = false;
-		}
 	});
-	return known;
+	return true;
 }
 
 bool write_lfo(SoundState& state, std::string_view path, const serialization::Value& value) {

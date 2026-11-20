@@ -16,7 +16,6 @@
  */
 
 #include "instruments/deluge/deluge_synth.h"
-#include "instruments/deluge/flat_layout.h"
 
 #include "dsp-next/fixed/pitch/fine_tune.h"
 #include "instruments/deluge/state_access.h"
@@ -109,7 +108,7 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 		mark(parts, slot_part(Part::SOURCE_A_TYPE, s), source_type(before, id) != source_type(after, id));
 		mark(parts, slot_part(Part::SOURCE_A_TUNING, s), source_tuning(before, id) != source_tuning(after, id));
 		mark(parts, slot_part(Part::SOURCE_A_PLAYBACK, s), sample_playback(before, id) != sample_playback(after, id));
-		mark(parts, slot_part(Part::SOURCE_A_RANGES, s), source_ranges(before, id) != source_ranges(after, id));
+		mark(parts, slot_part(Part::SOURCE_A_RANGES, s), !same_ranges(before, after, id));
 		const DxPatchState* was_patch = dx_patch(before, id);
 		const DxPatchState* now_patch = dx_patch(after, id);
 		mark(parts, slot_part(Part::SOURCE_A_DX, s),
@@ -129,7 +128,7 @@ Parts DelugeSynth::changes(const State& before, const State& after) noexcept {
 	     instrument::modulator1_to_modulator0(before) != instrument::modulator1_to_modulator0(after));
 	bool lfo_wave = false;
 	bool lfo_sync = false;
-	for (size_t l = 0; l < 4; l++) {
+	for (size_t l = 0; l < synth::SoundConfig{}.lfos.size(); l++) {
 		const synth::LfoState was = lfo(before, l);
 		const synth::LfoState now = lfo(after, l);
 		lfo_wave = lfo_wave || was.shape != now.shape;

@@ -1,7 +1,24 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "instruments/deluge/cable_acceptance.h"
-#include "instruments/deluge/flat_layout.h"
 
 #include "effects/words.h"
+#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 
@@ -19,13 +36,10 @@ constexpr bool is_sound_wide(plugin::ParamId id) {
 	return id.value >= param::kVolumePostFX.value;
 }
 
+/// Whether @p source is one of the four envelopes.
 constexpr bool is_envelope(PatchSource source) {
 	return source >= PatchSource::ENVELOPE_0 && source <= PatchSource::ENVELOPE_3;
 }
-
-} // namespace
-
-namespace {
 
 /// What a cable's acceptance reads of a sound: its engine, its filters' modes and LFO1's and LFO3's sync.
 struct CableFacts {

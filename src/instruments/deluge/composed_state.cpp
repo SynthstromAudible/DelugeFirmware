@@ -23,16 +23,10 @@
 
 namespace deluge::instrument {
 
-namespace {
-
-constexpr uint32_t kFreeRunning = 0xFFFFFFFF; ///< the flat record's retrigger phase for an oscillator that runs free
-
-} // namespace
-
 // The flat record and the synth config carry the phase as the file's 32-bit word; the composed state holds it typed,
 // so the crossing is here and in phase_word.
 synth::Retrigger retrigger_of_word(uint32_t phase) {
-	return phase == kFreeRunning ? synth::Retrigger{} : synth::Retrigger{dsp::UQ<32>::from_raw(phase)};
+	return phase == kFreeRunningPhase ? synth::Retrigger{} : synth::Retrigger{dsp::UQ<32>::from_raw(phase)};
 }
 
 namespace {
@@ -76,11 +70,9 @@ OscType type_of(synth::InputChannel channel) {
 	return OscType::INPUT_L;
 }
 
-} // namespace
-
-/// What slot @p src plays, its phase @p phase; @p kept takes what the kind does not hold, the fields it does left at
-/// their defaults.
-synth::SlotState pack_slot(const SourceState& src, uint32_t phase, SourceState& kept,
+// What slot @p src plays, its phase @p phase; @p kept takes what the kind does not hold, the fields it does left at
+// their defaults.
+synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& kept,
                            synth::Retrigger& kept_retrigger) {
 	kept = src;
 	kept_retrigger.reset();
@@ -113,13 +105,7 @@ synth::SlotState pack_slot(const SourceState& src, uint32_t phase, SourceState& 
 		                          .ranges = {}};
 		kept_retrigger = pitch.retrigger;
 		for (const RangeState& r : src.ranges) {
-			sample.ranges.push_back({.top_note = r.top_note,
-			                         .file_path = r.file_path,
-			                         .zone = {.start = r.start_pos,
-			                                  .end = r.end_pos,
-			                                  .loop_start = r.loop_start_pos,
-			                                  .loop_end = r.loop_end_pos},
-			                         .tuning = {.transpose = r.transpose, .cents = r.cents}});
+			sample.ranges.push_back(sample_range_of(r));
 		}
 		kept.ranges.clear();
 		const SourceState neutral;
@@ -145,8 +131,8 @@ synth::SlotState pack_slot(const SourceState& src, uint32_t phase, SourceState& 
 	}
 }
 
-/// The flat source slot @p slot is, over @p kept (what its kind does not hold); its phase into @p phase.
-SourceState unpack_slot(const synth::SlotState& slot, const SourceState& kept, const synth::Retrigger& kept_retrigger,
+// The flat source slot @p slot is, over @p kept (what its kind does not hold); its phase into @p phase.
+SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, const synth::Retrigger& kept_retrigger,
                         uint32_t& phase) {
 	SourceState src = kept;
 	const auto take_pitch = [&](const synth::Pitch& pitch) {
@@ -179,14 +165,7 @@ SourceState unpack_slot(const synth::SlotState& slot, const SourceState& kept, c
 			    src.reversed = state.playback.reversed;
 			    src.ranges.clear();
 			    for (const synth::SampleRange& r : state.ranges) {
-				    src.ranges.push_back({.top_note = r.top_note,
-				                          .file_path = r.file_path,
-				                          .start_pos = r.zone.start,
-				                          .end_pos = r.zone.end,
-				                          .loop_start_pos = r.zone.loop_start,
-				                          .loop_end_pos = r.zone.loop_end,
-				                          .transpose = r.tuning.transpose,
-				                          .cents = r.tuning.cents});
+				    src.ranges.push_back(range_state_of(r));
 			    }
 		    }
 		    else if constexpr (std::is_same_v<T, synth::Dx7State>) {
@@ -206,8 +185,7 @@ SourceState unpack_slot(const synth::SlotState& slot, const SourceState& kept, c
 	return src;
 }
 
-namespace {
-synth::LfoState lfo_of(const FlatSoundState& f, size_t i) {
+synth::LfoState lfo_from_flat(const FlatSoundState& f, size_t i) {
 	return {.shape = f.lfo_wave_type[i], .sync_type = f.lfo_sync_type[i], .sync_level = f.lfo_sync_level[i]};
 }
 
@@ -219,10 +197,50 @@ void put_lfo(FlatSoundState& f, size_t i, const synth::LfoState& lfo) {
 
 } // namespace
 
-uint32_t phase_word(const synth::Retrigger& retrigger) noexcept {
-	return retrigger ? retrigger->raw() : kFreeRunning;
+const synth::DualSourceState* dual_of(const ComposedState& plays) noexcept {
+	if (const auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
+		return &sub->oscillators;
+	}
+	if (const auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
+		return &ring->oscillators;
+	}
+	return nullptr;
 }
 
+synth::DualSourceState* dual_of(ComposedState& plays) noexcept {
+	if (auto* sub = std::get_if<synth::SubtractiveState>(&plays.engine)) {
+		return &sub->oscillators;
+	}
+	if (auto* ring = std::get_if<synth::RingModState>(&plays.engine)) {
+		return &ring->oscillators;
+	}
+	return nullptr;
+}
+
+OscType osc_type_of(const synth::SlotState& kind) noexcept {
+	if (const auto* va = std::get_if<synth::VaState>(&kind)) {
+		return type_of(va->shape);
+	}
+	if (std::holds_alternative<synth::WavetableState>(kind)) {
+		return OscType::WAVETABLE;
+	}
+	if (std::holds_alternative<synth::SampleState>(kind)) {
+		return OscType::SAMPLE;
+	}
+	if (std::holds_alternative<synth::Dx7State>(kind)) {
+		return OscType::DX7;
+	}
+	return type_of(std::get_if<synth::InputState>(&kind)->channel);
+}
+
+uint32_t phase_word(const synth::Retrigger& retrigger) noexcept {
+	return retrigger ? retrigger->raw() : kFreeRunningPhase;
+}
+
+namespace {
+
+// The memory of a playing slot whose kind does not hold @p kept (its other fields in the file's layout) or
+// @p retrigger (a sample's).
 SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger) {
 	SlotMemory memory{
 	    .parked = std::nullopt,
@@ -236,18 +254,13 @@ SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger) 
 	    .sample_pitch = {.tuning = {.transpose = kept.transpose, .cents = kept.cents}, .retrigger = retrigger}};
 	memory.ranges.reserve(kept.ranges.size());
 	for (const RangeState& r : kept.ranges) {
-		memory.ranges.push_back({.top_note = r.top_note,
-		                         .file_path = r.file_path,
-		                         .zone = {.start = r.start_pos,
-		                                  .end = r.end_pos,
-		                                  .loop_start = r.loop_start_pos,
-		                                  .loop_end = r.loop_end_pos},
-		                         .tuning = {.transpose = r.transpose, .cents = r.cents}});
+		memory.ranges.push_back(sample_range_of(r));
 	}
 	return memory;
 }
 
-SourceState recalled(const SlotMemory& memory, synth::Retrigger& retrigger) {
+// The kept fields and retrigger @p memory holds for a playing slot, in the file's layout.
+SourceState recall(const SlotMemory& memory, synth::Retrigger& retrigger) {
 	SourceState kept{.osc_type = SourceState{}.osc_type,
 	                 .transpose = memory.sample_pitch.tuning.transpose,
 	                 .cents = memory.sample_pitch.tuning.cents,
@@ -260,34 +273,40 @@ SourceState recalled(const SlotMemory& memory, synth::Retrigger& retrigger) {
 	                 .ranges = {}};
 	kept.ranges.reserve(memory.ranges.size());
 	for (const synth::SampleRange& r : memory.ranges) {
-		kept.ranges.push_back({.top_note = r.top_note,
-		                       .file_path = r.file_path,
-		                       .start_pos = r.zone.start,
-		                       .end_pos = r.zone.end,
-		                       .loop_start_pos = r.zone.loop_start,
-		                       .loop_end_pos = r.zone.loop_end,
-		                       .transpose = r.tuning.transpose,
-		                       .cents = r.tuning.cents});
+		kept.ranges.push_back(range_state_of(r));
 	}
 	retrigger = memory.sample_pitch.retrigger;
 	return kept;
 }
 
-SlotMemory remember_parked(const SourceState& kept) {
-	SourceState inner;
-	synth::Retrigger inner_retrigger;
-	synth::SlotState parked = pack_slot(kept, phase_word(synth::Retrigger{}), inner, inner_retrigger);
-	SlotMemory memory = remember(inner, inner_retrigger);
-	memory.parked = std::move(parked);
-	return memory;
+} // namespace
+
+PackedSlot pack_slot(const SourceState& source, uint32_t phase) {
+	SourceState kept;
+	synth::Retrigger retrigger;
+	synth::SlotState kind = pack_kind(source, phase, kept, retrigger);
+	return {.kind = std::move(kind), .memory = remember(kept, retrigger)};
 }
 
-SourceState recalled_parked(const SlotMemory& memory) {
-	synth::Retrigger inner_retrigger;
-	const SourceState inner = recalled(memory, inner_retrigger);
-	uint32_t phase = 0;
+UnpackedSlot unpack_slot(const synth::SlotState& kind, const SlotMemory& memory) {
+	synth::Retrigger retrigger;
+	const SourceState kept = recall(memory, retrigger);
+	UnpackedSlot unpacked;
+	unpacked.source = unpack_kind(kind, kept, retrigger, unpacked.phase);
+	return unpacked;
+}
+
+SlotMemory park_slot(SourceState source) {
+	source.transpose = 0; // the carrier's
+	source.cents = 0;
+	PackedSlot packed = pack_slot(source, kFreeRunningPhase);
+	packed.memory.parked = std::move(packed.kind);
+	return std::move(packed.memory);
+}
+
+SourceState unpark_slot(const SlotMemory& memory) {
 	// A slot parks its kind whenever FM plays; one without is a new synth's square
-	return unpack_slot(memory.parked.value_or(synth::VaState{}), inner, inner_retrigger, phase);
+	return unpack_slot(memory.parked.value_or(synth::VaState{}), memory).source;
 }
 
 std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
@@ -298,8 +317,8 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	                .master = {.transpose = f.transpose, .cents = f.cents},
 	                .unison = {.count = f.num_unison, .detune = f.unison_detune, .spread = f.unison_stereo_spread}},
 	    .engine = synth::SubtractiveState{},
-	    .instrument_lfos = {lfo_of(f, 0), lfo_of(f, 2)},
-	    .voice_lfos = {lfo_of(f, 1), lfo_of(f, 3)},
+	    .instrument_lfos = {lfo_from_flat(f, 0), lfo_from_flat(f, 2)},
+	    .voice_lfos = {lfo_from_flat(f, 1), lfo_from_flat(f, 3)},
 	    .fx = f.effects,
 	    .side_chain_send_level = f.side_chain_send_level,
 	    .output_midi_channel = f.output_midi_channel,
@@ -315,10 +334,7 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 		    .carriers = {}, .modulators = modulators, .modulator1_to_modulator0 = f.modulator1_to_modulator0};
 		for (size_t s = 0; s < 2; s++) {
 			fm.carriers[s] = pitch_of(f.sources[s].transpose, f.sources[s].cents, f.osc_retrigger_phase[s]);
-			SourceState kept = f.sources[s];
-			kept.transpose = 0; // the carrier's
-			kept.cents = 0;
-			recall.slots[s] = remember_parked(kept);
+			recall.slots[s] = park_slot(f.sources[s]);
 		}
 		fm.sync = f.oscillator_sync;
 		state.engine = fm;
@@ -326,10 +342,9 @@ std::pair<ComposedState, Recall> compose(const FlatSoundState& f) {
 	else {
 		synth::DualSourceState dual{.slots = {}, .sync = f.oscillator_sync};
 		for (size_t s = 0; s < 2; s++) {
-			SourceState kept;
-			synth::Retrigger retrigger;
-			dual.slots[s] = pack_slot(f.sources[s], f.osc_retrigger_phase[s], kept, retrigger);
-			recall.slots[s] = remember(kept, retrigger);
+			auto [kind, memory] = pack_slot(f.sources[s], f.osc_retrigger_phase[s]);
+			dual.slots[s] = std::move(kind);
+			recall.slots[s] = std::move(memory);
 		}
 		if (std::holds_alternative<synth::SampleState>(dual.slots[1])) {
 			// The file writes the sync in the second oscillator's pitch, which a sample oscillator has none of
@@ -378,7 +393,7 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 		f.synth_mode = SynthMode::FM;
 		put_modulators(fm->modulators, fm->modulator1_to_modulator0);
 		for (size_t s = 0; s < 2; s++) {
-			f.sources[s] = recalled_parked(recall.slots[s]);
+			f.sources[s] = unpark_slot(recall.slots[s]);
 			f.sources[s].transpose = fm->carriers[s].tuning.transpose;
 			f.sources[s].cents = fm->carriers[s].tuning.cents;
 			f.osc_retrigger_phase[s] = phase_word(fm->carriers[s].retrigger);
@@ -386,16 +401,14 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 		f.oscillator_sync = fm->sync;
 		return f;
 	}
-	const synth::DualSourceState& dual = std::holds_alternative<synth::RingModState>(state.engine)
-	                                         ? std::get<synth::RingModState>(state.engine).oscillators
-	                                         : std::get<synth::SubtractiveState>(state.engine).oscillators;
+	const synth::DualSourceState& dual = *dual_of(state);
 	f.synth_mode =
 	    std::holds_alternative<synth::RingModState>(state.engine) ? SynthMode::RINGMOD : SynthMode::SUBTRACTIVE;
 	put_modulators(recall.modulators, recall.modulator1_to_modulator0);
 	for (size_t s = 0; s < 2; s++) {
-		synth::Retrigger retrigger;
-		const SourceState kept = recalled(recall.slots[s], retrigger);
-		f.sources[s] = unpack_slot(dual.slots[s], kept, retrigger, f.osc_retrigger_phase[s]);
+		auto [source, phase] = unpack_slot(dual.slots[s], recall.slots[s]);
+		f.sources[s] = std::move(source);
+		f.osc_retrigger_phase[s] = phase;
 	}
 	f.oscillator_sync = std::holds_alternative<synth::SampleState>(dual.slots[1]) ? recall.sync : dual.sync;
 	return f;

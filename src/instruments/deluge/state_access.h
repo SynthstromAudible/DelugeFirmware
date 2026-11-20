@@ -22,6 +22,7 @@
 #include "instruments/deluge/words.h"
 #include "plugin-api/types/interpolation_mode.h"
 #include "synth/modulation/lfo_state.h"
+#include "synth/sources/source_state.h"
 #include "synth/voice/voicing_state.h"
 
 #include <array>
@@ -44,22 +45,16 @@ enum class SourceId : uint8_t {
 	B = 1, ///< the second oscillator ("osc2")
 };
 
-/// @brief An oscillator's own tuning. A sample oscillator's is zero: its ranges carry theirs.
-struct Tuning {
-	int16_t transpose{0}; ///< semitones
-	int8_t cents{0};      ///< −50..50
-	bool operator==(const Tuning&) const = default;
-};
+/// @brief An oscillator's own tuning. A sample oscillator plays its ranges' and keeps this one for the other kinds.
+using synth::Tuning;
 
 /// @brief How a sample oscillator plays its ranges.
-struct SamplePlayback {
-	SampleRepeatMode repeat_mode{SampleRepeatMode::CUT};
-	int8_t time_stretch_amount{0};
-	plugin::InterpolationMode interpolation{plugin::InterpolationMode::SMOOTH};
-	bool pitch_and_speed_independent{false};
-	bool reversed{false};
-	bool operator==(const SamplePlayback&) const = default;
-};
+using synth::SamplePlayback;
+
+/// @brief Slot @p id's index in a sound's two slots.
+[[nodiscard]] constexpr size_t slot_index(SourceId id) noexcept {
+	return static_cast<size_t>(id);
+}
 
 /// @brief Which engine renders the sound: subtractive, ring mod or FM.
 /// @param state The sound's state.
@@ -85,6 +80,12 @@ struct SamplePlayback {
 /// @param id The slot.
 /// @return The ranges; empty for a slot that plays none.
 [[nodiscard]] std::vector<RangeState> source_ranges(const SoundState& state, SourceId id);
+
+/// @brief Whether an oscillator slot's ranges are the same in @p a and @p b, without copying them.
+/// @param a One state.
+/// @param b The other.
+/// @param id The slot.
+[[nodiscard]] bool same_ranges(const SoundState& a, const SoundState& b, SourceId id);
 
 /// @brief An oscillator slot's DX7 patch.
 /// @param state The sound's state.
@@ -130,7 +131,7 @@ struct SamplePlayback {
 /// @param index 0..3.
 [[nodiscard]] synth::LfoState lfo(const SoundState& state, size_t index) noexcept;
 
-/// @brief What the sound's host keeps in its state for now: its sidechain send and, as a kit row, its MIDI output.
+/// @brief The settings the sound's host owns in its state: its sidechain send and, as a kit row, its MIDI output.
 struct HostFields {
 	int32_t side_chain_send_level{0};
 	uint8_t output_midi_channel{255};       ///< 255 = none

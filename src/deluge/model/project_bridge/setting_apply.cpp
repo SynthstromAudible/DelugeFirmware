@@ -285,18 +285,19 @@ Error applyChange(::Sound& sound, const deluge::instrument::SoundState& before,
 	for (int32_t s = 0; s < kNumSources; s++) {
 		const auto id = static_cast<deluge::instrument::SourceId>(s);
 		const deluge::instrument::DxPatchState* wantedPatch = deluge::instrument::dx_patch(after, id);
-		const std::vector<deluge::instrument::RangeState> wantedRanges = deluge::instrument::source_ranges(after, id);
 		const bool retyped = changed(slotPart(Part::SOURCE_A_TYPE, s));
 		const std::optional<deluge::instrument::DxPatchState> heldPatch =
 		    retyped ? sound.sources[s].heldDxPatch() : optionalOf(deluge::instrument::dx_patch(before, id));
-		const std::vector<deluge::instrument::RangeState> heldRanges =
-		    retyped ? sound.sources[s].heldRanges() : deluge::instrument::source_ranges(before, id);
+		// Ranges are copied only when they may differ: a retyped slot's runtime reshaped its own
+		const bool rangesDiffer = retyped
+		                              ? sound.sources[s].heldRanges() != deluge::instrument::source_ranges(after, id)
+		                              : !deluge::instrument::same_ranges(before, after, id);
 		Error error = Error::NONE;
 		if (wantedPatch != nullptr && heldPatch != *wantedPatch && sound.oscType(s) == OscType::DX7) {
 			error = applyDxPatch(sound, s, *wantedPatch);
 		}
-		if (error == Error::NONE && !std::ranges::equal(heldRanges, wantedRanges)) {
-			error = applyRanges(sound, s, wantedRanges);
+		if (error == Error::NONE && rangesDiffer) {
+			error = applyRanges(sound, s, deluge::instrument::source_ranges(after, id));
 		}
 		if (error != Error::NONE) {
 			if (deluge::instrument::SoundState* record = sound.boundRecord()) {

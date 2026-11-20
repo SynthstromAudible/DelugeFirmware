@@ -18,13 +18,16 @@
 #pragma once
 
 #include "effects/state.h"
+#include "instruments/deluge/words.h"
 #include "synth/engines/engine_state.h"
 #include "synth/modulation/lfo_state.h"
 #include "synth/voice/voicing_state.h"
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <utility>
+#include <vector>
 
 namespace deluge::instrument {
 
@@ -36,7 +39,7 @@ struct ComposedState {
 	std::array<synth::LfoState, 2> instrument_lfos; ///< LFO1, LFO3: one per sound
 	std::array<synth::LfoState, 2> voice_lfos;      ///< LFO2, LFO4: one per voice
 	effects::EffectStates fx;
-	// The owner's send and the kit row's MIDI output, until they move to host records
+	// Settings the sound's host owns: its owner's sidechain send and, as a kit row, its MIDI output
 	int32_t side_chain_send_level{0};
 	uint8_t output_midi_channel{255};
 	uint8_t output_midi_note_for_drum{255};
@@ -65,6 +68,16 @@ struct Recall {
 	bool sync{false}; ///< the oscillators' sync, while the second is a sample (the file writes it in its pitch)
 	bool operator==(const Recall&) const = default;
 };
+
+/// @brief The two oscillator slots a subtractive or ring-mod sound plays; null for FM, whose carriers have only a
+/// pitch.
+[[nodiscard]] const synth::DualSourceState* dual_of(const ComposedState& plays) noexcept;
+
+/// @copydoc dual_of(const ComposedState&)
+[[nodiscard]] synth::DualSourceState* dual_of(ComposedState& plays) noexcept;
+
+/// @brief The oscillator type a slot's kind is.
+[[nodiscard]] OscType osc_type_of(const synth::SlotState& kind) noexcept;
 
 /// @brief The retrigger a file's 32-bit phase word means: none for 0xFFFFFFFF (free-running).
 [[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);

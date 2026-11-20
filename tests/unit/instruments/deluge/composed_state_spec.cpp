@@ -47,6 +47,39 @@ FlatSoundState sound_of(SynthMode mode, OscType a, OscType b) {
 	return s;
 }
 
+/// The same sound with its slots set apart: the second holds its own tuning, no ranges and no DX7 patch, and starts
+/// each note at a phase of its own; the oscillators run unsynced.
+FlatSoundState varied_sound_of(SynthMode mode, OscType a, OscType b) {
+	FlatSoundState s = sound_of(mode, a, b);
+	SourceState& second = s.sources[1];
+	second.transpose = -4;
+	second.cents = 9;
+	second.repeat_mode = SampleRepeatMode::ONCE;
+	second.reversed = false;
+	second.ranges.clear();
+	second.dx_patch.reset();
+	s.osc_retrigger_phase = {0xFFFFFFFF, 0x20000000};
+	s.oscillator_sync = false;
+	s.modulator_cents = {-5, 11};
+	return s;
+}
+
+/// Every engine with every pair of the given kinds, each as sound_of and as varied_sound_of makes it.
+template <class Check>
+void for_each_sound(const Check& check) {
+	const OscType kinds[] = {OscType::SINE, OscType::SAW,     OscType::SUPERSAW, OscType::WAVETABLE,   OscType::SAMPLE,
+	                         OscType::DX7,  OscType::INPUT_L, OscType::INPUT_R,  OscType::INPUT_STEREO};
+	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
+		for (const OscType a : kinds) {
+			for (const OscType b : kinds) {
+				check(sound_of(mode, a, b));
+				check(varied_sound_of(mode, a, b));
+			}
+		}
+	}
+	check(FlatSoundState{});
+}
+
 } // namespace
 
 // clang-format off
@@ -58,66 +91,25 @@ describe composed_state("a sound's flat record as the state it plays and what it
 	});
 
 	it("round-trips every engine with every pair of oscillator kinds, the other kinds' settings kept", _ {
-		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
-		                         OscType::INPUT_L, OscType::INPUT_STEREO};
-		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-			for (const OscType a : kinds) {
-				for (const OscType b : kinds) {
-					expect(round_trips(sound_of(mode, a, b))).to_equal(true);
-				}
-			}
-		}
+		for_each_sound([&](const FlatSoundState& sound) { expect(round_trips(sound)).to_equal(true); });
 	});
 
 	it("reads every engine with every pair of oscillator kinds as its flat layout holds them", _ {
-		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
-		                         OscType::INPUT_L, OscType::INPUT_STEREO};
-		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-			for (const OscType a : kinds) {
-				for (const OscType b : kinds) {
-					expect(deluge::test::reader_difference(SoundState(sound_of(mode, a, b)))).to_equal(std::string{});
-				}
-			}
-		}
+		for_each_sound([&](const FlatSoundState& sound) {
+			expect(deluge::test::reader_difference(SoundState(sound))).to_equal(std::string{});
+		});
 	});
 
 	it("switches engines and oscillator kinds on the record as the flat rules do", _ {
-		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
-		                         OscType::INPUT_L, OscType::INPUT_STEREO};
-		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-			for (const OscType a : kinds) {
-				for (const OscType b : kinds) {
-					expect(deluge::test::rule_difference(sound_of(mode, a, b))).to_equal(std::string{});
-				}
-			}
-		}
-		expect(deluge::test::rule_difference(FlatSoundState{})).to_equal(std::string{});
+		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::rule_difference(sound)).to_equal(std::string{}); });
 	});
 
 	it("reads and writes every setting on the record as the flat rows do", _ {
-		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
-		                         OscType::INPUT_L, OscType::INPUT_STEREO};
-		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-			for (const OscType a : kinds) {
-				for (const OscType b : kinds) {
-					expect(deluge::test::setting_difference(sound_of(mode, a, b))).to_equal(std::string{});
-				}
-			}
-		}
-		expect(deluge::test::setting_difference(FlatSoundState{})).to_equal(std::string{});
+		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::setting_difference(sound)).to_equal(std::string{}); });
 	});
 
 	it("encodes the record as the flat codec encodes the flat layout", _ {
-		const OscType kinds[] = {OscType::SINE, OscType::SUPERSAW, OscType::WAVETABLE, OscType::SAMPLE, OscType::DX7,
-		                         OscType::INPUT_L, OscType::INPUT_STEREO};
-		for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, SynthMode::FM}) {
-			for (const OscType a : kinds) {
-				for (const OscType b : kinds) {
-					expect(deluge::test::encode_difference(sound_of(mode, a, b))).to_equal(std::string{});
-				}
-			}
-		}
-		expect(deluge::test::encode_difference(FlatSoundState{})).to_equal(std::string{});
+		for_each_sound([&](const FlatSoundState& sound) { expect(deluge::test::encode_difference(sound)).to_equal(std::string{}); });
 	});
 
 	it("plays an FM sound's tuning and sync on its carriers, and keeps its oscillators' kinds to recall", _ {

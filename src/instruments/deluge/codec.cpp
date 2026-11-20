@@ -47,6 +47,20 @@ constexpr std::array<std::string_view, 26> kStateKeys{
     "unison",         "midiOutput",    "delay",         "sidechain",  "audioCompressor",
     "stutter"};
 
+/// A run of kStateKeys: where it starts and how many keys it holds.
+struct KeyRun {
+	size_t first;
+	size_t count;
+};
+constexpr KeyRun kHeadKeys{.first = 0, .count = 6};            ///< polyphonic … cents
+constexpr KeyRun kEffectAttributeKeys{.first = 6, .count = 5}; ///< modFXType … clippingAmount
+constexpr KeyRun kMaxVoicesKeys{.first = 11, .count = 1};      ///< maxVoices
+constexpr KeyRun kBodyKeys{.first = 12, .count = 9};           ///< osc1 … unison
+constexpr KeyRun kMidiOutputKeys{.first = 21, .count = 1};     ///< midiOutput
+constexpr KeyRun kDelayKeys{.first = 22, .count = 1};          ///< delay
+constexpr KeyRun kEffectTagKeys{.first = 23, .count = 3};      ///< sidechain, audioCompressor, stutter
+static_assert(kEffectTagKeys.first + kEffectTagKeys.count == kStateKeys.size());
+
 /// The top-level key of older files decode still reads and encode never writes: the sidechain by its old name, as the
 /// factory presets and official firmware write it.
 constexpr std::array<std::string_view, 1> kOldStateKeys{"compressor"};
@@ -200,7 +214,8 @@ void append(Value& to, const Value& from) {
 	}
 }
 
-// The components' entries: each writes its own keys, as the flat writers above write them.
+// The components' entries: each writes its own keys. The flat writers above stay their own code, so the record's
+// encoding is checked against an independent reference.
 
 /// A sample range's file, tuning and zone, into @p map.
 void sample_range_entry(Value& map, const synth::SampleRange& range) {
@@ -324,9 +339,7 @@ Value oscillator_entry(const SoundState& state, size_t s) {
 		pitch_entries(map, fm->carriers[s], s, fm->sync);
 		return map;
 	}
-	const auto* sub = std::get_if<synth::SubtractiveState>(&state.plays.engine);
-	const synth::DualSourceState& dual =
-	    sub != nullptr ? sub->oscillators : std::get_if<synth::RingModState>(&state.plays.engine)->oscillators;
+	const synth::DualSourceState& dual = *dual_of(state.plays);
 	return slot_entry(dual.slots[s], source_type(state, static_cast<SourceId>(s)), s, oscillator_sync(state));
 }
 
@@ -445,7 +458,7 @@ bool slot_differs(const SoundState& a, const SoundState& b, size_t s) {
 	const DxPatchState* pa = dx_patch(a, id);
 	const DxPatchState* pb = dx_patch(b, id);
 	return source_type(a, id) != source_type(b, id) || source_tuning(a, id) != source_tuning(b, id)
-	       || sample_playback(a, id) != sample_playback(b, id) || source_ranges(a, id) != source_ranges(b, id)
+	       || sample_playback(a, id) != sample_playback(b, id) || !same_ranges(a, b, id)
 	       || (pa != nullptr) != (pb != nullptr) || (pa != nullptr && *pa != *pb)
 	       || source_retrigger(a, id) != source_retrigger(b, id)
 	       || (s == 1 && oscillator_sync(a) != oscillator_sync(b));
@@ -634,16 +647,15 @@ SoundPieces pieces_of(const State& state, const plugin::CodecContext& context,
 			}
 		}
 	};
+	// kStateKeys is file order; each piece is a run of it
 	const std::span<const std::string_view> keys{kStateKeys};
-	// kStateKeys is file order: the head's six, the effects' attributes, maxVoices, the body's nine, midiOutput, the
-	// delay, the effects' tags.
-	put(pieces.head, keys.subspan(0, 6));
-	put(pieces.effect_attributes, keys.subspan(6, 5));
-	put(pieces.max_voices, keys.subspan(11, 1));
-	put(pieces.body, keys.subspan(12, 9));
-	put(pieces.midi_output, keys.subspan(21, 1));
-	put(pieces.delay, keys.subspan(22, 1));
-	put(pieces.effect_tags, keys.subspan(23, 3));
+	put(pieces.head, keys.subspan(kHeadKeys.first, kHeadKeys.count));
+	put(pieces.effect_attributes, keys.subspan(kEffectAttributeKeys.first, kEffectAttributeKeys.count));
+	put(pieces.max_voices, keys.subspan(kMaxVoicesKeys.first, kMaxVoicesKeys.count));
+	put(pieces.body, keys.subspan(kBodyKeys.first, kBodyKeys.count));
+	put(pieces.midi_output, keys.subspan(kMidiOutputKeys.first, kMidiOutputKeys.count));
+	put(pieces.delay, keys.subspan(kDelayKeys.first, kDelayKeys.count));
+	put(pieces.effect_tags, keys.subspan(kEffectTagKeys.first, kEffectTagKeys.count));
 	return pieces;
 }
 

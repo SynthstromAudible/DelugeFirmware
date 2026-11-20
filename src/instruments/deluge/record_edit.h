@@ -33,28 +33,28 @@
 /// so what a write means is what it means to the file.
 namespace deluge::instrument {
 
-/// @brief Oscillator slot @p s as the file's layout holds it, for one change: its whole source, its retrigger phase
+/// @brief An oscillator slot as the file's layout holds it, for one change: its whole source, its retrigger phase
 /// word and the oscillators' sync.
 struct SlotEdit {
-	SourceState full;
+	SourceState source;
 	uint32_t phase{0};
 	bool sync{false};
 };
 
-/// @brief Slot @p s of @p state as a SlotEdit: an FM sound's carrier pitch and kept fields, another's kind state and
+/// @brief Slot @p slot of @p state as a SlotEdit: an FM sound's carrier pitch and kept fields, another's kind state and
 /// kept fields.
-[[nodiscard]] SlotEdit begin_slot_edit(const SoundState& state, size_t s);
+[[nodiscard]] SlotEdit begin_slot_edit(const SoundState& state, size_t slot);
 
-/// @brief Write @p edit back into slot @p s of @p state, its kind state, carrier and kept fields as the change left
+/// @brief Write @p edit back into slot @p slot of @p state, its kind state, carrier and kept fields as the change left
 /// them, and the sync where the file writes it.
-void end_slot_edit(SoundState& state, size_t s, const SlotEdit& edit);
+void end_slot_edit(SoundState& state, size_t slot, const SlotEdit& edit);
 
-/// @brief Slot @p s of @p state changed through its SlotEdit.
+/// @brief Slot @p slot of @p state changed through its SlotEdit.
 template <class Change>
-void edit_slot(SoundState& state, size_t s, const Change& change) {
-	SlotEdit edit = begin_slot_edit(state, s);
+void edit_slot(SoundState& state, size_t slot, const Change& change) {
+	SlotEdit edit = begin_slot_edit(state, slot);
 	change(edit);
-	end_slot_edit(state, s, edit);
+	end_slot_edit(state, slot, edit);
 }
 
 /// @brief @p state's engine set to @p mode and nothing else (the filters stay): what leaves is kept for a switch back,

@@ -28,15 +28,18 @@
 namespace deluge::instrument {
 namespace {
 
-[[nodiscard]] constexpr size_t index_of(SourceId id) noexcept {
-	return std::to_underlying(id);
-}
-
 /// A range holding nothing but its top note.
 [[nodiscard]] RangeState only_top_note(int16_t top_note) {
 	RangeState range;
 	range.top_note = top_note;
 	return range;
+}
+
+/// @p source given the DX7 init voice where it has no patch.
+void ensure_init_patch(SourceState& source) {
+	if (!source.dx_patch) {
+		source.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	}
 }
 
 /// Slot @p source set to @p type: ranges of the other kind keep only their top notes (one open range where there are
@@ -55,8 +58,8 @@ void apply_osc_type(SourceState& source, OscType type, std::span<const RangeStat
 	else {
 		source.ranges.assign(held.begin(), held.end());
 	}
-	if (type == OscType::DX7 && !source.dx_patch) {
-		source.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
+	if (type == OscType::DX7) {
+		ensure_init_patch(source);
 	}
 }
 
@@ -98,12 +101,12 @@ FlatSoundState with_mode(FlatSoundState state, SynthMode mode) {
 
 FlatSoundState with_osc_type(FlatSoundState state, SourceId id, OscType type, std::span<const RangeState> held,
                              bool held_are_wavetable) {
-	apply_osc_type(state.sources[index_of(id)], type, held, held_are_wavetable);
+	apply_osc_type(state.sources[slot_index(id)], type, held, held_are_wavetable);
 	return state;
 }
 
 FlatSoundState with_loop_mode(FlatSoundState state, SourceId id, SampleRepeatMode mode) {
-	apply_loop_mode(state.sources[index_of(id)], mode);
+	apply_loop_mode(state.sources[slot_index(id)], mode);
 	return state;
 }
 
@@ -133,9 +136,7 @@ FlatSoundState as_default_synth(FlatSoundState state) {
 FlatSoundState as_blank_synth(FlatSoundState state, bool dx) {
 	if (dx) {
 		state.sources[0].osc_type = OscType::DX7;
-		if (!state.sources[0].dx_patch) {
-			state.sources[0].dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
-		}
+		ensure_init_patch(state.sources[0]);
 	}
 	return state;
 }
@@ -148,12 +149,13 @@ SoundState switch_engine(SoundState state, SynthMode mode) {
 
 SoundState switch_source(SoundState state, SourceId id, OscType type, std::span<const RangeState> held,
                          bool held_are_wavetable) {
-	edit_slot(state, index_of(id), [&](SlotEdit& edit) { apply_osc_type(edit.full, type, held, held_are_wavetable); });
+	edit_slot(state, slot_index(id),
+	          [&](SlotEdit& edit) { apply_osc_type(edit.source, type, held, held_are_wavetable); });
 	return state;
 }
 
 SoundState with_loop_mode(SoundState state, SourceId id, SampleRepeatMode mode) {
-	edit_slot(state, index_of(id), [&](SlotEdit& edit) { apply_loop_mode(edit.full, mode); });
+	edit_slot(state, slot_index(id), [&](SlotEdit& edit) { apply_loop_mode(edit.source, mode); });
 	return state;
 }
 
@@ -166,15 +168,15 @@ SoundState as_sample_sound(SoundState state) {
 	state.plays.voicing.polyphony = PolyphonyMode::AUTO;
 	state.plays.fx.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
 	for (size_t s = 0; s < 2; s++) {
-		edit_slot(state, s, [](SlotEdit& edit) { edit.full.osc_type = OscType::SAMPLE; });
+		edit_slot(state, s, [](SlotEdit& edit) { edit.source.osc_type = OscType::SAMPLE; });
 	}
 	return state;
 }
 
 SoundState as_default_synth(SoundState state) {
 	state.plays.fx.filter.lpf_mode = effects::FilterMode::TRANSISTOR_24DB;
-	edit_slot(state, 0, [](SlotEdit& edit) { edit.full.osc_type = OscType::SAW; });
-	edit_slot(state, 1, [](SlotEdit& edit) { edit.full.transpose = -12; });
+	edit_slot(state, 0, [](SlotEdit& edit) { edit.source.osc_type = OscType::SAW; });
+	edit_slot(state, 1, [](SlotEdit& edit) { edit.source.transpose = -12; });
 	state.plays.voicing.unison.count = 4;
 	state.plays.voicing.unison.detune = 10;
 	state.plays.voicing.master.transpose = -12;
@@ -184,10 +186,8 @@ SoundState as_default_synth(SoundState state) {
 SoundState as_blank_synth(SoundState state, bool dx) {
 	if (dx) {
 		edit_slot(state, 0, [](SlotEdit& edit) {
-			edit.full.osc_type = OscType::DX7;
-			if (!edit.full.dx_patch) {
-				edit.full.dx_patch.emplace(DxPatchState{.params = kDx7InitVoice});
-			}
+			edit.source.osc_type = OscType::DX7;
+			ensure_init_patch(edit.source);
 		});
 	}
 	return state;
