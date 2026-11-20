@@ -46,8 +46,8 @@ describe codec_entry("one instrument entry's encoding", ${
 
 	it("encodes nothing for a key the instrument does not own", _ {
 		const deluge::plugin::CodecContext codec{.input_tick_magnitude = 1};
-		expect(encode_entry(FlatSoundState{}, "defaultParams", codec).has_value()).to_be_false();
-		expect(encode_entry(FlatSoundState{}, "compressor", codec).has_value()).to_be_false();
+		expect(encode_entry(SoundState{}, "defaultParams", codec).has_value()).to_be_false();
+		expect(encode_entry(SoundState{}, "compressor", codec).has_value()).to_be_false();
 	});
 });
 // clang-format on

@@ -25,7 +25,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "support/record_state.h"
 
 #include <string>
 
@@ -84,11 +84,11 @@ describe stale_choice_scene("the menu scene over a stored choice that no longer 
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		LeafRig r;
 		r.open(menu::nodes::osc0_type, ctx);
-		const OscType first = deluge::test::flat_of(drum->boundState())->sources[0].osc_type;
+		const OscType first = deluge::instrument::source_type(*drum->boundState(), deluge::instrument::SourceId::A);
 		r.turn(1, 20);
-		const OscType second = deluge::test::flat_of(drum->boundState())->sources[0].osc_type;
+		const OscType second = deluge::instrument::source_type(*drum->boundState(), deluge::instrument::SourceId::A);
 		r.turn(1, 40);
-		const OscType third = deluge::test::flat_of(drum->boundState())->sources[0].osc_type;
+		const OscType third = deluge::instrument::source_type(*drum->boundState(), deluge::instrument::SourceId::A);
 		expect("stored " + std::to_string(static_cast<int>(first))).to_equal("stored " + std::to_string(static_cast<int>(OscType::DX7)));
 		expect("one turn " + std::to_string(static_cast<int>(second)))
 		    .to_equal("one turn " + std::to_string(static_cast<int>(OscType::INPUT_L)));

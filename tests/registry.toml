@@ -1331,6 +1331,7 @@ ctest_args = ["-C", "Debug"]
 requires = ["cmake", "clang"]
 baseline = [
   "tests/golden/gfx",
+  "tests/golden/instrument",
   "tests/golden/shell",
   "tests/golden/ui/widgets",
   "tests/golden/ui/shell",

@@ -131,7 +131,7 @@ synth::SlotState pack_kind(const SourceState& src, uint32_t phase, SourceState& 
 	}
 }
 
-// The flat source slot @p slot is, over @p kept (what its kind does not hold); its phase into @p phase.
+// @p slot as a flat source, over @p kept (what its kind does not hold); its retrigger phase word into @p phase.
 SourceState unpack_kind(const synth::SlotState& slot, const SourceState& kept, const synth::Retrigger& kept_retrigger,
                         uint32_t& phase) {
 	SourceState src = kept;
@@ -414,14 +414,13 @@ FlatSoundState flatten(const ComposedState& state, const Recall& recall) {
 	return f;
 }
 
-SoundState::SoundState(const FlatSoundState& flat) {
-	auto [composed, kept] = compose(flat);
-	plays = std::move(composed);
-	recall = std::move(kept);
+SoundState to_record(const FlatSoundState& flat) {
+	auto [plays, recall] = compose(flat);
+	return SoundState{.plays = std::move(plays), .recall = std::move(recall)};
 }
 
-SoundState::operator FlatSoundState() const {
-	return flatten(plays, recall);
+FlatSoundState to_flat(const SoundState& state) {
+	return flatten(state.plays, state.recall);
 }
 
 } // namespace deluge::instrument

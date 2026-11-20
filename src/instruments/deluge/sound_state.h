@@ -22,8 +22,6 @@
 
 namespace deluge::instrument {
 
-struct FlatSoundState; // the file's flat layout: flat_layout.h, inside the library
-
 /// @brief The Deluge instrument's settings for one sound, everything about it that is not a param: what it plays, and
 /// what it keeps of what it does not play for a switch back. A default state is a new synth's, but for the two effect
 /// settings that follow the song (with_song_defaults).
@@ -31,12 +29,6 @@ struct SoundState {
 	ComposedState plays;
 	Recall recall;
 
-	SoundState() = default;
-	/// @brief The record a flat state is (`flatten(SoundState{f}) == f` for every state a file decodes to or a rule
-	/// makes).
-	explicit SoundState(const FlatSoundState& flat);
-	/// @brief The record in the file's flat layout.
-	explicit operator FlatSoundState() const;
 	bool operator==(const SoundState&) const = default;
 };
 

@@ -18,7 +18,6 @@
 #include "instruments/deluge/cable_acceptance.h"
 
 #include "effects/words.h"
-#include "instruments/deluge/flat_layout.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/state_access.h"
 
@@ -101,16 +100,6 @@ bool allowed_by(PatchSource source, plugin::ParamId destination, const CableFact
 }
 
 } // namespace
-
-bool cable_allowed(PatchSource source, plugin::ParamId destination, const FlatSoundState& state, bool is_drum) {
-	return allowed_by(source, destination,
-	                  {.mode = state.synth_mode,
-	                   .lpf_mode = state.effects.filter.lpf_mode,
-	                   .hpf_mode = state.effects.filter.hpf_mode,
-	                   .lfo1_sync = state.lfo_sync_level[0],
-	                   .lfo3_sync = state.lfo_sync_level[2]},
-	                  is_drum);
-}
 
 bool cable_allowed(PatchSource source, plugin::ParamId destination, const SoundState& state, bool is_drum) {
 	return allowed_by(source, destination,

@@ -68,7 +68,7 @@
 #include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -245,13 +245,11 @@ struct SoundRig {
 
 	void setup_source(int32_t i, int32_t num_clusters) {
 		source[i] = &sound->sources[i];
-		deluge::test::change_flat(
-		    *sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[i].osc_type = OscType::SAMPLE; });
-		deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
-			f.sources[i].repeat_mode = SampleRepeatMode::ONCE;
-		});
-		deluge::test::change_flat(*sound->state_,
-		                          [&](deluge::instrument::FlatSoundState& f) { f.sources[i].reversed = false; });
+		const std::string osc = "osc" + std::to_string(i + 1) + "/";
+		*sound->state_ =
+		    deluge::test::with_kind(*sound->state_, static_cast<deluge::instrument::SourceId>(i), OscType::SAMPLE);
+		deluge::test::set(*sound->state_, osc + "loopMode", "1"); // ONCE
+		deluge::test::set(*sound->state_, osc + "reversed", "0");
 		sound->projectSnapshot();
 		sample[i] = make_sample(num_clusters);
 		range[i] = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(i));

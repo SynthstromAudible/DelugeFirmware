@@ -1,23 +1,33 @@
 #include "instruments/deluge/state_access.h"
-#include "support/printers/sound_state_printer.h"
+#include "support/printers/sound_record_printer.h"
+#include "support/record_state.h"
 
 #include <cppspec.hpp>
 #include <string>
+#include <utility>
 
 using namespace deluge::instrument;
 
 namespace {
 
 /// A subtractive sound whose first oscillator is tuned up and whose second plays one looped, reversed sample.
-FlatSoundState sample_on_b() {
-	FlatSoundState s;
-	s.sources[0].transpose = 7;
-	s.sources[0].cents = -3;
-	s.sources[1].osc_type = OscType::SAMPLE;
-	s.sources[1].repeat_mode = SampleRepeatMode::LOOP;
-	s.sources[1].reversed = true;
-	s.sources[1].ranges.push_back({.top_note = 60, .file_path = "SAMPLES/A.WAV", .end_pos = 100});
-	return s;
+SoundState sample_on_b() {
+	SoundState s;
+	deluge::test::set(s, "osc1/transpose", "7");
+	deluge::test::set(s, "osc1/cents", "-3");
+	s = deluge::test::with_kind(s, SourceId::B, OscType::SAMPLE);
+	deluge::test::set(s, "osc2/loopMode", "2"); // LOOP
+	deluge::test::set(s, "osc2/reversed", "1");
+	return with_ranges(std::move(s), SourceId::B, {{.top_note = 60, .file_path = "SAMPLES/A.WAV", .end_pos = 100}});
+}
+
+/// Whether slot @p id reads the same in @p a and @p b: its type, tuning, playback, ranges and DX7 patch.
+bool same_slot(const SoundState& a, const SoundState& b, SourceId id) {
+	const DxPatchState* patch_a = dx_patch(a, id);
+	const DxPatchState* patch_b = dx_patch(b, id);
+	return source_type(a, id) == source_type(b, id) && source_tuning(a, id) == source_tuning(b, id)
+	       && sample_playback(a, id) == sample_playback(b, id) && same_ranges(a, b, id)
+	       && (patch_a == nullptr) == (patch_b == nullptr) && (patch_a == nullptr || *patch_a == *patch_b);
 }
 
 } // namespace
@@ -25,50 +35,50 @@ FlatSoundState sample_on_b() {
 // clang-format off
 describe state_access("the Deluge instrument's state, as code outside the instrument reads it", ${
 	it("reads each slot's type, tuning and playback", _ {
-		const FlatSoundState s = sample_on_b();
-		expect(source_type(SoundState(s), SourceId::A)).to_equal(OscType::SQUARE);
-		expect(source_type(SoundState(s), SourceId::B)).to_equal(OscType::SAMPLE);
-		expect(source_tuning(SoundState(s), SourceId::A) == Tuning{.transpose = 7, .cents = -3}).to_equal(true);
-		expect(sample_playback(SoundState(s), SourceId::B).repeat_mode).to_equal(SampleRepeatMode::LOOP);
-		expect(sample_playback(SoundState(s), SourceId::B).reversed).to_equal(true);
-		expect(sample_playback(SoundState(s), SourceId::A) == SamplePlayback{}).to_equal(true);
+		const SoundState s = sample_on_b();
+		expect(source_type(s, SourceId::A)).to_equal(OscType::SQUARE);
+		expect(source_type(s, SourceId::B)).to_equal(OscType::SAMPLE);
+		expect(source_tuning(s, SourceId::A)).to_equal(Tuning{.transpose = 7, .cents = -3});
+		expect(sample_playback(s, SourceId::B).repeat_mode).to_equal(SampleRepeatMode::LOOP);
+		expect(sample_playback(s, SourceId::B).reversed).to_equal(true);
+		expect(sample_playback(s, SourceId::A)).to_equal(SamplePlayback{});
 	});
 
 	it("reads a slot's ranges in order, and none for a slot without", _ {
-		const FlatSoundState s = sample_on_b();
-		expect(source_ranges(SoundState(s), SourceId::A).size()).to_equal(size_t{0});
-		expect(source_ranges(SoundState(s), SourceId::B).size()).to_equal(size_t{1});
-		expect(source_ranges(SoundState(s), SourceId::B)[0].file_path).to_equal(std::string{"SAMPLES/A.WAV"});
+		const SoundState s = sample_on_b();
+		expect(source_ranges(s, SourceId::A).size()).to_equal(size_t{0});
+		expect(source_ranges(s, SourceId::B).size()).to_equal(size_t{1});
+		expect(source_ranges(s, SourceId::B)[0].file_path).to_equal(std::string{"SAMPLES/A.WAV"});
 	});
 
 	it("reads a DX7 patch only where a slot has one", _ {
-		FlatSoundState s;
-		expect(dx_patch(SoundState(s), SourceId::A) == nullptr).to_equal(true);
-		s.sources[0].dx_patch.emplace();
-		s.sources[0].dx_patch->params[0] = 42;
-		expect(dx_patch(SoundState(s), SourceId::A) == nullptr).to_equal(false);
-		expect(int{dx_patch(SoundState(s), SourceId::A)->params[0]}).to_equal(42);
-		expect(dx_patch(SoundState(s), SourceId::B) == nullptr).to_equal(true);
+		SoundState s;
+		expect(dx_patch(s, SourceId::A)).to_be_null();
+		DxPatchState patch;
+		patch.params[0] = 42;
+		s = with_dx_patch(std::move(s), SourceId::A, patch);
+		expect(dx_patch(s, SourceId::A)).not_().to_be_null();
+		expect(int{dx_patch(s, SourceId::A)->params[0]}).to_equal(42);
+		expect(dx_patch(s, SourceId::B)).to_be_null();
 	});
 
 	it("writes ranges and a DX7 patch into one slot, leaving the rest", _ {
-		const FlatSoundState s = sample_on_b();
-		const FlatSoundState ranged(with_ranges(SoundState(s), SourceId::B, {{.top_note = 72, .file_path = "SAMPLES/B.WAV"}}));
-		expect(source_ranges(SoundState(ranged), SourceId::B)[0].top_note).to_equal(int16_t{72});
-		expect(ranged.sources[0]).to_equal(s.sources[0]);
+		const SoundState s = sample_on_b();
+		const SoundState ranged = with_ranges(s, SourceId::B, {{.top_note = 72, .file_path = "SAMPLES/B.WAV"}});
+		expect(source_ranges(ranged, SourceId::B)[0].top_note).to_equal(int16_t{72});
+		expect(same_slot(ranged, s, SourceId::A)).to_equal(true);
 		DxPatchState patch;
 		patch.params[1] = 9;
-		const FlatSoundState dx(with_dx_patch(SoundState(s), SourceId::A, patch));
-		expect(int{dx_patch(SoundState(dx), SourceId::A)->params[1]}).to_equal(9);
-		expect(dx.sources[1]).to_equal(s.sources[1]);
+		const SoundState dx = with_dx_patch(s, SourceId::A, patch);
+		expect(int{dx_patch(dx, SourceId::A)->params[1]}).to_equal(9);
+		expect(same_slot(dx, s, SourceId::B)).to_equal(true);
 	});
 
 	it("reads the mode and the sound's effects", _ {
-		FlatSoundState s;
-		s.synth_mode = SynthMode::FM;
-		s.effects.saturation.clipping_amount = 3;
-		expect(synth_mode(SoundState(s))).to_equal(SynthMode::FM);
-		expect(int{sound_effects(SoundState(s)).saturation.clipping_amount}).to_equal(3);
+		SoundState s = deluge::test::with(SoundState{}, "mode", to_string(SynthMode::FM));
+		sound_effects(s).saturation.clipping_amount = 3;
+		expect(synth_mode(s)).to_equal(SynthMode::FM);
+		expect(int{sound_effects(s).saturation.clipping_amount}).to_equal(3);
 	});
 });
 // clang-format on

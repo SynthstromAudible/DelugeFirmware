@@ -35,8 +35,8 @@
 // drags in.
 #include "support/card_access.h"
 
-#include "support/flat_state.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -113,9 +113,7 @@ struct Rig {
 		currentSong = song.song; // the app's sink resolves addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
-			f.sources[0].osc_type = OscType::SQUARE;
-		}); // so "became SAMPLE" is a real observation
+		deluge::test::set(*sound->state_, "osc1/type", "square"); // so "became SAMPLE" is a real observation
 		sound->projectSnapshot();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		deluge::edits::recordRanges(*sound, 0); // the range made here is the record's, as a gesture records it

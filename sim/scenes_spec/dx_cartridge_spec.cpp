@@ -32,7 +32,7 @@
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/oracle_table.h"
-#include "support/printers/sound_state_printer.h"
+#include "support/printers/sound_record_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"

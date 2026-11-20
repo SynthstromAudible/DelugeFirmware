@@ -5,7 +5,8 @@
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
 
-#include "instruments/deluge/flat_layout.h"
+#include "instruments/deluge/words.h"
+#include "support/record_state.h"
 #include <cppspec.hpp>
 #include <string>
 
@@ -48,12 +49,12 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 
 	it("reads a changed state: a choice, a number, an LFO's sync level and an FM sound's oscillator type", _ {
 		ModelFixture fixture;
-		deluge::instrument::FlatSoundState state(fixture.facts.states.at(kSynth.id));
-		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
-		state.num_unison = 4;
-		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{5};
-		state.synth_mode = deluge::instrument::SynthMode::FM;
-		state.sources[0].osc_type = deluge::instrument::OscType::SAW;
+		deluge::instrument::SoundState state = fixture.facts.states.at(kSynth.id);
+		deluge::test::set(state, "polyphonic", deluge::instrument::to_string(deluge::instrument::PolyphonyMode::MONO));
+		deluge::test::set(state, "unison/num", "4");
+		deluge::test::set(state, "lfo1/syncLevel", "5");
+		deluge::test::set(state, "osc1/type", deluge::instrument::to_string(deluge::instrument::OscType::SAW));
+		deluge::test::set(state, "mode", deluge::instrument::to_string(deluge::instrument::SynthMode::FM));
 		fixture.set_state(kSynth, state);
 		expect(reads_unlike_state(fixture, kSynth)).to_equal(std::string{});
 		const SlotReader reader{fixture.song, kSynth, fixture.facts};

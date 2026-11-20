@@ -8,6 +8,7 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
@@ -20,7 +21,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
-#include "support/flat_state.h"
+#include "support/record_state.h"
 
 #include "support/spec_main.h"
 
@@ -29,6 +30,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 using namespace deluge::scenes;
 namespace params = deluge::modulation::params;
@@ -39,7 +41,7 @@ namespace {
 /// @p first.
 int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::SlotAddress slot, bool is_drum,
                       std::string& first) {
-	const deluge::test::FlatView state = deluge::test::flat_of(menu::host_runtime_facts().sound_state(slot));
+	const deluge::instrument::SoundState* state = menu::host_runtime_facts().sound_state(slot);
 	if (!state) {
 		first = "no sound state";
 		return 1;
@@ -66,12 +68,17 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 	return found;
 }
 
-/// Takes @p sound's setting at @p path to what @p change makes of its state, through its slot's Edit.
+/// Takes @p sound's setting at @p path to the file text @p text, through its slot's Edit.
 /// @return Whether the Edit applied.
-template <class Change>
-bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path, Change change) {
-	deluge::instrument::FlatSoundState wanted(*sound.boundState());
-	change(wanted);
+bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, std::string_view path,
+                 std::string_view text) {
+	deluge::instrument::SoundState wanted = *sound.boundState();
+	const std::optional<deluge::serialization::Value> written =
+	    deluge::instrument::canonical_setting(path, deluge::serialization::Value::makeScalar(std::string(text)));
+	if (!written || !deluge::instrument::allows_setting(wanted, path, *written)) {
+		return false;
+	}
+	(void)deluge::instrument::write_setting(wanted, path, *written);
 	const std::optional<deluge::serialization::Value> value = deluge::instrument::setting_value(wanted, path);
 	if (!value) {
 		return false;
@@ -84,11 +91,8 @@ bool set_setting(Sound& sound, Song& song, deluge::project::SlotAddress slot, st
 /// Syncs @p sound's LFO @p lfo (1–4) evenly to @p level, through its slot's Edits.
 void set_lfo_sync(Sound& sound, Song& song, deluge::project::SlotAddress slot, int32_t lfo, SyncLevel level) {
 	const std::string prefix = "lfo" + std::to_string(lfo) + "/";
-	const size_t l = static_cast<size_t>(lfo - 1);
-	set_setting(sound, song, slot, prefix + "syncType",
-	            [&](deluge::instrument::FlatSoundState& d) { d.lfo_sync_type[l] = SyncType::EVEN; });
-	set_setting(sound, song, slot, prefix + "syncLevel",
-	            [&](deluge::instrument::FlatSoundState& d) { d.lfo_sync_level[l] = level; });
+	set_setting(sound, song, slot, prefix + "syncType", std::to_string(std::to_underlying(SyncType::EVEN)));
+	set_setting(sound, song, slot, prefix + "syncLevel", std::to_string(std::to_underlying(level)));
 }
 
 /// Sets @p sound into every combination of the settings acceptance reads, and counts disagreements over them all.
@@ -97,16 +101,13 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 	int32_t found = 0;
 	// Ring mod takes ring-moddable oscillators; acceptance reads no oscillator type, so both are saws throughout.
 	for (const char* path : {"osc1/type", "osc2/type"}) {
-		const size_t s = path[3] == '1' ? 0 : 1;
-		if (!set_setting(sound, song, slot, path,
-		                 [&](deluge::instrument::FlatSoundState& d) { d.sources[s].osc_type = OscType::SAW; })) {
+		if (!set_setting(sound, song, slot, path, deluge::instrument::to_string(OscType::SAW))) {
 			first = std::string(path) + " refused";
 			return 1;
 		}
 	}
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
-		if (!set_setting(sound, song, slot, "mode",
-		                 [&](deluge::instrument::FlatSoundState& d) { d.synth_mode = mode; })) {
+		if (!set_setting(sound, song, slot, "mode", deluge::instrument::to_string(mode))) {
 			first = "mode " + std::to_string(static_cast<int>(mode)) + " refused";
 			return found + 1;
 		}

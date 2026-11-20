@@ -7,7 +7,7 @@
 #include "scenes/bind/setting_context.h"
 #include "support/model_fixture.h"
 
-#include "instruments/deluge/flat_layout.h"
+#include "support/record_state.h"
 #include <cppspec.hpp>
 #include <string>
 #include <vector>
@@ -94,8 +94,8 @@ describe bind_effect("an effect target on a sound or a chain", ${
 
 	it("reads a sound's own effects through its slot", _ {
 		ModelFixture fixture;
-		deluge::instrument::FlatSoundState state(fixture.facts.states.at(kSynth.id));
-		state.effects.filter.lpf_mode = FilterMode::SVF_NOTCH;
+		deluge::instrument::SoundState state = fixture.facts.states.at(kSynth.id);
+		deluge::instrument::sound_effects(state).filter.lpf_mode = FilterMode::SVF_NOTCH;
 		fixture.set_state(kSynth, state);
 		const auto shown = view(effect("lpfMode"), fixture.song, {.slot = kSynth}, fixture.facts);
 		expect(shown.has_value()).to_be_true();

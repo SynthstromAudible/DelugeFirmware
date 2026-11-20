@@ -38,8 +38,8 @@
 
 #include "support/song_fixture.h"
 
-#include "support/flat_state.h"
 #include "support/mocks/fake_surfaces.h"
+#include "support/record_state.h"
 
 #include <cstdint>
 #include <optional>
@@ -163,13 +163,9 @@ struct Rig {
 		    song.song); // the app's sink and waveforms resolve addresses in the current song
 		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
-		deluge::test::change_flat(
-		    *sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].osc_type = OscType::SAMPLE; });
-		deluge::test::change_flat(*sound->state_, [&](deluge::instrument::FlatSoundState& f) {
-			f.sources[0].repeat_mode = SampleRepeatMode::ONCE;
-		});
-		deluge::test::change_flat(*sound->state_,
-		                          [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = false; });
+		deluge::test::set(*sound->state_, "osc1/type", "sample");
+		deluge::test::set(*sound->state_, "osc1/loopMode", "1"); // ONCE
+		deluge::test::set(*sound->state_, "osc1/reversed", "0");
 		sound->projectSnapshot();
 		range = static_cast<MultisampleRange*>(sound->getOrCreateFirstRange(0));
 		range->sampleHolder.audioFile = sample;

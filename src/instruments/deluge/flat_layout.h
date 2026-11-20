@@ -34,8 +34,8 @@
 
 /// @file
 /// @brief A sound's settings in the file's flat layout, inside the library: the codec's parse form (a file's keys
-/// arrive in any order, so a read lands here and is composed once) and the reference the record's codec, settings and
-/// rules are checked against. The app and the scenes work on the record (sound_state.h) alone.
+/// arrive in any order, so a read lands here and is composed once). Everything else, in the library and out of it,
+/// works on the record (sound_state.h).
 namespace deluge::instrument {
 
 // The record and the flat layout: one slot at a time, and the whole sound
@@ -70,24 +70,13 @@ struct UnpackedSlot {
 /// decodes to or a rule makes.
 [[nodiscard]] FlatSoundState flatten(const ComposedState& state, const Recall& recall);
 
-/// @brief encode_pieces() over the file's flat layout: the reference the record's is checked against.
-// The codec in the flat layout: its parse form and its reference
-[[nodiscard]] SoundPieces encode_pieces(const FlatSoundState& state, const plugin::CodecContext& context,
-                                        std::optional<int32_t> compressor_threshold = std::nullopt);
+/// @brief The record a flat state composes to: `to_flat(to_record(f)) == f` for every state a file decodes to.
+[[nodiscard]] SoundState to_record(const FlatSoundState& flat);
 
-/// @brief encode() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] serialization::Value encode(const FlatSoundState& state, const plugin::CodecContext& context);
+/// @brief The record in the file's flat layout.
+[[nodiscard]] FlatSoundState to_flat(const SoundState& state);
 
-/// @brief with_state() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] serialization::Value with_state(const serialization::Value& element, const FlatSoundState& state,
-                                              const plugin::CodecContext& context);
-
-/// @brief encode_entry() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::optional<serialization::Value>
-encode_entry(const FlatSoundState& state, std::string_view key, const plugin::CodecContext& context,
-             std::optional<int32_t> compressor_threshold = std::nullopt);
-
-/// @brief decode() over the file's flat layout: the reference the record's is checked against.
+/// @brief decode() into the file's flat layout: the parse the record's decode composes.
 [[nodiscard]] std::expected<void, plugin::StateError> decode(const serialization::Value& element, FlatSoundState& state,
                                                              const plugin::CodecContext& context);
 
@@ -105,82 +94,10 @@ struct FlatSlotChange {
 	std::vector<std::string_view> changed;
 };
 
-/// @brief decode_change() over the file's flat layout: the reference the record's is checked against.
+/// @brief decode_change() into the file's flat layout: the parse the record's decode_change composes.
 [[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> decode_change(const serialization::Value& element,
                                                                               const serialization::Value& previous,
                                                                               const FlatSoundState& current,
                                                                               const plugin::CodecContext& context);
-
-/// @brief with_setting() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> with_setting(const FlatSoundState& state,
-                                                                             std::string_view path,
-                                                                             const serialization::Value& value,
-                                                                             const plugin::CodecContext& context);
-
-/// @brief differing_entries() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::vector<std::string_view> differing_entries(const FlatSoundState& a, const FlatSoundState& b,
-                                                              const plugin::CodecContext& context);
-
-/// @brief changed_entries() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::vector<std::string_view> changed_entries(const FlatSoundState& a, const FlatSoundState& b);
-
-/// @brief change_to() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::expected<FlatSlotChange, plugin::StateError> change_to(const FlatSoundState& state,
-                                                                          const FlatSoundState& next,
-                                                                          std::span<const std::string_view> keys,
-                                                                          const plugin::CodecContext& context);
-
-/// @brief decode_onto() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::expected<FlatSoundState, plugin::StateError>
-decode_onto(const serialization::Value& element, const FlatSoundState& current, const plugin::CodecContext& context);
-
-/// @brief dump_state() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] serialization::Value dump_state(const FlatSoundState& state);
-
-/// @brief setting_value() over the file's flat layout: the reference the record's is checked against.
-// The settings rows over the flat layout (the reference the record's are checked against)
-[[nodiscard]] std::optional<serialization::Value> setting_value(const FlatSoundState& state, std::string_view path);
-
-/// @brief held_setting() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::optional<int32_t> held_setting(const FlatSoundState& state, std::string_view path);
-
-/// @brief allows_setting() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] bool allows_setting(const FlatSoundState& state, std::string_view path,
-                                  const serialization::Value& value);
-
-/// @brief write_setting() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] std::vector<std::string_view> write_setting(FlatSoundState& state, std::string_view path,
-                                                          const serialization::Value& value);
-
-/// @brief takes_setting() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] bool takes_setting(const FlatSoundState& state, std::string_view path);
-
-/// @brief with_mode() over the file's flat layout: the reference the record's is checked against.
-// The rules over the flat layout (the reference the record's are checked against)
-[[nodiscard]] FlatSoundState with_mode(FlatSoundState state, SynthMode mode);
-
-/// @brief with_osc_type() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState with_osc_type(FlatSoundState state, SourceId id, OscType type,
-                                           std::span<const RangeState> held, bool held_are_wavetable);
-
-/// @brief with_loop_mode() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState with_loop_mode(FlatSoundState state, SourceId id, SampleRepeatMode mode);
-
-/// @brief with_song_defaults() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState with_song_defaults(FlatSoundState state, const effects::SongDefaults& defaults);
-
-/// @brief as_sample_sound() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState as_sample_sound(FlatSoundState state);
-
-/// @brief as_default_synth() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState as_default_synth(FlatSoundState state);
-
-/// @brief as_blank_synth() over the file's flat layout: the reference the record's is checked against.
-[[nodiscard]] FlatSoundState as_blank_synth(FlatSoundState state, bool dx);
-
-/// @brief cable_allowed() over the file's flat layout: the reference the record's is checked against.
-// Cable acceptance over the flat layout
-[[nodiscard]] bool cable_allowed(PatchSource source, plugin::ParamId destination, const FlatSoundState& state,
-                                 bool is_drum);
 
 } // namespace deluge::instrument
