@@ -130,7 +130,7 @@ void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, i
 		const auto slot =
 		    phases.time("slot_address", [&] { return deluge::bridge::slotAddressOf(*static_cast<SoundDrum*>(drum)); });
 		const auto shown = phases.time("view", [&] {
-			return bind::view(target, song.project, bind::Addresses{.slot = slot}, menu::host_ports());
+			return bind::view(target, &song.project, bind::Addresses{.slot = slot}, menu::host_ports());
 		});
 		if (!slot || !shown || !shown->applies) {
 			continue;

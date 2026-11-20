@@ -21,13 +21,10 @@
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `Status::readCurrentValue` and
-///         `Status::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/flash/status.h`),
-///           `shortcuts_version` (`FlashStorage::shortcutsVersion`) and the
-///           six `pad_colour_*` (`menu_item::Colour::value`) are ordinary `Kind::Enum`
-///           nodes with get/set hooks, because none needed a bespoke item, only a reachable byte:
-///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h`) that
-///               a declaration reaches without including anything from `hid/`, exactly as
-///               `batteryMV` is reached below.
+///         `Status::writeCurrentValue` in `origin/main:src/deluge/gui/menu_item/flash/status.h`) is a DEVICE row's
+///           node, which the device port reads and writes. `shortcuts_version` (`FlashStorage::shortcutsVersion`) and
+///           the six `pad_colour_*` (`menu_item::Colour::value`) are ordinary `Kind::Enum` nodes with get/set hooks,
+///           because none needed a bespoke item, only a reachable byte:
 ///             - The six pad-colour bytes live in `FlashStorage::padColours` (`storage/flash_storage.h`),
 ///               where the persistence code that reads and writes them
 ///               (`readSettings` in `storage/flash_storage.cpp`, `writeSettings`) lives, and `Colour::value` is a
@@ -83,9 +80,10 @@
 /// @note **What a write does besides storing, main's `hid/` calls, is a host call at the write**
 ///       (`scenes/menu/bind_host.h`): the screensaver's `settingsChanged()` (`host_screensaver_settings_changed`),
 ///       pad brightness (`host_pad_brightness_changed`), the menu highlighting (`host_highlighting_changed`), rounded
-///       corners (`host_rounded_corners_changed`), sticky shift (`host_shift_sticky_changed`), leaving the slow cursor
-///       flash (`host_clear_tick_squares`) and a pad colour (`host_pad_colours_changed`). The value itself is stored by
-///       the setter.
+///       corners (`host_rounded_corners_changed`), sticky shift (`host_shift_sticky_changed`) and a pad colour
+///       (`host_pad_colours_changed`). The value itself is stored by the setter. A DEVICE row's node has no setter:
+///       the host's device port stores the value and does what storing it implies (leaving the slow cursor flash
+///       clears its tick squares).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -99,6 +97,8 @@
 #include "scenes/menu/relevance.h"
 
 #include "definitions_cxx.hpp" // MIDI_CHANNEL_NONE
+#include "deluge-project/device_settings.h"
+#include "deluge-project/setting_group.h"
 #include "plugin-api/types/display_mapping.h"
 
 #include <limits>
@@ -270,8 +270,6 @@ int32_t get_default_bend_range(const MenuContext& ctx);
 void set_default_bend_range(const MenuContext& ctx, int32_t value);
 int32_t get_default_metronome_volume(const MenuContext& ctx);
 void set_default_metronome_volume(const MenuContext& ctx, int32_t value);
-int32_t get_default_patch_cable_polarity(const MenuContext& ctx);
-void set_default_patch_cable_polarity(const MenuContext& ctx, int32_t value);
 int32_t get_default_startup_song(const MenuContext& ctx);
 void set_default_startup_song(const MenuContext& ctx, int32_t value);
 int32_t get_default_pad_brightness(const MenuContext& ctx);
@@ -303,7 +301,6 @@ void set_monitor_mode(const MenuContext& ctx, int32_t value);
 int32_t get_default_threshold_recording(const MenuContext& ctx);
 void set_default_threshold_recording(const MenuContext& ctx, int32_t value);
 size_t new_clip_type_names(const MenuContext& ctx, std::span<std::string_view> out);
-size_t polarity_names(const MenuContext& ctx, std::span<std::string_view> out);
 size_t pads_keyboard_layout_names(const MenuContext& ctx, std::span<std::string_view> out);
 
 /// @brief `runtime_feature::Setting`'s read and write
@@ -349,19 +346,6 @@ int32_t get_usb_direct_monitoring(const MenuContext& ctx);
 void set_usb_direct_monitoring(const MenuContext& ctx, int32_t value);
 int32_t get_usb_output_source(const MenuContext& ctx);
 void set_usb_output_source(const MenuContext& ctx, int32_t value);
-/// @}
-
-/// @brief `flash::Status`'s read and write (`origin/main:src/deluge/gui/menu_item/flash/status.h`) over
-/// `PadLEDs::flashCursor`.
-///
-/// The `PadLEDs::clearTickSquares()` arm of `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/flash/status.h`)
-/// does not come along -- it is `hid/`, and it joins the three "write side effects stay behind" gaps the file note
-/// lists. The *value* does: `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h`) that a
-/// declaration alone reaches, exactly like `batteryMV`, so `nodes/settings.cpp` names it without including anything
-/// from `hid/`.
-/// @{
-int32_t get_flash_status(const MenuContext& ctx);
-void set_flash_status(const MenuContext& ctx, int32_t value);
 /// @}
 
 /// @brief `shortcuts::Version`'s read and write (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`).
@@ -966,12 +950,13 @@ inline constexpr Node default_metronome_volume =
                         IntRange{kMinMenuMetronomeVolumeValue, kMaxMenuMetronomeVolumeValue, 1}),
                sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
 
-/// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`) is
-/// `polarityToString` (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`) for the two polarities, here
-/// `instrument::to_string`: literals, so a dynamic list.
-inline constexpr Node default_patch_cable_polarity =
-    dynamic_enumeration(sid(String::STRING_FOR_DEFAULT_POLARITY), polarity_names, get_default_patch_cable_polarity,
-                        set_default_patch_cable_polarity);
+/// `PatchCablePolarity` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`): the DEVICE row,
+/// whose two choices the name table names as `polarityToString`
+/// (`origin/main:src/deluge/modulation/patch/patch_cable.cpp`) spells them.
+inline constexpr Node default_patch_cable_polarity = setting_item(sid(String::STRING_FOR_DEFAULT_POLARITY), Kind::Enum,
+                                                                  {.kind = bind::Target::Kind::MODEL,
+                                                                   .path = project::device_path::kPatchCablePolarity,
+                                                                   .group = project::SettingGroupId::DEVICE});
 
 /// `StartupSongModeMenu::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h`).
 inline constexpr uint16_t kStartupSongNames[] = {
@@ -1051,8 +1036,8 @@ inline constexpr Node defaults_settings = submenu(sid(String::STRING_FOR_DEFAULT
 
 /// `shortcuts::Version::getOptions` (`origin/main:src/deluge/gui/menu_item/shortcuts/version.h`): the pre-3.0 layout
 /// and the current one, in `SHORTCUTS_VERSION_1` 0 / `_3` 1 value order
-/// (`origin/main:src/deluge/gui/ui/sound_editor.h`, mirrored as `menu::ShortcutsVersion` so this layer names no `gui/`
-/// header).
+/// (`origin/main:src/deluge/gui/ui/sound_editor.h`, mirrored as `project::ShortcutsVersion` so this layer names no
+/// `gui/` header).
 inline constexpr uint16_t kShortcutsVersionNames[] = {
     sid(String::STRING_FOR_SHORTCUTS_VERSION_1),
     sid(String::STRING_FOR_SHORTCUTS_VERSION_3),
@@ -1112,15 +1097,12 @@ inline constexpr Node sample_browser_preview =
     enumeration(sid(String::STRING_FOR_SAMPLE_PREVIEW), kSampleBrowserPreviewNames, get_sample_browser_preview,
                 set_sample_browser_preview);
 
-/// `flash::Status::getOptions` (`origin/main:src/deluge/gui/menu_item/flash/status.h`) -- and the order is the *value*
+/// `flash::Status` (`origin/main:src/deluge/gui/menu_item/flash/status.h`): the DEVICE row, listed in its *value*
 /// order, `FLASH_CURSOR_FAST` 0 / `_OFF` 1 / `_SLOW` 2 (`hid/led/pad_leds.h`), not a reading order.
-inline constexpr uint16_t kFlashStatusNames[] = {
-    sid(String::STRING_FOR_FAST),
-    sid(String::STRING_FOR_DISABLED),
-    sid(String::STRING_FOR_SLOW),
-};
-inline constexpr Node flash_status =
-    enumeration(sid(String::STRING_FOR_PLAY_CURSOR), kFlashStatusNames, get_flash_status, set_flash_status);
+inline constexpr Node flash_status = setting_item(sid(String::STRING_FOR_PLAY_CURSOR), Kind::Enum,
+                                                  {.kind = bind::Target::Kind::MODEL,
+                                                   .path = project::device_path::kPlayCursor,
+                                                   .group = project::SettingGroupId::DEVICE});
 
 // ---------------------------------------------------------------------------------------------
 // 10. Recording

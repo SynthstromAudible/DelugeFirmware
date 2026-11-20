@@ -2400,10 +2400,12 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
 		    .to_equal(deluge::ui::Highlighting::FullInversion);
 
-		// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares and, the slow flash
-		// still current, sends the column pair that held one; leaving another does nothing. The send shows in the
-		// harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's queue. A clear made after
-		// the store sends nothing.
+		// `flash::Status::writeCurrentValue`, through the play cursor's device row: leaving the slow flash clears its
+		// tick squares and, the slow flash still current, sends the column pair that held one; leaving another does
+		// nothing. The send shows in the harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's
+		// queue. A clear made after the store sends nothing.
+		menu::MenuContext on_device{};
+		on_device.ports = menu::host_ports();
 		const auto sent = [] {
 			const uint8_t* p = host_script_pad_shadow() + (2 * 8 + 2) * 3;
 			return (int32_t{p[0]} << 16) | (int32_t{p[1]} << 8) | int32_t{p[2]};
@@ -2418,14 +2420,14 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		PadLEDs::image[2][2] = RGB{.r = static_cast<uint8_t>((before >> 16) ^ 0x55),
 		                            .g = static_cast<uint8_t>((before >> 8) ^ 0x55),
 		                            .b = static_cast<uint8_t>(before ^ 0x55)};
-		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
+		menu::bindings::write(nodes::flash_status, on_device, FLASH_CURSOR_FAST);
 		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(255);
 		const bool went_out = sent() != before || PadLEDs::needToSendOutMainPadColours;
 		expect(went_out).to_be_true();
 		PadLEDs::image[2][2] = saved_pad;
 		PadLEDs::needToSendOutMainPadColours = false;
 		PadLEDs::slowFlashSquares[2] = 3;
-		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
+		menu::bindings::write(nodes::flash_status, on_device, FLASH_CURSOR_OFF);
 		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(3);
 
 		// `Colour::writeCurrentValue`: every pad re-renders, whatever the UI.

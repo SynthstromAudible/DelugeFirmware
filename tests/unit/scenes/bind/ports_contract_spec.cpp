@@ -6,9 +6,27 @@
 #include "support/printers/learn_input_printer.h"
 #include "support/printers/mapping_printer.h"
 
+#include "deluge-project/device_settings.h"
+
 #include <cppspec.hpp>
 
 using namespace deluge::scenes::bind;
+namespace device_path = deluge::project::device_path;
+
+namespace {
+
+/// @brief A broken device port: it reads every row as its default and keeps no write, so the write cases must fail
+///        on it.
+class ForgetfulDeviceSettings final : public DeviceSettings {
+	[[nodiscard]] deluge::serialization::Value load(const deluge::plugin::SettingInfo& row) const override {
+		return deluge::serialization::Value::makeNumber(row.default_value);
+	}
+	[[nodiscard]] DeviceWrite store(const deluge::plugin::SettingInfo&, const deluge::serialization::Value&) override {
+		return DeviceWrite::Stored;
+	}
+};
+
+} // namespace
 
 // clang-format off
 describe ports_contract("the scenes' ports, as their fakes answer them", ${
@@ -266,6 +284,45 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::write_to_no_device_is_refused(*p.midi)).to_be_true();
 		expect(host.midi.writes.size()).to_equal(size_t{2});
 		expect(p.midi->name(deluge::midi::kUpstreamUsb1).empty()).to_be_true();
+	});
+	it("keeps the device's settings by DEVICE row, checks every write, and holds the device contract", _ {
+		test::FakeHost host;
+		const Ports p = host.ports();
+		expect(p.device).not_().to_be_null();
+		expect(contract::device_unknown_path_reads_nothing(*p.device)).to_be_true();
+		expect(contract::device_unknown_path_write_is_refused(*p.device)).to_be_true();
+		expect(contract::device_out_of_range_write_is_refused(*p.device)).to_be_true();
+		expect(contract::device_write_reads_back(*p.device)).to_be_true();
+		expect(contract::device_reader_reads_the_rows(*p.device)).to_be_true();
+		// Each write in range reached the fake's store (and was put back after).
+		expect(host.device.stores.empty()).to_be_false();
+
+		// Each row reads its default; a write stores its file form, in the row's stored units.
+		expect(p.device->read(device_path::kPlayCursor).value_or(-1))
+			.to_equal(static_cast<int32_t>(deluge::project::FlashCursor::Slow));
+		host.device.stores.clear();
+		expect(static_cast<int>(p.device->write(device_path::kPlayCursor, 0))).to_equal(static_cast<int>(DeviceWrite::Stored));
+		expect(host.device.stores.size()).to_equal(size_t{1});
+		expect(host.device.stores.front().first).to_equal(std::string{device_path::kPlayCursor});
+		expect(host.device.stores.front().second.str()).to_equal(std::string{"fast"});
+		expect(p.device->read(device_path::kPlayCursor).value_or(-1)).to_equal(0);
+		host.device.accept_restart.insert(std::string{device_path::kUseSharps});
+		expect(static_cast<int>(p.device->write(device_path::kUseSharps, 0)))
+			.to_equal(static_cast<int>(DeviceWrite::StoredForRestart));
+
+		// A value the row cannot name reads as the row's default, and is still a value the port holds.
+		host.device.values.insert_or_assign(std::string{device_path::kPatchCablePolarity},
+		                                    deluge::serialization::Value::makeScalar("tripolar"));
+		expect(p.device->read(device_path::kPatchCablePolarity).value_or(-1)).to_equal(1);
+		expect(contract::device_reader_reads_the_rows(*p.device)).to_be_true();
+	});
+	it("fails the device write cases on a port that keeps no write", _ {
+		ForgetfulDeviceSettings forgetful;
+		expect(contract::device_write_reads_back(forgetful)).to_be_false();
+		expect(contract::device_row_reads_back(forgetful, device_path::kPlayCursor)).to_be_false();
+		// Its refusals are the front's, which no port can skip.
+		expect(contract::device_unknown_path_write_is_refused(forgetful)).to_be_true();
+		expect(contract::device_out_of_range_write_is_refused(forgetful)).to_be_true();
 	});
 });
 

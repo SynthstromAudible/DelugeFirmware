@@ -9,8 +9,11 @@
 #include "scenes/bind/ports/ports.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <optional>
 #include <string_view>
+#include <vector>
 
 namespace deluge::scenes::bind::contract {
 
@@ -169,5 +172,106 @@ namespace deluge::scenes::bind::contract {
 [[nodiscard]] inline bool write_to_no_device_is_refused(MidiDevices& midi) {
 	return !midi.write(midi::DeviceId{}, MidiDeviceSettings{.send_clock = true});
 }
+
+/// @name The device port's cases. A write case puts back every value it wrote: the host spec shares its process with
+///       other specs.
+/// @{
+
+/// @brief Every DEVICE row's value, by path, as @p device reads it now.
+[[nodiscard]] inline std::vector<std::optional<int32_t>> device_values(const DeviceSettings& device) {
+	std::vector<std::optional<int32_t>> values;
+	for (const plugin::SettingInfo& row : project::device_table()) {
+		values.push_back(device.read(row.path));
+	}
+	return values;
+}
+
+/// @brief The first DEVICE row of @p kind, or null where the group has none yet.
+[[nodiscard]] inline const plugin::SettingInfo* first_device_row(plugin::SettingKind kind) {
+	const auto table = project::device_table();
+	const auto found = std::ranges::find(table, kind, &plugin::SettingInfo::kind);
+	return found != table.end() ? &*found : nullptr;
+}
+
+/// @brief A path no DEVICE row has reads as nothing.
+[[nodiscard]] inline bool device_unknown_path_reads_nothing(const DeviceSettings& device) {
+	return !device.read("no/such/row").has_value() && !device.reader()("no/such/row").has_value();
+}
+
+/// @brief A write to a path no DEVICE row has is refused, and no row changes.
+[[nodiscard]] inline bool device_unknown_path_write_is_refused(DeviceSettings& device) {
+	const auto before = device_values(device);
+	return device.write("no/such/row", 0) == DeviceWrite::Refused && device_values(device) == before;
+}
+
+/// @brief A menu value past a row's range is refused and the row reads as it did: an INTEGER row's max + 1, a CHOICE
+///        row's past its last choice, a BOOL row's 2, each kind the group has.
+[[nodiscard]] inline bool device_out_of_range_write_is_refused(DeviceSettings& device) {
+	const auto before = device_values(device);
+	bool refused = true;
+	for (const plugin::SettingKind kind :
+	     {plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE, plugin::SettingKind::BOOL}) {
+		const plugin::SettingInfo* row = first_device_row(kind);
+		if (row == nullptr) {
+			continue;
+		}
+		const int32_t past = plugin::menu_range(*row).second + 1;
+		refused = refused && device.write(row->path, past) == DeviceWrite::Refused;
+	}
+	return refused && device_values(device) == before;
+}
+
+/// @brief Every menu value of the DEVICE row at @p path is stored and reads back as written, in stored units; the row
+///        is put back as it was.
+[[nodiscard]] inline bool device_row_reads_back(DeviceSettings& device, std::string_view path) {
+	const plugin::SettingInfo* row = plugin::find_setting(project::device_table(), path);
+	const std::optional<int32_t> was = device.read(path);
+	if (row == nullptr || !was) {
+		return false;
+	}
+	// Every value of a short range; a long one's ends and their neighbours.
+	const auto [least, greatest] = plugin::menu_range(*row);
+	std::vector<int32_t> menus{least, least + 1, greatest - 1, greatest};
+	if (greatest - least <= 3) {
+		menus.clear();
+		for (int32_t menu = least; menu <= greatest; ++menu) {
+			menus.push_back(menu);
+		}
+	}
+	bool read_back = true;
+	for (const int32_t menu : menus) {
+		const auto stored = plugin::from_menu(*row, menu);
+		const DeviceWrite done = device.write(path, menu);
+		read_back = read_back && stored && done != DeviceWrite::Refused && device.read(path) == stored->first;
+	}
+	const bool restored = device.write(path, plugin::to_menu(*row, *was)) != DeviceWrite::Refused;
+	return read_back && restored && device.read(path) == was;
+}
+
+/// @brief A write in range is stored and reads back as written: for the first BOOL, INTEGER and CHOICE row, each kind
+///        the group has, and the BOOL and CHOICE kinds at least.
+[[nodiscard]] inline bool device_write_reads_back(DeviceSettings& device) {
+	const plugin::SettingInfo* boolean = first_device_row(plugin::SettingKind::BOOL);
+	const plugin::SettingInfo* choice = first_device_row(plugin::SettingKind::CHOICE);
+	const plugin::SettingInfo* integer = first_device_row(plugin::SettingKind::INTEGER);
+	return boolean != nullptr && choice != nullptr && device_row_reads_back(device, boolean->path)
+	       && device_row_reads_back(device, choice->path)
+	       && (integer == nullptr || device_row_reads_back(device, integer->path));
+}
+
+/// @brief The port's reader reads what `read` reads, for the first row of each kind and a path no row has.
+[[nodiscard]] inline bool device_reader_reads_the_rows(const DeviceSettings& device) {
+	const plugin::SettingReader reader = device.reader();
+	bool same = reader("no/such/row") == device.read("no/such/row");
+	for (const plugin::SettingKind kind :
+	     {plugin::SettingKind::BOOL, plugin::SettingKind::INTEGER, plugin::SettingKind::CHOICE}) {
+		if (const plugin::SettingInfo* row = first_device_row(kind)) {
+			same = same && reader(row->path).has_value() && reader(row->path) == device.read(row->path);
+		}
+	}
+	return same;
+}
+
+/// @}
 
 } // namespace deluge::scenes::bind::contract

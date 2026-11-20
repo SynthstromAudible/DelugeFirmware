@@ -42,7 +42,7 @@ void set_arp_preset(const MenuContext& ctx, int32_t value) {
 		return;
 	}
 	if (const std::optional<bind::WriteRequest> request =
-	        bind::request_for(arp_row("arpeggiator/preset"), *ctx.model, ctx.addresses, ctx.ports, value)) {
+	        bind::request_for(arp_row("arpeggiator/preset"), ctx.model, ctx.addresses, ctx.ports, value)) {
 		ctx.ports.writes->write(*request);
 	}
 }

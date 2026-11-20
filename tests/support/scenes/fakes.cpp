@@ -1,5 +1,9 @@
 #include "fakes.h"
 
+#include "deluge-project/device_settings.h"
+
+#include <array>
+
 namespace deluge::scenes::bind::test {
 
 uint8_t FakeSoundFacts::loaded_sources(project::SlotAddress slot) const {
@@ -208,6 +212,27 @@ bool RecordingLearnSink::learn_knob(const project::OwnerParamTarget& target, mid
 	                 .which_knob = which_knob,
 	                 .midi_channel = midi_channel});
 	return accept;
+}
+
+FakeDeviceSettings::FakeDeviceSettings() {
+	for (const plugin::SettingInfo& row : project::device_table()) {
+		std::array<char, 12> digits{};
+		const std::optional<std::string_view> text = plugin::stored_text(row, row.default_value, digits);
+		values.emplace(std::string{row.path}, row.kind == plugin::SettingKind::CHOICE && text
+		                                          ? serialization::Value::makeScalar(std::string{*text})
+		                                          : serialization::Value::makeNumber(row.default_value));
+	}
+}
+
+serialization::Value FakeDeviceSettings::load(const plugin::SettingInfo& row) const {
+	const auto found = values.find(row.path);
+	return found != values.end() ? found->second : serialization::Value::makeNumber(row.default_value);
+}
+
+DeviceWrite FakeDeviceSettings::store(const plugin::SettingInfo& row, const serialization::Value& value) {
+	stores.emplace_back(std::string{row.path}, value);
+	values.insert_or_assign(std::string{row.path}, value);
+	return accept_restart.contains(row.path) ? DeviceWrite::StoredForRestart : DeviceWrite::Stored;
 }
 
 std::string_view FakeMidiDevices::name(midi::DeviceId device) const {

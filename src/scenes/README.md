@@ -314,9 +314,11 @@ skips it. If it ever wants to be lazy, the slot has to become a queue first.
 **A setting's side effect is a call, not an action.** A settings write `main` applies at once is a synchronous call
 the setter makes into `menu/bind_host.h`, and the host has applied it when the setter returns:
 `host_screensaver_settings_changed` (the screensaver's mode and timeout), `host_pad_brightness_changed`,
-`host_highlighting_changed`, `host_rounded_corners_changed`, `host_shift_sticky_changed`, `host_pad_colours_changed`,
-and `host_clear_tick_squares` when the flash status leaves its slow flash. The file selector ends a keyboard
-audition the same way, with `host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
+`host_highlighting_changed`, `host_rounded_corners_changed`, `host_shift_sticky_changed` and
+`host_pad_colours_changed`. A setting that is a DEVICE row has no setter: its node writes the device port
+(`Ports::device`), whose host store does what the item's write does, so the play cursor leaving its slow flash clears
+the tick squares there. The file selector ends a keyboard audition the same way, with
+`host_end_audition(AuditionEnd::KeyboardWhenAuditioning)`.
 
 **The browser's work goes to its host.** `BrowserScene` hands what this layer may not name to a `BrowserHost`
 (`scenes/browser/browser_scene.h`): `perform` takes a `BrowserChoice` (the claim of a chosen file, the folder imports
@@ -674,7 +676,8 @@ shell's; every model-aware implementation is here, as with `Scene`.
 A scene's context holds one `bind::Ports`: a pointer per port, null where the holder provides none. The ports are
 `AudioFacts`, `CardFacts`, `UiFacts`, `SoundFacts`, `ClipFacts` and `TrackFacts` for reads; `ClipWrites`,
 `SoundWrites`, the edit sink (`writes`), `controls_sink` and `LearnSink` for writes; `MidiDevices` for the per-device
-settings; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
+settings; `DeviceSettings` (`device`) for the device's own settings, by DEVICE row, read and written outside any song
+and its undo; and `controls::Facts` for live param values. Their vocabulary is `project::` addresses, `plugin::` ids,
 `instrument::`, `effects::`, `controls::` and `midi::` words, never a legacy type; a MIDI device is a
 `midi::DeviceId`, which the host's registry (`io/midi/device_registry.h`) maps to its cable.
 

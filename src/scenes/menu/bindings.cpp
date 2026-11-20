@@ -19,7 +19,8 @@
 /// @brief The one place the menu system touches the model. See `bindings.h` for the interface.
 ///
 /// A node edits through its target: `scenes/bind` reads its value, range, names and applicability from its descriptor
-/// and the model, and its writes go to the menu's write sink as requests the app applies as Edits. A param node's
+/// and the model, and its writes go to the menu's write sink as requests the app applies as Edits; a device setting's
+/// target reads and writes the device port instead, which holds the settings no song does. A param node's
 /// target is a PARAM target (`scenes/bind/param_display.h` for its display; the app's sink writes it through
 /// SetParamValue, or SetKitParamValue under affect-entire). What remains here is the hook nodes' own read and write,
 /// the per-kind ranges, names and learn.
@@ -69,7 +70,9 @@
 #include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
+#include "gui/l10n/strings.h"
 #include "notify/dirty_set.h"
+#include "notify/notice_queue.h" // a device setting's "restart to apply"
 #include "plugin-api/types/display_mapping.h"
 
 #include <algorithm>
@@ -81,12 +84,18 @@ namespace deluge::scenes::menu::bindings {
 
 namespace {
 
-/// What a target node shows, or nullopt where its target does not resolve or the menu has no model to read.
+/// Whether the dispatch can read @p target in @p ctx: a DEVICE row reads the device port alone (which the dispatch
+/// checks), every other target the model and the bind ports.
+bool readable(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {
+	return target.on_device() || (ctx.model != nullptr && ctx.ports.has_bind_ports());
+}
+
+/// What a target node shows, or nullopt where its target does not resolve or the menu has nothing to read it from.
 std::optional<deluge::scenes::bind::View> target_view(const Node& node, const MenuContext& ctx) {
-	if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+	if (!readable(node.bind.target, ctx)) {
 		return std::nullopt;
 	}
-	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, ctx.ports);
+	return deluge::scenes::bind::view(node.bind.target, ctx.model, ctx.addresses, ctx.ports);
 }
 
 /// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
@@ -119,6 +128,28 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 		return std::min(node.bind.dynamic_names(ctx, std::span<std::string_view>{window}), kMaxDynamicNames);
 	}
 	return std::min(node.bind.names.size(), kMaxDynamicNames);
+}
+
+/// @brief A DEVICE target's write of menu value @p value: through the device port, never the song's sink. A setting
+///        the device applies only after a restart says so, as the USB audio item does (`STRING_FOR_RESTART_TO_APPLY`).
+void write_device(const Binding& bind, const MenuContext& ctx, int32_t value) {
+	using deluge::scenes::bind::DeviceWrite;
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    deluge::scenes::bind::request_for(bind.target, ctx.model, ctx.addresses, ctx.ports, value);
+	if (!request || ctx.ports.device == nullptr) {
+		return;
+	}
+	const DeviceWrite done = ctx.ports.device->write(bind.target.path, request->menu_value);
+	if (done == DeviceWrite::Refused) {
+		return;
+	}
+	if (done == DeviceWrite::StoredForRestart) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESTART_TO_APPLY));
+	}
+	notify::raise(notify::Dirty::Oled);
+	if (bind.repaints_grid) {
+		notify::raise(notify::Dirty::GridMain);
+	}
 }
 
 } // namespace
@@ -218,11 +249,11 @@ std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const 
 
 std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
-	if (!node.bind.target.valid() || ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+	if (!node.bind.target.valid() || !readable(node.bind.target, ctx)) {
 		return std::nullopt;
 	}
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
+	    deluge::scenes::bind::request_for(node.bind.target, ctx.model, ctx.addresses, ctx.ports, value);
 	if (!request) {
 		return std::nullopt;
 	}
@@ -252,14 +283,19 @@ void write(const Node& asked, const MenuContext& ctx, int32_t value) {
 	const Node& node = bound(asked, ctx);
 	const Binding& bind = node.bind;
 
-	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
-	// outside the range and an unresolved target ask for nothing.
+	// A target node: the request goes to the menu's sink, which applies the target's Edit; a device setting's goes to
+	// the device port, which stores it outside any song and its undo. The stale entry, a value outside the range, an
+	// unresolved target and a refused write ask for nothing and raise nothing.
 	if (bind.target.valid()) {
-		if (ctx.model == nullptr || !ctx.ports.has_bind_ports() || ctx.ports.writes == nullptr) {
+		if (bind.target.on_device()) {
+			write_device(bind, ctx, value);
+			return;
+		}
+		if (!readable(bind.target, ctx) || ctx.ports.writes == nullptr) {
 			return;
 		}
 		const std::optional<deluge::scenes::bind::WriteRequest> request =
-		    deluge::scenes::bind::request_for(bind.target, *ctx.model, ctx.addresses, ctx.ports, value);
+		    deluge::scenes::bind::request_for(bind.target, ctx.model, ctx.addresses, ctx.ports, value);
 		if (request && ctx.ports.writes->write(*request)) {
 			notify::raise(notify::Dirty::Oled);
 			if (bind.repaints_grid) {
@@ -386,12 +422,12 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		return text.text_or_digits(id, slot);
 	};
 	if (node.bind.target.valid()) {
-		if (ctx.model == nullptr || !ctx.ports.has_bind_ports()) {
+		if (!readable(node.bind.target, ctx)) {
 			return 0;
 		}
 		std::array<deluge::scenes::bind::ChoiceName, kMaxDynamicNames> listed{};
 		const size_t count = std::min(
-		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, ctx.ports, listed), limit);
+		    deluge::scenes::bind::choice_names(node.bind.target, ctx.model, ctx.addresses, ctx.ports, listed), limit);
 		for (size_t i = 0; i < count; ++i) {
 			const std::string_view name =
 			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
@@ -543,7 +579,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 		*from_note_row = target.group == deluge::project::SettingGroupId::NOTE_ROW;
 	}
 	const std::optional<deluge::scenes::bind::View> shown =
-	    deluge::scenes::bind::view(target, *ctx.model, direction_where(ctx), ctx.ports);
+	    deluge::scenes::bind::view(target, ctx.model, direction_where(ctx), ctx.ports);
 	return shown ? shown->value : 0;
 }
 
@@ -570,7 +606,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 	// `Direction::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`): the kit row's note
 	// row, else the clip.
 	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    deluge::scenes::bind::request_for(direction_target(ctx), *ctx.model, direction_where(ctx), ctx.ports, value);
+	    deluge::scenes::bind::request_for(direction_target(ctx), ctx.model, direction_where(ctx), ctx.ports, value);
 	if (request) {
 		(void)ctx.ports.writes->write(*request);
 	}

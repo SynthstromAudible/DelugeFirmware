@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -270,6 +271,20 @@ struct FakeMidiDevices final : MidiDevices {
 	bool write(midi::DeviceId device, const MidiDeviceSettings& settings) override;
 };
 
+/// @brief DeviceSettings a spec sets directly: every DEVICE row's value, seeded from its default, and every store, in
+///        order. The port's own front checks each write, so a store is always one the rows allow.
+struct FakeDeviceSettings final : DeviceSettings {
+	FakeDeviceSettings();
+	/// What `load` answers, by path, in file form; a spec may set a value the row cannot name.
+	std::map<std::string, serialization::Value, std::less<>> values;
+	std::set<std::string, std::less<>> accept_restart;                ///< the paths a store answers StoredForRestart
+	std::vector<std::pair<std::string, serialization::Value>> stores; ///< every store, in order
+
+private:
+	[[nodiscard]] serialization::Value load(const plugin::SettingInfo& row) const override;
+	[[nodiscard]] DeviceWrite store(const plugin::SettingInfo& row, const serialization::Value& value) override;
+};
+
 /// @brief WriteSink that records every request, in order, and answers each with @ref accept.
 struct RecordingWrites final : WriteSink {
 	/// @brief A text, default-input-channel, threshold or sidechain-type request, as recorded.
@@ -380,6 +395,7 @@ struct FakeHost {
 	FakeMidiDevices midi;                ///< the MIDI devices port's fake
 	RecordingWrites writes;              ///< the menu writes' recorder
 	RecordingControlsSink controls_sink; ///< the knobs' writes' recorder
+	FakeDeviceSettings device;           ///< the device settings' fake
 	/// @brief Ports pointing at this host's fakes; valid while it lives.
 	[[nodiscard]] Ports ports() {
 		return {.audio = &audio,
@@ -394,7 +410,8 @@ struct FakeHost {
 		        .learn = &learn,
 		        .midi = &midi,
 		        .writes = &writes,
-		        .controls_sink = &controls_sink};
+		        .controls_sink = &controls_sink,
+		        .device = &device};
 	}
 };
 

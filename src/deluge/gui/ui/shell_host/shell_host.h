@@ -50,6 +50,10 @@ namespace deluge::gui::shell_host {
 /// @brief The host's MidiDevices: the cables `MIDIDeviceManager` keeps, and their own settings.
 [[nodiscard]] scenes::bind::MidiDevices& midi_devices();
 
+/// @brief The host's DeviceSettings: the device's own settings where it keeps them (the flash settings, the pad
+///        controller's play cursor), each stored with the side effects its menu item has. Nothing is saved on a write.
+[[nodiscard]] scenes::bind::DeviceSettings& device_settings();
+
 /// @brief The host's WriteSink and controls::Sink: the menus' writes and the knobs', applied to the current song as
 ///        Edits.
 ///

@@ -36,7 +36,8 @@ struct Target {
 		SOUND,  ///< a row of instrument::kSettings, on the sound at Addresses::slot
 		EFFECT, ///< a row of effects::kEffectSettings, on the sound at Addresses::slot, else the chain at
 		        ///< Addresses::chain
-		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group
+		MODEL,  ///< a row of project::table_of(group), on the owner the Addresses name for that group; a DEVICE row
+		        ///< on the device itself, through Ports::device
 		PARAM,  ///< a param of the owner's engine (the sound at Addresses::slot, else the chain's owner), by id
 		CABLE,  ///< a patch cable of the sound at Addresses::slot, by its depth id in @ref param
 	};
@@ -86,6 +87,11 @@ struct Target {
 	const Target* shown_with{nullptr};
 
 	[[nodiscard]] constexpr bool valid() const { return kind != Kind::NONE; }
+	/// @brief Whether the target is a row of the device's own settings, which the device port holds and no song does.
+	/// @return True for a MODEL target of the DEVICE group.
+	[[nodiscard]] constexpr bool on_device() const {
+		return kind == Kind::MODEL && group == project::SettingGroupId::DEVICE;
+	}
 	/// Equal when they name the same row the same way: the same fan-out rule, by identity.
 	constexpr bool operator==(const Target& other) const {
 		return kind == other.kind && path == other.path && whole_kit == other.whole_kit
@@ -117,8 +123,8 @@ struct Addresses {
 };
 
 /// @brief The group and owner @p target edits at @p where: a MODEL target's group on the owner its group takes (a
-/// CLIP_ARP target on a lane, its LANE_ARP), or a SOUND target's audio clip row where @p where names an audio clip
-/// and no sound.
+/// CLIP_ARP target on a lane, its LANE_ARP; a DEVICE target on the device, whatever @p where names), or a SOUND
+/// target's audio clip row where @p where names an audio clip and no sound.
 /// @param target What a node edits.
 /// @param where  Where the menu edits.
 /// @return The address, or nullopt where @p where names no such owner or @p target edits no model group.

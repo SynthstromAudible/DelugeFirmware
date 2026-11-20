@@ -280,8 +280,8 @@ It reaches the host one of three ways:
 
 1. **A synchronous call**, when the host acts before the scene goes on: a setting's side effect is
    one of the `host_*` calls in `scenes/menu/bind_host.h` (`host_screensaver_settings_changed`,
-   `host_pad_brightness_changed`, `host_clear_tick_squares` and their siblings), made by its setter
-   at the write.
+   `host_pad_brightness_changed` and their siblings), made by its setter at the write; a DEVICE row's
+   is the device port's store (`Ports::device`).
 2. **A service**, when the work ends later: the browser hands its claims, imports, slices, deletes,
    loads and previews to its `BrowserHost` (`scenes/browser/browser_scene.h`), which
    `gui::ui::wireShellBrowserHost` installs from `wireShellGuestServices()`. An answer produced

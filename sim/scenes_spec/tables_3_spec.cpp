@@ -2855,15 +2855,15 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 
 		// The round trip, each direction driven from the other value. The layer it selects is checked cell for cell in
 		// `shortcuts_spec.cpp`, which is where the tables live.
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V3);
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V3);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 0);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(0));
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V1);
 
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 1);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(1));
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
 
 		covered.insert(&nodes::shortcuts_version);
 		menu::set_shortcuts_version(saved);
@@ -2933,8 +2933,10 @@ describe tables_4_items("scenes::menu settings items: the pad colours, the curso
 		for (const Node* n : kBatch4) {
 			expect(n->kind).to_equal(menu::Kind::Enum);
 			expect(n->custom).to_be_null();
-			expect(n->bind.get).not_().to_be_null();
-			expect(n->bind.set).not_().to_be_null();
+			// A DEVICE row's node binds through its target, which the device port reads and writes; the rest through
+			// their hooks.
+			const bool bound = n->bind.target.on_device() || (n->bind.get != nullptr && n->bind.set != nullptr);
+			expect(bound).to_be_true();
 		}
 	});
 });

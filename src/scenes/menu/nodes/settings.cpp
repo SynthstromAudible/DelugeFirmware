@@ -37,7 +37,6 @@
 #include "definitions_cxx.hpp" // the flash-setting enums, MIDI_CHANNEL_NONE, NUM_CHANNELS, IS_A_CC, BEND_RANGE_MAIN, kSampleRate, OutputType, ThresholdRecordingMode, ScreensaverMode
 #include "deluge-project/midi_channels.h"
 #include "gfx/oled/glyphs.h"
-#include "instruments/deluge/cables.h"
 #include "io/midi/device_registry.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -66,18 +65,6 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
-
-// `PadLEDs::flashCursor` (`hid/led/pad_leds.h`), the one byte the play-cursor item edits. Named
-// rather than included for the reason `nodes/settings.h` gives: it is a plain namespace-scope `uint8_t`,
-// so a declaration reaches it, and `hid/` is not on this layer's allow-list.
-namespace PadLEDs {
-extern uint8_t flashCursor;
-} // namespace PadLEDs
-
-namespace {
-/// `FLASH_CURSOR_SLOW` (`hid/led/pad_leds.h`), named here for the same reason.
-constexpr uint8_t kFlashCursorSlow = 2;
-} // namespace
 
 namespace deluge::scenes::menu::nodes {
 
@@ -636,15 +623,6 @@ void set_default_metronome_volume(const MenuContext&, int32_t value) {
 	AudioEngine::metronome.setVolume(value);
 }
 
-int32_t get_default_patch_cable_polarity(const MenuContext&) {
-	// `origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h` `readCurrentValue`
-	return static_cast<int32_t>(FlashStorage::defaultPatchCablePolarity);
-}
-void set_default_patch_cable_polarity(const MenuContext&, int32_t value) {
-	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
-	FlashStorage::defaultPatchCablePolarity = static_cast<instrument::Polarity>(value);
-}
-
 int32_t get_default_startup_song(const MenuContext&) {
 	// `origin/main:src/deluge/gui/menu_item/defaults/startup_song_mode.h` `readCurrentValue`
 	return static_cast<int32_t>(FlashStorage::defaultStartupSongMode);
@@ -845,18 +823,6 @@ size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) 
 	return n;
 }
 
-size_t polarity_names(const MenuContext&, std::span<std::string_view> out) {
-	// `PatchCablePolarity::getOptions` (`origin/main:src/deluge/gui/menu_item/defaults/patch_cable_polarity.h`).
-	size_t n = 0;
-	if (n < out.size()) {
-		out[n++] = instrument::to_string(instrument::Polarity::UNIPOLAR);
-	}
-	if (n < out.size()) {
-		out[n++] = instrument::to_string(instrument::Polarity::BIPOLAR);
-	}
-	return n;
-}
-
 size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view> out) {
 	// `SetupSyncScalingActionSetting` (`runtime_feature_settings.cpp`): two literal option
 	// names, not l10n ids -- exactly as legacy stores them.
@@ -893,18 +859,6 @@ int32_t get_usb_output_source(const MenuContext&) {
 }
 void set_usb_output_source(const MenuContext&, int32_t value) {
 	usb_audio::outputSource = static_cast<usb_audio::OutputSource>(value);
-}
-
-int32_t get_flash_status(const MenuContext&) {
-	return PadLEDs::flashCursor; // `Status::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/flash/status.h`)
-}
-void set_flash_status(const MenuContext&, int32_t value) {
-	// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares, judged on the value being
-	// replaced and while it is still the current one, then the new value is stored.
-	if (PadLEDs::flashCursor == kFlashCursorSlow) {
-		host_clear_tick_squares();
-	}
-	PadLEDs::flashCursor = static_cast<uint8_t>(value);
 }
 
 // ---------------------------------------------------------------------------------------------
