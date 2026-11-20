@@ -6,6 +6,7 @@
 
 #include "ui/oled/popup.h"
 
+#include "deluge-project/midi_command.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/param_names.h"
 #include "gui/l10n/strings.h"
@@ -31,9 +32,6 @@ using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
 
 namespace {
-
-/// @brief The count of real MIDI CC numbers, which a MIDI clip's params number from 0.
-constexpr int32_t kNumRealCCNumbers = 120;
 
 /// Legacy's `View::MIN_DISPLAY_OWNERSHIP_TIME`/`DISPLAY_TIMEOUT`/`MIN_UPDATE_INTERVAL`
 /// (`gui/views/view.h`), in `AudioEngine::audioSampleTimer` units at `kSampleRate` (44100Hz),
@@ -132,7 +130,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 			}
 		}
-		else if (param_id >= 0 && param_id < kNumRealCCNumbers) {
+		else if (param_id >= 0 && param_id < deluge::project::kNumRealCcNumbers) {
 			if (!context.cc_label.empty()) {
 				out.append(context.cc_label);
 			}

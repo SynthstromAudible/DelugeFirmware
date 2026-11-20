@@ -21,6 +21,7 @@
 #include "deluge-project/arrangement.h"
 #include "deluge-project/drum_type.h"
 #include "deluge-project/launch_style.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/sequence_direction.h"
 #include "effects/words.h"
 #include "gfx/oled/font.h"
@@ -702,7 +703,7 @@ enum CCNumber {
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumCCExpression = kNumCCNumbersIncludingFake - 1;
-constexpr int32_t kNumRealCCNumbers = 120;
+constexpr int32_t kNumRealCCNumbers = deluge::project::kNumRealCcNumbers;
 constexpr int32_t kMaxMIDIValue = 127;
 constexpr int32_t ALL_NOTES_OFF = -32768;
 enum class InstrumentRemoval {
