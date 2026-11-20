@@ -4,6 +4,7 @@
 /// @brief Cases every implementation of a port must pass, the fake and the host's alike. Each takes the port under
 ///        test and returns whether it holds; a spec states the case and expects true.
 
+#include "deluge-project/device_settings.h"
 #include "plugin-api/types/display_mapping.h"
 #include "scenes/bind/ports/ports.h"
 
@@ -71,7 +72,7 @@ namespace deluge::scenes::bind::contract {
 /// @brief The flash cursor is one of its three values.
 [[nodiscard]] inline bool flash_cursor_is_named(const UiFacts& ui) {
 	const auto c = ui.flash_cursor();
-	return c == FlashCursor::Fast || c == FlashCursor::Off || c == FlashCursor::Slow;
+	return c == project::FlashCursor::Fast || c == project::FlashCursor::Off || c == project::FlashCursor::Slow;
 }
 
 /// @brief A slot no song holds has no state, no loaded source, no cables and no ranges.

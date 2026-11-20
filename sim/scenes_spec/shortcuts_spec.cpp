@@ -203,8 +203,8 @@ std::string diff_column(std::string_view table_name, std::span<const Node* const
 
 /// @brief Select `SHORTCUTS_VERSION_1` for the scope, and put the version back.
 struct PortVersion1 {
-	menu::ShortcutsVersion saved = menu::shortcuts_version();
-	PortVersion1() { menu::set_shortcuts_version(menu::ShortcutsVersion::V1); }
+	deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
+	PortVersion1() { menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1); }
 	~PortVersion1() { menu::set_shortcuts_version(saved); }
 	PortVersion1(const PortVersion1&) = delete;
 	PortVersion1& operator=(const PortVersion1&) = delete;
@@ -908,7 +908,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		}
 		expect(menu::shortcut_node(Root::Sound, false, 0, 6)).to_equal(&nodes::sample0_interpolation);
 		expect(menu::shortcut_node(Root::AudioClip, false, 0, 6)).to_equal(&nodes::audio_clip_interpolation);
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
 	});
 
 	it("finds the V1 pad through shortcut_pos too, so the blink follows the version", _ {

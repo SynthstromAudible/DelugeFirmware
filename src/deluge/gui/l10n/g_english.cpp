@@ -1028,6 +1028,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LOOP_FREE, "FREE"},
         {STRING_FOR_NEXT_SONG_AFTER_TAKE, "Next song after take"},
         {STRING_FOR_NEXT_SONG_AFTER_SLICE, "Next song after slice"},
+        {STRING_FOR_POLARITY_UNIPOLAR, "unipolar"},
+        {STRING_FOR_POLARITY_BIPOLAR, "bipolar"},
     },
 };
 } // namespace deluge::l10n::built_in

@@ -288,7 +288,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		// The turn writes flash byte 60, which the menu tables select on and the close then saves.
 		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = saved_byte;
 	});
 

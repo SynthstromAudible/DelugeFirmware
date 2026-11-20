@@ -4,6 +4,7 @@
 /// @brief Fakes of the scenes' ports: plain state a spec sets, and every call a sink takes, recorded in order.
 
 #include "controls/sink.h"
+#include "deluge-project/device_settings.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/ports/param_info.h"
 #include "scenes/bind/ports/ports.h"
@@ -48,14 +49,14 @@ struct FakeCardFacts final : CardFacts {
 struct FakeUiFacts final : UiFacts {
 	bool auditioning_now{false};                                  ///< what `auditioning` answers
 	bool popup{false};                                            ///< what `popup_showing` answers
-	FlashCursor cursor{FlashCursor::Slow};                        ///< what `flash_cursor` answers
+	project::FlashCursor cursor{project::FlashCursor::Slow};      ///< what `flash_cursor` answers
 	PerformanceEditing performance{PerformanceEditing::Disabled}; ///< what `performance_editing_mode` answers
 	bool dx7_engine{false};                                       ///< what `dx7_engine_enabled` answers
 	int32_t battery_mv{0};                                        ///< what `battery_millivolts` answers
 	std::string_view firmware{"2.0.0-test"};                      ///< what `firmware_version` answers
 	[[nodiscard]] bool auditioning() const override { return auditioning_now; }
 	[[nodiscard]] bool popup_showing() const override { return popup; }
-	[[nodiscard]] FlashCursor flash_cursor() const override { return cursor; }
+	[[nodiscard]] project::FlashCursor flash_cursor() const override { return cursor; }
 	[[nodiscard]] PerformanceEditing performance_editing_mode() const override { return performance; }
 	[[nodiscard]] bool dx7_engine_enabled() const override { return dx7_engine; }
 	[[nodiscard]] int32_t battery_millivolts() const override { return battery_mv; }

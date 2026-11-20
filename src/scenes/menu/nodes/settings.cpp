@@ -919,8 +919,9 @@ int32_t get_shortcuts_version(const MenuContext&) {
 void set_shortcuts_version(const MenuContext&, int32_t value) {
 	// `shortcuts::Version::writeCurrentValue`: the write that persists, flash byte 60
 	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores.
-	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
-	                                                                                : ShortcutsVersion::V3);
+	menu::set_shortcuts_version(value == static_cast<int32_t>(project::ShortcutsVersion::V1)
+	                                ? project::ShortcutsVersion::V1
+	                                : project::ShortcutsVersion::V3);
 }
 
 // The six `pad_colour_*` nodes are six instantiations of `nodes/settings.h`'s `get_pad_colour` /

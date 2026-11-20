@@ -74,9 +74,11 @@ struct UserScale {
 ///        (AUDIO for an audio clip, KIT for the whole kit's clip values and arp);
 ///      - one kit lane (its sound, name, note row, arp): Owner KIT_LANE, Instrument the lane's drum (SOUND_DRUM,
 ///        MIDI_DRUM or GATE_DRUM);
-///      - the whole kit's own effects: Owner KIT, Instrument KIT.
-///    SONG goes with NONE alone and a drum with KIT_LANE alone.
-///  - `instrument` is required for every owner but SONG. A condition on what plays reads it, and NONE off the song
+///      - the whole kit's own effects: Owner KIT, Instrument KIT;
+///      - the device's own settings, which no song holds: Owner DEVICE, Instrument NONE.
+///    SONG and DEVICE go with NONE alone and a drum with KIT_LANE alone.
+///  - `instrument` is required for every owner but SONG and DEVICE. A condition on what plays reads it, and NONE off
+///  the song
 ///    passes the kit gates (DX7, saturation) as if no kit played, so rows show where they should not.
 ///  - A SettingReader answers every path its owner's table holds, applicable or not, and never nullopt for one of
 ///    them: a SETTING condition on a nullopt fails closed, which hides a row that should show. It answers nullopt only
@@ -84,13 +86,14 @@ struct UserScale {
 ///  - A reader answers with the held value whether or not the path applies: a plugin's applicable-only read would
 ///    hide a row's own gate (an oscillator's type in FM). Each plugin names its held read beside its table.
 struct SettingContext {
-	/// @brief The menu's editing scope: a track, one kit lane, the whole kit (its own effects), a clip or the song.
-	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG };
+	/// @brief The menu's editing scope: a track, one kit lane, the whole kit (its own effects), a clip, the song, or
+	/// the device's own settings.
+	enum class Owner : uint8_t { TRACK, KIT_LANE, KIT, CLIP, SONG, DEVICE };
 	/// @brief What plays the owner's notes: its track's instrument, or on a kit lane, the lane's drum. NONE for the
-	/// song.
+	/// song and the device.
 	enum class Instrument : uint8_t { NONE, SYNTH, KIT, SOUND_DRUM, MIDI_DRUM, GATE_DRUM, MIDI, CV, AUDIO };
 	Owner owner{Owner::TRACK};
-	Instrument instrument{Instrument::NONE}; ///< required but for SONG; see the host contract
+	Instrument instrument{Instrument::NONE}; ///< required but for SONG and DEVICE; see the host contract
 	bool audio_inputs_present{false};        ///< any audio input is plugged in
 	/// The owner's sound sources that hold a loaded audio file, a bit each (bit 0 the first source); 0 off a sound.
 	uint8_t loaded_sources{0};
@@ -98,13 +101,15 @@ struct SettingContext {
 
 /// @brief Whether @p context pairs its Owner with an Instrument the host contract allows.
 /// @param context The context a host passes.
-/// @return True when SONG has NONE alone, KIT_LANE a drum alone (SOUND_DRUM, MIDI_DRUM or GATE_DRUM), KIT has KIT, and
+/// @return True when SONG and DEVICE have NONE alone, KIT_LANE a drum alone (SOUND_DRUM, MIDI_DRUM or GATE_DRUM), KIT
+/// has KIT, and
 ///         TRACK and CLIP the track's instrument (SYNTH, KIT, MIDI, CV or AUDIO).
 [[nodiscard]] constexpr bool context_is_coherent(const SettingContext& context) {
 	using Owner = SettingContext::Owner;
 	using Instrument = SettingContext::Instrument;
 	switch (context.owner) {
 	case Owner::SONG:
+	case Owner::DEVICE:
 		return context.instrument == Instrument::NONE;
 	case Owner::KIT:
 		return context.instrument == Instrument::KIT;
@@ -132,6 +137,7 @@ namespace setting_context_detail {
 	case Owner::KIT:
 	case Owner::CLIP:
 	case Owner::SONG:
+	case Owner::DEVICE:
 		return true;
 	}
 	return false;

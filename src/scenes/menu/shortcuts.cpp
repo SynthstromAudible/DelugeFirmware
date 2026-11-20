@@ -371,7 +371,7 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
 
 const Layers& layers_for(MenuContext::Root root) {
 	const auto i = static_cast<size_t>(root);
-	const Layers* by_root = shortcuts_version() == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	const Layers* by_root = shortcuts_version() == project::ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
 	return i < static_cast<size_t>(MenuContext::Root::Count)
 	           ? by_root[i]
 	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
@@ -458,15 +458,15 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	return find_in(*l.first, node);
 }
 
-static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(ShortcutsVersion::V1));
-static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(ShortcutsVersion::V3));
+static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(project::ShortcutsVersion::V1));
+static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(project::ShortcutsVersion::V3));
 
-ShortcutsVersion shortcuts_version() {
-	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? ShortcutsVersion::V1
-	                                                                          : ShortcutsVersion::V3;
+project::ShortcutsVersion shortcuts_version() {
+	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? project::ShortcutsVersion::V1
+	                                                                          : project::ShortcutsVersion::V3;
 }
 
-void set_shortcuts_version(ShortcutsVersion version) {
+void set_shortcuts_version(project::ShortcutsVersion version) {
 	FlashStorage::shortcutsVersion = static_cast<uint8_t>(version);
 }
 

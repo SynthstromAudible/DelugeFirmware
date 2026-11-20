@@ -1098,7 +1098,7 @@ PatchSource mod_source_shortcut(uint8_t sx, uint8_t y, bool second_layer) {
 	}
 	// `setShortcutsVersion(SHORTCUTS_VERSION_1)` clears the X/Y pads
 	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`'s V1 arm).
-	if (!second_layer && y == 7 && shortcuts_version() == ShortcutsVersion::V1) {
+	if (!second_layer && y == 7 && shortcuts_version() == project::ShortcutsVersion::V1) {
 		return PatchSource::NOT_AVAILABLE;
 	}
 	return second_layer ? kModSourcesSecondLayer[sx][y] : kModSources[sx][y];

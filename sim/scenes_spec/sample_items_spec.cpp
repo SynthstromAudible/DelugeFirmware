@@ -614,8 +614,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		ClipRig r;
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		const deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1);
 		// The menu is open on an audio clip item; SHIFT + pad (0, 7) is the START item's shortcut.
 		focus_in(r.shell, r.ctx(), nodes::audio_clip_reverse);
 		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_false();

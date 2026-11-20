@@ -3,6 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "deluge-project/device_settings.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
@@ -684,11 +685,11 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 	}
-	const bind::FlashCursor cursor = ports().ui->flash_cursor();
-	if (cursor == bind::FlashCursor::Slow) {
+	const deluge::project::FlashCursor cursor = ports().ui->flash_cursor();
+	if (cursor == deluge::project::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::Fast);
 }
 
 void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {

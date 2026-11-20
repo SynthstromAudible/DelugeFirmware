@@ -57,6 +57,8 @@ const char* groupName(SettingGroupId group) {
 		return "CLIP_ARP";
 	case SettingGroupId::LANE_ARP:
 		return "LANE_ARP";
+	case SettingGroupId::DEVICE:
+		return "DEVICE";
 	}
 	return "?";
 }

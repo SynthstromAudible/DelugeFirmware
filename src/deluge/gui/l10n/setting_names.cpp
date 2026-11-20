@@ -411,6 +411,20 @@ constexpr SettingNames kUnisonDetuneNames{STRING_FOR_UNISON_DETUNE_MENU_TITLE, S
 constexpr SettingNames kUnisonNumNames{STRING_FOR_UNISON_NUMBER_MENU_TITLE, STRING_FOR_UNISON_NUMBER, {}, {}};
 constexpr SettingNames kUnisonSpreadNames{
     STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE, STRING_FOR_UNISON_STEREO_SPREAD, {}, {}};
+
+/// @name The device's own settings' names.
+/// @{
+constexpr std::array<String, 2> kPatchCablePolarityChoices{{STRING_FOR_POLARITY_UNIPOLAR, STRING_FOR_POLARITY_BIPOLAR}};
+constexpr SettingNames kPatchCablePolarityNames{
+    STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY, kPatchCablePolarityChoices, {}};
+constexpr SettingNames kUseSharpsNames{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS, {}, {}};
+/// The play cursor's forms, in the row's order: fast, off, slow.
+constexpr std::array<String, 3> kPlayCursorChoices{{STRING_FOR_FAST, STRING_FOR_DISABLED, STRING_FOR_SLOW}};
+constexpr SettingNames kPlayCursorNames{STRING_FOR_PLAY_CURSOR, STRING_FOR_PLAY_CURSOR, kPlayCursorChoices, {}};
+constexpr std::array<String, 2> kShortcutsVersionChoices{
+    {STRING_FOR_SHORTCUTS_VERSION_1, STRING_FOR_SHORTCUTS_VERSION_3}};
+constexpr SettingNames kShortcutsVersionNames{
+    STRING_FOR_SHORTCUTS_VER_MENU_TITLE, STRING_FOR_SHORTCUTS_VERSION, kShortcutsVersionChoices, {}};
 /// @}
 
 /// @brief The tables several owners' menus show alike, stored once and keyed after the owners: the arp's setting rows
@@ -437,7 +451,7 @@ constexpr auto key_of(uint8_t owner, std::string_view path) {
 }
 
 /// Every setting row a menu shows, sorted by owner and path.
-constexpr std::array<Entry, 118> kEntries{{
+constexpr std::array<Entry, 122> kEntries{{
     Entry{SettingGroupId::SONG, "reverb/compressor/attack", &kReverbCompressorAttackNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/release", &kReverbCompressorReleaseNames},
     Entry{SettingGroupId::SONG, "reverb/compressor/shape", &kReverbCompressorShapeNames},
@@ -472,6 +486,10 @@ constexpr std::array<Entry, 118> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
+    Entry{SettingGroupId::DEVICE, "defaults/patchCablePolarity", &kPatchCablePolarityNames},
+    Entry{SettingGroupId::DEVICE, "defaults/useSharps", &kUseSharpsNames},
+    Entry{SettingGroupId::DEVICE, "pads/playCursor", &kPlayCursorNames},
+    Entry{SettingGroupId::DEVICE, "pads/shortcutsVersion", &kShortcutsVersionNames},
     Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
     Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
     Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},

@@ -810,6 +810,8 @@ Error projectSetting(::Song& song, const project::SettingAddress& address, std::
 		auto* kit = static_cast<::Kit*>(findOutput(song, lane.kit_id));
 		return applyArpSetting(drum->arpSettings, {.drum = drum, .kit = kit}, song, path, *value);
 	}
+	case SettingGroupId::DEVICE:
+		return Error::UNSPECIFIED; // no song holds the device's own settings; the host's device port stores them
 	}
 	return Error::UNSPECIFIED;
 }

@@ -54,7 +54,7 @@
 
 #include "support/spec_main.h"
 
-using deluge::scenes::menu::ShortcutsVersion;
+using deluge::project::ShortcutsVersion;
 namespace menu = deluge::scenes::menu;
 namespace services = deluge::scenes::services;
 

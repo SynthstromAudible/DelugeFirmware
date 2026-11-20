@@ -20,7 +20,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		host.audio.threshold = 2;
 		host.audio.sidechain_type = deluge::plugin::SyncType::DOTTED;
 		host.card.sample_loading = true;
-		host.ui.cursor = FlashCursor::Off;
+		host.ui.cursor = deluge::project::FlashCursor::Off;
 		host.ui.performance = PerformanceEditing::Param;
 		host.ui.battery_mv = 3712;
 		host.ui.firmware = "1.2.3-spec";
@@ -34,7 +34,7 @@ describe ports_contract("the scenes' ports, as their fakes answer them", ${
 		expect(contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
 		expect(p.card->sample_load_in_flight()).to_be_true();
 		expect(p.card->output_may_be_replaced()).to_be_false();
-		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(FlashCursor::Off));
+		expect(static_cast<int>(p.ui->flash_cursor())).to_equal(static_cast<int>(deluge::project::FlashCursor::Off));
 		expect(static_cast<int>(p.ui->performance_editing_mode())).to_equal(static_cast<int>(PerformanceEditing::Param));
 		expect(contract::ui_facts_are_stable(*p.ui)).to_be_true();
 		expect(p.ui->battery_millivolts()).to_equal(3712);

@@ -204,6 +204,7 @@
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "gfx/grid/pad_grid.h"
 #include "model/sample/waveform_render_data.h"
@@ -254,7 +255,7 @@ inline constexpr uint32_t kUiModeHoldingSongButton = 65;
 inline constexpr uint32_t kUiModeHoldingHorizontalEncoder = 1u << 31;
 /// @}
 
-using FlashCursor = deluge::scenes::bind::FlashCursor;
+using FlashCursor = deluge::project::FlashCursor;
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 9` (`scenes/registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kAudioClipSceneKind =

@@ -23,6 +23,7 @@
 #include "scenes/services/waveform_paint.h"
 #include "scenes/services/waveforms.h"
 
+#include "deluge-project/device_settings.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "gui/l10n/strings.h"
@@ -1006,7 +1007,7 @@ std::optional<uint32_t> MarkerScene::next_timer() const {
 	}
 	// `graphicsRoutine` runs every pass: while a voice plays, and for the frame that clears the playhead it leaves.
 	if (playing_
-	    || (menu::host_ports().ui->flash_cursor() != bind::FlashCursor::Off
+	    || (menu::host_ports().ui->flash_cursor() != deluge::project::FlashCursor::Off
 	        && waveforms().play_position(where_).has_value())) {
 		next = next.has_value() ? std::min(*next, kPlayheadMs) : kPlayheadMs;
 	}
@@ -1186,9 +1187,9 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 
 	// `graphicsRoutine`'s playhead: nothing with the flash cursor Off; else the column the newest voice
 	// plays, on every row, painted with it Slow and flashed by the PIC with it Fast (`PadLEDs::setTickSquares`).
-	const bind::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
+	const deluge::project::FlashCursor cursor = menu::host_ports().ui->flash_cursor();
 	playing_ = false;
-	if (cursor == bind::FlashCursor::Off) {
+	if (cursor == deluge::project::FlashCursor::Off) {
 		return;
 	}
 	std::array<deluge::ui::grid::TickSquare, kRows> per_row{};
@@ -1201,10 +1202,10 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			                                          .colour = deluge::ui::grid::TickColour::Normal});
 		}
 	}
-	if (cursor == bind::FlashCursor::Slow) {
+	if (cursor == deluge::project::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}
-	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == bind::FlashCursor::Fast);
+	deluge::ui::grid::flash_tick_squares(f, per_row, last_ticks_, cursor == deluge::project::FlashCursor::Fast);
 }
 
 const services::Waveforms& MarkerScene::waveforms() const {

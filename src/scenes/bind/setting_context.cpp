@@ -71,6 +71,9 @@ plugin::SettingContext setting_context(const project::Song& model, const project
 	case SettingGroupId::CLIP_VALUES:
 	case SettingGroupId::CLIP_ARP:
 		break;
+	case SettingGroupId::DEVICE:
+		context = {.owner = Owner::DEVICE, .instrument = Instrument::NONE};
+		break;
 	}
 	context.audio_inputs_present = audio.audio_inputs_present();
 	return context;

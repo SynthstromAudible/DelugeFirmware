@@ -223,8 +223,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 
 	it("swallows a source cell past the last patch source", _ {
 		select_language();
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1); // (15, 7) names no source
+		const deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1); // (15, 7) names no source
 		Rig r;
 		r.open(nodes::master_volume);
 		r.shift_press(15, 7);

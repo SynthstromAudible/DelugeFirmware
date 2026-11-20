@@ -271,6 +271,8 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 		return on(target.group, where.lane);
 	case SettingGroupId::NOTE_ROW:
 		return on(target.group, where.note_row);
+	case SettingGroupId::DEVICE:
+		return project::SettingAddress{SettingGroupId::DEVICE, project::DeviceAddress{}};
 	}
 	return std::nullopt;
 }

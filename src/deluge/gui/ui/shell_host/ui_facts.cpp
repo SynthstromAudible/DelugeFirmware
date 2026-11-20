@@ -19,7 +19,7 @@ extern uint16_t batteryMV;
 namespace deluge::gui::shell_host {
 namespace {
 
-using scenes::bind::FlashCursor;
+using project::FlashCursor;
 using scenes::bind::PerformanceEditing;
 
 // The ports convert these by value.

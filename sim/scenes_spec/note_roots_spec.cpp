@@ -73,8 +73,8 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 
 	it("both roots' shortcut layers are empty in both shortcut versions, and light no pad even for "
 	   "a node with a real shortcut elsewhere", _ {
-		const menu::ShortcutsVersion saved = menu::shortcuts_version();
-		for (menu::ShortcutsVersion version : {menu::ShortcutsVersion::V1, menu::ShortcutsVersion::V3}) {
+		const deluge::project::ShortcutsVersion saved = menu::shortcuts_version();
+		for (deluge::project::ShortcutsVersion version : {deluge::project::ShortcutsVersion::V1, deluge::project::ShortcutsVersion::V3}) {
 			menu::set_shortcuts_version(version);
 			for (MenuContext::Root root : {MenuContext::Root::NoteEditor, MenuContext::Root::NoteRowEditor}) {
 				expect(all_null(menu::shortcut_layer(root, /*second_layer=*/false))).to_be_true();

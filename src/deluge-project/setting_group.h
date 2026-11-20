@@ -8,7 +8,9 @@
 /// table of `plugin::SettingInfo` rows (the same form an engine's settings take), and the record read and write here.
 /// Values are in their file form: the text `check_setting` checks. Writing checks the value against the row and
 /// changes nothing when the owner, the path or the value is refused; the engine side follows through the bridge's
-/// projection (`model/project_bridge/setting_projection.h`).
+/// projection (`model/project_bridge/setting_projection.h`). The DEVICE group is the one table no song holds: its rows
+/// (`deluge-project/device_settings.h`) are the device's own settings, which the host keeps, so reading or writing
+/// one here finds no owner.
 
 #include "deluge-project/arp_record.h"
 #include "deluge-project/clip_address.h"
@@ -48,6 +50,7 @@ enum class SettingGroupId : uint8_t {
 	CLIP_ARP,          ///< a clip's arp, in its value layer: a synth's, a MIDI or CV clip's, or the whole kit's. CLIP,
 	                   ///< the track's (KIT for the whole kit's)
 	LANE_ARP,          ///< a kit row's arp, its lane's note device. KIT_LANE, the lane's drum
+	DEVICE,            ///< Owner DEVICE, Instrument NONE: the device's own settings, which no song holds
 };
 
 /// @brief How many setting groups there are. Code that numbers owners after the groups (the host's name table)
@@ -55,7 +58,7 @@ enum class SettingGroupId : uint8_t {
 ///
 /// To add a group: append it to SettingGroupId, give it a case in `is_counted_by_group_count`, and raise this by one.
 /// Both a missing case and a missing bump fail to compile.
-inline constexpr uint8_t kSettingGroupCount = 11;
+inline constexpr uint8_t kSettingGroupCount = 12;
 
 /// @brief Whether kSettingGroupCount counts @p group, for the static_assert below. The switch names every group, so a
 /// new one fails to compile (-Werror=switch) until it has a case here; a named group is counted when its value is below
@@ -75,6 +78,7 @@ inline constexpr uint8_t kSettingGroupCount = 11;
 	case SettingGroupId::AUDIO_INPUT:
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
+	case SettingGroupId::DEVICE:
 		return static_cast<uint8_t>(group) < kSettingGroupCount;
 	}
 	return true;
@@ -106,8 +110,13 @@ struct TrackAddress {
 /// @brief A kit lane, by its kit's and drum's durable ids.
 using LaneAddress = KitRowAddress;
 
+/// @brief The device itself, as an owner: the settings it keeps whatever song is loaded, which no song's record holds.
+struct DeviceAddress {
+	auto operator<=>(const DeviceAddress&) const = default;
+};
+
 /// @brief Whose record a setting is on.
-using SettingOwner = std::variant<SongAddress, TrackAddress, LaneAddress, ClipAddress, NoteRowAddress>;
+using SettingOwner = std::variant<SongAddress, TrackAddress, LaneAddress, ClipAddress, NoteRowAddress, DeviceAddress>;
 
 /// @brief Whose gold knobs a mode belongs to: the song's own, or a track's (a kit row's knobs are its kit's).
 using KnobModeOwner = std::variant<SongAddress, TrackAddress>;
@@ -128,7 +137,8 @@ struct SettingAddress {
 /// @param song    The song whose records hold it.
 /// @param address The group and owner.
 /// @param path    A path of the group's table.
-/// @return The value, or nullopt when the owner does not resolve or the group has no such path.
+/// @return The value, or nullopt when the owner does not resolve or the group has no such path; always nullopt for
+///         the DEVICE group, which no song holds.
 [[nodiscard]] std::optional<serialization::Value> read_setting(Song& song, const SettingAddress& address,
                                                                std::string_view path);
 /// @copydoc read_setting
@@ -191,7 +201,7 @@ void forget_setting(Song& song, const SettingAddress& address, std::string_view 
 /// @param path    A path of the group's table.
 /// @param value   The new value, in its file form.
 /// @return True when written; false, with nothing changed, when the owner does not resolve, the group has no such
-///         path, or the row refuses the value.
+///         path, or the row refuses the value; always false for the DEVICE group, which no song holds.
 [[nodiscard]] bool write_setting(Song& song, const SettingAddress& address, std::string_view path,
                                  const serialization::Value& value);
 

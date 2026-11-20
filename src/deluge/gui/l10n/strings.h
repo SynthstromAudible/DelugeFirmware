@@ -1167,6 +1167,9 @@ enum class String : size_t {
 	// A MIDI next song held back until an input take or a slice has landed.
 	STRING_FOR_NEXT_SONG_AFTER_TAKE,
 	STRING_FOR_NEXT_SONG_AFTER_SLICE,
+	// A patch cable's two polarities, as the default polarity's list names them: the cable's own words.
+	STRING_FOR_POLARITY_UNIPOLAR,
+	STRING_FOR_POLARITY_BIPOLAR,
 
 	STRING_LAST
 };

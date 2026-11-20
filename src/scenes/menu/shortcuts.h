@@ -13,6 +13,7 @@
 /// `std::span<const uint16_t>` layers) could not hold five 16x8 tables of *node pointers* plus two
 /// one-dimensional ones selected by context, so the tables live here.
 
+#include "deluge-project/device_settings.h"
 #include "scenes/menu/context.h"
 
 #include <cstdint>
@@ -136,18 +137,9 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y);
 /// @return Its pad, or a `ShortcutPos` with `valid == false`.
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
 
-/// @brief Which of legacy's two shortcut layouts every lookup above resolves.
-///
-/// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1,
-/// `origin/main:src/deluge/gui/ui/sound_editor.h`) so the settings item's `int32_t` crosses unchanged; the names are
-/// spelled here rather than reached for so this layer names no `gui/` header.
-enum class ShortcutsVersion : uint8_t {
-	V1 = 0, ///< The pre-3.0 layout.
-	V3 = 1, ///< The current one, and the default.
-};
-
-/// @brief The layout in force. `V3` until something sets otherwise.
-ShortcutsVersion shortcuts_version();
+/// @brief The layout in force: which of the two (`project::ShortcutsVersion`) every lookup above resolves. `V3` until
+///        something sets otherwise.
+project::ShortcutsVersion shortcuts_version();
 
 /// @brief Select @p version: write flash byte 60 (`FlashStorage::shortcutsVersion`), which every lookup above reads.
 ///
@@ -167,6 +159,6 @@ ShortcutsVersion shortcuts_version();
 ///       (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is not in this layer at all -- it is the patching source
 ///       column, which is not table data here (`shortcut_blink.h`).
 /// @param version The layout to use.
-void set_shortcuts_version(ShortcutsVersion version);
+void set_shortcuts_version(project::ShortcutsVersion version);
 
 } // namespace deluge::scenes::menu

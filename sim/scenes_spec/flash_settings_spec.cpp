@@ -65,20 +65,20 @@ void read_settings_with_byte(uint32_t at, uint8_t value) {
 describe flash_shortcuts_byte("the shortcut layout is flash byte 60", $ {
 	it("selecting a layout writes the byte the settings write stores", _ {
 		ShortcutsByteGuard guard;
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V1);
 		expect(static_cast<int32_t>(FlashStorage::shortcutsVersion)).to_equal(0);
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V3);
+		menu::set_shortcuts_version(deluge::project::ShortcutsVersion::V3);
 		expect(static_cast<int32_t>(FlashStorage::shortcutsVersion)).to_equal(1);
 	});
 
 	it("reads the byte for the layout, any value but 0 as the current one, as main's switch does", _ {
 		ShortcutsByteGuard guard;
 		FlashStorage::shortcutsVersion = 0;
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = 1;
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
 		FlashStorage::shortcutsVersion = 7;
-		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
+		expect(menu::shortcuts_version()).to_equal(deluge::project::ShortcutsVersion::V3);
 	});
 });
 
