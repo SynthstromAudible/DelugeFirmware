@@ -503,18 +503,39 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 
 /// @brief Does the param's knob swing both ways around a middle value? Every patch cable's depth does, as does the
 /// pitch-bend expression axis and any param whose row is flagged @c ParamFlag::CENTRED.
+/// @param kind  The runtime collection kind.
+/// @param index The param's index in its collection; a patch cable's packed word needs no id.
+/// @return True for a bipolar param.
+[[nodiscard]] constexpr bool is_bipolar_at(plugin::ParamKind kind, uint32_t index) {
+	if (kind == plugin::ParamKind::PATCH_CABLE) {
+		return true;
+	}
+	if (kind == plugin::ParamKind::EXPRESSION) {
+		return runtime_param_id(kind, index) == kExpressionPitchBend;
+	}
+	const plugin::ParamInfo* row = param_row_at(kind, index);
+	return row != nullptr && row->flags.has(plugin::ParamFlag::CENTRED);
+}
+
+/// @brief @c is_bipolar_at for the param @p id: the index @c runtime_param_id gives @p id in a @p kind collection.
 /// @param kind The runtime collection kind.
 /// @param id   The param id, as @c runtime_param_id numbers it.
 /// @return True for a bipolar param.
 [[nodiscard]] constexpr bool is_bipolar(plugin::ParamKind kind, plugin::ParamId id) {
-	if (kind == plugin::ParamKind::PATCH_CABLE) {
+	switch (kind) {
+	case plugin::ParamKind::NONE:
+	case plugin::ParamKind::UNPATCHED_SOUND:
+	case plugin::ParamKind::UNPATCHED_GLOBAL:
+		return id.value >= kUnpatchedFirstId && is_bipolar_at(kind, id.value - kUnpatchedFirstId);
+	case plugin::ParamKind::PATCH_CABLE:
 		return true;
+	case plugin::ParamKind::PATCHED:
+	case plugin::ParamKind::STATIC:
+	case plugin::ParamKind::MIDI:
+	case plugin::ParamKind::EXPRESSION:
+		break;
 	}
-	if (kind == plugin::ParamKind::EXPRESSION && id == kExpressionPitchBend) {
-		return true;
-	}
-	const plugin::ParamInfo* row = param_row(kind, id);
-	return row != nullptr && row->flags.has(plugin::ParamFlag::CENTRED);
+	return is_bipolar_at(kind, id.value);
 }
 
 /// @brief @c is_arp_rhythm for the param at @p index of a @p kind collection.
@@ -533,15 +554,6 @@ inline constexpr plugin::ParamId kFirstGlobalParam = param::kVolumePostFX;
 [[nodiscard]] constexpr bool is_stutter_rate_at(plugin::ParamKind kind, uint32_t index) {
 	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
 	return id && is_stutter_rate(kind, *id);
-}
-
-/// @brief @c is_bipolar for the param at @p index of a @p kind collection; a patch cable's packed word needs no id.
-/// @param kind  The runtime collection kind.
-/// @param index The param's index in its collection.
-/// @return True for a bipolar param.
-[[nodiscard]] constexpr bool is_bipolar_at(plugin::ParamKind kind, uint32_t index) {
-	const std::optional<plugin::ParamId> id = runtime_param_id(kind, index);
-	return id ? is_bipolar(kind, *id) : kind == plugin::ParamKind::PATCH_CABLE;
 }
 
 /// @brief Whether a plugin's param table has the param @p id: the global effectable's host-chain table for it, the
