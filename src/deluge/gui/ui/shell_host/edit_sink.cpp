@@ -1,4 +1,5 @@
 #include "board_controls.hpp"
+#include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "effects/settings.h"
 #include "gui/ui/shell_host/shell_host.h"

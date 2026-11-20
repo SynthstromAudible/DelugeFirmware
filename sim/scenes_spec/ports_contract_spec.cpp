@@ -1,6 +1,9 @@
 #include "port_contracts.h"
 #include "scenes/menu/bind_host.h"
 
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
+
 #include "cppspec.hpp"
 
 #include "support/spec_main.h"
@@ -27,7 +30,10 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		if (p.audio != nullptr) {
 			expect(bind::contract::voice_count_is_a_count(*p.audio)).to_be_true();
 			expect(bind::contract::audio_runtime_facts_are_choices(*p.audio)).to_be_true();
+			expect(p.audio->line_in_plugged()).to_equal(AudioEngine::lineInPluggedIn);
 			if (p.writes != nullptr) {
+				// The threshold lives on the song: a missing one is a fixture problem, not a broken port.
+				expect(currentSong).not_().to_be_null();
 				// Writes the engine's and song's run-time state; the case puts both back.
 				expect(bind::contract::runtime_writes_are_read_back(*p.writes, *p.audio)).to_be_true();
 			}

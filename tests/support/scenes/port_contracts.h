@@ -33,15 +33,17 @@ namespace deluge::scenes::bind::contract {
 }
 
 /// @brief The threshold-recording mode is one of the menu's four choices, and the sidechain's sync type one of the
-///        three it lists.
+///        three it lists. (The line-input fact has no case a fake and the host share; each spec checks it against
+///        its own source.)
 [[nodiscard]] inline bool audio_runtime_facts_are_choices(const AudioFacts& audio) {
 	const int32_t threshold = audio.song_threshold_recording();
 	const plugin::SyncType type = audio.reverb_sidechain_sync_type();
-	return threshold >= 0 && threshold <= 3 && audio.line_in_plugged() == audio.line_in_plugged()
+	return threshold >= 0 && threshold <= 3
 	       && std::ranges::find(plugin::kSyncTypeChoices, type) != plugin::kSyncTypeChoices.end();
 }
 
-/// @brief Each runtime write is visible through the audio fact that reads it back. Meaningful on the host, whose
+/// @brief Host-only: a recording fake cannot read back. The caller must have a song, since the threshold lives on it.
+///        Each runtime write is visible through the audio fact that reads it back. Meaningful on the host, whose
 ///        writes land in the engine; the caller restores what it changed.
 [[nodiscard]] inline bool runtime_writes_are_read_back(WriteSink& writes, const AudioFacts& audio) {
 	const int32_t threshold = audio.song_threshold_recording();
