@@ -2,12 +2,12 @@
 
 /// @brief Internal helpers shared by the `nodes/*.cpp` tables. Not part of any public interface.
 ///
-/// Three `constexpr` post-hoc modifiers and one string-id cast, in one place rather than copied
-/// into six translation units. They exist because `node.h`'s builders take the arguments the
-/// common case needs and nothing more (a deliberate choice, see `with_range_dependent`);
-/// the handful of legacy items that also need a distinct title on a non-`param` kind, a meter hint
-/// on a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape
-/// `with_range_dependent` already established.
+/// The string-id cast (`sid`), the target of a node on a DEVICE row (`device_row`), the words a toggle lists for its
+/// two states, and the `constexpr` post-hoc modifiers, in one place rather than copied into each table. The modifiers
+/// exist because `node.h`'s builders take the arguments the common case needs and nothing more (a deliberate choice,
+/// see `with_range_dependent`); the legacy items that also need a distinct title on a non-`param` kind, a meter hint on
+/// a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape `with_range_dependent`
+/// already established.
 
 #include "scenes/bind/target.h"
 #include "scenes/menu/node.h"

@@ -20,6 +20,7 @@
 #include "playback/playback_handler.h"
 #include "plugin-api/types/display_mapping.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
 #include "processing/stem_export/stem_export.h"
 
@@ -491,11 +492,41 @@ describe ports_contract_host("the app's ports keep the contract their fakes keep
 		(void)p.device->write(device_path::kMonitorMode, 2);
 		expect(static_cast<int>(AudioEngine::inputMonitoringMode)).to_equal(static_cast<int>(InputMonitoringMode::OFF));
 
-		// The clocks: with no external clock playing, the trigger input's resync waits; the MIDI clocks switch.
+		// The clocks. With no external clock playing, the trigger input's resync waits: the last swung tick stays.
+		expect(currentSong).not_().to_be_null();
+		const uint8_t playback_state = playbackHandler.playbackState;
+		const bool analog_input = playbackHandler.usingAnalogClockInput;
+		const int64_t input_tick = playbackHandler.lastInputTickReceived;
+		const int64_t swung_tick = playbackHandler.lastSwungTickActioned;
+		const int64_t out_tick = playbackHandler.lastTriggerClockOutTickDone;
+		const GateType clock_gate = cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode;
+		const bool clock_state = cvEngine.clockState;
+		// No input tick received: following the external clock, the song is at internal tick 0.
+		playbackHandler.lastInputTickReceived = 0;
+		constexpr int64_t kStale = 777;
+		playbackHandler.lastSwungTickActioned = kStale;
 		(void)p.device->write(device_path::kTriggerInPpqn, 48);
 		expect(playbackHandler.analogInTicksPPQN).to_equal(uint32_t{48});
+		expect(playbackHandler.lastSwungTickActioned).to_equal(kStale);
+		// Following the trigger clock, the song's ticks resync to the clock's at the write.
+		playbackHandler.playbackState = PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
+		playbackHandler.usingAnalogClockInput = true;
+		(void)p.device->write(device_path::kTriggerInPpqn, 24);
+		expect(playbackHandler.analogInTicksPPQN).to_equal(uint32_t{24});
+		expect(playbackHandler.lastSwungTickActioned).to_equal(int64_t{0});
+		playbackHandler.playbackState = playback_state;
+		playbackHandler.usingAnalogClockInput = analog_input;
+		// With the clock output on, the output's tick count resyncs to the song's tick, 0, at the write.
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode = GateType::SPECIAL;
+		playbackHandler.lastTriggerClockOutTickDone = kStale;
 		(void)p.device->write(device_path::kTriggerOutPpqn, 96);
 		expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t{96});
+		expect(playbackHandler.lastTriggerClockOutTickDone).to_equal(int64_t{0});
+		playbackHandler.lastInputTickReceived = input_tick;
+		playbackHandler.lastSwungTickActioned = swung_tick;
+		playbackHandler.lastTriggerClockOutTickDone = out_tick;
+		cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode = clock_gate;
+		cvEngine.clockState = clock_state;
 		(void)p.device->write(device_path::kMidiClockOut, clock_out ? 0 : 1);
 		expect(playbackHandler.midiOutClockEnabled).to_equal(!clock_out);
 		(void)p.device->write(device_path::kMidiClockIn, clock_in ? 0 : 1);

@@ -251,10 +251,9 @@ struct device_path {
 	[[nodiscard]] static constexpr DevicePath feature(Feature f);
 };
 
-namespace feature_paths {
 /// The menu-time tables: read when a menu looks a setting up, never by the audio tier or an interrupt. The device
 /// image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
-inline namespace menu_tables {
+namespace feature_paths::inline menu_tables {
 
 /// @brief How long the longest feature's path is.
 inline constexpr size_t kLongest = [] {
@@ -285,8 +284,7 @@ inline constexpr std::array<FeaturePath, kFeatureCount> kPaths = [] {
 	return paths;
 }();
 
-} // namespace menu_tables
-} // namespace feature_paths
+} // namespace feature_paths::inline menu_tables
 
 constexpr DevicePath device_path::feature(Feature f) {
 	// Indexed through `feature_info`, so an id with no entry stops there rather than reading past the paths.
