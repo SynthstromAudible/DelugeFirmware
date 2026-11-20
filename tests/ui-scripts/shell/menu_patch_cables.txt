@@ -1,7 +1,7 @@
 # Level-2 acceptance: the mod-matrix page (nodes::patch_cables) and the
 # chain into the cable-strength page it opens.
 #
-# `PatchCables::selectButtonPress` (`gui/menu_item/patch_cables.cpp:164-190`) navigates to the
+# `PatchCables::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`) navigates to the
 # selected cable's own strength page -- the range one when the cable's destination is itself a cable.
 # In the port that is `patch_cables_chain` + `Node::chain_targets`, and the state legacy installed on
 # its way out (`soundEditor.patchingParamSelected`, `source_selection::regularMenu.s`) the port
@@ -30,10 +30,10 @@
 400   encoder Select -64
 420   snapshot after_negative        # clamped at kMinMenuPatchCableValue: "-50.00", the widest
 #                                      string this page can ever draw, and it fits
-# **Look at these two frames.** Legacy draws the value in the 13px "Big" face right-aligned 3px off
-# the edge (`patch_cable_strength.cpp:172-177`), and so does the port (`ui/oled/values.h`'s
-# `DecimalLayout`). The toolkit's default huge face (18px per glyph) would cut the last digit of any
-# value of magnitude 10 or more, and of every negative one, on the panel's right edge.
+# **Look at these two frames.** Main draws the value in the 13px "Big" face right-aligned 3px off the edge
+# (`PatchCableStrength::renderOLED` in `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), and so does the
+# port (`ui/oled/values.h`'s `DecimalLayout`). The toolkit's default huge face (18px per glyph) would cut the last digit
+# of any value of magnitude 10 or more, and of every negative one, on the panel's right edge.
 500   button Back down
 520   button Back up
 540   snapshot after_back            # the mod-matrix list again, row 0 showing its new strength

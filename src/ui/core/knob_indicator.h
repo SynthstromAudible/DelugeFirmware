@@ -13,13 +13,11 @@ namespace deluge::ui {
 /// @brief Turn one knob's level into the four segment brightnesses its indicator column shows.
 ///
 /// The port of the brightness half of `indicator_leds::actuallySetKnobIndicatorLevel`
-/// (`src/deluge/hid/led/indicator_leds.cpp:180-244`) together with the two helpers it calls,
-/// `getBipolarBrightnessOutputValue` (`:246-269`) and `getBrightnessOutputValue` (`:271-283`).
-/// Everything else in that legacy function is state the port does not have here -- the
-/// "unchanged, so skip" cache (`knobIndicatorLevels`/`knobIndicatorBipolar`, `:186-189`), the
-/// metering timer (`setKnobIndicatorLevel`, `:172-178`) and the blink override
-/// (`:216-228`) -- because an `LedFrame` is redeclared from scratch every tick and the caller owns
-/// the blink phase (`KnobIndicatorBlink` below).
+/// (`src/deluge/hid/led/indicator_leds.cpp`) together with the two helpers it calls, `getBipolarBrightnessOutputValue`
+/// and `getBrightnessOutputValue`. Everything else in that legacy function is state the port does not have here -- the
+/// "unchanged, so skip" cache (`knobIndicatorLevels`/`knobIndicatorBipolar`), the metering timer
+/// (`setKnobIndicatorLevel`) and the blink override (the `levelIndicatorBlinkOn` branch) -- because an `LedFrame` is
+/// redeclared from scratch every tick and the caller owns the blink phase (`KnobIndicatorBlink` below).
 ///
 /// It lives in `src/ui/` rather than in the service that calls it because it is pure display
 /// arithmetic over no model at all, which is exactly the split `scenes-no-frame-primitives`
@@ -27,7 +25,7 @@ namespace deluge::ui {
 /// *what the column looks like*.
 ///
 /// @param level   Legacy's `level`, "out of 128" -- and, as in legacy, a `uint8_t`: the parameter
-///                is declared `uint8_t` at `indicator_leds.h:85`, so a caller's wider `knobPos`
+///                is declared `uint8_t` by `setKnobIndicatorLevel` (`indicator_leds.h`), so a caller's wider `knobPos`
 ///                is truncated before any of this arithmetic runs, and the port must truncate at
 ///                the same place to agree.
 /// @param bipolar Legacy's `isBipolar`: the column reads outward from the middle rather than up
@@ -37,11 +35,11 @@ KnobIndicator knob_indicator_levels(uint8_t level, bool bipolar);
 
 /// @brief How long `indicator_leds::blinkKnobIndicator` blinks an indicator for, in milliseconds.
 ///
-/// `blinkKnobIndicator` (`indicator_leds.cpp:282-295`) sets `levelIndicatorBlinksLeft = 26` and
-/// `blinkKnobIndicatorLevelTimeout` (`:304-312`) re-arms a 20 ms timer until the counter runs out,
+/// `blinkKnobIndicator` (`indicator_leds.cpp`) sets `levelIndicatorBlinksLeft = 26` and
+/// `blinkKnobIndicatorLevelTimeout` re-arms a 20 ms timer until the counter runs out,
 /// so the blink lasts 26 half-periods of 20 ms.
 constexpr uint32_t kKnobIndicatorBlinkHalfMs = 20;
-/// @brief The number of half-periods `blinkKnobIndicator` runs for (`indicator_leds.cpp:292`).
+/// @brief The number of half-periods `blinkKnobIndicator` runs for (`indicator_leds.cpp`).
 constexpr uint32_t kKnobIndicatorBlinkHalves = 26;
 /// @brief Total blink duration, `kKnobIndicatorBlinkHalves * kKnobIndicatorBlinkHalfMs`.
 constexpr uint32_t kKnobIndicatorBlinkMs = kKnobIndicatorBlinkHalves * kKnobIndicatorBlinkHalfMs;
@@ -50,10 +48,10 @@ constexpr uint32_t kKnobIndicatorBlinkMs = kKnobIndicatorBlinkHalves * kKnobIndi
 ///
 /// Legacy drives this from a `TimerName::LEVEL_INDICATOR_BLINK` callback that alternates
 /// `setKnobIndicatorLevel(which, blinkOn ? 64 : 0, blinkOn ? bipolar : false)` and then flips
-/// `levelIndicatorBlinkOn` (`blinkKnobIndicatorLevelTimeout`, `indicator_leds.cpp:304-312`);
+/// `levelIndicatorBlinkOn` (`blinkKnobIndicatorLevelTimeout`, `indicator_leds.cpp`);
 /// `levelIndicatorBlinkOn` starts **false**, so the first half-period is the dark one. On the lit
 /// half of a *bipolar* blink, `actuallySetKnobIndicatorLevel`'s own override lights the two middle
-/// segments outright rather than computing a brightness (`:216-228`), which is why this cannot be
+/// segments outright rather than computing a brightness, which is why this cannot be
 /// spelled as two calls to `knob_indicator_levels`.
 ///
 /// @param elapsed_ms Milliseconds since the blink began.

@@ -19,9 +19,9 @@ using MirrorSink = void (*)(std::span<const uint8_t> bytes, uint16_t w, uint16_t
 ///        `min_interval_ms`.
 ///
 /// **Deliberate simplification, not a literal port.** Legacy's `HIDSysex::sendDisplayIfChanged`
-/// (`hid/hid_sysex.cpp:65-80`) mirrors at full display rate whenever the MIDI cable's send buffer
+/// (`hid/hid_sysex.cpp`) mirrors at full display rate whenever the MIDI cable's send buffer
 /// has room (`sendBufferSpace() >= 512`), and backs off to retry in 100 ms
-/// (`uiTimerManager.setTimer(TimerName::SYSEX_DISPLAY, 100)`, `:75`) only when that buffer is
+/// (`uiTimerManager.setTimer(TimerName::SYSEX_DISPLAY, 100)`) only when that buffer is
 /// congested -- there is no unconditional cap in legacy. This shell has no MIDI cable to ask, so
 /// this port uses an unconditional 100 ms floor between sends instead; that is a policy this
 /// port chooses, not a fact reproduced from legacy.
@@ -37,7 +37,7 @@ struct Mirror {
 	/// The sink to mirror through; `nullptr` means "not wired".
 	MirrorSink sink = nullptr;
 	/// The throttle floor between sends: legacy's 100 ms retry interval
-	/// (`HIDSysex::sendDisplayIfChanged`, `hid_sysex.cpp:75`) as an unconditional cap -- see the
+	/// (`HIDSysex::sendDisplayIfChanged`, `hid_sysex.cpp`) as an unconditional cap -- see the
 	/// class note on why this is a policy choice rather than a literal read of legacy's condition.
 	uint32_t min_interval_ms = 100;
 	/// The clock the last mirrored frame actually went out at; meaningless until `sent_once`.

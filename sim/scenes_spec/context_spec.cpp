@@ -24,15 +24,15 @@ using Root = MenuContext::Root;
 
 namespace {
 
-/// @brief An ordinary patched param (LPF frequency) -- the shape the range rule must NOT fire on:
-///        its value lives on the `Sound`, so legacy opens it through the base
-///        `MenuItem::checkPermissionToBeginSession` on a multisampled synth without asking for a
-///        range.
+/// @brief An ordinary patched param (LPF frequency) -- the shape the range rule must NOT fire on: its value lives on
+///        the `Sound`, so legacy opens it through the base `MenuItem::checkPermissionToBeginSession`
+///        (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) on a multisampled synth without asking for a range.
 constexpr menu::Node param_node =
     menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
 
 /// @brief The same node marked range-specific (and range-dependent) -- an item whose permission routes through
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, the discriminator for the range rule.
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), the discriminator for the range rule.
 constexpr menu::Node range_dependent_node = menu::with_range_dependent(param_node);
 
 /// @brief A node with neither a bound param nor the range flag.
@@ -79,7 +79,7 @@ describe menu_context("scenes::menu::context_for", $ {
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/true);
 
 		// Not `Root::Sound`: `setup()` sends a kit with affectEntire to
-		// `soundEditorRootMenuKitGlobalFX` (`sound_editor.cpp:1790-1792`), which is what
+		// `soundEditorRootMenuKitGlobalFX` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), which is what
 		// `Root::KitGlobalFx` -- which nothing else produces -- exists for.
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::KitGlobalFx));
 		expect(ctx.is_kit).to_be_true();
@@ -93,8 +93,10 @@ describe menu_context("scenes::menu::context_for", $ {
 	});
 
 	it("edits the selected row when kit_global_fx is false, even with affect-entire on", _ {
-		// The kit-row grid-shortcut path (`sound_editor.cpp:1205-1213`): `setupKitGlobalFXMenu` is
-		// false there while the clip's `affectEntire` is true, and legacy edits the row's params.
+		// The kit-row grid-shortcut path, where main's `SoundEditor` leaves `setupKitGlobalFXMenu` false
+		// (`SoundEditor::exitCompletely` clears it; `SoundEditor::potentialShortcutPadAction` and
+		// `enterOrUpdateSoundEditor` set it, `origin/main:src/deluge/gui/ui/sound_editor.cpp`)
+		// while the clip's `affectEntire` is true, and main edits the row's params.
 		// `affect_entire` still reports the clip's setting; `kit_global_fx` is what chose the branch.
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
@@ -213,11 +215,12 @@ describe menu_context("scenes::menu::context_for", $ {
 	});
 
 	it("keeps the wide and narrow root-UI facts on separate fields, and picks the root from the wide one", _ {
-		// `setup()` reads two different things: `!rootUIIsClipMinderScreen()` (`:1632`, `:1764-1767`),
-		// which chooses the song root for the session, arranger AND song-automation views alike, and
-		// `getRootUI() == &sessionView` (`gui/menu_item/song/midi_learn.h:35-37`), which only two
-		// items in that root ask. `context_for` takes both and must not let either stand in for the
-		// other -- so all four combinations are asserted, including the impossible one.
+		// `setup()` reads two different things: `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), which chooses the song root for the session, arranger AND
+		// song-automation views alike, and `getRootUI() == &sessionView`
+		// (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`), which only two items in that root ask.
+		// `context_for` takes both and must not let either stand in for the other -- so all four combinations are
+		// asserted, including the impossible one.
 		auto f = spec::make_synth_song();
 
 		const MenuContext arranger = menu::context_for(*f.song, deluge::gui::menuViewOf(nullptr), 0, false, /*session_or_arranger_root=*/true,
@@ -267,7 +270,8 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	});
 
 	it("opens an ordinary patched param on the same multi-range sound without asking for a range", _ {
-		// The base rule (`menu_item.cpp:27-31`): LPF frequency lives on the Sound, not in a range.
+		// The base rule (`MenuItem::checkPermissionToBeginSession` in
+		// `origin/main:src/deluge/gui/menu_item/menu_item.cpp`): LPF frequency lives on the Sound, not in a range.
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);
@@ -292,8 +296,9 @@ describe menu_permission("scenes::menu::permission_for", $ {
 	});
 
 	it("lets a range-dependent node open once a range has been picked into the context", _ {
-		// The `:1955-1957` arm, unreachable straight out of context_for -- E2's picker is what
-		// writes the chosen range back, and this is what it buys.
+		// The `previouslySelectedRange` arm of `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), unreachable straight out of context_for -- the range
+		// picker is what writes the chosen range back, and this is what it buys.
 		auto f = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		sound->sources[0].ranges.insertMultiRange(0);

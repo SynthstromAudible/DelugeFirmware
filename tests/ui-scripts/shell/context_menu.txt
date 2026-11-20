@@ -4,8 +4,8 @@
 #
 # This is the sixth `DescriptorId` and the only one that uses all three optional `Descriptor`
 # hooks (`initial`, `on_move`, `footer`), so it is the one worth driving: `initial_audio_source`
-# picks the row from `AudioOutput::inputChannel` (`gui/context_menu/audio_input_selector.cpp:87-127`
-# setupAndCheckAvailability), and `on_move_audio_source` (`:140-195` selectEncoderAction) runs on
+# picks the row from `AudioOutput::inputChannel` (`gui/context_menu/audio_input_selector.cpp`
+# setupAndCheckAvailability), and `on_move_audio_source` (`AudioInputSelector::selectEncoderAction`) runs on
 # every turn.
 #
 # `menu_reset.txt` covers the OTHER five descriptors' one-option confirmation and the

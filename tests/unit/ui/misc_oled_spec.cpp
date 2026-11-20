@@ -26,8 +26,8 @@ namespace uitest = deluge::ui::test;
 // The four "everything else" OLED widgets, pinned the same three ways the other ui specs use.
 //
 // Byte for byte against legacy where legacy exists: `namespace legacy` below re-transcribes
-// `View::drawOutputNameFromDetails`' drawing half and `OLED::renderEmulated7Seg` (as it existed
-// at 6a4ccefbc^, the commit before the emulated-display feature was deleted) against the raw gfx
+// `View::drawOutputNameFromDetails`' drawing half and `OLED::renderEmulated7Seg` (as
+// `git show 6a4ccefbc^:src/deluge/hid/display/oled.cpp` has it) against the raw gfx
 // `Canvas` in canvas-absolute coordinates, with every magic number spelled as a literal (3/12 and
 // 17/30 for the two y pairs, 6/9 and 9/10 for the two faces, 33 and 17 for the digit pitch and
 // row pitch) rather than borrowed from the constants the port lays out with -- otherwise the
@@ -41,8 +41,9 @@ namespace uitest = deluge::ui::test;
 // Points worth calling out explicitly:
 //
 //  - `output_name` draws nothing for `edited`. `drawOutputNameFromDetails` takes `editedByUser`
-//    and its body never reads it; the only renderer that did was the 7-segment one, gone with
-//    commit 6a4ccefbc. There is no "edited" indicator left to reproduce.
+//    and its body never reads it; the only renderer that read it was the 7-segment one
+//    (`OLED::renderEmulated7Seg` at 6a4ccefbc^), which the firmware does not have. There is no
+//    "edited" indicator to reproduce.
 //  - `output_name` does not arm a side-scroller for a name too wide to fit. That is
 //    `scroll_text`'s job and needs state this widget does not own; the name is left-aligned,
 //    which is what legacy draws on the first frame. Pinned below.

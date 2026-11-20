@@ -43,7 +43,9 @@ struct ColumnSlot {
 };
 
 /// @brief `Column::render` for a `Node::option_list_column`: `drawHorizontalLine(kScreenTitleSeparatorY, ...)` and
-///        `Selection::drawPixelsForOled` across the panel (`filter_route.h:75-78`, `mod_fx/type.h:73-76`).
+///        `Selection::drawPixelsForOled` across the panel (`FilterRouting::renderInHorizontalMenu` in
+///        `origin/main:src/deluge/gui/menu_item/filter_route.h`, `Type::renderInHorizontalMenu`
+///        (`origin/main:src/deluge/gui/menu_item/mod_fx/type.h`)).
 /// @param slot_frame The column's value region; the drawing covers the panel below the title.
 /// @param focused    Unused.
 /// @param ctx        Must point at a `ColumnSlot::OptionList`.
@@ -125,15 +127,13 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 /// @return The text; empty for a `Toggle`, whose legacy item spells none.
 std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out);
 
-/// @brief Emit the horizontal-page notification for @p column -- the pair
-///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
-///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
-///        `handle()`'s button-focus code, which is where legacy's own three call sites are:
-///        `selectEncoderAction` (`:328`), `handleInstrumentButtonPress`'s new-focus tail
-///        (`:437`), and `handleItemAction`'s plain-column arm (`:666`). `handleItemAction`'s
-///        other arm -- a submenu, or an `allowToBeginSessionFromHorizontalMenu` column, already
-///        focused -- calls `enterSubmenu` instead (`:677`) and never reaches
-///        `displayNotification` at all; that is `enter_horizontal_item`, not this method.
+/// @brief Emit the horizontal-page notification for @p column -- the pair `HorizontalMenu::displayNotification` prints
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), name and formatted value on one line. Shared by
+///        `after_render`'s value-edit arm and `handle()`'s button-focus code, which is where legacy's own three call
+///        sites are: `selectEncoderAction`, `handleInstrumentButtonPress`'s new-focus tail, and
+///        `handleItemAction`'s plain-column arm. `handleItemAction`'s other arm -- a submenu, or an
+///        `allowToBeginSessionFromHorizontalMenu` column, already focused -- calls `enterSubmenu` instead and
+///        never reaches `displayNotification` at all; that is `enter_horizontal_item`, not this method.
 /// @param ctx    The menu context.
 /// @param column The column the edit or press was on.
 void notify_column(const MenuContext& ctx, const Node& column);

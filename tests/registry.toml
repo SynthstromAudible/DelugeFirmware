@@ -1771,8 +1771,8 @@ requires = ["cmake", "clang"]
 name = "doc-hygiene-selftest"
 template = "unittest"
 path = "scripts"
-gates = "the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code"
-run = ["python3", "-m", "unittest", "test_check_doc_hygiene", "test_check_citations"]
+gates = "the UI docs lint flags history breadcrumbs, any line number in a citation, and a backticked path naming no one file or a symbol that file lacks"
+run = ["python3", "-m", "unittest", "test_check_doc_hygiene"]
 
 [[harness]]
 name = "spec-comparisons-selftest"

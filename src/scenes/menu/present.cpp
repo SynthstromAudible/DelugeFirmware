@@ -91,7 +91,7 @@ std::string_view format_int(int32_t value, char* buf, size_t n) {
 
 /// @brief Render @p value into @p buf with a period @p places from the right.
 ///
-/// Legacy's rule, from `Decimal::drawPixelsForOled` (`gui/menu_item/decimal.cpp:129-153`):
+/// Legacy's rule, from `Decimal::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`):
 /// `intToString(value, buffer, numDecimalPlaces + 1)` zero-pads the digits to **at least
 /// `places + 1`**, and the period is then drawn at `length - numDecimalPlaces`. So there is always
 /// a whole part before the point, however small the value: 5 at 2 places is `0.05`, 0 is `0.00`,
@@ -149,9 +149,11 @@ std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 } // namespace detail
 
 // `Submenu::drawSubmenuItemsForOled` blits `renderSubmenuItemTypeForOled` on every row
-// (`gui/menu_item/submenu.cpp:117`): the base arrow (`menu_item.cpp:69-75`), `Toggle`'s checkbox (`toggle.cpp:50-57`),
-// `Selection`'s checkbox when `isToggle()` (`selection.cpp:38-56`), and the MIDI device-definition items' own (a
-// `Kind::Custom` here).
+// (`Submenu::drawSubmenuItemsForOled` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): the base arrow
+// (`MenuItem::renderSubmenuItemTypeForOled` in `origin/main:src/deluge/gui/menu_item/menu_item.cpp`), `Toggle`'s
+// checkbox (`origin/main:src/deluge/gui/menu_item/toggle.cpp`), `Selection`'s checkbox when `isToggle()`
+// (`Selection::renderSubmenuItemTypeForOled` in `origin/main:src/deluge/gui/menu_item/selection.cpp`), and the MIDI
+// device-definition items' own (a `Kind::Custom` here).
 const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
 	const auto checkbox = [&] {
 		return bindings::read(node, ctx) != 0 ? &deluge::gfx::oled::icons::checkedBox
@@ -264,8 +266,8 @@ void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*
 	if (n == 0) {
 		return;
 	}
-	// `Selection::drawPixelsForOled` (`selection.cpp:8-28`): the current option in the middle row where the list
-	// allows, else as near it as the ends let it be.
+	// `Selection::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/selection.cpp`): the current option in the
+	// middle row where the list allows, else as near it as the ends let it be.
 	const int32_t visible = panel.style.menu_rows;
 	const int32_t current = std::clamp(call->value, int32_t{0}, n - 1);
 	const int32_t n_before = current - std::max<int32_t>(0, current - visible);
@@ -360,8 +362,9 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		}
 	}
 
-	// `Number::renderInHorizontalMenu` (`gui/menu_item/number.cpp:75-102`): the item's rendering style picks the meter,
-	// and a plain number is a `meter_column` with `Hint::None` (`ui/oled/columns.h`'s note on the missing fifth arm).
+	// `Number::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/number.cpp`): the item's rendering style
+	// picks the meter, and a plain number is a `meter_column` with `Hint::None` (`ui/oled/columns.h`'s note on the
+	// missing fifth arm).
 	const auto draw_meter = [&] {
 		const IntRange range = bindings::range(node, ctx);
 		slot.meter.hint = node.hint;
@@ -389,8 +392,9 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		break;
 	}
 	case Kind::SyncLevel: {
-		// `SyncLevel::getColumnLabel` and `renderInHorizontalMenu` (`gui/menu_item/sync_level.cpp:40-77`): OFF in
-		// the row face under the name, else the note length as the label over the sync type's icon.
+		// `SyncLevel::getColumnLabel` and `renderInHorizontalMenu`
+		// (`origin/main:src/deluge/gui/menu_item/sync_level.cpp`): OFF in the row face under the name, else the note
+		// length as the label over the sync type's icon.
 		if (syncValueToSyncLevel(value) == SYNC_LEVEL_NONE) {
 			draw_art({.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF)});
 			break;
@@ -412,9 +416,9 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		break;
 	}
 	case Kind::Decimal: {
-		// `Decimal::renderInHorizontalMenu` (`gui/menu_item/decimal.cpp:176-191`): a rendering style other than NUMBER
-		// draws as `Number` does; a NUMBER keeps three characters of a value at or below -10.00, which would not fit
-		// the column.
+		// `Decimal::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): a rendering style
+		// other than NUMBER draws as `Number` does; a NUMBER keeps three characters of a value at or below -10.00,
+		// which would not fit the column.
 		if (node.hint != Hint::None) {
 			draw_meter();
 			break;
@@ -448,7 +452,8 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 	};
 	switch (column.kind) {
 	case Kind::Decimal: {
-		// `Decimal::getNotificationValue` (`decimal.h:31-33`), and what an override appends to it.
+		// `Decimal::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/decimal.h`), and what an override
+		// appends to it.
 		const std::string_view base = format_decimal(value, column.bind.decimal_places, out.data(), out.size());
 		if (column.bind.notification_suffix == nullptr) {
 			return base;
@@ -457,7 +462,8 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		return std::string_view{out.data(), base.size() + added};
 	}
 	case Kind::Enum: {
-		// `Selection::getNotificationValue` (`selection.cpp:62-64`): the option's full name.
+		// `Selection::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/selection.cpp`): the option's full
+		// name.
 		std::array<std::string_view, kMaxDynamicNames> names{};
 		std::array<deluge::ui::shell::TextScratch, kMaxDynamicNames> scratch{};
 		const size_t count = bindings::names(column, ctx, names, scratch);
@@ -477,26 +483,26 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		// A custom item with a value must supply `Binding::value_text` (above); the rest keep main's empty value.
 		return {};
 	default:
-		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.
+		// `Number::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/number.cpp`): the value, doubled for
+		// the PERCENT style.
 		return format_int(column.hint == Hint::Percent ? value * 2 : value, out.data(), out.size());
 	}
 }
 
 void notify_column(const MenuContext& ctx, const Node& column) {
-	// Legacy's `HorizontalMenu::displayNotification` (`horizontal_menu.cpp:335-343`) ends in one
-	// call, `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
-	// (`:342`): a one-line banner across the top of the panel, in the display's single popup slot,
-	// typed `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`). `notify::notice_notification`
-	// carries exactly that (title, value) pair, and both of its consumers end in that slot or its
-	// port: legacy's `drain_notifications` calls the same function, and `shell::Notices::drain`
-	// reaches it through the application's `NotificationSink` -- or, with no sink installed, draws
-	// `shell::NotificationScene`, which is transparent over the menu and takes no input
-	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are
-	// enough.
+	// Legacy's `HorizontalMenu::displayNotification` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) ends
+	// in one call, `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`: a one-line banner
+	// across the top of the panel, in the display's single popup slot, typed `PopupType::NOTIFICATION`
+	// (`OLED::displayNotification` in `hid/display/oled.cpp`). `notify::notice_notification` carries exactly that
+	// (title, value) pair, and both of its consumers end in that slot or its port: legacy's `drain_notifications` calls
+	// the same function, and `shell::Notices::drain` reaches it through the application's `NotificationSink` -- or,
+	// with no sink installed, draws `shell::NotificationScene`, which is transparent over the menu and takes no input
+	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are enough.
 	//
 	// `displayNotification` refuses first when the item's `showNotification()` is false
-	// (`horizontal_menu.cpp:336-338`): every submenu (`submenu.h:69`), and the items `Node::show_notification`
-	// marks. Centralised here, so no call site lights a banner legacy never would.
+	// (`HorizontalMenu::displayNotification` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): every
+	// submenu (`Submenu::showNotification` in `origin/main:src/deluge/gui/menu_item/submenu.h`), and the items
+	// `Node::show_notification` marks. Centralised here, so no call site lights a banner legacy never would.
 	if (column.kind == Kind::Submenu || !column.show_notification) {
 		return;
 	}

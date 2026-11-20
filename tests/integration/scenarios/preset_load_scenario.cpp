@@ -325,12 +325,13 @@ constexpr const char* kNavGoneLands = "GONE1";
 /// lands, and the third turn can be made behind it.
 constexpr uint32_t kNavReadHoldMs = 50;
 /// A pile carries the wraps its landing made, as main's `wrapped` survives its pending detents
-/// (`LoadInstrumentPresetUI::doPresetNavigation`): instruments already in the song are passed over until the second
-/// wrap. kNavWrapDir holds WRAP0..WRAP4, few enough for one window. The clip's kit is WRAP4, and another kit of the
-/// song, its clips not active in session, is WRAP0, so every read lists WRAP0 (in the song) and WRAP1..WRAP3. On from
-/// WRAP4 reads past the end, starts again from the folder's start, passes WRAP0 and lands on WRAP1. Three more, piled
-/// behind it, wrap once, pass WRAP0 and land on WRAP3. One more, piled behind that, wraps a second time and takes the
-/// in-song kit; a pile that forgot its landing's wrap would pass it again and land on WRAP1.
+/// (`LoadInstrumentPresetUI::doPresetNavigation` (`origin/main:src/deluge/gui/ui/load/load_instrument_preset_ui.cpp`)):
+/// instruments already in the song are passed over until the second wrap. kNavWrapDir holds WRAP0..WRAP4, few enough
+/// for one window. The clip's kit is WRAP4, and another kit of the song, its clips not active in session, is WRAP0, so
+/// every read lists WRAP0 (in the song) and WRAP1..WRAP3. On from WRAP4 reads past the end, starts again from the
+/// folder's start, passes WRAP0 and lands on WRAP1. Three more, piled behind it, wrap once, pass WRAP0 and land on
+/// WRAP3. One more, piled behind that, wraps a second time and takes the in-song kit; a pile that forgot its landing's
+/// wrap would pass it again and land on WRAP1.
 ///
 /// Run twice: on the walk itself, and then as turns of the clip's held grid pad, the second made with the first out and
 /// the third behind the pile's walk, so InstrumentLoad hands each pile its landing's wraps. A landing on an in-song

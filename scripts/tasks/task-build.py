@@ -290,7 +290,7 @@ def check_tree_is_clang(build_dir: str) -> int:
 
     A build/ configured with GCC (by hand, or by an older checkout) cannot feed the
     clang link. Reusing it
-    would archive GCC-mangled objects into what this task treats as the clang
+    would archive GCC-mangled objects into what this build treats as the clang
     tree -- and because Debug objects are plain ELF, the link SUCCEEDS with a
     corrupt ABI instead of failing here, surfacing later as baffling
     "undefined reference to ...(long)" errors. Refuse instead of silently

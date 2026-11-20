@@ -1,7 +1,7 @@
 #pragma once
 
 /// @file
-/// @brief The fixtures and port-side predicates of the batch-3 tables: the ten roots, each with the context it is
+/// @brief The fixtures and port-side predicates of the third menu tables: the ten roots, each with the context it is
 ///        opened over, and the facts the spec and the menu oracle freezer both need to decide what to ask.
 
 #include "gui/ui/menu_view_of.h"
@@ -69,7 +69,7 @@ struct TablesRoot {
 	UI* root_ui = nullptr;
 };
 
-/// @brief Every root batch 3 declares, plus the sound root batch 2 did (so the `Kind` count and the
+/// @brief Every root the third tables declare, plus the sound root the second tables did (so the `Kind` count and the
 ///        whole-tree validation see the complete tree).
 ///
 /// The fixtures are built once and never torn down (`song_fixture.h`'s ownership note). Each is the
@@ -79,14 +79,14 @@ struct TablesRoot {
 inline std::vector<TablesRoot>& roots() {
 	static std::vector<TablesRoot> list = [] {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		// `deluge_boot()` calls this (`deluge.cpp`); nothing else in this spec's world does, and the
+		// `deluge_boot()` calls this (`deluge/deluge.cpp`); nothing else in this spec's world does, and the
 		// community-features page is exactly the part of the settings root that reads it -- an
 		// un-`init`ed `RuntimeFeatureSetting` has an empty `options` vector, which legacy's own
 		// `runtime_feature::Setting::readCurrentValue` indexes unconditionally.
 		runtimeFeatureSettings.init();
 		std::vector<TablesRoot> r;
 
-		{ // sound (batch 2's root, re-checked here as part of the whole tree)
+		{ // sound (the second tables' root, re-checked here as part of the whole tree)
 			static spec::SongFixture synth = spec::make_synth_song();
 			r.push_back(
 			    {"sound", &nodes::sound_root,

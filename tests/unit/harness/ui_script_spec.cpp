@@ -30,10 +30,10 @@ describe ui_script("harness::ui_script", $ {
 		expect(s.sorted_text()).to_equal("scene Session\nscene Popup/General\nled Play on\nled Record blink 500\npad 4 3 10 20 30\nindicator upper 3 3 2 0\n");
 	});
 	it("keeps a full-length notice line intact", _ {
-		// The device really does produce popup text this long -- `midi_follow.cpp:648-657` builds
-		// "Can't control: \n<param name>" -- and a truncated `.state` line is a golden that has
-		// silently stopped telling two screens apart. 60 characters of text plus the widest
-		// realistic prefix must survive `add` untouched.
+		// The device really does produce popup text this long -- `MidiFollow::displayParamControlError`
+		// (`midi_follow.cpp`) builds "Can't control: \n<param name>" -- and a truncated `.state` line is a golden that
+		// has silently stopped telling two screens apart. 60 characters of text plus the widest realistic prefix must
+		// survive `add` untouched.
 		const std::string text(60, 'x');
 		StateLines s; s.add("notice Text " + text);
 		expect(s.sorted_text()).to_equal("notice Text " + text + "\n");

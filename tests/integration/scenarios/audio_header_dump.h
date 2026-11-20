@@ -22,7 +22,7 @@
 /// The C++ entry points (`parseSampleHeader()`/`parseWaveTableHeader()`) call straight into this
 /// crate, so both sides of the differential are the same decoder: it compares two different entry
 /// points/walks through it, not this crate against an independent C++ implementation (see
-/// `corpus_differential.rs`'s module doc for what that still catches).
+/// the module doc of `crates/deluge_rust/tests/audio_format_corpus.rs` for what that still catches).
 ///
 /// `dumpAudioHeaderAsJson()` reads one WAV/AIFF file straight off the host filesystem (no efatfs, no
 /// card — this is deliberately independent of the SD-card abstraction the rest of the app
@@ -33,7 +33,7 @@
 /// `audio_header_dump` scenario (audio_header_dump_scenario.cpp) as a subprocess and parses this output
 /// to compare field-by-field against the new Rust parser.
 ///
-/// `DELUGE_HOST`-only, same reach as `harness/recorder_readback_probe.h`: compiled into
+/// `DELUGE_HOST`-only, same reach as `tests/integration/scenarios/recorder_readback_probe.h`: compiled into
 /// the host harnesses, never the ARM device firmware.
 
 #include <string>

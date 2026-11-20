@@ -173,13 +173,12 @@ bool window_is_contiguous(const std::vector<std::string>& sorted) {
 	return true;
 }
 
-/// @name Pinning the one parameter the extraction invented.
+/// @name Pinning the `interpretNoteNames` parameter.
 ///
-/// `interpretNoteNames` is new: in `Browser` the listing read the per-browser
-/// `shouldInterpretNoteNamesForThisBrowser` directly, and on `FileCatalogue` each of the four
-/// operations that needs it takes it as an argument. Four `Browser` members now have to *thread* it
+/// Each of `FileCatalogue`'s four operations that needs it takes `interpretNoteNames` as an argument, and four
+/// `Browser` members pass the per-browser `shouldInterpretNoteNamesForThisBrowser` through to it
 /// (`browser.cpp`: `readFileItemsForFolder`, `sortFileItems`, `getNewFileItem`,
-/// `cullSomeFileItems`), and a delegate that passed a hardcoded `false` -- or the wrong browser's
+/// `cullSomeFileItems`), so a delegate that passed a hardcoded `false` -- or the wrong browser's
 /// flag -- would be a silent behaviour change on a real card full of note-named samples. So every
 /// one of the four is driven with the flag set BOTH ways, over inputs whose two answers differ.
 /// @{

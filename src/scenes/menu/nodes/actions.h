@@ -7,31 +7,33 @@
 // clang-format off
 /// | node | legacy global | legacy class | emits |
 /// |---|---|---|---|
-/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h`) | `OpenPerformanceView` + mode |
-/// | `start_stem_export` | `startStemExportMenu` (`gui/ui/menus.cpp:2018`) | `stem_export::Start` (`stem_export/start.h:27`) | `StartStemExport` |
-/// | `set_clip_length` | `setClipLengthMenu` (`gui/ui/menus.cpp:1131-1132`) | `audio_clip::SetClipLengthEqualToSampleLength` (`audio_clip/set_clip_length_equal_to_sample_length.h:22`) | `SetClipLengthToSampleLength` |
-/// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
-/// | `configure_song_macros` | `configureSongMacrosMenu` (`gui/ui/menus.cpp:2081`) | `song::ConfigureMacros` (`song/configure_macros.h:23`) | `OpenSongMacros` |
+/// | `perform_editor` | `performEditorMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `performance_session_view::EditingMode` (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) | `OpenPerformanceView` + mode |
+/// | `start_stem_export` | `startStemExportMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `stem_export::Start` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) | `StartStemExport` |
+/// | `set_clip_length` | `setClipLengthMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `audio_clip::SetClipLengthEqualToSampleLength` (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) | `SetClipLengthToSampleLength` |
+/// | `song_midi_learn` | `midiLearnMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `song::MidiLearn` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) | `OpenSongMidiLearn` |
+/// | `configure_song_macros` | `configureSongMacrosMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) | `song::ConfigureMacros` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) | `OpenSongMacros` |
 // clang-format on
 ///
 /// ## Two shapes, because legacy has two
 ///
-/// **`ActionItem` -- the four that are pure verbs.** All four legacy classes override
-/// `shouldEnterSubmenu()` to `false` (`stem_export/start.h:51`,
-/// `audio_clip/set_clip_length_equal_to_sample_length.h:31`, `song/midi_learn.h:33`,
-/// `song/configure_macros.h:33`), which is what makes `SoundEditor` call
-/// `newItem->selectButtonPress()` *without* navigating into them (`gui/ui/sound_editor.cpp:420-423`).
-/// The port has no equivalent of that flag: `MenuScene::after_render`'s `entered` arm always
-/// `enter_child`s. So the port descends for one tick, `on_focus` (= `beginSession`, `node.h`) files
-/// the request, and `after_render` drains it and ascends straight back out -- which is what the five
-/// `ResetItem`s (`nodes/settings.h`) already do for the same legacy shape, except that they
-/// ascend by way of `go_up_on_resume` after a pushed scene closes and these have no scene to push.
-/// From the user's side the two are the same gesture: press, the parent list is still there.
+/// **`ActionItem` -- the four that are pure verbs.** All four legacy classes override `shouldEnterSubmenu()` to `false`
+/// (`Start::shouldEnterSubmenu` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`,
+/// `SetClipLengthEqualToSampleLength::shouldEnterSubmenu`
+/// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`),
+/// `MidiLearn::shouldEnterSubmenu` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`),
+/// `ConfigureMacros::shouldEnterSubmenu` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`)), which is
+/// what makes `SoundEditor` call `newItem->selectButtonPress()` *without* navigating into them
+/// (`SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`). The port has no equivalent of
+/// that flag: `MenuScene::after_render`'s `entered` arm always `enter_child`s. So the port descends for one tick,
+/// `on_focus` (= `beginSession`, `node.h`) files the request, and `after_render` drains it and ascends straight back
+/// out -- which is what the five `ResetItem`s (`nodes/settings.h`) already do for the same legacy shape, except that
+/// they ascend by way of `go_up_on_resume` after a pushed scene closes and these have no scene to push. From the user's
+/// side the two are the same gesture: press, the parent list is still there.
 ///
-/// **`PerformEditorItem` -- the one that is a value *and* a verb.** `EditingMode` is a `Selection`
-/// with three options (`editing_mode.h:99-107`) whose `selectButtonPress` acts on the *chosen* one
-/// (`:49-74`), so it is a page the user enters, turns, and presses. It draws with `enum_value`, the
-/// same widget `Kind::Enum` uses, and files the request from its own render when the select lands.
+/// **`PerformEditorItem` -- the one that is a value *and* a verb.** `EditingMode` is a `Selection` with three options
+/// (`EditingMode::getOptions` in `origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) whose
+/// `selectButtonPress` acts on the *chosen* one, so it is a page the user enters, turns, and presses. It draws with
+/// `enum_value`, the same widget `Kind::Enum` uses, and files the request from its own render when the select lands.
 ///
 /// @note **The DISABLED arm is legacy's `return nullptr`, and is ported as such.**
 ///       `EditingMode::selectButtonPress` returns `nullptr` on `DISABLED` -- "go up a level"
@@ -44,24 +46,23 @@
 ///
 /// ## Divergences, named rather than absorbed
 ///
-///   * **`soundEditor.exitCompletely()`** (`stem_export/start.h:32`) closes the whole menu before
-///     the export starts. `MenuAction::StartStemExport`'s dispatcher performs it,
-///     and it has to be the dispatcher rather than this item: the scene cannot pop itself out from
-///     under a request it has not yet handed over. The port's own ascend is a no-op once the
-///     dispatcher pops the scene. **Performed in equivalent form rather than verbatim** --
-///     `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp`) empties the guest's scene
-///     stack, because under the guest the open UI is `ShellHostUI` and the literal call would walk
-///     `closeUI` off the front of the navigation stack. Argued in full at that helper.
-///   * (**`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn` (`song/midi_learn.h:35-37`)
-///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is not a divergence.
-///     `MenuContext::is_song_view` alone would be one, because it is `context_for`'s
-///     `session_or_arranger_root` argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the
-///     arranger and the song automation view as well; `SoundEditor::setup` opens
-///     one song root for all three. `context_for` therefore also takes the narrower `session_view_root` too and
-///     reports it as `MenuContext::is_session_view`, and both nodes carry
-///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that
-///     three-way fact: nothing tells the arranger from the automation view, because no legacy
-///     `isRelevant` does.)
+///   * **`soundEditor.exitCompletely()`** (`Start::selectButtonPress` in
+///     `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) closes the whole menu before the export starts.
+///     `MenuAction::StartStemExport`'s dispatcher performs it, and it has to be the dispatcher rather than this item:
+///     the scene cannot pop itself out from under a request it has not yet handed over. The port's own ascend is a
+///     no-op once the dispatcher pops the scene. **Performed in equivalent form rather than verbatim** --
+///     `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp`) empties the guest's scene stack, because under the guest
+///     the open UI is `ShellHostUI` and the literal call would walk `closeUI` off the front of the navigation stack.
+///     Argued in full at that helper.
+///   * (**`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn`
+///     (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) and `song::ConfigureMacros`
+///     (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) is not a divergence.
+///     `MenuContext::is_song_view` alone would be one, because it is `context_for`'s `session_or_arranger_root`
+///     argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the arranger and the song automation view as
+///     well; `SoundEditor::setup` opens one song root for all three. `context_for` therefore also takes the narrower
+///     `session_view_root` too and reports it as `MenuContext::is_session_view`, and both nodes carry
+///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that three-way fact: nothing
+///     tells the arranger from the automation view, because no legacy `isRelevant` does.)
 ///   * **`ConfigureMacros`/`MidiLearn` open legacy `ContextMenu` subclasses that are not
 ///     ported.** The intent names the action, not a `context_menu::DescriptorId`; when those two
 ///     menus are ported the dispatcher is where the two spellings meet.
@@ -84,7 +85,7 @@ class ActionItem final : public CustomItem {
 public:
 	/// @param action What this item requests. Stored as the enum, not as a `uint16_t`: unlike
 	///               `ResetItem`'s descriptor id and `EditNameItem`'s target id, this is not a
-	///               `SceneId::arg` in disguise, and `action.h` is inside this layer.
+	///               `SceneId::arg` in disguise, and `menu/action.h` is inside this layer.
 	explicit ActionItem(MenuAction action) : action_{action} {}
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;

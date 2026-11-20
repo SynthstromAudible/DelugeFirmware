@@ -368,8 +368,8 @@ void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut
 	}
 	had_input_ = true;
 	if (velocity != 0) {
-		// `deluge.cpp:245-247` calls `Buttons::ignoreCurrentShiftForSticky()` on every pad press,
-		// so shift held over a pad press does not latch when shift is then tapped off.
+		// `dispatchInputEvent` (`src/deluge/deluge.cpp`) calls `Buttons::ignoreCurrentShiftForSticky()` on every pad
+		// press, so shift held over a pad press does not latch when shift is then tapped off.
 		consider_shift_release_for_sticky_ = false;
 	}
 	const bool down = velocity != 0;
@@ -407,7 +407,7 @@ void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
 	}
 	had_input_ = true;
 	if (on) {
-		// `buttons.cpp:89-91`: any press disarms the pending sticky-shift toggle; the shift press
+		// `buttonAction` (`buttons.cpp`): any press disarms the pending sticky-shift toggle; the shift press
 		// itself re-arms it in `toggle_shift` immediately below.
 		consider_shift_release_for_sticky_ = false;
 		held_.set(b, true);

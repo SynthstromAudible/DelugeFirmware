@@ -34,14 +34,14 @@
 ///
 /// @par Coverage this spec does NOT have, stated at the site
 ///
-/// Four legacy behaviours have no port and so no comparison here; all four are policy, and all four
-/// are `shell::Screensaver`'s half rather than the scene's. They are enumerated with citations in
-/// `screensaver_scene.h`'s class doc: `settingsChanged()` (`hid/display/screensaver.cpp:200-241`),
-/// the permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
-/// 1000 ms `kInhibitRecheckMS` re-arm that exists only to run them (`:56-58`), the
-/// `ScreensaverMode::OFF` early-outs (`:92-94,102-104,171-174`, ported as the service's
-/// `idle_ms == 0`), and the `consumeFrameDirty` blit protocol (`screensaver.h:95-109`,
-/// `hid/display/oled.cpp:342-362`, whose port is the shell's `RepaintGate`). Counted as uncovered.
+/// Four legacy behaviours have no port and so no comparison here; all four are policy, and all four are
+/// `shell::Screensaver`'s half rather than the scene's. They are enumerated with citations in `screensaver_scene.h`'s
+/// class doc: `settingsChanged()` (`hid/display/screensaver.cpp`), the permanent-popup / working-animation /
+/// stem-export inhibitors (`Screensaver::timerEvent`) and with them the 1000 ms `kInhibitRecheckMS` re-arm that exists
+/// only to run them, the `ScreensaverMode::OFF` early-outs (`Screensaver::noteActivity`, `Screensaver::timerEvent` and
+/// `Screensaver::settingsChanged`, ported as the service's `idle_ms == 0`), and the `consumeFrameDirty` blit protocol
+/// (`Screensaver::consumeFrameDirty` in `hid/display/screensaver.h`, `OLED::sendMainImage` in `hid/display/oled.cpp`,
+/// whose port is the shell's `RepaintGate`). Counted as uncovered.
 
 #include "scenes/overlay/screensaver_scene.h"
 #include "scenes/registry.h"
@@ -117,7 +117,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `on_exit` always runs (every scene in this tree is a process
+	/// @brief Tear the stack down, so `on_exit` always runs (every scene in `src/scenes` is a process
 	///        singleton, so a stale stack leaks into the next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -136,9 +136,9 @@ struct Rig {
 /// @brief The 128x48 canvas legacy's own `Screensaver` last rendered, as a PBM.
 ///
 /// `Screensaver::getCanvas()` is legacy's real drawing surface -- the one `OLED::sendMainImage`
-/// substitutes for `main` (`hid/display/oled.cpp:342-348`) -- so this is legacy's own pixels, drawn
+/// substitutes for `main` (`hid/display/oled.cpp`) -- so this is legacy's own pixels, drawn
 /// by legacy's own `render`/`renderRainfall`/`renderStarfield`/`drawBlock`
-/// (`hid/display/screensaver.cpp:65-78,243-282`), not a transcription of them.
+/// (`hid/display/screensaver.cpp`), not a transcription of them.
 std::string legacy_canvas_pbm() {
 	return page_major_to_pbm(LegacyScreensaver::getCanvas().bytes().data(), 128, 48);
 }
@@ -159,7 +159,7 @@ std::string legacy_canvas_pbm() {
 ///          34 -> 33 mutation did). The two evidences are complementary, not redundant: those three
 ///          constants are covered by the *textual* half of the argument -- the reverse-mapped diff
 ///          of `src/ui/oled/{rainfall,starfield}.{h,cpp}` against
-///          `c758fbca5:src/deluge/hid/display/…`, recorded in the task report -- which shows every
+///          `origin/main:src/deluge/hid/display/rainfall.cpp` and `starfield.cpp` -- which shows every
 ///          constant unmodified. Do not read the 8000-frame run as covering them.
 bool same_field(const Rainfall& a, const screensaver_oracle::Rainfall& b) {
 	for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
@@ -221,10 +221,9 @@ bool same_field(const Rainfall& a, const Rainfall& b) {
 
 /// @brief Does @p pbm have any lit pixel at all?
 ///
-/// The two header lines are skipped deliberately: `"P1\n128 48\n"` contains the character '1'
-/// three times, so a bare `pbm.find('1')` answers "lit" for a completely blank panel. (It did, in
-/// this spec's first cut -- which made the blank-mode check fail and the "not two blank panels"
-/// checks pass for the wrong reason.)
+/// The two header lines are skipped deliberately: `"P1\n128 48\n"` contains the character '1' three times, so a bare
+/// `pbm.find('1')` answers "lit" for a completely blank panel. (A bare search would make the blank-mode check fail and
+/// the "not two blank panels" checks pass for the wrong reason.)
 /// @param pbm A P1 PBM, `page_major_to_pbm`'s own format.
 /// @return True when at least one pixel row carries a '1'.
 bool any_pixel(const std::string& pbm) {
@@ -250,9 +249,10 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 }
 
 /// @brief Set the one setting both sides read (`FlashStorage::screensaverMode`,
-///        `storage/flash_storage.h:82`) and leave the legacy screensaver deactivated.
+///        `storage/flash_storage.h`) and leave the legacy screensaver deactivated.
 void set_mode(::ScreensaverMode mode) {
-	LegacyScreensaver::noteActivity(); // `hid/display/screensaver.cpp:85-99`: deactivate if showing.
+	LegacyScreensaver::noteActivity(); // `Screensaver::noteActivity` (`hid/display/screensaver.cpp`): deactivate if
+	                                   // showing.
 	FlashStorage::screensaverMode = mode;
 }
 
@@ -469,7 +469,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
 
 		// A tick 200 ms late is still ONE frame: legacy re-arms its 50 ms timer from the moment it
-		// fired, so a late timer event advances once (`hid/display/screensaver.cpp:174-197`).
+		// fired, so a late timer event advances once (`Screensaver::timerEvent` in `hid/display/screensaver.cpp`).
 		r.tick(2 * kFrameIntervalMs - 1 + 200);
 		expected.advance();
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
@@ -485,7 +485,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(scene.next_timer().has_value()).to_be_true();
 		expect(*scene.next_timer()).to_equal(kFrameIntervalMs);
 
-		// `isAnimated` (`hid/display/screensaver.cpp:60-63`): STARSCAPE and DELUGE only.
+		// `isAnimated` (`hid/display/screensaver.cpp`): STARSCAPE and DELUGE only.
 		FlashStorage::screensaverMode = ::ScreensaverMode::STARSCAPE;
 		expect(scene.next_timer().has_value()).to_be_true();
 		FlashStorage::screensaverMode = ::ScreensaverMode::BLANK;
@@ -503,11 +503,11 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		r.tick(0);
 
 		// Legacy's BLANK: "a cleared canvas is the whole picture"
-		// (`hid/display/screensaver.cpp:255`).
+		// (`Screensaver::render` in `hid/display/screensaver.cpp`).
 		expect(any_pixel(r.fake.pbm(0))).to_be_false();
 
 		// Opaque on Main and nowhere else: legacy substitutes its canvas for `main` alone
-		// (`hid/display/oled.cpp:342-348`).
+		// (`OLED::sendMainImage` in `hid/display/oled.cpp`).
 		expect(scene.oled_transparent(deluge::ui::shell::SurfaceRole::Main)).to_be_false();
 		expect(scene.oled_transparent(deluge::ui::shell::SurfaceRole::Aux)).to_be_true();
 		// Legacy never touches `PadLEDs` while showing, so neither dim nor base.

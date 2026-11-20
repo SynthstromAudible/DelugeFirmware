@@ -34,8 +34,8 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/load/instrument_load.h"
-#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
@@ -104,7 +104,7 @@
 #include "scenes/slicing/slicer_scene.h"
 #include "support/flat_state.h"
 #include "util/functions.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include <cstdio>
 #include <iterator>
@@ -184,12 +184,12 @@ constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
 constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
 constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
 constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
-/// The ported slicer's stalled open: a file nothing has loaded, so its load reaches the held card.
+/// The slicer scene's stalled open: a file nothing has loaded, so its load reaches the held card.
 constexpr const char* kShellStallSample = "SAMPLES/SCSLCF.WAV";
 
 /// The kit leg's one-drum kit preset, which the new-kit-track gesture loads.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
-/// The ported slicer's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
+/// The slicer scene's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
 constexpr const char* kShellKitPresetPaths[] = {"KITS/SCSKA.XML", "KITS/SCSKB.XML", "KITS/SCSKC.XML", "KITS/SCSKD.XML"};
 constexpr const char* kKitDrumName = "SCD1";
 
@@ -318,7 +318,7 @@ enum class Leg : uint8_t {
 	Pitch,
 	Kit,
 	AudioClip,
-	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
+	// The slicer scene's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
 	// mode on a first drum that holds no file. Its held open is ShellSliceFail, with the other loader-hold legs.
 	ShellSlice,
 	ShellSliceManual,
@@ -369,7 +369,7 @@ Clip* g_importEmptyClip = nullptr;
 bool g_imEmptyTold = false;
 bool g_imEmptySucceeded = false;
 
-/// The ported slicer's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
+/// The slicer scene's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
 bool g_shellCommitBegun = false;
 bool g_shellEnded = false;
 bool g_shellBackKept = false;
@@ -727,10 +727,9 @@ void frontClip(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum) {
 /// last one loaded; the leg's Select step brings it to the leg's item from there.
 bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = nullptr) {
 	frontClip(leg, clip, rootUI, drum);
-	const bool opened =
-	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	const bool opened = deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0FileSelector);
 	for (int32_t t = 0; opened && t < 16 && !browserOnTop(); t++) {
 		guestTick();
 		if (t > 0 && guestTop(deluge::scenes::menu::kMenuSceneKind)) {
@@ -1248,7 +1247,7 @@ bool openLeg() {
 	case Leg::ShellSliceManual:
 	case Leg::ShellSliceBack:
 	case Leg::ShellSliceFail: {
-		// No browser: the ported slicer's host opens the slicer on the file itself, for the kit's first drum.
+		// No browser: the slicer scene's host opens the slicer on the file itself, for the kit's first drum.
 		SoundDrum* drum = kitDrum();
 		if (drum == nullptr) {
 			return setupFailed(legName(g_leg), "the kit clip has no sound drum");
@@ -1560,7 +1559,7 @@ void actShellSlice() {
 	g_shellBackNoContextRefused = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
-	// What the ported menu edits: the kit's drum, as the clip view selected it.
+	// What the menu edits: the kit's drum, as the clip view selected it.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
 	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
@@ -1679,7 +1678,7 @@ void sendNextSongDuringSlice() {
 	command = g_nextCommandBefore;
 }
 
-/// The ported slicer's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
+/// The slicer scene's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
 /// leg ends when nothing of the slicer's is out.
 void tickShellSlice() {
 	deluge::gui::ui::pollShellSlicer();
@@ -1795,10 +1794,10 @@ void actLeg() {
 		g_cancelLoadingFired = false;
 		g_cancelLoadingInFlight = false;
 		g_cancelLoadingTicks = 0;
-		// The ported browser's auto-load request (`dispatchShellChoices`): the sound its menu resolved, no completion.
-		deluge::gui::sampleClaim.request({.path = legFile(),
-		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,
-		                                  .target = deluge::gui::ui::shellMenuTarget()});
+		// The scenes browser's auto-load request (`ShellBrowserHost::preview`, then `BrowserScene::preview_settled`):
+		// the sound its menu resolved, no completion.
+		deluge::gui::sampleClaim.request(
+		    {.path = legFile(), .origin = deluge::gui::ClaimOrigin::AutoLoad, .target = deluge::gui::ui::menuTarget()});
 		return;
 	}
 	if (g_leg == Leg::Gate) {
@@ -2799,7 +2798,7 @@ void runTick() {
 		startWait("a browser listing finishing", kMaxListingTicks);
 		g_browseSteps = 0;
 		if (openLeg()) {
-			// The randomizer legs press a pad in the clip view, and the ported slicer's host opens the file itself: no
+			// The randomizer legs press a pad in the clip view, and the slicer scene's host opens the file itself: no
 			// listing, no file to select, no preview to draw.
 			g_step = (isRandomize() || isShellSlice() || isOsc2Claim()) ? Step::Act : Step::Listing;
 		}

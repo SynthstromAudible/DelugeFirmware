@@ -34,7 +34,7 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 ///
 /// Shared with the C snapshot writer (`tests/harness/level3/host_snapshot.h`) through
 /// `UI_SCRIPT_STATE_LINE_BYTES` (`ui_script.h`, C-compatible) rather than two separately-chosen
-/// numbers that could silently drift apart (I-3): both this constant and the C writer's line
+/// numbers that could silently drift apart: both this constant and the C writer's line
 /// buffers are exactly that one macro's value, so widening one widens both, and this
 /// `static_assert` is only a belt-and-braces check that nothing redefines the macro underneath
 /// this file. `tests/unit/harness/identity_spec.cpp` is the automated check that the two writers
@@ -53,7 +53,7 @@ struct StateLines {
 	/// content and a longer line is still readable in a diff. Losing a whole line is losing a
 	/// fact (an LED, a pad, a notice) with nothing left in the `.state` file to say so, which is
 	/// exactly what this harness exists to catch (see the file-level rationale on the `256`
-	/// capacity itself, `fixed_vector.h`). So `add` reports it via its return value, and a
+	/// capacity itself, `tests/harness/fixed_vector.h`). So `add` reports it via its return value, and a
 	/// snapshot that sets this flag must fail the run rather than record a truncated golden --
 	/// mirroring level 3's own hard failure on the same overflow (`host_script.c`'s
 	/// `HOST_SCRIPT_STATE_MAX_LINES`/`script_fail`).

@@ -72,10 +72,10 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 ///       live", and the widget reads input only when both hold -- @see ui/core/frame_context.h,
 ///       rules 2 and 3.
 ///
-/// Ports legacy `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`): `f.turn()` moves
+/// Ports legacy `Integer::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): `f.turn()` moves
 /// the value by `range.step` per detent, multiplied by 5 while `f.shift()` is held -- the select
 /// encoder's own acceleration, `SoundEditor::selectEncoderAction`'s `scaledOffset`
-/// (`gui/ui/sound_editor.cpp`). The gold knobs are never read: legacy's
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). The gold knobs are never read: legacy's
 /// `SoundEditor::modEncoderAction` falls through to `View::modEncoderAction`,
 /// which edits the mod-controllable's param instead of the menu item.
 ///
@@ -121,7 +121,7 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// cursor right (floored at 0), a negative tick moves it left only while the next place up is
 /// still reachable inside `range.max`.
 ///
-/// Ports legacy `Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`): `f.turn()` moves
+/// Ports legacy `Decimal::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): `f.turn()` moves
 /// the value by `10^edit_pos` per detent, multiplied by 5 while `f.shift()` is held -- only while
 /// @p focused. `range.step` plays no part here; unlike `int_value` this widget does not read it at
 /// all. The gold knobs are never read, for the reason `int_value`'s doc gives.
@@ -201,11 +201,11 @@ Response toggle(OledFrame& f, gfx::oled::Rect rect, bool& value, std::string_vie
                 ScrollText& scroll_label);
 
 /// @brief Which edge of a two-ended range is being edited -- the port of
-///        `deluge::gui::menu_item::RangeEdit` (`gui/menu_item/range.h:24-28`).
+///        `deluge::gui::menu_item::RangeEdit` (`origin/main:src/deluge/gui/menu_item/range.h`).
 ///
-/// Legacy keeps this one enum on `SoundEditor::editingRangeEdge`, a single global shared by every
-/// range item because only one is ever on screen. Here it is a caller-owned in/out parameter, which
-/// is what lets the scene keep it per menu depth beside the rest of the page's state.
+/// Legacy keeps this one enum on `SoundEditor::editingRangeEdge` (`origin/main:src/deluge/gui/ui/sound_editor.h`), a
+/// single global shared by every range item because only one is ever on screen. Here it is a caller-owned in/out
+/// parameter, which is what lets the scene keep it per menu depth beside the rest of the page's state.
 enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
 
 /// @brief What a detent does to the edge that is *not* being edited when the two would cross.
@@ -213,11 +213,11 @@ enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
 /// Two rules, because legacy has exactly two and they are genuinely different, not two spellings of
 /// one:
 ///
-///   * `Push` -- `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:33-68`):
+///   * `Push` -- `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`):
 ///     each edge moves freely within `[min, max]` and *drags the other one along* when it would
 ///     pass it (`if (upper < lower) upper = lower;`). The pair can be moved past each other's old
 ///     positions; what it cannot do is invert.
-///   * `Bound` -- `KeyRange::selectEncoderAction` (`gui/menu_item/key_range.cpp:28-58`): each edge
+///   * `Bound` -- `KeyRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`): each edge
 ///     is clamped *against the other* (`lower = clamp(lower + offset, KEY_MIN, upper)`), so an edge
 ///     stops dead when it reaches its neighbour and the neighbour never moves.
 ///
@@ -227,7 +227,7 @@ enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
 enum class RangeClamp : uint8_t { Push, Bound };
 
 /// @brief How one end of a range is spelled -- the caller's half of `Range::getText`
-///        (`gui/menu_item/range.h:39-40`), which is pure virtual there for the same reason it is a
+///        (`origin/main:src/deluge/gui/menu_item/range.h`), which is pure virtual there for the same reason it is a
 ///        function pointer here.
 ///
 /// A plain function pointer, not a callable object: both shipped spellings are pure functions of the
@@ -242,7 +242,7 @@ using RangeFormatFn = std::string_view (*)(int32_t value, std::span<char> scratc
 /// @brief The most characters one end of a range may spell, and therefore the scratch
 ///        `range_value` gives each `RangeFormatFn`.
 ///
-/// Legacy formats both ends into one `shortStringBuffer` (`hid/display/display.h`), which is 64
+/// Legacy formats both ends into one `shortStringBuffer` (`src/deluge/util/functions.h`), which is 64
 /// bytes; the widest thing either shipped formatter produces is an `int32_t`'s eleven digits plus a
 /// terminator. Twelve each is that, with the two ends separated so a formatter cannot run into its
 /// neighbour's half.
@@ -251,8 +251,8 @@ inline constexpr size_t kRangeTextMax = 12;
 /// @brief Renders and edits a two-ended range as one huge centred `lower-upper`, with the edge being
 ///        edited inverted.
 ///
-/// The port of `menu_item::Range` (`gui/menu_item/range.cpp`) -- `drawPixelsForOled` (`:97-131`),
-/// `horizontalEncoderAction` (`:35-84`) and, through @p clamp, the two subclasses'
+/// The port of `menu_item::Range` (`origin/main:src/deluge/gui/menu_item/range.cpp`) -- `drawPixelsForOled`,
+/// `horizontalEncoderAction` and, through @p clamp, the two subclasses'
 /// `selectEncoderAction`s.
 ///
 /// **Layout is legacy's monospaced arithmetic, not `measure()`'s.** `Range::drawPixelsForOled`
@@ -269,25 +269,24 @@ inline constexpr size_t kRangeTextMax = 12;
 ///
 ///   - the digits sit in a `text_height_for(f.style.value_font)`-tall band at `rect.y + kValueY`,
 ///     the same band `int_value` uses, cleared before drawing;
-///   - the string is `lower`, then `-` and `upper` **unless** @p edge is `Off` and the two ends are
-///     equal, which is `Range::drawPixelsForOled`'s `mayShowJustOne` argument (`:102`);
-///   - the highlight inverts one end plus a 1px margin above and below (`:120-123`), and nothing at
+///   - the string is `lower`, then `-` and `upper` **unless** @p edge is `Off` and the two ends are equal, which is
+///     `Range::drawPixelsForOled`'s `mayShowJustOne` argument (`origin/main:src/deluge/gui/menu_item/range.cpp`);
+///   - the highlight inverts one end plus a 1px margin above and below (the `invertArea` call), and nothing at
 ///     all when @p edge is `Off`.
 ///
-/// @note Ports the two `selectEncoderAction`s together with `horizontalEncoderAction`: legacy edits
-///       the value with the *select* encoder (`IntegerRange::selectEncoderAction`,
-///       `integer_range.cpp:33`; `KeyRange::selectEncoderAction`, `key_range.cpp:28`) and picks the
-///       edge with the horizontal one (`Range::horizontalEncoderAction`, `range.cpp:35`), and this
-///       widget reads the same two. `f.turn()` moves the selected edge by `range.step` per detent,
-///       multiplied by 5 while `f.shift()` is held, for the reason `int_value`'s doc gives; the
-///       gold knobs are never read.
+/// @note Ports the two `selectEncoderAction`s together with `horizontalEncoderAction`: legacy edits the value with the
+///       *select* encoder (`IntegerRange::selectEncoderAction`,
+///       `origin/main:src/deluge/gui/menu_item/integer_range.cpp`; `KeyRange::selectEncoderAction`,
+///       `origin/main:src/deluge/gui/menu_item/key_range.cpp`) and picks the edge with the horizontal one
+///       (`Range::horizontalEncoderAction`, `origin/main:src/deluge/gui/menu_item/range.cpp`), and this widget reads
+///       the same two. `f.turn()` moves the selected edge by `range.step` per detent, multiplied by 5 while `f.shift()`
+///       is held, for the reason `int_value`'s doc gives; the gold knobs are never read.
 ///
-/// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held (`range.cpp:37-39`)
-///       and consults `mayEditRangeEdge` before selecting an edge (`:52`, `:73`). Neither is ported:
-///       shift is the shell's, and `mayEditRangeEdge`'s only override in the whole firmware is
-///       `MultiRange`'s (`gui/menu_item/multi_range.cpp`), which is a different editor this
-///       widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever gains
-///       a second consumer.
+/// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held and consults `mayEditRangeEdge`
+///       before selecting an edge. Neither is ported: shift is the shell's, and `mayEditRangeEdge`'s only override in
+///       the whole firmware is `MultiRange`'s (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`), which is a
+///       different editor this widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever
+///       gains a second consumer.
 ///
 /// @param f       Frame to render into and read input from.
 /// @param rect    Rect the string is laid out relative to and centred across.

@@ -19,14 +19,14 @@
 
 /// @file
 /// @brief "Does the sample preview sound?" The audio engine renders the preview drum only while the sample browser,
-///        one of its two long-press menus or the slicer is frontmost on the guest at its last tick
-///        (`shellSamplePreviewSounds`, which the audio tier reads without walking the guest's stack). Header in
-///        `util/` and definition in `gui/ui/sample_preview_open.cpp`, on `sound_menu_open.h`'s terms.
+///        one of its two long-press menus or the slicer is frontmost on the guest at its last tick, which the guest's
+///        tick publishes (`refreshShellSamplePreviewSounds`) so the audio tier never walks the guest's stack. Header
+///        in `util/` on `sound_menu_open.h`'s terms; defined in `gui/ui/shell_guest_services.cpp`.
 
 namespace deluge::gui::ui {
 
-/// @brief Whether the ported sample browser, one of its folder menus or the slicer is frontmost on the guest
-///        (`shellSamplePreviewSounds`).
+/// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the ported sample
+///        browser, one of its folder menus or the slicer. Read on the audio tier.
 bool samplePreviewUIOpen();
 
 } // namespace deluge::gui::ui

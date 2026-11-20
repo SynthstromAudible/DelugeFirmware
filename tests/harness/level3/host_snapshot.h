@@ -17,14 +17,14 @@
 
 /// Level 3's C port of `tests/harness/snapshot.{h,cpp}`'s `.pbm`/`.state` writers,
 /// split into their own dependency-free translation unit so BOTH the runner (`deluge_ui_level3`)
-/// and the unit specs (`deluge_spec`, for `harness/identity_spec.cpp`'s
+/// and the unit specs (`deluge_spec`, for `tests/unit/harness/identity_spec.cpp`'s
 /// cross-check) can compile it -- exactly the split `host_script_tables.c` already does for the
 /// name tables (see that file's header comment). `host_script.c` proper calls the host (the
 /// shadows, the clock, ...) and so cannot be linked into `deluge_spec`; this
 /// header/TU pair carries only the writers, nothing that can see the app or the BSP.
 ///
-/// Before I-3, the only thing holding this C port byte-identical to `tests/harness/snapshot.cpp`
-/// was a comment ("MUST stay byte-identical"). `identity_spec.cpp` now drives one fact set
+/// A comment ("MUST stay byte-identical") cannot hold this C port byte-identical to `tests/harness/snapshot.cpp`.
+/// `tests/unit/harness/identity_spec.cpp` drives one fact set
 /// through both writers and asserts the bytes match -- read it, not just this file, before
 /// touching either side.
 #ifndef HOST_SNAPSHOT_H

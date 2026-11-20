@@ -12,7 +12,7 @@
 ///          reaches `util/container/ordered_pos_vector.h` -- which has locals named `it`. Included
 ///          after CppSpec, those locals expand to `self.it` and the translation unit fails to
 ///          compile with a wall of errors that name neither file. Put it with the project includes
-///          at the top, not with `spec/support/spec_main.h` at the bottom.
+///          at the top, not with `tests/support/spec_main.h` at the bottom.
 
 #include "io/file.hpp"
 #include "processing/engines/audio_engine.h"

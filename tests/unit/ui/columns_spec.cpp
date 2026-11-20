@@ -24,8 +24,8 @@ using deluge::gfx::oled::Rect;
 namespace icons = deluge::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
-// The horizontal menu page is pinned three ways at once, as `meters_spec.cpp` and
-// `values_spec.cpp` pin their widgets.
+// The horizontal menu page is pinned three ways at once, as `tests/unit/ui/meters_spec.cpp` and
+// `tests/unit/ui/values_spec.cpp` pin their widgets.
 //
 // First, byte for byte against the legacy renderer itself: `namespace legacy` below
 // re-transcribes `HorizontalMenu::renderMenuItems`, `renderColumnLabel`, `renderPageCounters` and
@@ -53,8 +53,8 @@ namespace uitest = deluge::ui::test;
 //    with it.
 //  - `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because legacy's is a `constexpr`
 //    literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is NOT list's
-//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s
-//    `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` and belongs to a different renderer. The two
+//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14`
+//    (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`) and belongs to a different renderer. The two
 //    coincide at 48 and differ by a row at 64, so the oracle below spells legacy's literal
 //    rather than the port's constant -- encoding the port's rule there would make the 64-row
 //    comparison circular.
@@ -506,9 +506,9 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("does not move focus on a turn", _ {
-		// `HorizontalMenu::selectEncoderAction` (`horizontal_menu.cpp:309-326`) edits the focused
-		// column's value and never moves focus; `columns` no longer walks focus on the turn at
-		// all -- the scene owns the encoder now (`MenuScene::render_horizontal`).
+		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) edits the
+		// focused column's value and never moves focus; `columns` does not walk focus on the turn at all -- the scene
+		// owns the encoder (`MenuView::render_horizontal`).
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{};
@@ -546,10 +546,10 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("page_switch walks with selectMenuItem's ungated page break, past an irrelevant column that overflows", _ {
-		// `HorizontalMenu::selectMenuItem` (`horizontal_menu.cpp:440-476`) breaks the page on slots alone, where
-		// `preparePaging` keeps an irrelevant column that does not fit on the current page. Five one-slot columns, the
-		// fifth irrelevant, then a relevant one: the counter shows two pages, (0..4) and (5), but the walk's page 1
-		// starts at the irrelevant column, finds it at position 0 and keeps the old focus.
+		// `HorizontalMenu::selectMenuItem` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) breaks the page
+		// on slots alone, where `preparePaging` keeps an irrelevant column that does not fit on the current page. Five
+		// one-slot columns, the fifth irrelevant, then a relevant one: the counter shows two pages, (0..4) and (5), but
+		// the walk's page 1 starts at the irrelevant column, finds it at position 0 and keeps the old focus.
 		std::array<Column, 6> cols{};
 		cols[4].relevant = false;
 		const std::span<const Column> span{cols.data(), cols.size()};
@@ -558,8 +558,9 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("a page_break column starts a new page", _ {
-		// A menu group's member boundary (`HorizontalMenuGroup::preparePaging`, `horizontal_menu_group.cpp:167-205`): the
-		// next member's first column opens a page however few slots the previous member used.
+		// A menu group's member boundary (`HorizontalMenuGroup::preparePaging`,
+		// `origin/main:src/deluge/gui/menu_item/horizontal_menu_group.cpp`): the next member's first column opens a
+		// page however few slots the previous member used.
 		std::array<Column, 5> cols{};
 		cols[2].page_break = true;
 		const std::span<const Column> span{cols.data(), cols.size()};
@@ -572,7 +573,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("a span_next column draws one render across its slots and skips the covered columns", _ {
-		// `horizontal_menu.cpp:231-245`: a container renders across its items, unlabelled.
+		// `HorizontalMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): a container
+		// renders across its items, unlabelled.
 		struct Seen {
 			int32_t width = -1;
 			int calls = 0;
@@ -598,8 +600,9 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("a page render replaces the column row, keeping the title and the counter", _ {
-		// `EnvelopeMenu`/`EqMenu::renderMenuItems` (`envelope/envelope_menu.h:34-91`, `eq/eq_menu.h:32-111`) replace
-		// the items' drawing; `HorizontalMenu::renderOLED` still titles the page.
+		// `EnvelopeMenu`/`EqMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`,
+		// `origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`) replace the items' drawing; `HorizontalMenu::renderOLED`
+		// still titles the page.
 		static int page_calls = 0;
 		static int32_t page_focused = -1;
 		static int column_calls = 0;
@@ -667,11 +670,11 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws the second page when focus is on it", _ {
-		// The render check does not depend on the turn focus walk (`columns()` no longer claims or
+		// The render check does not depend on the turn focus walk (`columns()` neither claims nor
 		// walks the select turn -- see this file's own note on the "does not move focus on a turn"
 		// example above): seed `ColumnsState{.focused = 4}` directly, with no turn at all, and
 		// `paging_of` still lands the widget on page 1 for it (`state.page = w.paging.page` in
-		// `columns.cpp`).
+		// `ui/oled/columns.cpp`).
 		std::vector<legacy::Item> six = four_columns();
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
 		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
@@ -710,8 +713,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("switches page with wrap, keeping the position on the page", _ {
-		// `switchVisiblePage` (`horizontal_menu.cpp`) wraps; `selectMenuItem` keeps
-		// `selectedItemPositionOnPage`, falling back to the closest relevant item.
+		// `switchVisiblePage` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) wraps; `selectMenuItem`
+		// keeps `selectedItemPositionOnPage`, falling back to the closest relevant item.
 		std::vector<legacy::Item> eight;
 		for (int i = 0; i < 8; i++) {
 			eight.push_back(legacy::Item{.label = "X", .kind = legacy::Item::KNOB});
@@ -781,12 +784,12 @@ describe columns_w("ui::oled::columns", $ {
 
 	it("draws the same underline on NoInversion as on PartialInversion, per legacy's own "
 	   "fallthrough", _ {
-		// `horizontal_menu.cpp:268-283` (the whole switch): `case MenuHighlighting::
-		// PARTIAL_INVERSION:` (`:278`) falls through into `case MenuHighlighting::NO_INVERSION:`
-		// (`:279`), both reaching the same `drawHorizontalLine` call (`:281`). So `columns` has no
-		// `NoInversion`-specific arm of its own to write -- its `!= FullInversion` branch already
-		// *is* legacy's shared one -- and this pins that down as an example rather than leaving it
-		// implicit: NoInversion's pixels must equal PartialInversion's, byte for byte.
+		// `HorizontalMenu::renderMenuItems` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp` (the whole
+		// switch): `case MenuHighlighting:: PARTIAL_INVERSION:` falls through into
+		// `case MenuHighlighting::NO_INVERSION:` -- both reaching the same `drawHorizontalLine` call. So `columns` has
+		// no `NoInversion`-specific arm of its own to write -- its `!= FullInversion` branch already *is* main's
+		// shared one -- and this pins that down as an example rather than leaving it implicit: NoInversion's pixels
+		// must equal PartialInversion's, byte for byte.
 		uitest::Rig48 r;
 		Style no_inv = kDelugeStyle48;
 		no_inv.highlighting = Highlighting::NoInversion;
@@ -961,8 +964,9 @@ describe columns_w("ui::oled::columns", $ {
 	// The four `ArtColumn` extras, each against legacy's own canvas calls with the slot at the root frame: `start_x` 0,
 	// width 128 and `start_y` 5 (`Rig48`'s `visible_top`), so `kHorizontalMenuSlotYOffset` puts the drawing at row 7.
 	it("draws ArtColumn::badge as osc::Type's analog letter in its cleared box", _ {
-		// `osc::Type::renderInHorizontalMenu` (`osc/type.h:150-155`): at `(start_x + 4, OLED_MAIN_HEIGHT_PIXELS -
-		// kTextSpacingY - 8)`, the box one pixel wider than the letter cleared first.
+		// `osc::Type::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/osc/type.h`): at
+		// `(start_x + 4, OLED_MAIN_HEIGHT_PIXELS - kTextSpacingY - 8)`, the box one pixel wider than the letter cleared
+		// first.
 		uitest::Rig48 r;
 		ArtColumn data{.icon = &deluge::gfx::oled::icons::saw, .dy = 2, .badge = 'A'};
 		art_column(r.frame, false, &data);
@@ -973,8 +977,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws ArtColumn::dots as stutter::Direction's ping-pong marks", _ {
-		// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:142-156`): a pixel at the centre column, on
-		// the icon's first row and seven below.
+		// `stutter::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): a
+		// pixel at the centre column, on the icon's first row and seven below.
 		uitest::Rig48 r;
 		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .reversed = true, .dots = true};
 		art_column(r.frame, false, &data);
@@ -985,8 +989,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws ArtColumn::twin_dx as sequence::Direction's ping-pong pair", _ {
-		// `sequence::Direction::renderInHorizontalMenu` (`sequence/direction.h:132-135`): the icon at `start_x + 2`, and
-		// again mirrored at `start_x - 2`.
+		// `sequence::Direction::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`):
+		// the icon at `start_x + 2`, and again mirrored at `start_x - 2`.
 		uitest::Rig48 r;
 		ArtColumn data{.icon = &deluge::gfx::oled::icons::direction, .twin_dx = 2};
 		art_column(r.frame, false, &data);
@@ -996,8 +1000,9 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws ArtColumn::char_gap as arpeggiator::Rhythm's spaced pattern, a zero as X", _ {
-		// `arpeggiator::Rhythm::renderInHorizontalMenu` (`arpeggiator/rhythm.h:42-62`): each character `kTextSpacingX +
-		// 2` apart from `start_x + (width - n * (kTextSpacingX + 2)) / 2 + 2`, '0' drawn as 'X'.
+		// `arpeggiator::Rhythm::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/arpeggiator/rhythm.h`):
+		// each character `kTextSpacingX + 2` apart from `start_x + (width - n * (kTextSpacingX + 2)) / 2 +
+		// 2`, '0' drawn as 'X'.
 		uitest::Rig48 r;
 		ArtColumn data{.text = "0-00", .dx = 2, .char_gap = 2, .zero_as_x = true};
 		art_column(r.frame, false, &data);
@@ -1010,7 +1015,7 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws TextColumn::strikethrough as note::Fill's NOT_FILL line", _ {
-		// `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm (`gui/menu_item/note/fill.h:70-79`):
+		// `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm (`origin/main:src/deluge/gui/menu_item/note/fill.h`):
 		// `center_y = slot.start_y + kHorizontalMenuSlotYOffset + 4`, a line from
 		// `line_start_x = slot.start_x + 2` to `line_end_x = slot.start_x + slot.width - 4`, with
 		// the rows immediately above and below cleared first (legacy clears pixel by pixel; a

@@ -99,15 +99,46 @@ When introducing a new feature or behavior modification that should be toggleabl
 2. **Add Localization (l10n) Strings**:
    - `src/deluge/gui/l10n/strings.h`: Add a `STRING_FOR_COMMUNITY_FEATURE_...` identifier to `enum class String`.
    - `src/deluge/gui/l10n/english.json`: Add the key and the OLED display name string.
-   - `src/deluge/gui/l10n/seven_segment.json`: If supported on 7-segment displays, add the 4-character abbreviation.
-   - Run `./dbt build` (or `python3 src/deluge/gui/l10n/generate.py ...`) to regenerate `g_english.cpp` and `g_seven_segment.cpp`.
+   - Run `./dbt build` (or `python3 src/deluge/gui/l10n/generate.py ...`) to regenerate `g_english.cpp`.
 
 3. **Initialize the Setting**:
    - In `src/deluge/model/settings/runtime_feature_settings.cpp`, inside `RuntimeFeatureSettings::init()`, configure the setting using `SetupOnOffSetting(...)` (or custom setup function), providing the setting slot, the l10n string identifier, the XML attribute name for `CommunityFeatures.XML`, and the default state.
 
 4. **Create the Associated Menu Item**:
-   - In `src/deluge/gui/menu_item/runtime_feature/settings.cpp`, instantiate a `SettingToggle` (or `OledOnlySettingToggle` if OLED-only) instance for your setting type.
-   - Add a pointer to this menu instance into the `subMenuEntries` array.
+   - In `src/scenes/menu/nodes/settings.h`, in the "Community features" section, declare the node. An On/Off setting is one line, `DELUGE_RUNTIME_TOGGLE(feature_your_setting, N, STRING_FOR_COMMUNITY_FEATURE_...);`, where `N` is the integer value of `RuntimeFeatureSettingType::YourSetting`. A setting with more states is an `enumeration(...)` node over its option names, read and written by `get_runtime_feature<N>` and `set_runtime_feature<N>` (see `feature_shortcut_overlay`). A setting that must take effect the moment it is written gets its own setter in `src/scenes/menu/nodes/settings.cpp` (see `set_shift_is_sticky`).
+   - Add a pointer to the node at the end of `kRuntimeFeatureChildren`, the list the Community Features menu shows.
+   - The menu's specs check every node against upstream `main`'s menu, recorded in `tests/golden/ui/menu_oracle/tables_3.tsv`: the Community Features rows are those whose path starts `settings/11/`, and `settings/11`'s `kids` row counts them. Its rows hold what `main`'s source answers (`tests/golden/README.md`, "Menu reference tables"), never what the scenes' menu renders, except the rows that README lists as accepted differences.
+   - A setting `main` also has: write its rows from `main`'s item (`git show origin/main:src/deluge/gui/menu_item/runtime_feature/settings.cpp`) under `settings/11/N`, `N` being the node's index in `kRuntimeFeatureChildren` (the paths count the scenes' menu's children, which D156 leaves two short of `main`'s). Copy a neighbouring toggle's rows (every row whose path is `settings/11/0`), give them the item's own name and title, and raise the `kids` row by one.
+   - A setting `main` does not have is an accepted difference from `main`, recorded in four places:
+     1. A row of `tests/ui-scripts/parity/DIFFERENCES.md` with the next free number, saying what `main` lacks, its status `accepted` with who accepted it, and `tables_3` `settings/11/N` as its evidence.
+     2. That row's number in `tests/golden/README.md`'s list of rows that differ from `main` on purpose ("Menu reference tables").
+     3. Port-only rows in `tables_3.tsv`, written as for a setting `main` has but from the scenes' node, with the `kids` row raised by one.
+     4. A pin in `sim/scenes_spec/support/known_differences.h`, which names each excused node by identity and their number by count, so a difference that is fixed, or one added without its pin, turns a spec red. Add the node to `port_only_setting` and raise `kPortOnlySettings` by one. The first such setting adds both, in a `@name` group of their own, in the shape of `shortcut_name_is_placeholder` and `kShortcutPlaceholderNameCells`:
+
+       ```cpp
+       /// @brief Community Features nodes `main`'s menu does not have: their `tables_3` rows are the port's own, each an
+       ///        accepted row of `tests/ui-scripts/parity/DIFFERENCES.md`.
+       inline bool port_only_setting(const menu::Node& node) {
+       	namespace nodes = deluge::scenes::menu::nodes;
+       	return &node == &nodes::feature_your_setting;
+       }
+
+       /// @brief How many nodes `port_only_setting` names.
+       inline constexpr size_t kPortOnlySettings = 1;
+       ```
+
+       and adds this example to `tables_3_spec.cpp`'s `tables_3_shape` group (`known_differences.h` is already included there):
+
+       ```cpp
+       	it("pins the community features main's menu does not have, by identity and by count", _ {
+       		size_t port_only = 0;
+       		for (const menu::Node* node : nodes::kRuntimeFeatureChildren) {
+       			port_only += spec::port_only_setting(*node) ? 1 : 0;
+       		}
+       		expect(port_only).to_equal(spec::kPortOnlySettings);
+       	});
+       ```
+   - Then run `./dbt test ui-scenes-spec`, and `./dbt test --update ui-menu-dump` to regenerate `website/src/data/generated/menu-tree.json`.
 
 5. **Guard the Feature in Code**:
    - Include `model/settings/runtime_feature_settings.h` where needed and check `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::YourSetting)` or `runtimeFeatureSettings.get(RuntimeFeatureSettingType::YourSetting)`.

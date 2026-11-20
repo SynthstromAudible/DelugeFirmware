@@ -381,11 +381,12 @@ describe note_nodes_custom_iterance("scenes::menu note editor/note-row editor: c
 	});
 
 	it("returns false for every step with a bridge installed but nothing selected, both families", _ {
-		// Legacy's own no-note (`note/iterance_step_toggle.h:79`) / no-row
-		// (`note_row/iterance_step_toggle.h:109`) arm: a bridge that answers "nothing selected"
-		// must report every step not relevant, not just index 0's "OFF, divisor 0" case (fix
-		// round 1, important 2b -- before this fix, index 0 read as relevant here because a raw
-		// iterance of 0 is indistinguishable, on its own, from "no note"/"no row").
+		// Main's own no-note (`note::IteranceStepToggle::isRelevant` in
+		// `origin/main:src/deluge/gui/menu_item/note/iterance_step_toggle.h`) / no-row
+		// (`note_row::IteranceStepToggle::isRelevant` in
+		// `origin/main:src/deluge/gui/menu_item/note_row/iterance_step_toggle.h`) arm: a bridge that answers "nothing
+		// selected" must report every step not relevant, not just index 0's "OFF, divisor 0" case (a raw iterance of 0
+		// is indistinguishable, on its own, from "no note"/"no row", so index 0 would read as relevant).
 		FakeNoteBridgeGuard guard;
 		guard.fake.note_selected_value = false;
 		guard.fake.row_auditioning_value = false;
@@ -414,6 +415,84 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 		expect(nodes::note_row_iterance_step_1.relevant(ctx)).to_be_false();
 		expect(nodes::note_iterance.select_chain(ctx, state)).to_be_null();
 		expect(nodes::note_row_iterance.select_chain(ctx, state)).to_be_null();
+	});
+	it("reads zero and refuses every edit on the note leaves", _ {
+		// A harness that opens a note root without `wireShellNoteBridge()`: every read through the bridge answers as if
+		// nothing were selected, both guards refuse, and the iterance label falls back.
+		select_language();
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		(void)drain_last_notice();
+
+		expect(nodes::get_note_velocity(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_probability(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_fill(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_probability(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_fill(ctx)).to_equal(int32_t(0));
+
+		expect(nodes::note_velocity.bind.permitted(ctx)).to_be_false();
+		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(nodes::note_row_probability.bind.permitted(ctx)).to_be_false();
+		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
+		expect(value_text_string(nodes::note_iterance.bind.value_text, ctx, 5, ValueTextUse::Column))
+		    .to_equal(std::string{});
+	});
+	// Each write below has its own guard on the bridge: it goes nowhere, and the value it would change reads the same.
+	it("leaves the note velocity as it was on a turn", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		nodes::adjust_note_velocity(ctx, 1);
+		expect(nodes::get_note_velocity(ctx)).to_equal(int32_t(0));
+	});
+	it("leaves the note probability as it was on a turn", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		nodes::adjust_note_probability(ctx, 1);
+		expect(nodes::get_note_probability(ctx)).to_equal(int32_t(0));
+	});
+	it("leaves the note iterance, its divisor and its steps as they were on a turn or a set", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		const int32_t divisor = nodes::get_note_iterance_divisor(ctx);
+		const int32_t step = nodes::get_note_iterance_step_1(ctx);
+		nodes::adjust_note_iterance(ctx, 1);
+		nodes::set_note_iterance_divisor(ctx, 2);
+		nodes::set_note_iterance_step_1(ctx, 1 - step);
+		expect(nodes::get_note_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_iterance_divisor(ctx)).to_equal(divisor);
+		expect(nodes::get_note_iterance_step_1(ctx)).to_equal(step);
+	});
+	it("leaves the note fill as it was on a turn", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		nodes::adjust_note_fill(ctx, 1);
+		expect(nodes::get_note_fill(ctx)).to_equal(int32_t(0));
+	});
+	it("leaves the row probability as it was on a turn", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		nodes::adjust_note_row_probability(ctx, 1);
+		expect(nodes::get_note_row_probability(ctx)).to_equal(int32_t(0));
+	});
+	it("leaves the row iterance, its divisor and its steps as they were on a turn or a set", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		const int32_t divisor = nodes::get_note_row_iterance_divisor(ctx);
+		const int32_t step = nodes::get_note_row_iterance_step_1(ctx);
+		nodes::adjust_note_row_iterance(ctx, 1);
+		nodes::set_note_row_iterance_divisor(ctx, 2);
+		nodes::set_note_row_iterance_step_1(ctx, 1 - step);
+		expect(nodes::get_note_row_iterance(ctx)).to_equal(int32_t(0));
+		expect(nodes::get_note_row_iterance_divisor(ctx)).to_equal(divisor);
+		expect(nodes::get_note_row_iterance_step_1(ctx)).to_equal(step);
+	});
+	it("leaves the row fill as it was on a turn", _ {
+		const deluge::scenes::spec::NoNoteBridge no_bridge;
+		menu::MenuContext ctx{};
+		nodes::adjust_note_row_fill(ctx, 1);
+		expect(nodes::get_note_row_fill(ctx)).to_equal(int32_t(0));
 	});
 });
 

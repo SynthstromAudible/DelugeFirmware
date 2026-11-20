@@ -4,77 +4,80 @@
 ///        mod FX, distortion) plus the noise level, which `sound_osc.h` declares.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `soundFXMenu` literal (`:1751-1762`) and the page literals it names.
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `soundFXMenu` literal and the page literals it names.
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `eq_bass` | `bassMenu` (`:745`) | `eq::EqUnpatchedParam`, `UNPATCHED_BASS` | Int (param) |
-/// | `eq_treble` | `trebleMenu` (`:746`) | same, `UNPATCHED_TREBLE` | Int (param) |
-/// | `eq_bass_freq` | `bassFreqMenu` (`:747`) | same, `UNPATCHED_BASS_FREQ` | Int (param) |
-/// | `eq_treble_freq` | `trebleFreqMenu` (`:749`) | same, `UNPATCHED_TREBLE_FREQ` | Int (param) |
-/// | `eq` | `eqMenu` (`:752`) | `eq::EqMenu` (`eq/eq_menu.h:28`), a `HorizontalMenu` | Submenu (Horizontal) |
-/// | `delay_amount` | `delayFeedbackMenu` (`:763`) | `delay::Amount` (`delay/amount.h:26`), `GLOBAL_DELAY_FEEDBACK` | Int (param) |
-/// | `delay_ping_pong` | `delayPingPongMenu` (`:766`) | `delay::PingPong` | Enum (toggle) |
-/// | `delay_sync` | `delaySyncMenu` (`:768`) | `delay::Sync` | SyncLevel |
-/// | `delay_rate` | `delayRateMenu` (`:765`) | `patched_param::Integer`, `GLOBAL_DELAY_RATE` | Int (param) |
-/// | `delay_type` | `delayTypeMenu` | `delay::Type` (`delay/type.h`) | Enum |
-/// | `delay` | `delayMenu` (`:770`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `reverb_amount` | `reverbAmountMenu` (`:847`) | `reverb::Amount` (`reverb/amount.h:22`), `GLOBAL_REVERB_AMOUNT` | Int (param) |
-/// | `reverb_room_size` | `reverbRoomSizeMenu` (`:849`) | `reverb::RoomSize` | Int |
-/// | `reverb_damping` | `reverbDampingMenu` (`:850`) | `reverb::Damping` | Int |
-/// | `reverb_width` | `reverbWidthMenu` (`:851`) | `reverb::Width` | Int |
-/// | `reverb_model` | `reverbModelMenu` (`:853`) | `reverb::Model` (`reverb/model.h:10`) | Enum |
-/// | `reverb_pan` | `reverbPanMenu` (`:852`) | `reverb::Pan` (`reverb/pan.h:26`) | Int (pan scaling) |
-/// | `reverb_hpf` | `reverbHPFMenu` (`:854`) | `reverb::HPF` (`reverb/hpf.h:27`) | Int |
-/// | `reverb_lpf` | `reverbLPFMenu` (`:855`) | `reverb::LPF` | Int |
-/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` (`:827`) | `reverb::sidechain::Volume` | Int |
-/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` (`:833`) | `reverb::sidechain::Shape` | Int |
-/// | `reverb_sidechain_attack` | `reverbSidechainAttackMenu` (`:829`) | `sidechain::Attack`, reverb spelling | Int |
-/// | `reverb_sidechain_release` | `reverbSidechainReleaseMenu` (`:831`) | `sidechain::Release`, reverb spelling | Int |
-/// | `reverb_sidechain_sync` | `reverbSidechainSyncMenu` (`:828`) | `sidechain::Sync`, reverb spelling | SyncLevel, 10 options |
-/// | `reverb_sidechain` | `reverbSidechainMenu` (`:835`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
-/// | `reverb` | `reverbMenu` (`:857`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `stutter_rate` | `stutterRateMenu` (`:784`) | `stutter::Rate` (`stutter/rate.h:24`), `UNPATCHED_STUTTER_RATE` | Int (param) |
-/// | `stutter_direction` | `stutterDirectionMenu` (`:782`) | `stutter::StutterDirection` | Enum (dynamic) |
-/// | `stutter_quantize` | `stutterQuantizedMenu` (`:783`) | `stutter::QuantizedStutter` | Toggle |
-/// | `stutter` | `stutterMenu` (`:786`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
-/// | `mod_fx_type` | `modFXTypeMenu` (`:724`) | `mod_fx::Type` | Enum (dynamic), 4 slots |
-/// | `mod_fx_depth` | `modFXDepthMenu` (`:728`) | `mod_fx::Depth_Patched`, `GLOBAL_MOD_FX_DEPTH` | Int (param) |
-/// | `mod_fx_rate` | `modFXRateMenu` (`:725`) | `mod_fx::Rate` (`mod_fx/rate.h:23`), `GLOBAL_MOD_FX_RATE` | Int (param) |
-/// | `mod_fx_feedback` | `modFXFeedbackMenu` (`:726`) | `mod_fx::Feedback`, `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
-/// | `mod_fx_offset` | `modFXOffsetMenu` (`:730`) | `mod_fx::Offset`, `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
-/// | `mod_fx` | `modFXMenu` (`:733`) | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
-/// | `saturation` | `clippingMenu` (`:883`) | `fx::Clipping` | Int |
-/// | `bitcrush` | `bitcrushMenu` (`:886`) | `UnpatchedParam`, `UNPATCHED_BITCRUSHING`, BAR | Int (param) |
-/// | `decimation` | `srrMenu` (`:884`) | `UnpatchedParam`, `UNPATCHED_SAMPLE_RATE_REDUCTION`, BAR | Int (param) |
-/// | `wavefold` | `foldMenu` (`:887`) | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
-/// | `distortion` | `soundDistortionMenu` (`:890`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `eq_bass` | `bassMenu` | `eq::EqUnpatchedParam`, `UNPATCHED_BASS` | Int (param) |
+/// | `eq_treble` | `trebleMenu` | same, `UNPATCHED_TREBLE` | Int (param) |
+/// | `eq_bass_freq` | `bassFreqMenu` | same, `UNPATCHED_BASS_FREQ` | Int (param) |
+/// | `eq_treble_freq` | `trebleFreqMenu` | same, `UNPATCHED_TREBLE_FREQ` | Int (param) |
+/// | `eq` | `eqMenu` | `eq::EqMenu` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`), a `HorizontalMenu` | Submenu (Horizontal) |
+/// | `delay_amount` | `delayFeedbackMenu` | `delay::Amount` (`origin/main:src/deluge/gui/menu_item/delay/amount.h`), `GLOBAL_DELAY_FEEDBACK` | Int (param) |
+/// | `delay_ping_pong` | `delayPingPongMenu` | `delay::PingPong` | Enum (toggle) |
+/// | `delay_sync` | `delaySyncMenu` | `delay::Sync` | SyncLevel |
+/// | `delay_rate` | `delayRateMenu` | `patched_param::Integer`, `GLOBAL_DELAY_RATE` | Int (param) |
+/// | `delay_type` | `delayAnalogMenu` | `delay::Analog` (`origin/main:src/deluge/gui/menu_item/delay/analog.h`) | Enum |
+/// | `delay` | `delayMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `reverb_amount` | `reverbAmountMenu` | `reverb::Amount` (`origin/main:src/deluge/gui/menu_item/reverb/amount.h`), `GLOBAL_REVERB_AMOUNT` | Int (param) |
+/// | `reverb_room_size` | `reverbRoomSizeMenu` | `reverb::RoomSize` | Int |
+/// | `reverb_damping` | `reverbDampingMenu` | `reverb::Damping` | Int |
+/// | `reverb_width` | `reverbWidthMenu` | `reverb::Width` | Int |
+/// | `reverb_model` | `reverbModelMenu` | `reverb::Model` (`origin/main:src/deluge/gui/menu_item/reverb/model.h`) | Enum |
+/// | `reverb_pan` | `reverbPanMenu` | `reverb::Pan` (`origin/main:src/deluge/gui/menu_item/reverb/pan.h`) | Int (pan scaling) |
+/// | `reverb_hpf` | `reverbHPFMenu` | `reverb::HPF` (`origin/main:src/deluge/gui/menu_item/reverb/hpf.h`) | Int |
+/// | `reverb_lpf` | `reverbLPFMenu` | `reverb::LPF` | Int |
+/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` | `reverb::sidechain::Volume` | Int |
+/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` | `reverb::sidechain::Shape` | Int |
+/// | `reverb_sidechain_attack` | `reverbSidechainAttackMenu` | `sidechain::Attack`, reverb spelling | Int |
+/// | `reverb_sidechain_release` | `reverbSidechainReleaseMenu` | `sidechain::Release`, reverb spelling | Int |
+/// | `reverb_sidechain_sync` | `reverbSidechainSyncMenu` | `sidechain::Sync`, reverb spelling | SyncLevel, 10 options |
+/// | `reverb_sidechain` | `reverbSidechainMenu` | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
+/// | `reverb` | `reverbMenu` | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `stutter_rate` | `stutterRateMenu` | `stutter::Rate` (`origin/main:src/deluge/gui/menu_item/stutter/rate.h`), `UNPATCHED_STUTTER_RATE` | Int (param) |
+/// | `stutter_direction` | `stutterDirectionMenu` | `stutter::StutterDirection` | Enum (dynamic) |
+/// | `stutter_quantize` | `stutterQuantizedMenu` | `stutter::QuantizedStutter` | Toggle |
+/// | `stutter` | `stutterMenu` | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
+/// | `mod_fx_type` | `modFXTypeMenu` | `mod_fx::Type` | Enum (dynamic), 4 slots |
+/// | `mod_fx_depth` | `modFXDepthMenu` | `mod_fx::Depth_Patched`, `GLOBAL_MOD_FX_DEPTH` | Int (param) |
+/// | `mod_fx_rate` | `modFXRateMenu` | `mod_fx::Rate` (`origin/main:src/deluge/gui/menu_item/mod_fx/rate.h`), `GLOBAL_MOD_FX_RATE` | Int (param) |
+/// | `mod_fx_feedback` | `modFXFeedbackMenu` | `mod_fx::Feedback`, `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
+/// | `mod_fx_offset` | `modFXOffsetMenu` | `mod_fx::Offset`, `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
+/// | `mod_fx` | `modFXMenu` | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
+/// | `saturation` | `clippingMenu` | `fx::Clipping` | Int |
+/// | `bitcrush` | `bitcrushMenu` | `UnpatchedParam`, `UNPATCHED_BITCRUSHING`, BAR | Int (param) |
+/// | `decimation` | `srrMenu` | `UnpatchedParam`, `UNPATCHED_SAMPLE_RATE_REDUCTION`, BAR | Int (param) |
+/// | `wavefold` | `foldMenu` | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
+/// | `distortion` | `soundDistortionMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` -- declared in `sound_osc.h` | Int (param) |
-/// | `sound_fx` | `soundFXMenu` (`:1751`) | `Submenu` | Submenu (Vertical) |
+/// | `sound_fx` | `soundFXMenu` | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
-/// @note **The reverb is engine-wide, not per-clip.** Every `reverb::*` item but the amount reads
-///       and writes `AudioEngine::reverb` / `AudioEngine::reverbPan` /
-///       `AudioEngine::reverbSidechain*` directly (`reverb/room_size.h:28-29`,
-///       `reverb/sidechain/volume.h:22-27`), so their hooks ignore the `MenuContext` entirely. That
-///       is legacy's design, not a simplification: one reverb serves the whole song.
+/// @note **The reverb is engine-wide, not per-clip.** Every `reverb::*` item but the amount reads and writes
+///       `AudioEngine::reverb` / `AudioEngine::reverbPan` / `AudioEngine::reverbSidechain*` directly
+///       (`RoomSize::readCurrentValue` in `origin/main:src/deluge/gui/menu_item/reverb/room_size.h`,
+///       `Volume::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`)), so their hooks
+///       ignore the `MenuContext` entirely. That is legacy's design, not a simplification: one reverb serves the whole
+///       song.
 ///
-/// @note **Five dynamic names, two dynamic option lists.** `mod_fx::Depth_Patched`, `Feedback` and
-///       `Offset` take their `getName()` from `modfx::getParamName(type, ...)`
-///       (`mod_fx/depth_patched.h:34-36`), and `reverb::RoomSize` / `Width` read "TIME" /
-///       "DIFFUSION" on the two newer models (`room_size.h:40-49`): `column_hooks.h`'s hooks answer the
-///       column label (`value_text`) and the name and title (`name_text`); `Node::name` keeps the base string,
-///       which `tables_2_spec` exempts by node. `mod_fx::Type`'s and `StutterDirection`'s option *lists* are
-///       genuinely dynamic and use `dynamic_enumeration`.
+/// @note **Five dynamic names, two dynamic option lists.** `mod_fx::Depth_Patched`, `Feedback` and `Offset` take their
+///       `getName()` from `modfx::getParamName(type, ...)` (`Depth_Patched::getName` in
+///       `origin/main:src/deluge/gui/menu_item/mod_fx/depth_patched.h`), and `reverb::RoomSize` / `Width` read "TIME" /
+///       "DIFFUSION" on the two newer models (`RoomSize::getName` in
+///       `origin/main:src/deluge/gui/menu_item/reverb/room_size.h`): `column_hooks.h`'s hooks answer the column label
+///       (`value_text`) and the name and title (`name_text`); `Node::name` keeps the base string, which `tables_2_spec`
+///       exempts by node. `mod_fx::Type`'s and `StutterDirection`'s option *lists* are genuinely dynamic and use
+///       `dynamic_enumeration`.
 ///
-/// @note `stutterMenu` (`menus.cpp:788`) and `reverbSidechainMenu` (`:841`) are `HorizontalMenu::Layout::FIXED`:
-///       `with_fixed_columns`.
+/// @note `stutterMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`) and `reverbSidechainMenu` are
+///       `HorizontalMenu::Layout::FIXED`: `with_fixed_columns`.
 ///
-/// @note **Columns.** The items here that override `getColumnLabel()` with a fixed string (AMNT,
-///       Modl, Ducking, SHPE, ATK, REL, Bfrq, Tfrq) are `with_column_name`; the ping-pong switch, the
-///       reverb sidechain's AUTO and the dynamic labels are `column_hooks.h`'s hooks; `mod_fx::Type`
-///       is `without_column_label`/`without_notification` (`mod_fx/type.h:70-71`).
+/// @note **Columns.** The items here that override `getColumnLabel()` with a fixed string (AMNT, Modl, Ducking, SHPE,
+///       ATK, REL, Bfrq, Tfrq) are `with_column_name`; the ping-pong switch, the reverb sidechain's AUTO and the
+///       dynamic labels are `column_hooks.h`'s hooks; `mod_fx::Type` is `without_column_label`/`without_notification`
+///       (`Type::showColumnLabel` and `Type::showNotification` in
+///       `origin/main:src/deluge/gui/menu_item/mod_fx/type.h`).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -104,26 +107,28 @@ int32_t get_stutter_direction(const MenuContext& ctx);
 void set_stutter_direction(const MenuContext& ctx, int32_t value);
 int32_t get_stutter_quantize(const MenuContext& ctx);
 void set_stutter_quantize(const MenuContext& ctx, int32_t value);
-/// `stutter::Rate::isStutterQuantized` (`stutter/rate.cpp:70-76`).
+/// `stutter::Rate::isStutterQuantized` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`).
 bool stutter_rate_quantized(const MenuContext& ctx);
-/// `stutter::Rate`'s quantized label (`stutter/rate.cpp:43-68`): its column, banner and full-screen value.
+/// `stutter::Rate`'s quantized label (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): its column, banner and
+/// full-screen value.
 ValueText stutter_rate_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
-/// `stutter::Rate::selectEncoderAction` (`stutter/rate.cpp:28-41`): quantized, the next option value along.
+/// `stutter::Rate::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/stutter/rate.cpp`): quantized, the next
+/// option value along.
 std::optional<int32_t> stutter_rate_turn(const MenuContext& ctx, int32_t value, int32_t offset);
-/// `stutter::Direction::renderInHorizontalMenu` (`stutter/direction.h:133-156`): "song", or the arrow with ping-pong
-/// dots.
+/// `stutter::StutterDirection::renderInHorizontalMenu` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`):
+/// "song", or the arrow with ping-pong dots.
 std::optional<deluge::ui::oled::ArtColumn> stutter_direction_art(const MenuContext& ctx, int32_t value);
-/// `stutter::Direction::getNotificationValue` (`stutter/direction.h:129-132`): the short option.
+/// `stutter::StutterDirection::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/stutter/direction.h`): the
+/// short option.
 ValueText stutter_direction_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
 /// @}
 
 // --- EQ ----------------------------------------------------------------------------------------
 //
-// `EqUnpatchedParam`'s three-argument constructor takes `(name, columnLabel, p)` and forwards
-// `UnpatchedParam(name, p)` (`eq/eq_unpatched_param.h:22`) -- so the second string is the *column
-// label*, not a title, and each node's title is its name. No `getRenderingStyle` override, so the
-// `IntegerContinuous` default, KNOB.
+// `EqUnpatchedParam`'s three-argument constructor takes `(name, columnLabel, p)` and forwards `UnpatchedParam(name, p)`
+// (`origin/main:src/deluge/gui/menu_item/eq/eq_unpatched_param.h`) -- so the second string is the *column label*, not a
+// title, and each node's title is its name. No `getRenderingStyle` override, so the `IntegerContinuous` default, KNOB.
 
 inline constexpr Node eq_bass =
     param(sid(deluge::l10n::String::STRING_FOR_BASS),
@@ -140,8 +145,8 @@ inline constexpr Node eq_treble_freq = with_column_name(
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_TREBLE_FREQ}),
     sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY_SHORT));
 
-/// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:120-160`) orders the four as the graph's handles run,
-/// left to right: bass, bass frequency, treble frequency, treble.
+/// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`origin/main:src/deluge/gui/menu_item/eq/eq_menu.h`) orders the four
+/// as the graph's handles run, left to right: bass, bass frequency, treble frequency, treble.
 inline constexpr const Node* kEqChildren[] = {&eq_bass, &eq_bass_freq, &eq_treble_freq, &eq_treble};
 void eq_page_draw(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
 inline constexpr Node eq =
@@ -181,9 +186,10 @@ inline constexpr Node delay = submenu(sid(deluge::l10n::String::STRING_FOR_DELAY
 
 // --- Reverb ------------------------------------------------------------------------------------
 //
-// The four float-backed items share `{0, kMaxMenuValue}` (`reverb::RoomSize::readCurrentValue` and siblings);
-// the pan is -25..25 (`reverb/pan.h:26-27`); the sidechain volume starts at -1, which the item
-// draws as AUTO (`reverb/sidechain/volume.h:26-27,30-39`).
+// The four float-backed items share `{0, kMaxMenuValue}` (`reverb::RoomSize::readCurrentValue` and siblings); the pan
+// is -25..25 (`Pan::getMaxValue` and `Pan::getMinValue` in `origin/main:src/deluge/gui/menu_item/reverb/pan.h`); the
+// sidechain volume starts at -1, which the item draws as AUTO (`Volume::getMinValue` and `Volume::drawValue` in
+// `origin/main:src/deluge/gui/menu_item/reverb/sidechain/volume.h`).
 
 inline constexpr Node reverb_amount =
     with_column_name(with_patch_chain(param(
@@ -313,7 +319,7 @@ inline constexpr Node mod_fx_type =
         with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
                                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
                               sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
-                   4))))); // `mod_fx/type.h`
+                   4))))); // `origin/main:src/deluge/gui/menu_item/mod_fx/type.h`
 inline constexpr Node mod_fx_depth = with_name_text(
     with_value_text(with_patch_chain(param(
                         sid(deluge::l10n::String::STRING_FOR_DEPTH),

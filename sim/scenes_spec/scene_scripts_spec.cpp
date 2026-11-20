@@ -4,7 +4,7 @@
 ///
 /// The mechanism is `menu_scripts_spec.cpp`'s exactly: a UI script (`tests/ui-scripts/shell/`)
 /// driven through the real `Shell` over `uitest::FakeSurfaceSet`, with every `snapshot` step's
-/// `.pbm` + `.state` diffed against `tests/golden/ui/shell/<name>/`. What is new here is only what
+/// `.pbm` + `.state` diffed against `tests/golden/ui/shell/<name>/`. The only difference is what
 /// gets passed in.
 ///
 // clang-format off
@@ -43,7 +43,7 @@
 ///
 /// @par What passing them changed, visibly -- and what it did not
 ///
-/// **An LED declared `Off` is not written to `.state` at all** (`script_runner.h`'s `state_text`:
+/// **An LED declared `Off` is not written to `.state` at all** (`unit/shell/support/script_runner.h`'s `state_text`:
 /// "an LED declared off is not shown at all"), so "the services are wired in" and "the services are
 /// visible in a golden" are two different claims and only the second is worth making. What is
 /// actually in these 34 snapshots:
@@ -69,19 +69,19 @@
 /// Counted, not estimated (`md5sum` over the ten golden directories): the 34 `.pbm` files hold **21
 /// distinct panels**. Three groups are repeats.
 ///
-///   * **Eleven**, all the same panel -- `AudioClipScene::render_oled`'s output name (`:1410`, the
-///     port of `view.displayOutputName`). It is `audio_clip/{idle, end_marker, after_play,
-///     after_record, after_length_edit}`, `param_popup/{idle, popup_expired}`,
-///     `screensaver/{idle, after_wake}` and `count_in/{idle, after_zero}`. Four of the five scripts
-///     boot onto `AudioClipScene`, and its OLED half does not move for anything those scripts do:
-///     the play cursor, the markers and the length edit are all GRID, and the two overlays that
-///     cover it are gone again by the frame after.
+///   * **Eleven**, all the same panel -- `AudioClipScene::render_oled`'s output name (the port of
+///     `View::displayOutputName` in `views/view.cpp`). It is
+///     `audio_clip/{idle, end_marker, after_play, after_record, after_length_edit}`,
+///     `param_popup/{idle, popup_expired}`, `screensaver/{idle, after_wake}` and `count_in/{idle, after_zero}`. Four of
+///     the five scripts boot onto `AudioClipScene`, and its OLED half does not move for anything those scripts do: the
+///     play cursor, the markers and the length edit are all GRID, and the two overlays that cover it are gone again by
+///     the frame after.
 ///   * **Two**: `slicer/{manual, slice_selected}`.
 ///   * **Three**: the 64-row idles, `{audio_clip_64, param_popup_64, count_in_64}/idle`.
 ///
 /// **None is vacuous, and the check is per script.** Within any one script no two snapshots are the
-/// same frame -- the `.state` half differs at every step, which is what the review that asked for
-/// this paragraph verified. *Across* scripts five are the same frame in both halves, and that is
+/// same frame -- the `.state` half differs at every step, which is what each script's
+/// snapshots show. *Across* scripts five are the same frame in both halves, and that is
 /// the point rather than a defect: `audio_clip/idle`, `param_popup/idle`, `screensaver/idle` and
 /// `count_in/after_zero` are literally the same boot state reached by four routes, as are
 /// `audio_clip/end_marker` and `screensaver/after_wake`.
@@ -98,13 +98,13 @@
 ///     the scene's own `Remove`. So `count_in.txt` boots onto `AudioClipScene` and the spec pushes
 ///     the overlay over it on the first tick (`CountInHooks`), which is what the missing wiring
 ///     will do. Written down rather than dressed up as a gesture: no user gesture reaches this
-///     scene today, and inventing one would be a push no user could perform.
+///     scene, and inventing one would be a push no user could perform.
 ///   * **The count-in digit does not move on its own in a spec process.** The scene is a poll of
-///     `playbackHandler.count_in_visual()`, and the only writer of that number is
-///     `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in
-///     branch), which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that reason;
-///     `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same stand-in.
-///     The script's own header carries the schedule, so the golden is still readable against something written down.
+///     `playbackHandler.count_in_visual()`, and the only writer of that number is `PlaybackHandler::actionSwungTick`'s
+///     count-in branch, which needs a running `AudioEngine`. `count_in_spec.cpp` writes the field directly for that
+///     reason; `count_in.txt` does the same through `RunOptions::before_tick`, which is the level-2 shape of the same
+///     stand-in. The script's own header carries the schedule, so the golden is still readable against something
+///     written down.
 ///
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
@@ -260,7 +260,7 @@ Sample* make_sample() {
 }
 
 /// @brief The minimum `Display` the model reaches for; `display` is null in a spec process
-///        (`hid/display/display.cpp:4`). `menu_scripts_spec.cpp`'s `ScriptDisplay`.
+///        (`hid/display/display.cpp`). `menu_scripts_spec.cpp`'s `ScriptDisplay`.
 struct ScriptDisplay final : deluge::hid::Display {
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
@@ -373,7 +373,8 @@ constexpr int32_t kSlice2Start = static_cast<int32_t>(kSampleLength / 2);
 constexpr int32_t kSlice3Start = static_cast<int32_t>(kSampleLength * 3 / 4);
 /// @}
 
-/// @brief Open the slicer on @p sample, the way `SampleBrowser::showPreview` does.
+/// @brief Open the slicer on @p sample, the way main's `SampleBrowser::enterKeyPress` does
+///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 /// @param sample The sample the scene is opened on.
 /// @param ops    The slice boundary; borrowed, and unwired again by `SceneReset`.
 void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
@@ -383,16 +384,17 @@ void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
 
 /// @brief Place the three manual slices, on the first tick and only then.
 ///
-/// **It has to be a `before_tick` hook and not fixture setup, and the reason is legacy's.**
-/// `SlicerScene::on_enter` is `Slicer::focusRegained` (`slicer.cpp:59-72`) line for line, and that
-/// function *resets the whole table* -- `numManualSlice = 1`, `currentSlice = 0`, every
-/// `manualSlicePoints` entry zeroed. The push that opens the scene therefore erases anything placed
-/// before it, on the device as much as here. So the slices go in on the first tick, after the open.
+/// **It has to be a `before_tick` hook and not fixture setup, and the reason is main's.** `SlicerScene::on_enter` is
+/// `Slicer::focusRegained` (`origin/main:src/deluge/gui/ui/slicer.cpp`) line for line, and that function *resets the
+/// whole table* -- `numManualSlice = 1`, `currentSlice = 0`, every `manualSlicePoints` entry zeroed. The push that
+/// opens the scene therefore erases anything placed before it, on the device as much as here. So the slices go in on
+/// the first tick, after the open.
 ///
-/// They cannot go in as a *gesture* either: the pad arm of `Slicer::padAction` that adds one walks
-/// `Sound::voices()` for a live play position, which needs a running `AudioEngine` a spec process
-/// has none of -- `slicer_scene_spec.cpp`'s file docstring records that as uncovered and seeds its
-/// own table through the same front door, `SlicerScene::add_slice_at` (the port of `:535-551`).
+/// They cannot go in as a *gesture* either: the pad arm of `Slicer::padAction` that adds one walks `Sound::voices()`
+/// for a live play position, which needs a running `AudioEngine` a spec process has none of --
+/// `slicer_scene_spec.cpp`'s file docstring records that as uncovered and seeds its own table through the same front
+/// door, `SlicerScene::add_slice_at` (the port of `Slicer::padAction`'s manual-slice arm in
+/// `origin/main:src/deluge/gui/ui/slicer.cpp`).
 /// @return The hook; `tests/ui-scripts/shell/slicer.txt`'s header carries the same three numbers.
 std::function<void(uint32_t)> slicer_seed() {
 	return [](uint32_t now_ms) {
@@ -408,13 +410,11 @@ std::function<void(uint32_t)> slicer_seed() {
 /// @brief The `RunOptions::before_tick` hook both count-in scripts run under: push the overlay on
 ///        the first tick, then walk `playbackHandler.count_in_visual()` down on a schedule.
 ///
-/// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands
-/// in for wiring that does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which
-/// `count_in_scene.h` says outright. The schedule stands in for
-/// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`PlaybackHandler::actionSwungTick`'s count-in branch),
-/// which needs a running `AudioEngine`; `count_in_spec.cpp` writes the same field directly for the
-/// same reason. Both are written into `tests/ui-scripts/shell/count_in.txt`'s header so the golden
-/// can be read against something.
+/// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands in for wiring that
+/// does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which `count_in_scene.h` says outright. The schedule
+/// stands in for `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine`;
+/// `count_in_spec.cpp` writes the same field directly for the same reason. Both are written into
+/// `tests/ui-scripts/shell/count_in.txt`'s header so the golden can be read against something.
 ///
 /// The push happens in `before_tick` rather than in `after_construct` because `after_construct` runs
 /// *before* `Shell::init`, and an overlay pushed onto an empty stack would sit UNDER the root. The
@@ -467,18 +467,18 @@ uitest::RunOptions opts_for_64(SceneId id) {
 ///
 /// @warning **The 48/768 pair is load-bearing, and getting it wrong makes the goldens vacuous.**
 ///          `find_peaks_per_col` takes its cached whole-cluster arm only when a display column spans
-///          two or more clusters (`model/sample/waveform_scan.cpp:220-230`); anywhere else it opens
+///          two or more clusters (`model/sample/waveform_scan.cpp`); anywhere else it opens
 ///          a `SampleFrameReader`, which fails with no card and makes the whole scan return false --
 ///          so both the pads and the OLED go black and every pad comparison passes on nothing.
-///          `audio_clip_scene_spec.cpp`'s `Sentinel` docstring carries the full arithmetic and the
-///          two review rounds that produced it; this is that fixture's own pair.
+///          `audio_clip_scene_spec.cpp`'s `Sentinel` docstring carries the full arithmetic;
+///          this is that fixture's own pair.
 void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.clip->sampleHolder.audioFile = sample;
 	sample->addReason(); // the lease `SampleHolder::setAudioFile` takes
 	f.clip->sampleHolder.startPos = 0;
 	f.clip->sampleHolder.endPos = static_cast<int64_t>(kSampleLength);
 	// `SampleHolder::setAudioFile` normally computes this; `kMaxSampleValue` is the identity, and
-	// zero is a SIGFPE in `getLengthInSamplesAtSystemSampleRate` (`sample_holder.cpp:94-101`).
+	// zero is a SIGFPE in `getLengthInSamplesAtSystemSampleRate` (`sample_holder.cpp`).
 	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 	f.clip->sampleControls.reversed = false;
 	f.clip->recorder = nullptr;
@@ -641,20 +641,18 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
 		// It drew something, and it drew the SECOND value. An empty name is the shape a popup pushed
 		// over a param the target could not resolve would have; a value of "26" here is the shape
-		// the defect below had, and this pair says in words what `popup_moved`'s pixels say.
+		// a missing repaint leaves (below), and this pair says in words what `popup_moved`'s pixels say.
 		expect(std::string(overlay::param_popup_scene().shown_name())).to_equal(std::string("Master level"));
 		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(std::string("45"));
 		// ---------------------------------------------------------------------------------------
-		// **What `popup_moved` guards.** Without that frame a second detent on an already-open popup moved the scene's text from
-		// "26" to "45" and **nothing repainted the panel**, so the golden showed "26" while
-		// `shown_value()` said "45". The narrow cause was the arbitration's immediate-commit arm
-		// alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
-		// `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()`
-		// resolves to `{.oled = true}`, so a *fast* turn repainted itself and only a slow one did
-		// not. `ParamPopupScene::show` now returns whether it committed and
-		// `ModKnobs::mod_encoder_action` files `Action::Kind::Repaint` on `SurfaceRole::Main` when
-		// it did (legacy's `display->displayNotification(...)` in `View::displayModEncoderValuePopup` being a write AND
-		// a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
+		// **What `popup_moved` guards.** A second detent on an already-open popup moves the scene's text from "26" to
+		// "45"; with nothing repainting the panel, the golden would show "26" while `shown_value()` says "45". Only the
+		// arbitration's immediate-commit arm needs its own repaint -- the throttled arm (a turn inside
+		// `kMinUpdateIntervalMs`) arms `pending_flush_remaining_ms_`, which `next_timer()` reports and
+		// `timer_repaints()` resolves to `{.oled = true}`, so a *fast* turn repaints itself. `ParamPopupScene::show`
+		// returns whether it committed and `GuestKnobPresentation::show_value_popup` files `Action::Kind::Repaint` on
+		// `SurfaceRole::Main` when it did (`display->displayNotification(...)` in `View::displayModEncoderValuePopup`
+		// being a write AND a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
 		// into a copy of `popup_shown` and this script fails, and `mod_knobs_spec.cpp`'s
 		// "files an OLED repaint for every committed popup update" example fails with it.
 	});
@@ -681,7 +679,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 
 	// ---- a menu and a real ModKnobs in the same run ---------------------------------------------
 
-	it("a gold turn in a MENU with the real services now reaches ModKnobs, and pushes a popup", _ {
+	it("a gold turn in a MENU with the real services reaches ModKnobs, and pushes a popup", _ {
 		// Every menu golden in `menu_scripts_spec.cpp` was
 		// recorded with `Services{}` -- three `NullService`s -- so none of them can show what a menu
 		// does with a service that also wants gold-knob turns present. This is that frame, on the
@@ -695,15 +693,15 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// `GoldUpper` turns below are unclaimed by `MenuScene` and reach `services::ModKnobs`
 		// through the routing chain `View::modEncoderAction` names.
 		//
-		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
-		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
-		// (`view.cpp`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
-		// it compares the turn's param against `menu_scene().focused()->bind.param`. `nodes::saturation`
-		// is built with `int_item()` (`nodes/sound_fx.h`), which never sets `bind.param` at all
-		// (`node.h`'s `int_item` builder) -- so `bind.param.valid()` is false, `popup_suppressed`
-		// returns false unconditionally, and the popup goes up. A node built with `param()` instead,
-		// showing the exact modulation param GoldUpper points at, would suppress it; this node
-		// can't, by construction, which is the case this script now pins.
+		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port of "let's see if
+		// we're editing the same param in the menu, if so, don't show pop-up" (main's
+		// `View::modEncoderAction_existentParam`, `origin/main:src/deluge/gui/views/view.cpp`) is
+		// `GuestKnobPresentation::suppress_value_popup` (`services/guest_knob_presentation.h`): it compares the turn's
+		// param against `menu_scene().focused()->bind.param`. `nodes::saturation` is built with `int_item()`
+		// (`nodes/sound_fx.h`), which never sets `bind.param` at all (`node.h`'s `int_item` builder) -- so
+		// `bind.param.valid()` is false, `suppress_value_popup` returns false unconditionally, and the popup goes up. A
+		// node built with `param()` instead, showing the exact modulation param GoldUpper points at, would suppress it;
+		// this node can't, by construction, which is the case this script now pins.
 		reset_globals();
 		install_display();
 		SceneReset reset;
@@ -716,7 +714,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// **Drain the popup first, and say why.** `ParamPopupScene` is a process singleton and
 		// `param_popup_64` above quits at 300 ms with 1.8 s still on its lifetime, so a bare
 		// `remaining_ms() == 0` here reads the PREVIOUS example's popup and fails for a reason that
-		// has nothing to do with this one. (It did, on the first run of this block -- 1850 ms of a
+		// has nothing to do with this one. (Otherwise it would see, say, 1850 ms of a
 		// popup this script never raised.) Two ticks longer than `kPopupLifetimeMs` puts it in the
 		// state a fresh process would have, and the same assertion after the run is then about this
 		// run alone.
@@ -741,13 +739,13 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		expect(bindings::read(nodes::saturation, ctx)).to_equal(before);
 
 		// **`ModKnobs` DOES see the turn now, and shows it.** With `int_value` claiming only the
-		// turn, the two `GoldUpper` steps reach `services::ModKnobs::mod_encoder_action`, the port of
-		// `View::modEncoderAction` -- the `+1` at 100 ms is swallowed
+		// turn, the two `GoldUpper` steps reach `services::ModKnobs::turn_knob`, the counterpart of main's
+		// `View::modEncoderAction` (`origin/main:src/deluge/gui/views/view.cpp`) -- the `+1` at 100 ms is swallowed
 		// exactly as before, and the `+2` at 150 ms edits whatever real
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
-		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed`, the port
-		// of legacy's same-param popup guard (`view.cpp`), compares the turn's param against
+		// `after_gold_turn`'s is `36`. `GuestKnobPresentation::suppress_value_popup`, the port
+		// of main's same-param popup guard (`View::modEncoderAction_existentParam`), compares the turn's param against
 		// `menu_scene().focused()->bind.param` -- and `nodes::saturation` has none (see above), so
 		// the guard cannot suppress here and the popup goes up: `idle` carries one `scene` line,
 		// `after_gold_turn` carries two (the popup pushed over the menu), and `after_back` carries
@@ -769,9 +767,9 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:
 		// `AudioClipScene` declines it explicitly (`AudioClipScene::handle`), `MenuScene` has
 		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/scenes/` finds nothing
-		// outside `ModKnobs` itself. So the order stays pinned by `router_spec.cpp`'s "a scene that
+		// outside `ModKnobs` itself. So the order stays pinned by `unit/shell/router_spec.cpp`'s "a scene that
 		// claims a gold-knob turn gets it, and mod_knobs never sees it", which uses a spec-local
-		// scene that does -- and a recorded frame for it cannot exist until a ported scene has such
+		// scene that does -- and a recorded frame for it cannot exist until a scene has such
 		// an arm.
 		//
 		// What this DOES pin is still worth its three goldens: a gold turn taken inside a menu now

@@ -43,7 +43,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 	it("lowers a matrix press to a ButtonId and tracks held/since", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1000);
-		in.on_board_event(button_ev(8, 3, true), 1000);   // Play, definitions_cxx.hpp:68
+		in.on_board_event(button_ev(8, 3, true), 1000);   // Play, `playButtonCoord` (`definitions_cxx.hpp`)
 		in.end_tick(1000);
 		UiEvent e;
 		expect(in.next(e)).to_be_true();
@@ -88,12 +88,12 @@ describe shell_input_lowering("shell::InputLowering", $ {
 	it("shift press+release under hold time becomes sticky when enabled", _ {
 		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		in.begin_tick(0);
-		in.on_board_event(button_ev(8, 0, true), 0);      // Shift, definitions_cxx.hpp:67
+		in.on_board_event(button_ev(8, 0, true), 0);      // Shift, `shiftButtonCoord` (`definitions_cxx.hpp`)
 		expect(in.shift()).to_be_true();
 		in.on_board_event(button_ev(8, 0, false), 50);    // released inside hold_time_ms (100)
 		expect(in.sticky()).to_be_true();
-		expect(in.shift()).to_be_true();                  // buttons.cpp:273-276: stays on while stuck
-		// A second short press clears it (buttons.cpp:267).
+		expect(in.shift()).to_be_true();                  // `commandToggleShift` (`buttons.cpp`): stays on while stuck
+		// A second short press clears it (`commandToggleShift` in `buttons.cpp`).
 		in.on_board_event(button_ev(8, 0, true), 200);
 		in.on_board_event(button_ev(8, 0, false), 220);
 		expect(in.sticky()).to_be_false();
@@ -115,11 +115,11 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		in.begin_tick(0);
 		in.on_board_event(button_ev(8, 0, true), 0);
-		in.on_board_event(button_ev(8, 0, false), 400);   // flash_storage.cpp:349-350: 100 ms
+		in.on_board_event(button_ev(8, 0, false), 400);   // `resetSettings` (`flash_storage.cpp`): 100 ms
 		expect(in.sticky()).to_be_false();
 		expect(in.shift()).to_be_false();
 
-		// Another button pressed while shift was held disarms the toggle (buttons.cpp:89-91).
+		// Another button pressed while shift was held disarms the toggle (`buttonAction` in `buttons.cpp`).
 		InputLowering armed(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		armed.begin_tick(0);
 		armed.on_board_event(button_ev(8, 0, true), 0);
@@ -136,7 +136,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 
 	it("set_hold_time_ms moves the tap threshold, and the same gesture lands either side of it", _ {
 		// `FlashStorage::holdTime` is a *setting* -- `defaultHoldTime` 1..20 times `kSampleRate/20`
-		// (`storage/flash_storage.cpp:730-733`), i.e. 50 ms to 1 s -- and `LoweringConfig` is
+		// (`readSettings` in `storage/flash_storage.cpp`), i.e. 50 ms to 1 s -- and `LoweringConfig` is
 		// construction-time, so a host built at static-init has no way to seat the user's value.
 		// This is the setter that lets it; the assertion is about the *threshold*, so the gesture is
 		// held fixed and only the threshold varies. A single-threshold example would pass on an
@@ -459,7 +459,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.mark_press_used_up(ButtonId::Record);
 		expect(in.press_used_up(ButtonId::Record)).to_be_true();
 		in.on_board_event(button_ev(8, 2, false), 2);
-		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // buttons.cpp:172 buttonAction: cleared on press
+		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // `buttonAction` (`buttons.cpp`): cleared on press
 		in.on_board_event(button_ev(8, 2, true), 3);
 		expect(in.press_used_up(ButtonId::Record)).to_be_false();
 	});
@@ -468,7 +468,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		in.begin_tick(0);
 		in.on_board_event(button_ev(8, 0, true), 0);      // shift down
-		in.on_board_event(pad_ev(3, 5, 90), 10);          // deluge.cpp:244-247
+		in.on_board_event(pad_ev(3, 5, 90), 10);          // `dispatchInputEvent`, `src/deluge/deluge.cpp`
 		in.on_board_event(button_ev(8, 0, false), 20);    // released well inside hold_time_ms
 		expect(in.sticky()).to_be_false();
 		expect(in.shift()).to_be_false();
@@ -488,7 +488,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(button_ev(8, 0, true), 0);
 		in.on_board_event(button_ev(8, 0, false), 20);
 		expect(in.sticky()).to_be_true();
-		in.clear_shift_sticky();                          // buttons.cpp:302-306
+		in.clear_shift_sticky();                          // `clearShiftSticky` (`buttons.cpp`)
 		expect(in.sticky()).to_be_false();
 		expect(in.shift()).to_be_false();
 
@@ -496,7 +496,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(button_ev(8, 0, true), 100);
 		in.on_board_event(button_ev(8, 0, false), 120);
 		expect(in.sticky()).to_be_true();
-		in.set_shift_is_sticky(false);                    // shift_is_sticky.cpp:25-27
+		in.set_shift_is_sticky(false);                    // `ShiftIsSticky::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/runtime_feature/shift_is_sticky.cpp`)
 		expect(in.shift_is_sticky()).to_be_false();
 		expect(in.sticky()).to_be_false();
 		expect(in.shift()).to_be_false();

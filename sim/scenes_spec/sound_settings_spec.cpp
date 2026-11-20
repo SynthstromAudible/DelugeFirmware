@@ -1,4 +1,4 @@
-// The sound's instrument settings on targets (step 2a's pilot): every node of the sound editor's tree that edits a row
+// The sound's instrument settings on targets: every node of the sound editor's tree that edits a row
 // of instrument::kSettings names it as its target, and the menu reads, ranges and writes it through the binding
 // library, on a synth and on a kit row.
 

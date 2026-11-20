@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief `MidiCommandItem`'s members. See `midi_command.h`.
+/// @brief `MidiCommandItem`'s members. See `nodes/midi_command.h`.
 
 #include "scenes/menu/nodes/midi_command.h"
 
@@ -48,15 +48,15 @@ using deluge::l10n::String;
 /// @brief The slot `command` binds, as a live reference into the MIDI engine.
 ///
 /// `util::to_underlying(commandNumber)` in every one of legacy's five members
-/// (`gui/menu_item/midi/command.cpp:35,89,97,113-115`), once.
+/// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), once.
 LearnedMIDI& slot_for(GlobalMIDICommand command) {
 	return midiEngine.globalMIDICommands[static_cast<size_t>(command)];
 }
 
 /// @brief The node currently on screen, so this item can draw its own title.
 ///
-/// A `CustomItem` is handed `MenuState`, not its own `Node` -- `settings.cpp`'s `focused_of` /
-/// `draw_title_for` pair, and `edit_name.cpp`'s inline copy of the same three lines.
+/// A `CustomItem` is handed `MenuState`, not its own `Node` -- `nodes/settings.cpp`'s `focused_of` /
+/// `draw_title_for` pair, and `nodes/edit_name.cpp`'s inline copy of the same three lines.
 void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
@@ -100,10 +100,10 @@ int32_t command_row0_y(const deluge::ui::oled::OledFrame& f) {
 void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	draw_title_for(f, state);
 
-	// `Command::selectEncoderAction` (`command.cpp:88-91`): *any* select-encoder motion clears the
-	// binding, in either direction -- the item has no value to walk, so legacy spends the encoder
-	// on "forget this". `f.turn()` is this port's detent count, and reading it claims it
-	// (`ui/core/frame_context.h`, rule 2), which is what keeps the shell from also acting on it.
+	// `Command::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): *any* select-encoder
+	// motion clears the binding, in either direction -- the item has no value to walk, so legacy spends the encoder on
+	// "forget this". `f.turn()` is this port's detent count, and reading it claims it (`ui/core/frame_context.h`, rule
+	// 2), which is what keeps the shell from also acting on it.
 	if (f.turn() != 0) {
 		slot_for(command_).clear();
 	}
@@ -119,15 +119,15 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	deluge::ui::shell::TextScratch scratch;
 
 	if (!command.containsSomething()) {
-		// `command.cpp:38-41`.
+		// `Command::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`).
 		deluge::ui::oled::text(f, row(0, 0), text_of(String::STRING_FOR_COMMAND_UNASSIGNED, scratch), ts);
 	}
 	else {
-		// Row 0: the device, side-scrolling. `command.cpp:43-51` -- the display name of the cable
-		// the binding names, or "ANY MIDI DEVICE" for a binding with no cable, drawn and then
-		// handed to `OLED::setupSideScroller` across the full panel width. `scroll_text` is this
-		// layer's side scroller and does both in one call; the scroll state is the menu's own
-		// per-depth `ScrollText` (`MenuState::scroll`), which nothing else on this screen uses.
+		// Row 0: the device, side-scrolling. `Command::drawPixelsForOled`
+		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`) -- the display name of the cable the binding names,
+		// or "ANY MIDI DEVICE" for a binding with no cable, drawn and then handed to `OLED::setupSideScroller` across
+		// the full panel width. `scroll_text` is this layer's side scroller and does both in one call; the scroll state
+		// is the menu's own per-depth `ScrollText` (`MenuState::scroll`), which nothing else on this screen uses.
 		std::string_view device = text_of(String::STRING_FOR_ANY_MIDI_DEVICE, scratch);
 		if (command.cable != nullptr) {
 			device = std::string_view{command.cable->getDisplayName()};
@@ -135,10 +135,10 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		deluge::ui::oled::scroll_text(f, row(0, 0), device, f.style.row_font,
 		                              state.scroll[state.depth < kMenuDepth ? state.depth : 0]);
 
-		// Row 1: the channel or MPE zone. `command.cpp:53-71`. The "great CC channel hack" is that
-		// `channelOrZone` carries the message type in its high range (`IS_A_CC`, `IS_A_PC` --
-		// `definitions_cxx.hpp:946-947`), so the printed channel is the stored value minus whichever
-		// band it falls in, plus one for 1-based display.
+		// Row 1: the channel or MPE zone. `Command::drawPixelsForOled`
+		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). The "great CC channel hack" is that
+		// `channelOrZone` carries the message type in its high range (`IS_A_CC`, `IS_A_PC` -- `definitions_cxx.hpp`),
+		// so the printed channel is the stored value minus whichever band it falls in, plus one for 1-based display.
 		//
 		// The two MPE-zone arms are live, not defensive: `PlaybackHandler::noteMessageReceived`
 		// (`playback/playback_handler.cpp`) resolves the channel through
@@ -168,8 +168,9 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		}
 		deluge::ui::oled::text(f, row(1, 0), channel_text, ts);
 
-		// Row 2: which kind of message, and its number. `command.cpp:73-88`. "Note"/"CC"/"PC" are
-		// bare literals in legacy too -- they are not in the string table.
+		// Row 2: which kind of message, and its number. `Command::drawPixelsForOled`
+		// (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). "Note"/"CC"/"PC" are bare literals in legacy too
+		// -- they are not in the string table.
 		std::string_view kind = "Note";
 		if (command.channelOrZone >= IS_A_PC) {
 			kind = "PC";
@@ -183,8 +184,9 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 
 	// A leaf's select press leaves the item -- `FirmwareVersionItem::render`'s own arm, and what
-	// `MenuItem::selectButtonPress`'s `return nullptr` means to `SoundEditor` (`sound_editor.cpp:395-428`).
-	// `Kind::Custom`'s dispatch draws nothing else, so this item claims the press itself.
+	// `MenuItem::selectButtonPress`'s `return nullptr` means to `SoundEditor`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`). `Kind::Custom`'s dispatch draws nothing else, so this item
+	// claims the press itself.
 	if (f.select_pressed()) {
 		state.tick.render_resp.entered = true;
 	}
@@ -199,7 +201,8 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
 }
 
 bool MidiCommandItem::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) const {
-	// `Command::learnNoteOn`, minus its display arm: `MenuLearn` pops or redraws (`midi_command.h`'s note).
+	// `Command::learnNoteOn` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`), minus its display arm:
+	// `MenuLearn` pops or redraws (`nodes/midi_command.h`'s note).
 	LearnedMIDI& command = slot_for(command_);
 	command.cable = &cable;
 	command.channelOrZone = static_cast<uint8_t>(channel);
@@ -209,8 +212,8 @@ bool MidiCommandItem::learn_note_on(::MIDICable& cable, int32_t channel, int32_t
 }
 
 bool MidiCommandItem::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const {
-	// `Command::learnCC` (`command.cpp:126-130`): a zero-valued CC is the release half of a
-	// momentary controller and binds nothing; the menu still uses the message, as `SoundEditor` does.
+	// `Command::learnCC` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`): a zero-valued CC is the release
+	// half of a momentary controller and binds nothing; the menu still uses the message, as `SoundEditor` does.
 	if (value != 0) {
 		return learn_note_on(cable, channel + IS_A_CC, cc);
 	}
@@ -218,9 +221,9 @@ bool MidiCommandItem::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, 
 }
 
 bool MidiCommandItem::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) const {
-	// `Command::learnProgramChange` (`command.cpp:105-111`). FILL is the one command a program
-	// change cannot drive -- it is a momentary hold, and a PC has no off half -- so legacy refuses
-	// it with a popup; the menu still uses the message, as `SoundEditor::pcReceivedForMidiLearn` does.
+	// `Command::learnProgramChange` (`origin/main:src/deluge/gui/menu_item/midi/command.cpp`). FILL is the one command
+	// a program change cannot drive -- it is a momentary hold, and a PC has no off half -- so legacy refuses it with a
+	// popup; the menu still uses the message, as `SoundEditor::pcReceivedForMidiLearn` does.
 	if (command_ == GlobalMIDICommand::FILL) {
 		deluge::notify::notice_string(sid(String::STRING_FOR_CANT_LEARN_PC));
 		return false;

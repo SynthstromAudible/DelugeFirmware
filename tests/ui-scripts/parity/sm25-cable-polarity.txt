@@ -1,4 +1,4 @@
-# ShellMenu: a patch cable's strength page as `main` draws and drives it (`PatchCableStrength::renderOLED`,
+# A patch cable's strength page as `main` draws and drives it (`PatchCableStrength::renderOLED`,
 # `buttonAction`, `selectEncoderAction`): the value right-aligned in the 13 px face with a zero fraction hidden while
 # the cursor is left of it, the fraction marked by a tick under the digits, a one-row cursor; MIDI lit for a bipolar
 # cable and CV for a unipolar one, outside a horizontal page only; MIDI and CV switch the polarity; a Select turn while

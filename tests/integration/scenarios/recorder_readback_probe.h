@@ -31,7 +31,7 @@
 /// fill task re-queues it at lowest priority (`streaming_loader.rs`'s `fill_once`) rather than failing
 /// outright -- the acquire is expected to settle on LOADING, uniformly, on every target.
 ///
-/// `DELUGE_HOST`-only, same reach as `harness/streaming_scenario.h` (compiled into
+/// `DELUGE_HOST`-only, same reach as `tests/integration/scenarios/streaming_scenario.h` (compiled into
 /// the Rust Embassy `host_app` build, never the ARM
 /// device firmware). Leaks the `SampleRecorder`/`Sample` for the process's life — a one-shot
 /// diagnostic run, not a long-lived service; acceptable here.

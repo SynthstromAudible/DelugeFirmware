@@ -4,9 +4,9 @@
 /// @brief The per-device MIDI page -- the subtree `midi_devices` chains to -- and the MPE
 ///        direction/zone selectors that hang off it.
 ///
-/// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`), the six-child submenu
-/// `midi::Devices::selectButtonPress` returns (`gui/menu_item/midi/devices.cpp:154-156`). The device
-/// *list* is declared in `nodes/dynamic.h`; `settings.h`'s `midi_devices` chains to this page with
+/// The port of `midi::Device midiDeviceMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`), the six-child submenu
+/// `midi::Devices::selectButtonPress` returns (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`). The device
+/// *list* is declared in `nodes/dynamic.h`; `nodes/settings.h`'s `midi_devices` chains to this page with
 /// its `select_chain`, so the page is reachable, numbered, validated and dumped.
 ///
 /// ## The six children, each with its legacy item
@@ -26,55 +26,57 @@
 ///
 /// ## The per-cable binding family
 ///
-/// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose
-/// `get`/`set` hooks read and write **`MenuContext::midi_cable`**. That field is new territory for a
-/// binding: every hook shipped before this one reads a device-wide global (`FlashStorage`,
-/// `midiEngine`, `playbackHandler`, `cvEngine`) or the context's song/sound. `midi_cable` is the
-/// one `MenuContext` member `context_for()` never assigns -- the device list publishes it, through
-/// `MenuWalkState::midi_cable_choice` and `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so
-/// these five are the first nodes in the tree whose value depends on a *selection the user made two
-/// pages up*. Legacy spells the same dependency as `soundEditor.currentMIDICable->...` in each of
-/// the five `readCurrentValue`/`writeCurrentValue` pairs.
+/// Five of the six are ordinary data nodes -- a `Kind::Int` and four `Kind::Toggle` -- whose `get`/`set` hooks read and
+/// write **`MenuContext::midi_cable`**. Every other hook reads a device-wide global (`FlashStorage`, `midiEngine`,
+/// `playbackHandler`, `cvEngine`) or the context's song/sound. `midi_cable` is the one `MenuContext` member
+/// `context_for()` never assigns -- the device list publishes it, through `MenuWalkState::midi_cable_choice` and
+/// `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so these five are the first nodes in the tree whose value
+/// depends on a *selection the user made two pages up*. Legacy spells the same dependency as
+/// `soundEditor.currentMIDICable->...` in each of the five `readCurrentValue`/`writeCurrentValue` pairs.
 ///
-/// A null `ctx.midi_cable` reads 0 and writes nothing. Legacy dereferences unconditionally, because
-/// its own navigation cannot reach the page without `Devices::beginSession` having assigned the
-/// pointer first (`devices.cpp:55`); this port can be pointed at the node directly by a `SceneId`
-/// deep link or a spec, so the guard is the port's, in the same spirit as `cable_at`'s
-/// (`nodes/dynamic.cpp`).
+/// A null `ctx.midi_cable` reads 0 and writes nothing. Legacy dereferences unconditionally, because its own navigation
+/// cannot reach the page without `Devices::beginSession` having assigned the pointer first
+/// (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`); this port can be pointed at the node directly by a
+/// `SceneId` deep link or a spec, so the guard is the port's, in the same spirit as `cable_at`'s (`nodes/dynamic.cpp`).
 ///
-/// Every one of the four also raises `MIDIDeviceManager::anyChangesToSave` on write, exactly where
-/// legacy does; the velocity one additionally re-patches the song
-/// (`Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`,
-/// `default_velocity_to_level.h:34`), through `MenuContext::song` rather than the `currentSong`
-/// global.
+/// Every one of the four also raises `MIDIDeviceManager::anyChangesToSave` on write, exactly where legacy does; the
+/// velocity one additionally re-patches the song
+/// (`Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything`, `DefaultVelocityToLevel::writeCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`)), through `MenuContext::song` rather than
+/// the `currentSong` global.
 ///
 /// ## The MPE arm
 ///
 /// `mpe::DirectionSelector` is the fifth child and the bespoke one. Three legacy files
 /// (`gui/menu_item/mpe/`, 291 lines) become three nodes here:
 ///
-///   * **`mpe_direction`** -- a two-option `Selection` (IN / OUT, `direction_selector.h:29-35`)
-///     whose value is its own `uint8_t whichDirection` member (`:39`), *not* anything in the model.
-///     `beginSession` resets it to `MIDI_DIRECTION_INPUT_TO_DELUGE` on a forward entry only
-///     (`direction_selector.cpp:24-29`), `getTitle()` is computed from it at render time
-///     (`direction_selector.h:40-43`: MPE INPUT or MPE OUTPUT), and `selectButtonPress` chains to
-///     `zoneSelectorMenu` (`direction_selector.cpp:31-33`).
-///   * **`mpe_zone`** -- `mpe::ZoneSelector zoneSelectorMenu` (`zone_selector.cpp:23`), the same
-///     shape one level down: LOWER ZONE / UPPER ZONE (`zone_selector.h:32-38`) over its own
-///     `whichZone` (`:41`), reset on a forward entry (`zone_selector.cpp:25-30`), chaining to
-///     `zoneNumMemberChannelsMenu` (`:32-34`).
+///   * **`mpe_direction`** -- a two-option `Selection` (IN / OUT, `DirectionSelector::getOptions`
+///     (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`)) whose value is its own
+///     `uint8_t whichDirection` member, *not* anything in the model. `beginSession` resets it to
+///     `MIDI_DIRECTION_INPUT_TO_DELUGE` on a forward entry only (`DirectionSelector::beginSession` in
+///     `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`), `getTitle()` is computed from it at render
+///     time (`DirectionSelector::getTitle` in `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`: MPE
+///     INPUT or MPE OUTPUT), and `selectButtonPress` chains to `zoneSelectorMenu`
+///     (`DirectionSelector::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`).
+///   * **`mpe_zone`** -- `mpe::ZoneSelector zoneSelectorMenu`
+///     (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`), the same shape one level down: LOWER ZONE /
+///     UPPER ZONE (`ZoneSelector::getOptions` in `origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`) over its
+///     own `whichZone`, reset on a forward entry (`ZoneSelector::beginSession` in
+///     `origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`), chaining to `zoneNumMemberChannelsMenu`
+///     (`ZoneSelector::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`).
 ///   * **`mpe_zone_num_member_channels`** -- `mpe::ZoneNumMemberChannels zoneNumMemberChannelsMenu`
-///     (`zone_num_member_channels.cpp:27`), an `IntegerWithOff` over
+///     (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`), an `IntegerWithOff` over
 ///     `MIDIPort::mpeLowerZoneLastMemberChannel` / `mpeUpperZoneLastMemberChannel`
-///     (`zone_num_member_channels.cpp:56-85`) on the port the *other two* selectors name.
+///     (`ZoneNumMemberChannels::readCurrentValue` and `writeCurrentValue` in
+///     `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`) on the port the *other two* selectors
+///     name.
 ///
-/// **Where `whichDirection` and `whichZone` live in the port: `MenuState`.** Both are members of a
-/// legacy *menu item* singleton that a **different page** reads --
-/// `ZoneNumMemberChannels::getPort()` is
-/// `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]`
-/// (`zone_num_member_channels.cpp:29-31`) and its read/write branch on
-/// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`). That is precisely the shape
-/// `MenuWalkState::patching_param` / `patch_source` / `patch_range_source` already have
+/// **Where `whichDirection` and `whichZone` live in the port: `MenuState`.** Both are members of a legacy *menu item*
+/// singleton that a **different page** reads -- `ZoneNumMemberChannels::getPort()` is
+/// `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]` (`ZoneNumMemberChannels::getPort` in
+/// `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`) and its read/write branch on
+/// `zoneSelectorMenu.whichZone` (`ZoneNumMemberChannels::getMaxValue`, `readCurrentValue` and `writeCurrentValue`).
+/// That is precisely the shape `MenuWalkState::patching_param` / `patch_source` / `patch_range_source` already have
 /// (`menu_scene.h`: legacy's `source_selection::regularMenu.s`, read by four pages).
 ///
 /// **The rule is two questions, not "where did legacy keep it".** "Legacy stores it on a menu item,
@@ -102,7 +104,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
-#include "definitions_cxx.hpp" // kMaxMenuValue -- `DefaultVelocityToLevel::getMaxValue`
+#include "definitions_cxx.hpp" // kMaxMenuValue, for `device_default_velocity_to_level`
 
 #include <cstdint>
 
@@ -114,27 +116,28 @@ namespace deluge::scenes::menu::nodes {
 /// the file note.
 /// @{
 
-/// `midi::DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-31`).
+/// `midi::DefaultVelocityToLevel::readCurrentValue`
+/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`).
 int32_t get_device_velocity_to_level(const MenuContext& ctx);
-/// `midi::DefaultVelocityToLevel::writeCurrentValue` (`:33-37`).
+/// `midi::DefaultVelocityToLevel::writeCurrentValue`.
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value);
 
-/// `midi::DeviceSendClock::readCurrentValue` (`midi/device_send_clock.h:27`).
+/// `midi::DeviceSendClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_send_clock.h`).
 int32_t get_device_send_clock(const MenuContext& ctx);
-/// `midi::DeviceSendClock::writeCurrentValue` (`:28-31`).
+/// `midi::DeviceSendClock::writeCurrentValue`.
 void set_device_send_clock(const MenuContext& ctx, int32_t value);
 
-/// `midi::DeviceReceiveClock::readCurrentValue` (`midi/device_receive_clock.h:27`).
+/// `midi::DeviceReceiveClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_receive_clock.h`).
 int32_t get_device_receive_clock(const MenuContext& ctx);
-/// `midi::DeviceReceiveClock::writeCurrentValue` (`:28-31`).
+/// `midi::DeviceReceiveClock::writeCurrentValue`.
 void set_device_receive_clock(const MenuContext& ctx, int32_t value);
 
-/// `midi::DeviceIsRelative::readCurrentValue` (`midi/device_is_relative.h:27`).
+/// `midi::DeviceIsRelative::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_is_relative.h`).
 int32_t get_device_is_relative(const MenuContext& ctx);
-/// `midi::DeviceIsRelative::writeCurrentValue` (`:28-31`).
+/// `midi::DeviceIsRelative::writeCurrentValue`.
 void set_device_is_relative(const MenuContext& ctx, int32_t value);
 
-/// `midi::DeviceSendThru::readCurrentValue` (`midi/device_send_thru.h`).
+/// `midi::DeviceSendThru::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_send_thru.h`).
 int32_t get_device_send_thru(const MenuContext& ctx);
 /// `midi::DeviceSendThru::writeCurrentValue`.
 void set_device_send_thru(const MenuContext& ctx, int32_t value);
@@ -148,16 +151,17 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value);
 /// `MenuState`). Same reason `connected_cables` is exposed from `nodes/dynamic.h`.
 /// @{
 
-/// @brief `ZoneNumMemberChannels::getMaxValue()` (`mpe/zone_num_member_channels.cpp:33-54`), with
-///        `Number::getMinValue`'s 0 as the floor. A context naming no cable has an empty range.
+/// @brief `ZoneNumMemberChannels::getMaxValue()`
+///        (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`), with `Number::getMinValue`'s 0 as
+///        the floor. A context naming no cable has an empty range.
 IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state);
 
-/// @brief `ZoneNumMemberChannels::readCurrentValue()` (`:56-64`) -- the member-channel count on the
+/// @brief `ZoneNumMemberChannels::readCurrentValue()` -- the member-channel count on the
 ///        port `MenuWalkState::mpe_direction` names, for the zone `MenuWalkState::mpe_zone` names.
 int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state);
 /// @}
 
-/// @brief `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`).
+/// @brief `mpe::DirectionSelector` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`).
 ///
 /// A `CustomItem` rather than a `Kind::Enum` node for two independent reasons, either of which
 /// would be enough: its value is `MenuWalkState::mpe_direction` (see the file note), which a
@@ -177,7 +181,7 @@ public:
 	                                 MenuState& state) const override;
 };
 
-/// @brief `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`). Same shape as
+/// @brief `mpe::ZoneSelector` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`). Same shape as
 ///        `MpeDirectionItem`, over `MenuWalkState::mpe_zone`, minus the runtime title.
 ///
 /// The node is named `STRING_FOR_MPE`, its parent selector's name, for `validate_tree`'s `MissingTitle` rule and the
@@ -196,15 +200,16 @@ public:
 	                                 MenuState& state) const override;
 };
 
-/// @brief `mpe::ZoneNumMemberChannels` (`gui/menu_item/mpe/zone_num_member_channels.{h,cpp}`).
+/// @brief `mpe::ZoneNumMemberChannels` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.h`).
 ///
-/// The one value editor here, and a `CustomItem` for the same reason the two selectors are: which
-/// half of which `MIDIPort` it addresses is `MenuWalkState::mpe_direction` / `mpe_zone`, and its bounds
-/// move with them (`getMaxValue`, `zone_num_member_channels.cpp:33-54`). `on_focus` is
-/// `Number::beginSession`'s `readCurrentValue` (there is no override of its own -- legacy's is
-/// commented out at `zone_num_member_channels.h:28`), `render` is `IntegerWithOff`'s huge-number
-/// screen (`gui/menu_item/integer.cpp:41-50`), and `commit` is `writeCurrentValue`
-/// (`zone_num_member_channels.cpp:66-85`) including its MCM `sendRPN` tail.
+/// The one value editor here, and a `CustomItem` for the same reason the two selectors are: which half of which
+/// `MIDIPort` it addresses is `MenuWalkState::mpe_direction` / `mpe_zone`, and its bounds move with them
+/// (`getMaxValue`, `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`). `on_focus` is
+/// `Number::beginSession`'s `readCurrentValue` (there is no override of its own -- legacy's is commented out at
+/// `origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.h`), `render` is `IntegerWithOff`'s huge-number
+/// screen (`IntegerWithOff::drawPixelsForOled` in `origin/main:src/deluge/gui/menu_item/integer.cpp`), and `commit` is
+/// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`) including its MCM
+/// `sendRPN` tail.
 class MpeZoneChannelsItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -232,12 +237,13 @@ inline const MpeZoneChannelsItem kMpeZoneChannelsItem{};
 // ---------------------------------------------------------------------------------------------
 // The nodes, innermost first -- a chain target has to be declared before the hook that names it.
 
-/// `zoneNumMemberChannelsMenu` (`zone_num_member_channels.cpp:27`), titled by its own `getTitle()`
-/// override (`zone_num_member_channels.h:34-36`) because legacy's name is `EMPTY_STRING`.
+/// `zoneNumMemberChannelsMenu` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`), titled by its
+/// own `getTitle()` override (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.h`) because legacy's
+/// name is `EMPTY_STRING`.
 inline constexpr Node mpe_zone_num_member_channels =
     custom(sid(deluge::l10n::String::STRING_FOR_NUM_MEMBER_CH_MENU_TITLE), &kMpeZoneChannelsItem);
 
-/// `ZoneSelector::selectButtonPress` (`zone_selector.cpp:32-34`) -- unconditional.
+/// `ZoneSelector::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`) -- unconditional.
 /// @{
 inline constexpr const Node* kMpeZoneChain[] = {&mpe_zone_num_member_channels};
 inline const Node* mpe_zone_chain(const MenuContext&, const MenuState&) {
@@ -248,7 +254,8 @@ inline const Node* mpe_zone_chain(const MenuContext&, const MenuState&) {
 inline constexpr Node mpe_zone =
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_MPE), &kMpeZoneItem), mpe_zone_chain, kMpeZoneChain);
 
-/// `DirectionSelector::selectButtonPress` (`direction_selector.cpp:31-33`) -- unconditional.
+/// `DirectionSelector::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`) --
+/// unconditional.
 /// @{
 inline constexpr const Node* kMpeDirectionChain[] = {&mpe_zone};
 inline const Node* mpe_direction_chain(const MenuContext&, const MenuState&) {
@@ -259,9 +266,9 @@ inline const Node* mpe_direction_chain(const MenuContext&, const MenuState&) {
 inline constexpr Node mpe_direction = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_MPE), &kMpeDirectionItem), mpe_direction_chain, kMpeDirectionChain);
 
-/// `DefaultVelocityToLevel::getMaxValue` is `kMaxMenuValue` (`default_velocity_to_level.h:27`);
-/// `IntegerWithOff` draws 0 as "OFF" (`gui/menu_item/integer.cpp:41-50`), which is
-/// `ValueStyle::off_at_zero`.
+/// `DefaultVelocityToLevel::getMaxValue` is `kMaxMenuValue`
+/// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`); `IntegerWithOff` draws 0 as "OFF"
+/// (`origin/main:src/deluge/gui/menu_item/integer.cpp`), which is `ValueStyle::off_at_zero`.
 inline constexpr Node device_default_velocity_to_level =
     with_value_style(int_item(sid(deluge::l10n::String::STRING_FOR_VELOCITY), get_device_velocity_to_level,
                               set_device_velocity_to_level, IntRange{0, kMaxMenuValue, 1}),
@@ -276,21 +283,21 @@ inline constexpr Node device_is_relative =
 inline constexpr Node device_send_thru =
     toggle_item(sid(deluge::l10n::String::STRING_FOR_MIDI_THRU), get_device_send_thru, set_device_send_thru);
 
-/// `midiDeviceMenu`'s children, in the literal's own order (`gui/ui/menus.cpp`).
+/// `midiDeviceMenu`'s children, in the literal's own order (`origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr const Node* kMidiDeviceChildren[] = {
     &mpe_direction,      &device_default_velocity_to_level,
     &device_send_clock,  &device_receive_clock,
     &device_is_relative, &device_send_thru,
 };
 
-/// `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`). See the file note on its title.
-/// `midi::Device::getTitle` (`midi/device.h:8`): the cable's own display name.
+/// `midi::Device midiDeviceMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`). See the file note on its title.
+/// `midi::Device::getTitle` (`origin/main:src/deluge/gui/menu_item/midi/device.h`): the cable's own display name.
 ValueText midi_device_title(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 inline constexpr Node midi_device =
     with_name_text(submenu(sid(deluge::l10n::String::STRING_FOR_MIDI_DEVICES), kMidiDeviceChildren), midi_device_title);
 
-/// `Devices::selectButtonPress` (`gui/menu_item/midi/devices.cpp:154-156`) -- unconditional.
-/// `settings.h`'s `midi_devices` carries these.
+/// `Devices::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/midi/devices.cpp`) -- unconditional.
+/// `nodes/settings.h`'s `midi_devices` carries these.
 /// @{
 inline constexpr const Node* kMidiDevicesChain[] = {&midi_device};
 inline const Node* midi_devices_chain(const MenuContext&, const MenuState&) {

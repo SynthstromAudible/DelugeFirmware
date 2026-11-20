@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The members of the three sample items. See `sample.h`.
+/// @brief The members of the three sample items. See `nodes/sample.h`.
 
 #include "scenes/menu/nodes/sample.h"
 
@@ -38,7 +38,7 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
-// `sample.h` builds the five `MarkerItem`s from raw `uint16_t` literals, because including
+// `nodes/sample.h` builds the five `MarkerItem`s from raw `uint16_t` literals, because including
 // `definitions_cxx.hpp`'s `MarkerType` there would put it in the include closure of every table
 // that names one of these items. Those literals are only correct while `MarkerType` keeps its
 // current numbering, so the numbering is pinned here, in the translation unit that already sees
@@ -78,34 +78,32 @@ MenuContext SampleSceneItem::with_source(const MenuContext& ctx) const {
 }
 
 void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `FileSelector::beginSession` (`gui/menu_item/file_selector.cpp:36-47`): set the source, then
+	// `FileSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`): set the source, then
 	// `openUI(&sampleBrowser)`. `BrowserScene::open` is legacy's implicit "the browser reads
 	// `soundEditor`'s globals" -- generalised, so the descriptor reads whichever member of the
 	// context it needs (`browser_scene.h`'s `Descriptor::start_at`).
 	//
-	// Legacy's `keyboardScreen.exitAuditionMode()` (`:40-42`) is a root UI's, which the host performs from the
-	// `FileSelectorOpened` action this item files. `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)` (`:45`),
-	// which legacy runs only when the browser refuses to open, is the shortcut-pad flash, which `MenuScene` owns rather
-	// than an item.
+	// Main's `keyboardScreen.exitAuditionMode()`, with the keyboard at the root and a note auditioning, is a root
+	// UI's: `host_end_audition` ends it before the browser opens, as main's runs before its `openUI`.
+	// `uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK)`, which main runs only when the browser refuses to open,
+	// is the shortcut-pad flash, which `MenuScene` owns rather than an item.
 	//
-	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
-	// but in `SoundEditor::maybeGetParentMenu`,
-	// whose file-selector arm is `:2089-2095`.
+	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here but in
+	// `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), in its file-selector arm.
 	// It is a *return* affordance: the sample claim (`SampleClaim`) reads the pair back
-	// (`gui/ui/browser/sample_browser.cpp:969-980`) and re-roots the navigation record onto the
-	// oscillator's horizontal page with the file selector focused, so accepting a file lands on the
-	// source page rather than back on the item. `MenuState::path`/`depth` already are that record
-	// and `go_up_on_resume` already steps out of the item, so what was actually missing was the
-	// *re-rooting* -- and it belonged to whoever performs `claimCurrentFile` against
-	// `BrowserScene::take_choice()`, which is the same seam and the same owner
-	// (`browser_scene.h`'s `Descriptor::accept`). This item's half of the pair
-	// is `MenuWalkState::scene_opener`, recorded by `MenuScene::after_render` where legacy's
-	// `maybeGetParentMenu` records its own; the page half is resolved from the tables and the
-	// re-rooting applied by `MenuScene::reroot_to_scene_opener_page()`, which
-	// `deluge::gui::ui::shellSampleClaimDone` calls on the claim's success.
+	// (`SampleBrowser::claimCurrentFile` in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and re-roots
+	// the navigation record onto the oscillator's horizontal page with the file selector focused, so accepting a file
+	// lands on the source page rather than back on the item. `MenuState::path`/`depth` already are that record and
+	// `go_up_on_resume` already steps out of the item, so what was actually missing was the *re-rooting* -- and it
+	// belonged to whoever performs `claimCurrentFile` for the browser (`BrowserHost::perform`), which is the same seam
+	// and the same owner (`browser_scene.h`'s `Descriptor::accept`). This item's half of the pair is
+	// `MenuWalkState::scene_opener`, recorded by `MenuScene::after_render` where legacy's `maybeGetParentMenu` records
+	// its own; the page half is resolved from the tables and the re-rooting applied by
+	// `MenuScene::reroot_to_scene_opener_page()`, which `deluge::gui::ui::shellSampleClaimDone` calls on the claim's
+	// success.
+	host_end_audition(AuditionEnd::KeyboardWhenAuditioning);
 	browser::browser_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
-	state.walk.pending_action = MenuActionRequest{.action = MenuAction::FileSelectorOpened};
 }
 
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
@@ -113,15 +111,16 @@ void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	if (source_index() >= 0) {
 		host_end_audition(AuditionEnd::KeyboardWhenAuditioning);
 	}
-	// `LoopPoint::beginSession` (`gui/menu_item/sample/loop_point.cpp:60-74`) and
+	// `LoopPoint::beginSession` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) and
 	// `audio_clip::SampleMarkerEditor::beginSession`
-	// (`gui/menu_item/audio_clip/sample_marker_editor.cpp`). Both end in
+	// (`origin/main:src/deluge/gui/menu_item/audio_clip/sample_marker_editor.cpp`). Both end in
 	// `sampleMarkerEditor.markerType = <the item's marker>; openUI(&sampleMarkerEditor)`; the marker
 	// travels on `SceneId::arg` here instead of through a member the caller has to remember to write
 	// (`MarkerScene::on_enter`).
 	//
-	// `with_source` is `LoopPoint`'s `setCurrentSource` (`:68`) and, for `kAudioClipWaveform`'s
-	// negative index, the audio-clip opener's *absence* of one.
+	// `with_source` is `LoopPoint`'s `setCurrentSource` call
+	// (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`) and, for `kAudioClipWaveform`'s negative index,
+	// the audio-clip opener's *absence* of one.
 	marker::marker_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{marker::kMarkerSceneKind, marker_};
 }
@@ -131,14 +130,16 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's app-loop job
 	// (`AudioRecorder::slowRoutine`) is the shell's own tick (`recorder_scene.h`).
 	//
-	// The source's first range is already there: `osc::AudioRecorder::checkPermissionToBeginSession` makes it, on the
-	// item's own source, before the item is entered, and the walk's range gate is that check (`range_rule_context`).
+	// The source's first range is already there: `osc::AudioRecorder::checkPermissionToBeginSession`
+	// (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`) makes it, on the item's own source, before the item
+	// is entered, and the walk's range gate is that check (`range_rule_context`).
 	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
-	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu` gives a recorder on the chain's SAMPLE
-	// RECORDER page its source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens
-	// the recorder, so the take returns to the source page with the selector focused. A recorder opened on the item
-	// alone (the drum creator's take) has no page above it, and the menu goes up as usual.
+	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu`
+	// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) gives a recorder on the chain's SAMPLE RECORDER page its
+	// source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens the recorder, so
+	// the take returns to the source page with the selector focused. A recorder opened on the item alone (the drum
+	// creator's take) has no page above it, and the menu goes up as usual.
 	if (state.depth > 0 && state.path[state.depth - 1] == &nodes::recorder
 	    && renders_horizontal(nodes::recorder, ctx)) {
 		state.walk.resume_landing = source_index() == 0 ? &nodes::file0_selector : &nodes::file1_selector;

@@ -97,9 +97,9 @@ bool GuestSurfaceSet::oled_busy(uint8_t index) {
 }
 
 void GuestSurfaceSet::blit(uint8_t index, std::span<const uint8_t> bytes, uint16_t w, uint16_t h) {
-	// Stands in for `OLED::sendMainImage` (`hid/display/oled.cpp:335-385`), legacy's push of a
+	// Stands in for `OLED::sendMainImage` (`hid/display/oled.cpp`), legacy's push of a
 	// rendered panel -- except that the guest does not push. It hands the frame to `OLED::main` and
-	// raises legacy's own dirty flag through `OLED::markChanged` (`hid/display/oled.h:76-83`);
+	// raises legacy's own dirty flag through `OLED::markChanged` (`hid/display/oled.h`);
 	// legacy's render loop then does the pushing, with its screensaver, console and popup
 	// compositing intact. Blitting past legacy to `deluge_display_blit_oled` would skip all three.
 	if (mainIndex_ < 0 || index != static_cast<uint8_t>(mainIndex_)) {
@@ -120,34 +120,34 @@ void GuestSurfaceSet::blit(uint8_t index, std::span<const uint8_t> bytes, uint16
 uint32_t GuestSurfaceSet::pad_output_space() {
 	// The same number legacy consults before pushing a pad column: `sendOutMainPadColours` gates on
 	// `deluge_control_pad_output_space() <= kNumBytesInMainPadRedraw`
-	// (`hid/led/pad_leds.cpp:1019-1037`, the test at `:1021`) -- an all-or-nothing gate on the whole
+	// (`hid/led/pad_leds.cpp`, its test of that space) -- an all-or-nothing gate on the whole
 	// eight-pair main grid. Legacy also asks the same question a column at a time, `<=
-	// kNumBytesInColUpdateMessage`, inside `clearTickSquares` (`hid/led/pad_leds.cpp:134-163`, the
-	// test at `:153`) and `setTickSquares` (`:165-230`, at `:221`); in both it sits three braces
+	// kNumBytesInColUpdateMessage`, inside `clearTickSquares` (`hid/led/pad_leds.cpp`, the
+	// test) and `setTickSquares`; in both it sits three braces
 	// deep -- inside `if (colsToSend)`, inside the `for (x)`, inside `if (colsToSend & (1 << x))` --
 	// and `break`s out of the column loop, sending what fits and dropping the rest of that pass.
 	// `Shell::flush` divides this by `kBytesPerColumnPair` (= `kNumBytesInColUpdateMessage` = 49,
-	// `definitions_cxx.hpp:95`) for a per-pair budget, which is that second shape, except that it
+	// `definitions_cxx.hpp`) for a per-pair budget, which is that second shape, except that it
 	// re-arms the pairs it could not send instead of dropping them.
 	return deluge_control_pad_output_space();
 }
 
 void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
-	// Stands in for `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`), legacy's pad-column send,
-	// and is driven the way `sendOutMainPadColours` (`:1019-1037`) drives it -- one call per
+	// Stands in for `sortLedsForCol` (`hid/led/pad_leds.cpp`), legacy's pad-column send,
+	// and is driven the way `sendOutMainPadColours` drives it -- one call per
 	// column pair, with a single `deluge_control_flush()` afterwards, which is `flush()` below.
 	//
 	// The colours go into `PadLEDs::image` first and `sortLedsForCol` reads them back out, rather
 	// than going straight to `deluge_control_set_pad_columns`. That is deliberate and is what keeps
 	// the guest doing what legacy does: `sortLedsForCol` passes every pad through `prepareColour`
-	// (`hid/led/pad_leds.cpp:283-298`), which applies the slow-flash cursor and the greyout, and it
+	// (`hid/led/pad_leds.cpp`), which applies the slow-flash cursor and the greyout, and it
 	// leaves `image` holding what is on the pads for everything else that reads it (greyout
 	// re-assessment, the zoom and scroll animations, a later full `sendOutMainPadColours`).
 	//
 	// Costs kGridCopyBytesPerColumnPair (48 B) per changed pair; see the class doc.
 	//
 	// @warning On a board with FEWER rows than legacy's `kDisplayHeight`, this writes rows
-	//          0..rows-1 and `sortLedsForCol` still reads all eight (`hid/led/pad_leds.cpp:267-272`),
+	//          0..rows-1 and `sortLedsForCol` still reads all eight (`hid/led/pad_leds.cpp`),
 	//          so the rows above the board's go out as whatever `image` last held. Deliberately not
 	//          zeroed: those rows are not the shell's to own, and blanking them would be the guest
 	//          inventing a policy about legacy's buffer. Hypothetical-board only -- every board in
@@ -164,9 +164,9 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	const uint8_t rows =
 	    std::min<uint8_t>(std::min<uint8_t>(grid().grid().dims().rows, kColumnPairLeds / 2), kDisplayHeight);
 	if (!pair_owned(owned_regions(), pair_index) || (mainHeld_ && x1 < kDisplayWidth)) {
-		// These pads are the UI underneath's, as under `SoundEditor`, which draws none
-		// (`renderMainPads` answers "show root UI", `sound_editor.cpp:217-247`), and as the sidebar
-		// is under a keyboard. A scene's blink over them comes through `flash_pad`, not as pixels.
+		// These pads are the UI underneath's, as under `SoundEditor`, which draws none (`renderMainPads` answers "show
+		// root UI", `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and as the sidebar is under a keyboard. A
+		// scene's blink over them comes through `flash_pad`, not as pixels.
 		return;
 	}
 	for (uint8_t y = 0; y < rows; y++) {
@@ -177,7 +177,7 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 }
 
 void GuestSurfaceSet::flash_pad(uint8_t x, uint8_t y, deluge::ui::grid::FlashColour colour) {
-	// `SoundEditor::blinkShortcut`'s own call (`sound_editor.cpp:1205-1245`): the PIC plays the
+	// `SoundEditor::blinkShortcut`'s own call (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the PIC plays the
 	// flash over whatever the pad holds, so it shows whether the guest or the UI underneath drew it.
 	if (x >= kDisplayWidth || y >= kDisplayHeight) {
 		return;
@@ -220,11 +220,11 @@ void GuestSurfaceSet::take_grid() {
 }
 
 void GuestSurfaceSet::set_led(uint8_t board_led, bool on) {
-	// Replaces `setLedState` (`hid/led/indicator_leds.cpp:42-52`) -- and calls it, rather than the
-	// `deluge_control_set_led` at its `:51`, for two reasons. It keeps legacy's `ledStates[]`
+	// Replaces `setLedState` (`hid/led/indicator_leds.cpp`) -- and calls it, rather than the
+	// `deluge_control_set_led` inside it, for two reasons. It keeps legacy's `ledStates[]`
 	// shadow true, so the LEDs are coherent when the guest closes; and its default
 	// `allowContinuedBlinking = false` stops any legacy blinker on that LED
-	// (`stopLedBlinking`, `:141-149`), which is right, because while the guest is open the shell's
+	// (`stopLedBlinking`), which is right, because while the guest is open the shell's
 	// own `LedFrame` owns the blink phase.
 	//
 	// `board_led` passes straight through: the board profile's `led_by_button` values ARE
@@ -258,11 +258,11 @@ void GuestSurfaceSet::begin_session() {
 }
 
 void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicator) {
-	// Replaces `actuallySetKnobIndicatorLevel` (`hid/led/indicator_leds.cpp:182-245`), whose whole
-	// body is the conversion from one scalar level to four per-segment brightnesses followed by the
-	// boundary call at `:241`. The shell has already done that conversion -- `KnobIndicator` IS the
-	// four segment levels (`KnobIndicator` in `ui/core/led_frame.h`) -- so there is no scalar to hand the legacy
-	// function, and forwarding to it would mean inventing a level to convert back from.
+	// Replaces `actuallySetKnobIndicatorLevel` (`hid/led/indicator_leds.cpp`), whose whole body is the conversion from
+	// one scalar level to four per-segment brightnesses followed by the boundary call to
+	// `deluge_control_set_indicator`. The shell has already done that conversion -- `KnobIndicator` IS the four segment
+	// levels (`KnobIndicator` in `ui/core/led_frame.h`) -- so there is no scalar to hand the legacy function, and
+	// forwarding to it would mean inventing a level to convert back from.
 	//
 	// `which` passes straight through, as it does in `BoardSurfaceSet::set_indicator`: `IndicatorId` is numbered
 	// `{Lower = 0, Upper = 1}` to match legacy's `whichKnob` mod-encoder number.
@@ -272,7 +272,7 @@ void GuestSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicato
 void GuestSurfaceSet::flush() {
 	// The `deluge_control_flush()` that legacy calls once after a run of `sortLedsForCol`s
 	// (`sendOutMainPadColours` and `sendOutSidebarColours` in `hid/led/pad_leds.cpp`) --
-	// which is also what `sortLedsForCol`'s own comment at `:259` asks its callers to do, under
+	// which is also what `sortLedsForCol`'s own comment above its definition asks its callers to do, under
 	// that call's older name.
 	// `Shell::flush` calls this at most once per tick, and only when something was actually sent
 	// (`Shell::flush`).

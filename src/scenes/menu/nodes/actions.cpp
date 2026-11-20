@@ -16,8 +16,7 @@
  */
 
 /// @file
-/// @brief The five action items and the performance-editing-mode mirror. See `actions.h` and
-///        `scenes/menu/action.h`.
+/// @brief The five action items. See `actions.h` and `scenes/menu/action.h`.
 
 #include "scenes/menu/nodes/actions.h"
 
@@ -35,27 +34,6 @@
 #include <cstdint>
 #include <string_view>
 
-namespace deluge::scenes::menu {
-
-namespace {
-/// @brief The mirror `action.h` documents. Seeded to legacy's own start-of-day state:
-///        `PerformanceView::defaultEditingMode` starts `false` in its constructor
-///        (`PerformanceView::PerformanceView`) and `focusRegained` never touches it, which
-///        `EditingMode::readCurrentValue` maps to
-///        `DISABLED` (`performance_session_view/editing_mode.h:36-38`).
-PerformanceEditingMode g_perform_mode = PerformanceEditingMode::DISABLED;
-} // namespace
-
-PerformanceEditingMode performance_editing_mode() {
-	return g_perform_mode;
-}
-
-void set_performance_editing_mode(PerformanceEditingMode mode) {
-	g_perform_mode = mode;
-}
-
-} // namespace deluge::scenes::menu
-
 namespace deluge::scenes::menu::nodes {
 
 namespace {
@@ -66,8 +44,20 @@ size_t depth_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.depth : 0;
 }
 
+/// @brief The cursor `PerformEditorItem` starts on: the performance view's mode as the host answers it, in the
+///        `PerformanceEditingMode` numbering the page's options follow. Disabled where the context binds no host.
+int16_t view_mode_cursor(const MenuContext& ctx) {
+	using bind::PerformanceEditing;
+	static_assert(static_cast<int>(PerformanceEditing::Disabled) == static_cast<int>(PerformanceEditingMode::DISABLED));
+	static_assert(static_cast<int>(PerformanceEditing::Value) == static_cast<int>(PerformanceEditingMode::VALUE));
+	static_assert(static_cast<int>(PerformanceEditing::Param) == static_cast<int>(PerformanceEditingMode::PARAM));
+	const PerformanceEditing mode =
+	    ctx.facts != nullptr ? ctx.facts->performance_editing_mode() : PerformanceEditing::Disabled;
+	return static_cast<int16_t>(mode);
+}
+
 /// @brief The node on screen, so an item -- which is handed no `Node` of its own -- can draw its own
-///        title. The same helper `dynamic.cpp` and `settings.cpp` keep.
+///        title. The same helper `dynamic.cpp` and `nodes/settings.cpp` keep.
 void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
@@ -81,13 +71,12 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 // `ActionItem` -- the four pure verbs
 
 void ActionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// **Never reached on the shipped path, and that is the fidelity result, not an oversight.**
-	// `after_render` runs `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's
-	// `ascend()` within the *same* call, so the item is focused for zero renders -- which is exactly
-	// legacy, where `shouldEnterSubmenu() == false` means `SoundEditor` calls `selectButtonPress()`
-	// and never navigates in at all (`gui/ui/sound_editor.cpp:420-423`). (`ContextMenuItem::render`
-	// in `nodes/context_menu_items.cpp`) *is* drawn for one tick, because its request is a scene
-	// push the router applies a tick later.)
+	// **Never reached on the shipped path, and that is the fidelity result, not an oversight.** `after_render` runs
+	// `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's `ascend()` within the *same* call, so the
+	// item is focused for zero renders -- which is exactly legacy, where `shouldEnterSubmenu() == false` means
+	// `SoundEditor` calls `selectButtonPress()` and never navigates in at all (`SoundEditor::buttonAction` in
+	// `origin/main:src/deluge/gui/ui/sound_editor.cpp`). (`ContextMenuItem::render` in `nodes/context_menu_items.cpp`)
+	// *is* drawn for one tick, because its request is a scene push the router applies a tick later.)
 	//
 	// It still has to draw something: a caller that opens this node *as a root* -- `open()` directly,
 	// or a `SceneId::arg` deep link -- lands on it at depth 0, where `ascend()` is a no-op, and then
@@ -112,20 +101,19 @@ void ActionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 // ---------------------------------------------------------------------------------------------
 // `PerformEditorItem` -- `performance_session_view::EditingMode`
 
-void PerformEditorItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	// `EditingMode::readCurrentValue` (`editing_mode.h:35-46`): the cursor starts on whatever mode
-	// the performance view is in. `Selection::beginSession` is what calls it, and `on_focus` is
-	// `beginSession` -- so the read happens here rather than every frame, which is also what stops a
-	// turn from being undone by the next render.
+void PerformEditorItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `EditingMode::readCurrentValue`: the cursor starts on the mode the performance view is in. `on_focus` is
+	// `Selection::beginSession`, which is what reads it, so the read happens here rather than every frame, and a turn
+	// is not undone by the next render.
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
-	state.list[d].cursor = static_cast<int16_t>(performance_editing_mode());
+	state.list[d].cursor = view_mode_cursor(ctx);
 	state.scroll[d] = deluge::ui::ScrollText{};
 }
 
-void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) const {
+void PerformEditorItem::on_reread(const MenuContext& ctx, MenuState& state) const {
 	// `EditingMode::readCurrentValue`: the cursor is the mode the performance view is in now.
-	state.list[depth_of(state)].cursor = static_cast<int16_t>(performance_editing_mode());
+	state.list[depth_of(state)].cursor = view_mode_cursor(ctx);
 }
 
 std::array<std::string_view, 3> PerformEditorItem::option_names() {
@@ -154,24 +142,25 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 		return;
 	}
 
-	// `EditingMode::selectButtonPress` (`editing_mode.h:50-97`). `currentMode` is whatever
-	// `writeCurrentValue` last stored from the cursor (`:47`), so the cursor is the mode.
+	// `EditingMode::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`). `currentMode` is whatever
+	// `EditingMode::writeCurrentValue` last stored from the cursor, so the cursor is the mode.
 	const auto mode = static_cast<PerformanceEditingMode>(
 	    std::clamp<int32_t>(index, 0, static_cast<int32_t>(PerformanceEditingMode::PARAM)));
 
 	if (mode == PerformanceEditingMode::DISABLED) {
-		// `:50-52` -- `return nullptr`, i.e. go up a level. `render_resp.entered` is left set, and
+		// `DISABLED` is main's `return nullptr`, i.e. go up a level. `render_resp.entered` is left set, and
 		// `MenuScene::after_render`'s leaf arm ascends. No request is filed: legacy does not touch
 		// `performanceView` on this arm either.
 		return;
 	}
 
-	// `:55-60` -- the two bools the mirror stands in for, written on the press and nowhere else.
-	set_performance_editing_mode(mode);
+	// The request carries the mode; the dispatcher writes the performance view's two bools from it
+	// (`openPerformanceView`, `gui/ui/shell_action_dispatch.cpp`).
 	state.walk.pending_action =
 	    MenuActionRequest{.action = MenuAction::OpenPerformanceView, .arg = static_cast<uint16_t>(mode)};
 
-	// `:73` -- `return NO_NAVIGATION`. Clearing `entered` is how a `CustomItem` says "I consumed
+	// The other two modes are main's `return NO_NAVIGATION`. Clearing `entered` is how a `CustomItem` says "I consumed
 	// this press" (`actions.h`); leaving it set would ascend out of a page legacy stays on.
 	state.tick.render_resp.entered = false;
 }

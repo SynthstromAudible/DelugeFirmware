@@ -21,7 +21,8 @@ namespace {
 
 using detail::int_to_string;
 
-/// `Number::drawHorizontalBar(35, 10)`'s canvas row, height and side margin (`gui/menu_item/number.cpp:33-71`).
+/// `Number::drawHorizontalBar(35, 10)`'s canvas row, height and side margin
+/// (`origin/main:src/deluge/gui/menu_item/number.cpp`).
 constexpr int32_t kBarTop = 35;
 constexpr int32_t kBarHeight = 8;
 constexpr int32_t kBarMargin = 10;
@@ -115,12 +116,11 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		return resp;
 	}
 
-	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
-	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
-	// that matches the legacy panel-relative offset and centring.
-	// `IntegerContinuous::drawPixelsForOled` (`integer.cpp:63-72`) draws its digits in the Big face on the 48-row panel
-	// and the huge one on the 64-row (cleanly: main's height there has no font, DIFFERENCES.md D46), then inverts the
-	// bar over what is drawn.
+	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs the topmost-pixel
+	// term, so kValueY is measured from the rect's top; with rect == f.bounds() that matches the legacy panel-relative
+	// offset and centring. `IntegerContinuous::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`)
+	// draws its digits in the Big face on the 48-row panel and the huge one on the 64-row (cleanly: main's height there
+	// has no font, DIFFERENCES.md D46), then inverts the bar over what is drawn.
 	const bool tall = f.canvas.geometry().height == 64;
 	const gfx::oled::FontId font = !style.continuous ? f.style.value_font
 	                               : tall            ? gfx::oled::FontId::MetricBold20
@@ -395,7 +395,7 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 	resp.focused = focused;
 
 	if (focused) {
-		// `Range::horizontalEncoderAction` (`gui/menu_item/range.cpp:35-84`), with the goto lattice
+		// `Range::horizontalEncoderAction` (`origin/main:src/deluge/gui/menu_item/range.cpp`), with the goto lattice
 		// flattened: a turn *towards* the end already selected switches editing off, any other turn
 		// selects the end it points at. (Legacy's `mayEditRangeEdge` arms have no override that
 		// reaches this widget -- see values.h.)
@@ -419,35 +419,36 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 			switch (edge) {
 			case RangeEdge::Left:
 				if (clamp == RangeClamp::Push) {
-					// `IntegerRange::selectEncoderAction` (`integer_range.cpp:39-44`).
+					// `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
 					lower = add_clamped(lower, delta, range);
 					if (upper < lower) {
 						upper = lower;
 					}
 				}
 				else {
-					// `KeyRange::selectEncoderAction` (`key_range.cpp:36-39`): the *other end* is
-					// the ceiling, so `Range::max` never enters this arm.
+					// `KeyRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`): the
+					// *other end* is the ceiling, so `Range::max` never enters this arm.
 					lower = add_clamped(lower, delta, Range{range.min, upper, range.step});
 				}
 				break;
 			case RangeEdge::Right:
 				if (clamp == RangeClamp::Push) {
-					// `integer_range.cpp:47-52`.
+					// `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`).
 					upper = add_clamped(upper, delta, range);
 					if (upper < lower) {
 						lower = upper;
 					}
 				}
 				else {
-					// `key_range.cpp:41-43`.
+					// `KeyRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`).
 					upper = add_clamped(upper, delta, Range{lower, range.max, range.step});
 				}
 				break;
 			case RangeEdge::Off:
-				// `integer_range.cpp:57-67` / `key_range.cpp:48-57`, which are the same statement
-				// in both subclasses: with no edge selected a split range refuses to move at all,
-				// and a coincident one moves as one value.
+				// `IntegerRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`) /
+				// `KeyRange::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/key_range.cpp`), which are the
+				// same statement in both subclasses: with no edge selected a split range refuses to move at all, and a
+				// coincident one moves as one value.
 				if (lower == upper) {
 					lower = add_clamped(lower, delta, range);
 					upper = lower;
@@ -461,24 +462,23 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 		}
 	}
 
-	// `Range::drawPixelsForOled` (`gui/menu_item/range.cpp:97-131`). The frame's origin absorbs the
+	// `Range::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/range.cpp`). The frame's origin absorbs the
 	// `OLED_MAIN_TOPMOST_PIXEL` term, exactly as `int_value`'s band does.
 	const gfx::oled::FontId font = f.style.value_font;
 	const int32_t digit_w = spacing_x_for(font);
 	const int32_t digit_h = text_height_for(font);
 	const Rect band{rect.x, rect.y + kValueY, rect.w, digit_h};
 
-	// **Cleared one row taller than it is drawn, top and bottom.** The highlight below inverts
-	// `digit_h + 2` rows -- legacy's own `baseY - 1 .. baseY + digitHeight + 1` (`:122-123`) -- and an
-	// XOR over a row this pass did not clear toggles that row on every frame instead of settling.
-	// Legacy never sees it because `OLED::main` is cleared whole before `drawPixelsForOled`; this
-	// widget clears only what it owns, so what it owns has to be the *inverted* extent, not the glyph
-	// band. Row `kValueY - 1` is 17, five rows below the title rule at `kTitleSeparatorY` (12), so
-	// nothing above is touched. Pinned by the "moves nothing across twenty quiet ticks" example,
-	// which is the one that caught it.
+	// **Cleared one row taller than it is drawn, top and bottom.** The highlight below inverts `digit_h + 2` rows --
+	// legacy's own `baseY - 1 .. baseY + digitHeight + 1` (`Range::drawPixelsForOled` in
+	// `origin/main:src/deluge/gui/menu_item/range.cpp`) -- and an XOR over a row this pass did not clear toggles that
+	// row on every frame instead of settling. Legacy never sees it because `OLED::main` is cleared whole before
+	// `drawPixelsForOled`; this widget clears only what it owns, so what it owns has to be the *inverted* extent, not
+	// the glyph band. Row `kValueY - 1` is 17, five rows below the title rule at `kTitleSeparatorY` (12), so nothing
+	// above is touched. Pinned by the "moves nothing across twenty quiet ticks" example.
 	f.clear(Rect{rect.x, band.y - 1, rect.w, digit_h + 2});
 
-	// `getText(buffer, &leftLength, &rightLength, editingRangeEdge == RangeEdit::OFF)` (`:102`).
+	// `getText(buffer, &leftLength, &rightLength, editingRangeEdge == RangeEdit::OFF)`.
 	std::array<char, kRangeTextMax> left_scratch{};
 	std::array<char, kRangeTextMax> right_scratch{};
 	const std::string_view left = format(lower, std::span{left_scratch});
@@ -500,13 +500,13 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 		}
 	}
 
-	// `:104-113` -- the *monospaced* width, not `measure()`'s. See values.h.
+	// The *monospaced* width, not `measure()`'s. See values.h.
 	const int32_t text_length = left_len + right_len + (right_len != 0 ? 1 : 0);
 	const int32_t string_w = digit_w * text_length;
 	const int32_t start_x = rect.x + ((rect.w - string_w) >> 1);
 	f.glyphs(std::string_view{line.data(), out}, start_x, band.y, digit_w, digit_h, 0, rect.right());
 
-	// `:115-130` -- one end plus a 1px margin above and below. `invertArea`'s `endY` is inclusive
+	// One end plus a 1px margin above and below. `invertArea`'s `endY` is inclusive
 	// (`OledFrame::invert` passes `bottom() - 1`), so legacy's `baseY .. baseY + digitHeight + 1`
 	// is a rect `digitHeight + 2` tall starting one row above the band.
 	if (edge != RangeEdge::Off) {

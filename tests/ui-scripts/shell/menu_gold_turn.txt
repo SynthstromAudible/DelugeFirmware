@@ -7,25 +7,25 @@
 # `View::modEncoderAction`, which edits the mod-controllable's param instead of the menu item. So
 # `int_value` reads only the select turn (`ui/oled/values.cpp`'s `select_delta`, from `f.turn()`).
 #
-# **What it pins.** With `int_value` claiming only the select turn, this script's two
-# `GoldUpper` steps are unclaimed by `MenuScene` and reach the real `ModKnobs`, exactly as they
-# would over any other view. `nodes::saturation` itself never moves -- it is built with `int_item()`
-# (`scenes/menu/nodes/sound_fx.h`), which never gives it a `bind.param` for `ModKnobs` to write
-# through, so it cannot be the thing a gold turn here edits. What the turn DOES move is whatever real
-# modulation param GoldUpper is currently pointed at: `idle`'s `indicator upper` reads `16` and
-# `after_gold_turn`'s reads `36`. And because `ModKnobs::popup_suppressed` -- the port of legacy's "let's see if we're editing the same
-# param in the menu, if so, don't show pop-up" (`view.cpp`) -- compares the turn's param
-# against `menu_scene().focused()->bind.param`, and `nodes::saturation` has none to compare, the
-# guard cannot suppress the popup here: a `ParamPopupScene` goes up over the menu. `idle` carries one
-# `scene` line, `after_gold_turn` carries two, and `after_back` carries one again -- not the menu's:
-# `Back` at depth 0 closes `MenuScene` outright, and the popup outlives it.
+# **What it pins.** With `int_value` claiming only the select turn, this script's two `GoldUpper` steps are unclaimed by
+# `MenuScene` and reach the real `ModKnobs`, exactly as they would over any other view. `nodes::saturation` itself never
+# moves -- it is built with `int_item()` (`scenes/menu/nodes/sound_fx.h`), which never gives it a `bind.param` for
+# `ModKnobs` to write through, so it cannot be the thing a gold turn here edits. What the turn DOES move is whatever
+# real modulation param GoldUpper is currently pointed at: `idle`'s `indicator upper` reads `16` and `after_gold_turn`'s
+# reads `36`. And because `GuestKnobPresentation::suppress_value_popup`
+# (`src/scenes/services/guest_knob_presentation.h`) -- main's "let's see if we're editing the same param in the menu, if
+# so, don't show pop-up" in `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`) --
+# compares the turn's param against `menu_scene().focused_value()->bind.param`, and `nodes::saturation` has none to
+# compare, the guard cannot suppress the popup here: a `ParamPopupScene` goes up over the menu. `idle` carries one
+# `scene` line, `after_gold_turn` carries two, and `after_back` carries one again -- not the menu's: `Back` at depth 0
+# closes `MenuScene` outright, and the popup outlives it.
 #
 # **What it does NOT pin, measured rather than assumed.** It is not a guard on the router's chain
 # ORDER (`top scene -> mod_knobs`): swapping the two steps back inside `Router::run_chain` and re-running leaves this script's
 # three goldens byte-identical and every assertion green, because the claim check that decides this
 # gesture happens in `route_post_render` BEFORE `run_chain` is entered. No real scene in the tree
 # claims a gold turn from `handle()`, so the order is only observable against a spec-local scene that
-# does -- which is `router_spec.cpp`'s "a scene that claims a gold-knob turn gets it, and mod_knobs
+# does -- which is `tests/unit/shell/router_spec.cpp`'s "a scene that claims a gold-knob turn gets it, and mod_knobs
 # never sees it".
 #
 # The subject is `nodes::saturation`, deliberately the same node `menu_int.txt` opens, so the two

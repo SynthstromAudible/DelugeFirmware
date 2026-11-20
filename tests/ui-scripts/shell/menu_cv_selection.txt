@@ -1,7 +1,7 @@
 # Level-2 acceptance: a runtime-list page (nodes::cv_selection) and the
 # chain that carries the picked row into the page it opens.
 #
-# `cv::Selection` (`gui/menu_item/cv/selection.h:41-46` selectButtonPress) does two things at once:
+# `cv::Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h` selectButtonPress) does two things at once:
 # it assigns `soundEditor.currentSourceIndex` and it navigates to `cvSubmenu`. A `SelectChainFn` is
 # handed a `const MenuContext&` and cannot write the first half, so the port splits it --
 # `CvSelectionItem` records the cursor in `MenuState::source_choice` and `MenuScene::after_render`

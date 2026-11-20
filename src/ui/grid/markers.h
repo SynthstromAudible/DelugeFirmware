@@ -10,12 +10,12 @@ namespace deluge::ui::grid {
 /// @brief The marker overlay a sample-marker editor paints *on top of* a waveform.
 ///
 /// The pad half of `SampleMarkerEditor`, as a component: `SampleMarkerEditor::renderMarkerInCol`
-/// (`gui/ui/sample_marker_editor.cpp:1058`) and `SampleMarkerEditor::renderColumn` (`:1268`),
+/// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) and `SampleMarkerEditor::renderColumn`,
 /// ported unchanged onto `GridFrame`.
 ///
 /// @note **Rendering only, and no model vocabulary.** Which sample position each marker sits at,
 ///       which column that lands on, whether the sample is reversed (legacy's `reverseRemap`,
-///       `:83`) and therefore what colour a marker takes are all the caller's -- they read
+///       a `SampleMarkerEditor` member) and therefore what colour a marker takes are all the caller's -- they read
 ///       `SampleHolder`, `SampleControls` and `MarkerType`, none of which `src/ui` may include
 ///       (`check_layer_rules.py`, `ui-includes-outside`). What arrives here is a bitmask of which
 ///       markers land on the column and a colour per marker index.
@@ -25,14 +25,14 @@ namespace deluge::ui::grid {
 
 /// @brief The most markers one column can stack.
 ///
-/// Legacy's `kNumMarkerTypes` (`definitions_cxx.hpp:785`) -- start, loop start, loop end, end. Spelled
+/// Legacy's `kNumMarkerTypes` (`definitions_cxx.hpp`) -- start, loop start, loop end, end. Spelled
 /// as its own constant because `src/ui` may not include `definitions_cxx.hpp`; the caller's
 /// `static_assert` is what ties the two together.
 inline constexpr int32_t kMaxMarkers = 4;
 
 /// @brief Tint rows `[y_start, y_end)` of column @p x toward @p colour.
 ///
-/// `SampleMarkerEditor::renderMarkerInCol` (`sample_marker_editor.cpp`) exactly: each
+/// `SampleMarkerEditor::renderMarkerInCol` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) exactly: each
 /// row keeps a quarter of *the pad's red channel* as its underlying-waveform contribution and takes
 /// three quarters of the marker colour.
 ///
@@ -65,14 +65,14 @@ struct MarkerStack {
 
 /// @brief Paint one column's stacked markers, mirrored about the frame's middle.
 ///
-/// `SampleMarkerEditor::renderColumn` (`sample_marker_editor.cpp:1268`). Markers are drawn from the
-/// lowest index inwards, each taking a slice of the column's top half, and every slice is mirrored
-/// into the bottom half -- so a column with one marker is a full-height bar and a column with four
-/// is four stacked pairs. A column no marker lands on is left exactly as the waveform painted it.
+/// `SampleMarkerEditor::renderColumn` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`). Markers are drawn
+/// from the lowest index inwards, each taking a slice of the column's top half, and every slice is mirrored into the
+/// bottom half -- so a column with one marker is a full-height bar and a column with four is four stacked pairs. A
+/// column no marker lands on is left exactly as the waveform painted it.
 ///
 /// @note **Two of the three slice heights are legacy's literals and do not scale with @p f's
 ///       height.** Only the one-marker case is `h / 2`; two, three and four markers use 2, 1/2 and
-///       1 rows as legacy wrote them (`:1301-1317`). Every shipped board is eight rows tall, where
+///       1 rows as legacy wrote them in that function. Every shipped board is eight rows tall, where
 ///       the literals and the fractions agree; a taller grid would stack the markers at the top
 ///       rather than spreading them, which is a deliberate transcription rather than a port
 ///       decision this component is entitled to make.

@@ -491,8 +491,8 @@ void runTick() {
 			g_report.fail("LOADED the song did not come back off the card -- a value stamped over in "
 			              "memory before the load was not restored by it");
 		}
-		// SL-ORDER. The song's sample is bound by the time the load ends -- the pass that binds it moves tier in
-		// this plan, and what it achieves must not.
+		// SL-ORDER. The song's sample is bound by the time the load ends -- the pass that binds it may move between
+		// tiers, and what it achieves must not.
 		int32_t audioClips = 0;
 		int32_t boundHolders = 0;
 		if (currentSong != nullptr) {

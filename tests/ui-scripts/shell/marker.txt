@@ -7,21 +7,20 @@
 # `Layout::Horizontal` page, whose `columns` widget claims `entered` only for a `Kind::Submenu`
 # column (`ui/oled/columns.cpp`).
 #
-# **The blink needs quiet ticks and nothing else, and it is invisible in the `.pbm`.**
-# `MarkerScene::tick` advances a four-phase counter every `kBlinkPhaseMs` (200 ms,
-# `definitions_cxx.hpp:161` `kSampleMarkerBlinkTime`) and phase 3 SUPPRESSES the selected marker's
-# column (`timerCallback`, `sample_marker_editor.cpp:806` -- not `renderMainPads`' phase >= 1 rule;
-# the class docstring says which of the two legacy disagreements this port follows). The OLED draws
-# no waveform at all, so the two blink frames below are byte-identical `.pbm`s that differ only in
-# their `.state` pad lines -- which is exactly why both halves of a snapshot are compared.
-# `Shell::tick`'s step 8b is what makes them happen: `next_timer()` arms the surfaces
+# **The blink needs quiet ticks and nothing else, and it is invisible in the `.pbm`.** `MarkerScene::tick` advances a
+# four-phase counter every `kBlinkPhaseMs` (200 ms, `definitions_cxx.hpp` `kSampleMarkerBlinkTime`) and phase 3
+# SUPPRESSES the selected marker's column (`SampleMarkerEditor::timerCallback` in
+# `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp` -- not `renderMainPads`' phase >= 1 rule; the class docstring
+# says which of the two main disagreements this port follows). The OLED draws no waveform at all, so the two blink
+# frames below are byte-identical `.pbm`s that differ only in their `.state` pad lines -- which is exactly why both
+# halves of a snapshot are compared. `Shell::tick`'s step 8b is what makes them happen: `next_timer()` arms the surfaces
 # `timer_repaints()` names, and this scene names both, so a tick with no input still repaints.
 #
-# The counter starts when the first `render_grid` sees a marker on screen, which is the tick the
-# push lands on (~150 ms), so phase 3 covers roughly [750, 950) and phase 0 [950, 1150). The frames
-# after the blink pair are all in phase 0: `select_encoder` and `pad_action` both reset the counter
-# (`sample_marker_editor.cpp`), so with the blink held still the only thing that can move
-# between them is the marker itself.
+# The counter starts when the first `render_grid` sees a marker on screen, which is the tick the push lands on (~150
+# ms), so phase 3 covers roughly [750, 950) and phase 0 [950, 1150). The frames after the blink pair are all in phase 0:
+# `select_encoder` and `pad_action` both reset the counter (main's `SampleMarkerEditor::selectEncoderAction` and
+# `SampleMarkerEditor::padAction` in `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp` do the same), so with the
+# blink held still the only thing that can move between them is the marker itself.
 #
 # **`after_select_turn` is the frame that found a bug.** `MarkerScene::handle` files
 # `Action::Kind::RepaintAll` for the turn, which `shell/scene.h` documents as "invalidate every
@@ -40,8 +39,9 @@
 800   snapshot blink_suppressed      # phase 3: the selected marker's column is gone from the pads
 1000  snapshot blink_shown           # phase 0 again -- the pad lines are `idle`'s again
 1010  encoder Select +1
-1040  snapshot after_select_turn     # `selectEncoderAction` (:268) walks START one COLUMN right --
-                                     # 32768 samples at this zoom -- on the OLED and on the pads
+1040  snapshot after_select_turn     # `SampleMarkerEditor::selectEncoderAction`
+                                     # (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) walks START one COLUMN
+                                     # right -- 32768 samples at this zoom -- on the OLED and on the pads
 1050  pad 6 3 down 64
 1070  pad 6 3 up
 1100  snapshot after_pad             # a main-pad press puts START at that column's first sample:

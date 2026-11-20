@@ -3,7 +3,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Boundary guardrail for the deluge synth core (synth untangling, Phase 2).
+"""Boundary guardrail for the deluge synth core.
 
 src/synth/ is the synth library: the per-voice sources and the modulation core (Envelope,
 LFO, Patcher, ControlBlock, ParamPlane, the routing compile). It is a step below the application:

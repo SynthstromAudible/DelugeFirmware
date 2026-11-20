@@ -5,10 +5,10 @@ while it still has live voices (Sound::soundsDestroyedWithLiveVoices()), and tha
 freed once the render has run past it.
 
 A Sound destroyed while it still has live voices crashes itself, with no render involved: after ~Sound's body, its own
-voices_ member destructor recycles each voice, and ~Voice -> Voice::setAsUnassigned -> Sound::voiceUnassigned ->
-reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. Reading the deletion paths guesses
-which of them can do that; this measures it. Every deletion path must end a Sound's voices before any part of it is
-destroyed.
+voices_ member destructor recycles each voice, and ~SoundVoice -> SoundVoice::set_as_unassigned
+(model/voice/sound_voice.cpp) -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure
+virtual in Sound by then. Reading the deletion paths guesses which of them can do that; this measures it. Every deletion
+path must end a Sound's voices before any part of it is destroyed.
 
 What the lines cover (tests/integration/scenarios/sound_lifetime_scenario.cpp writes them):
   SL-PROBE     per leg: how many voices were live at the deletion, whether the output is in the song (the render

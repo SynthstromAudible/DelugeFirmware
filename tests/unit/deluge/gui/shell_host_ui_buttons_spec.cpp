@@ -66,11 +66,12 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 
 	// ---- input: the note modes (`gui/ui/shell_note_mode.h`) --------------------------------------
 	//
-	// `SoundEditor` forwards a button, a turn and its own exit to `instrumentClipView` while a note
-	// mode is on (`gui/ui/sound_editor.cpp:617-623`, `:1047-1052`, `:1593-1598`, `:749-755`). What the
-	// forward decides is `sim/scenes_spec/note_mode_spec.cpp`'s; what these pin is the guest's half,
-	// against fakes that answer whatever an example sets: a value is returned and nothing is fed,
-	// `std::nullopt` feeds exactly as before, and the tick is armed only while the guest is current.
+	// `SoundEditor` forwards a button, a turn and its own exit to `instrumentClipView` while a note mode is on
+	// (`SoundEditor::buttonAction`, `SoundEditor::horizontalEncoderAction`, `SoundEditor::verticalEncoderAction` and
+	// `SoundEditor::exitCompletely` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`). What the forward decides is
+	// `sim/scenes_spec/note_mode_spec.cpp`'s; what these pin is the guest's half, against fakes that answer whatever an
+	// example sets: a value is returned and nothing is fed, `std::nullopt` feeds exactly as before, and the tick is
+	// armed only while the guest is current.
 
 	it("consults the note mode for a button, and feeds the shell as before when it answers nothing", _ {
 		Rig r;
@@ -275,9 +276,9 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		expect(r.base.seen[0].ev.button).to_equal(ButtonId::Load);
 		expect(r.base.seen[1].ev.button).to_equal(ButtonId::Save);
 
-		// **`NOT_DEALT_WITH`, and it is what keeps `Buttons::buttonAction`'s tail running** --
-		// `commandToggleShift` (`hid/buttons.cpp`), the transport, and the mod-encoder
-		// button dispatch at `:226-231`. `DEALT_WITH` would `goto dealtWith` at `:139-141`.
+		// **`NOT_DEALT_WITH`, and it is what keeps `Buttons::buttonAction`'s tail running** -- `commandToggleShift`
+		// (`hid/buttons.cpp`), the transport, and the mod-encoder button dispatch at the end of the function.
+		// `DEALT_WITH` would `goto dealtWith` straight after the current UI's `buttonAction` call.
 		expect(result).to_equal(ActionResult::NOT_DEALT_WITH);
 	});
 
@@ -298,10 +299,10 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 	});
 
 	it("seeds the shell's sticky-shift setting from runtimeFeatureSettings when it opens", _ {
-		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
-		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
-		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`).
+		// Legacy reads `ShiftIsSticky` at shift-release time (`commandToggleShift` in `hid/buttons.cpp`); the shell
+		// reads its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's latched shift
+		// is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad jump (`MenuPads::handle_pad`,
+		// `scenes/menu/pads.cpp`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -374,23 +375,21 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		FlashStorage::holdTime = (2 * kSampleRate) / 20;
 	});
 
-	it("follows a change made while the guest is open, which is the only way the ported item can", _ {
-		// **The placement is the point.** The first version of this seeded once, in `opened()`, on
-		// the reasoning that a guest that is not open cannot be observing the threshold. That is
-		// backwards for the one writer reachable *only while the guest is open*:
-		// `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the ported settings
-		// item and writes `FlashStorage::holdTime` from inside the shell, so a per-open seed would
-		// lag it by a whole guest session.
+	it("follows a change made while the guest is open, which is the only way the settings item can", _ {
+		// **The placement is the point.** Seeding once, in `opened()`, would assume that a guest that is not open
+		// cannot be observing the threshold. That is wrong for the one writer reachable *only while the guest is
+		// open*: `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the settings item and writes
+		// `FlashStorage::holdTime` from inside the shell, so a per-open seed would lag it by a whole guest session.
 		//
-		// The guest is opened ONCE and the flash global is moved underneath it, which is what the
-		// ported item does; only then is the gesture driven. An `opened()`-only seed fails here and
-		// passes the example above, which is why both exist.
+		// The guest is opened ONCE and the flash global is moved underneath it, which is what the item does; only
+		// then is the gesture driven. An `opened()`-only seed fails here and passes the example above, which is why
+		// both exist.
 		Rig r;
 		FlashStorage::holdTime = (2 * kSampleRate) / 20; // 100 ms at open
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(r.open()).to_be_true();
 
-		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the ported item writes 500 ms
+		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the item writes 500 ms
 		AudioEngine::audioSampleTimer = 1000 * 44;
 		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true);
 		AudioEngine::audioSampleTimer = 1200 * 44; // a 200 ms tap: a hold at 100 ms, a tap at 500
@@ -438,7 +437,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 	});
 
 	it("feeds each gold-knob push once, though legacy delivers it twice", _ {
-		// `Buttons::buttonAction` calls this hook for MOD_ENCODER_0/1 at `hid/buttons.cpp:134` and then calls
+		// `Buttons::buttonAction` calls this hook for MOD_ENCODER_0/1 at `hid/buttons.cpp` and then calls
 		// `modEncoderButtonAction` for the same press in its tail. The first feeds the shell, whose router hands
 		// `EncoderButton{ModEnc0/1}` to the knobs' service; the second is the guest's and does nothing.
 		Rig r;

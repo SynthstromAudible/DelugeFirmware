@@ -62,24 +62,24 @@ class ResolveTest(unittest.TestCase):
             )
         with mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": ""}):
             self.assertEqual(
-                cards.resolve("content/shellmenu", self.ROOT),
-                Path("/repo/.superpowers/emu-card/shellmenu"),
+                cards.resolve("content/fill", self.ROOT),
+                Path("/repo/.superpowers/emu-card/fill"),
             )
         with mock.patch.dict(os.environ):
             os.environ.pop("DELUGE_CONTENT_CARDS", None)
             self.assertEqual(
-                cards.resolve("content/shellmenu", self.ROOT),
-                Path("/repo/.superpowers/emu-card/shellmenu"),
+                cards.resolve("content/fill", self.ROOT),
+                Path("/repo/.superpowers/emu-card/fill"),
             )
 
     def test_labels(self):
         self.assertEqual(cards.label("tests/fixtures/card"), "card")
         self.assertEqual(
-            cards.label("tests/fixtures/card-old-shell-menu.card"),
-            "card-old-shell-menu",
+            cards.label("tests/fixtures/card-dx-no-folder.card"),
+            "card-dx-no-folder",
         )
         self.assertEqual(cards.label("content/card.img"), "content-card")
-        self.assertEqual(cards.label("content/shellmenu"), "content-shellmenu")
+        self.assertEqual(cards.label("content/fill"), "content-fill")
 
     def test_a_directory_is_its_own_tree(self):
         self.assertEqual(

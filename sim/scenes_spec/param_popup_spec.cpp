@@ -116,7 +116,7 @@ const BoardProfile& profile_64() {
 
 /// @brief The minimum `Display` `View::displayModEncoderValuePopup` needs to run its arbitration
 ///        without touching pixels -- `display` is null in a spec process
-///        (`hid/display/display.cpp:4`).
+///        (`hid/display/display.cpp`).
 ///
 /// Captures exactly what `displayNotification`/`hasPopupOfType` are for: what legacy decided to
 /// show, and whether it currently considers a notification up. This is the oracle for the
@@ -167,7 +167,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 
 	/// @brief Tear the stack down, so `ParamPopupScene::on_exit` always runs (this scene is a process
-	///        singleton, like every other scene in this tree, so a stale stack would leak into the
+	///        singleton, like every other scene, so a stale stack would leak into the
 	///        next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {

@@ -18,7 +18,7 @@
 #pragma once
 
 /// @file
-/// @brief Driving the ported guest from an integration scenario: its tick, its input, what it has on top, and the
+/// @brief Driving the shell guest from an integration scenario: its tick, its input, what it has on top, and the
 ///        browser's selection.
 ///
 /// The guest takes input through `shellHostUI` as legacy's UIs take it, but a press only reaches a scene on the

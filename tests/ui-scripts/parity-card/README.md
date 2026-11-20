@@ -9,7 +9,7 @@ Check which UI a script reaches before trusting a MATCH from it.
 `c16-marker-synth` and `c17-marker-mute-exit` reach the sample marker editor with Shift + pad (0,7) after c10's BASIC
 load: a marker is held by pressing its own column (the start marker is column 0 there), and a second pad tapped while
 holding can end the hold, so BACK and the mute column are pressed before any such tap. `c18-synth-multisamples` imports
-a folder as ranges; `c19-kit-load-all-empty` runs LOAD ALL on `SAMPLES/Artists`, which holds only folders (D54).
+a folder as ranges; `c19-kit-load-all-empty` runs LOAD ALL on `SAMPLES/Artists`, which holds only folders.
 
 `c41-marker-automation` opens the marker editor from the sound menu over the automation view (OSCILLATOR 1, two CROSS
 SCREEN pages, then the SYNTH button on START): Shift + (0,6) is the editor's own press there, and Shift + (7,1),

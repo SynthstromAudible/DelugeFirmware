@@ -18,7 +18,8 @@ namespace deluge::scenes::services {
 bool is_clip_context(const bind::KnobFocus& focus);
 
 /// @brief What one gold-knob turn on a param did, and what finishing it needs (the popup, the MIDI feedback, the
-///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam`.
+///        indicator blink, the repaint) -- `View::modEncoderAction_existentParam`
+///        (`origin/main:src/deluge/gui/views/view.cpp`).
 struct ModTurn {
 	/// The param's kind, as the popup and MIDI follow name it.
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
@@ -28,22 +29,26 @@ struct ModTurn {
 	int32_t old_knob_pos = 0;
 	/// The position after it -- what the popup shows, and what was written where it differs.
 	int32_t new_knob_pos = 0;
-	/// The turn wrote a new value (legacy's `:902` early return is the other case).
+	/// The turn wrote a new value (the `newKnobPos == knobPos` early return of main's
+	/// `View::modEncoderAction_existentParam` (`origin/main:src/deluge/gui/views/view.cpp`) is the other case).
 	bool value_changed = false;
-	/// The sound's note tails changed with the value (`View::modEncoderAction_existentParam`): the pads repaint.
+	/// The sound's note tails changed with the value (`View::modEncoderAction_existentParam`
+	/// (`origin/main:src/deluge/gui/views/view.cpp`)): the pads repaint.
 	bool note_tails_changed = false;
 	/// The param shows its middle (`potentiallyMakeItHarderToTurnKnob`'s centre blink).
 	bool should_indicate_middle_value = false;
 };
 
 /// @brief What a gold knob's indicator reads -- the reads `View::setKnobIndicatorLevel`
-///        makes, from the records and the runtime facts; `ModKnobs::indicator_level` does the arithmetic.
+///        (`origin/main:src/deluge/gui/views/view.cpp`) makes, from the records and the runtime facts;
+///        `ModKnobs::indicator_level` does the arithmetic.
 ///
 /// The three booleans are legacy's own three-way branch: a param the owner holds, a knob with no param (its
 /// non-existent arm), and a cable not made yet, shown at its midpoint.
 ///
-/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`** (declared
-///          in `View::setKnobIndicatorLevel`); `ModKnobs::indicator_level` declares nothing for that knob.
+/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`** (declared in
+///          `View::setKnobIndicatorLevel` (`origin/main:src/deluge/gui/views/view.cpp`)); `ModKnobs::indicator_level`
+///          declares nothing for that knob.
 struct ModIndicatorInfo {
 	/// The knob names a param (or a MIDI lane, shown at 0 until it is made).
 	bool has_auto_param = false;

@@ -76,7 +76,7 @@ UiEvent button_event(ButtonId b, bool on) {
 }
 
 /// A `DELUGE_EVENT_BUTTON` at matrix (x, y), for feeding `InputLowering::on_board_event` -- the
-/// same shorthand `input_lowering_spec.cpp` uses.
+/// same shorthand `tests/unit/shell/input_lowering_spec.cpp` uses.
 DelugeInputEvent board_button(uint8_t x, uint8_t y, bool on) {
 	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
 }
@@ -173,14 +173,14 @@ describe shell_router("shell::Router", $ {
 	// The two examples below prove the chain consults the top scene BEFORE `mod_knobs`. Legacy is
 	// unambiguous about the order.
 	// `interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
-	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
-	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`);
-	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the BASE-class
+	// (`deluge::hid::encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
+	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp`);
+	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp`) are the BASE-class
 	// implementations, whose whole body is a forward to `view`. So the current UI gets first
 	// refusal and `View` -- which is what `services.mod_knobs` ports -- is the fallback. Six UIs
-	// override the first (`SoundEditor`, `gui/views/arranger_view.h:49`,
-	// `gui/views/automation_view.h:116`, `gui/views/performance_view.h:96`,
-	// `gui/views/session_view.h:100`, `gui/views/instrument_clip_view.h:215`) and two override the
+	// override the first (`SoundEditor`, `gui/views/arranger_view.h`,
+	// `gui/views/automation_view.h`, `gui/views/performance_view.h`,
+	// `gui/views/session_view.h`, `gui/views/instrument_clip_view.h`) and two override the
 	// second (`gui/views/session_view.h`, `gui/views/performance_view.h`).
 	//
 	// It has to be proved BOTH ways round, because either half alone passes on a broken chain: a
@@ -252,10 +252,10 @@ describe shell_router("shell::Router", $ {
 		//   1. `View` is the fallback AFTER the current UI in every MIDI learn offer -- `UI`'s base
 		//      answers are `View`'s learn, and `SoundEditor` answers before falling back to them.
 		//   2. The four `View::buttonAction` arms `MidiLearn` owns sit in the SAME `if`/`else if`
-		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:141-488`),
+		//      chain as the ones `GlobalControls` owns (`gui/views/view.cpp`),
 		//      so their relative order is unobservable given that `GlobalControls` abstains from
 		//      exactly those four (`ViewArm::LearnOwns`) and suppresses its own tail for them.
-		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp`)
+		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`gui/views/view.cpp`)
 		//      overwrites the PLAY/RECORD/TAP_TEMPO LEDs `PlaybackHandler::setLedStates` had just
 		//      set, and `LedCompose::compose` runs services in `Shell`'s own order, last writer
 		//      winning.
@@ -362,7 +362,7 @@ describe shell_router("shell::Router", $ {
 
 	it("a scene that acts on Select's release uses the held press up the moment it takes the input", _ {
 		// `SoundEditor::opened` / `focusRegained` set `selectButtonPressUsedUp` then and there
-		// (`sound_editor.cpp:513-516`, `:531-533`), so a release later in the same tick does not act.
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), so a release later in the same tick does not act.
 		Rig r;
 		r.scene_a.acts_on_release = true;
 		expect(r.stack.push({kB})).to_be_true();
@@ -453,18 +453,19 @@ describe shell_router("shell::Router", $ {
 
 	it("ButtonId::ModEnc0/ModEnc1 presses reach the scene first and mod_knobs second, "
 	   "like every other View fallback", _ {
-		// The gold-knob PUSH is the third hook with this shape. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
-		// (`hid/buttons.cpp:225-231`), i.e. after `getCurrentUI()->buttonAction` at `:134` -- and
-		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
-		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
-		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
-		// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
-		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).
+		// The gold-knob PUSH is the third hook with this shape. `Buttons::buttonAction` handles
+		// `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL (`hid/buttons.cpp`), i.e. after
+		// `getCurrentUI()->buttonAction` -- and what it runs there is
+		// `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base implementation (`UI::modEncoderButtonAction`,
+		// `gui/ui/ui.cpp`) is another bare forward to `view`, overridden by five UIs
+		// (`gui/views/instrument_clip_view.h`, `SoundEditor::modEncoderButtonAction` in
+		// `origin/main:src/deluge/gui/ui/sound_editor.h`, `gui/views/session_view.h`,
+		// `gui/views/performance_view.h`, `gui/views/automation_view.h`).
 		//
-		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only
-		// after the current UI: with the scene first, "after the UI" and "not a `mod_knobs` event"
-		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp`)
-		// with no route to it at all.
+		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only after the current UI:
+		// with the scene first, "after the UI" and "not a `mod_knobs` event" are different statements, and excluding
+		// them would leave `View::modEncoderButtonAction` (`origin/main:src/deluge/gui/views/view.cpp`) with no route
+		// to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};
 		mod_enc_event.kind = UiEvent::Kind::EncoderButton;

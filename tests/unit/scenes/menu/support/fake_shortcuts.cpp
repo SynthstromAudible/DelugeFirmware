@@ -1,6 +1,6 @@
 /// @file
-/// @brief See `fake_shortcuts.h`: the host suite's model-free stand-in for the real shortcut
-///        tables.
+/// @brief See `tests/unit/scenes/menu/support/fake_shortcuts.h`: the host suite's model-free stand-in for the real
+///        shortcut tables.
 
 #include "fake_shortcuts.h"
 

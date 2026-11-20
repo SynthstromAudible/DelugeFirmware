@@ -89,7 +89,8 @@ struct PreviewSound {
 	}
 	PreviewSound(const PreviewSound&) = delete;
 	PreviewSound& operator=(const PreviewSound&) = delete;
-	/// Put @p sample in the preview's range, as `SampleBrowser::showPreview`'s load does.
+	/// Put @p sample in the preview's range, as the load of main's `SampleBrowser::previewIfPossible`
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) does.
 	void hold(Sample* sample) {
 		static_cast<MultisampleRange*>(drum->getOrCreateFirstRange(0))->sampleHolder.audioFile = sample;
 	}

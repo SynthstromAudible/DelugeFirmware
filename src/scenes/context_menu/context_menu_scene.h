@@ -34,29 +34,29 @@ namespace deluge::scenes::context_menu {
 
 /// @brief Which context menu `SceneId::arg` names.
 ///
-/// Every legacy context menu the ported scenes open: the five `reset_settings::Reset` items
-/// (`gui/menu_item/reset_settings/reset.h:29-33`, `nodes::reset_flash` .. `nodes::reset_all`),
-/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two
-/// long-press menus (`gui/context_menu/sample_browser/{kit,synth}.cpp`), which `BrowserScene` opens.
-/// The others are opened from views or browsers not ported yet -- `clearSong` from `view.cpp`,
-/// `clipSettings` / `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` /
-/// `deleteFile` / `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport`
-/// from the views -- and `midiLearnMode` and `configureSongMacros` go through the action seam
-/// (`scenes/menu/action.h`) to the legacy objects.
+/// Every context menu the scenes open: the five `reset_settings::Reset` items
+/// (`origin/main:src/deluge/gui/menu_item/reset_settings/reset.h`, `nodes::reset_flash` .. `nodes::reset_all`),
+/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two long-press menus
+/// (`origin/main:src/deluge/gui/context_menu/sample_browser/kit.cpp`,
+/// `origin/main:src/deluge/gui/context_menu/sample_browser/synth.cpp`), which `BrowserScene` opens. The others are
+/// opened from the legacy views and browsers in `src/deluge` -- `clearSong` from `gui/views/view.cpp`, `clipSettings` /
+/// `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
+/// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the views -- and
+/// `midiLearnMode` and `configureSongMacros` go through the action seam (`scenes/menu/action.h`) to the legacy objects.
 ///
 /// @note `padAction` and `getGreyoutColsAndRows` are not descriptor business for `AudioSource`:
-///       `AudioInputSelector`'s read the session view (`audio_input_selector.cpp:129-132,199-220`),
-///       which is not ported, so the port greys as the base class does and a pad press closes the menu.
+///       `AudioInputSelector`'s read the session view (`audio_input_selector.cpp`),
+///       which no scene reads, so this scene greys as the base class does and a pad press closes the menu.
 enum class DescriptorId : uint16_t {
 	ResetFlash = 0,
 	ResetCommunityFeatures,
 	ResetMidiFollow,
 	ResetMidiDevices,
 	ResetAll,
-	/// `context_menu::audioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`), opened
-	/// by `audio_clip::AudioSourceSelector::selectButtonPress`
-	/// (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`); it uses `initial_option`, `on_move` and
-	/// `footer`.
+	/// `context_menu::audioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`), opened by
+	/// `audio_clip::AudioSourceSelector::selectButtonPress`
+	/// (`origin/main:src/deluge/gui/menu_item/audio_clip/audio_source_selector.h`); it uses `initial_option`, `on_move`
+	/// and `footer`.
 	AudioSource,
 	/// `context_menu::sample_browser::kit`: SAMPLES, {LOAD ALL, SLICE}; SLICE, on a file only, opens the slicer.
 	SampleBrowserKit,
@@ -69,7 +69,7 @@ enum class DescriptorId : uint16_t {
 };
 
 /// @brief The cursor and the scroll window, as one value: legacy's `currentOption` / `scrollPos`
-///        pair (`context_menu.h:48,51`).
+///        pair (`context_menu.h`).
 struct Selection {
 	uint8_t option = 0;
 	uint8_t scroll = 0;
@@ -88,7 +88,7 @@ struct Descriptor {
 	std::span<const uint16_t> options;
 
 	/// @brief `ContextMenu::acceptCurrentOption()`. **False closes the menu**, which is legacy's
-	///        own convention ("If returns false, will cause UI to exit", `context_menu.h:38`) and
+	///        own convention ("If returns false, will cause UI to exit", `context_menu.h`) and
 	///        is what every `ResetSettings` action returns after doing its work.
 	///
 	/// @note The factory resets ignore both parameters (global calls, one option each); the sample
@@ -104,7 +104,7 @@ struct Descriptor {
 	/// `ContextMenu::setupAndCheckAvailability` walks to the first available option and seeds
 	/// `scrollPos` from it; with availability expressed by compaction that is option 0, which is what
 	/// a null hook means. `AudioInputSelector::setupAndCheckAvailability`
-	/// (`gui/context_menu/audio_input_selector.cpp:87-127`) replaces the walk outright: it maps
+	/// (`gui/context_menu/audio_input_selector.cpp`) replaces the walk outright: it maps
 	/// `audioOutput->inputChannel` onto its own `Value` enum and puts both `currentOption` and
 	/// `scrollPos` there.
 	///
@@ -114,21 +114,20 @@ struct Descriptor {
 
 	/// @brief Commit-on-turn, or null for a menu that commits only when the accept button is pressed.
 	///
-	/// `AudioInputSelector::selectEncoderAction` (`:134-196`) calls the base and then *writes the
-	/// model* -- `audioOutput->inputChannel`, the recording source, and the
-	/// `defaultAudioOutputInputChannel` global -- so the audio input follows the cursor and backing
-	/// out with BACK leaves the last row you passed through selected. That is legacy's behaviour, not
-	/// an accident, and it is the reason this is a hook rather than something the accept path could
-	/// cover.
+	/// `AudioInputSelector::selectEncoderAction` (`gui/context_menu/audio_input_selector.cpp`) calls the base and then
+	/// *writes the model* -- `audioOutput->inputChannel`, the recording source, and the
+	/// `defaultAudioOutputInputChannel` global -- so the audio input follows the cursor and backing out with BACK
+	/// leaves the last row you passed through selected. That is legacy's behaviour, not an accident, and it is the
+	/// reason this is a hook rather than something the accept path could cover.
 	///
 	/// Takes the `Selection` by reference because legacy's override writes `scrollPos` as well
-	/// (`:142-145`: "Keep Track on the first visible row so the selected track name has room below
+	/// ("Keep Track on the first visible row so the selected track name has room below
 	/// it").
 	void (*on_move)(const menu::MenuContext&, Selection& selection) = nullptr;
 
 	/// @brief An extra line under the option rows, or null for none.
 	///
-	/// `AudioInputSelector::renderOLED` (`:222-237`) draws the base window and then a line naming the
+	/// `AudioInputSelector::renderOLED` draws the base window and then a line naming the
 	/// track it is recording from -- only while the channel is `SPECIFIC_OUTPUT`, which is why this
 	/// returns a view rather than being a plain string id: the text is a model object's name, and
 	/// whether there is any at all is a runtime question.
@@ -158,14 +157,15 @@ struct Descriptor {
 
 /// @brief The scratch a `Descriptor::footer` hook is handed.
 ///
-/// Legacy's own footer is `Output::name.c_str()` or the literal "No track"
-/// (`audio_input_selector.cpp:230-231`), neither of which needs scratch at all; the buffer is here
-/// so a later descriptor can format one without this layer allocating. 48 is `notify::Notice`'s own
-/// text slot, the widest single line anything in this stack carries.
+/// Legacy's own footer is `Output::name.c_str()` or the literal "No track" (`AudioInputSelector::renderOLED` in
+/// `audio_input_selector.cpp`), neither of which needs scratch at all; the buffer is here so a later descriptor can
+/// format one without this layer allocating. 48 is `notify::Notice`'s own text slot, the widest single line anything in
+/// this stack carries.
 inline constexpr size_t kFooterScratch = 48;
 
-/// @brief `sample_browser::Synth::isCurrentOptionAvailable` (`gui/context_menu/sample_browser/synth.cpp:61-93`):
-///        which of the synth menu's options the sound and the browser's item allow.
+/// @brief `sample_browser::Synth::isCurrentOptionAvailable`
+///        (`origin/main:src/deluge/gui/context_menu/sample_browser/synth.cpp`): which of the synth menu's options the
+///        sound and the browser's item allow.
 ///
 /// MULTISAMPLES and BASIC need a synth that is not in ring-mod; a folder offers MULTISAMPLES alone.
 /// @param ctx       The sound the browser loads into: its synth mode is read through `ctx.facts`.
@@ -236,10 +236,10 @@ public:
 	/// @brief False: `ContextMenu` paints no pads at all, so the view underneath is what shows.
 	bool occludes_grid() const override { return false; }
 	/// @brief True: `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true`
-	///        (`context_menu.h:27`), and `renderOLED` then clears only its own window.
+	///        (`context_menu.h`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
-	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`,
-	///        `*rows` left at the caller's zero (`gui/ui/ui.cpp:104-113`) -- every column, no rows.
+	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`, `*rows` left at the
+	///        caller's zero (`getUIGreyoutColsAndRows` in `gui/ui/ui.cpp`) -- every column, no rows.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
 	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.

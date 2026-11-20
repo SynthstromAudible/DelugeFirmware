@@ -2,15 +2,13 @@
 /// @brief `ShellHostUI::timerCallback`'s poll of the menu's action outbox -- that it happens, how
 ///        often, on which paths, and after what.
 ///
-/// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()`
-/// is stubbed here, in `gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices`
-/// already is: the real one reads
-/// `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`, `stemExport`
-/// and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
-/// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or
-/// even that the outbox is what gets read** -- that half is
-/// `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions` groups (the drain,
-/// and one per verb body), in the binary that links the real scene.
+/// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()` is stubbed
+/// here, in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices` already
+/// is: the real one reads `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`,
+/// `stemExport` and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
+/// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or even that the outbox
+/// is what gets read** -- that half is `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions`
+/// groups (the drain, and one per verb body), in the binary that links the real scene.
 ///
 /// What is left is the half that exists nowhere else: the call site. And it is the half that the
 /// hazard is actually about. `MenuScene::take_action()` is "a one-slot mailbox with a silent
@@ -125,6 +123,7 @@ struct Rig {
 		// means a later example cannot call a lambda over a destroyed `Rig` even if it forgets --
 		// and `fakelegacyui::reset()` in the constructor is the belt to this file's braces.
 		fakelegacyui::on_action_dispatch = nullptr;
+		fakelegacyui::on_browser_answer_delivery = nullptr;
 		fakelegacyui::current_ui = nullptr;
 	}
 
@@ -277,6 +276,49 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		expect(fakelegacyui::action_dispatches).to_equal(1);
 	});
 });
+
+describe shell_browser_answers("ShellHostUI delivering the browser host's held answers as it closes", $ {
+
+	it("delivers them as the guest closes, after its stack's exits have run", _ {
+		// A browser leaving asks its host to stop the preview from `on_exit`, and the host holds that answer: the
+		// close's stack reset is the last exit, so the delivery must come after it, or the answer waits for a tick this
+		// guest no longer has.
+		Rig r;
+		expect(r.open()).to_be_true();
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		// The scene is still stacked as the close begins, so its exit runs inside the close's reset.
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
+		int depth_at_delivery = -1;
+		fakelegacyui::on_browser_answer_delivery = [&r, &depth_at_delivery] {
+			depth_at_delivery = static_cast<int>(r.guest.shell().stack().depth());
+		};
+		fakelegacyui::browser_answer_deliveries = 0;
+
+		r.guest.closeNow();
+
+		expect(fakelegacyui::browser_answer_deliveries).to_equal(1);
+		expect(depth_at_delivery).to_equal(0);
+	});
+
+	it("delivers them on a teardown of every UI, after its stack's exits have run", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		int depth_at_delivery = -1;
+		fakelegacyui::on_browser_answer_delivery = [&r, &depth_at_delivery] {
+			depth_at_delivery = static_cast<int>(r.guest.shell().stack().depth());
+		};
+		fakelegacyui::browser_answer_deliveries = 0;
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
+
+		r.guest.uisTakenDown();
+
+		expect(fakelegacyui::browser_answer_deliveries).to_equal(1);
+		expect(depth_at_delivery).to_equal(0);
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(shell_action_dispatch_spec, shell_action_dispatch)
+DELUGE_SPEC(shell_action_dispatch_spec, shell_action_dispatch, shell_browser_answers)

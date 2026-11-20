@@ -12,7 +12,7 @@ the root views (`p27`). They make an input every 250 ms (a press held 120 ms), a
 window. Their results are in `DIFFERENCES.md`'s `p16`–`p24` section.
 
 Each script's `# card:` lines name the cards it runs on, and `tools/emu_parity.py tests/ui-scripts/parity` runs it on
-each. Scripts named `sm*` enter the menus through SelectEnc, which opens the ported menu.
+each. Scripts named `sm*` enter the menus through SelectEnc, which opens the menu.
 
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
 detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images. A black
@@ -43,8 +43,8 @@ card's presets. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, 
 colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
 `sm35-toggle-words` covers the words a toggle draws, with HorizontalMenus off (where a shortcut opens its item alone): a
-Community Feature's row is a checkbox SELECT flips in place, OSC SYNC's page lists Off and On where `main`'s lists
-Disabled and Enabled (D134, accepted), and PING-PONG's lists its options.
+Community Feature's row is a checkbox SELECT flips in place, OSC SYNC's page lists Disabled and Enabled as `main`'s
+does, and PING-PONG's lists its options.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
@@ -55,7 +55,7 @@ moves are several turns; the sound menu reopens on the row it last showed; BACK 
 the menu.
 
 `sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
-keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/shellmenu-fill` (`syncScalingAction` 1,
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/fill` (`syncScalingAction` 1,
 Fill) SYNC-SCALING holds fill and lights its LED.
 
 `sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit

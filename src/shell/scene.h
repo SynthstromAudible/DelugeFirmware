@@ -187,7 +187,8 @@ struct UiContext {
 
 	/// @brief Has \p b's current press already been consumed by something else?
 	///
-	/// The legacy `Buttons::ignoreCurrentPress` bit: a scene that acted on a *hold* marks the
+	/// What `Buttons::selectButtonPressUsedUp` / `Buttons::recordButtonPressUsedUp` (`hid/buttons.h`) are for one
+	/// button each, for any button: a scene that acted on a *hold* marks the
 	/// press used up so the release does not also act.
 	/// @param b The button to ask about.
 	/// @return True if the press was consumed; false when `lowering` is null.
@@ -303,7 +304,7 @@ struct Action {
 /// do about it, applied in order. The two are independent: a scene may handle an event and ask for
 /// nothing, or ask for a repaint while letting the event fall through.
 ///
-/// Eight actions is well past what any single event produces (the busiest legacy path is a pop
+/// Eight actions is well past what any single event produces (the busiest path is a pop
 /// plus a push plus a popup); a ninth is dropped by `FixedVector::push_back` rather than growing.
 struct Result {
 	bool handled = false;
@@ -321,7 +322,7 @@ struct Result {
 /// reaching through `Scene::`.
 ///
 /// The three values are legacy's three behaviours, not a design: `SoundEditor::padAction`
-/// (`gui/ui/sound_editor.cpp`) tries its shortcut arm only when the menu is not a settings or
+/// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) tries its shortcut arm only when the menu is not a settings or
 /// note-editor menu, and forwards everything it did not claim to the root view by identity.
 enum class GridPadClaim : uint8_t {
 	/// The scene owns the grid; nothing is forwarded. Every root scene, every browser.
@@ -343,7 +344,7 @@ enum class GridPadClaim : uint8_t {
 ///
 /// Legacy asks every UI two separate questions, `renderMainPads` and `renderSidebar`
 /// (`gui/ui/ui.h`), and an overlay routinely answers them differently: `QwertyUI::drawKeys`
-/// draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`), leaving the sidebar to the view
+/// draws the main pads only (`gui/ui/qwerty_ui.cpp`), leaving the sidebar to the view
 /// beneath. A host that shares the pads with another owner hands each region over on its own.
 enum class PadRegions : uint8_t {
 	None = 0,    ///< Every pad is left to what is beneath.
@@ -484,7 +485,7 @@ public:
 	/// @brief Called when this scene becomes the **input** top again because something above it
 	///        left.
 	///
-	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:223-229`), and it means the
+	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp`), and it means the
 	/// same thing: input reaches this scene again after reaching something else. The stack fires it
 	/// only when `SceneStack::input_top()` genuinely changed hands, so a passive
 	/// `input_transparent()` layer -- a popup, a console line, the working animation -- appearing
@@ -530,7 +531,7 @@ public:
 	///
 	/// A popup, a console line and the working animation are the shipped cases: legacy draws all
 	/// three straight into the OLED image on their way out (`OLED::sendMainImage`,
-	/// `hid/display/oled.cpp:364-376`) and no key press, pad or encoder ever reaches them -- the
+	/// `hid/display/oled.cpp`) and no key press, pad or encoder ever reaches them -- the
 	/// UI underneath keeps running exactly as it was. Without this flag, a scene that merely
 	/// *sits* on the stack would take the input focus away from the scene it is drawn over, which
 	/// would make a console message deafen the view beneath it for as long as the line is up.
@@ -554,8 +555,8 @@ public:
 	/// @brief Is the scene in a mode in which Select's release does nothing?
 	///
 	/// Legacy's sound editor acts on the release only in its ordinary modes (`SoundEditor::buttonAction`,
-	/// `sound_editor.cpp:609-614`); MIDI learn, which it enters itself, is not one of them. Read with
-	/// `select_acts_on_release`.
+	/// `origin/main:src/deluge/gui/ui/sound_editor.cpp`); MIDI learn, which it enters itself, is not one of them. Read
+	/// with `select_acts_on_release`.
 	/// @return True while the release is refused; false (the default) otherwise.
 	virtual bool select_release_blocked() const { return false; }
 	/// @brief Which grid pads this scene consumes.
@@ -608,18 +609,17 @@ public:
 	/// Legacy has two dispatch fallbacks with **two different reachability rules**, and a service
 	/// routed at the end of the chain has to honour both:
 	///
-	///   * `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`) runs for **any** current UI
-	///     that returned `NOT_DEALT_WITH` from `getCurrentUI()->buttonAction` at `:134`, root or
+	///   * `Buttons::buttonAction`'s tail (`hid/buttons.cpp`) runs for **any** current UI
+	///     that returned `NOT_DEALT_WITH` from `getCurrentUI()->buttonAction`, root or
 	///     not. That group needs no gate.
-	///   * `View::buttonAction` is reached only from a **root view**.
-	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
-	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
-	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
-	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
-	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
-	///     (`gui/views/timeline_view.cpp:119-121`, `KeyboardScreen::buttonAction`). So
-	///     "is the current UI the root UI" is not an approximation of that reachability rule -- it
-	///     **is** the rule, exactly.
+	///   * `View::buttonAction` is reached only from a **root view**. `UI::buttonAction`'s base implementation is
+	///     `return ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h`) -- it does *not* forward to `view`, unlike main's
+	///     three mod hooks (`origin/main:src/deluge/gui/ui/ui.cpp`), which do (`gui/ui/ui.cpp`'s hooks call
+	///     `root_knobs::turn`/`mod_button`/`push` instead). `grep "public RootUI"` finds exactly two classes in the
+	///     tree, `TimelineView` (`gui/views/timeline_view.h`) and `KeyboardScreen`
+	///     (`gui/ui/keyboard/keyboard_screen.h`), and **both** forward to `View::buttonAction`
+	///     (`TimelineView::buttonAction` in `gui/views/timeline_view.cpp`, `KeyboardScreen::buttonAction`). So "is the
+	///     current UI the root UI" is not an approximation of that reachability rule -- it **is** the rule, exactly.
 	///
 	/// `services::GlobalControls` ports both groups and gates only the second on
 	/// `SceneStack::input_top().is_root()`. `services::MidiLearn` ports only arms of the second
@@ -687,7 +687,7 @@ public:
 	///          per-iteration.** `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
 	///          the `UI` hierarchy: `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm,
 	///          which calls `getCurrentUI()->graphicsRoutine()` and then re-arms itself at **15 ms**
-	///          (`gui/ui_timer_manager.cpp:212-217`), behind a pad-output-space gate. So legacy's
+	///          (`gui/ui_timer_manager.cpp`), behind a pad-output-space gate. So legacy's
 	///          per-frame cadence is ~66 Hz on `uiTimerManager`, not the main loop's rate. Zero here
 	///          still means "next tick" -- what it costs is a question for the *host*, which decides
 	///          the tick rate, and `ShellHostUI` (`gui/ui/shell_host_ui.h`, `@par Why the floor is

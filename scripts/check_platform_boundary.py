@@ -3,7 +3,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Phase 0 guardrail for the libdeluge separation.
+"""Guardrail for the libdeluge separation.
 
 The portable Deluge application (``src/deluge/``) must talk to hardware only
 through the ``<libdeluge/...>`` boundary, never by including a HAL header

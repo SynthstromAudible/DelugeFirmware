@@ -83,9 +83,10 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:93`) -- declared bare and at
-// global scope, exactly as `settings.cpp` and `sound_editor.cpp`'s `extern uint16_t batteryMV` both do (a declaration
-// inside this file's own anonymous namespace below would name a different, unlinked variable).
+// The real global `batteryMV` that `battery_level`'s `CustomItem` reads (`deluge/deluge.cpp`) -- declared bare and at
+// global scope, exactly as `nodes/settings.cpp` and `origin/main:src/deluge/gui/ui/sound_editor.cpp`'s
+// `extern uint16_t batteryMV` both do (a declaration inside this file's own anonymous namespace below would name a
+// different, unlinked variable).
 extern uint16_t batteryMV;
 
 namespace {
@@ -94,7 +95,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief Per-example reset of the two process-global things a menu touches.
 ///
-/// The real app picks a language during boot (`OLED()`'s constructor, `hid/display/oled.h:39`);
+/// The real app picks a language during boot (`OLED()`'s constructor, `hid/display/oled.h`);
 /// this spec renders text without booting, so `l10n::chosenLanguage` would otherwise be null and
 /// `getView` would dereference it. And the notice queue is global and survives a `Rig`, so a
 /// notification one example raised would otherwise be drained by the *next* example's first tick
@@ -267,9 +268,9 @@ constexpr Node custom_passes_through_leaf = menu::custom(sid(String::STRING_FOR_
 // The `select_chain` leaves. Both are appended to `settings_children` *last* (see the note there),
 // so no recorded golden moves.
 
-/// The second hop of the chain: the page `chain_target_leaf` itself opens, so a spec can prove the
-/// interpreter follows a chain *from* a page it arrived at by chaining (legacy's
-/// `OctaveModeToNoteMode` -> `arpNoteModeFromOctaveModeMenu`, `octave_mode.h:90`).
+/// The second hop of the chain: the page `chain_target_leaf` itself opens, so a spec can prove the interpreter follows
+/// a chain *from* a page it arrived at by chaining (main's `OctaveModeToNoteMode` -> `arpNoteModeFromOctaveModeMenu`,
+/// `origin/main:src/deluge/gui/menu_item/arpeggiator/octave_mode.h`).
 constexpr Node chain_target_hop2 =
     menu::int_item(sid(String::STRING_FOR_MORPH), get_int, set_int, deluge::ui::oled::Range{0, 50, 1});
 constexpr const Node* chain_target_leaf_targets[] = {&chain_target_hop2};
@@ -279,7 +280,7 @@ const Node* chain_target_leaf_chain(const MenuContext&, const menu::MenuState&) 
 
 /// The page a select press on `chain_source_leaf` opens -- deliberately NOT a child of anything,
 /// the shape legacy's `arpOctaveModeToNoteModeMenu` and `cvSubmenu` have
-/// (`gui/ui/menus.cpp:511-521`, `:1232`): reachable through `Node::chain_targets` and nothing else.
+/// (`origin/main:src/deluge/gui/ui/menus.cpp`): reachable through `Node::chain_targets` and nothing else.
 constexpr Node chain_target_leaf = menu::with_select_chain(
     menu::int_item(sid(String::STRING_FOR_RESONANCE), get_int, set_int, deluge::ui::oled::Range{0, 50, 1}),
     chain_target_leaf_chain, chain_target_leaf_targets);
@@ -321,7 +322,7 @@ constexpr const Node* kRoots[] = {&settings_root,      &nodes::sound_root, &node
                                   &nodes::arp_group,   &flip_list,         &nodes::default_tempo};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
-///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
+///        their pads (`paramShortcutsForSoundsSecondLayer` in `origin/main:src/deluge/gui/ui/menus.cpp`).
 /// @{
 constexpr uint8_t kLpfFreqX = 8, kLpfFreqY = 7; ///< `&lpfFreqMenu`
 constexpr uint8_t kEnv1RelX = 8, kEnv1RelY = 0; ///< `&env1ReleaseMenu`, second layer `&env3ReleaseMenu`
@@ -363,7 +364,7 @@ constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kLearnX = 7, kLearnY = 0;
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
 /// The four instrument-button columns, and the two page-switch buttons -- all six of
-/// `HorizontalMenu::buttonAction`'s (`horizontal_menu.cpp:70-107`).
+/// `HorizontalMenu::buttonAction`'s (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 constexpr uint8_t kSynthX = 5, kSynthY = 0;
 constexpr uint8_t kKitX = 5, kKitY = 1;
 constexpr uint8_t kMidiX = 5, kMidiY = 2;
@@ -387,8 +388,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, exactly the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -476,8 +477,9 @@ struct DirectCtx {
 // clang-format off
 describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 	// `Submenu::drawSubmenuItemsForOled` blits `renderSubmenuItemTypeForOled` on every row
-	// (`submenu.cpp:117`): the base arrow (`menu_item.cpp:69-75`), `Toggle`'s checkbox, and
-	// `Selection`'s checkbox-if-`isToggle()` (`selection.cpp:38-56`).
+	// (`origin/main:src/deluge/gui/menu_item/submenu.cpp`): the base arrow
+	// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), `Toggle`'s checkbox, and `Selection`'s
+	// checkbox-if-`isToggle()` (`origin/main:src/deluge/gui/menu_item/selection.cpp`).
 	it("draws legacy's arrow on every row that is not a toggle", _ {
 		select_language();
 		Rig r;
@@ -499,13 +501,15 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 	});
 
 	it("marks the arpeggiator's mode and kit-arp rows toggle-style, as their isToggle() does", _ {
-		// `arpeggiator::Mode::isToggle` (`arpeggiator/mode.h`), `arpeggiator/include_in_kit_arp.h:88`.
+		// `arpeggiator::Mode::isToggle` (`origin/main:src/deluge/gui/menu_item/arpeggiator/mode.h`),
+		// `origin/main:src/deluge/gui/menu_item/arpeggiator/include_in_kit_arp.h`.
 		expect(nodes::arp_mode.selection_is_toggle).to_be_true();
 		expect(nodes::arp_include_in_kit_arp.selection_is_toggle).to_be_true();
 	});
 
 	it("shows OFF at zero on legacy's three IntegerWithOff rows", _ {
-		// `IntegerWithOff` (`integer.cpp:41-50`): voice count, saturation and record count-in.
+		// `IntegerWithOff::drawValue` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): voice count, saturation and
+		// record count-in.
 		expect(nodes::voice_count.bind.style.off_at_zero).to_be_true();
 		expect(nodes::saturation.bind.style.off_at_zero).to_be_true();
 		expect(nodes::record_count_in.bind.style.off_at_zero).to_be_true();
@@ -528,8 +532,9 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 	});
 
 	it("draws no pads of its own", _ {
-		// `SoundEditor` overrides neither `renderMainPads` nor `renderSidebar` to draw anything
-		// (`gui/ui/sound_editor.cpp:217-247`): every pad is the root view's.
+		// Main's `SoundEditor` draws pads only for the shortcut overlay (`SoundEditor::renderMainPads` when
+		// `should_render_shortcut_overlay()`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`), and the menu has no
+		// such overlay of its own: every pad is the root view's.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -549,8 +554,9 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm (`sound_editor.cpp:274`):
-		// cols = 0xFFFFFFFE, i.e. every column but the rightmost sidebar one.
+		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): cols = 0xFFFFFFFE, i.e. every column but the rightmost
+		// sidebar one.
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFEu});
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().rows)).to_equal(uint64_t{0});
 	});
@@ -561,7 +567,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		Rig r;
 		MenuContext ctx = r.open(settings_root);
 		// `SoundEditor::getGreyoutColsAndRows`' KEYBOARD_SCREEN and AUTOMATION arms
-		// (`sound_editor.cpp:450-458`).
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		ctx.root_greyout = MenuContext::RootGreyout::SpareSidebar;
 		menu_scene().open(settings_root, ctx);
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFCu});
@@ -649,10 +655,9 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 
 	it("battery_level's real CustomItem shows the charging suffix after a voltage rise, and not for "
 	   "a flat reading", _ {
-		// The coordinator's own spec for the reversal: legacy's `isCharging` (`battery/level.h:45,`
-		// `57-61,71-73`) is a voltage-delta held across timer ticks on the menu item instance --
-		// `BatteryLevelItem`'s `mutable` fields reproduce exactly that, which is why this is a
-		// `CustomItem` rather than a stateless `Kind::Info` hook.
+		// Main's `isCharging` (`Level::timerCallback` in `origin/main:src/deluge/gui/menu_item/battery/level.h`) is a
+		// voltage-delta held across timer ticks on the menu item instance -- `BatteryLevelItem`'s `mutable` fields
+		// reproduce exactly that, which is why this is a `CustomItem` rather than a stateless `Kind::Info` hook.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -763,14 +768,13 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 	it("GateSelectionItem's backward arm snaps the cursor to the last REAL output, not to the "
 	   "off-time row it just left", _ {
 		// `gate::Selection::beginSession` restores `soundEditor.currentSourceIndex` on the way back
-		// (`gate/selection.h:33-41`), and `selectButtonPress` never writes that field for the
-		// minimum-off-time row -- it returns `&gateOffTimeMenu` before the assignment
-		// (`gate/selection.h:44-47`). So legacy's cursor SNAPS to the last real output chosen,
-		// discarding the off-time row, on every backward navigation out of it. `ascend()`'s old
-		// blanket `Kind::Custom` exclusion -- "leave `MenuState::list[depth]` alone" -- gives the
-		// WRONG answer here: it keeps the cursor on the off-time row itself, because nothing ever
-		// moved it. `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is what fixes it,
-		// and this is the case `node.h` names as the reason a backward arm is
+		// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`), and `selectButtonPress` never writes that field
+		// for the minimum-off-time row -- it returns `&gateOffTimeMenu` before the assignment
+		// (`origin/main:src/deluge/gui/menu_item/gate/selection.h`). So main's cursor SNAPS to the last real output
+		// chosen, discarding the off-time row, on every backward navigation out of it. `ascend()`'s old blanket
+		// `Kind::Custom` exclusion -- "leave `MenuState::list[depth]` alone" -- gives the WRONG answer here: it keeps
+		// the cursor on the off-time row itself, because nothing ever moved it. `GateSelectionItem::on_focus_backward`
+		// (`nodes/dynamic.cpp`) is what fixes it, and this is the case `node.h` names as the reason a backward arm is
 		// needed at all: the forward arm alone (`CustomItem::on_focus`) never fires on the way up.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -823,13 +827,13 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// `oled::list`'s selected row runs its label through `scroll_text`, which
 		// self-arms the panel's own gate (`request_repaint_after`) whenever the label overflows
 		// its row; `tests/unit/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
-		// mechanics directly. What was untested is the OTHER half: does `MenuScene::render_vertical`
+		// mechanics directly. What was untested is the OTHER half: does `MenuView::render_vertical`
 		// actually reach it with a real, focused, over-long node? Every over-long row the goldens
 		// record is unselected -- legacy truncates that case too, so nothing was
 		// missing there -- and nothing exercised the selected one through the real scene.
 		//
 		// `nodes::feature_alt_delay_params`'s label is "Alternative Golden Knob Delay Params" (36
-		// characters): comfortably past a 48-panel row, the same margin `list_spec.cpp`'s own
+		// characters): comfortably past a 48-panel row, the same margin `unit/ui/list_spec.cpp`'s own
 		// 41-character fixture uses. It sits at row 5 of `kRuntimeFeatureChildren`
 		// (`menu/nodes/settings.h`: drum_randomizer, fine_tempo, quantize, catch_notes,
 		// delete_unused_kit_rows, *alt_delay_params*, ...) -- `focused()` cannot confirm the cursor
@@ -970,7 +974,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("select descends on release, not press", _ {
-		// `SoundEditor::buttonAction` acts on `!on` (`sound_editor.cpp:609-613`).
+		// `SoundEditor::buttonAction` acts on `!on` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -985,7 +989,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a select press used up by a value turn does not act on its release", _ {
-		// `Value::selectEncoderAction` uses the press up while Select is held (`menu_item/value.h:64-67`).
+		// `Value::selectEncoderAction` uses the press up while Select is held
+		// (`origin/main:src/deluge/gui/menu_item/value.h`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1003,7 +1008,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("the release of the press that opened the menu does not act", _ {
-		// `SoundEditor::opened` uses the press up (`sound_editor.cpp:513-516`).
+		// `SoundEditor::opened` uses the press up (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1017,8 +1022,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("select does nothing in learn mode: LEARN held on an item that allows learn", _ {
 		// On a param leaf at depth 0 Select's release follows the patch-cable chain; in learn mode it does nothing.
-		// `SoundEditor::buttonAction`'s LEARN arm enters `UI_MODE_MIDI_LEARN` (`sound_editor.cpp:716-735`), in which
-		// its Select arm does not act (`:609-614`). A param allows learn (`MenuItemWithCCLearning`).
+		// `SoundEditor::buttonAction`'s LEARN arm enters `UI_MODE_MIDI_LEARN`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), in which its Select arm does not act. A param allows
+		// learn (`MenuItemWithCCLearning`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1033,7 +1039,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("LEARN on an item that refuses learn raises main's CANT_LEARN popup", _ {
-		// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-723`).
+		// `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1047,7 +1053,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("Shift+LEARN unlearns the focused param's knob, with main's UNLEARNED popup", _ {
-		// `:724-726` -> `MenuItemWithCCLearning::unlearnAction`.
+		// `SoundEditor::buttonAction`'s LEARN arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) ->
+		// `MenuItemWithCCLearning::unlearnAction`.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1072,8 +1079,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("while learning, LEARN fast-blinks at main's 60 ms", _ {
-		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (`SoundEditor::buttonAction`), `kFastFlashTime`; the release puts back
-		// the item's own blink or nothing (`:736-741`).
+		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (main's `SoundEditor::buttonAction`,
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), `kFastFlashTime`; the release puts back the item's own
+		// blink or nothing (its LEARN release arm).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1094,8 +1102,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(15);
 		expect(learn_led().kind).to_equal(deluge::ui::LedState::Kind::Shared);
 		expect(learn_led().rate).to_equal(deluge::ui::BlinkRate::Fast);
-		// `ledBlinkState[1] = initialState` with the timer armed from the press (`indicator_leds.cpp:77-84`): lit
-		// for its first 60 ms from the press, as routed at 15, then toggling every 60.
+		// `ledBlinkState[1] = initialState` with the timer armed from the press (`blinkLed` in `indicator_leds.cpp`):
+		// lit for its first 60 ms from the press, as routed at 15, then toggling every 60.
 		expect(lit()).to_be_true();
 		r.shell.tick(70);
 		expect(lit()).to_be_true();
@@ -1109,9 +1117,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("LEARN enters no learn mode with Shift held, a pad held, or on an item that refuses learn", _ {
-		// `:719-735`: learn mode needs `!currentUIMode` (a held pad is auditioning or notes-pressed), Shift up (Shift
-		// makes it the unlearn) and `allowsLearnMode()`. In each case Select's release acts: at depth 0 on a leaf it
-		// leaves the menu.
+		// `SoundEditor::buttonAction`'s LEARN arm: learn mode needs `!currentUIMode` (a held pad is auditioning or
+		// notes-pressed), Shift up (Shift makes it the unlearn) and `allowsLearnMode()`. In each case Select's release
+		// acts: at depth 0 on a leaf it leaves the menu.
 		select_language();
 		deluge::notify::dirty().drain();
 		{
@@ -1147,7 +1155,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		}
 		{
 			Rig r;
-			(void)r.open(int_leaf); // a plain `Integer`: `MenuItem::allowsLearnMode()` is false
+			// A plain `Integer`: `MenuItem::allowsLearnMode()` (`origin/main:src/deluge/gui/menu_item/menu_item.h`) is false.
+			(void)r.open(int_leaf);
 			r.shell.tick(0);
 			r.button(kLearnX, kLearnY, true, 10);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
@@ -1160,9 +1169,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a select turn on a bespoke Value page uses the held press up", _ {
-		// The CV output selection is a `Selection` (`cv/selection.h:27`): `Value::selectEncoderAction` uses the press
-		// up while Select is held (`origin/main:src/deluge/gui/menu_item/value.h` `Value<T>::selectEncoderAction`), so
-		// the release neither opens the output nor ascends.
+		// The CV output selection is a `Selection` (`origin/main:src/deluge/gui/menu_item/cv/selection.h`):
+		// `Value::selectEncoderAction` uses the press up while Select is held
+		// (`origin/main:src/deluge/gui/menu_item/value.h` `Value<T>::selectEncoderAction`), so the release neither
+		// opens the output nor ascends.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1213,8 +1223,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("reopening a root lands on the row it was closed on", _ {
-		// Each legacy `Submenu` keeps its `current_item_` for the life of the firmware (`submenu.cpp:9-18`): closing
-		// the editor forgets nothing.
+		// Each of main's `Submenu` objects keeps its `current_item_` for the life of the firmware
+		// (`Submenu::beginSession` in `origin/main:src/deluge/gui/menu_item/submenu.cpp`): closing the editor forgets
+		// nothing.
 		select_language();
 		deluge::notify::dirty().drain();
 		menu_scene().reset_process_state();
@@ -1469,7 +1480,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a shortcut jump off a horizontal page cancels its notification", _ {
 		// `SoundEditor::setup` -> `beginScreen` -> `endScreen` runs the old item's `HorizontalMenu::endSession`, which
-		// cancels a notification popup (`horizontal_menu.cpp:576-591`).
+		// cancels a notification popup (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1494,8 +1505,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		(void)r.open(settings_root);
 
-		// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1379`) -- and the reason
-		// `shortcut_node`'s second argument is NOT "shift is held": shift is held throughout here.
+		// Main's `secondLayerShortcutsToggled` (`SoundEditor::potentialShortcutPadAction` in
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`) -- and the reason `shortcut_node`'s second argument is NOT
+		// "shift is held": shift is held throughout here.
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
 		r.shell.tick(20);
@@ -1755,8 +1767,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("lands the start markers, the waveform and the file selectors on themselves, not on their page", _ {
-		// `SoundEditor::maybeGetParentMenu`'s two early answers: these go straight to the marker
-		// editor or the browser, so `setup()` opens the item rather than a page.
+		// The two early answers of `SoundEditor::maybeGetParentMenu`
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): these go straight to the marker editor or the browser, so
+		// `setup()` opens the item rather than a page.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2164,7 +2177,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
-		// `SourceResources::getOrCreateFirstRange` gives it the top of the keyboard.
+		// `SourceResources::getOrCreateFirstRange` gives it the top of the keyboard (`source_resources.cpp`).
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 
@@ -2179,13 +2192,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// range.
 		//
 		// Two callers arrive this way and both were affected: site 8 of
-		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
+		// `gui/ui/menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView`'s file-selector entry) and the
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
-		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
+		// `arg`. Without the range, the file selector's browser refuses to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while
-		// legacy opened it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
+		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` would be null -- while
+		// main opens it. `tests/ui-scripts/app/a02-menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2207,9 +2220,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a deep link onto a MULTI-range source opens the picker, not the item", _ {
 		// The other arm of the same gate, and the one that is easy to miss. Legacy's
 		// `checkPermissionToBeginSessionForRangeSpecificParam` answers `MUST_SELECT_RANGE` when the
-		// source has more than one range and none is remembered (`sound_editor.cpp:2008-2012`), and
+		// source has more than one range and none is remembered (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), and
 		// `SoundEditor::setup` then opens `multiRangeMenu` *instead of* the named item
-		// (`:1855-1859`) -- for a named item exactly as for a navigated one, because `setup` runs
+		// -- for a named item exactly as for a navigated one, because `setup` runs
 		// the check on `horizontal_menu_child` whichever way it was asked for.
 		//
 		// Paying only `ensure_first_range` and dropping this would be a partial port of a two-armed
@@ -2238,11 +2251,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
-		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
-		// deep link. Legacy runs the range check only for the items whose
-		// `checkPermissionToBeginSession` routes into it -- `Node::range_specific` -- and an ordinary
-		// param takes `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
-		// never looks at a range at all.
+		// The other half of the guard, so the arm above cannot be satisfied by allocating for every deep link. Main
+		// runs the range check only for the items whose `checkPermissionToBeginSession` routes into it --
+		// `Node::range_specific` -- and an ordinary param takes `MenuItem::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`), which never looks at a range at all.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2405,7 +2417,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu_scene().focused()).to_equal(&int_leaf);
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(3);
 
-		// `int_value` edits on the select encoder now, not the gold knobs
+		// `int_value` edits on the select encoder, not the gold knobs
 		// (`ui/oled/values.cpp`'s `select_delta`) -- legacy's `Integer::selectEncoderAction`.
 		r.turn(2, 50);
 		r.shell.tick(60);
@@ -2530,8 +2542,8 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused()).to_equal(&decimal_leaf);
 
-		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on
-		// `Binding::default_edit_pos` (2, `Decimal::getDefaultEditPos`): one detent is 1.00.
+		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on `Binding::default_edit_pos`
+		// (2, `Decimal::getDefaultEditPos` (`origin/main:src/deluge/gui/menu_item/decimal.h`)): one detent is 1.00.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		r.turn(1, 120);
 		r.shell.tick(130);
@@ -2557,9 +2569,9 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu_scene().focused()).to_equal(&sync_leaf);
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
 
-		// `SyncLevel` derives from `Enumeration` (`sync_level.h:27`), not `Integer`, so the SELECT
-		// ENCODER moves the value -- unlike `int_leaf`/`decimal_leaf` above, which read the gold
-		// knobs. A gold-knob turn here must do nothing.
+		// `SyncLevel` derives from `Enumeration` (`origin/main:src/deluge/gui/menu_item/sync_level.h`), not `Integer`,
+		// so the SELECT ENCODER moves the value -- unlike `int_leaf`/`decimal_leaf` above, which read the gold knobs. A
+		// gold-knob turn here must do nothing.
 		r.gold(kGoldUpper, 2, 120);
 		r.shell.tick(130);
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
@@ -2568,17 +2580,17 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(150);
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(1);
 
-		// Clamped at the top of `kSyncLevelRange`, like `Enumeration::selectEncoderAction`'s
-		// non-wrapping clamp (`enumeration.cpp:19-31`) -- a turn well past the top lands on the
-		// last option, not wrapped back to 0.
+		// Clamped at the top of `kSyncLevelRange`, like `Enumeration::selectEncoderAction`'s non-wrapping clamp
+		// (`origin/main:src/deluge/gui/menu_item/enumeration.cpp`) -- a turn well
+		// past the top lands on the last option, not wrapped back to 0.
 		r.turn(static_cast<int32_t>(NUM_SYNC_VALUES) + 5, 160);
 		r.shell.tick(170);
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(NUM_SYNC_VALUES - 1);
 	});
 
 	it("the horizontal page edits the focused column through the select encoder", _ {
-		// `HorizontalMenu::selectEncoderAction` (`horizontal_menu.cpp:309-326`): the select turn
-		// edits the focused column and never moves focus. The gold knobs do not touch a horizontal page at
+		// `HorizontalMenu::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): the
+		// select turn edits the focused column and never moves focus. The gold knobs do not touch a horizontal page at
 		// all -- they fall through to `services::ModKnobs`.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2676,8 +2688,8 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 	});
 
 	it("a re-read of a Decimal takes the value again and leaves the cursor where the user put it", _ {
-		// `Value::readValueAgain` is `readCurrentValue()` and a render (`gui/menu_item/value.h`): `Decimal`'s edit
-		// position is untouched.
+		// `Value::readValueAgain` is `readCurrentValue()` and a render
+		// (`origin/main:src/deluge/gui/menu_item/value.h`): `Decimal`'s edit position is untouched.
 		select_language();
 		Rig r;
 		(void)r.open(nodes::master_transpose);
@@ -2826,12 +2838,12 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		expect(depth_of()).to_equal(1);
 		expect(r.double_claimed()).to_be_false();
 
-		// The gold knob falls through to `services::ModKnobs` on a horizontal page now (no menu
-		// effect, so `MenuScene` claims nothing for it); the select turn is what edits the focused
-		// column (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`), and is the
-		// only one of the two `MenuScene` claims here. Landing both in the same tick still cannot
-		// double-claim: `kGoldUpper` and `kSelectEncoder` are separate encoder indices, so nothing
-		// in this Rig ever asks one input to be claimed twice.
+		// The gold knob falls through to `services::ModKnobs` on a horizontal page (no menu effect, so `MenuScene`
+		// claims nothing for it); the select turn is what edits the focused column
+		// (`HorizontalMenu::selectEncoderAction`, `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`), and is
+		// the only one of the two `MenuScene` claims here. Landing both in the same tick still cannot double-claim:
+		// `kGoldUpper` and `kSelectEncoder` are separate encoder indices, so nothing in this Rig ever asks one input to
+		// be claimed twice.
 		r.gold(kGoldUpper, 1, 120);
 		r.turn(1, 130);
 		r.shell.tick(140);
@@ -2846,8 +2858,8 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 });
 
 describe menu_scene_node_text("scenes::menu::node_text", $ {
-	// `FormattedTitle` (`gui/menu_item/formatted_title.h`) with `asterixToInt` (`util/functions.h`):
-	// one `*` becomes the single digit, `**` the number in two digits with the text ending there.
+	// `FormattedTitle` (`origin/main:src/deluge/gui/menu_item/formatted_title.h`) with `asterixToInt`
+	// (`util/functions.h`): one `*` becomes the single digit, `**` the number in two digits with the text ending there.
 	const auto expected = [](String id, std::string_view digits, bool ends) {
 		std::string text{deluge::scenes::text_lookup(sid(id))};
 		const size_t star = text.find('*');
@@ -2977,7 +2989,8 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			const std::span<const PadFlash> got = grid.flashes.flashes();
 			return got.size() == 1 ? got[0] : PadFlash{255, 255, FlashColour::Default};
 		};
-		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`SoundEditor::setupShortcutBlink`).
+		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)`
+		// (`SoundEditor::setupShortcutBlink` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		expect(flash_at_param_phase()).to_equal(PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow});
 
 		// The first-layer item on the same pad flashes the default colour.
@@ -3101,14 +3114,14 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("the source-pad blink cadence never blits the OLED panels", _ {
-		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns a blink
+		// `MenuScene::next_timer()` returns a blink
 		// interval while the focused node's shortcut pad blinks -- `lpf_freq`'s does, which is
 		// exactly the previous test's fixture -- and that timer is purely a GRID concern
-		// (the submenu's OLED content never depends on it). Before `timer_repaints()` could name a
-		// surface, step 8b armed BOTH kinds of surface from every scene timer; the grid's own
+		// (the submenu's OLED content never depends on it). If `timer_repaints()` named no surface, step 8b
+		// would arm BOTH kinds of surface from every scene timer; the grid's own
 		// `flush` diffs against `last_sent` and blits nothing when a repaint changed no pixel, but
 		// the OLED panels have no such diff -- `Shell::flush` blits one unconditionally once it has
-		// rendered. So sitting on `lpf_freq` blitted both OLED panels, unconditionally, forever, at
+		// rendered. So sitting on `lpf_freq` would blit both OLED panels, unconditionally, forever, at
 		// 50 Hz -- with no pixel ever changing, which is why no golden or pixel comparison could see
 		// it.
 		//
@@ -3178,21 +3191,21 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 	/// @brief Open the LPF page and focus column \p column (0 = FREQ .. 3 = MORPH).
 	///
-	/// Shared by the formatting cases below and by the goldens, so both start from exactly the
-	/// same state. Legacy moves horizontal focus by
-	/// instrument button, never by turn (`HorizontalMenu::selectEncoderAction`,
-	/// `horizontal_menu.cpp:309-326`, edits and never moves focus), and SYNTH/KIT/MIDI/CV name a
-	/// page's four columns directly (`select_map`, `:97`) rather than being walked to one at a
-	/// time -- so a single press reaches any column, where the old version turned once per column.
+	/// Shared by the formatting cases below and by the goldens, so both start from exactly the same state. Main moves
+	/// horizontal focus by instrument button, never by turn (`HorizontalMenu::selectEncoderAction`,
+	/// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`, edits and never moves focus), and SYNTH/KIT/MIDI/CV
+	/// name a page's four columns directly (`select_map`, `HorizontalMenu::buttonAction`) rather than being walked to
+	/// one at a time -- so a single press reaches any column, where the old version turned once per column.
 	static const auto open_lpf = [](Rig& r, int32_t column, uint32_t base_ms) {
 		r.shell.tick(0);
 		r.enter(base_ms);
 		r.shell.tick(base_ms + 10);
 
 		if (column > 0) {
-			// The press lands 200 ms past `base_ms`, clearing the six buttons' shared 140 ms
-			// debounce off `MenuState::nav_press_ms`'s zero default (`horizontal_menu.cpp:77-82`) --
-			// this is the first of them pressed since `open()` reset it.
+			// The press lands 200 ms past `base_ms`, clearing the six buttons' shared 140 ms debounce off
+			// `MenuState::nav_press_ms`'s zero default (`HorizontalMenu::buttonAction` in
+			// `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) -- this is the first of them pressed since
+			// `open()` reset it.
 			constexpr uint8_t kX[] = {kSynthX, kKitX, kMidiX, kCvX};
 			constexpr uint8_t kY[] = {kSynthY, kKitY, kMidiY, kCvY};
 			const uint32_t press = base_ms + 200;
@@ -3243,10 +3256,9 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 	});
 
 	it("focuses a column directly by its instrument button", _ {
-		// `HorizontalMenu::buttonAction`'s `select_map` (`horizontal_menu.cpp:97`): SYNTH/KIT/MIDI/CV
-		// name columns 0-3 of the visible page directly, in one press. Replaces a test of "one
-		// column per detent" -- that walk is gone; the select turn edits the focused column now and
-		// never moves it (`selectEncoderAction`, `:309-326`).
+		// `HorizontalMenu::buttonAction`'s `select_map` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`):
+		// SYNTH/KIT/MIDI/CV name columns 0-3 of the visible page directly, in one press. The select turn edits the
+		// focused column and never moves it (`selectEncoderAction`), so there is no "one column per detent" walk.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -3265,7 +3277,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		open_lpf(r, 3, 10); // MORPH, two decimal places, CV's column
 
 		// Legacy pads to `places + 1` digits before placing the point
-		// (`Decimal::drawPixelsForOled`, `gui/menu_item/decimal.cpp:129-153`), so a value smaller
+		// (`Decimal::drawPixelsForOled`, `origin/main:src/deluge/gui/menu_item/decimal.cpp`), so a value smaller
 		// than one whole unit still reads as `0.xx` rather than losing the point entirely.
 		struct Case {
 			int32_t value;

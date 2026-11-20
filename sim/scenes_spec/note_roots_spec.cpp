@@ -1,7 +1,7 @@
 /// @file
 /// @brief `MenuContext::Root::NoteEditor`/`NoteRowEditor`, everything indexed by `Root`
 ///        that they wire (`MenuScene::roots()`, the two shortcut tables, `greyout_mask()`),
-///        the note-row sequence-direction bridge arm, and `openShellMenu`'s `NoteMode`.
+///        the note-row sequence-direction bridge arm, and `openMenu`'s `NoteMode`.
 ///
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
 /// not here) -- it already owns every other root's row of that same table.
@@ -15,7 +15,7 @@
 #include "scenes/registry.h"
 
 #include "gui/ui/ui.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/sequence_direction.h"
@@ -118,8 +118,8 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 	});
 
 	it("greyout_mask is {0x03, 0} on the note editor and empty on the note-row editor", _ {
-		// `gui/ui/sound_editor.cpp:274-281`: `inNoteEditor()` greys the sidebar only (`cols = 0x03`,
-		// `rows = 0`); `inNoteRowEditor()` greys nothing (`doGreyout = false`).
+		// `SoundEditor::getGreyoutColsAndRows` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): `inNoteEditor()`
+		// greys the sidebar only (`cols = 0x03`, `rows = 0`); `inNoteRowEditor()` greys nothing (`doGreyout = false`).
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
 		auto& scene = menu_scene();
@@ -183,9 +183,10 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 	});
 
 	it("on a kit clip, never asks the bridge, and keeps the kit-row arm unchanged", _ {
-		// `Root::NoteRowEditor` on a kit keeps its kit arms --
-		// `selectedNoteRow` is only ever latched by legacy's OWN non-kit else-if
-		// (`sequence/direction.h:117-119`), so a kit clip has no equivalent to model here at all.
+		// `Root::NoteRowEditor` on a kit keeps its kit arms -- `selectedNoteRow` is only ever latched by main's OWN
+		// non-kit else-if (`sequence::Direction::checkPermissionToBeginSession` in
+		// `origin/main:src/deluge/gui/menu_item/sequence/direction.h`), so a kit clip has no equivalent to model here
+		// at all.
 		spec::SongFixture fx = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
 		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -235,11 +236,11 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 	});
 });
 
-describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
+describe note_roots_open_menu("openMenu's NoteMode", $ {
 	it("opens with menu_context().root == NoteEditor", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteEditor))
 		    .to_be_true();
 		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_editor_root);
@@ -250,7 +251,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	it("opens with menu_context().root == NoteRowEditor", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
@@ -260,24 +261,23 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("on a kit with affectEntire true, leaves affectEntire false in both the clip and the "
 	   "installed context", _ {
-		// `instrument_clip_view.cpp:3630-3638`: a note is selected on a kit row (so `context_for`
-		// resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is false,
-		// exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire`
-		// is independently true. Both facts at once is the case `context.h`'s own note on
-		// `affect_entire` names.
+		// `InstrumentClipView::handleNoteEditorEditPadAction` (`instrument_clip_view.cpp`): a note is selected on a kit
+		// row (so `context_for` resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is
+		// false, exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire` is
+		// independently true. Both facts at once is the case `context.h`'s own note on `affect_entire` names.
 		//
-		// Fix round 1, IMPORTANT 1: `ctx.affect_entire` must follow the clear, not merely the clip's
+		// `ctx.affect_entire` must follow the clear, not merely the clip's
 		// own member -- `sequence::Direction::getIndividualNoteRow` reads `clip->affectEntire` LIVE
-		// (`gui/menu_item/sequence/direction.h:44`), after legacy's identical clear, so a stale
-		// `true` left in the installed context would make `bindings::individual_note_row`
-		// keep reading/writing the kit's own mode instead of the selected
+		// (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`), after main's identical clear, so a stale
+		// `true` left in the installed context would make `bindings::direction_target`
+		// (`scenes/menu/bindings.cpp`) keep reading/writing the kit's own mode instead of the selected
 		// drum's row -- see the dedicated example below.
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
-		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteEditor))
+		expect(entry::openMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::MenuNode::ContextRoot, entry::NoteMode::NoteEditor))
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
@@ -291,8 +291,8 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		(void)spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
-		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
+		expect(entry::openMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::MenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
@@ -302,10 +302,10 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("a kit note-row editor edits the selected drum's row, not the kit's own mode, once "
 	   "affectEntire is cleared", _ {
-		// The load-bearing consequence of the fix above, driven through the real binding rather than
+		// The load-bearing consequence of clearing `affectEntire`, driven through the real binding rather than
 		// just read back off `MenuContext`: `bindings::read_sequence_direction`
 		// tests `ctx.root == Root::NoteRowEditor && !ctx.is_kit` first (the
-		// non-kit bridge arm), then falls through to `individual_note_row`'s kit-row arm
+		// non-kit bridge arm), then falls through to `direction_target`'s kit-row arm
 		// (`!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
 		// DRUM's row when `ctx.affect_entire` is false, exactly as legacy's live
 		// `clip->affectEntire` read does after its own clear.
@@ -321,8 +321,8 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		row->setSequenceDirectionModeRaw(SequenceDirection::PINGPONG);
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)})); // must NOT be what gets read
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
-		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
+		expect(entry::openMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::MenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 
 		bool from_note_row = false;
@@ -334,30 +334,30 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	});
 });
 
-describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo log", $ {
-	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
-	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
+describe note_roots_undo_log("openMenu's NoteMode must not wipe the undo log", $ {
+	// `SoundEditor::setup`'s undo-log wipe (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is inside its
+	// `item == nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
 	// (`instrument_clip_view.cpp`), an explicit item -- so legacy never wipes on a
-	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
-	// is conditioned on `noteMode == NoteMode::None` as well as `node == ShellMenuNode::ContextRoot
+	// note-editor/note-row-editor open. `openMenu`'s own wipe (`gui/ui/menu_entry.cpp`)
+	// is conditioned on `noteMode == NoteMode::None` as well as `node == MenuNode::ContextRoot
 	// && clip != nullptr`: the first two hold for every `NoteMode` call too (neither note root has
-	// its own `ShellMenuNode`), so without the third it would wipe where legacy does not.
+	// its own `MenuNode`), so without the third it would wipe where legacy does not.
 
 	it("NoteMode::NoteEditor leaves an existing undo log intact", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 
 		// Seed a real logged action while SOME guest is open -- `ActionLogger::getNewAction` refuses
-		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:100-104`), exactly
+		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp`), exactly
 		// `menu_entry_spec.cpp`'s own undo-log examples note -- then close it again.
-		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		// The note editor, opened on a real clip: the log must survive.
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteEditor))
 		    .to_be_true();
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
@@ -367,13 +367,13 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	it("NoteMode::NoteRowEditor leaves an existing undo log intact", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 
-		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		expect(entry::openMenu(fx.clip, 0, false, false, false, false, entry::MenuNode::ContextRoot,
 		                            entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
@@ -385,18 +385,17 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		// two examples above pass because nothing ever wipes" would also pass.
 		spec::SongFixture fx = spec::make_synth_song();
 
-		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		expect(entry::openMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
 		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
-		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false)).to_be_true();
+		expect(entry::openMenu(fx.clip, 0, false, false, false, false)).to_be_true();
 		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		closeGuest();
 	});
 });
 // clang-format on
 
-DELUGE_SPEC(note_roots_spec, note_roots_table, note_roots_sequence_direction, note_roots_open_shell_menu,
-            note_roots_undo_log)
+DELUGE_SPEC(note_roots_spec, note_roots_table, note_roots_sequence_direction, note_roots_open_menu, note_roots_undo_log)

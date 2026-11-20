@@ -25,11 +25,10 @@
 /// pads (`renderMainPads`, which draws `renderColumn` and `renderMarkerInCol` over the waveform) and the 128x48 OLED
 /// page (`renderOLED`).
 ///
-/// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`,
-/// reached through the public `renderMainPads` because both are private
-/// (`sample_marker_editor.h:90-94`). A transcription of those two bodies, as the host target
-/// `tests/unit/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
-/// drift from them.
+/// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`, reached through the
+/// public `renderMainPads` because both are private (`SampleMarkerEditor::renderColumn` and `renderMarkerInCol` in
+/// `origin/main:src/deluge/gui/ui/sample_marker_editor.h`). A transcription of those two bodies, as the host target
+/// `tests/unit/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would drift from them.
 ///
 /// One divergence is **measured** here rather than only written down: `renderMainPads`'
 /// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`). It is
@@ -284,7 +283,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("claims every pad but the audition column, which the host hands to the clip view", _ {
-		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp`).
+		// `SampleMarkerEditor::padAction`'s audition arm (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 		expect(marker_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::AllButClipAudition);
 	});
 
@@ -790,7 +789,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("refuses BACK and the mute column while a marker is held or a note auditions, and exits on them otherwise", _ {
 		// `buttonAction`'s BACK arm and `padAction`'s mute arm exit only with no UI mode
-		// (`sample_marker_editor.cpp:661-668`, `:366-370`); a held marker and auditioning are UI modes.
+		// (`SampleMarkerEditor::buttonAction` and `SampleMarkerEditor::padAction` in
+		// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`); a held marker and auditioning are UI modes.
 		const auto on_stack = [](Rig& r) {
 			for (const deluge::ui::shell::Scene* sc : r.shell.stack().scenes()) {
 				if (sc->kind() == kMarkerSceneKind) {
@@ -836,14 +836,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("neither zooms nor scrolls while a marker is held, and holds X_ENC only with no other mode", _ {
-		// `horizontalEncoderAction`'s `zoomUIModes` (`:697`, `:752-770`) and `buttonAction`'s X_ENC arm (`:672-681`).
+		// `horizontalEncoderAction`'s `zoomUIModes` and `buttonAction`'s X_ENC arm
+		// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START
 		r.tick(10);
-		r.turn_select(1, 15); // `selectEncoderAction`'s guard (`:269`): refused with a marker held
+		r.turn_select(1, 15); // `SampleMarkerEditor::selectEncoderAction`'s guard: refused with a marker held
 		r.tick(15);
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
 		r.x_enc_button(true, 20);
@@ -901,9 +902,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("slides a zoom over 110 ms from the old view to the new one, refusing every input while it slides", _ {
-		// `WaveformBasicNavigator::zoom` (`:30-69`) and `PadLEDs::renderZoom`, drawn every 50 ms; under
-		// `UI_MODE_HORIZONTAL_ZOOM` the select encoder (`:269`), the horizontal encoder (`zoomUIModes`), BACK and the
-		// mute column (`!currentUIMode`), a pad press (`:368`) and X_ENC (`:656`) are all refused.
+		// `WaveformBasicNavigator::zoom` and `PadLEDs::renderZoom`, drawn every 50 ms; under `UI_MODE_HORIZONTAL_ZOOM`
+		// the select encoder (`selectEncoderAction`), the horizontal encoder (`zoomUIModes`), BACK and the mute column
+		// (`!currentUIMode`), a pad press (`padAction`) and X_ENC (`buttonAction`) are all refused.
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
@@ -1017,7 +1018,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("jumps with SHIFT to a shortcut's item, and stays on an empty cell, with a marker held, or auditioning", _ {
-		// `SampleMarkerEditor::padAction`'s `soundEditor.potentialShortcutPadAction` (`:350-356`).
+		// `SampleMarkerEditor::padAction`'s `soundEditor.potentialShortcutPadAction`.
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.open_through_menu();
@@ -1139,7 +1140,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("hands a vertical turn to the instrument clip view under the editor, and keeps it with SHIFT or X_ENC held", _ {
-		// `SampleMarkerEditor::verticalEncoderAction` (`:883-901`).
+		// `SampleMarkerEditor::verticalEncoderAction` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`).
 		Rig r;
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;
@@ -1192,7 +1193,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
-		// `graphicsRoutine` (`:977-1027`): `(pos - xScroll) / xZoom`, all eight rows, through `PadLEDs::setTickSquares`.
+		// `graphicsRoutine` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`): `(pos - xScroll) / xZoom`, all
+		// eight rows, through `PadLEDs::setTickSquares`.
 		struct Playing final : deluge::scenes::services::Waveforms {
 			std::optional<int64_t> pos;
 			[[nodiscard]] std::optional<deluge::scenes::services::WaveformInfo>
@@ -1285,8 +1287,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("refuses a tap and the held pad's release once a note auditions under the hold", _ {
 		// `padAction` refuses a press unless `currentUIMode` is exactly AUDITIONING or HOLDING_SAMPLE_MARKER, and ends
-		// the hold only under HOLDING_SAMPLE_MARKER exactly (`:368-370`, `:632`). The hold assigns the mode (`:534`), so
-		// an audition already sounding when the marker went down no longer counts.
+		// the hold only under HOLDING_SAMPLE_MARKER exactly (`SampleMarkerEditor::padAction`'s press and release arms).
+		// The hold assigns the mode in the same function, so an audition already sounding when the marker went down no
+		// longer counts.
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
@@ -1488,9 +1491,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("asks for no tick at all when the selected marker is scrolled off screen", _ {
-		// `timerCallback`'s early return (`sample_marker_editor.cpp:797-800`). The witness is the
-		// TIMER, not the phase: a scene that kept asking would keep the whole shell awake for a
-		// blink nobody can see.
+		// `SampleMarkerEditor::timerCallback`'s early return
+		// (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`). The witness is the TIMER, not the phase: a scene
+		// that kept asking would keep the whole shell awake for a blink nobody can see.
 		Rig r;
 		r.range->sampleHolder.startPos = 0;
 		r.range->sampleHolder.endPos = kSampleLength;
@@ -1532,13 +1535,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const std::string phase3 = r.fake.state();
 
 		expect(phase0).to_equal(phase2); // phases 0 and 2 both draw normally
-		// **Phase 1 is indistinguishable from phase 0 here, and that is legacy's behaviour, not a
-		// missing arm.** Phase 1 floods the selected column with the marker colour
-		// (`renderMarkerInCol(x, image, markerType, 0, kDisplayHeight, false)`, `:815`); a column
-		// with exactly one marker on it is *already* a full-height undimmed bar, because
-		// `renderColumn`'s one-marker case takes `yStart = kDisplayHeight / 2` and mirrors it and
-		// the selected marker is never dimmed. The flood only shows when the selected marker is
-		// SHARING its column, which no legal marker layout on this fixture does.
+		// **Phase 1 is indistinguishable from phase 0 here, and that is legacy's behaviour, not a missing arm.** Phase
+		// 1 floods the selected column with the marker colour
+		// (`renderMarkerInCol(x, image, markerType, 0, kDisplayHeight, false)`, in
+		// `SampleMarkerEditor::timerCallback`); a column with exactly one marker on it is *already* a full-height
+		// undimmed bar, because `renderColumn`'s one-marker case takes `yStart = kDisplayHeight / 2` and mirrors it and
+		// the selected marker is never dimmed. The flood only shows when the selected marker is SHARING its column,
+		// which no legal marker layout on this fixture does.
 		expect(phase0).to_equal(phase1);
 		expect(phase0).not_().to_equal(phase3); // phase 3 removes the selected marker
 		expect(phase1).not_().to_equal(phase3);
@@ -1869,7 +1872,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("labels a reversed sample's marker the same way reverseRemap does", _ {
-		// `reverseRemap` (`sample_marker_editor.cpp`) is read by BOTH renderers; with the
+		// `reverseRemap` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
 		deluge::test::change_flat(*r.sound->state_, [&](deluge::instrument::FlatSoundState& f) { f.sources[0].reversed = true; });

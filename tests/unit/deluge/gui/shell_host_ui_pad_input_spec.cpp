@@ -54,10 +54,10 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		// 256 is 0 in a `uint8_t`, and `InputLowering::on_pad`'s own bounds check runs on the
-		// narrowed value -- so without the guard in `padAction` this arrives as a press on column
-		// 0, a pad nobody touched. `padAction` is a public virtual legacy UIs call on each other
-		// (`gui/ui/sound_editor.cpp:1474-1477`), so its domain is not `MatrixDriver`'s alone.
+		// 256 is 0 in a `uint8_t`, and `InputLowering::on_pad`'s own bounds check runs on the narrowed value -- so
+		// without the guard in `padAction` this arrives as a press on column 0, a pad nobody touched. `padAction` is a
+		// public virtual legacy UIs call on each other (`SoundEditor::potentialShortcutPadAction` in
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so its domain is not `MatrixDriver`'s alone.
 		(void)r.guest.padAction(256, 0, 255);
 		(void)r.guest.padAction(-1, 0, 255);
 		r.guest.shell().tick(1);
@@ -104,9 +104,10 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 	});
 
 	it("under ShortcutsOnly feeds a shift-held main-grid press and forwards everything else", _ {
-		// `potentialShortcutPadAction`'s gate is `on && x < kDisplayWidth && shift`
-		// (`gui/ui/sound_editor.cpp:1169-1186`), and past that gate it claims unconditionally
-		// (`:1431`).
+		// Main's `SoundEditor::potentialShortcutPadAction` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) returns
+		// `NOT_DEALT_WITH` for a release (`!on`), for a sidebar pad (`x >= kDisplayWidth`) and, with Shift up, for
+		// anything but an audition-held press in the instrument clip view; past that gate it claims
+		// unconditionally (its closing `return ActionResult::DEALT_WITH`).
 		Rig r;
 		expect(r.open()).to_be_true();
 		fakelegacyui::reset();
@@ -311,13 +312,12 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 
 	it("does NOT arm the tick after a forward that left some other UI current", _ {
 		// A forwarded pad runs a legacy view's own pad handler, which may open a UI over the guest and leave
-		// `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming
-		// `TimerName::UI_SPECIFIC` there would hand this guest's tick to whatever just opened
-		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp`) -- the same hazard
-		// `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see
-		// `fake_legacy_ui.h`), so the test stands in for "the forward opened another UI" the same
-		// way `shell_host_ui_tick_spec.cpp`'s `rearmTimer` example does: by setting `current_ui` directly rather than
-		// reproducing a real `openUI`.
+		// `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming `TimerName::UI_SPECIFIC` there would
+		// hand this guest's tick to whatever just opened (`UITimerManager::routine`, `gui/ui_timer_manager.cpp`) -- the
+		// same hazard `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see
+		// `tests/unit/deluge/gui/support/fake_legacy_ui.h`), so the test stands in for "the forward opened another UI"
+		// the same way `shell_host_ui_tick_spec.cpp`'s `rearmTimer` example does: by setting `current_ui` directly
+		// rather than reproducing a real `openUI`.
 		Rig r;
 		expect(r.open()).to_be_true();
 		fakelegacyui::reset();

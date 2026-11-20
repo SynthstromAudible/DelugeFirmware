@@ -26,8 +26,8 @@ using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `routing_chain` / `segmented_switch` / `cable_strength_value` -- the three blocks of legacy
-// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp`): the first two draw a
-// *routing*, the third its strength. Pinned the three ways this directory pins a widget:
+// `PatchCableStrength::renderOLED` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`): the first two
+// draw a *routing*, the third its strength. Pinned the three ways this directory pins a widget:
 //
 // First, byte for byte against the legacy routine: `legacy_diagram` / `legacy_switch` below are
 // those two blocks transcribed against the raw gfx `Canvas` in canvas-absolute coordinates, with
@@ -45,14 +45,14 @@ namespace uitest = deluge::ui::test;
 //
 //  - **The two chain shapes use different pitches.** Two stages step by `kTextSpacingY` (9) and
 //    start at `extraY + 4`; three stages step by a literal 8 and start at `extraY + 1`
-//    (`:86-88`). They are not the same diagram with a row added.
+//    (`PatchCableStrength::renderOLED`). They are not the same diagram with a row added.
 //  - **In the three-stage form the elbow lands *below* the middle stage's label** -- the drop from
 //    stage 0 runs to `y + (ySpacing << 1)` while the label is drawn at `y - 3` after a
-//    `+= ySpacing - 1` (`:96-97`, `:100-104`). It looks like a bug and it is legacy's; transcribing it
+//    `+= ySpacing - 1`. It looks like a bug and it is main's; transcribing it
 //    is the point of having an oracle rather than a hand-written expectation.
-//  - **A slot's label box and its inversion box differ by one column** for every slot but the
-//    first (`:144` vs `:147-149`) -- the same class of legacy asymmetry `option_window` reproduces
-//    between its label and its highlight.
+//  - **A slot's label box and its inversion box differ by one column** for every slot but the first (the
+//    `drawStringCentered` slot against the `invertAreaRounded` box) -- the same class of asymmetry in main that
+//    `option_window` reproduces between its label and its highlight.
 //  - **Neither widget uses a 48/64 constant pair**, unlike `midi_command`'s row: every legacy
 //    coordinate in these two blocks is either an offset from the left edge or
 //    `OLED_MAIN_TOPMOST_PIXEL + n`, and a frame's origin already carries `visible_top`. So the same
@@ -62,8 +62,8 @@ namespace uitest = deluge::ui::test;
 
 namespace {
 
-/// @brief `PatchCableStrength::renderOLED`'s first block (`patch_cable_strength.cpp:79-123`),
-///        transcribed.
+/// @brief `PatchCableStrength::renderOLED`'s first block
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), transcribed.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
 /// @param topmost  `OLED_MAIN_TOPMOST_PIXEL`.
@@ -103,8 +103,8 @@ void legacy_diagram(Canvas& c, int32_t topmost, std::span<const std::string_view
 	c.draw_string(stages.back(), leftPadding, y, 6, 7);
 }
 
-/// @brief `PatchCableStrength::renderOLED`'s polarity switcher (`patch_cable_strength.cpp:125-157`),
-///        transcribed.
+/// @brief `PatchCableStrength::renderOLED`'s polarity switcher
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), transcribed.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
 /// @param startY   Legacy's own `startY` (34), or wherever the caller puts the band.
@@ -164,8 +164,9 @@ Rect diagram_rect() {
 	return Rect{0, 0, 128, 48};
 }
 
-/// @brief `PatchCableStrength::renderOLED`'s number block (`patch_cable_strength.cpp`), transcribed with the
-///        division exact (legacy's GCC build truncates it under fast-math: DIFFERENCES.md D71) and the blink drawn lit.
+/// @brief `PatchCableStrength::renderOLED`'s number block
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), transcribed with the division exact
+///        (legacy's GCC build truncates it under fast-math: DIFFERENCES.md D71) and the blink drawn lit.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
 /// @param topmost  `OLED_MAIN_TOPMOST_PIXEL`.
@@ -231,9 +232,9 @@ describe routing_chain_w("ui::oled::routing_chain", $ {
 		// oracle is run at the *other* panel's `OLED_MAIN_TOPMOST_PIXEL` (0), and the port is given
 		// the same frame-local rect, so agreement means the widget followed the frame's origin.
 		//
-		// **Both shapes**, not just the three-stage one: they use different pitches and different
-		// starting offsets (`:86-88`), so one of them agreeing at 64 rows says nothing about the
-		// other. Fix round 2 -- the two-stage case had been pinned at 64 rows only by a golden.
+		// **Both shapes**, not just the three-stage one: they use different pitches and different starting offsets (the
+		// `isJustAParam` arm and the other arm of main's `PatchCableStrength::renderOLED` first block), so one of them
+		// agreeing at 64 rows says nothing about the other.
 		{
 			uitest::Rig64 r;
 			routing_chain(r.frame, diagram_rect(), three_stage());
@@ -345,9 +346,10 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 	});
 
 	it("offsets a non-first slot's label one column right of its own inversion, as legacy does", _ {
-		// `:144` draws UNI at `startX + biSlotWidth + 1` (98 + 1) while `:147-149` inverts from
-		// `startX + biSlotWidth` (98). Shown by rendering the same box twice with only the
-		// selection changed and reading the column that the inversion covers but the label does not.
+		// main's `PatchCableStrength::renderOLED` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)
+		// draws UNI with `drawStringCentered` at `startX + biSlotWidth + 1` (98 + 1) while its `invertAreaRounded` call
+		// inverts from `startX + biSlotWidth` (98). Shown by rendering the same box twice with only the selection
+		// changed and reading the column that the inversion covers but the label does not.
 		uitest::Rig48 r0;
 		segmented_switch(r0.frame, Rect{73, 34 - 5, 53, 9}, bi_uni(), bi_uni_widths(), 0);
 		uitest::Rig48 r1;

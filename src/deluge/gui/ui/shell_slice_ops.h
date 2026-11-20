@@ -32,7 +32,7 @@ namespace deluge::gui::ui {
 /// @brief Install the host's `SliceOps` on `SlicerScene`.
 void wireShellSliceOps();
 
-/// @brief Open the slicer on @p path, which the ported browser parked as a slice.
+/// @brief Open the slicer on @p path, which the browser scene parked as a slice.
 ///
 /// Loads the file into the browser preview's drum, without sounding it, as the legacy preview does; once it lands
 /// the slicer holds it and the browser is told to push it (`BrowserScene::slice_ready`). A load that fails shows the

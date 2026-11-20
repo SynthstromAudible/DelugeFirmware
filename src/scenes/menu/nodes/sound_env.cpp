@@ -35,7 +35,8 @@ const std::span<const Node* const> kSoundEnvChildren{kRoots};
 
 namespace {
 
-/// @brief `EnvelopeMenu::renderMenuItems` (`envelope/envelope_menu.h:34-91`) over envelope @p env's four segments.
+/// @brief `EnvelopeMenu::renderMenuItems` (`origin/main:src/deluge/gui/menu_item/envelope/envelope_menu.h`) over
+/// envelope @p env's four segments.
 void draw_envelope(ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused, const Node& attack,
                    const Node& decay, const Node& sustain, const Node& release) {
 	ui::oled::envelope_graph(panel, bindings::read(attack, ctx), bindings::read(decay, ctx),

@@ -28,7 +28,7 @@ using deluge::storage::FileCatalogue;
 /// and one spec binary runs many examples in one process, so an example that left entries behind
 /// would decide the next one's result by link order.
 ///
-/// `shouldInterpretNoteNames` (`util/name_compare.cpp:85`) and `octaveStartsFromA` (`:87`) are
+/// `shouldInterpretNoteNames` (`util/name_compare.cpp`) and `octaveStartsFromA` are
 /// process-global for the same reason and leak the same way -- and worse, silently: they change
 /// what `strcmpspecial` *means*, so a stale `true` turns a later example's expected sort order into
 /// a different one rather than into an obvious crash. Nearly every example here moves them (every

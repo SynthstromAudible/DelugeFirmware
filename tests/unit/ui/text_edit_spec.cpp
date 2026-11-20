@@ -101,8 +101,8 @@ describe text_edit_w("ui::oled::text_edit", $ {
 	});
 
 	it("matches qwerty_ui.cpp's mid-string cursor presentation: an inverted, rounded tail from "
-	   "the cursor to the rect's right edge, following style.highlighting (qwerty_ui.cpp:"
-	   "156-170, list.cpp's D1 primitive)", _ {
+	   "the cursor to the rect's right edge, following style.highlighting "
+	   "(QwertyUI::drawTextForOLEDEditing)", _ {
 		// cursor == 30, length == 36, max_num_chars == 21: minXScroll = min(30+3-21, 36-21+0) =
 		// min(12, 15) = 12; maxXScroll = min(36-21+0, 30-3) = min(15, 27) = 15. scroll settles at
 		// 12 either way -- the scroll clamp is unaffected by which cursor presentation is drawn.
@@ -140,15 +140,14 @@ describe text_edit_w("ui::oled::text_edit", $ {
 
 	it("draws the left-edge rule instead of an inverted tail when highlighting is NoInversion, "
 	   "starting in the gap after the previous character", _ {
-		// qwerty_ui.cpp:166: "Start the highlight in the 1px gap that follows the previous
-		// character... otherwise the inversion eats a pixel column out of the letter before the
-		// cursor." rect = {20,10,60,20} -> max_num_chars == 10; s == "ABC" (length 3), cursor == 2
-		// (mid-string: "before C"), scroll settles at 0 -- scrollAmount == cursor - scroll == 2,
-		// nonzero, so this exercises the general formula, not the scrollAmount == 0 special case
-		// below. highlightStartX = rect.x + 6*2 - 1 == 31 (rect.x == 20): one column into the gap
-		// after 'B', not on top of its ink -- verified against an independent replay of the same
-		// primitives (draw_string then draw_vertical_line) rather than against assumptions about
-		// which columns the 'B'/'C' glyphs themselves light up.
+		// `QwertyUI::drawTextForOLEDEditing` (`qwerty_ui.cpp`): "Start the highlight in the 1px gap that follows the
+		// previous character... otherwise the inversion eats a pixel column out of the letter before the cursor." rect
+		// = {20,10,60,20} -> max_num_chars == 10; s == "ABC" (length 3), cursor == 2 (mid-string: "before C"), scroll
+		// settles at 0 -- scrollAmount == cursor - scroll == 2, nonzero, so this exercises the general formula, not the
+		// scrollAmount == 0 special case below. highlightStartX = rect.x + 6*2 - 1 == 31 (rect.x == 20): one column
+		// into the gap after 'B', not on top of its ink -- verified against an independent replay of the same
+		// primitives (draw_string then draw_vertical_line) rather than against assumptions about which columns the
+		// 'B'/'C' glyphs themselves light up.
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
 		plain.highlighting = Highlighting::NoInversion;

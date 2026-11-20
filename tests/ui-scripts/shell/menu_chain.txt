@@ -1,6 +1,6 @@
 # Level-2 acceptance: `Node::select_chain` navigation, on the one ported chain whose
 # target is an ordinary value leaf -- nodes::unison_count -> nodes::unison_spread
-# (`gui/menu_item/unison/count.h` `CountToStereoSpread::selectButtonPress`).
+# (`origin/main:src/deluge/gui/menu_item/unison/count.h` `CountToStereoSpread::selectButtonPress`).
 #
 # The two other scripts that touch chaining (menu_decimal, menu_shortcut) both land on a
 # `PatchedParam`, whose chain target is a picker that reads no edit encoder -- so neither ever shows

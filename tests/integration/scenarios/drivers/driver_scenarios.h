@@ -29,7 +29,7 @@
 /// | clip_clone_roundtrip | InstrumentClip::clone() on a loaded song, checked deep-independent         |
 /// | edit_cost            | a settings Edit's host cost on a new synth, timed                          |
 /// | source_memory        | a sample synth's heap across an oscillator switch away and back           |
-/// | edit_substrate       | the Edit dispatcher and the SetParamValue pilot, self-checking             |
+/// | edit_substrate       | the Edit dispatcher and the SetParamValue edit, self-checking              |
 /// | edit_undo_redo       | reified Edits applied, undone and redone over a loaded song, self-checking |
 /// | engine_settings      | a sound's settings through its slot: binding, every setting Edit, both equations |
 /// | host_effect_settings | a host owner's effects through its chain: every effect setting Edit, coherence |

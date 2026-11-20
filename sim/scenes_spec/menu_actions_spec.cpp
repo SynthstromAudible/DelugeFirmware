@@ -24,14 +24,13 @@
 ///   * **Covered in `menu_action_three_verbs`:** that the remaining three verbs are
 ///     *performed* -- the clip's length really moves to the sample's, MIDI learn really arms, and
 ///     each context menu really lands on `uiNavigationHierarchy`.
-///   * **Covered in `menu_action_screensaver`:** that `ScreensaverSettingsChanged`
-///     is *performed* -- one enumerator filed by either of the two ported setters, and both the
-///     legacy screensaver's idle timer and the ported `shell::Screensaver`'s idle period moving on
-///     it, with no reboot.
-///   * **NOT covered:** the acting half of `StartStemExport` -- `startStemExportProcess` would run a
-///     real export inline on this BSP (see that group's own note) -- and
-///     `audio_clip_view.cpp:766-768`'s `STRING_FOR_NO_SAMPLE` arm, which no `AudioClip` can reach
-///     (see `menu_action_three_verbs`' first example).
+///   * **Covered in `menu_action_screensaver`:** that both screensaver setters move the legacy screensaver's
+///     idle timer and the guest's `shell::Screensaver` idle period at the write, through
+///     `menu::host_screensaver_settings_changed`, with no reboot.
+///   * **NOT covered:** the acting half of `StartStemExport` -- `startStemExportProcess` would arm the recorder and
+///     leave `UI_MODE_STEM_EXPORT` entered for an export job no spec drives (see that group's own note) -- and
+///     `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp`)'s `STRING_FOR_NO_SAMPLE` arm, which no
+///     `AudioClip` can reach (see `menu_action_three_verbs`' first example).
 ///
 /// `PerformEditorItem`'s option list and its mapping from the performance view's two bools to a mode are compared
 /// with the rows `tests/golden/ui/menu_oracle/menu_actions.tsv` holds for main's `EditingMode`; and the three one-line
@@ -42,6 +41,7 @@
 #include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -80,7 +80,7 @@
 #include "hid/buttons.h" // commandToggleShift / clearShiftSticky, for the shift+KEYBOARD gestures
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
-#include "hid/display/screensaver.h" // the legacy screensaver, half of what `ScreensaverSettingsChanged` moves
+#include "hid/display/screensaver.h" // the legacy screensaver, half of what the screensaver setters move
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -125,6 +125,19 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+
+namespace PadLEDs {
+/// The pad dimmer's live level, which `pad_leds.h` does not declare (`hid/led/pad_leds.cpp`).
+extern int32_t dimmerInterval;
+/// The slow flash's tick squares as last set, 255 where none (`hid/led/pad_leds.cpp`).
+extern uint8_t slowFlashSquares[];
+/// Set when a column send waits for room in the PIC's queue (`hid/led/pad_leds.cpp`, `sendOutMainPadColoursSoon`).
+extern bool needToSendOutMainPadColours;
+} // namespace PadLEDs
+/// The harness's record of every pad colour the app sent, column-major, eight rows of RGB
+/// (`src/bsp/rust/src/peripherals/ui_harness.rs`).
+extern "C" const uint8_t* host_script_pad_shadow();
+extern uint32_t whichMainRowsNeedRendering; // `gui/ui/ui.cpp`: the main rows a render is pending for
 
 namespace {
 
@@ -176,8 +189,8 @@ struct Rig {
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -190,11 +203,11 @@ struct Rig {
 	    : profile(p), fake(board, p) {}
 
 	MenuContext open(const Node& root) {
-		// The song root is opened from a root UI, not over a clip -- and that matters:
-		// `song_midi_learn` and `configure_song_macros` carry `relevance::is_session_view`, so a clip
-		// context would list neither of the two rows this spec presses. `sound_editor.cpp:1819-1822`
-		// is the arm being stood in for; `sessionView` of its three views, because that is the one
-		// where both items are shown.
+		// The song root is opened from a root UI, not over a clip -- and that matters: `song_midi_learn` and
+		// `configure_song_macros` carry `relevance::is_session_view`, so a clip context would list neither of the two
+		// rows this spec presses. `SoundEditor::setup`'s `!rootUIIsClipMinderScreen()` arm
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) is the arm being stood in for; `sessionView` of its three
+		// views, because that is the one where both items are shown.
 		const bool song_root = &root == &nodes::root_song;
 		const MenuContext ctx =
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(song_root ? nullptr : song.clip), 0, false,
@@ -362,12 +375,11 @@ MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
 	return scene().take_action();
 }
 
-/// @brief The port's transcription of `EditingMode::readCurrentValue` (`editing_mode.h:35-46`),
-///        the mapping each `set_performance_editing_mode` call site must apply.
+/// @brief The spec's transcription of main's `EditingMode::readCurrentValue`, the mapping the host's
+///        `RuntimeFacts::performance_editing_mode()` must answer.
 ///
-/// Written here rather than in the library on purpose: the library holds a *mirror*, and this is the
-/// rule that must keep it in step. The example below runs it against the real legacy item on the
-/// real `performanceView`, which is the only place the two can be compared at all.
+/// Written here rather than read from the host, so the host's answer is compared with a second copy of the rule. The
+/// "maps the performance view's two bools" example checks this copy against main's answers in the reference table.
 PerformanceEditingMode mode_from_view() {
 	if (!performanceView.defaultEditingMode) {
 		return PerformanceEditingMode::DISABLED;
@@ -378,39 +390,37 @@ PerformanceEditingMode mode_from_view() {
 	return PerformanceEditingMode::PARAM;
 }
 
+/// @brief Put `performanceView`'s two bools at the pair main's `EditingMode::selectButtonPress` leaves for @p mode
+///        (DISABLED: both false), which is what `PerformEditorItem` then reads.
+void set_view_mode(PerformanceEditingMode mode) {
+	performanceView.defaultEditingMode = mode != PerformanceEditingMode::DISABLED;
+	performanceView.editingParam = mode == PerformanceEditingMode::PARAM;
+}
+
 /// @brief Save and restore the two `performanceView` bools around an example that moves them.
 struct PerformViewGuard {
 	bool saved_default = performanceView.defaultEditingMode;
 	bool saved_param = performanceView.editingParam;
-	PerformanceEditingMode saved_mirror = menu::performance_editing_mode();
 	PerformViewGuard(const PerformViewGuard&) = delete;
 	PerformViewGuard& operator=(const PerformViewGuard&) = delete;
 	PerformViewGuard() = default;
 	~PerformViewGuard() {
 		performanceView.defaultEditingMode = saved_default;
 		performanceView.editingParam = saved_param;
-		menu::set_performance_editing_mode(saved_mirror);
 	}
 };
 
 /// @brief Put the legacy UI hierarchy back to "nothing open" after an example let the dispatcher
 ///        `openUI(&performanceView)`.
 ///
-/// `nullifyUIs()` rather than `closeUI`, on `menu_entry_spec.cpp`'s terms: `closeUI` indexes
-/// `uiNavigationHierarchy[-1]` when the view it closes is the only entry (`gui/ui/ui.cpp:213-223`),
-/// and `nullifyUIs()` is what legacy itself calls to tear the hierarchy down (`:257-261`).
+/// `nullifyUIs()` rather than `closeUI`, on `menu_entry_spec.cpp`'s terms: closing the only open UI is not a close
+/// `closeUI` (`gui/ui/ui.cpp`) performs -- it returns early, where main's indexes
+/// `uiNavigationHierarchy[u - 1]` with `u == 0` (`origin/main:src/deluge/gui/ui/ui.cpp`) -- and `nullifyUIs()` is what
+/// legacy itself calls to tear the hierarchy down.
 ///
-/// **The one residue this cannot put back, stated rather than left to be discovered.**
-/// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:288`), and
-/// that variable is defined at `gui/ui/ui.cpp:97` with no declaration in `ui.h`, so it cannot be
-/// reset from here -- `tables_3_spec.cpp` records the same fact for the same reason. So
-/// after an example in this group, `getCurrentUI()` answers `&performanceView`
-/// instead of null, while `getRootUI()` still answers null -- it is a different function, at
-/// `ui.cpp:175-180`, and it reads only `numUIsOpen` (`:176-177`), never the residue. It is
-/// benign for this file on two counts, both checkable: nothing in `sim/scenes_spec/menu_actions_spec.cpp`
-/// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `DELUGE_SPEC` below,
-/// after the three groups that drive the port. An example added to this file that needs a null
-/// `getCurrentUI()` must say so itself.
+/// **Nothing is left behind.** With the stack empty, `getCurrentUI()` answers `emptyStackUI` (`gui/ui/ui.cpp`) and
+/// `getRootUI()` reads only `numUIsOpen`. Main's `nullifyUIs()` instead keeps `lastUIBeforeNullifying`, which main's
+/// `getCurrentUI()` answers on an empty hierarchy.
 struct UiStackGuard {
 	UiStackGuard(const UiStackGuard&) = delete;
 	UiStackGuard& operator=(const UiStackGuard&) = delete;
@@ -427,15 +437,15 @@ struct UiStackGuard {
 void seed_view_away_from(PerformanceEditingMode mode) {
 	performanceView.defaultEditingMode = false;
 	performanceView.editingParam = (mode != PerformanceEditingMode::PARAM);
-	// The reset marker. `resetPerformanceView` opens with `resetPadPressInfo()`
-	// (in `PerformanceView::resetPerformanceView`), which is `initPadPress(firstPadPress)` +
-	// `initPadPress(lastPadPress)` (`:1415-1418`), and `initPadPress` clears `isActive` (`:272-278`).
-	// `lastPadPress` is the half of that pair the header makes public (`performance_view.h`).
+	// The reset marker. `resetPerformanceView` opens with `resetPadPressInfo()` (in
+	// `PerformanceView::resetPerformanceView`), which is `initPadPress(firstPadPress)` + `initPadPress(lastPadPress)`
+	// (`PerformanceView::resetPadPressInfo`), and `PerformanceView::initPadPress` clears `isActive`. `lastPadPress` is
+	// the half of that pair the header makes public (`performance_view.h`).
 	//
 	// Nothing else on the dispatcher's path writes it: the only other writers in the whole view are
-	// `padPressAction` (`:1182`, the writes at `:1199-1203`), `padReleaseAction`'s `initPadPress`
-	// (`:1207`, the call at `:1229`) and `restorePreviousHoldPress` (`:1317-1320`), none of which
-	// `openUI` -> `opened()` -> `focusRegained()` (`:328-345`) can reach. So `isActive` going false
+	// `padPressAction` (which sets `lastPadPress.isActive`), `padReleaseAction`'s `initPadPress`
+	// calls and `restorePreviousHoldPress`, none of which
+	// `openUI` -> `opened()` -> `focusRegained()` can reach. So `isActive` going false
 	// means `resetPerformanceView` ran, and nothing else does.
 	performanceView.lastPadPress.isActive = true;
 }
@@ -446,10 +456,8 @@ void seed_view_away_from(PerformanceEditingMode mode) {
 /// Leaves the filed request in the outbox **undrained**, deliberately: in this group the dispatcher
 /// is the only thing allowed to read it.
 void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
-	// Seed the cursor at DISABLED so the walk below is `mode` detents from 0 -- the same setup the
-	// "files OpenPerformanceView carrying the chosen mode" example uses, and for the same reason:
-	// `PerformEditorItem::on_focus` seeds the cursor from the mirror.
-	menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+	// The cursor starts at DISABLED, so the walk below is `mode` detents from 0: `PerformEditorItem::on_focus` seeds it
+	// from the view, and the caller's `seed_view_away_from` leaves `defaultEditingMode` false, which is DISABLED.
 	(void)r.open(nodes::perform_editor);
 	r.shell.tick(5);
 	for (int32_t i = 0; i < static_cast<int32_t>(mode); i++) {
@@ -462,11 +470,11 @@ void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
 
 /// @brief Save and restore the `stemExport` fields the `StartStemExport` group reads or moves.
 ///
-/// `exportMixdown` (`processing/stem_export/stem_export.h:66`) is what legacy's arranger arm
-/// branches on (`gui/menu_item/stem_export/start.h:35`) and is a user setting elsewhere, so an
-/// example that moves it must put it back. `processStarted` (`:53`) and `currentStemExportType`
-/// (`:55`) are the first two things `StemExport::runStemExportProcess` writes, and are how the group below says that no
-/// export was started.
+/// `exportMixdown` (`processing/stem_export/stem_export.h`) is what main's arranger arm branches on
+/// (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) and is a user setting
+/// elsewhere, so an example that moves it must put it back. `processStarted` and `currentStemExportType` are the first
+/// two things `StemExport::startStemExportProcess` (`processing/stem_export/stem_export.cpp`) writes
+/// (`currentStemExportType`, then `processStarted`), and are how the group below says that no export was started.
 struct StemExportGuard {
 	bool saved_mixdown = stemExport.exportMixdown;
 	bool saved_started = stemExport.processStarted;
@@ -499,21 +507,21 @@ struct GlobalGuestGuard {
 	}
 };
 
-/// @brief Open the ported menu at @p root on the ONE guest whose stack the dispatcher's close acts
+/// @brief Open the menu at @p root on the ONE guest whose stack the dispatcher's close acts
 ///        on, over @p song's context -- `GuestRig::open`, aimed at the global instead of a local.
 ///
 /// **This is the only thing in this file that touches `shellHostUI`, and it has to be.**
 /// `closePortedMenu` removes the menu scene from `shellHostUI.shell().stack()` (see
 /// `gui/ui/shell_action_dispatch.cpp`), because the guest is a singleton with one open site
-/// (`gui/ui/shell_menu_entry.cpp`) and this seam's sibling reads the same global for the same
-/// kind of question (`menuIsFrontmost`, `gui/ui/shell_guest_services.cpp`). A local
+/// (`gui/ui/menu_entry.cpp`) and this seam's sibling reads the same global for the same
+/// kind of question (`menuCurrent`, `gui/ui/shell_guest_services.cpp`). A local
 /// `GuestRig` has its own `Shell`, so its stack is not the one production empties -- an example
 /// built on one could only ever assert that nothing happened to it.
 ///
 /// The contamination `GuestRig`'s note warns about is the scene left behind, and `GlobalGuestGuard`
 /// is what answers it: every example using this leaves the global at depth 0, the state it was
 /// constructed in. `menu_entry_spec.cpp` drives the same global harder still, through
-/// `openUI(&shellHostUI)` (`:147`).
+/// `openUI(&shellHostUI)`.
 ///
 /// No `openUI` here, deliberately: this example needs the menu on the guest's *scene* stack, not the
 /// guest on `uiNavigationHierarchy`. Keeping it off means no `closeUI(&shellHostUI)` can run in this
@@ -539,12 +547,12 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 /// current could not tell a working guard from a broken one -- it would take the early return in
 /// both worlds and pass vacuously.
 ///
-/// `openUI(&shellHostUI)` is production's own call (`gui/ui/shell_menu_entry.cpp`) and
+/// `openUI(&shellHostUI)` is production's own call (`gui/ui/menu_entry.cpp`) and
 /// `menu_entry_spec.cpp` already drives the global this way. It runs `opened()` itself, so this
 /// does NOT call `opened()` first the way `open_global_guest` does -- doing both would push the
 /// initial scene twice.
 ///
-/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:261`),
+/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp`),
 ///          so with an empty hierarchy the guest lands at index 0 and becomes `getRootUI()` -- the
 ///          precondition `stemExportTypeForRootUI`'s note in `gui/ui/shell_action_dispatch.cpp`
 ///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
@@ -580,7 +588,7 @@ struct UiSpecificTimerGuard {
 /// example, so a two-step `has_value()` then `*chosen` turns a red assertion into a libstdc++
 /// `_M_is_engaged()` abort that takes the rest of the group with it -- measured, on the first
 /// mutation run of this group. `-1` is outside `StemExportType`'s four enumerators
-/// (`definitions_cxx.hpp:247-252`), so "nothing" compares unequal to every real answer rather than
+/// (`definitions_cxx.hpp`), so "nothing" compares unequal to every real answer rather than
 /// aliasing one.
 int chosen_stem_export_type() {
 	const std::optional<StemExportType> chosen = deluge::gui::ui::stemExportTypeForRootUI();
@@ -608,7 +616,7 @@ const std::array<Pairing, 4> kVerbs{{
 ///
 /// `display` is null in a spec process (`hid/display/display.cpp`), and
 /// `AudioClipView::setClipLengthEqualToSampleLength` dereferences it on **both** of its branches
-/// (`gui/views/audio_clip_view.cpp`, `:767`) -- so an example that drives that callee with no
+/// (`gui/views/audio_clip_view.cpp`) -- so an example that drives that callee with no
 /// `Display` installed segfaults rather than failing. `audio_clip_scene_spec.cpp`'s
 /// `QuietDisplay` is the same object with the popups thrown away; this one keeps them, because the
 /// popup is one of the two legacy effects this group asserts.
@@ -645,11 +653,11 @@ struct DisplayGuard {
 
 /// @brief One `MISC` action in an otherwise empty undo log, and an empty one again afterwards.
 ///
-/// Not a convenience: `ClipView::lengthenClip` opens with an **unguarded**
-/// `actionLogger.firstAction[BEFORE]->type` (`ClipView::lengthenClip`), as does `shortenClip`
-/// (`:129`), so driving a length edit with an empty log segfaults rather than failing.
-/// `audio_clip_scene_spec.cpp` records the same fact and picks the same `ActionType::MISC`,
-/// which no test in either function matches.
+/// Not a convenience: main's `ClipView::lengthenClip` and `shortenClip`
+/// (`origin/main:src/deluge/gui/views/clip_view.cpp`) read `actionLogger.firstAction[BEFORE]->type` **unguarded** in
+/// their `PATTERN_PASTE` tests, so a length edit with an empty log segfaults there rather than failing. One inert
+/// action puts both sides in the state the device is in by the time a length edit runs. `audio_clip_scene_spec.cpp`
+/// picks the same `ActionType::MISC`, which no test in either function matches.
 struct ActionLogGuard {
 	ActionLogGuard(const ActionLogGuard&) = delete;
 	ActionLogGuard& operator=(const ActionLogGuard&) = delete;
@@ -664,11 +672,11 @@ struct ActionLogGuard {
 ///
 /// By hand rather than by calling `sessionView.exitMidiLearnMode()`: that reaches
 /// `View::endMIDILearn`, whose first statement can write the settings
-/// file (`:500-503`) and whose fourth calls `getRootUI()->midiLearnFlash()` (`:507-509`) -- a
+/// file (`FlashStorage::writeSettings`) and whose fourth calls `getRootUI()->midiLearnFlash()` -- a
 /// teardown that does more than undo.
 ///
-/// `SessionView::gridModeActive` and `previousGridModeActive` are **private** (`session_view.h:231`,
-/// `:202`), so neither can be saved here nor asserted below; what an example after this one would
+/// `SessionView::gridModeActive` and `previousGridModeActive` are **private** (`session_view.h`,
+/// in the class), so neither can be saved here nor asserted below; what an example after this one would
 /// see of them is `SessionGridModeLaunch` and whatever it was. Stated rather than left to be found.
 struct MidiLearnGuard {
 	uint32_t saved_ui_mode = currentUIMode;
@@ -679,7 +687,7 @@ struct MidiLearnGuard {
 	MidiLearnGuard& operator=(const MidiLearnGuard&) = delete;
 	MidiLearnGuard() = default;
 	~MidiLearnGuard() {
-		uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH); // armed by `View::midiLearnFlash` (`:815`)
+		uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH); // armed by `View::midiLearnFlash`
 		view.shouldSaveSettingsAfterMidiLearn = saved_should_save;
 		view.thingPressedForMidiLearn = saved_pressed;
 		view.midiLearnFlashOn = saved_flash_on;
@@ -689,12 +697,12 @@ struct MidiLearnGuard {
 
 /// @brief A `Sample` with a length and nothing else.
 ///
-/// `audio_clip_scene_spec.cpp`'s `make_sample()` minus everything only the waveform scan
-/// reads (the cluster size and the overview cache): `SampleHolder::getLoopLengthAtSystemSampleRate`
-/// asks for `getDurationInSamples(/*forTimeStretching=*/true)`, which is `endPos - startPos` and
-/// never touches the `Sample` at all (`model/sample/sample_holder.cpp:81-92`). The object still has
-/// to exist, because `:106`'s `if (audioFile)` is what picks that branch over "return the clip's
-/// current length" (`:112`).
+/// `audio_clip_scene_spec.cpp`'s `make_sample()` minus everything only the waveform scan reads (the cluster size and
+/// the overview cache): `SampleHolder::getLoopLengthAtSystemSampleRate` asks for
+/// `getDurationInSamples(/*forTimeStretching=*/true)`, which is `endPos - startPos` and never touches the `Sample` at
+/// all (`SampleHolder::getEndPos` in `model/sample/sample_holder.cpp`). The object still has to exist, because
+/// `getLoopLengthAtSystemSampleRate`'s `if (audioFile)` is what picks that branch over "return the clip's current
+/// length".
 ///
 /// Placed in the deluge heap and never freed -- `support/song_fixture.h`'s own rule, for its reason.
 Sample* make_length_only_sample(uint64_t length_in_samples) {
@@ -716,9 +724,9 @@ constexpr uint64_t kSampleFrames = 44100 * 4;
 
 /// @brief An audio song whose one clip carries `kSampleFrames` of sample, seated as `currentSong`.
 ///
-/// @warning **Construct this AFTER the `Rig`**, or the `Rig`'s own `make_synth_song()` takes
-///          `currentSong` back and `Song::getCurrentAudioClip()` answers
-///          null inside the callee -- which it dereferences (`gui/views/audio_clip_view.cpp:759-760`).
+/// @warning **Construct this AFTER the `Rig`**, or the `Rig`'s own `make_synth_song()` takes `currentSong` back and
+///          `getCurrentAudioClip()` (`model/song/song.h`) answers null inside the callee -- which it dereferences
+///          (`AudioClipView::setClipLengthEqualToSampleLength` in `gui/views/audio_clip_view.cpp`).
 spec::AudioSongFixture seat_audio_clip_with_sample() {
 	spec::AudioSongFixture f = spec::make_audio_clip_song();
 
@@ -730,34 +738,33 @@ spec::AudioSongFixture seat_audio_clip_with_sample() {
 	f.clip->sampleHolder.endPos = static_cast<int64_t>(kSampleFrames);
 	// `SampleHolder::setAudioFile` normally computes this;
 	// the fixture attaches by hand, so it is set by hand. `kMaxSampleValue` is the identity for
-	// `getLengthInSamplesAtSystemSampleRate` (`:94-102`) -- and a **SIGFPE** at zero.
+	// `getLengthInSamplesAtSystemSampleRate` -- and a **SIGFPE** at zero.
 	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 
 	// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
-	// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
-	// (`model/song/song.cpp:3224-3226`), and `getLoopLengthAtSystemSampleRate` divides by it
-	// (`model/sample/sample_holder.cpp:105-113`) -- so the computed length would be **zero** and
-	// `adjustLoopLength` would write nothing while every assertion about "a popup happened" still
-	// passed. `audio_clip_scene_spec.cpp` found that the hard way; this is its arithmetic,
-	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3083-3092`) rather than by
-	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
+	// `project.transport.samples_per_timer_tick_big` makes `Song::getTimePerTimerTickFloat()` answer 2^32
+	// (`model/song/song.cpp`), and `SampleHolder::getLoopLengthAtSystemSampleRate` divides by
+	// `playbackHandler.getTimePerInternalTickFloat()`, which reads it (`model/sample/sample_holder.cpp`) -- so the
+	// computed length would be **zero** and `adjustLoopLength` would write nothing while every assertion about "a popup
+	// happened" still passed. `audio_clip_scene_spec.cpp` found that the hard way; this is its arithmetic, 120 BPM
+	// through `Song::setBPMInner`'s own formula (`model/song/song.cpp`) rather than by calling it, because
+	// `setTempoFromNumSamples` reaches a transport this process does not have.
 	const double bpm = 120.0 * static_cast<double>(1u << f.song->project.transport.inside_world_tick_magnitude);
 	f.song->project.transport.samples_per_timer_tick_big = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
 	return f;
 }
 
-// --- the four `PerformanceView` sites that move the mirrored bools --------------------
+// --- the `PerformanceView` gestures that move its editing mode --------------------------
 
 /// @brief A `RootUI` that claims nothing, seated UNDER `performanceView` so the two `buttonAction`
 ///        arms that `close()` have somewhere to close *to*.
 ///
-/// `closeUI` walks down from `numUIsOpen - 1` while `u >= 1` and then reads
-/// `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:207-229`, the loop at `:213` and the read at
-/// `:194`), so closing the only open UI indexes `[-1]` -- the fact `UiStackGuard`'s note above
-/// already records for `closeUI`. Seating this at index 0 with `openUI(&performanceView)` on top
-/// makes `close()` an in-bounds close onto an object with no behaviour of its own; `focusRegained`
-/// is the only method `closeUI` calls on it (`:196`) and `UI` leaves it empty.
-/// `midi_learn_spec.cpp`'s `StubRootUI` is the same object, built for the same reason.
+/// `closeUI` walks down from `numUIsOpen - 1` while `u >= 1` and then reads `uiNavigationHierarchy[u - 1]` (main's
+/// `closeUI` in `origin/main:src/deluge/gui/ui/ui.cpp`, the loop and then the read of the entry below), so closing the
+/// only open UI indexes `[-1]` there -- the fact `UiStackGuard`'s note above records for `closeUI`; ours returns early
+/// at `u < 1`. Seating this at index 0 with `openUI(&performanceView)` on top makes `close()` an in-bounds close onto
+/// an object with no behaviour of its own; `focusRegained` is the only method `closeUI` calls on it and `UI` leaves it
+/// empty. `midi_learn_spec.cpp`'s `StubRootUI` is the same object, built for the same reason.
 class PerformExitStubUI final : public RootUI {
 public:
 	ActionResult buttonAction(deluge::hid::Button, bool) override { return ActionResult::DEALT_WITH; }
@@ -772,23 +779,23 @@ PerformExitStubUI& perform_exit_stub() {
 
 /// @brief Save and restore everything OUTSIDE the two bools that this group's gestures move.
 ///
-/// `PerformViewGuard` above owns the two bools and the mirror; this owns the rest of the state the
-/// four legacy sites are reached through. Each field is named with the site that needs it:
+/// `PerformViewGuard` above owns the two bools; this owns the rest of the state the view's gestures
+/// are reached through. Each field is named with the site that needs it:
 ///
-///   * `currentUIMode` -- the CLIP_VIEW arm of `PerformanceView::buttonAction` tests it, and `close()`
-///     and `changeRootUI` both unset `TimerName::UI_SPECIFIC` on the way past.
-///   * `lastClipInstanceEnteredStartPos` -- picks which root a KEYBOARD exit changes to
-///     (`:960-971`), and is what lets the CLIP_VIEW arm skip `transitionToViewForClip()` (`:750-752`).
-///   * `sessionLayout` -- the grid arm of `padAction` (`:1081`).
-///   * `affectEntire` -- `PerformanceView::focusRegained` writes it unconditionally (`:329`), and
+///   * `currentUIMode` -- the CLIP_VIEW arm tests it (`PerformanceView::buttonAction` in `performance_view.cpp`), and
+///     `close()` and `changeRootUI` both unset `TimerName::UI_SPECIFIC` on the way past.
+///   * `lastClipInstanceEnteredStartPos` -- picks which root a KEYBOARD exit changes to (in the KEYBOARD release arm),
+///     and is what lets the CLIP_VIEW arm skip `transitionToViewForClip()` (the `== -1` test there).
+///   * `sessionLayout` -- the grid arm of `padAction`.
+///   * `affectEntire` -- `PerformanceView::focusRegained` writes it unconditionally, and
 ///     `openUI` runs that.
-///   * `timeKeyboardShortcutPress` -- the KEYBOARD *release* arm's own gate (`:973-977`).
-///   * `AudioEngine::audioSampleTimer` -- the other half of that gate's arithmetic (`:976`).
-///   * shift -- `Buttons::isShiftButtonPressed()` chooses between the
-///     KEYBOARD arm's two halves (`:923`). Pressed with `commandToggleShift(true)` and released with
-///     `Buttons::clearShiftSticky()`, which clears `shiftCurrentlyPressed`
-///     outright -- `commandToggleShift(false)` would instead run the sticky-shift arithmetic
-///     (`:248-269`) and can leave shift *stuck on* for the next example.
+///   * `timeKeyboardShortcutPress` -- the KEYBOARD *release* arm's own gate (`PerformanceView::buttonAction`).
+///   * `AudioEngine::audioSampleTimer` -- the other half of that gate's arithmetic.
+///   * shift -- `Buttons::isShiftButtonPressed()` chooses between the KEYBOARD arm's two halves
+///     (`PerformanceView::buttonAction`). Pressed with `commandToggleShift(true)` and released with
+///     `Buttons::clearShiftSticky()`, which clears `shiftCurrentlyPressed` outright -- `commandToggleShift(false)`
+///     would instead run the sticky-shift arithmetic (in `hid/buttons.cpp`) and can leave shift *stuck on* for the next
+///     example.
 struct PerformGestureGuard {
 	uint32_t saved_ui_mode = currentUIMode;
 	int32_t saved_entered_pos = currentSong->persistentView.lastClipInstanceEnteredStartPos;
@@ -814,36 +821,31 @@ struct PerformGestureGuard {
 	}
 };
 
-/// @brief Seat the stub root, open the real `performanceView` on top of it, put the two bools at
-///        @p default_mode / @p editing_param, and park the mirror at @p stale.
+/// @brief Seat the stub root, open the real `performanceView` on top of it, and put the two bools at
+///        @p default_mode / @p editing_param.
 ///
-/// The mirror is seeded to a value the gesture must move it OFF, and every example asserts it is
-/// sitting there before the gesture -- which is what stops a green from being a residue of the
-/// example before. There is no control leg in this group and no honest way to build one: the call
-/// under test is a statement *inside* `PerformanceView`, not a separate call the example could
-/// choose to omit the way `menu_action_open_perform`'s control omits `dispatchShellActions()`. The
-/// counterpart here is the deletion mutation.
-void enter_perform_view(bool default_mode, bool editing_param, PerformanceEditingMode stale) {
+/// Every example asserts the fact answers that seed before its gesture, so no green after the gesture is a residue of
+/// the example before.
+void enter_perform_view(bool default_mode, bool editing_param) {
 	currentUIMode = UI_MODE_NONE;
 	setRootUILowLevel(&perform_exit_stub());
 	(void)openUI(&performanceView);
 	performanceView.defaultEditingMode = default_mode;
 	performanceView.editingParam = editing_param;
-	menu::set_performance_editing_mode(stale);
 }
 
-/// @brief The mirror and `readCurrentValue`'s answer for the view as it stands, as one value.
+/// @brief The host's `RuntimeFacts::performance_editing_mode()` and `readCurrentValue`'s answer for the view as it
+///        stands, as one value.
 ///
-/// Both, deliberately, and each example compares the pair against a LITERAL mode.
-/// `performance_editing_mode() == mode_from_view()` on its own says the two agree but not on what,
-/// and stays green with `VALUE` and `PARAM` swapped on both sides -- the literal is what pins the
-/// mapping (they are easy to swap). A free function rather than two `expect` calls in a helper,
-/// because `expect` is `ItBase::expect` and only exists inside an example.
-std::array<int, 2> mirror_and_view() {
-	return {static_cast<int>(menu::performance_editing_mode()), static_cast<int>(mode_from_view())};
+/// Both, deliberately, and each example compares the pair against a LITERAL mode: the two agreeing says nothing about
+/// what they agree on, and stays green with `VALUE` and `PARAM` swapped on both sides. A free function rather than two
+/// `expect` calls in a helper, because `expect` is `ItBase::expect` and only exists inside an example.
+std::array<int, 2> fact_and_view() {
+	return {static_cast<int>(menu::host_runtime_facts().performance_editing_mode()),
+	        static_cast<int>(mode_from_view())};
 }
 
-/// @brief `mirror_and_view()`'s answer when both halves are @p mode -- the expected value.
+/// @brief `fact_and_view()`'s answer when both halves are @p mode -- the expected value.
 /// (`both` on its own is ambiguous against a name the spec headers already pull in.)
 std::array<int, 2> both_at(PerformanceEditingMode mode) {
 	return {static_cast<int>(mode), static_cast<int>(mode)};
@@ -852,11 +854,11 @@ std::array<int, 2> both_at(PerformanceEditingMode mode) {
 /// @brief The `ScreensaverMode` values the ported enum item can hold, as the item's own cursor
 ///        indices.
 ///
-/// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE,
-/// DELUGE }` (`definitions_cxx.hpp:1108`), and `nodes::kScreensaverModeNames`
-/// (`scenes/menu/nodes/settings.h`) lists the four strings in that order, as
-/// `ScreensaverModeMenu::getOptions`' own `@warning` requires (`defaults/screensaver.h:42-43`).
-/// Spelled as cursor indices because what the examples drive is a cursor.
+/// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE }`
+/// (`definitions_cxx.hpp`), and `nodes::kScreensaverModeNames` (`scenes/menu/nodes/settings.h`) lists the four
+/// strings in that order, as `ScreensaverModeMenu::getOptions`' own `@warning` requires
+/// (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`). Spelled as cursor indices because what the examples
+/// drive is a cursor.
 constexpr int32_t kModeOffIndex = 0;
 constexpr int32_t kModeDelugeIndex = 3;
 
@@ -864,10 +866,10 @@ constexpr int32_t kModeDelugeIndex = 3;
 ///
 /// Three process globals plus one timer. The two `FlashStorage` fields and the **global**
 /// `shellHostUI`'s idle period are the same three `boot_wiring_spec.cpp`'s `ScreensaverSettings`
-/// guards (`:56-66`), for the same reason: twenty-odd specs share this process. The fourth is
+/// guards, for the same reason: twenty-odd specs share this process. The fourth is
 /// `TimerName::SCREENSAVER`, which `Screensaver::settingsChanged()` arms -- put back by unsetting it
 /// rather than by restoring `Timer`'s two fields, because `UITimerManager::timeNextEvent` is a
-/// private cache only `unsetTimer` recomputes (`gui/ui_timer_manager.cpp:274-277`). That is
+/// private cache only `unsetTimer` recomputes (`gui/ui_timer_manager.cpp`). That is
 /// `menu_entry_spec.cpp`'s teardown, verbatim.
 struct ScreensaverGuard {
 	ScreensaverMode mode = FlashStorage::screensaverMode;
@@ -890,9 +892,9 @@ struct ScreensaverGuard {
 ///        is unarmed.
 ///
 /// `menu_entry_spec.cpp`'s helper, verbatim and for the same reason: `setTimer` stores
-/// `AudioEngine::audioSampleTimer + ms * 44` (`gui/ui_timer_manager.cpp:252-259`), so the arm is read
+/// `AudioEngine::audioSampleTimer + ms * 44` (`gui/ui_timer_manager.cpp`), so the arm is read
 /// back by undoing that. Nothing in this group advances the sample clock, so the read is exact rather
-/// than approximate -- `menu_action_perform_mirror` is the only group in this file that moves
+/// than approximate -- `menu_action_perform_fact` is the only group in this file that moves
 /// `audioSampleTimer`, and it runs after all of these.
 int32_t legacy_armed_ms() {
 	const Timer& t = uiTimerManager.getTimer(TimerName::SCREENSAVER);
@@ -919,7 +921,7 @@ void seed_screensaver(ScreensaverMode mode, uint8_t minutes) {
 /// `ScreensaverTimeout` overrides `shouldEnterSubmenu()`, so legacy enters both --
 /// `MenuItem::shouldEnterSubmenu`), then one detent per tick. The write happens on the turn, where
 /// legacy's does: `Value<T>::selectEncoderAction` calls `writeCurrentValue()`
-/// (`gui/menu_item/value.h:64-69`), which both items override.
+/// (`origin/main:src/deluge/gui/menu_item/value.h`), which both items override.
 ///
 /// @param enum_item true for `screensaver_mode` (whose cursor is `MenuState::enum_index`), false for
 ///        `screensaver_timeout` (whose value is `edit_int`).
@@ -1019,14 +1021,14 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 	});
 
 	it("opened as a root, files NOTHING -- there was no press", _ {
-		// **A deep link files nothing, and that is the point.** Filing the action on a `SceneId::arg`
-		// deep link onto one of these items would be the port firing `selectButtonPress` with no
-		// press behind it. Legacy cannot: it never
-		// navigates into these items at all (`shouldEnterSubmenu() == false`,
-		// `gui/ui/sound_editor.cpp:420-423`), so the only way to reach the body is a press on the
+		// **A deep link files nothing, and that is the point.** Filing the action on a `SceneId::arg` deep link onto
+		// one of these items would be the port firing `selectButtonPress` with no press behind it. Main cannot: it
+		// never navigates into these items at all (`shouldEnterSubmenu() == false`, `SoundEditor::buttonAction` in
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`), so the only way to reach the body is a press on the
 		// parent's row, and `Toggle` -- the same shape -- guards the other way in explicitly
-		// (`gui/menu_item/toggle.h:35-37`). `ValueSession::enter_leaf`'s `FocusCause` is that
-		// discriminator and `CustomItem::on_focus_is_press` is its scope.
+		// (`Toggle::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/toggle.h`).
+		// `ValueSession::enter_leaf`'s `FocusCause` is that discriminator and `CustomItem::on_focus_is_press` is its
+		// scope.
 		//
 		// A deep link onto one of these therefore shows the item's own title and does nothing --
 		// which is still the one path `ActionItem::render` is reached by, so it is still pinned
@@ -1091,7 +1093,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 			Rig r;
 			const MenuActionRequest got = press_child(r, *p.parent, *p.node);
 			expect(got.engaged()).to_be_true();
-			// Legacy's `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:420-423`): the item
+			// Main's `shouldEnterSubmenu() == false` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the item
 			// is never navigated into. The port descends for the width of one `after_render` and
 			// ascends inside it, so by the time the tick is over the parent is focused again.
 			expect(scene().focused()).to_equal(p.parent);
@@ -1134,13 +1136,13 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		}
 	});
 
-	it("seeds its cursor from the mirrored mode, the way beginSession seeds from the view", _ {
+	it("seeds its cursor from the performance view's mode, as beginSession does", _ {
 		select_language();
 		PerformViewGuard guard;
 		for (const auto mode :
 		     {PerformanceEditingMode::DISABLED, PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {
 			Rig r;
-			menu::set_performance_editing_mode(mode);
+			set_view_mode(mode);
 			(void)r.open(nodes::perform_editor);
 			r.shell.tick(10);
 			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
@@ -1152,11 +1154,11 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		set_view_mode(PerformanceEditingMode::DISABLED);
 		(void)r.open(nodes::perform_editor);
 		r.shell.tick(10);
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(0);
-		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM); // changed outside the menu
+		set_view_mode(PerformanceEditingMode::PARAM); // changed outside the menu
 		scene().read_value_again();
 		expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1167,7 +1169,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		for (const auto mode : {PerformanceEditingMode::VALUE, PerformanceEditingMode::PARAM}) {
 			PerformViewGuard guard;
 			Rig r;
-			menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+			set_view_mode(PerformanceEditingMode::DISABLED);
 			(void)r.open(nodes::perform_editor);
 			r.shell.tick(5);
 			for (int32_t i = 0; i < static_cast<int32_t>(mode); i++) {
@@ -1180,9 +1182,10 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 			const MenuActionRequest got = scene().take_action();
 			expect(got.action).to_equal(MenuAction::OpenPerformanceView);
 			expect(static_cast<int>(got.arg)).to_equal(static_cast<int>(mode));
-			// `:55-60` -- the press is what writes the two bools legacy keeps on the view.
-			expect(static_cast<int>(menu::performance_editing_mode())).to_equal(static_cast<int>(mode));
-			// `:73` -- `NO_NAVIGATION`: legacy does not leave this page.
+			// The cursor stays on the chosen mode; the dispatcher, not the press, writes the view's two bools.
+			expect(static_cast<int>(scene().state().list[0].cursor)).to_equal(static_cast<int>(mode));
+			expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::DISABLED));
+			// `NO_NAVIGATION` (`EditingMode::selectButtonPress`): main does not leave this page.
 			expect(scene().focused()).to_equal(&nodes::perform_editor);
 		}
 	});
@@ -1191,7 +1194,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		const MenuContext ctx = r.open(nodes::root_performance);
 		const int32_t index = visible_index_of(nodes::root_performance, nodes::perform_editor, ctx);
 		expect(index).to_equal(0);
@@ -1211,16 +1214,15 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 
 		expect(scene().take_action().engaged()).to_be_false();
 		expect(scene().focused()).to_equal(&nodes::root_performance);
-		// And the mirror is untouched -- legacy's DISABLED arm writes nothing either.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
+		// And the view is untouched: main's DISABLED arm writes nothing either.
+		expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
 	});
 
 	it("files nothing across twenty quiet ticks while sitting on a non-DISABLED option", _ {
 		select_language();
 		PerformViewGuard guard;
 		Rig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::PARAM);
+		set_view_mode(PerformanceEditingMode::PARAM);
 		(void)r.open(nodes::perform_editor);
 		for (uint32_t t = 0; t < 20; t++) {
 			r.shell.tick(10 + t * 10);
@@ -1268,31 +1270,52 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("files the file selector's opening, which leaves the keyboard's audition mode", _ {
-		// `FileSelector::openBrowser` (`menu_item/file_selector.cpp`): with the keyboard at the root and a note
-		// auditioning, opening the file selector stops it; anywhere else it does nothing.
+	it("the file selector's opening leaves the keyboard's audition mode at once, and files nothing", _ {
+		// `FileSelector::beginSession`: with the keyboard at the root and a note auditioning, opening the file selector
+		// stops it before the browser opens; anywhere else it does nothing.
 		select_language();
-		menu::MenuState state{};
-		const menu::MenuContext ctx{};
-		nodes::file0_selector.custom->on_focus(ctx, state);
-		expect(state.walk.pending_action.action).to_equal(MenuAction::FileSelectorOpened);
-
 		UiStackGuard ui_guard;
+		const menu::MenuContext ctx{};
+
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
-		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
-
-		(void)scene().after_render(); // the tick's after-render posts the filed action to the outbox
-		deluge::gui::ui::dispatchShellActions();
+		menu::MenuState state{};
+		nodes::file0_selector.custom->on_focus(ctx, state);
 		expect(currentUIMode).not_().to_equal(UI_MODE_AUDITIONING);
+		expect(state.walk.pending_action.engaged()).to_be_false();
 
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;
-		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
+		menu::MenuState other{};
+		nodes::file0_selector.custom->on_focus(ctx, other);
 		expect(currentUIMode).to_equal(UI_MODE_AUDITIONING);
 		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("drops a request the closing guest's last input filed, so no later tick performs it", _ {
+		// `ShellHostUI::closeGuest` feeds the input that arrived since the last tick before it closes. A select press
+		// in it files its action on the way out, and the menu that would have acted is going.
+		select_language();
+		UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false,
+		                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,
+		                                          /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(nodes::stem_export, ctx);
+		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::stem_export)});
+		setRootUILowLevel(&instrumentClipView);
+		expect(openUI(&shellHostUI)).to_be_true();
+		(void)shellHostUI.timerCallback(); // settle the first frame
+		(void)scene().take_action();
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		shellHostUI.closeNow();
+
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(scene().take_action().engaged()).to_be_false();
 	});
 
 	it("takes nothing when nothing was filed, and does not eat the next request", _ {
@@ -1347,135 +1370,67 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	});
 });
 
-describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSettingsChanged", $ {
-	// An arm filed by a **value write** rather than by a select
-	// press: two hooks
-	// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) file **one** enumerator,
-	// because legacy's own notify takes no argument.
+describe menu_action_screensaver("the screensaver setters -- host_screensaver_settings_changed", $ {
+	// Both setters (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`) store their `FlashStorage`
+	// global and then call `menu::host_screensaver_settings_changed()`, which is main's `Screensaver::settingsChanged()`:
+	// the second statement of both items' `writeCurrentValue`. That one call moves both screensavers, so every example
+	// reads both: `shellHostUI.shell().screensaver_idle_ms()` is the guest's `shell::Screensaver` period and
+	// `legacy_armed_ms()` is `TimerName::SCREENSAVER`, which the call re-arms, or unsets for `ScreensaverMode::OFF`.
 	//
-	// **The defect, in user terms.** The ported
-	// setters write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves, so
-	// nothing is ever lost at power-off. What they cannot do is the *other* statement of
-	// `ScreensaverModeMenu::writeCurrentValue` / `ScreensaverTimeout::writeCurrentValue`
-	// (`gui/menu_item/defaults/screensaver.h:40`, `:62`) --
-	// `hid::display::Screensaver::settingsChanged()`, which is `hid/` and so unreachable from
-	// `src/scenes`. So a user who set the timeout to nine minutes from the ported menu would get a
-	// screensaver that still came on at five, on **both** screensavers, until the next reboot or the
-	// next edit made from the legacy menu. **Every control leg below is that bug**, reproduced
-	// deliberately: same rig, same gesture, minus `dispatchShellActions()` -- and each asserts the
-	// `FlashStorage` field DID move while neither screensaver did, which is the shape of the defect
-	// rather than merely "nothing happened".
+	// **The global `shellHostUI`, even where the rig has a guest of its own.** `settingsChanged()` names that object,
+	// the firmware's one guest, so the global is what the call moves and what these examples read. `ScreensaverGuard`
+	// puts it back.
 	//
-	// **Both screensavers are read, on every leg, because one call is supposed to move both.**
-	// `shellHostUI.shell().screensaver_idle_ms()` is the ported `shell::Screensaver`'s copy, pushed
-	// by `settingsChanged()` at `hid/display/screensaver.cpp:225-228`; `legacy_armed_ms()` is
-	// `TimerName::SCREENSAVER`, which the same function re-arms at `:240` or cancels at `:235-238`.
-	// An arm that updated only one of the two would leave the other at the seeded value and redden.
+	// **Not covered: `settingsChanged()`'s wake-if-showing branch.** While the guest is the current UI,
+	// `Screensaver::timerEvent()` stands the legacy screensaver down instead of activating it, so it cannot be showing
+	// while a menu row is turned. `menu_entry_spec.cpp`'s `menu_entry_screensaver` group pins that stand-down.
 	//
-	// **The global `shellHostUI`, deliberately, even where the rig has a guest of its own.**
-	// `settingsChanged()` names that object by name (`:225`) -- there is exactly one guest in the
-	// firmware -- so the global is what the production call moves and the global is what these
-	// examples read. `ScreensaverGuard` puts it back.
-	//
-	// **What is NOT covered: `settingsChanged()`'s wake-if-showing branch (`:230-233`) from this
-	// arm.** It is unreachable through this route rather than merely untested, and the reason is
-	// this: while the guest is the current UI, `Screensaver::timerEvent()` stands the legacy
-	// screensaver down instead of activating it (`hid/display/screensaver.cpp:132-139`), so it cannot
-	// be showing at the moment a ported menu row is being turned. That early return is pinned by a
-	// different file -- `menu_entry_spec.cpp`'s `menu_entry_screensaver` group, which drives the real
-	// `entry::openShellMenu` and asserts the stand-down wakes it and re-arms at the FULL idle period.
-	//
-	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn
-	// (`ui/oled/values.cpp`'s `select_delta`), as legacy reaches BOTH items' `writeCurrentValue` from
-	// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:64-69`). `Rig` can drive either,
-	// because it feeds board encoder indices straight into a `Shell`. `ShellHostUI` routes a gold
-	// turn to the knobs' service rather than to the menu (`@par The gold knobs` in
-	// `gui/ui/shell_host_ui.h`), so the guest-tick composition example below turns the mode item.
+	// **Two items, one encoder.** `enum_value` and `int_value` both edit on the select turn (`ui/oled/values.cpp`'s
+	// `select_delta`), as main reaches both items' `writeCurrentValue` from `Value<T>::selectEncoderAction`. `Rig`
+	// feeds board encoder indices straight into a `Shell`; `ShellHostUI` routes a gold turn to the knobs' service rather
+	// than to the menu, so the guest example turns the mode item.
 
-	it("changing the timeout re-arms both screensavers, with no reboot", _ {
+	it("changing the timeout re-arms both screensavers at the write, with no reboot", _ {
 		select_language();
 		ScreensaverGuard guard;
-
-		{
-			// The control, and it differs in EXACTLY ONE CALL: no `dispatchShellActions()`.
-			seed_screensaver(ScreensaverMode::DELUGE, 5);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
-			expect(legacy_armed_ms()).to_equal(int32_t(300000));
-
-			Rig control;
-			expect(choose_screensaver(control, nodes::screensaver_timeout, false, 9)).to_equal(int32_t(9));
-
-			// The setting IS stored -- the half that always worked. Asserting it is what makes the
-			// two below a *notify* failure rather than a write failure.
-			expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(9);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
-			expect(legacy_armed_ms()).to_equal(int32_t(300000));
-			// ...and the write really did file, so the subject's effect is about the arm and not
-			// about a turn that never reached the hook.
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
-			expect(static_cast<int>(filed.arg)).to_equal(0);
-		}
-
-		// Seeded at the value the answer is NOT, on both screensavers, so neither assertion below
-		// can pass on a number that was already there.
+		// Seeded at the value the answer is not, on both screensavers.
 		seed_screensaver(ScreensaverMode::DELUGE, 5);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
+		expect(legacy_armed_ms()).to_equal(int32_t(300000));
+
 		Rig r;
 		expect(choose_screensaver(r, nodes::screensaver_timeout, false, 9)).to_equal(int32_t(9));
-		deluge::gui::ui::dispatchShellActions();
 
-		// Nine minutes, on both -- `arm()`'s `screensaverTimeoutMinutes * kMillisecondsPerMinute`
-		// (`hid/display/screensaver.cpp:81-83`) and the identical formula the port is handed
-		// (`:225-228`).
+		// Nine minutes, on both: `arm()`'s `screensaverTimeoutMinutes * kMillisecondsPerMinute` and the identical formula
+		// the guest is handed. Nothing waits for a dispatcher.
+		expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(9);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(540000));
 		expect(legacy_armed_ms()).to_equal(int32_t(540000));
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("the mode setter files the SAME request, and OFF cancels the legacy timer where a mode arms it", _ {
-		// The second half of "one enumerator covers both setters", and the branch of
-		// `settingsChanged()` the timeout example cannot reach. The timeout is held at 5 on every
-		// leg, so the only thing varying is the mode.
+	it("the mode setter re-arms both the same way, and OFF cancels the legacy timer where a mode arms it", _ {
+		// The timeout is held at 5 on every leg, so only the mode varies.
 		select_language();
 		ScreensaverGuard guard;
 
-		{
-			seed_screensaver(ScreensaverMode::OFF, 5);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-
-			Rig control;
-			expect(choose_screensaver(control, nodes::screensaver_mode, true, kModeDelugeIndex))
-			    .to_equal(kModeDelugeIndex);
-
-			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-			// The same enumerator the timeout setter files, and the same empty payload. This is what
-			// "one enumerator, two setters" is asserted by rather than merely claimed.
-			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
-			expect(static_cast<int>(filed.arg)).to_equal(0);
-		}
-
-		// OFF -> DELUGE: both screensavers come on, at the timeout that was already stored.
+		// OFF -> DELUGE: both screensavers come on, at the timeout already stored.
 		seed_screensaver(ScreensaverMode::OFF, 5);
+		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
+		expect(legacy_armed_ms()).to_equal(int32_t(-1));
 		{
 			Rig r;
 			expect(choose_screensaver(r, nodes::screensaver_mode, true, kModeDelugeIndex)).to_equal(kModeDelugeIndex);
-			deluge::gui::ui::dispatchShellActions();
 		}
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
 		expect(legacy_armed_ms()).to_equal(int32_t(300000));
 
-		// ...and back to OFF, which is `settingsChanged()`'s other branch: the legacy timer is UNSET
-		// rather than re-armed (`hid/display/screensaver.cpp:235-238`) and the port spells the same
-		// thing as `idle_ms == 0` (`:225-227`). Without this leg an arm that only ever armed would
-		// pass the example above.
+		// ...and back to OFF, `settingsChanged()`'s other branch: the legacy timer is unset rather than re-armed, and the
+		// guest spells the same thing as `idle_ms == 0`. Without this leg a call that only ever armed would pass.
 		{
 			Rig r;
 			expect(choose_screensaver(r, nodes::screensaver_mode, true, kModeOffIndex)).to_equal(kModeOffIndex);
-			deluge::gui::ui::dispatchShellActions();
 		}
 		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::OFF);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
@@ -1483,36 +1438,29 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("does NOT ascend: the user is left standing on the item, as legacy leaves them", _ {
-		// `MenuScene::after_render`'s `switch`, for `ScreensaverSettingsChanged`. Legacy enters both of
-		// these items -- neither overrides `shouldEnterSubmenu()` -- and `writeCurrentValue` runs on
-		// every detent while the user stands there, so an ascend would close the page under them on
-		// the first turn.
+	it("does not ascend: the user is left standing on the item, as main leaves them", _ {
+		// Main enters both items -- neither overrides `shouldEnterSubmenu()` -- and `writeCurrentValue` runs on every
+		// detent while the user stands there, so leaving the page on the first turn would close it under them.
 		select_language();
 		ScreensaverGuard guard;
 		seed_screensaver(ScreensaverMode::DELUGE, 5);
 
 		Rig r;
 		expect(choose_screensaver(r, nodes::screensaver_timeout, false, 7)).to_equal(int32_t(7));
-		deluge::gui::ui::dispatchShellActions();
-		// The first detent really applied, so the second one below is a second apply and not the
-		// first one arriving late.
 		expect(legacy_armed_ms()).to_equal(int32_t(420000));
 		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
-		// And a second detent still lands, which an ascend would have made impossible. `int_value`
-		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
+		// A second detent still lands, which leaving the page would have made impossible.
 		r.turn(1, 200);
 		r.shell.tick(210);
-		deluge::gui::ui::dispatchShellActions();
 		expect(scene().state().edit_int).to_equal(int32_t(8));
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(480000));
 		expect(legacy_armed_ms()).to_equal(int32_t(480000));
 		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 	});
 
-	it("files nothing at all until the value is turned -- opening and descending are quiet", _ {
+	it("re-arms nothing until the value is turned -- opening and descending are quiet", _ {
 		// The other side of "a write, not a press". Walking onto the item and pressing into it is
 		// what a user does before choosing anything, and it must not re-arm anybody's screensaver.
 		select_language();
@@ -1541,48 +1489,22 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(legacy_armed_ms()).to_equal(armed);
 	});
 
-	it("reaches both screensavers through the guest's own tick, with nothing calling the dispatcher by name", _ {
-		// The composition, end to end: a real `ShellHostUI` over the real `scene_registry()`, a real
-		// select-encoder turn through the guest's own hook, and the guest's own `timerCallback()` --
-		// which is the only thing here that could apply anything. `dispatchShellActions` is never
-		// named.
+	it("reaches both screensavers through the guest's own input hook and tick", _ {
+		// The composition end to end: a real `ShellHostUI` over the real `scene_registry()`, a real select-encoder turn
+		// through the guest's own hook, and the guest's own `timerCallback()`. The rig's guest is a local `ShellHostUI`
+		// (see `GuestRig`) and the object `settingsChanged()` pushes into is the global `shellHostUI`: in the firmware
+		// they are one object, so here the local one routes the input and the global one records the result.
 		//
-		// The two legs vary ONE THING -- shell tick vs guest tick -- the arrangement
-		// `menu_action_open_perform`'s guest example uses and for the same reason.
-		//
-		// The rig's guest is a LOCAL `ShellHostUI` (see `GuestRig`), and the object
-		// `settingsChanged()` pushes into is the GLOBAL `shellHostUI` (`:225`). That is not a
-		// divergence being papered over: the firmware has exactly one guest, so in the shipped build
-		// these are the same object. Here the local one routes the input and the global one records
-		// the result, which is why both legs read the global.
-		//
-		// **The MODE item, not the timeout one, and that is forced rather than chosen** -- see the
-		// group's note on the gold knobs. `OFF -> BLANK` is the change that is observable on both
-		// screensavers without touching the timeout, which stays at 5 throughout.
+		// The mode item, `OFF -> BLANK`: the change both screensavers show without touching the timeout, which stays at
+		// 5 throughout.
 		select_language();
 		ScreensaverGuard guard;
 
-		{
-			GuestRig control;
-			seed_screensaver(ScreensaverMode::OFF, 5);
-			expect(control.open(nodes::screensaver_mode)).to_be_true();
-			control.ui.shell().tick(5);
-			control.turn_select(1);
-			control.ui.shell().tick(20);
-
-			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::BLANK);
-			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
-			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-			expect(scene().take_action().action).to_equal(MenuAction::ScreensaverSettingsChanged);
-		}
-
 		GuestRig r;
 		seed_screensaver(ScreensaverMode::OFF, 5);
-		// Opened AT the item rather than walked into, because `GuestRig` has no row-press helper for
-		// a submenu row -- the same substitution the shortcut-version guest example makes.
 		expect(r.open(nodes::screensaver_mode)).to_be_true();
-		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
-		expect(scene().take_action().engaged()).to_be_false();
+		(void)r.ui.timerCallback(); // settle the first frame
+		expect(legacy_armed_ms()).to_equal(int32_t(-1));
 		r.turn_select(1);
 		(void)r.ui.timerCallback();
 
@@ -1592,6 +1514,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
+
 describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerformanceView", $ {
 	// The first arm with a body, and the only group in this file that asserts a legacy
 	// EFFECT rather than a filed request. It is the real dispatcher over the real `performanceView`
@@ -1606,9 +1529,9 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 	//     assertion the `!editingParam` guard is pinned by, and it is pinned in BOTH directions:
 	//     VALUE must clear it and PARAM must leave it standing, so inverting the guard reddens both
 	//     examples on the line that names the reset rather than on the line that names the open;
-	//   * **the open** -- `isUIOpen(&performanceView)`, and NOT `getCurrentUI()`, which answers
-	//     `lastUIBeforeNullifying` on an empty hierarchy (`gui/ui/ui.cpp:166-170`) and so cannot
-	//     tell "opened" from "an earlier example left this behind".
+	//   * **the open** -- `isUIOpen(&performanceView)`, and NOT `getCurrentUI()`, which names only the top of the stack
+	//     (`emptyStackUI` on an empty one, `gui/ui/ui.cpp`; main's answers `lastUIBeforeNullifying`,
+	//     `origin/main:src/deluge/gui/ui/ui.cpp`) and so cannot say whether the view is open anywhere in the stack.
 	//
 	// Every example has a control leg that asserts the request really is sitting in the outbox, so no
 	// subject's green can come from a press that filed nothing. What separates control from subject
@@ -1652,7 +1575,8 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		press_perform_mode(r, PerformanceEditingMode::VALUE);
 		deluge::gui::ui::dispatchShellActions();
 
-		// `editing_mode.h:55-58` -- the VALUE branch.
+		// `EditingMode::selectButtonPress`
+		// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) -- the VALUE branch.
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_false();
 		// `EditingMode::selectButtonPress` -- `!editingParam`, so the reset runs.
@@ -1665,9 +1589,10 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 	});
 
 	it("PARAM: writes both bools and opens the view, and does NOT reset it", _ {
-		// Legacy's own reason, at `editing_mode.h:87-88`: resetting in param-editing mode "would
-		// reset param assignments to FX columns". This is the half of the guard that an
-		// implementation which simply always resets would still pass the VALUE example with.
+		// Main's own reason, at `EditingMode::selectButtonPress`
+		// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`): resetting in param-editing
+		// mode "would reset param assignments to FX columns". This is the half of the guard that an implementation
+		// which simply always resets would still pass the VALUE example with.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
@@ -1691,7 +1616,8 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		press_perform_mode(r, PerformanceEditingMode::PARAM);
 		deluge::gui::ui::dispatchShellActions();
 
-		// `editing_mode.h:59-62` -- the PARAM branch.
+		// `EditingMode::selectButtonPress`
+		// (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h`) -- the PARAM branch.
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_true();
 		// `EditingMode::selectButtonPress` -- `editingParam`, so the reset is SKIPPED and the marker stands.
@@ -1716,13 +1642,13 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		// and this is the whole list: both tick points differ, and the subject alone drains after its
 		// settle tick to say that tick files nothing. That drain cannot affect what follows -- the
 		// press it would have to eat is two lines later.
-		// `GuestRig` has no encoder helper, so the cursor is placed by the mirror instead of walked:
-		// `PerformEditorItem::on_focus` seeds it from `performance_editing_mode()`,
+		// `GuestRig` has no encoder helper, so the cursor is placed by the view's mode instead of walked:
+		// `PerformEditorItem::on_focus` seeds it from `RuntimeFacts::performance_editing_mode()`,
 		// which is `EditingMode::beginSession` -> `readCurrentValue`.
 		// VALUE rather than DISABLED, because DISABLED is the arm that files nothing.
 		{
 			GuestRig control;
-			menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+			set_view_mode(PerformanceEditingMode::VALUE);
 			expect(control.open(nodes::perform_editor)).to_be_true();
 			control.ui.shell().tick(5);
 			seed_view_away_from(PerformanceEditingMode::VALUE);
@@ -1735,7 +1661,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		}
 
 		GuestRig r;
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		expect(r.open(nodes::perform_editor)).to_be_true();
 		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1752,26 +1678,25 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 });
 
 describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
-	// The second arm with a body, and the one `scenes/menu/action.h` deliberately
-	// refused to split into four enumerators, "the choice is made from the root UI, which this layer
-	// cannot read". So the fan-out over `getRootUI()` (`gui/menu_item/stem_export/start.h:33-47`) is
-	// the whole of what this side of the seam adds, and it is what this group pins.
+	// The second arm with a body, and the one `scenes/menu/action.h` keeps as a single enumerator, because "the choice
+	// is made from the root UI, which this layer cannot read". So the fan-out over `getRootUI()`
+	// (`Start::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the whole of what
+	// this side of the seam adds, and it is what this group pins.
 	//
 	// **Why the chooser is driven by name and the arm is not, which is a real limit and not a
-	// preference.** `StemExport::startStemExportProcess` hands the export to
-	// `deluge::storage::Owner::run` (`processing/stem_export/stem_export.cpp:87-96`), and on the
-	// cooperative BSP this binary links, `Owner::run` runs the op **inline on the caller's stack**
-	// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). An example that let a
-	// matching arm reach it would arm the recorder, write stems under `DELUGE_SD_ROOT` and then sit
-	// in `renderWait` (`stem_export.cpp:587-596`) waiting for a transport no spec is driving. So the
+	// preference.** `StemExport::startStemExportProcess` (`processing/stem_export/stem_export.cpp`) stops
+	// playback, presses record, enters `UI_MODE_STEM_EXPORT` and requests the export job through
+	// `deluge::runtime::appLoop` before it returns, and `StemExport::exportRoutine` then runs from the app loop. An
+	// example that let a matching arm reach it would arm the recorder and leave `UI_MODE_STEM_EXPORT` entered
+	// for a transport no spec is driving. So the
 	// four matching arms are driven through `stemExportTypeForRootUI()`, and the dispatcher's arm is
 	// driven end to end only where the chain falls through -- the branch that starts nothing.
 	//
-	// **The set these examples cover is the whole of legacy's chain**, stated so a reader can check
-	// it: `arrangerView` twice (`start.h:34-41` is one root with two answers), `sessionView` once
-	// (`:42-44`), `instrumentClipView` twice (`:45-47`'s `&&`, once each way), plus the two ways to
-	// reach no arm at all -- a root legacy never names, and no root open. Six root states, five
-	// answers, and every `if` in `start.h:33-47` has an example on both sides of it.
+	// **The set these examples cover is the whole of main's chain**, stated so a reader can check it: `arrangerView`
+	// twice (`Start::selectButtonPress` is one root with two answers), `sessionView` once, `instrumentClipView` twice
+	// (the `&&` of its arm, once each way), plus the two ways to reach no arm at all -- a root main never names, and
+	// no root open. Six root states, five answers, and every `if` in `Start::selectButtonPress`
+	// (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) has an example on both sides of it.
 	//
 	// Each example seeds `currentStemExportType` at a value the answer is not, so no assertion can
 	// pass on a residue -- `StemExportGuard` puts it back.
@@ -1782,19 +1707,19 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		spec::SongFixture song = spec::make_synth_song();
 
 		// `setRootUILowLevel` is legacy's own "seat the root, run no
-		// `opened()`" -- what `setupBlankSong` uses. `changeRootUI` (`:107-119`) would run the real
+		// `opened()`" -- what `setupBlankSong` uses. `changeRootUI` would run the real
 		// view's `opened()`, which is a great deal of view work for a fact the chooser answers with
 		// one pointer comparison.
 		setRootUILowLevel(&arrangerView);
 		stemExport.exportMixdown = true;
 
-		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::MIXDOWN)); // `start.h:35-37`
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::MIXDOWN)); // arranger, mixdown
 	});
 
 	it("arrangerView without exportMixdown chooses TRACK", _ {
-		// The other half of the same `if` (`start.h:38-40`). Identical to the example above in every
-		// statement but the one `exportMixdown` assignment, which is what makes the pair say that
-		// the flag is read rather than that the arranger has a fixed answer.
+		// The other half of the same `if` (the arranger arm without `exportMixdown`). Identical to the example above in
+		// every statement but the one `exportMixdown` assignment, which is what makes the pair say that the flag is
+		// read rather than that the arranger has a fixed answer.
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
 		spec::SongFixture song = spec::make_synth_song();
@@ -1802,7 +1727,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		setRootUILowLevel(&arrangerView);
 		stemExport.exportMixdown = false;
 
-		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::TRACK)); // `start.h:38-40`
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::TRACK)); // arranger, no mixdown
 	});
 
 	it("sessionView chooses CLIP", _ {
@@ -1816,27 +1741,27 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		setRootUILowLevel(&sessionView);
 		stemExport.exportMixdown = true;
 
-		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::CLIP)); // `start.h:42-44`
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::CLIP)); // the session-view arm
 	});
 
 	it("instrumentClipView over a KIT chooses DRUM", _ {
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
-		// The output type is the second half of `start.h:45`'s `&&`, and `getCurrentOutputType()`
-		// reads it off the song's current clip (`model/song/song.cpp:136-138`) -- so the fixture is
+		// The output type is the second half of the instrument-clip arm's `&&`, and `getCurrentOutputType()`
+		// reads it off the song's current clip (`model/song/song.cpp`) -- so the fixture is
 		// what varies between this example and the one below, not the root.
 		spec::SongFixture song = spec::make_kit_song();
 		expect(getCurrentOutputType()).to_equal(OutputType::KIT);
 
 		setRootUILowLevel(&instrumentClipView);
 
-		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::DRUM)); // `start.h:45-47`
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::DRUM)); // instrument clip, KIT
 	});
 
 	it("instrumentClipView over a non-KIT output chooses nothing, which is legacy's fall-through", _ {
-		// `start.h:45`'s `&&` in the direction that fails, and `start.h:48`: legacy returns
-		// `NO_NAVIGATION` having started no export. Same root as the example above, different
-		// output -- the one difference.
+		// The instrument-clip arm's `&&` in the direction that fails, and the end of `Start::selectButtonPress`: main
+		// returns `NO_NAVIGATION` having started no export. Same root as the example above, different output -- the one
+		// difference.
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
 		spec::SongFixture song = spec::make_synth_song();
@@ -1853,15 +1778,15 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		spec::SongFixture song = spec::make_kit_song();
 		stemExport.exportMixdown = true;
 
-		// A real `RootUI` that `start.h:33-47` simply does not test for. A KIT song with
+		// A real `RootUI` that `Start::selectButtonPress` simply does not test for. A KIT song with
 		// `exportMixdown` set, so both of the facts the other arms read are true here and neither
 		// can carry this one on its own.
 		setRootUILowLevel(&performanceView);
 		expect(chosen_stem_export_type()).to_equal(-1);
 
 		// And the null root: `getRootUI()` answers `nullptr` while `numUIsOpen == 0`
-		// (`gui/ui/ui.cpp:175-180`), which is legacy's "during song load / swap" (`:95`).
-		// `nullifyUIs()` (`:257-261`) is how legacy itself gets there.
+		// (`gui/ui/ui.cpp`), which is legacy's "during song load / swap" (the comment on `numUIsOpen`).
+		// `nullifyUIs()` is how legacy itself gets there.
 		nullifyUIs();
 		expect(getRootUI()).to_be_null();
 		expect(chosen_stem_export_type()).to_equal(-1);
@@ -1890,7 +1815,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		}
 
 		Rig r;
-		// `Rig` builds its own `make_synth_song()`, so this root is `start.h:45`'s `&&` failing.
+		// `Rig` builds its own `make_synth_song()`, so this root is the instrument-clip arm's `&&` failing.
 		setRootUILowLevel(&instrumentClipView);
 		expect(chosen_stem_export_type()).to_equal(-1);
 		stemExport.processStarted = false;
@@ -1901,9 +1826,8 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		r.shell.tick(20);
 		deluge::gui::ui::dispatchShellActions();
 
-		// Nothing was exported. `runStemExportProcess` sets `processStarted` as its third statement
-		// and on this BSP it would have run
-		// inline, before this line (`task_scheduler_c_api.cpp:101-104`).
+		// Nothing was exported. `StemExport::startStemExportProcess` sets `processStarted`, so an arm that
+		// started an export would have set it before this line.
 		expect(stemExport.processStarted).to_be_false();
 		// And the request is out of the outbox.
 		//
@@ -1916,15 +1840,16 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
-	it("takes the ported menu off the guest's stack, which is exitCompletely()'s half", _ {
-		// `soundEditor.exitCompletely()` (`gui/menu_item/stem_export/start.h:32`) is the first
-		// statement of legacy's body, and under the guest what is open is `ShellHostUI` rather than
-		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
-		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
-		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`; `gui/ui/sound_editor.cpp:710-717`, the call at
-		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
-		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
+	it("takes the menu scene off the guest's stack, which is exitCompletely()'s half", _ {
+		// `soundEditor.exitCompletely()` (`Start::selectButtonPress` in
+		// `origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is the first statement of main's body, and
+		// under the guest what is open is `ShellHostUI` rather than `soundEditor`. The dispatcher's answer is
+		// `SceneStack::remove(SceneKind::FirstApp)` on the guest's own stack -- the same statement `MenuScene::handle`
+		// already uses for the short-Back exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
+		// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`; the Back arm of
+		// `SoundEditor::buttonAction` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, the call to
+		// `exitCompletely`). The full argument, including why neither `closeUI` nor `closeGuest()` can be called from
+		// there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//
 		// The guest is ticked through `Shell::tick` and NOT through `timerCallback`, on purpose: it
 		// is `timerCallback`'s empty-stack arm that performs
@@ -1979,8 +1904,8 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// menus, one legacy *pair* -- so they share a group rather than getting three of their own.
 	//
 	// **All three run the real legacy callee, and none of them needs a decision function.** That
-	// was not obvious: `StartStemExport` had to be split (`stemExportTypeForRootUI`) because its
-	// acting half runs a real export inline on this BSP. None of these three does anything
+	// was not obvious: `StartStemExport` has a separate chooser (`stemExportTypeForRootUI`) because its
+	// acting half arms the recorder and enters `UI_MODE_STEM_EXPORT`. None of these three does anything
 	// comparable -- `setClipLengthEqualToSampleLength` writes the model and shows a popup, and the
 	// two openers move a view mode and push a UI onto `uiNavigationHierarchy`, all of which a spec
 	// can seat, observe and put back.
@@ -1991,53 +1916,53 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// arm and not to a press that never landed.
 	//
 	// What each example can and cannot see is stated where it bites: `SessionView::gridModeActive`
-	// and `previousGridModeActive` are private (`gui/views/session_view.h:231`, `:202`), so the half
+	// and `previousGridModeActive` are private (`gui/views/session_view.h`), so the half
 	// of `enterMidiLearnMode`/`enterMacrosConfigMode` that moves them is asserted only through the
 	// state that *is* reachable -- `currentUIMode` and `currentSong->persistentView.sessionLayout`.
 	//
 	// @par What these examples do NOT pin, and why that is a fact about legacy rather than a hole
 	//
-	// **The ORDER of the two statements in each context-menu arm.** Swapping them -- `openUI(...)`
-	// first, `setupAndCheckAvailability()` second -- leaves this group green; measured, not assumed.
-	// The arms are written in legacy's order because they are a transcription
-	// (`gui/menu_item/song/midi_learn.h:28-29`), and it is worth knowing that no test defends it.
+	// **The ORDER of the two statements in each context-menu arm.** Swapping them -- `openUI(...)` first,
+	// `setupAndCheckAvailability()` second -- leaves this group green; measured, not assumed. The arms are written in
+	// main's order because they are a transcription (`MidiLearn::selectButtonPress` in
+	// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h`), and it is worth knowing that no test defends it.
 	//
 	// It is not merely unobserved, though. **It is unobservable**, and the reason is every effect
 	// `openUI` has, not just the one that is easy to name. `openUI` does
 	// five things, and each is inert with respect to `setupAndCheckAvailability`:
 	//
-	//   1. **The push** (`:230-231`), which happens FIRST inside `openUI` -- before any of the four
-	//      below -- so nothing here observes a half-open stack either way.
-	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
-	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
-	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp`). Neither clears the other.
-	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
+	//   1. **The push** (`uiNavigationHierarchy[numUIsOpen] = newUI`), which happens FIRST inside `openUI` -- before
+	//      any of the four below -- so nothing here observes a half-open stack either way.
+	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (the call right after the push). A *different* timer
+	//      from the only one this arm's other statement arms: `View::midiLearnFlash` sets `TimerName::MIDI_LEARN_FLASH`
+	//      (`gui/views/view.cpp`). Neither clears the other.
+	//   3. **`PadLEDs::reassessGreyout()`** (the call after that). **This is the one that could have made the
 	//      order observable, which is why it belongs in the argument rather than being left out of
 	//      it.** It recomputes from `getUIGreyoutColsAndRows`, which walks the
-	//      hierarchy top-down and takes the first UI that answers true -- and by `:234` the context
+	//      hierarchy top-down and takes the first UI that answers true -- and by then the context
 	//      menu is already top, in either order. `MidiLearnMode::getGreyoutColsAndRows`
-	//      (`gui/context_menu/midi_learn_mode.cpp:32-36`) then answers two **constants** and reads no
+	//      (`gui/context_menu/midi_learn_mode.cpp`) then answers two **constants** and reads no
 	//      state at all, `currentUIMode` included. Had that greyout depended on the MIDI-learn mode,
 	//      the two orders would give different pad greyouts and this example would be hiding a real
 	//      difference.
-	//   4. **`newUI->opened()`** (`:235`). Neither context menu overrides it, so it is `UI::opened`:
+	//   4. **`newUI->opened()`**. Neither context menu overrides it, so it is `UI::opened`:
 	//      `focusRegained()` -- for a `ContextMenu`, one
-	//      `blinkLed(IndicatorLED::BACK)` (`gui/context_menu/context_menu.cpp:54-56`) -- and then
+	//      `blinkLed(IndicatorLED::BACK)` (`gui/context_menu/context_menu.cpp`) -- and then
 	//      `return true`, **unconditionally**. That last word matters: the `!success` branch
-	//      (`gui/ui/ui.cpp:267-272`) pops the UI and calls `oldUI->focusRegained()`, which WOULD be
+	//      (`openUI` in `gui/ui/ui.cpp`) pops the UI and calls `oldUI->focusRegained()`, which WOULD be
 	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
-	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
+	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp`) -- reads
 	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
 	//      blinks (`View::startMIDILearn` in `gui/views/view.cpp`).
-	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
-	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
+	//   5. **`renderUIsForOled()`**, which sets `doesOLEDNeedRendering = true` and nothing
+	//      else. No frame is composed inside `openUI`, so there is no transient render
 	//      in which the mode could differ.
 	//
 	// And the reverse direction is closed too, which the list above does not cover on its own:
 	// `View::midiLearnFlash` calls `getRootUI()->midiLearnFlash()`, so
 	// running `setupAndCheckAvailability()` *after* the open would be observable if the open moved
-	// the root. It cannot: `getRootUI()` reads `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:175-180`)
-	// and `openUI` writes index `numUIsOpen` (`:230`), which is >= 1 whenever a root view is open --
+	// the root. It cannot: `getRootUI()` reads `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp`)
+	// and `openUI` writes index `numUIsOpen`, which is >= 1 whenever a root view is open --
 	// the precondition `stemExportTypeForRootUI`'s own note in `gui/ui/shell_action_dispatch.cpp`
 	// states and these examples establish with `setRootUILowLevel(&sessionView)`.
 
@@ -2067,10 +1992,10 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		ActionLogGuard log_guard;
 		Rig r;
 		const spec::AudioSongFixture f = seat_audio_clip_with_sample();
-		// `audioClipView` as the root, which is the view legacy's other caller of this same method
-		// runs inside (`gui/views/audio_clip_view.cpp:384-393`, the call at `:391`) and the view the
-		// audio-clip menu is opened over. It also has to be *something*: `adjustLoopLength` hands
-		// `getRootUI()` to `uiNeedsRendering` (`:783`).
+		// `audioClipView` as the root, which is the view legacy's other caller of this same method runs inside
+		// (`AudioClipView::buttonAction` in `gui/views/audio_clip_view.cpp`, in the `X_ENC` arm that calls it) and the
+		// view the audio-clip menu is opened over. It also has to be *something*: `adjustLoopLength` hands
+		// `getRootUI()` to `uiNeedsRendering`.
 		setRootUILowLevel(&audioClipView);
 
 		const int32_t seeded = f.clip->loopLength();
@@ -2085,20 +2010,21 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(press_child_leaving_request(r, nodes::audio_clip_actions, nodes::set_clip_length)).to_be_true();
 		deluge::gui::ui::dispatchShellActions();
 
-		// `set_clip_length_equal_to_sample_length.h:27` -> `audio_clip_view.cpp:758-769`: the
-		// `sampleHolder` branch (`:762-765`), whose two statements are the length and the popup.
+		// `SetClipLengthEqualToSampleLength::selectButtonPress`
+		// (`origin/main:src/deluge/gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h`) ->
+		// `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp`): the `sampleHolder` branch, whose
+		// two statements are the length and the popup.
 		expect(f.clip->loopLength()).to_equal(from_sample);
 		expect(static_cast<int>(display_guard.recorder.popups.size())).to_equal(1);
 		expect(display_guard.recorder.popups.empty() ? std::string{} : display_guard.recorder.popups[0])
 		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)));
 		expect(scene().take_action().engaged()).to_be_false();
 
-		// **The `else` at `audio_clip_view.cpp:766-768` is unreachable and is therefore not covered
-		// here.** It is guarded by `if (sampleHolder)` (`:762`), and `sampleHolder` is
-		// `guide.audioFileHolder` (`:761`), which `AudioClip::AudioClip` points at the clip's own
-		// `sampleHolder` member permanently -- the address of a
-		// member, never null. So no `AudioClip` can take it, and `STRING_FOR_NO_SAMPLE` is dead
-		// code.
+		// **The `else` at `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp`) is unreachable and
+		// is therefore not covered here.** It is guarded by `if (sampleHolder)`, and `sampleHolder` is
+		// `guide.audioFileHolder`, which `AudioClip::AudioClip` points at the clip's own `sampleHolder` member
+		// permanently -- the address of a member, never null. So no `AudioClip` can take it, and `STRING_FOR_NO_SAMPLE`
+		// is dead code.
 	});
 
 	it("OpenSongMidiLearn: arms MIDI learn and opens the context menu, which is both statements", _ {
@@ -2110,9 +2036,9 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			// The control. One call different.
 			Rig control;
 			// `sessionView` as the root, because that is the only root the item is relevant under
-			// (`song::MidiLearn::isRelevant`, `gui/menu_item/song/midi_learn.h:35-37`) and because
+			// (`song::MidiLearn::isRelevant`, `origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) and because
 			// `MidiLearnMode::setupAndCheckAvailability` acts on `sessionView` by name
-			// (`gui/context_menu/midi_learn_mode.cpp:51`).
+			// (`gui/context_menu/midi_learn_mode.cpp`).
 			setRootUILowLevel(&sessionView);
 			// `View::startMIDILearn` only arms from `UI_MODE_NONE` or `UI_MODE_MIDI_LEARN`
 			// (`View::startMIDILearn`), so the seed is the mode under which legacy succeeds.
@@ -2132,10 +2058,10 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 		// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h` `MidiLearn::selectButtonPress` --
 		// `MidiLearnMode::setupAndCheckAvailability`
-		// (`gui/context_menu/midi_learn_mode.cpp:50-53`) -> `SessionView::enterMidiLearnMode`
+		// (`gui/context_menu/midi_learn_mode.cpp`) -> `SessionView::enterMidiLearnMode`
 		// -> `View::startMIDILearn`, whose one globally visible write is
 		// `currentUIMode = UI_MODE_MIDI_LEARN`. It is also exactly what
-		// `setupAndCheckAvailability` returns (`midi_learn_mode.cpp:52`), so this assertion says the
+		// `setupAndCheckAvailability` returns (`midi_learn_mode.cpp`), so this assertion says the
 		// discarded bool was `true` here as well.
 		expect(static_cast<int>(currentUIMode)).to_equal(static_cast<int>(UI_MODE_MIDI_LEARN));
 		// `origin/main:src/deluge/gui/menu_item/song/midi_learn.h` `MidiLearn::selectButtonPress` -- the `openUI` that
@@ -2169,27 +2095,25 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(press_child_leaving_request(r, nodes::root_song, nodes::configure_song_macros)).to_be_true();
 		deluge::gui::ui::dispatchShellActions();
 
-		// `configure_macros.h:28` -- `ConfigureSongMacros::setupAndCheckAvailability`
-		// (`gui/context_menu/configure_song_macros.cpp:48-51`) -> `SessionView::enterMacrosConfigMode`,
-		// whose one write to state this spec can read is
-		// `currentSong->persistentView.sessionLayout = ...Grid` (`:3062`). Its other two writes,
-		// `previousLayout` and `gridModeActive`, are private members of `SessionView`.
+		// `ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) --
+		// `ConfigureSongMacros::setupAndCheckAvailability` (`gui/context_menu/configure_song_macros.cpp`) ->
+		// `SessionView::enterMacrosConfigMode`, whose one write to state this spec can read is
+		// `currentSong->persistentView.sessionLayout = ...Grid`. Its other two
+		// writes, `previousLayout` and `gridModeActive`, are private members of `SessionView`.
 		expect(currentSong->persistentView.sessionLayout).to_equal(SessionLayoutType::SessionLayoutTypeGrid);
-		// `configure_macros.h:29`.
+		// `ConfigureMacros::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`).
 		expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 
 	it("an arm that opens a UI leaves the guest's timer unarmed, because it is no longer the guest's", _ {
-		// **The cross-task hazard the whole-branch review found, and the one example that can see
-		// it.** Three arms end in `openUI(...)`, so when they return `getCurrentUI()` is no longer
-		// `ShellHostUI` -- and legacy's `NO_NAVIGATION` semantics correctly leave the ported menu on
-		// the shell stack, so `timerCallback`'s `depth() == 0` close does not fire and `rearmTimer`
-		// runs. `TimerName::UI_SPECIFIC` is dispatched to `getCurrentUI()->timerCallback()`
-		// (`gui/ui_timer_manager.cpp:143-149`), so re-arming there hands this guest's tick to the UI
-		// that was just opened over it. For `performanceView` that is not inert:
-		// `PerformanceView::timerCallback` forwards into `sessionView`/`arrangerView`
-		// (`gui/views/performance_view.cpp:383-391`).
+		// **A hazard only this example can see.** Three arms end in `openUI(...)`, so when they return `getCurrentUI()`
+		// is no longer `ShellHostUI` -- and main's `NO_NAVIGATION` semantics correctly leave the menu on the shell
+		// stack, so `timerCallback`'s `depth() == 0` close does not fire and `rearmTimer` runs.
+		// `TimerName::UI_SPECIFIC` is dispatched to `getCurrentUI()->timerCallback()` (`UITimerManager::routine` in
+		// `gui/ui_timer_manager.cpp`), so re-arming there hands this guest's tick to the UI that was just opened over
+		// it. For `performanceView` that is not inert: `PerformanceView::timerCallback` forwards into
+		// `sessionView`/`arrangerView` (`gui/views/performance_view.cpp`).
 		//
 		// The guard is in `ShellHostUI::rearmTimer`, and this
 		// example is what reddens without it -- measured, not assumed.
@@ -2225,9 +2149,9 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture song = spec::make_synth_song();
 		setRootUILowLevel(&sessionView);
-		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the mirror
+		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the view's mode
 		// (`scenes/menu/nodes/actions.cpp`), and DISABLED is the arm that files nothing.
-		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		set_view_mode(PerformanceEditingMode::VALUE);
 		expect(open_global_guest_on_ui_stack(nodes::perform_editor, song)).to_be_true();
 
 		(void)shellHostUI.timerCallback();                 // settle the first frame...
@@ -2253,267 +2177,278 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	});
 });
 
-describe menu_action_perform_mirror("PerformanceView -> menu::performance_editing_mode()", $ {
-	// The OTHER half of `OpenPerformanceView`. Every group above drives the port and
-	// watches legacy move; this one drives LEGACY, with no menu and no `Shell` anywhere in it, and
-	// watches the port's mirror keep up.
+describe menu_action_perform_fact("RuntimeFacts::performance_editing_mode over the real performanceView", $ {
+	// What `PerformEditorItem` reads (`menu/nodes/actions.cpp`), answered by the host from `performanceView`'s two
+	// bools (`ShellRuntimeFacts::performance_editing_mode`, `gui/ui/shell_bind_host.cpp`). The first example pins the
+	// mapping on every pair of the bools. The rest drive the view's own gestures, with no menu and no `Shell`, and
+	// check the fact follows each: `PerformanceView::buttonAction`'s BACK arm, its shift+KEYBOARD exit and cycle, and
+	// the four callers of the private `PerformanceView::releaseViewOnExit` (`buttonAction`'s CLIP_VIEW arm, its
+	// KEYBOARD press and release exits, and `padAction`'s grid-mode pad).
 	//
-	// **What is being pinned.** `scenes/menu/action.h`'s mirror is what `PerformEditorItem::on_focus`
-	// seeds its cursor from (`menu/nodes/actions.cpp`), so it is authoritative for what the menu
-	// SHOWS. It is not authoritative for the view, and `PerformanceView` moves the two bools it
-	// mirrors from four places of its own. One of
-	// them is a private helper reached from four different callers, so there are EIGHT examples
-	// below and four sync calls under them:
+	// Every gesture example asserts the two bools by name and compares `fact_and_view()` against a literal mode, so an
+	// answer with VALUE and PARAM swapped reddens.
 	//
-	//   | site | example(s) here |
-	//   |---|---|
-	//   | `PerformanceView::buttonAction`'s BACK arm | 1 |
-	//   | `buttonAction`'s shift+KEYBOARD exit (`:924-932`, the writes at `:925-926` and the call at `:928`) | 1 |
-	//   | `buttonAction`'s shift+KEYBOARD cycle (`:933-956`, the writes at `:936` and `:938` and the call at `:942`) | 2 -- it is the only site *in the view* that can produce VALUE *or* PARAM |
-	//   | `releaseViewOnExit` (`:1402-1412`, the writes at `:1405-1406` and the call at `:1411`) | 4 -- one per caller (`:748`, `:959`, `:977`, `:1092`) |
-	//
-	// **The mapping, not just the movement.** `DISABLED`/`VALUE`/`PARAM` come from the PAIR
-	// (`defaultEditingMode`, `editingParam`) under `EditingMode::readCurrentValue`
-	// (`gui/menu_item/performance_session_view/editing_mode.h:35-46`), so an example that asserted
-	// only "not DISABLED" would stay green with the two non-disabled modes swapped. Every example
-	// asserts the two bools by name AND compares `mirror_and_view()` against a literal mode.
-	//
-	// **No control leg, and why there cannot be one.** In `menu_action_open_perform` the control is
-	// the same rig minus `dispatchShellActions()`. Here the call under test is a statement inside
-	// `PerformanceView::buttonAction`/`releaseViewOnExit`; an example cannot decline to run it while
-	// still running the gesture. What plays the control's role is per-example and stated twice over:
-	// each example parks the mirror at a mode the answer is NOT and asserts it is sitting there
-	// immediately before the gesture (so no green is a residue), and each site was mutated by
-	// deletion, which is reported with the task.
-	//
-	// **`getCurrentUI()` residue.** Same as `menu_action_open_perform`'s: this group opens real UIs
-	// and `UiStackGuard`'s `nullifyUIs()` cannot put `lastUIBeforeNullifying` back. It is registered
-	// after that group for the same reason, and reads `isUIOpen`/`getRootUI` rather than
-	// `getCurrentUI` wherever it asserts about the stack.
+	// **`getCurrentUI()`.** This group opens real UIs, and `UiStackGuard`'s `nullifyUIs()` leaves the stack empty,
+	// where `getCurrentUI()` answers `emptyStackUI`. It reads `isUIOpen`/`getRootUI` rather than `getCurrentUI`
+	// wherever it asserts about the stack.
 
-	it("BACK out of editing mode syncs the mirror to DISABLED", _ {
-		// `:838` -- `b == BACK && defaultEditingMode`, the arm reached only when
-		// `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` is not latched (`:830` is tested first).
+	it("answers each pair of the view's bools as main's readCurrentValue does", _ {
+		select_language();
+		PerformViewGuard guard;
+		// `{false, true}` is unreachable in main; `readCurrentValue` tests `defaultEditingMode` first, so it is
+		// DISABLED, and it is asked rather than skipped.
+		struct Case {
+			bool default_mode;
+			bool editing_param;
+			PerformanceEditingMode mode;
+		};
+		const std::array<Case, 4> cases{{{false, false, PerformanceEditingMode::DISABLED},
+		                                 {true, false, PerformanceEditingMode::VALUE},
+		                                 {true, true, PerformanceEditingMode::PARAM},
+		                                 {false, true, PerformanceEditingMode::DISABLED}}};
+		for (const Case& c : cases) {
+			performanceView.defaultEditingMode = c.default_mode;
+			performanceView.editingParam = c.editing_param;
+			expect(fact_and_view()).to_equal(both_at(c.mode));
+		}
+	});
+
+	it("BACK out of editing mode moves the fact to DISABLED", _ {
+		// `buttonAction`'s `b == BACK && defaultEditingMode` arm, reached only when
+		// `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` is not latched (that arm is tested first).
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		// The mirror is where the menu would have left it, and the view agrees -- so the assertion
-		// after the press is about the press.
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::BACK, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("shift+KEYBOARD out of param editing syncs the mirror to DISABLED", _ {
-		// `:924-932` -- the exit half of the KEYBOARD arm, guarded by
-		// `defaultEditingMode && editingParam` (`:924`).
+	it("shift+KEYBOARD out of param editing moves the fact to DISABLED", _ {
+		// The exit half of `buttonAction`'s KEYBOARD arm, guarded by `defaultEditingMode && editingParam`.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("shift+KEYBOARD into editing mode syncs the mirror to VALUE", _ {
-		// `:933-938` with `defaultEditingMode` false: `inEditingMode` is false, `editingParam` is
-		// left alone at `:935-937`, and `:938` sets `defaultEditingMode` -- which is
-		// `readCurrentValue`'s VALUE (`editing_mode.h:39-41`). The half of the cycle that ENTERS.
+	it("shift+KEYBOARD into editing mode moves the fact to VALUE", _ {
+		// The cycle half with `defaultEditingMode` false: `editingParam` is left alone and `defaultEditingMode` is set,
+		// which `readCurrentValue` answers VALUE. The half of the cycle that ENTERS.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false, PerformanceEditingMode::PARAM);
-		// A mirror that is stale in the direction that matters: PARAM is what a VALUE answer must
-		// move off, and it is also the wrong one of the two non-DISABLED modes.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
+		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 	});
 
-	it("shift+KEYBOARD again, already in value editing, syncs the mirror to PARAM", _ {
-		// The same site, the other way: `inEditingMode` is true at `:934`, so `:936` sets
-		// `editingParam` before `:938` sets `defaultEditingMode`, and the pair maps to PARAM
-		// (`editing_mode.h:42-44`). VALUE and PARAM from ONE site is what makes the swap this group's
-		// header warns about visible -- a sync that reported the wrong one of the two would redden
-		// exactly one of these two examples.
+	it("shift+KEYBOARD again, already in value editing, moves the fact to PARAM", _ {
+		// The same arm the other way: already in editing mode, `editingParam` is set before `defaultEditingMode`, and
+		// the pair is PARAM. VALUE and PARAM from one arm is what makes a swapped answer visible: it reddens exactly one
+		// of these two examples.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false, PerformanceEditingMode::VALUE);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false);
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
 		Buttons::commandToggleShift(true);
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_true();
 		expect(performanceView.editingParam).to_be_true();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 	});
 
-	// The four callers of `releaseViewOnExit`. The helper is private (`performance_view.h:154`), so
-	// every one of these reaches it through the gesture that calls it -- which is the point:
-	// `action.h` claimed three callers and there are four, and a sync call written into the helper
-	// has to be seen from each.
+	// The four callers of `releaseViewOnExit`. The helper is private, so each example reaches it through the gesture
+	// that calls it.
 
-	it("CLIP_VIEW out of editing mode syncs the mirror, through releaseViewOnExit", _ {
-		// `:748`, the first caller. `lastClipInstanceEnteredStartPos` is set non-negative so `:750`
-		// skips `sessionView.transitionToViewForClip()` (`:751`) -- the arm's own guard, not a stub: legacy
-		// takes that branch whenever performance view was entered from the arranger.
+	it("CLIP_VIEW out of editing mode moves the fact, through releaseViewOnExit", _ {
+		// `lastClipInstanceEnteredStartPos` is set non-negative so the CLIP_VIEW arm skips
+		// `sessionView.transitionToViewForClip()` -- the arm's own guard, not a stub: main takes that branch whenever
+		// performance view was entered from the arranger.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = 0;
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::CLIP_VIEW, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 	});
 
-	it("KEYBOARD without shift syncs the mirror, through releaseViewOnExit", _ {
-		// `:959`, the second caller -- the `else` of `Buttons::isShiftButtonPressed()` at `:923`.
-		// `lastClipInstanceEnteredStartPos == -1` picks `changeRootUI(&sessionView)` (`:969`) of the
-		// three exits, which is the one the arm takes from a session-view entry.
+	it("KEYBOARD without shift moves the fact, through releaseViewOnExit", _ {
+		// The `else` of the KEYBOARD arm's `Buttons::isShiftButtonPressed()`. `lastClipInstanceEnteredStartPos == -1`
+		// picks `changeRootUI(&sessionView)` of its three exits, the one it takes from a session-view entry.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true, PerformanceEditingMode::PARAM);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/true);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::PARAM));
 
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, true);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
-		// ...and it really was the exit branch, not the cycle branch above it.
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		// ...and it really was the exit branch, not the cycle branch.
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 
-	it("releasing KEYBOARD after the hold time syncs the mirror, through releaseViewOnExit", _ {
-		// `:977`, the third caller -- the "performance view was only peeked" release, gated on
-		// `timeKeyboardShortcutPress != 0` (`:973`) and on the elapsed time clearing
-		// `FlashStorage::holdTime` (`:976`). Both are set here rather than waited for.
+	it("releasing KEYBOARD after the hold time moves the fact, through releaseViewOnExit", _ {
+		// The "performance view was only peeked" release, gated on `timeKeyboardShortcutPress != 0` and on the elapsed
+		// time clearing `FlashStorage::holdTime`. Both are set here rather than waited for.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false, PerformanceEditingMode::VALUE);
+		enter_perform_view(/*default_mode=*/true, /*editing_param=*/false);
 		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1;
 		performanceView.timeKeyboardShortcutPress = 1;
 		AudioEngine::audioSampleTimer = 1 + static_cast<uint32_t>(FlashStorage::holdTime);
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::VALUE));
 
 		(void)performanceView.buttonAction(deluge::hid::button::KEYBOARD, false);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 
-	it("a grid mode pad syncs the mirror, through releaseViewOnExit", _ {
-		// `:1092`, the fourth caller -- and the one `action.h` did not list at all. Its arm is
-		// guarded by `!defaultEditingMode` (`:1057`), so unlike the other three the VIEW is already at
-		// DISABLED when the helper runs. That makes the call a no-op for a mirror that is already in
-		// step, and the only thing it can move is a mirror that is NOT -- which is exactly the state
-		// the sync call exists to prevent. So the seed here is a mirror deliberately out of step
-		// with the view, and what the example says is "this path puts it back". Stated rather than
-		// hidden: the seed is not a state legacy can reach on its own.
+	it("a grid mode pad leaves the fact at DISABLED, through releaseViewOnExit", _ {
+		// `padAction`'s grid-mode arm is guarded by `!defaultEditingMode`, so the view is already DISABLED when the
+		// helper runs; the exit must leave it there.
 		select_language();
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 		PerformGestureGuard gesture_guard;
 
-		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false, PerformanceEditingMode::PARAM);
-		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1; // `:1064` -- the session-view half
-		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // `:1081` -- the grid half
-		// Out of step by construction, and asserted as such.
-		expect(static_cast<int>(menu::performance_editing_mode()))
-		    .to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
-		expect(static_cast<int>(mode_from_view())).to_equal(static_cast<int>(PerformanceEditingMode::DISABLED));
+		enter_perform_view(/*default_mode=*/false, /*editing_param=*/false);
+		currentSong->persistentView.lastClipInstanceEnteredStartPos = -1; // the session-view half
+		currentSong->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeGrid; // the grid half
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 
-		// `kDisplayWidth + 1` is the second sidebar column (`:1087`'s `else`), `GridMode::GREEN` one
-		// of the two mode pads `:1091` names.
+		// `kDisplayWidth + 1` is the second sidebar column, `GridMode::GREEN` one of its two mode pads.
 		(void)performanceView.padAction(kDisplayWidth + 1, GridMode::GREEN, 1);
 
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
-		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
+		expect(fact_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 		expect(getRootUI()).to_equal(&sessionView);
 	});
 });
 
 describe menu_action_settings("settings writes that legacy applies at once", $ {
-	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour` and the highlighting item each do one thing besides
-	// storing (`PadBrightness`'s and `Colour`'s write, `ShiftIsSticky::writeCurrentValue`, `flash::Status`'s write;
-	// highlighting is read live by every renderer, `HorizontalMenu`'s rendering). Each is `hid/` or the guest's shell,
-	// so the setter files it for `dispatchShellActions`.
-	it("each setter files its action, and only on legacy's own condition", _ {
+	// `PadBrightness`, `ShiftIsSticky`, `flash::Status`, `Colour`, the highlighting item and the rounded-corners toggle
+	// each do one thing besides storing, `hid/` or the guest's shell, so each setter calls the host for it
+	// (`scenes/menu/bind_host.h`) at the write, as main's `writeCurrentValue` does.
+	it("each setter applies its side effect at the write, and only on main's own condition", _ {
 		const menu::MenuContext ctx{};
-		const auto filed = [] {
-			const MenuAction a = scene().state().walk.pending_action.action;
-			scene().request_action(MenuActionRequest{});
-			return a;
-		};
-		scene().request_action(MenuActionRequest{});
-		nodes::set_default_pad_brightness(ctx, 100);
-		expect(filed()).to_equal(MenuAction::PadBrightnessChanged);
+		const uint8_t saved_brightness = FlashStorage::defaultPadBrightness;
+		const MenuHighlighting saved_highlighting = FlashStorage::accessibilityMenuHighlighting;
+		const uint8_t saved_flash = PadLEDs::flashCursor;
+		const uint8_t saved_colour = FlashStorage::padColours[0];
+
+		// `PadBrightness::writeCurrentValue`: the pads' dimmer takes the stored level at once.
+		PadLEDs::dimmerInterval = 0;
+		nodes::set_default_pad_brightness(ctx, 40);
+		expect(PadLEDs::dimmerInterval).to_equal(int32_t{kMaxLedBrightness - (40 >> 2)});
+
+		// The highlighting item: main's canvas flag and the guest's panels follow the stored value.
+		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
+		deluge::gui::ui::pushShellHighlighting();
 		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
-		expect(filed()).to_equal(MenuAction::HighlightingChanged);
-		nodes::set_rounded_corners(ctx, 0);
-		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
-		nodes::set_rounded_corners(ctx, 1);
-		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
-		nodes::set_shift_is_sticky(ctx, 0);
-		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
-		nodes::set_shift_is_sticky(ctx, 1);
-		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
+		expect(deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts).to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
+		    .to_equal(deluge::ui::Highlighting::FullInversion);
+
+		// `flash::Status::writeCurrentValue`: leaving the slow flash clears its tick squares and, the slow flash
+		// still current, sends the column pair that held one; leaving another does nothing. The send shows in the
+		// harness's pad shadow (column 2, row 2 below), or waits for room in the PIC's queue. A clear made after
+		// the store sends nothing.
+		const auto sent = [] {
+			const uint8_t* p = host_script_pad_shadow() + (2 * 8 + 2) * 3;
+			return (int32_t{p[0]} << 16) | (int32_t{p[1]} << 8) | int32_t{p[2]};
+		};
+		const RGB saved_pad = PadLEDs::image[2][2];
+		currentUIMode = UI_MODE_NONE;
+		PadLEDs::needToSendOutMainPadColours = false;
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
+		PadLEDs::slowFlashSquares[2] = 3; // row 2's square on column 3: columns 2 and 3 go out as one pair
+		const int32_t before = sent();
+		// A colour the shadow does not hold, so a send of column 2 changes it.
+		PadLEDs::image[2][2] = RGB{.r = static_cast<uint8_t>((before >> 16) ^ 0x55),
+		                            .g = static_cast<uint8_t>((before >> 8) ^ 0x55),
+		                            .b = static_cast<uint8_t>(before ^ 0x55)};
 		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
-		expect(filed()).to_equal(MenuAction::FlashStatusLeftSlow);
+		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(255);
+		const bool went_out = sent() != before || PadLEDs::needToSendOutMainPadColours;
+		expect(went_out).to_be_true();
+		PadLEDs::image[2][2] = saved_pad;
+		PadLEDs::needToSendOutMainPadColours = false;
+		PadLEDs::slowFlashSquares[2] = 3;
 		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
-		expect(filed()).not_().to_equal(MenuAction::FlashStatusLeftSlow);
+		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(3);
+
+		// `Colour::writeCurrentValue`: every pad re-renders, whatever the UI.
+		whichMainRowsNeedRendering = 0;
 		nodes::pad_colour_set(0, 3);
-		expect(filed()).to_equal(MenuAction::PadColoursChanged);
+		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
+
+		// Nothing waits in the menu for a dispatcher.
+		expect(scene().state().walk.pending_action.engaged()).to_be_false();
+
+		FlashStorage::padColours[0] = saved_colour;
+		PadLEDs::slowFlashSquares[2] = 255;
+		PadLEDs::flashCursor = saved_flash;
+		FlashStorage::accessibilityMenuHighlighting = saved_highlighting;
+		deluge::gui::ui::pushShellHighlighting();
+		FlashStorage::defaultPadBrightness = saved_brightness;
+		PadLEDs::setBrightnessLevel(saved_brightness);
 	});
 
 	it("closing the guest on the settings menu saves the settings, as SoundEditor::exitCompletely does", _ {
-		// `SoundEditor::exitCompletely`'s settings arm (`gui/ui/sound_editor.cpp:940-950`): `FlashStorage::writeSettings`
-		// and the three settings files, on leaving the settings menu and only then.
+		// `SoundEditor::exitCompletely`'s settings arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`):
+		// `FlashStorage::writeSettings` and the three settings files, on leaving the settings menu and only then.
 		deluge::scenes::spec::ErasedFlash flash;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		const MenuHighlighting was = FlashStorage::accessibilityMenuHighlighting;
@@ -2548,7 +2483,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 
 	it("a rounded-corners write reaches main's canvas and the guest's panels at once", _ {
 		// `RoundedCornersSettingToggle::writeCurrentValue` sets `Canvas::roundedCornersEnabled`, which main's rounded
-		// primitives read; the guest's panels draw from their own style.
+		// primitives read; the guest's panels draw from their own style. Both move at the write.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
 		Rig r;
@@ -2556,13 +2491,9 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		r.shell.tick(5);
 		const menu::MenuContext ctx{};
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 0);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_false();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_false();
 		menu::bindings::write(nodes::feature_rounded_corners, ctx, 1);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled).to_be_true();
 		expect(shellHostUI.shell().surfaces().oled()[0].style->rounded).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved);
@@ -2580,7 +2511,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 	});
 
 	it("a horizontal-menus write reaches the open menu, so the voice usage page lays out as it now says", _ {
-		// `HorizontalMenu::renderingStyle()` reads the setting on every draw; the port's context holds a copy.
+		// `HorizontalMenu::renderingStyle()` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) reads the
+		// setting on every draw; the port's context holds a copy.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::HorizontalMenus);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
@@ -2598,7 +2530,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 
 	it("a sticky-shift write reaches the guest's own shift machine, and turning it off releases both latches", _ {
 		// `ShiftIsSticky::writeCurrentValue`: `shellHostUI.shell().lowering().set_shift_is_sticky(on)`, and off,
-		// `Buttons::clearShiftSticky()`.
+		// `Buttons::clearShiftSticky()`, both at the write.
 		select_language();
 		const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
 		const uint32_t saved_light = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
@@ -2609,14 +2541,10 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		shellHostUI.shell().lowering().set_shift_is_sticky(false);
 
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 1);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_true();
 
 		Buttons::commandToggleShift(true); // SHIFT held: legacy's own state, which the off arm releases
 		menu::bindings::write(nodes::feature_sticky_shift, ctx, 0);
-		(void)scene().after_render();
-		deluge::gui::ui::dispatchShellActions();
 		expect(shellHostUI.shell().lowering().shift_is_sticky()).to_be_false();
 		expect(Buttons::isShiftButtonPressed()).to_be_false();
 
@@ -2639,4 +2567,4 @@ describe menu_action_reference_rows("scenes::menu actions: the reference rows", 
 
 DELUGE_SPEC(menu_actions_spec, menu_action_settings, menu_action_seam, menu_action_items, menu_action_perform,
             menu_action_dispatch, menu_action_screensaver, menu_action_open_perform, menu_action_stem_export,
-            menu_action_three_verbs, menu_action_perform_mirror, menu_action_reference_rows)
+            menu_action_three_verbs, menu_action_perform_fact, menu_action_reference_rows)

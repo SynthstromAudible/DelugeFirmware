@@ -21,7 +21,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 
 		// The same guest shape, varying only the one thing the refusal is about: no initial scene,
 		// so `Shell::init`'s push is refused and `opened()` returns false. `openUI` then rolls the
-		// hierarchy back to the previous UI (`gui/ui/ui.cpp:267-272`) -- an arm left standing here
+		// hierarchy back to the previous UI (`gui/ui/ui.cpp`) -- an arm left standing here
 		// would deliver this guest's `timerCallback` to *that* UI, since the manager dispatches to
 		// `getCurrentUI()` (`gui/ui_timer_manager.cpp`).
 		Rig refused;
@@ -73,12 +73,12 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// **The guard at `ShellHostUI::rearmTimer`'s top**.
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
-		// (`gui/ui_timer_manager.cpp:143-149`) -- so arming it while something else is current hands
+		// (`gui/ui_timer_manager.cpp`) -- so arming it while something else is current hands
 		// this guest's tick to that something else.
 		//
 		// This is not hypothetical, and it is not a state the guest puts itself into: three of the
 		// dispatcher's arms end in `openUI(...)` (`gui/ui/shell_action_dispatch.cpp`), and legacy's
-		// `NO_NAVIGATION` semantics correctly leave the ported menu on the shell stack when they do --
+		// `NO_NAVIGATION` semantics correctly leave the menu on the shell stack when they do --
 		// so `timerCallback`'s `depth() == 0` close does not fire and control reaches `rearmTimer`
 		// with a foreign UI on top. `dispatchShellActions` is stubbed in this suite, so the *cause*
 		// cannot be reproduced here; the guest's response to the resulting state can, and is exactly
@@ -111,7 +111,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 
 		// And it recovers the moment the guest is current again, which is the half that says the
 		// guard is not a wedge. In production `closeUI` does this through `focusRegained`
-		// (`gui/ui/ui.cpp:227-229`); here the topology is declared rather than simulated.
+		// (`gui/ui/ui.cpp`); here the topology is declared rather than simulated.
 		fakelegacyui::current_ui = &r.guest;
 		set_clock_ms(700);
 		(void)r.guest.timerCallback();
@@ -157,7 +157,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(40'000'000));
 
 		// Past it, the arm saturates. Unclamped, `ms * 44` is 4.4e9 and overflows
-		// (`gui/ui_timer_manager.cpp:252-254`); waking early instead costs one tick, because the
+		// (`UITimerManager::setTimer` in `gui/ui_timer_manager.cpp`); waking early instead costs one tick, because the
 		// next tick recomputes `next_wake()` from scratch.
 		Rig far;
 		far.base.timer = 100'000'000; // ~27 hours
@@ -199,7 +199,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// What legacy does when a UI opened over the guest closes again: `closeUI` unsets the timer
-		// (`gui/ui/ui.cpp:227`) and then hands focus back (`:230`). Without the re-arm the guest
+		// (`gui/ui/ui.cpp`) and then hands focus back. Without the re-arm the guest
 		// would tick normally until anything was opened over it and never again.
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250); // the guest was mid-animation
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
@@ -235,13 +235,13 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		(void)run_quiet(survive.guest, now, 3);
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
-		// Reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:150-156`), not from
+		// Reached from `TimerName::BACK_MENU_EXIT` (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`), not from
 		// `UI_SPECIFIC`, so nothing has re-armed the tick and the stack has just changed.
 		expect(survive.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
 		// The close path, varying only the stack depth. `close()` is `closeUI(this)`, which unsets
-		// the timer itself (`gui/ui/ui.cpp:227`) -- so arming here would be undone one line later,
+		// the timer itself (`gui/ui/ui.cpp`) -- so arming here would be undone one line later,
 		// or worse, handed to the UI beneath.
 		Rig closing;
 		expect(closing.open()).to_be_true();
@@ -375,10 +375,10 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// `knobIndicatorLevels[]` shadow starts diverging from the hardware, and
 		// `GuestSurfaceSet::set_indicator` cannot update it, so the guest's close path has to call
 		// `indicator_leds::clearKnobIndicatorLevels()`, which "hands the knob indicator rings back on the close path"
-		// in `shell_host_ui_lifecycle_spec.cpp` pins (`hid/led/indicator_leds.h:88`).
+		// in `shell_host_ui_lifecycle_spec.cpp` pins (`hid/led/indicator_leds.h`).
 		//
 		// This example cannot fail when the real installation changes -- it builds its own `Services`
-		// and the real installation happens in `deluge.cpp` -- so it is a demonstration of the
+		// and the real installation happens in `src/deluge/deluge.cpp` -- so it is a demonstration of the
 		// mechanism and the hand-over, not a guard. The guard belongs in the spec of the real
 		// installation, and this is the shape it has to cover.
 		IndicatorService svc;

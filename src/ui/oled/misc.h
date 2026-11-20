@@ -39,8 +39,7 @@ struct OutputNameData {
 	/// @brief Unused: carried for parity with legacy's `editedByUser`, but nothing in this
 	///        library reads it.
 	///
-	/// @note Draws nothing. The only renderer that ever consulted this was the 7-segment
-	///       display, which no longer exists. Kept so a scene's data shape does not have to
+	/// @note Draws nothing. No current renderer reads it. Kept so a scene's data shape does not have to
 	///       change later.
 	bool edited;
 };
@@ -49,7 +48,7 @@ struct OutputNameData {
 ///        in the small face near the top, and the output's name -- or its slot -- centred in
 ///        the title face below it.
 ///
-/// Both y positions are the legacy `#if OLED_MAIN_HEIGHT_PIXELS == 64` pair, now selected from
+/// Both y positions are the legacy `#if OLED_MAIN_HEIGHT_PIXELS == 64` pair, selected from
 /// `f.style.menu_base_y` exactly as `list`'s base-y is: `kOutputTypeY48`/`kOutputTypeY64`
 /// (3 / 12) and `kOutputNameY48`/`kOutputNameY64` (17 / 30), all relative to @p rect's top
 /// because the frame's origin already carries `OLED_MAIN_TOPMOST_PIXEL`.

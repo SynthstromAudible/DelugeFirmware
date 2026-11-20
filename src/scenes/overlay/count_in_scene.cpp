@@ -17,14 +17,14 @@ using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
 
 void CountInScene::tick(uint32_t /*dt_ms*/) {
-	// `notify_drain.cpp:95-96`: the fact this scene polls for, and its edge-detector.
+	// `drain_notifications` (`notify_drain.cpp`): the fact this scene polls for, and its edge-detector.
 	const int32_t count = playbackHandler.count_in_visual();
 	if (count == shown_count_) {
 		return;
 	}
 	if (count > 0) {
-		// `notify_drain.cpp:97-100`: format the digit and (re)draw. `%d` matches `intToString`'s
-		// plain decimal (`util/c_string.h:31-33`, minimum one digit) for every value this ever
+		// `drain_notifications` (`notify_drain.cpp`): format the digit and (re)draw. `%d` matches `intToString`'s
+		// plain decimal (`util/c_string.h`, minimum one digit) for every value this ever
 		// shows -- `src/scenes` may not include `util/c_string.h` (the same wall
 		// `param_popup_scene.cpp` documents for `sourceToStringShort`).
 		const int n = std::snprintf(digit_, sizeof(digit_), "%d", static_cast<int>(count));
@@ -33,8 +33,8 @@ void CountInScene::tick(uint32_t /*dt_ms*/) {
 		was_showing_ = true;
 	}
 	else {
-		// `notify_drain.cpp:102-103`: cancel. The masked `UI_MODE_RECORD_COUNT_IN` clear
-		// (`:104-111`) has no port here -- see the class doc.
+		// `drain_notifications` (`notify_drain.cpp`): cancel. The masked `UI_MODE_RECORD_COUNT_IN` clear
+		// has no port here -- see the class doc.
 		showing_ = false;
 	}
 	shown_count_ = count;
@@ -48,7 +48,7 @@ void CountInScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& fr
 	// `OLED::displayPopup` -> `popupText(buffer, /*persistent=*/true, PopupType::GENERAL)`
 	// (`OLED::displayPopup` in `oled.h`; the call in `notify_drain.cpp` passes no sixth argument so `type`
 	// defaults to `PopupType::GENERAL`, `Display::displayPopup`) -- a framed (non-`NOTIFICATION`) popup box
-	// (`OLED::setupPopup`, `oled.cpp:131-134`). See the class doc for why `alignRight`/`blinkSpeed`
+	// (`OLED::setupPopup`, `oled.cpp`). See the class doc for why `alignRight`/`blinkSpeed`
 	// play no part in this.
 	deluge::ui::oled::popup_text(frame, shown_text(), deluge::ui::oled::PopupStyle::Framed);
 }

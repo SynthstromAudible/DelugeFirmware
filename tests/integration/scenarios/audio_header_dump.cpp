@@ -29,8 +29,8 @@
 namespace {
 
 /// A whole file read via plain `std::fopen`/`fread` into a `std::malloc`'d buffer — deliberately NOT
-/// `std::vector`/`operator new`. `DELUGE_HOST` (`memory/operators.cpp`) routes the global `operator
-/// new` through `deluge::memory::alloc_external`, the same bounded simulated-SDRAM pool the real
+/// `std::vector`/`operator new`. On the Linux host build the global `operator new` (`src/deluge/memory/operators.cpp`)
+/// routes through `deluge::memory::alloc_external`, the same bounded simulated-SDRAM pool the real
 /// device's allocator uses; a multi-megabyte corpus WAV (this differential's corpus runs up to several
 /// MB per file) would exhaust it after a handful of files. This dumper is a host-only differential
 /// oracle, not a device code path under test, so its own file-read buffer has no business going

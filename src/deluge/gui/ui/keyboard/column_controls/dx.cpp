@@ -22,7 +22,7 @@
 #include "model/edits/setting_edit.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/sound_menu_open.h"
 #include <algorithm>
 

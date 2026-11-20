@@ -18,7 +18,8 @@
 namespace deluge::scenes::menu {
 
 /// @brief True when @p node renders and edits as a horizontal page: a `Layout::Horizontal` submenu with
-///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`).
+///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`
+///        (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`)).
 bool is_horizontal(const MenuContext& ctx, const Node& node);
 
 /// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
@@ -35,8 +36,8 @@ bool on_horizontal_page(const MenuContext& ctx, const MenuState& st);
 ///             page for, or null for a plain descent and a chained page switch.
 void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left);
 
-/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
-///        focused column (`Submenu::updatePadLights`), else `focused()`.
+/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's focused column
+///        (`Submenu::updatePadLights` (`origin/main:src/deluge/gui/menu_item/submenu.cpp`)), else `focused()`.
 const Node* pad_subject(const MenuContext& ctx, const MenuState& st);
 
 /// @brief Turn @p node's visible children into a `Column` span carrying label, slots,
@@ -88,17 +89,17 @@ public:
 	void descend_to(MenuCore core, ValueSession& session, const Node& child,
 	                const Node* navigated_backward_from = nullptr);
 	/// @brief Go up one level, skipping levels whose permission is now `No`
-	///        (`sound_editor.cpp:710-721`).
+	///        (`SoundEditor::goUpOneLevel` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	void ascend(MenuCore core, ValueSession& session);
 	/// @brief Focus @p column on the page `focused()` shows, when the page lists it visibly;
 	///        otherwise leave the focus where it is (`Submenu::focusChild`).
 	void focus_column(MenuCore core, const Node& column);
 	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation
-	///        (`sound_editor.cpp:1991-1995`) plus legacy's `MUST_SELECT_RANGE` substitution --
-	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
-	///        (`:1857-1858`) -- the one piece `enter_child` (a descent) and `handle()`'s button
-	///        focus (legacy's `initializeItem` call in `HorizontalMenu::handleItemAction`) both run,
-	///        because both are ways into `MenuItem::checkPermissionToBeginSession`'s range branch.
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) plus legacy's `MUST_SELECT_RANGE` substitution --
+	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (the select-press arm of
+	///        `SoundEditor::buttonAction`) -- the one piece `enter_child` (a descent) and `handle()`'s button focus
+	///        (legacy's `initializeItem` call in `HorizontalMenu::handleItemAction`) both run, because both are ways
+	///        into `MenuItem::checkPermissionToBeginSession`'s range branch.
 	///
 	///        **Not `Permission::No`.** `enter_child`'s own switch still owns that arm: a descent
 	///        refuses outright on `No`, but `HorizontalMenu::handleInstrumentButtonPress` never
@@ -160,9 +161,10 @@ public:
 	bool take_close_request() { return std::exchange(close_requested_, false); }
 
 private:
-	/// @brief The child each submenu was last left on: legacy's per-`Submenu` `current_item_` (`submenu.cpp:9-18`),
-	///        which a fresh visit lands on. Once all are in use the least recently recorded entry is overwritten; the
-	///        submenus on the current path are recorded on every render, so a root is never the one evicted.
+	/// @brief The child each submenu was last left on: legacy's per-`Submenu` `current_item_` (`Submenu::beginSession`
+	///        in `origin/main:src/deluge/gui/menu_item/submenu.cpp`), which a fresh visit lands on. Once all are in use
+	///        the least recently recorded entry is overwritten; the submenus on the current path are recorded on every
+	///        render, so a root is never the one evicted.
 	struct RememberedRow {
 		const Node* submenu = nullptr;
 		const Node* child = nullptr;

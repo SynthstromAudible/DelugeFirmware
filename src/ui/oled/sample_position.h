@@ -8,7 +8,7 @@ namespace deluge::ui::oled {
 
 /// @brief A sample position spelled twice: as a duration, and as a raw sample count.
 ///
-/// The body of `SampleMarkerEditor::renderOLED` (`gui/ui/sample_marker_editor.cpp`) --
+/// The body of `SampleMarkerEditor::renderOLED` (`origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) --
 /// everything below the screen title -- as a component, so the scene that owns the marker editor
 /// calls no `OledFrame` drawing primitive of its own (`check_layer_rules.py`,
 /// `scenes-no-frame-primitives`).
@@ -26,8 +26,9 @@ namespace deluge::ui::oled {
 
 /// @brief The vertical distance between the duration line and the sample-count line.
 ///
-/// Legacy's `yPixel += 11` (`sample_marker_editor.cpp:1208`), which is neither `kTextSpacingY` (9)
-/// nor the style's `row_height`: the two lines are deliberately looser than a menu list.
+/// Legacy's `yPixel += 11` (main's `SampleMarkerEditor::renderOLED`,
+/// `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`), which is neither `kTextSpacingY` (9) nor the style's
+/// `row_height`: the two lines are deliberately looser than a menu list.
 inline constexpr int32_t kSamplePositionLineGap = 11;
 
 /// @brief Draw @p samples at @p sample_rate as a duration and a sample count.

@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The per-device MIDI page's hooks and its three MPE items. See `midi_device.h` for the
+/// @brief The per-device MIDI page's hooks and its three MPE items. See `nodes/midi_device.h` for the
 ///        node table, the legacy mapping and where `whichDirection`/`whichZone` went.
 
 #include "scenes/menu/nodes/midi_device.h"
@@ -55,7 +55,7 @@ size_t depth_of(const MenuState& state) {
 
 /// @brief The node on screen, so an item -- which is handed no `Node` of its own -- can draw its
 ///        own title and name itself as the node a value change belongs to. The same helper
-///        `dynamic.cpp`, `settings.cpp` and `patch_cables.cpp` keep.
+///        `dynamic.cpp`, `nodes/settings.cpp` and `nodes/patch_cables.cpp` keep.
 const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }
@@ -72,7 +72,7 @@ void draw_node_title(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 
 /// @brief Draw a two-option `Selection` and leave the cursor in `MenuState::list[depth]`.
 ///
-/// `Selection::drawPixelsForOled` (`gui/menu_item/selection.cpp:8-30`) as the toolkit spells it.
+/// `Selection::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/selection.cpp`) as the toolkit spells it.
 /// The cursor lives in `list[depth]` rather than in `enum_index` for the reason
 /// `dynamic.cpp`'s `render_output_selection` gives: it has to survive the descent into the page the
 /// select press opens and the walk back up, which is what legacy's `Selection` value member does.
@@ -91,12 +91,12 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 
 /// @brief `beginSession`'s forward arm for both MPE selectors: reset the cursor to option 0.
 ///
-/// `DirectionSelector::beginSession` (`mpe/direction_selector.cpp:24-29`) and
-/// `ZoneSelector::beginSession` (`mpe/zone_selector.cpp:25-30`) assign their member only when
-/// `navigatedBackwardFrom == nullptr`, and `MenuScene::ascend()` never runs `on_focus` at all
-/// (`src/scenes/README.md`, "`on_focus` is the forward arm only"). That is the same condition one
-/// hop earlier for the path that matters here -- the walk back up from the page this item chained
-/// to keeps the cursor rather than resetting it.
+/// `DirectionSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`) and
+/// `ZoneSelector::beginSession` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`) assign their member only
+/// when `navigatedBackwardFrom == nullptr`, and `MenuScene::ascend()` never runs `on_focus` at all
+/// (`src/scenes/README.md`, "`on_focus` is the forward arm only"). That is the same condition one hop earlier for the
+/// path that matters here -- the walk back up from the page this item chained to keeps the cursor rather than resetting
+/// it.
 ///
 /// **Not "only on a descent", though:** `enter_leaf` also runs `on_focus`
 /// for `FocusCause::NoRowPress` -- `open()`, a `SceneId` deep link, the shortcut-pad jump,
@@ -106,17 +106,17 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 /// (`SoundEditor::focusRegained` -> `beginScreen`), and this hook writes no model state, only a
 /// cursor and a `MenuState` selection.
 ///
-/// Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` (`io/midi/midi_device.h:33`)
-/// and `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`:36`).
+/// Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` (`io/midi/midi_device.h`)
+/// and `MPE_ZONE_LOWER_NUMBERED_FROM_0`.
 void focus_selection(MenuState& state) {
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
 	state.scroll[d] = deluge::ui::ScrollText{};
 }
 
-/// @brief `ZoneNumMemberChannels::getPort()` (`mpe/zone_num_member_channels.cpp:29-31`):
+/// @brief `ZoneNumMemberChannels::getPort()` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`):
 ///        `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]`.
-/// @return The port, or null when no cable is selected (see `midi_device.h`'s note on the guard).
+/// @return The port, or null when no cable is selected (see `nodes/midi_device.h`'s note on the guard).
 MIDIPort* mpe_port(const MenuContext& ctx, const MenuState& state) {
 	if (ctx.midi_cable == nullptr) {
 		return nullptr;
@@ -127,13 +127,14 @@ MIDIPort* mpe_port(const MenuContext& ctx, const MenuState& state) {
 } // namespace
 
 IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state) {
-	// `ZoneNumMemberChannels::getMaxValue()` (`mpe/zone_num_member_channels.cpp:33-54`), transcribed
-	// statement for statement. The minimum is `Number::getMinValue`'s 0.
+	// `ZoneNumMemberChannels::getMaxValue()` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`),
+	// transcribed statement for statement. The minimum is `Number::getMinValue`'s 0.
 	const MIDIPort* port = mpe_port(ctx, state);
 	if (port == nullptr) {
 		return IntRange{0, 0, 1};
 	}
-	// "This limits it so we don't eat into the other zone" (`:36`).
+	// "This limits it so we don't eat into the other zone" (`ZoneNumMemberChannels::getMaxValue`
+	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)).
 	int32_t num_channels_available = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0
 	                                     ? port->mpeUpperZoneLastMemberChannel
 	                                     : 15 - port->mpeLowerZoneLastMemberChannel;
@@ -149,7 +150,8 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 }
 
 int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) {
-	// `ZoneNumMemberChannels::readCurrentValue()` (`mpe/zone_num_member_channels.cpp:56-64`).
+	// `ZoneNumMemberChannels::readCurrentValue()`
+	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).
 	const MIDIPort* port = mpe_port(ctx, state);
 	if (port == nullptr) {
 		return 0;
@@ -160,10 +162,11 @@ int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) 
 
 // ---------------------------------------------------------------------------------------------
 // The per-cable binding family. Every hook here reads `MenuContext::midi_cable` and nothing else;
-// see `midi_device.h` on why a null one reads 0 and writes nothing.
+// see `nodes/midi_device.h` on why a null one reads 0 and writes nothing.
 
 int32_t get_device_velocity_to_level(const MenuContext& ctx) {
-	// `DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-31`).
+	// `DefaultVelocityToLevel::readCurrentValue`
+	// (`origin/main:src/deluge/gui/menu_item/midi/default_velocity_to_level.h`).
 	if (ctx.midi_cable == nullptr) {
 		return 0;
 	}
@@ -172,7 +175,7 @@ int32_t get_device_velocity_to_level(const MenuContext& ctx) {
 }
 
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
-	// `DefaultVelocityToLevel::writeCurrentValue` (`:33-37`): the cable's default, then every input on it takes it, by
+	// `DefaultVelocityToLevel::writeCurrentValue`: the cable's default, then every input on it takes it, by
 	// the app's Edit through the sink (none for a song the app does not play).
 	if (ctx.midi_cable == nullptr) {
 		return;
@@ -186,12 +189,12 @@ void set_device_velocity_to_level(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_device_send_clock(const MenuContext& ctx) {
-	// `DeviceSendClock::readCurrentValue` (`midi/device_send_clock.h:27`).
+	// `DeviceSendClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_send_clock.h`).
 	return ctx.midi_cable != nullptr && ctx.midi_cable->sendClock ? 1 : 0;
 }
 
 void set_device_send_clock(const MenuContext& ctx, int32_t value) {
-	// `DeviceSendClock::writeCurrentValue` (`:28-31`).
+	// `DeviceSendClock::writeCurrentValue`.
 	if (ctx.midi_cable == nullptr) {
 		return;
 	}
@@ -200,12 +203,12 @@ void set_device_send_clock(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_device_receive_clock(const MenuContext& ctx) {
-	// `DeviceReceiveClock::readCurrentValue` (`midi/device_receive_clock.h:27`).
+	// `DeviceReceiveClock::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_receive_clock.h`).
 	return ctx.midi_cable != nullptr && ctx.midi_cable->receiveClock ? 1 : 0;
 }
 
 void set_device_receive_clock(const MenuContext& ctx, int32_t value) {
-	// `DeviceReceiveClock::writeCurrentValue` (`:28-31`).
+	// `DeviceReceiveClock::writeCurrentValue`.
 	if (ctx.midi_cable == nullptr) {
 		return;
 	}
@@ -214,12 +217,12 @@ void set_device_receive_clock(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_device_is_relative(const MenuContext& ctx) {
-	// `DeviceIsRelative::readCurrentValue` (`midi/device_is_relative.h:27`).
+	// `DeviceIsRelative::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/midi/device_is_relative.h`).
 	return ctx.midi_cable != nullptr && ctx.midi_cable->is_relative ? 1 : 0;
 }
 
 void set_device_is_relative(const MenuContext& ctx, int32_t value) {
-	// `DeviceIsRelative::writeCurrentValue` (`:28-31`).
+	// `DeviceIsRelative::writeCurrentValue`.
 	if (ctx.midi_cable == nullptr) {
 		return;
 	}
@@ -240,31 +243,33 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`)
+// `mpe::DirectionSelector` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`)
 
 void MpeDirectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.walk.mpe_direction = MIDI_DIRECTION_INPUT_TO_DELUGE; // `direction_selector.cpp:25-27`
+	state.walk.mpe_direction =
+	    MIDI_DIRECTION_INPUT_TO_DELUGE; // `DirectionSelector::beginSession`
+	                                    // (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.cpp`)
 }
 
 void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// `DirectionSelector::getTitle()` (`direction_selector.h:40-43`) -- computed from the value,
-	// which is why this item cannot be a data node with a static `Node::title`.
+	// `DirectionSelector::getTitle()` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`) -- computed
+	// from the value, which is why this item cannot be a data node with a static `Node::title`.
 	const uint8_t direction = chosen(state, 2);
 	draw_title(f, deluge::scenes::text_lookup(
 	                  sid(direction != 0 ? String::STRING_FOR_MPE_OUTPUT : String::STRING_FOR_MPE_INPUT)));
 
-	// `DirectionSelector::getOptions` (`direction_selector.h:29-35`).
+	// `DirectionSelector::getOptions` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`).
 	const std::string_view names[] = {
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_IN)),
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_OUT)),
 	};
 	render_selection(f, state, names);
 
-	// `writeCurrentValue` (`direction_selector.h:37`): `whichDirection = getValue()`. A legacy
-	// `Value` writes on every encoder move, not only on the press, and `ZoneNumMemberChannels`
-	// reads the member -- so this republishes every frame, exactly as `SourceSelectionItem` does
-	// for `MenuWalkState::patch_source` (`scenes/menu/nodes/patch_cables.cpp`).
+	// `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/mpe/direction_selector.h`):
+	// `whichDirection = getValue()`. A legacy `Value` writes on every encoder move, not only on the press, and
+	// `ZoneNumMemberChannels` reads the member -- so this republishes every frame, exactly as `SourceSelectionItem`
+	// does for `MenuWalkState::patch_source` (`scenes/menu/nodes/patch_cables.cpp`).
 	state.walk.mpe_direction = chosen(state, 2);
 }
 
@@ -275,25 +280,28 @@ deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEv
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`)
+// `mpe::ZoneSelector` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`)
 
 void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.walk.mpe_zone = MPE_ZONE_LOWER_NUMBERED_FROM_0; // `zone_selector.cpp:25-27`
+	state.walk.mpe_zone =
+	    MPE_ZONE_LOWER_NUMBERED_FROM_0; // `ZoneSelector::beginSession`
+	                                    // (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.cpp`)
 }
 
 void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// `ZoneSelector` has no name and no `getTitle()`, so legacy's title is empty: the separator alone.
 	draw_title(f, {});
 
-	// `ZoneSelector::getOptions` (`zone_selector.h:32-38`).
+	// `ZoneSelector::getOptions` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`).
 	const std::string_view names[] = {
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_LOWER_ZONE)),
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_UPPER_ZONE)),
 	};
 	render_selection(f, state, names);
 
-	state.walk.mpe_zone = chosen(state, 2); // `writeCurrentValue` (`zone_selector.h:30`)
+	state.walk.mpe_zone =
+	    chosen(state, 2); // `writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/mpe/zone_selector.h`)
 }
 
 deluge::ui::shell::Result MpeZoneItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -303,7 +311,7 @@ deluge::ui::shell::Result MpeZoneItem::handle(const deluge::ui::shell::UiEvent& 
 }
 
 // ---------------------------------------------------------------------------------------------
-// `mpe::ZoneNumMemberChannels` (`gui/menu_item/mpe/zone_num_member_channels.{h,cpp}`)
+// `mpe::ZoneNumMemberChannels` (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`)
 
 void MpeZoneChannelsItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `Number::beginSession` -> `readCurrentValue()`. A `Kind::Custom` node's `enter_leaf` does not
@@ -320,9 +328,9 @@ void MpeZoneChannelsItem::on_reread(const MenuContext& ctx, MenuState& state) co
 void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_node_title(f, state);
 
-	// `IntegerWithOff::drawPixelsForOled` (`gui/menu_item/integer.cpp:41-50`): the huge centred
+	// `IntegerWithOff::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/integer.cpp`): the huge centred
 	// number, or "OFF" at 0. `f.bounds()`, not `menu_rect(f)`, for the reason
-	// `MenuScene::render_leaf_int` spells out -- `int_value` places its digits at a rect-relative
+	// `MenuView::render_leaf_int` spells out -- `int_value` places its digits at a rect-relative
 	// `kValueY` calibrated for the full panel.
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), state.edit_int, mpe_zone_channels_range(ctx, state),
@@ -342,7 +350,8 @@ void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 }
 
 void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const {
-	// `ZoneNumMemberChannels::writeCurrentValue` (`mpe/zone_num_member_channels.cpp:66-85`).
+	// `ZoneNumMemberChannels::writeCurrentValue`
+	// (`origin/main:src/deluge/gui/menu_item/mpe/zone_num_member_channels.cpp`).
 	MIDIPort* port = mpe_port(ctx, state);
 	if (port == nullptr) {
 		return;
@@ -358,7 +367,7 @@ void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const
 	MIDIDeviceManager::anyChangesToSave = true;
 
 	// "If this was for an output, we transmit an MCM message to tell the device about our MPE zone
-	// for the MIDI they'll be receiving from us." (`:78-84`)
+	// for the MIDI they'll be receiving from us." (`ZoneNumMemberChannels::writeCurrentValue`)
 	if (state.walk.mpe_direction == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
 		const int32_t master_channel = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? 0 : 15;
 		ctx.midi_cable->sendRPN(master_channel, 0, 6, state.edit_int);

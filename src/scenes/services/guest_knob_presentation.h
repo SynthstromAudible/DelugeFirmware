@@ -37,7 +37,8 @@ public:
 
 	/// @name `KnobPresentation`
 	/// @{
-	/// @brief Is the menu on top focused on this very param (`View::modEncoderAction_existentParam`)?
+	/// @brief Is the menu on top focused on this very param (`View::modEncoderAction_existentParam`
+	/// (`origin/main:src/deluge/gui/views/view.cpp`))?
 	bool suppress_value_popup(const ModTurn& turn) override;
 	/// @brief Hand the turn to the popup, push it if it is not stacked yet, and owe a repaint when it redrew.
 	void show_value_popup(const ModTurn& turn, PatchSource source1, PatchSource source2,

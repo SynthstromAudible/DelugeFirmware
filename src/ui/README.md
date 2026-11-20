@@ -4,7 +4,7 @@ The immediate-mode widget toolkit the UI stack draws with. A scene builds a fram
 every tick and calls widgets on it; each widget paints, reads the input it was granted, and records
 what it consumed, all in one call. State lives in plain structs the caller owns and passes in by
 reference. The toolkit is a leaf: it knows nothing of the model, the legacy UI or the hardware, and
-it reproduces legacy's pixels and pad colours exactly, so users cannot see the port.
+it reproduces `main`'s pixels and pad colours exactly.
 
 | target | holds | links |
 |---|---|---|
@@ -36,7 +36,7 @@ pre-commit hook `check-layer-rules`). Its four `src/ui` rows, all held at zero i
 | `ui-includes-outside` | `src/ui/**` | any slashed `#include` outside `ui/`/`gfx/`, and the root headers above |
 | `ui-oled-no-grid` | `src/ui/oled/**` | `#include "ui/grid/..."` |
 | `ui-grid-no-oled` | `src/ui/grid/**` | `#include "ui/oled/..."` |
-| `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `frame.{h,cpp}` | `input.turn`, `input.edit`, `input.horizontal`, `input.vertical`, `input.select_pressed`, `input.back_pressed`, `input.shift`, `input.now_ms` |
+| `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `oled/frame.{h,cpp}` and `grid/frame.{h,cpp}` | `input.turn`, `input.edit`, `input.horizontal`, `input.vertical`, `input.select_pressed`, `input.back_pressed`, `input.shift`, `input.now_ms` |
 
 The frame files are exempt because they are the accessors. The rule is line-based: a ratchet
 against drift, not a proof.
@@ -52,11 +52,11 @@ against drift, not a proof.
 | `LedId`, `IndicatorId`, `BlinkRate`, `BlinkPhase`, `LedState`, `KnobIndicator`, `LedFrame` | `led_frame.h` |
 | `knob_indicator_levels`, `knob_indicator_blink` (a gold knob's 4-segment column) | `knob_indicator.h` |
 | `blink_lit`, `blink_next_flip_in` | `blink.h` |
-| `EncoderAcceleration`, `kGoldEncoderAcceleration`, `kHorizontalMenuAcceleration` (one acceleration curve shared with legacy's encoders) | `encoder_acceleration.h` |
+| `EncoderAcceleration`, `kGoldEncoderAcceleration`, `kHorizontalMenuAcceleration` (one acceleration curve shared with legacy's encoders) | `core/encoder_acceleration.h` |
 | text and layout constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, ...), `text_height_of` | `metrics.h` |
 | `RepaintGate` | `repaint_gate.h` |
 | `Response` | `response.h` |
-| `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState` | `state.h` |
+| `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState` | `core/state.h` |
 | `Style` (every field a widget reads; `menu_base_y` is the panel-height value), `kDelugeStyle48`, `kDelugeStyle64` | `style.h` |
 | `WrappedLines`, `wrap_lines` | `text_wrap.h` |
 
@@ -64,18 +64,18 @@ against drift, not a proof.
 
 | widget / helper | file |
 |---|---|
-| `ClipScope`, `OledFrame`, `root_frame` | `frame.h` |
+| `ClipScope`, `OledFrame`, `root_frame` | `oled/frame.h` |
 | `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title`, `title_badge` | `text.h` |
 | `scroll_text` | `scroll_text.h` |
 | `TextEditState`, `text_edit` | `text_edit.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `list.h` |
 | `Range`, `ValueStyle`, `int_value`, `decimal_value`, `enum_value`, `toggle` | `values.h` |
 | `FilterKind`, `StageKind`, `Hint`, `percent`, `knob_arc`, `unipolar_bar`, `pan`, `slider`, `length_slider`, `filter_curve`, `envelope_stage`, `sidechain_ducking`, `meter` | `meters.h` |
-| `Column`, `Paging`, `paging_of`, `column_under_button`, `page_switch`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `columns.h` |
+| `Column`, `Paging`, `paging_of`, `column_under_button`, `page_switch`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `column_drawings.h` |
 | `kMaxRoutingStages`, `routing_chain`, `segmented_switch`, `cable_strength_value` | `routing.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `popup.h` |
-| `OutputNameData`, `output_name`, `segment_digits`, `vu`, `graphic`, `icon` | `misc.h` |
+| `OutputNameData`, `output_name`, `segment_digits`, `vu`, `graphic`, `icon` | `oled/misc.h` |
 | `kSamplePositionLineGap`, `sample_position` | `sample_position.h` |
 | `Rainfall`, `draw_block`, `draw_rainfall` | `rainfall.h` |
 | `Starfield`, `draw_starfield` | `starfield.h` |
@@ -85,10 +85,10 @@ against drift, not a proof.
 
 | component / helper | file |
 |---|---|
-| `GridFrame` (`pad`, `peek`, `flash`, `local_events`, `pad_events`, `first_press_in`, `interact`, `held_pads`, `region`, `bounds`, `visible`, `grid_gate`), `FlashColour`, `PadFlash`, `PadFlashList`, `root_grid_frame` | `frame.h` |
+| `GridFrame` (`pad`, `peek`, `flash`, `local_events`, `pad_events`, `first_press_in`, `interact`, `held_pads`, `region`, `bounds`, `visible`, `grid_gate`), `FlashColour`, `PadFlash`, `PadFlashList`, `root_grid_frame` | `grid/frame.h` |
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `sidebar.h` |
-| `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `columns.h` |
+| `MacroKind`, `MacroCell`, `macro_colour`, `macro_wants_arm_flash`, `macros`; `NoteSquare`, `VelocityData`, `velocity_colour`, `velocity_column`; `AutomationData`, `automation_colour`, `automation_column`; `vu_max_row`, `vu_row_colour`, `vu_meter`; `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
 | `PeakCol`, `waveform_col_colour`, `waveform_row`, `waveform_full` | `waveform.h` |
 | `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `markers.h` |
 | `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `keyboard.h` |
@@ -225,9 +225,9 @@ Every OLED widget pins legacy geometry at both 128x48 and 128x64 (paired `*_48.p
 goldens under `tests/golden/ui/widgets/`). Grid components pin legacy colours with `.state`
 goldens (`macros.state`, `vu_meter.state`, `greyout.state`). `measure()` and every centring or
 right-aligning widget use legacy's nominal advance widths and boxes, blank padding included, not
-ink bounds, because that is what legacy laid out against. `Style::menu_base_y` is
-`MenuItem::drawItemsForOled`'s 14/15 per panel height; `kHorizontalMenuBaseY` stays a separate
-constant (see quirk 3).
+ink bounds, because that is what legacy laid out against. `Style::menu_base_y` is the 14/15 per
+panel height of `main`'s `MenuItem::drawItemsForOled` (`origin/main:src/deluge/gui/menu_item/menu_item.cpp`);
+`kHorizontalMenuBaseY` stays a separate constant (see quirk 3).
 
 ## Legacy quirks reproduced on purpose
 
@@ -239,10 +239,10 @@ CI.
 |---|---|---|---|---|
 | 1 | Popups centre on the full 48-row panel, bezel-hidden rows included, so they sit visibly above the true visible centre (and would centre correctly, so inconsistently, on a 64-row panel) | `popup_rect_for` (`panel_of`) in `oled/popup.cpp` | `popup_spec.cpp` "centres the popup box on the panel, at both geometries"; `popup_*_48.pbm` | a `Style` flag (default on for parity) choosing `f.bounds()` instead |
 | 2 | `decimal_value`'s default layout draws at canvas-absolute rows, ignoring `rect.y`/`rect.h`, so it cannot be placed in its frame and sits differently from `int_value` on a 64-row panel | `decimal_value` in `oled/values.h` | `values_spec.cpp` "draws the legacy decimal at its canvas-absolute rows on both panels"; `decimal_value_12_34_48.pbm` | offset from `rect.y`, as `int_value` does |
-| 3 | `kHorizontalMenuBaseY` is `14` on every panel while the vertical menu's is 14/15, from a 64-row arm of `HorizontalMenu::renderMenuItems` that is dead in legacy | `kHorizontalMenuBaseY` in `core/metrics.h`; `columns` in `oled/columns.cpp` | `columns_spec.cpp` "puts the label row at the legacy base_y + box_height - label_height"; `columns_four_64.pbm` | a 64-row arm of `15`, keyed off the canvas height |
+| 3 | `kHorizontalMenuBaseY` is `14` on every panel while the vertical menu's is 14/15, from a 64-row arm of `HorizontalMenu::renderMenuItems` that is dead in `main` (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`) | `kHorizontalMenuBaseY` in `core/metrics.h`; `columns` in `oled/columns.cpp` | `columns_spec.cpp` "puts the label row at the legacy base_y + box_height - label_height"; `columns_four_64.pbm` | a 64-row arm of `15`, keyed off the canvas height |
 | 4 | `GreyoutMask::cols` bits run right to left (bit 0 is the rightmost column, bit 17 is column 0), legacy `PadLEDs::prepareColour`'s numbering | `GreyoutMask` in `grid/effects.h` | `effects_spec.cpp` "greys the column a cols bit selects, counting from the right", "greys column 0 from the top cols bit" | natural order, mirrored once in the bridge that builds the mask from `greyoutCols` |
 | 5 | `wrap_lines`' `max_chars_per_line` is read by nothing, as in legacy's `breakStringIntoLines`; only `max_width_px` caps a line | `wrap_lines` in `core/text_wrap.h` | `popup_spec.cpp` "ignores max_chars_per_line, because legacy never reads the field" | drop the parameter |
-| 6 | `length_slider`'s `min_pos` defaults to `true`, because legacy's `menu_item::Number::drawLengthSlider` defaults `bool min_slider_pos = 3` (truthy); every new call site inherits it | `length_slider` in `oled/meters.h` | `meters_spec.cpp` "puts the thumb one pixel right when min_pos, and defaults it on"; `meter_length_slider_48/64.pbm` | default `false`, re-record the two goldens |
+| 6 | `length_slider`'s `min_pos` defaults to `true`, because `main`'s `menu_item::Number::drawLengthSlider` defaults `bool min_slider_pos = 3` (truthy; `origin/main:src/deluge/gui/menu_item/number.h`); every new call site inherits it | `length_slider` in `oled/meters.h` | `meters_spec.cpp` "puts the thumb one pixel right when min_pos, and defaults it on"; `meter_length_slider_48/64.pbm` | default `false`, re-record the two goldens |
 
 Five more are in the tweens `gfx/grid/tween.cpp` ports from `hid/led/pad_leds.cpp` (detail in
 `src/gfx/README.md`). Each is pinned by `tests/unit/gfx/tween_spec.cpp`'s `legacy::` oracle,
@@ -262,7 +262,7 @@ which byte-compares, so a fix changes the port and the oracle together.
   by reference, and any POD state (add it to `core/state.h` if it is shared). Read input only
   through the frame's accessors, claim what you own even on an empty model, schedule motion through
   `f.gate()`, and lay out against legacy's nominal geometry. Add the `.cpp` to `deluge_ui_oled` in
-  `CMakeLists.txt`, a row to the catalogue above, and a spec in `tests/unit/ui/` built on
+  `src/ui/CMakeLists.txt`, a row to the catalogue above, and a spec in `tests/unit/ui/` built on
   `OledRig` that pins paired 48/64 goldens with `expect_golden`.
 - **A grid component:** a free function in `grid/` taking `GridFrame&`; paint and hit-test in one
   pass with `pad()`, and return a `Response` only if one response describes the interaction
@@ -271,7 +271,7 @@ which byte-compares, so a fix changes the port and the oracle together.
   at most one child.
 - **A legacy quirk you keep:** pin it with a spec or golden and add a row to the table above.
 
-## Not yet ported
+## Known gaps
 
 - The OLED `waveform` widget: it needs the model-side `WaveformRenderData`, so it waits for a
   sample-view scene. `WaveformState` in `core/state.h` is reserved for it.

@@ -4,19 +4,19 @@
 ///        leaves rather than subtrees (the play direction and the output-MIDI page).
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`:
+/// `origin/main:src/deluge/gui/ui/menus.cpp`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `edit_track_name` | `audioOutputNameEditMenu` (`:1127`) | `EditName` (`gui/menu_item/edit_name.h:25`) | Custom (`EditNameItem`) |
-/// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | Custom (`EditNameItem`) |
-/// | `edit_name` | `editNameMenu` (`:1134`) | `Submenu` | Submenu (Vertical) |
-/// | `sound_actions` | `soundEditorRootActionsMenu` (`:1764`) | `Submenu` | Submenu (Vertical) |
-/// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` | Enum (dynamic) |
-/// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` | Int |
-/// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` | Int |
-/// | `output_midi` | `outputMidiSubmenu` (`:903`) | `Submenu` | Submenu (Vertical) |
+/// | `edit_track_name` | `audioOutputNameEditMenu` | `EditName` (`origin/main:src/deluge/gui/menu_item/edit_name.h`) | Custom (`EditNameItem`) |
+/// | `edit_clip_name` | `audioClipNameEditMenu` | `EditName` | Custom (`EditNameItem`) |
+/// | `edit_name` | `editNameMenu` | `Submenu` | Submenu (Vertical) |
+/// | `sound_actions` | `soundEditorRootActionsMenu` | `Submenu` | Submenu (Vertical) |
+/// | `sequence_direction` | `sequenceDirectionMenu` | `sequence::Direction` | Enum (dynamic) |
+/// | `output_midi_channel` | `outputMidiChannelMenu` | `midi::sound::OutputMidiChannel` | Int |
+/// | `output_midi_note` | `outputMidiNoteForDrumMenu` | `midi::sound::OutputMidiNoteForDrum` | Int |
+/// | `output_midi` | `outputMidiSubmenu` | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
 /// `soundEditorRootActionsMenu`'s other two children are `sample0RecorderMenu` /
@@ -27,26 +27,26 @@
 /// node would be a second count).
 ///
 /// @note **Both `EditName` items are real.** `EditName::beginSession` opens `RenameUI`
-///       (`gui/menu_item/edit_name.cpp`); "edit-name" is one of the bespoke items, and
+///       (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`); "edit-name" is one of the bespoke items, and
 ///       nothing about pushing another UI fits any `Kind`. They are `nodes::EditNameItem`s
-///       (`edit_name.h`), which open `rename::RenameScene` on the matching `rename::TargetId` --
+///       (`nodes/edit_name.h`), which open `rename::RenameScene` on the matching `rename::TargetId` --
 ///       `edit_track_name` on `Output` (legacy's `Target::AUDIO_OUTPUT` -> `renameOutputUI`) and
 ///       `edit_clip_name` on `Clip` (`Target::CLIP` -> `renameClipUI`).
 ///
-/// @note **`sequence::Direction` is transcribed as far as this layer reaches.** Legacy resolves an
-///       *individual note row* first (`sequence/direction.h:29-52`): on a kit row it asks the clip
-///       for the selected drum's note row, which is model work this context can do; off a kit it
-///       consults `soundEditor.selectedNoteRow` and `instrumentClipView.lastAuditionedYDisplay`,
-///       both UI state `src/scenes` may not read, and creates a note row if none exists. The hooks
-///       below do the kit arm and legacy's own no-note-row fallback (the clip's
-///       `sequenceDirectionMode`, `:56-61`), and the audition arm belongs to the
-///       `NoteClipScene`. The option list is dynamic for the same reason: the fourth option, NONE,
-///       is offered only when a note row was resolved (`:83-86`).
+/// @note **`sequence::Direction` is transcribed as far as this layer reaches.** Legacy resolves an *individual note
+///       row* first (`Direction::getIndividualNoteRow` in `origin/main:src/deluge/gui/menu_item/sequence/direction.h`):
+///       on a kit row it asks the clip for the selected drum's note row, which is model work this context can do; off a
+///       kit it consults `soundEditor.selectedNoteRow` and `instrumentClipView.lastAuditionedYDisplay`, both UI state
+///       `src/scenes` may not read, and creates a note row if none exists. The hooks below do the kit arm and legacy's
+///       own no-note-row fallback (the clip's `sequenceDirectionMode`, as `Direction::readCurrentValue` and
+///       `Direction::writeCurrentValue` do), and the audition arm belongs to the `NoteClipScene`. The option list is
+///       dynamic for the same reason: the fourth option, NONE, is offered only when a note row was resolved
+///       (`Direction::getOptions`).
 ///
-/// @note **`sequence::Direction::checkPermissionToBeginSession`** (`:93-104`) refuses on a kit row
-///       with no selected drum and otherwise latches `soundEditor.selectedNoteRow`. The refusal is
-///       already what `context_for` resolves to `MenuContext::resolved == false`
-///       (`sound_editor.cpp:1732-1739`); the latch is the UI state above.
+/// @note **`sequence::Direction::checkPermissionToBeginSession`
+///       (`origin/main:src/deluge/gui/menu_item/sequence/direction.h`)** refuses on a kit row with no selected drum and
+///       otherwise latches `soundEditor.selectedNoteRow`. The refusal is already what `context_for` resolves to
+///       `MenuContext::resolved == false`; the latch is the UI state above.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -84,9 +84,9 @@ inline constexpr Node sequence_direction =
                                         get_sequence_direction, set_sequence_direction),
                     sequence_direction_art);
 
-// `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h`) and `OutputMidiNoteForDrum`'s
-// (`note_for_drum.h`). The channel's `drawInteger` names 0 Off (the l10n string, `off_at_zero_text`); the note draws
-// a plain number.
+// `OutputMidiChannel::getMinValue`/`getMaxValue` (`origin/main:src/deluge/gui/menu_item/midi/sound/channel.h`) and
+// `OutputMidiNoteForDrum`'s (`origin/main:src/deluge/gui/menu_item/midi/sound/note_for_drum.h`). The channel's
+// `drawInteger` names 0 Off (the l10n string, `off_at_zero_text`); the note draws a plain number.
 inline constexpr Node output_midi_channel = with_leaf_text(
     with_affect_entire(setting_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), Kind::Int,
                                     {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "midiOutput/channel"})),

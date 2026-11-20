@@ -3,7 +3,8 @@
 /// @brief The sound-editor root menu as data: `sound_root`, whose children are the sound subtrees the
 ///        `sound_*.h` headers declare.
 ///
-/// The transcription of `gui/ui/menus.cpp`'s `soundEditorRootMenu` literal -- **27** children, in that exact order:
+/// The transcription of `origin/main:src/deluge/gui/ui/menus.cpp`'s `soundEditorRootMenu` literal -- **27** children,
+/// in that exact order:
 ///
 // clang-format off
 /// |  # | legacy child | node | declared by |
@@ -23,7 +24,7 @@
 /// | 13 | `oscMixerMenu`               | `osc_mixer`     | `sound_osc.h` |
 /// | 14 | `env1Menu` .. `env4Menu`     | `env1` .. `env4`| `sound_env.h` |
 /// | 18 | `lfo1Menu` .. `lfo4Menu`     | `lfo1` .. `lfo4`| `sound_lfo.h` |
-/// | 22 | `voiceMenu`                  | `voice`         | `sound_voice.h` |
+/// | 22 | `voiceMenu`                  | `voice`         | `nodes/sound_voice.h` |
 /// | 23 | `bendMenu`                   | `bend`          | `sound_bend.h` |
 /// | 24 | `drumBendRangeMenu`          | `drum_bend_range` | `sound_bend.h` |
 /// | 25 | `patchCablesMenu`            | `patch_cables`  | **Custom** (below) |
@@ -36,9 +37,9 @@
 ///       against prose.
 ///
 /// @note **`patchCablesMenu` is a custom node.** `menu_item::PatchCables`
-///       (`gui/menu_item/patch_cables.h`) is the mod-matrix browser -- a whole editor with its own
-///       scroll state and shortcut blinking -- so it is a `custom` node over `kPatchCablesItem`
-///       rather than a data-only page.
+///       (`origin/main:src/deluge/gui/menu_item/patch_cables.h`) is the mod-matrix browser -- a whole editor with its
+///       own scroll state and shortcut blinking -- so it is a `custom` node over `kPatchCablesItem` rather than a
+///       data-only page.
 ///
 /// @note **`bendMenu` and `drumBendRangeMenu` share a name.** See `sound_bend.h` and
 ///       `validate.cpp`'s `co_visible`: legacy separates them by relevance, never by name.
@@ -64,7 +65,7 @@
 
 namespace deluge::scenes::menu::nodes {
 
-// `patchCablesMenu` (`gui/ui/menus.cpp:1737`): the MOD MATRIX list of every existing cable on this
+// `patchCablesMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): the MOD MATRIX list of every existing cable on this
 // sound. A select press opens the selected cable's own strength page -- the range one when that
 // cable's destination is itself a cable (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
 // `PatchCables::selectButtonPress`).
@@ -96,7 +97,7 @@ inline constexpr Node sound_root = submenu(sid(deluge::l10n::String::STRING_FOR_
 /// its definition to get external linkage), like every other subtree's exported span.
 extern const std::span<const Node* const> kSoundRootChildrenSpan;
 
-/// @brief The one root of the batch-2 tree, as the `roots` span `validate_tree` and
+/// @brief The one root of the sound-page tree, as the `roots` span `validate_tree` and
 ///        `assign_node_ids` want.
 ///
 /// A one-element list rather than a bare pointer so it composes with the same interfaces

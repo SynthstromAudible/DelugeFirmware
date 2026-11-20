@@ -21,16 +21,13 @@
 /// @brief The consumer half of the menu's action seam -- the poll of `MenuScene::take_action()` and
 ///        the legacy behaviour each request performs.
 ///
-/// The producing half is `src/scenes`': a ported menu item asks for a piece of legacy behaviour it
+/// The producing half is `src/scenes`': a menu item asks for a piece of legacy behaviour it
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
 /// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
 ///
-/// **The verbs are not all one shape.** Five are root-UI behaviour filed by writing
-/// `MenuWalkState::pending_action` directly, and they are tabulated in `scenes/menu/action.h`.
-/// The others are settings writes filed through `MenuScene::request_action` by a `Binding::set`
-/// hook that is handed no `MenuState` at all -- `ScreensaverSettingsChanged` and its siblings,
-/// argued in `scenes/menu/action.h`. The difference matters to this file only in what each arm
-/// calls; the drain and the poll are identical for all of them.
+/// The five verbs are root-UI behaviour, filed by writing `MenuWalkState::pending_action` and
+/// tabulated in `scenes/menu/action.h`. A settings write's side effect is not one of them: its
+/// setter calls the host at the write (`scenes/menu/bind_host.h`).
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -45,10 +42,7 @@
 /// one symbol in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, exactly as it stubs
 /// `wireShellGuestServices`.
 ///
-/// The header stays in `gui/ui/` rather than moving to `src/deluge/util/` the way
-/// `util/shell_menu_entry.h` had to: that move was forced by a *caller* inside
-/// `check_layer_rules.py`'s `NON_UI` glob (`model/clip/instrument_clip_minder.cpp`), and this one
-/// has exactly one caller, `gui/ui/shell_host_ui.cpp`, which is inside `gui/` already.
+/// The header is in `gui/ui/`, beside its definitions in `gui/ui/shell_action_dispatch.cpp`.
 
 #include "definitions_cxx.hpp" // StemExportType
 
@@ -56,7 +50,7 @@
 
 namespace deluge::gui::ui {
 
-/// @brief Take whatever the ported menu asked for, if anything, and perform it.
+/// @brief Take whatever the menu asked for, if anything, and perform it.
 ///
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
@@ -79,37 +73,32 @@ namespace deluge::gui::ui {
 /// @par What it does
 ///
 /// It drains, and it performs **every** verb: `OpenPerformanceView`, `StartStemExport`,
-/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`, and the settings writes
-/// from `ScreensaverSettingsChanged` on. The settings writes are a different shape from the five --
-/// a **write** rather than a select press, filed from a `Binding::set` hook through
-/// `MenuScene::request_action` -- which `scenes/menu/action.h` argues at each enumerator. The
-/// `switch` has an arm for every `MenuAction` and no `default:` -- see below.
+/// `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and `OpenSongMacros`. The `switch` has an arm
+/// for every `MenuAction` and no `default:` -- see below.
 ///
 /// @par The two context menus open even when `setupAndCheckAvailability()` says no
 ///
 /// `song::MidiLearn::selectButtonPress` and `song::ConfigureMacros::selectButtonPress`
-/// (`gui/menu_item/song/midi_learn.h:27-31`, `gui/menu_item/song/configure_macros.h:27-31`) are each
-/// two statements: a `setupAndCheckAvailability()` **whose `bool` they throw away** (`:28` in both)
-/// and an `openUI(...)` (`:29` in both) that runs unconditionally. This dispatcher does the same, and
-/// the `(void)` casts at those two arms are the only difference in spelling.
+/// (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`,
+/// `origin/main:src/deluge/gui/menu_item/song/configure_macros.h`) are each two statements: a
+/// `setupAndCheckAvailability()` **whose `bool` they throw away** and an `openUI(...)` that runs unconditionally. This
+/// dispatcher does the same, and the `(void)` casts at those two arms are the only difference in spelling.
 ///
 /// **Only one of the two can actually answer false, which is narrower than "it returns a bool
 /// legacy discards" suggests.** `ConfigureSongMacros::setupAndCheckAvailability`
-/// (`gui/context_menu/configure_song_macros.cpp:48-51`) enters the mode and then `return true;`
-/// (`:50`) -- there is no false. `MidiLearnMode::setupAndCheckAvailability`
-/// (`gui/context_menu/midi_learn_mode.cpp:50-53`) returns `currentUIMode == UI_MODE_MIDI_LEARN`
-/// (`:52`) *after* calling `sessionView.enterMidiLearnMode()` (`:51`), and that call reaches
+/// (`gui/context_menu/configure_song_macros.cpp`) enters the mode and then `return true;`
+/// -- there is no false. `MidiLearnMode::setupAndCheckAvailability`
+/// (`gui/context_menu/midi_learn_mode.cpp`) returns `currentUIMode == UI_MODE_MIDI_LEARN`
+/// *after* calling `sessionView.enterMidiLearnMode()`, and that call reaches
 /// `View::startMIDILearn`, which assigns the mode **only
 /// under** `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`. So the
 /// false answer means exactly one thing: some other UI mode was latched when the press landed, and
 /// MIDI learn did not arm.
 ///
 /// **Discarding it is not special to these two sites**, which is worth saying because the opposite
-/// was assumed. `grep -rn "setupAndCheckAvailability" src/deluge` returns 41 lines; 14 are
-/// declarations or definitions and one is a doc comment in `shell_host_ui.h`, leaving **26 call
-/// sites, of which 11 discard the result and 15 bind it to a `bool available` and branch**
-/// (`gui/context_menu/save_song_or_instrument.cpp` is one of the 15;
-/// `gui/menu_item/reset_settings/reset.h` and `gui/views/session_view.cpp` are two of the 11).
+/// was assumed. Some callers discard the result and some bind it to a `bool available` and branch
+/// (`gui/context_menu/save_song_or_instrument.cpp` branches;
+/// `origin/main:src/deluge/gui/menu_item/reset_settings/reset.h` and `gui/views/session_view.cpp` discard).
 /// It is a split convention, and these two sites are on the discarding side of it. Reproduced, not
 /// improved.
 ///
@@ -119,27 +108,25 @@ namespace deluge::gui::ui {
 ///          UI_MODE_MIDI_LEARN` (`UI::noteOnReceivedForMidiLearn` and its siblings) -- so the menu learns nothing.
 ///          `SessionView::enterMidiLearnMode` has meanwhile overwritten `previousGridModeActive` and forced
 ///          `gridModeActive` to `SessionGridModeLaunch`
-///          (`gui/views/session_view.cpp:3070-3075`) regardless, and the exit restores those
-///          (`:3079-3083`) while `View::endMIDILearn` leaves the latched mode alone, because it only
+///          (`gui/views/session_view.cpp`) regardless, and `SessionView::exitMidiLearnMode` restores those
+///          while `View::endMIDILearn` leaves the latched mode alone, because it only
 ///          clears `currentUIMode` when it *is* `UI_MODE_MIDI_LEARN` (`gui/views/view.cpp`).
 ///          So it is a cosmetic-but-real defect -- a menu that cannot do its job -- and it is
-///          legacy's, unchanged here.
+///          main's, unchanged here.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///
-/// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly"
-/// (`MenuAction`'s doc in `scenes/menu/action.h`). `-Werror=switch` is on for every target
-/// (`cmake/deluge_common_options.cmake:32`), so an enumerator added without an arm here fails the
-/// build; a `default:` would absorb it silently and the compiler would stop being the check.
+/// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly" (`MenuAction`'s doc in
+/// `scenes/menu/action.h`). `-Werror=switch` is on for every target (`cmake/deluge_common_options.cmake`), so an
+/// enumerator added without an arm here fails the build; a `default:` would absorb it silently and the compiler would
+/// stop being the check.
 void dispatchShellActions();
 
-/// @brief `dispatchShellActions` for a close: a setting a value write filed (the shortcuts version, the screensaver,
-///        pad brightness, highlighting, rounded corners, sticky shift, the flash status, the pad colours) is applied,
-///        as legacy's `writeCurrentValue` applies both its halves at once; a request that opens a UI or moves the
-///        menu is dropped, because the menu is going.
-void dispatchShellActionsAtClose();
+/// @brief Drop whatever the menu asked for on the guest's last tick, for its close: a request filed by the input
+///        the close feeds through opens a UI or moves a menu that is going, so nothing performs it.
+void discardShellActionsBeforeClose();
 
-/// @brief `soundEditor.exitCompletely()`, ported: take the ported menu off the guest's scene stack
+/// @brief `soundEditor.exitCompletely()`, ported: take the menu off the guest's scene stack
 ///        and let `ShellHostUI::timerCallback` close the guest itself.
 ///
 /// Full argument at its definition (`gui/ui/shell_action_dispatch.cpp`, the block between the two
@@ -149,7 +136,7 @@ void dispatchShellActionsAtClose();
 ///
 /// @par Why it is declared here rather than left inside the `.cpp`'s anonymous namespace
 ///
-/// It has two callers ported from two different legacy statements that both happen to be
+/// It has two callers ported from two different statements of main that both happen to be
 /// `exitCompletely()`: `stem_export::Start::selectButtonPress`'s first statement, dispatched from
 /// this same translation unit's `startStemExport`, and `SoundEditor::padAction`'s tail,
 /// ported by the pad-forwarding seam
@@ -157,17 +144,19 @@ void dispatchShellActionsAtClose();
 /// `namespace {}` serves only the first caller; this declaration is what the second one needs.
 void closePortedMenu();
 
-/// @brief `SoundEditor::exitCompletely`'s settings arm (`gui/ui/sound_editor.cpp:940-950`): when the ported menu's root
-///        is the settings menu, save the settings, the MIDI devices, the community features and the MIDI-follow
-///        defaults, behind main's "Saving settings" animation. The guest's close path calls it.
+/// @brief `SoundEditor::exitCompletely`'s settings arm (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): when the
+///        menu's root is the settings menu, save the settings, the MIDI devices, the community features and the
+///        MIDI-follow defaults, behind main's "Saving settings" animation. The guest's close path calls it.
 void saveSettingsBeforeClose();
 
-/// @brief The screensaver's legacy-side inhibitors (`hid/display/screensaver.cpp:151`): a permanent-looking popup is
-///        up, or a stem export is running. The guest hands it to the shell before every tick.
-bool legacyInhibitsScreensaver();
+/// @brief What the host inhibits the screensaver for, beyond the shell's own working animation: a permanent-looking
+///        popup is up, or a stem export is running (`Screensaver::timerEvent`'s inhibitors). The guest hands it to the
+///        shell before every tick.
+bool hostInhibitsScreensaver();
 
 /// @brief Restyle the guest's panels from `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read
-///        live (`horizontal_menu.cpp:268`): at boot once the settings are read, and after every write of it.
+///        live (`HorizontalMenu::renderMenuItems` in `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`): at
+///        boot once the settings are read, and after every write of it.
 void pushShellHighlighting();
 
 /// @brief Apply the RoundedCorners community feature to main's canvas (`Canvas::roundedCornersEnabled`, which its
@@ -184,9 +173,9 @@ void reapplyLiveSettingsAfterReset();
 /// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
 ///        open right now, or `std::nullopt` for the roots it leaves alone.
 ///
-/// `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) is two
+/// `stem_export::Start::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/stem_export/start.h`) is two
 /// statements welded together: a fan-out over `getRootUI()` that picks one of four
-/// `StemExportType`s (`:33-47`), and a `stemExport.startStemExportProcess(...)` that acts on the
+/// `StemExportType`s, and a `stemExport.startStemExportProcess(...)` that acts on the
 /// pick. `MenuAction::StartStemExport`'s doc says why the seam could not split them into four enumerators
 /// -- "the choice is made from the root UI, which this layer cannot read" -- so the whole fan-out
 /// lands on this side of the wall, and it is by some distance the most substantial thing any of the
@@ -195,14 +184,10 @@ void reapplyLiveSettingsAfterReset();
 /// @par Why it is declared here rather than left inside the `.cpp`'s anonymous namespace
 ///
 /// **Because the acting half cannot be run in a spec, and the choosing half must be.**
-/// `StemExport::startStemExportProcess` hands the export to `deluge::storage::Owner::run`
-/// (`processing/stem_export/stem_export.cpp:87-96`), which is queued onto a fiber only on the
-/// Embassy BSP: the cooperative default runs the op **inline on the caller's stack**
-/// (`storage/owner.h:28-31`; `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`), and
-/// `deluge_scenes_spec` links that default. An example that let the real arm reach
-/// `startStemExportProcess` would therefore run `StemExport::runStemExportProcess` for real inside
-/// the assertion -- arming the recorder, writing stems to `DELUGE_SD_ROOT`, and blocking in
-/// `renderWait` (in `stem_export.cpp`) for a transport that nothing in a spec is driving.
+/// `StemExport::startStemExportProcess` (`processing/stem_export/stem_export.cpp`) stops playback, presses
+/// record, enters `UI_MODE_STEM_EXPORT` and requests the app loop to run the export a step at a time from
+/// `StemExport::exportRoutine`. An example that let the real arm reach `startStemExportProcess` would therefore
+/// change global transport and UI state inside the assertion, for an export that nothing in a spec is driving.
 ///
 /// So the fan-out is named, and `sim/scenes_spec/menu_actions_spec.cpp` drives it directly from each
 /// of the root UIs legacy names. The dispatcher's own arm is still covered end to end, but only down

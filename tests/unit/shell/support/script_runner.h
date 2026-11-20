@@ -75,13 +75,12 @@ using deluge::ui::shell::ShellConfig;
 ///     loop: construct the three here over `shell.stack()`/`shell.lowering()` and install them
 ///     with `Shell::set_services`, which is what an application's own boot does. See
 ///     `sim/scenes_spec/support/real_services.h`'s `RealServices` for the shape.
-///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
-///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
-///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing
-///     that moves that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
-///     (`PlaybackHandler::actionSwungTick`'s count-in branch), which needs a running `AudioEngine` a spec process does
-///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same
-///     reason; this is that, at level 2.
+///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The stand-in for a model
+///     that moves on its own: `overlay::CountInScene` is a **poll** of `playbackHandler.count_in_visual()`
+///     (`scenes/overlay/count_in_scene.h`), and the only thing that moves that number is
+///     `PlaybackHandler::actionSwungTick`'s count-in branch, which needs a running `AudioEngine` a spec process does
+///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same reason; this is that, at
+///     level 2.
 struct RunOptions {
 	/// Milliseconds between successive `Shell::tick` calls.
 	uint32_t tick_ms = 10;
@@ -94,12 +93,12 @@ struct RunOptions {
 	/// otherwise `Shell::boot()` -- the default boot path, which pushes nothing and leaves the
 	/// panel blank until a script's own steps put something up.
 	std::optional<SceneId> initial_scene;
-	/// The migration acceptance hook. When set, `expect_script_goldens` runs the script
+	/// The two-registry run. When set, `expect_script_goldens` runs the script
 	/// TWICE -- once against `registry` (its own parameter), once against `*second_registry` --
 	/// into sibling `got/` trees, and diffs those two trees against EACH OTHER (byte-for-byte,
-	/// with an extra/missing-file check) instead of against the recorded goldens. This is how
-	/// the migration asserts "the same script produces the same snapshots against the legacy UI and the
-	/// new scene": two scene tables, one script, nothing to record ahead of time.
+	/// with an extra/missing-file check) instead of against the recorded goldens. This checks
+	/// that "the same script produces the same snapshots" against two scene tables: one script, nothing to record
+	/// ahead of time.
 	const SceneRegistry* second_registry = nullptr;
 	/// The `ShellConfig` the run's `Shell` is built with; `seed` stays at its 0 default unless a
 	/// caller sets it. See the class doc.
@@ -119,7 +118,7 @@ struct RunOptions {
 /// board profile). Both are `ParseError`s, deliberately: the two are indistinguishable to the
 /// person reading the failure -- a script line naming something that does not exist -- and a
 /// second error type would only make every caller test two fields to ask one question. The `line`
-/// is the script's own 1-based source line in both cases; line 0 means the failure belongs to no
+/// is the script's own 1-based source line in both cases; a line number of 0 means the failure belongs to no
 /// script line at all (a bad `tick_ms`, or a snapshot that could not be written).
 struct RunResult {
 	/// How many `snapshot` steps were written.
@@ -447,7 +446,7 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, Boar
 /// @brief The first file that differs (or is missing on one side) between two snapshot trees, in
 ///        sorted order over the union of both directories' names.
 ///
-/// The migration double-run: "the same script produces the same snapshots" is checked by
+/// The two-registry run: "the same script produces the same snapshots" is checked by
 /// running it twice and diffing the two `got/` trees against each other, not against a golden --
 /// there is nothing to record ahead of time when the whole point is that two *sources* must agree
 /// with each other. Sorted union, not a plain zip, so a file present on only one side is caught
@@ -515,7 +514,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	RunResult result;
 	if (opts.tick_ms == 0) {
 		// `t += 0` never advances and the `t >= last_ms` break only fires for an empty script, so
-		// without this the run hangs rather than saying what is wrong. Line 0: not a script fault.
+		// without this the run hangs rather than saying what is wrong. Line number 0: not a script fault.
 		result.error = detail::make_error(0, "tick_ms must be greater than zero");
 		return result;
 	}
@@ -666,7 +665,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 			}
 			case StepKind::Pad: {
 				// A typo'd coordinate should be an error naming the line here, exactly as
-				// host_script.c's validate_script rejects the same thing at load (M-2): without
+				// host_script.c's validate_script rejects the same thing at load: without
 				// this, a negative `s.a`/`s.b` narrows to a large positive `uint8_t` and is handed
 				// to the shell's matrix handler to do something undefined with, rather than being
 				// caught the way `unknown button` etc. already are.
@@ -679,7 +678,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				}
 				// `Step::down` is deliberately unread: the parser already folds `up` into velocity
 				// 0 (`tests/harness/ui_script.cpp`'s `pad ... up` parse), which is exactly what `DELUGE_EVENT_PAD`'s
-				// `value` means ("0 = release", `control_surface.h:50`), so the two would say the same thing twice.
+				// `value` means ("0 = release", `control_surface.h`), so the two would say the same thing twice.
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(s.a),
 				                                      static_cast<uint8_t>(s.b), static_cast<int16_t>(s.c)},
 				                     t);
@@ -722,7 +721,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					// Not reachable today (the queue is drained at the top of every run, and no
 					// committed script pushes enough notices in one run to fill it), but a full
 					// queue silently dropping a script's `notice` step is the same silent-loss
-					// class I-1 fixes for `.state` lines (M-7): the golden would record a screen
+					// class as a `.state` line lost to truncation: the golden would record a screen
 					// with no popup and nothing would say why.
 					result.error = detail::make_error(line, "notice queue full");
 					return result;
@@ -754,7 +753,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		for (const std::string& name : due_snapshots) {
 			for (uint8_t i = 0; i < fake.oled().size(); i++) {
 				if (!deluge::harness::write_file(out_dir, name + ".oled" + std::to_string(i) + ".pbm", fake.pbm(i))) {
-					// Line 0: an I/O failure belongs to no script line -- see `RunResult::error`.
+					// Line number 0: an I/O failure belongs to no script line -- see `RunResult::error`.
 					result.error = detail::make_error(0, "could not write a snapshot pbm");
 					return result;
 				}
@@ -765,7 +764,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				// Mirrors level 3's hard failure on the same overflow (host_script.c's
 				// HOST_SCRIPT_STATE_MAX_LINES / script_fail): a `.state` that lost a line rather
 				// than merely truncating one is a golden that has quietly stopped telling two
-				// screens apart, which is the one thing this harness exists to prevent (I-1).
+				// screens apart, which is the one thing this harness exists to prevent.
 				result.error = detail::make_error(0, "snapshot \"" + name + "\": .state needed more than 256 lines");
 				return result;
 			}
@@ -824,7 +823,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	}
 
 	if (opts.second_registry != nullptr) {
-		// Migration hook (RunOptions::second_registry): the second run's directory is
+		// Two-registry run (RunOptions::second_registry): the second run's directory is
 		// a sibling of the first, never the golden tree -- this mode never touches goldens at all.
 		const fs::path got_second = fs::path(UI_GOT_DIR) / "shell" / (name + "-second");
 		fs::remove_all(got_second, ec);

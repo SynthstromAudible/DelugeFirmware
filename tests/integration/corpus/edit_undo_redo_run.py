@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M1d Edit undo/redo hook runner. Runs the edit_undo_redo driver over the BYO song corpus; the driver is
+"""Edit undo/redo hook runner. Runs the edit_undo_redo driver over the BYO song corpus; the driver is
 self-checking (exit 0 = pass, 1 = load error, 3 = a check failed), so there is no baseline to diff.
 
 The driver is the edit_undo_redo scenario of golden_vt_render (driver.py); `./dbt test edit-undo-redo` runs this.

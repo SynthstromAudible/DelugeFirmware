@@ -55,29 +55,24 @@ uint16_t assigned_node_ids();
 /// the top of `main` either, because two of the three are settings the user can change while the
 /// firmware is running.
 ///
-///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
-///     layout, flash byte 60 -- `FlashStorage::shortcutsVersion` itself, which this layer reads
-///     where it needs it, so no push is wired. `FlashStorage::readSettings` fills it at boot,
-///     `FlashStorage::resetSettings` resets it (the ported reset menu reaches that) and `nodes::set_shortcuts_version`
-///     writes it from the ported settings item. Covered by `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own
-///     behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1
-///     layer` group.
+///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut layout, flash byte 60 --
+///     `FlashStorage::shortcutsVersion` itself, which this layer reads where it needs it, so no push is wired.
+///     `FlashStorage::readSettings` fills it at boot, `FlashStorage::resetSettings` resets it (the reset menu item
+///     reaches that) and `nodes::set_shortcuts_version` writes it from the settings item. Covered by
+///     `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s
+///     `tables_4_items` group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///
-///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its
-///     off switch, `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
-///     -- both live in `FlashStorage`, which `shell::Screensaver` may not read at all
-///     (`check_layer_rules.py`'s `shell-includes-outside` row), so the port takes one number and
-///     spells "off" as `idle_ms == 0`. Pushed from `Screensaver::settingsChanged()`
-///     (`hid/display/screensaver.cpp`), through `Shell::set_screensaver_idle_ms` --
-///     which is also the **port of `settingsChanged()` itself** (`shell::Screensaver::set_idle_ms`),
-///     the gap `overlay/screensaver_scene.h` records. That function is where every writer funnels:
-///     `deluge_boot`, the two legacy settings items (`gui/menu_item/defaults/screensaver.h`), and
-///     the *ported* tree's own two setters (`menu/nodes/settings.cpp`).
-///     Those write the two globals directly and still cannot call it, because this layer may not
-///     include `hid/`; they file `menu::MenuAction::ScreensaverSettingsChanged` instead
-///     (`menu/action.h`) and `gui::ui::dispatchShellActions` makes the call; without it a change
-///     made from the ported screensaver menu would be stored but notify neither screensaver until
-///     the next boot.
+///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its off switch,
+///     `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes *
+///     60000` -- both live in `FlashStorage`, which `shell::Screensaver` may not read at all (`check_layer_rules.py`'s
+///     `shell-includes-outside` row), so the port takes one number and spells "off" as `idle_ms == 0`. Pushed from
+///     `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp`), through `Shell::set_screensaver_idle_ms` --
+///     which is also the **port of `settingsChanged()` itself** (`shell::Screensaver::set_idle_ms`), the gap
+///     `overlay/screensaver_scene.h` records. That function is where every writer funnels: `deluge_boot`, the two
+///     legacy settings items (`origin/main:src/deluge/gui/menu_item/defaults/screensaver.h`), and the *ported* tree's
+///     own two setters (`menu/nodes/settings.cpp`). Those write the two globals directly and still cannot call it,
+///     because this layer may not include `hid/`; they call `menu::host_screensaver_settings_changed()`
+///     (`menu/bind_host.h`) instead, which makes the call at the write.
 ///
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an
@@ -110,7 +105,7 @@ menu::MenuScene& menu_scene();
 
 // (No `rename_scene()` forwarder here, deliberately. `rename::rename_scene()` already is the
 // singleton accessor, and a same-named function in this namespace would be ambiguous with it for
-// every consumer that writes `using namespace deluge::scenes;` -- which every spec in this tree
+// every consumer that writes `using namespace deluge::scenes;` -- which every spec in `sim/scenes_spec`
 // does. `scene_registry()` below calls the real one.)
 
 /// @brief The application's scene table, viewing storage this library owns.

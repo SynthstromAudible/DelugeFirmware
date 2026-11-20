@@ -24,7 +24,7 @@ using deluge::gfx::oled::Size;
 namespace uitest = deluge::ui::test;
 
 // Popups, wrapping, the working animation and the progress bar, pinned three ways, as
-// `columns_spec.cpp` and `values_spec.cpp` pin theirs.
+// `tests/unit/ui/columns_spec.cpp` and `tests/unit/ui/values_spec.cpp` pin theirs.
 //
 // First, byte for byte against the legacy routines: `namespace legacy` below re-transcribes
 // `addCharacterToLine`, `findLineSplitPoint`, `addLine` and `breakStringIntoLines`,
@@ -54,7 +54,7 @@ namespace uitest = deluge::ui::test;
 //    `minX + width` as an *inclusive* maximum. For a 30x9 content the box is canvas
 //    `{43, 13, 42, 21}` and the border it produces is 43 columns wide, both asserted below.
 //  - `working` draws no word and no dots. `displayWorkingAnimation` keeps only
-//    `loading = !strcmp(word, "Loading")`; there is no animated-dots behaviour in this tree.
+//    `loading = !strcmp(word, "Loading")`; there is no animated-dots behaviour.
 //    The port replays the animation's history each frame because an immediate-mode frame has
 //    none; the oracle below accumulates it on one canvas exactly as legacy's persistent image
 //    did, and the two are compared at every step.
@@ -395,7 +395,7 @@ describe popup_w("ui::oled::popup", $ {
 		expect(w.widths[1]).to_equal(30);
 		expect(w.longest).to_equal(102);
 
-		// The split really is at the space: line 0 ends with it and line 1 starts after it.
+		// The split really is at the space: the first line ends with it and the second starts after it.
 		expect(w.lines[0].back()).to_equal(' ');
 		expect(w.lines[1].front()).to_equal('W');
 		// And both are views into the caller's string, not copies.

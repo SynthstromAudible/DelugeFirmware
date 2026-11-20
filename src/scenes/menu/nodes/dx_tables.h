@@ -4,7 +4,8 @@
 ///
 /// A DX7 patch is 156 voice bytes. The pages name them by a *param* index: six operators of 21 params each, operator
 /// `op` (0-5, where 0 is the DX7's operator 6) at `op * 21`, then the global params at 126..143, with -1 for the
-/// patch's random detune, which is stored outside the voice bytes (`DxParam`, `gui/menu_item/dx/param.cpp`).
+/// patch's random detune, which is stored outside the voice bytes (`DxParam`,
+/// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`).
 ///
 /// Everything here is a pure function of a param index, a row or a value, transcribed from legacy's own tables and
 /// compared with them row for row in `dx_pages_spec`.
@@ -29,21 +30,24 @@ inline constexpr int16_t kOperatorParams = 21;
 /// @brief The voice byte holding the six operators' on/off bits, operator `op` at bit `op`.
 inline constexpr size_t kOperatorSwitch = 155;
 
-/// @brief The highest value @p param takes, inclusive (`DxParam::readValueAgain`, `param.cpp:76-130`): the per-operator
-///        table for an operator param, the global table for a global one, 99 otherwise (the random detune included).
+/// @brief The highest value @p param takes, inclusive (`DxParam::readValueAgain` in
+///        `origin/main:src/deluge/gui/menu_item/dx/param.cpp`): the per-operator table for an operator param, the
+///        global table for a global one, 99 otherwise (the random detune included).
 uint8_t upper_limit(int16_t param);
 
-/// @brief The parameter page's title for @p param (`DxParam::getTitle`, `param.cpp:285-325`): "random detune", "op4
-///        envelope" and the like for an operator param, "dx7 pitch env" for the pitch envelope, the global param's
-///        long name otherwise.
+/// @brief The parameter page's title for @p param (`DxParam::getTitle` in
+///        `origin/main:src/deluge/gui/menu_item/dx/param.cpp`): "random detune", "op4 envelope" and the like for an
+///        operator param, "dx7 pitch env" for the pitch envelope, the global param's long name otherwise.
 /// @param param The param.
 /// @param out   Where the title is written; 24 characters is enough for every title.
 /// @return The title's length.
 size_t title(int16_t param, std::span<char> out);
 
-/// @brief How many rows "DX7 parameters" lists (`global_params.cpp:46-51`).
+/// @brief How many rows "DX7 parameters" lists (`items` in
+/// `origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`).
 inline constexpr int32_t kGlobalRows = 11;
-/// @brief How many rows "DX7 operator N" lists (`operator_params.cpp:45-53`).
+/// @brief How many rows "DX7 operator N" lists (`items` in
+/// `origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`).
 inline constexpr int32_t kOperatorRows = 7;
 
 /// @brief Row @p row's label on "DX7 parameters".
@@ -51,11 +55,12 @@ std::string_view global_row(int32_t row);
 /// @brief Row @p row's label on "DX7 operator N".
 std::string_view operator_row(int32_t row);
 
-/// @brief Where SELECT on "DX7 parameters" row @p row goes (`DxGlobalParams::selectButtonPress`,
-///        `global_params.cpp:78-90`): a param index for the parameter page, or `-N` for "DX7 operator N".
+/// @brief Where SELECT on "DX7 parameters" row @p row goes (`DxGlobalParams::selectButtonPress` in
+///        `origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`): a param
+///        index for the parameter page, or `-N` for "DX7 operator N".
 int16_t global_row_param(int32_t row);
-/// @brief The param SELECT on "DX7 operator N" row @p row opens (`DxOperatorParams::selectButtonPress`,
-///        `operator_params.cpp:80-84`).
+/// @brief The param SELECT on "DX7 operator N" row @p row opens (`DxOperatorParams::selectButtonPress` in
+///        `origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`).
 /// @param op  The operator, 0-5 (`6 - N`).
 /// @param row The row.
 int16_t operator_row_param(int32_t op, int32_t row);
@@ -129,7 +134,8 @@ int16_t column_param(int16_t current, int32_t op, bool on_page);
 ///        operator's row, else row 1.
 int32_t flash_row(int16_t param);
 
-/// @brief `DxParam::blinkSideColumn`'s alternation: the flash row white for 100 ms, then its own colour for 300.
+/// @brief The alternation of `DxParam::blinkSideColumn` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`): the
+/// flash row white for 100 ms, then its own colour for 300.
 inline constexpr uint32_t kColumnFlashOnMs = 100;
 inline constexpr uint32_t kColumnFlashPeriodMs = 400;
 

@@ -43,8 +43,8 @@
 #include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_preview.h" // the loader the ported browser previews through
-#include "gui/ui/shell_choice_dispatch.h"  // shellPreviewer
+#include "gui/ui/browser/sample_preview.h" // the loader the scenes browser previews through
+#include "gui/ui/browser_host.h"           // shellPreviewer
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
@@ -56,13 +56,13 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "runtime/app_loop.h"          // nowUs, the stall bounds' clock
-#include "scenarios/guest_drive.h"     // the ported guest: its tick, its browser
+#include "scenarios/guest_drive.h"     // the shell guest: its tick, its browser
 #include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
 #include "scenes/browser/browser_scene.h"
 #include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include <array>
 #include <cstddef>
@@ -739,14 +739,14 @@ Sample* residentSample(const char* path) {
 	return nullptr;
 }
 
-/// The resident sample at @p path when the ported browser has drawn its waveform, else null. The pointer is compared,
+/// The resident sample at @p path when the scenes browser has drawn its waveform, else null. The pointer is compared,
 /// never read through, by the browser.
 Sample* drawnSample(const char* path) {
 	Sample* sample = residentSample(path);
 	return deluge::scenes::browser::browser_scene().shown_waveform(sample) != nullptr ? sample : nullptr;
 }
 
-/// Open the ported browser on the boot song's first synth clip, as a user opens a source's file selector, and let its
+/// Open the scenes browser on the boot song's first synth clip, as a user opens a source's file selector, and let its
 /// own opening listing and preview settle: the stages below then drive only what they mean to.
 /// @return Whether the browser is on top and idle.
 bool openGuestBrowser() {
@@ -764,10 +764,9 @@ bool openGuestBrowser() {
 	deluge::harness::guestClose();
 	currentSong->setCurrentClip(clip);
 	changeRootUI(&instrumentClipView);
-	const bool opened =
-	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	const bool opened = deluge::gui::ui::openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                              /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                              /*kitGlobalFx=*/false, deluge::gui::ui::MenuNode::Osc0FileSelector);
 	for (int32_t t = 0; opened && t < 16 && !deluge::harness::browserOnTop(); t++) {
 		deluge::harness::guestTick();
 	}
@@ -789,7 +788,7 @@ bool openGuestBrowser() {
 
 /// Has the preview actually DRAWN its waveform for `kPreviewPath`?
 ///
-/// The ported browser keeps the view it drew a sample's waveform through (`shown_waveform`) only on the
+/// The scenes browser keeps the view it drew a sample's waveform through (`shown_waveform`) only on the
 /// path that renders the waveform, so a view naming this file's sample is direct evidence that
 /// the preview reached the screen -- not merely that the file became resident somewhere. That
 /// distinction is the whole point here: the defect this stage exists for left the file unloaded, the
@@ -808,12 +807,12 @@ bool runOnePreviewTick() {
 		g_previewStarted = true;
 		// The guest's browser, opened before the first preview; it draws the waveform until a main pad is pressed.
 		if (!openGuestBrowser()) {
-			g_report.fail("[audioLoadAB/preview]: the ported browser could not be opened on the boot song");
+			g_report.fail("[audioLoadAB/preview]: the browser scene could not be opened on the boot song");
 			g_previewAborted = true;
 			return false;
 		}
 		g_previewTier = markTier();
-		// The ported browser draws a frame after the load lands, by which time the host's fill has already delivered
+		// The scenes browser draws a frame after the load lands, by which time the host's fill has already delivered
 		// this small file's cluster; a short hold keeps the first draw ahead of the card, as the stage needs.
 		deluge_streaming_set_fill_latency_ms(kPreviewFillHoldMs);
 		g_drawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;

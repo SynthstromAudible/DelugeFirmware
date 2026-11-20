@@ -11,7 +11,8 @@
 
 namespace deluge::scenes::menu::patching {
 
-/// @brief `SourceSelection::sourceIsAllowed` (`source_selection.cpp:178-216`): may @p source modulate
+/// @brief `SourceSelection::sourceIsAllowed` (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`): may @p
+/// source modulate
 ///        @p destination on the sound @p ctx edits? The volume triple is one destination.
 bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination);
 

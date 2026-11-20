@@ -1,9 +1,9 @@
 /// @file
-/// @brief The guest's select-encoder gate under the ported menu: `SoundEditor::selectEncoderAction` edits only in the
+/// @brief The guest's select-encoder gate under the menu: `SoundEditor::selectEncoderAction` edits only in the
 /// UI
 ///        modes `selectEncoderUIModes` lists, and not while LEARN holds learn mode.
 ///
-/// The menu is opened on the global guest over the instrument clip view, as `openShellMenu` leaves it, and every turn
+/// The menu is opened on the global guest over the instrument clip view, as `openMenu` leaves it, and every turn
 /// arrives through `ShellHostUI::selectEncoderAction`, the hook the firmware calls. The page is the MIDI follow
 /// CHANNEL list: a turn moves its cursor, and its first row, CHANNEL A, allows learn.
 
@@ -70,7 +70,7 @@ void select_turn() {
 } // namespace
 
 // clang-format off
-describe select_turn_gate("gui::ui::ShellHostUI::selectEncoderAction under the ported menu", $ {
+describe select_turn_gate("gui::ui::ShellHostUI::selectEncoderAction under the menu scene", $ {
 	it("moves the menu with no UI mode on", _ {
 		spec::UiStackGuard ui_guard;
 		spec::GlobalGuestGuard guest_guard;

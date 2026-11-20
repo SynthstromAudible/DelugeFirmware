@@ -55,9 +55,9 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		st.cursor_blink = deluge::ui::Blink{};
 		break;
 	case Kind::Range: {
-		// `Range::beginSession` (`gui/menu_item/range.cpp:30-33`) is `editingRangeEdge = OFF`, and
-		// `IntegerRange::beginSession` (`integer_range.cpp:26-31`) then takes LEFT when the two ends
-		// differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
+		// `Range::beginSession` (`origin/main:src/deluge/gui/menu_item/range.cpp`) is `editingRangeEdge = OFF`, and
+		// `IntegerRange::beginSession` (`origin/main:src/deluge/gui/menu_item/integer_range.cpp`) then takes LEFT when
+		// the two ends differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
 		// `RangeSpec::focus_left_when_split` says.
 		st.edit_int = bindings::read(node, ctx); // the lower edge
 		st.edit_upper = st.edit_int;
@@ -86,7 +86,7 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 		// `MidiDeviceLinkedItem`'s unlink arm (clearing a linked definition file the user never
 		// touched) and re-filed an `ActionItem`'s verb. Legacy's own guard is the same test spelled
 		// against its own state: `Toggle::selectButtonPress` returns without toggling when
-		// `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
+		// `soundEditor.getCurrentMenuItem() == this` (`origin/main:src/deluge/gui/menu_item/toggle.h`).
 		//
 		// Scoped by the item rather than applied to every `Kind::Custom`, because a blanket skip
 		// would break shipped behaviour: `EditNameItem` and the nine `nodes/sample.h`
@@ -105,12 +105,11 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 void ValueSession::commit(MenuCore core, const Node& node) const {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// `Binding::adjust`, ahead of the `Kind` switch: an offset-writing
-	// node commits through the hook whatever its `Kind` is (velocity/probability/iterance are
-	// `Kind::Int`), so this has to run before the switch would otherwise reach `bindings::write`.
-	// `after_render` already commits before it raises the horizontal notification, so the
-	// notification below reads the post-commit value through `bindings::read` -- legacy's own
-	// order (`selectEncoderAction` then `displayNotification`, `horizontal_menu.cpp:326-328`).
+	// `Binding::adjust`, ahead of the `Kind` switch: an offset-writing node commits through the hook whatever its
+	// `Kind` is (velocity/probability/iterance are `Kind::Int`), so this has to run before the switch would otherwise
+	// reach `bindings::write`. `after_render` already commits before it raises the horizontal notification, so the
+	// notification below reads the post-commit value through `bindings::read` -- legacy's own order
+	// (`selectEncoderAction` then `displayNotification`, `origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	if (node.bind.adjust != nullptr) {
 		bindings::adjust(node, ctx, st.tick.edit_offset);
 		st.tick.edit_offset = 0;

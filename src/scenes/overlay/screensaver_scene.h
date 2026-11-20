@@ -5,7 +5,7 @@
 ///        Deluge rain, drawn over the whole OLED after a configurable period with no input.
 ///
 /// Ports the **drawing** half of legacy's `hid::display::Screensaver`
-/// (`hid/display/screensaver.h:35-106`). The *policy* half -- when to show it and when to wake --
+/// (`hid/display/screensaver.h`). The *policy* half -- when to show it and when to wake --
 /// already shipped as `shell::Screensaver` (`shell/screensaver.h`), which pushes this scene by
 /// kind; this scene is what that service could not find until now.
 ///
@@ -16,11 +16,11 @@
 ///
 /// @par What chooses the mode, and where legacy chooses it
 ///
-/// `FlashStorage::screensaverMode` (`storage/flash_storage.h:82`), the same global legacy reads --
-/// and read **live**, on every question, exactly as legacy does: `Screensaver::timerEvent` reads it
-/// at `hid/display/screensaver.cpp:104` (the OFF early-out), `:162` (the activation switch that
-/// scatters), `:163` (the per-frame switch that advances) and `:185` (the frame interval), and
-/// `Screensaver::render` reads it again at `:235` (the switch that draws). Nothing here snapshots
+/// `FlashStorage::screensaverMode` (`storage/flash_storage.h`), the same global legacy reads --
+/// and read **live**, on every question, exactly as legacy does: `Screensaver::timerEvent`
+/// (`hid/display/screensaver.cpp`) reads it for the OFF early-out, the activation switch that
+/// scatters, the per-frame switch that advances and the frame interval, and
+/// `Screensaver::render` reads it again for the switch that draws. Nothing here snapshots
 /// it at `on_enter`, because legacy does not: a mode edit while the screensaver is showing is
 /// legacy's `settingsChanged()` path (`shell::Screensaver::set_idle_ms`, and
 /// see the policy list below), and outside that path the remaining
@@ -28,25 +28,25 @@
 ///
 /// @par The legacy policy this scene leaves to `shell::Screensaver`
 ///
-///   * **`settingsChanged()`** (`screensaver.cpp:200-241`): wake, then re-arm or cancel for the new
-///     settings -- `shell::Screensaver::set_idle_ms`, reached through `Shell::set_screensaver_idle_ms`
-///     from the boot wiring and `menu::MenuAction::ScreensaverSettingsChanged` (`scenes/registry.h`'s
-///     boot-wiring record).
-///   * **The inhibitors** (`screensaver.cpp:141-157`): the working animation, a permanent-looking popup
-///     or a running stem export takes the screensaver down and re-arms the full timeout. The working
-///     animation is the shell's own scene; the other two are the host's fact
-///     (`Shell::set_screensaver_inhibit`). The 1000 ms re-check that runs them while the screensaver
-///     shows is the service's `next_timer`, so this scene's own timer is only the animation's.
+///   * **`settingsChanged()`** (`Screensaver::settingsChanged` in `hid/display/screensaver.cpp`): wake, then re-arm or
+///     cancel for the new settings -- `shell::Screensaver::set_idle_ms`, reached through
+///     `Shell::set_screensaver_idle_ms` from the boot wiring and `menu::host_screensaver_settings_changed`
+///     (`scenes/registry.h`'s boot-wiring record).
+///   * **The inhibitors** (`Screensaver::timerEvent` in `hid/display/screensaver.cpp`): the working animation, a
+///     permanent-looking popup or a running stem export takes the screensaver down and re-arms the full timeout. The
+///     working animation is the shell's own scene; the other two are the host's fact
+///     (`Shell::set_screensaver_inhibit`). The 1000 ms re-check that runs them while the screensaver shows is the
+///     service's `next_timer`, so this scene's own timer is only the animation's.
 ///
 ///     A `BLANK` -> `STARSCAPE`/`DELUGE` change cannot happen while this scene is up: changing the
 ///     setting needs physical input, and input runs `shell::Screensaver::note_activity` first, which
 ///     pops this scene. The next push re-reads the mode and scatters the right field.
-///   * **`ScreensaverMode::OFF`** (`screensaver.cpp:94-96,104-106,235-238`): the port of "off" is
-///     `shell::Screensaver`'s `idle_ms == 0` (that service's own class note), decided by whatever
-///     wires the shell up. If this scene is nonetheless pushed with the mode at `OFF` it draws
-///     nothing and asks for no timer, which is the closest thing to legacy's "never activates".
-///   * **The dirty-frame protocol** (`screensaver.h:95-109`, `Screensaver::consumeFrameDirty`, and
-///     `OLED::sendMainImage`'s use of it at `hid/display/oled.cpp:342-362`): legacy's guard against
+///   * **`ScreensaverMode::OFF`** (`Screensaver::arm`, `Screensaver::timerEvent` and `Screensaver::render` in
+///     `hid/display/screensaver.cpp`): the port of "off" is `shell::Screensaver`'s `idle_ms == 0` (that service's own
+///     class note), decided by whatever wires the shell up. If this scene is nonetheless pushed with the mode at `OFF`
+///     it draws nothing and asks for no timer, which is the closest thing to legacy's "never activates".
+///   * **The dirty-frame protocol** (`Screensaver::consumeFrameDirty` in `hid/display/screensaver.h`, and
+///     `OLED::sendMainImage`'s use of it at `hid/display/oled.cpp`): legacy's guard against
 ///     unrelated timers re-blitting an unchanged screensaver frame. The shell's `RepaintGate` is
 ///     that guard here, which is why `timer_repaints()` below claims the OLED and not the grid.
 ///
@@ -78,7 +78,7 @@ inline constexpr deluge::ui::shell::SceneKind kScreensaverSceneKind = deluge::ui
 
 /// @brief Milliseconds between animation frames, for the two animated modes.
 ///
-/// `hid/display/screensaver.cpp:48-50`'s `kFrameIntervalMS`, value for value.
+/// `kFrameIntervalMS` of `hid/display/screensaver.cpp`, value for value.
 inline constexpr uint32_t kFrameIntervalMs = 50;
 
 /// @brief The idle animation. One instance for the whole application (`registry.h`).
@@ -89,7 +89,7 @@ public:
 	/// @brief Activate: scatter whichever animation the mode names.
 	///
 	/// The port of `Screensaver::timerEvent`'s `if (!active_)` arm
-	/// (`hid/display/screensaver.cpp:159-173`) -- the switch that calls `scatter()` on exactly one
+	/// (`hid/display/screensaver.cpp`) -- the switch that calls `scatter()` on exactly one
 	/// of the two fields and leaves `BLANK`/`OFF` alone.
 	///
 	/// @param id The push. `id.arg` is `shell::Screensaver`'s `seed` (its low 16 bits,
@@ -103,8 +103,8 @@ public:
 
 	/// @brief Advance one animation frame once `kFrameIntervalMs` of ticks have accumulated.
 	///
-	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:174-189`)
-	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at `:161-162`. The shell calls `tick()`
+	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp`)
+	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at its end. The shell calls `tick()`
 	/// every tick rather than only at a deadline (`Shell::tick_stack`), so the
 	/// deadline is kept here: elapsed time accumulates and the counter is **reset to zero**, not
 	/// decremented by the interval, because legacy re-arms its timer from the moment the timer
@@ -114,10 +114,10 @@ public:
 
 	/// @brief Draw the current frame.
 	///
-	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
-	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
-	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
-	/// pass.
+	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp`) and the two per-mode renderers it dispatches
+	/// to (`Screensaver::renderStarfield` and `Screensaver::renderRainfall`). Legacy's leading `canvas_.clear()`
+	/// (`hid/display/screensaver.cpp`) has no counterpart here because `Shell::render_oled` clears the canvas before
+	/// the pass.
 	/// @param role  The OLED surface being drawn.
 	/// @param frame The frame to draw into.
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -131,16 +131,16 @@ public:
 	///         that has no frames (`BLANK`, `OFF`); the inhibitor re-check is `shell::Screensaver`'s.
 	std::optional<uint32_t> next_timer() const override;
 
-	/// @return `{oled=true, grid=false}` -- the screensaver never touches the pads (legacy writes
-	///         only to its own OLED canvas, `hid/display/screensaver.h:30-34`), so arming the grid
-	///         would be a repaint of a surface this scene does not draw.
+	/// @return `{oled=true, grid=false}` -- the screensaver never touches the pads (legacy writes only to its own OLED
+	///         canvas, per the `Screensaver` class note in `hid/display/screensaver.h`), so arming the grid would be a
+	///         repaint of a surface this scene does not draw.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = true, .grid = false}; }
 
 	/// @brief **False for `Main`, true for every other role**: the screensaver replaces the main
 	///        panel and nothing else.
 	///
 	/// Legacy renders into its own canvas and `OLED::sendMainImage` substitutes that canvas for
-	/// `main` alone (`hid/display/oled.cpp:342-348`) -- no other panel is touched. Opaque on `Main`
+	/// `main` alone (`hid/display/oled.cpp`) -- no other panel is touched. Opaque on `Main`
 	/// is therefore what "replaces the panel" means, and it is also what makes waking cheap: the
 	/// scene beneath was never overwritten, so popping this scene is the whole of the wake
 	/// (`shell/screensaver.cpp`, `hid/display/screensaver.h`).

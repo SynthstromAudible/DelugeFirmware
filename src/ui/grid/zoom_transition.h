@@ -8,12 +8,12 @@
 
 namespace deluge::ui::grid {
 
-/// @brief How long a horizontal zoom slides, in ms: legacy's `kZoomSpeed` (`definitions_cxx.hpp:160`), which
+/// @brief How long a horizontal zoom slides, in ms: legacy's `kZoomSpeed` (`definitions_cxx.hpp`), which
 ///        `PadLEDs::recordTransitionBegin` scales to audio samples.
 inline constexpr uint32_t kZoomSpeed = 110;
 
 /// @brief How often a running zoom draws its next step, in ms: `PadLEDs::renderZoom` re-arms `MATRIX_DRIVER` at
-///        `UI_MS_PER_REFRESH` (`board_config.h:53`). The settled frame is therefore the first step at or past
+///        `UI_MS_PER_REFRESH` (`board_config.h`). The settled frame is therefore the first step at or past
 ///        `kZoomSpeed`, not the moment the slide's time runs out.
 inline constexpr uint32_t kZoomStepMs = 50;
 

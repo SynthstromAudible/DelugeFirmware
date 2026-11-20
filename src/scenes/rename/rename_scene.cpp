@@ -85,7 +85,7 @@ bool write_name(const menu::MenuContext& ctx, project::SettingGroupId group, std
 	return ctx.sink != nullptr && ctx.sink->write_text(name_row(group), ctx.addresses, name);
 }
 
-// --- Clip: `RenameClipUI` (`gui/ui/rename/rename_clip_ui.cpp:29-42`) ---
+// --- Clip: `RenameClipUI` (`gui/ui/rename/rename_clip_ui.cpp`) ---
 
 bool clip_can(const menu::MenuContext& ctx) {
 	// `RenameClipUI` has no `canRename` override, so legacy's answer is the base's unconditional true; a context with
@@ -101,7 +101,7 @@ bool clip_write(const menu::MenuContext& ctx, std::string_view name) {
 	return write_name(ctx, project::SettingGroupId::CLIP, name); // no two clips of a track share a name
 }
 
-// --- Output: `RenameOutputUI` (`gui/ui/rename/rename_output_ui.cpp:29-41`) ---
+// --- Output: `RenameOutputUI` (`gui/ui/rename/rename_output_ui.cpp`) ---
 
 bool output_can(const menu::MenuContext& ctx) {
 	return name_in(ctx, project::SettingGroupId::TRACK).has_value();
@@ -115,7 +115,7 @@ bool output_write(const menu::MenuContext& ctx, std::string_view name) {
 	return write_name(ctx, project::SettingGroupId::TRACK, name); // no two audio tracks share a name
 }
 
-// --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp`) ---
+// --- Drum: `RenameDrumUI` (`origin/main:src/deluge/gui/ui/rename/rename_drum_ui.cpp`) ---
 
 bool drum_can(const menu::MenuContext& ctx) {
 	// `RenameDrumUI` has no `canRename` override either; instead `getCurrentName` and `trySetName` each
@@ -137,7 +137,7 @@ constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
     {sid(String::STRING_FOR_CLIP_NAME), clip_can, clip_read, clip_write, /*allow_empty=*/true},
     // `RenameOutputUI renameOutputUI{"Track name"}` (`rename_output_ui.cpp`).
     {sid(String::STRING_FOR_TRACK_NAME), output_can, output_read, output_write, /*allow_empty=*/true},
-    // `RenameDrumUI renameDrumUI{"Drum Name"}` (`rename_drum_ui.cpp`), and the one
+    // `RenameDrumUI renameDrumUI{"Drum Name"}` (`origin/main:src/deluge/gui/ui/rename/rename_drum_ui.cpp`), and the one
     // `allowEmpty() = false` in the family (`RenameDrumUI::allowEmpty`).
     {sid(String::STRING_FOR_DRUM_NAME), drum_can, drum_read, drum_write, /*allow_empty=*/false},
 }};
@@ -169,7 +169,7 @@ Rect panel_of(const deluge::ui::oled::OledFrame& f) {
 	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
 }
 
-// `RenameUI::renderOLED` (`rename_ui.cpp:63-87`), as named constants.
+// `RenameUI::renderOLED` (`rename_ui.cpp`), as named constants.
 constexpr int32_t kWindowW = 120;
 constexpr int32_t kWindowH = 40;
 /// `maxNumChars`, legacy's own literal: "'RENAME INSTRUMENT' should be the longest title string".
@@ -206,14 +206,14 @@ bool RenameScene::on_enter(const SceneId& id) {
 	target_ = static_cast<TargetId>(id.arg);
 	const Target& t = target(target_);
 
-	// `RenameUI::opened` (`rename_ui.cpp:29-43`): refuse outright when the target says it cannot
+	// `RenameUI::opened` (`rename_ui.cpp`): refuse outright when the target says it cannot
 	// be renamed, then seed the editor with the current name.
 	if (!t.can(ctx_)) {
 		return false;
 	}
 
-	// `QwertyUI::opened` (`qwerty_ui.cpp:54-55`) zeroes the edit position, and `RenameUI`'s
-	// constructor zeroes the scroll (`rename_ui.cpp:25`); the cursor therefore starts at 0 with the
+	// `QwertyUI::opened` (`qwerty_ui.cpp`) zeroes the edit position, and `RenameUI`'s
+	// constructor zeroes the scroll (`rename_ui.cpp`); the cursor therefore starts at 0 with the
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string current = t.read(ctx_);
@@ -226,7 +226,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
-	// (`qwerty_ui.cpp:153`, `hid/display/oled.cpp:844-846`).
+	// (`QwertyUI::drawTextForOLEDEditing` in `qwerty_ui.cpp`, and `hid/display/oled.cpp`).
 	cursor_blink_ = deluge::ui::Blink{};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;
@@ -243,7 +243,7 @@ void RenameScene::leds(deluge::ui::LedFrame& frame) {
 }
 
 void RenameScene::on_exit() {
-	// Fix round 1, Minor 1. `open()` is the only writer of `ctx_`, and this scene is a singleton
+	// `open()` is the only writer of `ctx_`, and this scene is a singleton
 	// that outlives every visit -- so without this a re-entry that forgot its `open()` would
 	// validate `can()` against the *previous* song's `Clip`/`Kit`/`Output` pointers and quite
 	// possibly open on freed memory. Legacy had the same shape but a much shorter fuse
@@ -318,7 +318,7 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`), already ported. The sidebar is deliberately
+	// `QwertyUI::drawKeys` (`qwerty_ui.cpp`), already ported. The sidebar is deliberately
 	// untouched -- legacy clears the *main* pads only.
 	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 	grid_pass_ = true;
@@ -357,12 +357,12 @@ Result RenameScene::after_render() {
 		const char c = static_cast<char>(resp.index);
 
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
-			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
+			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp`) -> `enterKeyPress()`.
 			return enter_key_press();
 		}
 
 		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
-			// `qwerty_ui.cpp:204-229`: delete one character now, then arm the hold at
+			// `QwertyUI::padAction` (`qwerty_ui.cpp`): delete one character now, then arm the hold at
 			// `deluge::ui::grid::kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
 			// `setTimer(UI_SPECIFIC, 500)`, with `repeat_armed_` standing in for
 			// `currentUIMode = UI_MODE_HOLDING_BACKSPACE`.
@@ -416,7 +416,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
-		// `RenameUI::buttonAction` (`rename_ui.cpp:93-121`). BACK exits without writing; the
+		// `RenameUI::buttonAction` (`rename_ui.cpp`). BACK exits without writing; the
 		// select-encoder press commits. Both arms are `on`-only and both are gated on
 		// `!currentUIMode`, which this scene has no equivalent of -- the modes legacy tests for
 		// (`UI_MODE_HOLDING_BACKSPACE`, the prediction modes) are all QwertyUI's own and none of
@@ -439,9 +439,9 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		if (event.button == ButtonId::SelectEnc) {
 			return enter_key_press();
 		}
-		// Fix round 1, Minor 3. The release edges of BACK and SELECT_ENC fall through to
-		// `Result::unhandled()` where legacy answered `DEALT_WITH` for the whole button. Bounded, and
-		// deliberately left: `Router::run_chain` delivers only to `SceneStack::input_top()`, and this
+		// The release edges of BACK and SELECT_ENC fall through to
+		// `Result::unhandled()` where legacy answered `DEALT_WITH` for the whole button. This is bounded, and
+		// deliberately so: `Router::run_chain` delivers only to `SceneStack::input_top()`, and this
 		// scene is it (`input_transparent()` is false), so an unhandled release reaches nothing else.
 		break;
 
@@ -509,13 +509,13 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 void RenameScene::type_char(char c) {
 	const int32_t pos = edit_.cursor;
 
-	// "First character must be alphanumerical" (`qwerty_ui.cpp:273-280`).
+	// "First character must be alphanumerical" (`QwertyUI::padAction` in `qwerty_ui.cpp`).
 	if (pos == 0 && !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
 		return;
 	}
 
 	// "If this char was already predicted, that's easy and we can just move forward"
-	// (`qwerty_ui.cpp:305-317`). On a rename there is no prediction, but the editor opens with the
+	// (`QwertyUI::padAction` in `qwerty_ui.cpp`). On a rename there is no prediction, but the editor opens with the
 	// existing name to the right of the cursor, so this is what lets a user retype the prefix of a
 	// name they are only partly changing and keep the tail.
 	if (pos < static_cast<int32_t>(text_.size()) && char_case_equal(text_[pos], c)) {
@@ -525,12 +525,12 @@ void RenameScene::type_char(char c) {
 
 	char nc = c;
 	// "If char is a letter... If following another letter, make it lowercase"
-	// (`qwerty_ui.cpp:334-343`).
+	// (`QwertyUI::padAction` in `qwerty_ui.cpp`).
 	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(text_[pos - 1])) {
 		nc = static_cast<char>(nc + 32);
 	}
 
-	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`qwerty_ui.cpp:350-353`):
+	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`QwertyUI::padAction` in `qwerty_ui.cpp`):
 	// typing mid-string truncates the tail rather than inserting.
 	text_.resize(static_cast<size_t>(pos));
 	text_ += nc;
@@ -550,7 +550,7 @@ void RenameScene::backspace() {
 }
 
 Result RenameScene::enter_key_press() {
-	// `RenameUI::enterKeyPress` (`rename_ui.cpp:45-52`).
+	// `RenameUI::enterKeyPress` (`rename_ui.cpp`).
 	const Target& t = target(target_);
 	Result r;
 	r.handled = true;

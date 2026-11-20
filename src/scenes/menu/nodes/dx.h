@@ -3,7 +3,7 @@
 /// @brief The DX7 menu pages: "DX7 source" and what it lists.
 ///
 /// The port of `gui/menu_item/dx/`: `dxMenu`, the `Submenu` oscillator 1's type opens when it is DX7
-/// (`osc::Type::selectButtonPress`, `gui/menu_item/osc/type.h:103-108`), with three rows:
+/// (`osc::Type::selectButtonPress`, `origin/main:src/deluge/gui/menu_item/osc/type.h`), with three rows:
 ///
 /// - **load DX7 .syx file** (`DxBrowseMenu`): opens the `.syx` browser (`browser::BrowserId::DxSyx`) over the menu.
 ///   BACK from it returns to "DX7 source"; a bank it reads lands on the cartridge page under this row, whose BACK
@@ -38,15 +38,15 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief `DxBrowseMenu::beginSession` (`gui/menu_item/dx/browse.cpp:27-37`): the browser, going up a level when
-	///        it closes.
+	/// @brief `DxBrowseMenu::beginSession` (`origin/main:src/deluge/gui/menu_item/dx/browse.cpp`): the browser, going
+	///        up a level when it closes.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	/// @brief `beginSession` runs on a backward navigation too: BACK from the cartridge page reopens the browser.
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
 };
 
 /// @brief The DX7 cartridge page: the programs of the bank the `.syx` browser read (`DxCartridge`,
-///        `gui/menu_item/dx/cartridge.cpp`), from `RuntimeFacts::dx_cartridge`.
+///        `origin/main:src/deluge/gui/menu_item/dx/cartridge.cpp`), from `RuntimeFacts::dx_cartridge`.
 ///
 /// Entering loads the first program; a turn moves the cursor within the bank and loads the program it lands on, through
 /// `WriteSink::load_dx_program`; SELECT closes the menu.
@@ -62,7 +62,7 @@ public:
 };
 
 /// @brief "engine version": the patch's engine mode, one of three rows (`DxEngineSelect`,
-///        `gui/menu_item/dx/engine_select.cpp`).
+///        `origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`).
 class DxEngineSelectItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -70,7 +70,8 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief `readValueAgain` (`engine_select.cpp:38-42`): the cursor on the patch's mode.
+	/// @brief `readValueAgain` (`origin/main:src/deluge/gui/menu_item/dx/engine_select.cpp`): the cursor on the patch's
+	/// mode.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_reread(const MenuContext& ctx, MenuState& state) const override;
 };
@@ -80,7 +81,8 @@ inline const DxEngineSelectItem kDxEngineSelect{};
 inline const DxCartridgeItem kDxCartridge{};
 
 /// @brief "DX7 parameters": the globals and the six operators (`DxGlobalParams`,
-///        `gui/menu_item/dx/global_params.cpp`). Its cursor outlives the page, as legacy's member does.
+///        `origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`). Its cursor outlives the page, as legacy's
+///        member does.
 class DxGlobalParamsItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -88,13 +90,15 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief `beginSession` (`global_params.cpp:34-36`) keeps the cursor where it was left.
+	/// @brief `beginSession` (`origin/main:src/deluge/gui/menu_item/dx/global_params.cpp`) keeps the cursor where it
+	/// was left.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
 };
 
-/// @brief "DX7 operator N": one operator's params (`DxOperatorParams`, `gui/menu_item/dx/operator_params.cpp`). One
-///        cursor, shared by the six operators, outlives the page, as legacy's one singleton's does.
+/// @brief "DX7 operator N": one operator's params (`DxOperatorParams`,
+///        `origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`). One cursor, shared by the six operators,
+///        outlives the page, as legacy's one singleton's does.
 class DxOperatorParamsItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -102,13 +106,14 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
-	/// @brief `beginSession` (`operator_params.cpp:33-35`) keeps the cursor where it was left.
+	/// @brief `beginSession` (`origin/main:src/deluge/gui/menu_item/dx/operator_params.cpp`) keeps the cursor where it
+	/// was left.
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override { on_focus(ctx, state); }
 };
 
-/// @brief The DX7 parameter page: `MenuState::dx.param`, drawn and edited as `DxParam` (`gui/menu_item/dx/param.cpp`)
-///        does.
+/// @brief The DX7 parameter page: `MenuState::dx.param`, drawn and edited as `DxParam`
+///        (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`) does.
 ///
 /// A select turn moves the value within its limits and writes the patch; a horizontal turn steps to the next param,
 /// wrapping; Shift + a horizontal turn steps to the same param on the next operator that is switched on. All three are
@@ -140,7 +145,7 @@ inline const DxOperatorParamsItem kDxOperatorParams{};
 inline const DxParamItem kDxParam{};
 
 /// @brief Whether the pads under the menu are the DX7 layout: the parameter page is focused and the DX7 engine feature
-///        is on (`isDxShortcutLayoutActive`, `gui/ui/sound_editor.cpp:159-162`).
+///        is on (`isDxShortcutLayoutActive`, `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 bool dx_pad_layout(const MenuContext& ctx, const MenuState& state);
 
 /// @brief Where SELECT on "DX7 parameters" goes: the parameter page, or "DX7 operator N" (`global_row_param`).
@@ -178,18 +183,18 @@ inline constexpr Node dx_engine_select =
     with_value_names(custom(sid(deluge::l10n::String::STRING_FOR_DX_ENGINE_SELECT), &kDxEngineSelect), dx_engine_names);
 
 inline constexpr const Node* kDxMenuChildren[] = {&dx_browse, &dx_global_params, &dx_engine_select};
-/// @brief "DX7 source" -- `dxMenu` (`gui/ui/menus.cpp`).
+/// @brief "DX7 source" -- `dxMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 inline constexpr Node dx_menu = submenu(sid(deluge::l10n::String::STRING_FOR_DX_1), kDxMenuChildren);
 
-/// @brief `osc::Type::selectButtonPress` (`gui/menu_item/osc/type.h:103-108`) for oscillator 1: "DX7 source" when its
-///        type is DX7, else nothing, so SELECT ascends.
+/// @brief `osc::Type::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/osc/type.h`) for oscillator 1: "DX7
+///        source" when its type is DX7, else nothing, so SELECT ascends.
 const Node* osc0_type_chain(const MenuContext& ctx, const MenuState& state);
 /// @brief The same for oscillator 2, which legacy's type list never offers DX7.
 const Node* osc1_type_chain(const MenuContext& ctx, const MenuState& state);
 
-/// @brief `potentialShortcutPadAction`'s fallback (`gui/ui/sound_editor.cpp:1662-1665`) for a shortcut whose node does
-///        not apply: modulator 1's volume, refused on a sound whose source `x & 1` is DX7, opens the DX7 parameter page
-///        instead, on the param it showed last.
+/// @brief `potentialShortcutPadAction`'s fallback (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) for a shortcut
+///        whose node does not apply: modulator 1's volume, refused on a sound whose source `x & 1` is DX7, opens the
+///        DX7 parameter page instead, on the param it showed last.
 /// @param refused The node the pad names, which does not apply.
 /// @param ctx     What the menu edits.
 /// @param x       The pad's column; its low bit names the source.

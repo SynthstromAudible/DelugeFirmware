@@ -53,13 +53,13 @@ extern "C" {
 /// Bytes in the widest page-major panel the host supports: 128 × 64 / 8.
 #define HOST_SCRIPT_OLED_BYTES 1024
 /// Pad-grid columns shadowed. The Deluge sends 18 (`kDisplayWidth` 16 + `kSideBarWidth` 2, see
-/// `pad_leds.cpp:260-274`); 32 leaves room for a wider board without another audit, and columns
+/// `clearSideBar` (`pad_leds.cpp`)); 32 leaves room for a wider board without another audit, and columns
 /// nothing ever wrote stay black and so are never reported.
 #define HOST_SCRIPT_PAD_COLS 32
 /// Pad-grid rows (`kDisplayHeight`).
 #define HOST_SCRIPT_PAD_ROWS 8
 /// Indicator LEDs shadowed. Legacy indices are `x + y*9` over a 9 × 4 matrix
-/// (`hid/led/indicator_leds.h:30-64`), so 36 are reachable; 64 rounds that up.
+/// (`fromXY` in `hid/led/indicator_leds.h`), so 36 are reachable; 64 rounds that up.
 #define HOST_SCRIPT_LED_COUNT 64
 /// Knob indicators the surface has (`deluge_control_set_indicator`'s `which`).
 #define HOST_SCRIPT_RINGS 2
@@ -141,7 +141,7 @@ uint8_t host_script_display_count(void);
 ///
 /// `DelugeBoard` carries `pad_grid_width`/`pad_grid_height` but no sidebar width, and the app's
 /// `kSideBarWidth` (`src/board_layout.hpp`) is a C++ header the BSP cannot include. So it is spelt
-/// here, matching what the app actually sends: `pad_leds.cpp:260-274` drives columns `0..17` on a
+/// here, matching what the app actually sends: `clearSideBar` (`pad_leds.cpp`) drives columns `0..17` on a
 /// 16-wide grid.
 #define HOST_SCRIPT_SIDEBAR_COLS 2
 

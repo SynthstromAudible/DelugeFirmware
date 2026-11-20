@@ -23,11 +23,11 @@
 /// it. Two things legacy does that no hook here can are recorded rather than silently dropped:
 ///
 ///   * **The UI side effects.** `audio_clip::Reverse::writeCurrentValue` ends in
-///     `uiNeedsRendering(&audioClipView, ...)` (`audio_clip/reverse.h:37`) and the MIDI-instrument
-///     toggles end in `getCurrentInstrument()->editedByUser = true` -- the latter IS model state
-///     and is transcribed; the former is a `hid/`-side repaint that `bindings::write` already
-///     replaces with `notify::Dirty::Oled` plus, for a param, `GridMain`. A `set` hook that wants
-///     a pad repaint raises `Dirty::GridMain` itself, which the two audio-clip sample items do.
+///     `uiNeedsRendering(&audioClipView, ...)` (`origin/main:src/deluge/gui/menu_item/audio_clip/reverse.h`) and the
+///     MIDI-instrument toggles end in `getCurrentInstrument()->editedByUser = true` -- the latter IS model state and is
+///     transcribed; the former is a `hid/`-side repaint that `bindings::write` already replaces with
+///     `notify::Dirty::Oled` plus, for a param, `GridMain`. A `set` hook that wants a pad repaint raises
+///     `Dirty::GridMain` itself, which the two audio-clip sample items do.
 ///   * **`getCurrent*()` globals.** Legacy reaches `getCurrentOutput()`, `getCurrentInstrument()`,
 ///     `getCurrentInstrumentClip()` and `getCurrentAudioClip()`; every one of those is
 ///     an address in `MenuContext::addresses` here, and no `currentSong` reference is left in this file.
@@ -59,9 +59,9 @@ namespace deluge::scenes::menu::nodes {
 // The MIDI / CV root
 
 const Node& midi_or_cv_root(const MenuContext& ctx) {
-	// `sound_editor.cpp:1780-1788`: one object, two titles, chosen by output type. CV first because
-	// a null output (which `setup()` cannot produce for this root, but a spec can) should read as
-	// the MIDI spelling -- the constructor's own argument.
+	// `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): one object, two titles, chosen by output
+	// type. CV first because a null output (which `setup()` cannot produce for this root, but a spec can) should read
+	// as the MIDI spelling -- the constructor's own argument.
 	return ctx.addresses.instrument == deluge::plugin::SettingContext::Instrument::CV ? root_cv : root_midi_or_cv;
 }
 
@@ -72,21 +72,24 @@ const Node& midi_or_cv_root(const MenuContext& ctx) {
 // The song root
 
 int32_t get_swing_interval(const MenuContext& ctx) {
-	return ctx.model != nullptr ? static_cast<int32_t>(ctx.model->groove.swing_interval) : 0; // `swing/interval.h`
+	// `origin/main:src/deluge/gui/menu_item/swing/interval.h`
+	return ctx.model != nullptr ? static_cast<int32_t>(ctx.model->groove.swing_interval) : 0;
 }
 std::optional<int32_t> swing_interval_turn(const MenuContext&, int32_t value, int32_t offset) {
 	return wrapSwingIntervalSyncLevel(value + offset);
 }
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
-	bindings::write_song(ctx, "swingInterval", value); // `swing/interval.h`
+	bindings::write_song(ctx, "swingInterval", value); // `origin/main:src/deluge/gui/menu_item/swing/interval.h`
 }
 
 int32_t get_song_threshold_recording(const MenuContext& ctx) {
-	// `record::ThresholdMode::readCurrentValue`'s SONG arm (`record/threshold_mode.h:29-31`).
+	// `record::ThresholdMode::readCurrentValue`'s SONG arm
+	// (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`).
 	return ctx.song != nullptr ? static_cast<int32_t>(ctx.song->thresholdRecordingMode) : 0;
 }
 void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
-	if (ctx.song != nullptr) { // `threshold_mode.h:46-48`
+	if (ctx.song != nullptr) { // `ThresholdMode::writeCurrentValue`
+		                       // (`origin/main:src/deluge/gui/menu_item/record/threshold_mode.h`)
 		ctx.song->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
 	}
 }
@@ -94,8 +97,9 @@ void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Stem export
 //
-// Seven `ToggleBool`s over `stemExport`'s own members (`menus.cpp:2020-2035`); `StemExport` lives
-// in `processing/stem_export/`, inside this layer's allow-list, so each is a direct read and write.
+// Seven `ToggleBool`s over `stemExport`'s own members (`configureNormalizationMenu` through `configureMixdownMenu` in
+// `origin/main:src/deluge/gui/ui/menus.cpp`); `StemExport` lives in `processing/stem_export/`, inside this layer's
+// allow-list, so each is a direct read and write.
 
 #define DELUGE_STEM_TOGGLE(fn, member)                                                                                 \
 	int32_t get_stem_##fn(const MenuContext&) {                                                                        \

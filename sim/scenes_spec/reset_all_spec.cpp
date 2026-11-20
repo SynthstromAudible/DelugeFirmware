@@ -1,5 +1,5 @@
 /// @file
-/// @brief The full factory reset from the ported settings menu re-applies, on the open guest, what main reads live.
+/// @brief The full factory reset from the settings menu re-applies, on the open guest, what main reads live.
 ///
 /// A file of its own: `Deluge::factoryReset` rebuilds the MIDI singletons and rewrites the flash settings, which no
 /// later example in the same process may inherit. The runner gives each file a fresh process and card copy.

@@ -197,7 +197,7 @@ constexpr int32_t kOptionFooterRightInset = 27; // `drawString(..., OLED_MAIN_WI
 constexpr int32_t kOptionArrowX = 25;           // the L arrow's stem, `drawVerticalLine(25, ...)`
 constexpr int32_t kOptionArrowRightX = 31;      // its foot's end, `drawHorizontalLine(..., 25, 31)`
 
-// `Slicer::renderOLED`'s literals (`gui/ui/slicer.cpp:76-97`). Same treatment as the option-window
+// `Slicer::renderOLED`'s literals (`origin/main:src/deluge/gui/ui/slicer.cpp`). Same treatment as the option-window
 // block above: the one "inset" number is `OLED_MAIN_WIDTH_PIXELS - n` in legacy and is applied to
 // the panel width here.
 constexpr int32_t kCountWindowW = 100;       // `windowWidth = 100`
@@ -276,7 +276,7 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 		}
 	}
 
-	// `AudioInputSelector::renderOLED` (`audio_input_selector.cpp:223-250`) calls the base renderer
+	// `AudioInputSelector::renderOLED` (`audio_input_selector.cpp`) calls the base renderer
 	// and *then* draws this line, so it is drawn last here too -- ordering, not "different rows", is
 	// what makes it safe, and matching legacy's ordering is what stops that from mattering. An L
 	// arrow from the option above points at the footer, which is indented past it.
@@ -352,7 +352,7 @@ void working(OledFrame& f, Rect rect, std::string_view word, Blink& blink) {
 }
 
 namespace {
-/// `etl::string<25>` -- `OLED::displayNotification`'s own `titleBuf` capacity (`oled.cpp:745`).
+/// `etl::string<25>` -- `OLED::displayNotification`'s own `titleBuf` capacity (`oled.cpp`).
 constexpr size_t kNotificationTitleCap = 25;
 } // namespace
 

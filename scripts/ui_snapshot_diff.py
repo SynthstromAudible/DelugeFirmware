@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diff (or re-record) a UI test harness snapshot tree (spec G §3).
+"""Diff (or re-record) a UI test harness snapshot tree.
 
 A snapshot tree holds only two kinds of file, written by `tests/harness/snapshot.{h,cpp}`:
 `<name>.oled<N>.pbm` (a P1 PBM per OLED surface) and `<name>.state` (sorted text). Every other
@@ -180,7 +180,7 @@ def main() -> int:
             # A script that produced nothing (a run with no `snapshot` steps, or a mistyped one)
             # would otherwise wipe every stale file out of the golden dir and copy in an empty
             # set, leaving an empty golden tree that then "passes" forever -- both sides have
-            # nothing to compare (I-2). Recording is the one moment that mistake is still
+            # nothing to compare. Recording is the one moment that mistake is still
             # visible, so refuse it here rather than silently emptying the golden.
             print(
                 f"error: got directory has no .pbm/.state files to record: {args.got_dir}",

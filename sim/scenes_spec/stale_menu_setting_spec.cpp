@@ -1,5 +1,5 @@
 /// @file
-/// @brief A card that still says `legacyMenu=1`: the setting is gone, so the entry is an unknown setting, written back
+/// @brief A card that still carries the removed menu-mode setting: the key is an unknown setting, written back
 ///        as it was read, and the menu the clip view's SELECT opens is the menu.
 
 #include "gui/ui/shell_host_ui.h"

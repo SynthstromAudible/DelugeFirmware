@@ -22,7 +22,7 @@
 /// Every function here is a transcription of the legacy `isRelevant` override cited on its
 /// declaration -- `src/scenes` may not include `gui/menu_item/`, so the tests cross-check the two
 /// (`sim/scenes_spec/tables_1_spec.cpp` calls the legacy overrides, which are public
-/// (`gui/menu_item/menu_item.h:265`), against these).
+/// (`MenuItem::isRelevant` in `origin/main:src/deluge/gui/menu_item/menu_item.h`), against these).
 ///
 /// **A null `sound` is never relevant.** Legacy's overrides all begin by
 /// `static_cast<Sound*>(modControllable)` and dereference it: they are only ever reached from a
@@ -68,18 +68,19 @@ bool loaded(const MenuContext& ctx, uint8_t index) {
 	       && ((ctx.facts->loaded_sources(*ctx.addresses.slot) >> index) & 1U) != 0;
 }
 
-/// @brief `isSampleModeSample` (`gui/menu_item/sample/utils.cpp:9-15`).
+/// @brief `isSampleModeSample` (`origin/main:src/deluge/gui/menu_item/sample/utils.cpp`).
 bool is_sample_mode_sample(const MenuContext& ctx, uint8_t index) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
 	return state != nullptr && synth_mode(*state) == SynthMode::SUBTRACTIVE
 	       && source_type(*state, static_cast<SourceId>(index)) == OscType::SAMPLE && loaded(ctx, index);
 }
 
-/// @brief `FileSelector::isRelevant` (`gui/menu_item/file_selector.cpp:54-65`): browsing can load a sample even when
-///        the oscillator uses a synth waveform, so any subtractive sound qualifies, and ring-mod with a wavetable.
+/// @brief `FileSelector::isRelevant` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`): browsing can load a
+///        sample even when the oscillator uses a synth waveform, so any subtractive sound qualifies, and ring-mod with
+///        a wavetable.
 bool file_selector(const MenuContext& ctx, uint8_t index) {
 	if (ctx.is_audio_clip) {
-		return true; // `:55-57` -- `getCurrentClip()->type == ClipType::AUDIO`
+		return true; // `getCurrentClip()->type == ClipType::AUDIO`
 	}
 	const deluge::instrument::SoundState* state = sound_state(ctx);
 	if (state == nullptr) {
@@ -90,7 +91,7 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	           && source_type(*state, static_cast<SourceId>(index)) == OscType::WAVETABLE);
 }
 
-/// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h`).
+/// @brief `sample::Transpose::isRelevant` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
 bool transpose(const MenuContext& ctx, uint8_t index) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
 	if (state == nullptr) {
@@ -158,7 +159,9 @@ bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx) {
 }
 
 bool reverb_sidechain_on(const MenuContext& ctx) {
-	return ctx.model != nullptr && ctx.model->reverb.sidechain_volume >= 0; // `reverb/sidechain/shape.h:32`
+	return ctx.model != nullptr
+	       && ctx.model->reverb.sidechain_volume
+	              >= 0; // `Shape::isRelevant` (`origin/main:src/deluge/gui/menu_item/reverb/sidechain/shape.h`)
 }
 
 bool stutter_quantize_allowed(const MenuContext& ctx) {
@@ -216,17 +219,17 @@ bool audio_clip_has_sample(const MenuContext& ctx) {
 }
 
 bool battery_shown(const MenuContext& /*ctx*/) {
-	// `battery::Level::isRelevant` (`gui/menu_item/battery/level.h:33-35`). A global read rather
+	// `battery::Level::isRelevant` (`origin/main:src/deluge/gui/menu_item/battery/level.h`). A global read rather
 	// than a context one -- the runtime feature settings are device-wide, exactly as legacy has it.
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 }
 
 bool is_session_view(const MenuContext& ctx) {
-	// `song::MidiLearn::isRelevant` (`gui/menu_item/song/midi_learn.h:35-37`) and
-	// `song::ConfigureMacros::isRelevant` (`gui/menu_item/song/configure_macros.h:35-37`), both
+	// `song::MidiLearn::isRelevant` (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) and
+	// `song::ConfigureMacros::isRelevant` (`origin/main:src/deluge/gui/menu_item/song/configure_macros.h`), both
 	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
-	// `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in `sound_editor.cpp`) and stays true in the arranger and the
-	// song automation view, the two places this test is what hides both items.
+	// `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`) and
+	// stays true in the arranger and the song automation view, the two places this test is what hides both items.
 	return ctx.is_session_view;
 }
 

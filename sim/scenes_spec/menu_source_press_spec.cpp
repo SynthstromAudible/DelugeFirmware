@@ -1,5 +1,5 @@
 /// @file
-/// @brief SHIFT and a patching-source pad under the ported menu: the press opens the page that patches that source to
+/// @brief SHIFT and a patching-source pad under the menu: the press opens the page that patches that source to
 ///        what the menu shows, as `SoundEditor::potentialShortcutPadAction`'s source arm does in `main`.
 
 #include "gui/ui/menu_view_of.h"
@@ -147,8 +147,10 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("opens the volume cable the source already drives, not a new POST_FX one", _ {
-		// `Regular::checkPermissionToBeginSession`: a source POST_FX refuses is retried on POST_REVERB_SEND, then
-		// LOCAL_VOLUME, each asked on its own. The fixture's synth patches VELOCITY to LOCAL_VOLUME.
+		// `Regular::checkPermissionToBeginSession`
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`): a source POST_FX refuses is
+		// retried on POST_REVERB_SEND, then LOCAL_VOLUME, each asked on its own. The fixture's synth patches VELOCITY
+		// to LOCAL_VOLUME.
 		select_language();
 		Rig r;
 		r.open(nodes::master_volume);
@@ -253,7 +255,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("lights MIDI on a bipolar cable's page and CV on a unipolar one, and the two buttons switch it", _ {
-		// `PatchCableStrength::buttonAction` and `updatePolarityUI` (`patch_cable_strength.cpp`).
+		// `PatchCableStrength::buttonAction` and `updatePolarityUI`
+		// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
 		select_language();
 		Rig r;
 		r.open_velocity_cable();
@@ -269,7 +272,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("puts MIDI and CV out on BACK from the page", _ {
-		// `endSession` (`patch_cable_strength.cpp`); the MASTER page focused on VOLUME lights KIT only.
+		// `endSession` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`); the MASTER page focused on
+		// VOLUME lights KIT only.
 		select_language();
 		Rig r;
 		r.open_velocity_cable();
@@ -294,8 +298,8 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("a turn with Select held switches the polarity, leaves the strength, and its release opens nothing", _ {
-		// `PatchCableStrength::selectEncoderAction` (`patch_cable_strength.cpp`): up unipolar, down bipolar,
-		// `selectButtonPressUsedUp`.
+		// `PatchCableStrength::selectEncoderAction` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`):
+		// up unipolar, down bipolar, `selectButtonPressUsedUp`.
 		select_language();
 		Rig r;
 		r.open_velocity_cable();
@@ -317,7 +321,7 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 	});
 
 	it("SHIFT and a turn edits the strength five places a detent and leaves the polarity", _ {
-		// `SoundEditor::selectEncoderAction`'s 5x under SHIFT (`sound_editor.cpp`), then
+		// `SoundEditor::selectEncoderAction`'s 5x under SHIFT (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), then
 		// `Decimal::selectEncoderAction`; no polarity arm without Select held.
 		select_language();
 		Rig r;

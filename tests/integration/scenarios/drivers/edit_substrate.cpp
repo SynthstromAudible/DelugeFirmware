@@ -1,5 +1,5 @@
 // Unit harness for the Edit substrate:
-// dispatcher wiring, then the SetParamValue pilot, its Consequence production, coalescence, and
+// dispatcher wiring, then the SetParamValue edit, its Consequence production, coalescence, and
 // undo. Runs as the edit_substrate scenario (scenarios/drivers/driver.h): the real UnpatchedParamSet,
 // ActionLogger and allocator, on x86 and, through the qemu-arm build of golden_vt_render, on ARM.
 //
@@ -422,9 +422,9 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx) {
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/scalar: apply succeeds");
 	}
 	check(ms->autoParam->getCurrentValue() == 0x40000000, "characterize/scalar: engine cursor == value");
-	// FINDING: the in-line SCALAR poke keeps the model store's current_value in sync (also asserted by the pilot's
-	// step 1). So applyPatch's scalar path is a plain current_value write; no nodes are created for an
-	// unautomated param.
+	// FINDING: the in-line SCALAR poke keeps the model store's current_value in sync (also asserted by the
+	// SetParamValue edit's step 1). So applyPatch's scalar path is a plain current_value write; no nodes are created
+	// for an unautomated param.
 	check(ms->doc()->current_value == 0x40000000, "characterize/scalar: model current_value synced");
 	check(ms->doc()->nodes.empty(), "characterize/scalar: unautomated -> no nodes created");
 
@@ -587,7 +587,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 
 } // namespace
 
-// Song construction; the Context members are stored, and the pilot dereferences currentSong via the
+// Song construction; the Context members are stored, and the SetParamValue apply dereferences currentSong via the
 // engine mutation path (ActionLogger snapshots off currentSong->live.clips).
 
 // A synth added to the song is bound to its slot; a setting Edit names the slot. A mapped path's Edit changes the sound
@@ -1585,7 +1585,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	// ActionLogger::getNewAction snapshots an ActionClipState per clip and sizes that allocation to the clip
 	// count — a zero-clip song makes it a 0-byte alloc (=> nullptr => no Action opens). A real song always has
 	// clips; give the harness one AUDIO clip (grabFromClip is a no-op for non-instrument clips) so the undo path
-	// the pilot exercises behaves as it does on-device.
+	// the SetParamValue edit exercises behaves as it does on-device.
 	auto* audioClip = new AudioClip(*song);
 	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
 	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);

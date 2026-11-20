@@ -1,11 +1,11 @@
 # Level-2 acceptance: `nodes::PerformEditorItem` -- the one action item that is a value
 # AND a verb, and the only one of the five with a screen of its own.
 #
-# `performance_session_view::EditingMode` (`gui/menu_item/performance_session_view/editing_mode.h:99-107`
-# getOptions) is a three-option `Selection` whose `selectButtonPress` (`:49-74`) acts on the CHOSEN
-# option: `NO_NAVIGATION` for VALUE/PARAM (the page stays up while the performance view opens over
-# it) and `nullptr` -- go up a level -- for DISABLED. Both arms are scripted, and they are the reason
-# this script descends from the PERFORM FX root rather than opening the item directly: at depth 0 an
+# `performance_session_view::EditingMode`
+# (`origin/main:src/deluge/gui/menu_item/performance_session_view/editing_mode.h` getOptions) is a three-option
+# `Selection` whose `selectButtonPress` acts on the CHOSEN option: `NO_NAVIGATION` for VALUE/PARAM (the page stays up
+# while the performance view opens over it) and `nullptr` -- go up a level -- for DISABLED. Both arms are scripted, and
+# they are the reason this script descends from the PERFORM FX root rather than opening the item directly: at depth 0 an
 # ascend is a no-op, so the two arms would draw the same frame and neither golden would mean anything.
 #
 # The discriminator in the port is `MenuState::render_resp.entered`: the item CLEARS it on

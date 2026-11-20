@@ -3,15 +3,14 @@
 /// @brief `BrowserScene` -- one file browser, parameterised by descriptor, over the extracted
 ///        catalogue and the async listing seam.
 ///
-/// Legacy has a `Browser` base (`gui/ui/browser/browser.{h,cpp}`) over `QwertyUI` and a family of
-/// subclasses. **Three of them are reachable from the ported menu tree** and are the three descriptors
-/// below: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`), opened by the sample-file items,
-/// `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by
-/// `midi_device_linked`, and `DxSyxBrowser` (`gui/ui/browser/dx_browser.cpp`), opened by "load DX7 .syx file".
-/// Everything the three differ in -- title, extensions, where they start, which
-/// icon a row draws, what accepting a file does -- is `Descriptor`, and `SceneId::arg` selects one,
-/// exactly as `rename::Target` and `context_menu::Descriptor` turned their own legacy hierarchies
-/// into tables.
+/// Legacy has a `Browser` base (`gui/ui/browser/browser.{h,cpp}`) over `QwertyUI` and a family of subclasses. **Three
+/// of them are reachable from the menu tree** and are the three descriptors below: `SampleBrowser`
+/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), opened by the sample-file items,
+/// `LoadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), opened by `midi_device_linked`, and
+/// `DxSyxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`), opened by "load DX7 .syx file". Everything
+/// the three differ in -- title, extensions, where they start, which icon a row draws, what accepting a file does -- is
+/// `Descriptor`, and `SceneId::arg` selects one, exactly as `rename::Target` and `context_menu::Descriptor` turned
+/// their own legacy hierarchies into tables.
 ///
 /// The **load/save family** (`gui/ui/load/load_song_ui`, `load_instrument_preset_ui`,
 /// `load_pattern_ui`, and all of `gui/ui/save/`) is deliberately **out of scope**: those are opened
@@ -64,7 +63,7 @@
 ///      the warning on `Action` in `shell/scene.h`.
 ///   3. **A refused dispatch is retried, not lost.** `Listing::request` can answer `Dropped` (the
 ///      owner's queue was full) or `Busy` (something else holds the catalogue -- another seam, or a
-///      legacy `Browser` mid-listing, since the claim now lives on `FileCatalogue`). The scene keeps
+///      legacy `Browser` mid-listing, since the claim lives on `FileCatalogue`). The scene keeps
 ///      the request and retries it on the next tick, which is legacy's own answer to the same return
 ///      (`Browser`'s `listingInProgress_` is cleared so the next HID event retries).
 ///
@@ -98,27 +97,29 @@ namespace deluge::scenes::browser {
 
 /// @brief Which browser `SceneId::arg` names.
 ///
-/// **Three, not legacy's nine.** These are every legacy `Browser` subclass a node in the ported menu
+/// **Three, not legacy's nine.** These are every legacy `Browser` subclass a node in the menu
 /// tree opens. Every other one -- `LoadSongUI`, `LoadInstrumentPresetUI`, `LoadPatternUI`,
 /// `SaveSongUI`, `SaveInstrumentPresetUI`, `SaveKitRowUI` -- is opened from a root
 /// UI or a view the port does not have, so adding an entry for one now would be an untested,
 /// unreachable code path.
 enum class BrowserId : uint16_t {
-	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:84`), the audio-file browser the sample
+	/// `sampleBrowser` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`), the audio-file browser the sample
 	/// menu items open.
 	Sample = 0,
 	/// `loadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), which
 	/// `midi::device_definition::Linked::writeCurrentValue` opens
-	/// (`gui/menu_item/midi/device_definition/linked.h:42`).
+	/// (`origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h`).
 	///
 	/// @note `midi_device_linked` is not a plain browser
-	///       opener but a `Toggle`: `linked.h:42` is only the ON arm of `writeCurrentValue`, and the
+	///       opener but a `Toggle`: the ON arm of `writeCurrentValue` in
+	///       `origin/main:src/deluge/gui/menu_item/midi/device_definition/linked.h` is only half of it, and the
 	///       OFF arm clears the linked file name. `nodes::MidiDeviceLinkedItem`
 	///       (`menu/nodes/output_items.h`) carries both, and is one of the two items that set
 	///       `CustomItem::on_focus_is_press()` -- because a restore replaying the ON arm would
 	///       silently clear a user's setting.
 	MidiDeviceDefinition = 1,
-	/// `dxBrowser` (`gui/ui/browser/dx_browser.cpp`), the DX7 `.syx` bank browser "load DX7 .syx file" opens.
+	/// `dxBrowser` (`origin/main:src/deluge/gui/ui/browser/dx_browser.cpp`), the DX7 `.syx` bank browser "load DX7 .syx
+	/// file" opens.
 	DxSyx = 2,
 	Count,
 };
@@ -130,8 +131,9 @@ enum class AcceptOutcome : uint8_t {
 	/// The descriptor refused or failed; stay open. The scene raises `error` as a notice first
 	/// (legacy's `display->displayError(error)` followed by `return`).
 	Stay,
-	/// The descriptor cannot act from this layer and its load has to end before the browser may close: park the choice
-	/// in `take_choice()` and stay up, taking no other file, until the host calls `BrowserScene::deferred_load_done`.
+	/// The descriptor cannot act from this layer and its load has to end before the browser may close: hand the choice
+	/// to the host (`BrowserHost::perform`) and stay up, taking no other file, until the host calls
+	/// `BrowserScene::deferred_load_done`.
 	/// Each legacy browser loads with itself still up and closes once the load has ended (`claimCurrentFile`,
 	/// `LoadMidiDeviceDefinitionUI::definitionLoaded`, `DxSyxBrowser`'s read), and stays up when it fails.
 	DeferAndWait,
@@ -143,7 +145,7 @@ struct Descriptor {
 	///
 	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` sets
-	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp:87`). Neither is in
+	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp`). Neither is in
 	/// `gui/l10n/strings.h` at all, so there is no id to carry: a `uint16_t` here would have meant
 	/// inventing two string ids and a translation table entry each, which is a change to the l10n
 	/// data rather than a port of the browser.
@@ -163,12 +165,13 @@ struct Descriptor {
 	/// @brief `Browser::fileIconPt2`, or null. Only the MIDI plug has one (its ninth column).
 	const gfx::oled::Icon* file_icon_pt2;
 
-	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h:290`), threaded through
+	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h`), threaded through
 	///        the listing rather than read off a browser -- see `FileCatalogue`'s own note.
 	bool interpret_note_names;
 
 	/// @brief `Browser::allowFoldersSharingNameWithFile`. `SampleBrowser::opened` sets it true
-	///        (`sample_browser.cpp:113`); the base leaves it false (`browser.cpp:182`).
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`); the base leaves it false (`Browser::opened`
+	///        in `browser.cpp`).
 	bool allow_folders_sharing_name_with_file;
 
 	/// @brief May the browser open on this context at all?
@@ -182,10 +185,10 @@ struct Descriptor {
 
 	/// @brief Where the browser opens: the directory to list, and the entry to land on inside it.
 	///
-	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s
-	/// `currentPath`/`searchFilename` split (`sample_browser.cpp:136-171`) and
-	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`:83-124`). Both end in
-	/// "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
+	/// The port of each subclass's own dissection -- `SampleBrowser::opened`'s `currentPath`/`searchFilename` split
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and
+	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` (`load_midi_device_definition_ui.cpp`). Both
+	/// end in "a folder plus a filename to select", which is exactly what a `ListingRequest` takes.
 	///
 	/// @param ctx  What the browser was opened over.
 	/// @param dir  Out: the directory to list. Left empty to use `Descriptor::default_dir`.
@@ -194,10 +197,10 @@ struct Descriptor {
 
 	/// @brief Why this folder may not be entered, as an l10n string id; 0 to allow it.
 	///
-	/// One legacy refusal, and it is `SampleBrowser`'s: `TEMP` inside `SAMPLES/CLIPS`
-	/// (`sample_browser.cpp:346-351`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null means "every
-	/// folder may be entered", which is what `LoadMidiDeviceDefinitionUI::enterKeyPress` does
-	/// (`load_midi_device_definition_ui.cpp:150-154`).
+	/// One legacy refusal, and it is `SampleBrowser`'s: `TEMP` inside `SAMPLES/CLIPS` (`SampleBrowser::enterKeyPress`
+	/// in `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`, `STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED`). Null
+	/// means "every folder may be entered", which is what `LoadMidiDeviceDefinitionUI::enterKeyPress` does
+	/// (`load_midi_device_definition_ui.cpp`).
 	uint16_t (*folder_refusal)(std::string_view dir, std::string_view name);
 
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
@@ -209,15 +212,15 @@ struct Descriptor {
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
 	///       (`gui/ui/load/instrument_load.h`). Both are `gui/` symbols this layer may not name
 	///       (`scripts/check_layer_rules.py`, `scenes-includes-outside`). That is the same wall
-	///       `scenes/menu/action.h` was built for, and the same answer: the scene parks the chosen
-	///       path in `take_choice()` and `gui::ui::dispatchShellChoices` performs the load.
+	///       `scenes/menu/action.h` was built for, and the same answer: the scene hands the chosen
+	///       path to its `BrowserHost`, and the application's host performs the load.
 	///
 	/// @note **The sample dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
 	/// *return* affordance:
-	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
+	///       `SoundEditor::maybeGetParentMenu` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
-	///       (`SampleBrowser::finishLegacyClaim`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
+	///       (`SampleBrowser::claimCurrentFile`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -226,15 +229,16 @@ struct Descriptor {
 	///       members live on a `gui/` object this layer may not name, and the port's equivalent of
 	///       `menuItemNavigationRecord` is `MenuState::path`/`depth`, which only `MenuScene` may
 	///       write -- an item writing the menu's own navigation state is what `MenuState`'s mailbox
-	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. Whoever performs
-	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
-	///       too. That is `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/shell_choice_dispatch.h`),
-	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so
-	///       the browser needs no extra BACK press.
+	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. The host that performs the
+	///       claim is therefore the owner of the re-rooting too. That is
+	///       `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/browser_host.h`), and the entry
+	///       point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the browser needs no
+	///       extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
-	///       (`gui/ui/sound_editor.cpp:2095-2100`, consumed by `osc/audio_recorder.h:40-48`): the
-	///       recorder scene has no `take_choice()` equivalent to drain, so nothing calls the entry
-	///       point for it. Recorded on `nodes::AudioRecorderItem::on_focus`.
+	///       (`SoundEditor::maybeGetParentMenu` in `origin/main:src/deluge/gui/ui/sound_editor.cpp`, consumed by
+	///       `AudioRecorder::beginSession` in `origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`): the
+	///       recorder scene hands no claim to a host, so nothing calls the entry point for it. Recorded on
+	///       `nodes::AudioRecorderItem::on_focus`.
 	///
 	/// @param ctx   What the browser was opened over.
 	/// @param path  The chosen file's full path (`currentDir` + "/" + the filename).
@@ -276,17 +280,16 @@ struct PreviewRequest {
 struct ScrollRequest {
 	/// The selection's move: -1 or 1.
 	int8_t direction = 0;
-	/// Scroll the root view in (`clearPreviewDisplay`); otherwise the browser's own main pads.
+	/// Scroll the root view in (the no-preview arm of `SampleBrowser::previewIfPossible` in
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`); otherwise the browser's own main pads.
 	bool to_root = false;
 	/// Scroll what is shown out into nothing (`currentFileChanged`, while the next preview loads).
 	bool into_nothing = false;
 	bool operator==(const ScrollRequest&) const = default;
 };
 
-/// @brief A file the scene could not load itself, waiting for the application-side dispatcher.
-///
-/// The noun half of the same seam `menu::MenuActionRequest` is the verb half of. See
-/// `Descriptor::accept`.
+/// @brief What the browser asks its host to do with an item (`BrowserHost::perform`): a file it could not load
+///        itself, or a folder menu's or the delete menu's operation. See `Descriptor::accept`.
 struct BrowserChoice {
 	/// @brief What the host is to do with the item.
 	enum class Op : uint8_t {
@@ -307,7 +310,8 @@ struct BrowserChoice {
 
 	BrowserId id = BrowserId::Sample;
 	/// The chosen file's full path, as `getCurrentFilePath()` would have spelled it
-	/// (`sample_browser.h:163 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.h` `getCurrentFilePath`): `currentDir` + "/" + the
+	/// filename, extension included.
 	std::string path;
 	Op op = Op::Enter;
 	ClaimArgs claim{};
@@ -319,6 +323,29 @@ struct BrowserChoice {
 	/// it is. Only an `Op::Enter` carries it.
 	bool keep_open = false;
 };
+
+/// @brief The application's half of the file browser: the loads, claims, imports, slices, deletions and previews that
+///        reach objects this layer may not name (`Descriptor::accept`).
+///
+/// A request is performed when the browser makes it. How it ends comes back through `BrowserScene`'s answer methods
+/// (`deferred_load_done`, `long_press_done`, `slice_ready`, `file_deleted`, `preview_settled`), never from inside the
+/// call: an answer the request produces before it returns is held by the host and delivered after the shell's tick, so
+/// no answer reaches a scene from inside the hook that asked.
+class BrowserHost {
+public:
+	virtual ~BrowserHost() = default;
+	/// @brief Perform @p choice: the claim, import, slice or deletion it names (the sample browser), the MIDI device
+	///        definition's load, or the `.syx` bank's read or deletion.
+	/// @param choice What the browser asks for, and on which item.
+	virtual void perform(const BrowserChoice& choice) = 0;
+	/// @brief Preview @p request's file with the shared previewer, or stop previewing for an empty path.
+	/// @param request The file the selection landed on, and the move that landed it.
+	virtual void preview(const PreviewRequest& request) = 0;
+};
+
+/// @brief The host that performs nothing: the browser's until an application installs one (`BrowserScene::set_host`).
+/// @return The one shared instance.
+BrowserHost& null_browser_host();
 
 /// @brief The longest name or path this scene will build.
 ///
@@ -345,7 +372,7 @@ inline constexpr deluge::ui::shell::SceneKind kBrowserSceneKind =
 ///
 /// Legacy: `textStartX = 14`, `iconStartX = 1`, each stepped by one `kTextSpacingX` when
 /// `FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`
-/// (`browser.cpp:928-933`). That setting is what this toolkit spells as `Style::highlighting ==
+/// (`Browser::renderOLED` in `browser.cpp`). That setting is what this toolkit spells as `Style::highlighting ==
 /// Highlighting::NoInversion` -- the same mapping `list`, `columns`, `popup` and `text_edit`
 /// already make -- so the scene reads the profile rather than the flash byte, and both shipped
 /// profiles ship `PartialInversion`, so this stays on the `!= NoInversion` arm.
@@ -371,7 +398,7 @@ inline constexpr int32_t kRowIconX = 1;
 inline constexpr uint32_t kListingPollMs = 10;
 
 /// @brief How long a preview's incomplete render keeps being redrawn with no column newly resolved:
-///        `SampleBrowser::tickPreviewRedraw`'s `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
+///        `kMaxUnproductiveUs` (300 ms, `model/sample/recorder_write_policy.h`).
 inline constexpr uint32_t kWaveformRedrawGiveUpMs = 300;
 
 /// @brief The favourites row while the keyboard shows (`Browser::favouriteRow`) in the default layout, without banks;
@@ -422,13 +449,14 @@ public:
 	///        `clearMainPadsWithoutSending` (main pads only) leaves.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief `Main` while the keyboard or a waveform is drawn on the main pads, the sidebar being the view beneath's
-	///        (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp:76-125`); `None` in the root state, where
+	///        (`QwertyUI::drawKeys`, `gui/ui/qwerty_ui.cpp`); `None` in the root state, where
 	///        `SampleBrowser::renderMainPads` answers false and the root view's pads show.
 	deluge::ui::shell::PadRegions pad_regions() const override {
 		return pads_ == BrowserPads::Root ? deluge::ui::shell::PadRegions::None : deluge::ui::shell::PadRegions::Main;
 	}
 	/// @brief True for the sample browser: `SampleBrowser` greys at once (`reassessGreyout(true)`) whenever its pads
-	///        change, in `showPreview`, `clearPreviewDisplay` and the keyboard's reveal.
+	///        change, in `SampleBrowser::previewIfPossible`
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) and the keyboard's reveal.
 	bool greyout_changes_instantly() const override { return id_ == BrowserId::Sample; }
 	/// @brief Everything but the audition column, which `SampleBrowser::padAction` hands to the instrument clip view.
 	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
@@ -447,8 +475,9 @@ public:
 	///
 	/// The sample browser greys the mute column only while its keyboard or a waveform shows, or over the keyboard
 	/// screen, and every column but the audition column otherwise: `SampleBrowser::getGreyoutColsAndRows`
-	/// (`gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every column, keyboard
-	/// included, as `LoadMidiDeviceDefinitionUI` does (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
+	/// (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every
+	/// column, keyboard included, as `LoadMidiDeviceDefinitionUI` does
+	/// (`gui/ui/load/load_midi_device_definition_ui.cpp`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override {
 		if (id_ == BrowserId::MidiDeviceDefinition) {
 			return deluge::ui::grid::GreyoutMask{0xFFFFFFFFu, 0};
@@ -465,7 +494,8 @@ public:
 	/// @brief Which BROWSE blink runs.
 	BrowseBlink browse_blink() const { return browse_blink_; }
 	/// @brief Whether the next `on_enter` is the drum creator's: `InstrumentClipView::enterDrumCreator` opens the
-	///        browser with no `SoundEditor::beginScreen` after it, so only the browser's own blink runs.
+	///        browser with no `SoundEditor::beginScreen` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) after it,
+	///        so only the browser's own blink runs.
 	void set_drum_creator_next(bool from_creator) { drum_creator_next_ = from_creator; }
 	/// @brief Whether the last `on_enter` refused (an id past the table, or a descriptor the context cannot open): the
 	///        `openUI(&sampleBrowser)` that failed, after which legacy's drum creator opens the editor instead.
@@ -496,7 +526,8 @@ public:
 	bool current_is_folder() const;
 	/// @brief `SampleBrowser::qwertyAlwaysVisible`: KEYBOARD keeps the keyboard up through every move.
 	bool keyboard_always_visible() const { return keyboard_always_visible_; }
-	/// @brief `SampleBrowser::autoLoadEnabled`: LOAD has the browser claim each preview that lands.
+	/// @brief `SampleBrowser::autoLoadEnabled` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): LOAD has
+	/// the browser claim each preview that lands.
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
@@ -506,7 +537,7 @@ public:
 	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
 	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
 	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
-	///        `SampleBrowser::showPreview` sets up.
+	///        `SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) sets up.
 	/// @param sample The sample the slicer opens on.
 	const deluge::sample::WaveformNav* shown_waveform(const Sample* sample) const {
 		return sample != nullptr && nav_identity_ == reinterpret_cast<uintptr_t>(sample) ? &nav_ : nullptr;
@@ -515,42 +546,31 @@ public:
 	int32_t favourite_row() const;
 	/// @brief Use @p favourites in place of the host's, or null to put the host's back. For specs.
 	void set_favourites(services::Favourites* favourites) { favourites_override_ = favourites; }
+	/// @brief Hand every request to @p host, or to `null_browser_host()` for null. The application installs its own
+	///        (`gui::ui::wireShellBrowserHost`); a spec installs a recording one.
+	void set_host(BrowserHost* host) { host_ = host; }
+	/// @brief The host `set_host` installed, or null.
+	[[nodiscard]] BrowserHost* installed_host() const { return host_; }
 	/// @}
 
-	/// @brief Collect the file the scene could not load itself, exactly once.
-	///
-	/// The outbox `Descriptor::accept`'s `DeferAndWait` answer fills in; `MenuScene::take_action()` is the
-	/// same shape for the verb half of the same wall. `Descriptor::accept` says why the choice
-	/// cannot be performed from here.
-	///
-	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`),
-	/// which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
-	/// performs the sample claim (`SampleClaim`) against the parked path. Like `take_action()`'s,
-	/// the slot is **one deep and overwrites silently**. A second choice inside one guest tick would
-	/// need two presses in that tick: an Enter parks and refuses the next until the host answers
-	/// `deferred_load_done`, and a folder menu's accept parks while the load it starts refuses further presses
-	/// (`Descriptor::busy`).
-	/// @return The choice, or `std::nullopt` when none is waiting.
-	std::optional<BrowserChoice> take_choice();
-
-	/// @brief Park @p op on the selected item for the host, leaving this scene and anything over it up: a folder
+	/// @brief Ask the host to perform @p op on the selected item, leaving this scene and anything over it up: a folder
 	///        menu's accept, whose load closes the menu once it ends (`long_press_done`).
 	/// @param op    What the host is to do.
 	/// @param claim The detection choices, for `Op::Claim`.
-	void park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim = {});
+	void request_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim = {});
 
 	/// @brief How a load a folder menu started ended: a failure closes the menu, a success the menu and this browser,
 	///        as `closeOnFailure` and the load's own exit do in `main`. Filed on this scene's next render.
 	/// @param success Whether the load or import succeeded.
 	void long_press_done(bool success);
-	/// @brief How the load a `DeferAndWait` accept parked ended: a success closes this browser, a failure leaves it up
-	///        for another file, as `DxSyxBrowser` does once its read ends. Filed on this scene's next render; ignored
-	///        unless such a load is out.
+	/// @brief How the load a `DeferAndWait` accept asked for ended: a success closes this browser, a failure leaves it
+	///        up for another file, as `DxSyxBrowser` does once its read ends. Filed on this scene's next render;
+	///        ignored unless such a load is out.
 	/// @param success Whether the load succeeded.
 	void deferred_load_done(bool success);
 	/// @brief Whether a `DeferAndWait` accept's load is out: the host has not yet answered `deferred_load_done`.
 	[[nodiscard]] bool awaiting_deferred_load() const { return awaiting_deferred_; }
-	/// @brief The host's answer to a parked `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
+	/// @brief The host's answer to an `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
 	///        could not): the next `after_render` pushes `SlicerScene`, with main's `"SLICER"` popup on the
 	///        Shift+Select door. A slice that did not open pushes nothing (the host showed why). Ignored unless a slice
 	///        is out.
@@ -561,18 +581,12 @@ public:
 	/// @param path The deleted file's full path.
 	void file_deleted(std::string_view path);
 
-	/// @brief Take the preview the selection last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains
-	/// it
-	///        every guest tick after `take_choice()`. One deep: a later request overwrites one not yet taken, as
-	///        legacy's latest-wins preview does.
-	/// @return The request, or `std::nullopt` when none is waiting.
-	std::optional<PreviewRequest> take_preview();
 	/// @brief The host's answer to the request in hand: its load ended, with a sample in the preview drum or not, or
 	/// the
 	///        preview was stopped.
 	/// @param has_sample Whether the preview drum holds a sample to draw.
 	void preview_settled(bool has_sample);
-	/// @brief Take the scroll the browser last asked for, for `deluge::gui::ui::dispatchShellChoices`, which drains it
+	/// @brief Take the scroll the browser last asked for, for `deluge::gui::ui::pollShellBrowserHost`, which takes it
 	///        after the preview. A scroll of the browser's own pads is handed over only once they hold what scrolls in.
 	/// @return The request, or `std::nullopt` when none is ready.
 	std::optional<ScrollRequest> take_scroll();
@@ -580,27 +594,30 @@ public:
 	///        pads the scroll brings in are not first sent whole.
 	[[nodiscard]] bool scroll_pending() const { return pad_scroll_.has_value() || waveform_scroll_ != 0; }
 	/// @brief Whether a preview was asked for and the host has not yet answered; `next_timer()` polls meanwhile, so the
-	///        host's dispatcher keeps ticking the load.
+	///        host's poll keeps ticking the load.
 	[[nodiscard]] bool preview_outstanding() const { return preview_outstanding_; }
 
-	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
+	/// @brief Install a dispatcher other than `deluge::scenes::run_inline` on the scene's seam.
 	///
-	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h`'s `Owner::run`),
-	/// so with the shipped dispatcher a listing has already finished when `request()` returns and
+	/// **For specs.** The shipped dispatcher, `run_inline` (`scenes/run_inline.h`), runs the op on the caller's
+	/// stack, so with it a listing has already finished when `request()` returns and
 	/// the in-flight state -- which is most of this scene's behaviour -- can never be observed.
 	/// See the honesty note in `listing.h`.
 	/// @param dispatch The dispatcher; must satisfy `Listing::Dispatch`'s contract.
 	void set_dispatch(Listing::Dispatch dispatch) { listing_.set_dispatch(dispatch); }
 
 private:
+	/// @brief The installed host, or the one that performs nothing.
+	BrowserHost& host() const { return host_ != nullptr ? *host_ : null_browser_host(); }
 	/// @brief What the in-memory search over the cached window could say.
 	enum class SearchOutcome : uint8_t {
 		/// It named an entry, which is now selected.
 		Found,
-		/// Nothing in the folder starts with the typed text (legacy's `notFound`, `browser.cpp:841`).
+		/// Nothing in the folder starts with the typed text (legacy's `notFound`, `Browser::continuePrediction` in
+		/// `browser.cpp`).
 		NotFound,
 		/// The cached window cannot answer -- the folder has to be read again around the search
-		/// string. Legacy loops synchronously (`doNewRead`, `:826`); this scene dispatches.
+		/// string. Legacy loops synchronously (`doNewRead` in `Browser::continuePrediction`); this scene dispatches.
 		NeedsRead,
 	};
 
@@ -655,8 +672,9 @@ private:
 	void render_browse_blink(deluge::ui::grid::GridFrame& f);
 	/// @brief The previewed sample's waveform across the main pads.
 	void render_waveform(deluge::ui::grid::GridFrame& f);
-	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible` asks for one: the file's
-	///        path, or an empty path for a folder or no selection. Only the sample browser previews.
+	/// @brief File the preview for the selected entry, as `SampleBrowser::previewIfPossible`
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) asks for one: the file's path, or an empty
+	///        path for a folder or no selection. Only the sample browser previews.
 	/// @param direction The selection's move: -1, 0 or 1.
 	void file_preview(int8_t direction);
 	/// @brief Replace the edited text with @p s, truncated at `kMaxEnteredChars`.
@@ -676,8 +694,8 @@ private:
 	SearchOutcome search_for_entered_text();
 	/// @brief `search_for_entered_text` plus the two arms its caller owes -- restore the previous text
 	///        on a miss, dispatch a wider read on `NeedsRead`.
-	/// @param revert_cursor_to Where the cursor was before the keystroke, for legacy's
-	///                         `enteredTextEditPos--` on a failed prediction (`qwerty_ui.cpp:357`).
+	/// @param revert_cursor_to Where the cursor was before the keystroke, for legacy's `enteredTextEditPos--` on a
+	///                         failed prediction (`QwertyUI::padAction` in `qwerty_ui.cpp`).
 	void run_search_after_typing(int32_t revert_cursor_to);
 	/// @brief `Browser::selectEncoderAction`, including its four reload arms.
 	/// @param offset Signed detents.
@@ -687,21 +705,23 @@ private:
 	/// @param offset    The turn that produced it.
 	void finish_select(int32_t new_index, int32_t offset);
 	/// @brief File one of `selectEncoderAction`'s four folder-window re-reads.
-	/// @param from_end   Legacy's `pendingReloadSearchFromEnd_` (`browser.h:178`).
-	/// @param direction  Legacy's `pendingReloadCatalogSearchDirection_` (`:177`); read only when
+	/// @param from_end   Legacy's `Browser::ReloadTail::searchFromEnd` (`gui/ui/browser/browser.h`).
+	/// @param direction  Legacy's `Browser::ReloadTail::searchDirection`; read only when
 	///                   @p from_end.
 	/// @param offset     The turn that provoked it, applied to the search on landing.
 	void request_reload(bool from_end, int32_t direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
-	///              (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:390-401`).
+	///              (`SampleBrowser::enterKeyPress`, `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`).
 	/// @return What the shell should do.
 	deluge::ui::shell::Result enter_key_press(bool shift);
-	/// @brief `SampleBrowser::canImportWholeKit`: a kit whose only drum is the one edited, on source 0.
+	/// @brief `SampleBrowser::canImportWholeKit` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a kit
+	/// whose only drum is the one edited, on source 0.
 	/// @return Whether this kit may take a whole folder or a slice.
 	bool fresh_kit() const;
-	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:310-356`): a popup, or one of the
-	///        two folder menus, for the item Select is held on.
+	/// @brief `SampleBrowser::timerCallback`'s long-press arm
+	///        (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): a popup, or one of the two folder menus,
+	///        for the item Select is held on.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result long_press();
 	/// @brief `Browser::backButtonAction`: ascend, or close at the top.
@@ -756,8 +776,7 @@ private:
 	/// this side because `ListingAction::Open` performs no selection search of its own
 	/// (`listing.h`: the seam carries no selection state).
 	std::string select_after_listing_{};
-	/// Legacy's `pendingReloadSearchFromEnd_` / `pendingReloadCatalogSearchDirection_` pair
-	/// (`browser.h:177-178`) and the turn that provoked the reload.
+	/// Legacy's `Browser::ReloadTail` (`gui/ui/browser/browser.h`) and the turn that provoked the reload.
 	/// @{
 	bool reload_from_end_ = false;
 	int32_t reload_direction_ = 0;
@@ -767,30 +786,28 @@ private:
 	/// runs again when it lands. Legacy's `Browser::PredictionTarget::doneNewRead`, one tick later.
 	bool searching_ = false;
 	/// Where the cursor goes if that second search also finds nothing -- legacy's
-	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`qwerty_ui.cpp:357-359`), which
+	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`QwertyUI::padAction` in `qwerty_ui.cpp`), which
 	/// has to survive the tick boundary the re-read introduces. Only read while `searching_`.
 	int32_t search_revert_cursor_ = 0;
 
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;
 
-	/// `Browser::fileIndexSelected` (`browser.h:268`) / `scrollPosVertical` (`:270`).
+	/// `Browser::fileIndexSelected` (`browser.h`) / `scrollPosVertical`.
 	/// @{
 	int32_t file_index_ = -1;
 	int32_t scroll_ = 0;
 	/// @}
 
-	std::optional<BrowserChoice> choice_{};
-	std::optional<PreviewRequest> preview_{};
 	std::optional<ScrollRequest> pad_scroll_{};
 	/// A waveform to scroll in once drawn: the move's direction, or 0. `after_render` files it after a grid pass
 	/// that drew the waveform.
 	int8_t waveform_scroll_ = 0;
 	bool preview_outstanding_ = false;
 	/// What the main pads show. Legacy's flags beside it, which the image does not always follow
-	/// (`SampleBrowser::showPreview` scrolls a waveform in over the keys and leaves them "drawn"):
-	/// `qwertyVisible` (a pad types rather than reveals), `qwertyCurrentlyDrawnOnscreen`,
-	/// `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
+	/// (`SampleBrowser::previewIfPossible` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`) scrolls a
+	/// waveform in over the keys and leaves them "drawn"): `qwertyVisible` (a pad types rather than reveals),
+	/// `qwertyCurrentlyDrawnOnscreen`, `currentlyShowingSamplePreview`, `qwertyAlwaysVisible` and `autoLoadEnabled`.
 	BrowserPads pads_ = BrowserPads::Root;
 	bool keyboard_visible_ = false;
 	bool keys_drawn_ = false;
@@ -812,6 +829,8 @@ private:
 	bool load_blink_pending_ = false;
 	/// A spec's favourites, in place of the host's.
 	services::Favourites* favourites_override_ = nullptr;
+	/// The application's half of the browser (`set_host`); null until one is installed.
+	BrowserHost* host_ = nullptr;
 	/// What this tick's favourites and bank rows reported, for `after_render`.
 	deluge::ui::Response favourite_resp_{};
 	deluge::ui::Response bank_resp_{};
@@ -864,14 +883,15 @@ private:
 	bool awaiting_deferred_ = false;
 	/// How that load ended, for the next `after_render`: true closes this browser.
 	std::optional<bool> deferred_done_{};
-	/// A parked slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
+	/// A slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
 	/// whether it came through the Shift+Select door.
 	bool slice_out_ = false;
 	std::optional<bool> slice_ready_{};
 	bool slice_from_shift_ = false;
 	/// The shift level the last event carried, for the keyboard's Enter key, which `after_render` answers.
 	bool shift_ = false;
-	/// This browser parked a load for a folder menu and has not heard how it ended: only that load's end is acted on.
+	/// This browser asked the host for a folder menu's load and has not heard how it ended: only that load's end is
+	/// acted on.
 	bool awaiting_load_ = false;
 
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.

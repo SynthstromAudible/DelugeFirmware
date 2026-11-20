@@ -3,7 +3,8 @@
 
 Each rule is (name, from_glob, kind, regex, spec). `kind` is "include" (match the include
 path) or "symbol" (match any source line). The baseline holds counts per (file, rule) and
-may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fails.
+may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fails. For the rules in
+`SHRINK_ONLY_RULES`, `--update` refuses to raise a count too.
 
   scripts/check_layer_rules.py            # check (exit 1 on regression)
   scripts/check_layer_rules.py --list     # print current counts
@@ -19,11 +20,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "scripts" / "layer_rules_baseline.txt"
+# Rules whose baseline `--update` may lower but never raise: a scene read outside `scenes/bind` is never an agreed
+# move, so the count only falls as the reads move behind `bind`.
+SHRINK_ONLY_RULES = ("scenes-reads-outside-bind",)
 SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
 
 # The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
-# check that each one is a symbol this tree actually has. Every entry below was taken from an
+# check that each one is a symbol the source actually has. Every entry below was taken from an
 # `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h`, `src/deluge/gui/ui/**/*.h` or
 # `src/deluge/gui/context_menu/*.h` whose type is a `UI` subclass -- i.e. from the declarations,
 # not from memory.
@@ -67,7 +71,7 @@ ROOT_UI_GLOBALS = (
 )
 # The `StemExport` PROCESS entry points -- the `scenes-no-stem-export-process` row's alternatives,
 # named here for the same reason `CATALOGUE_DISPATCH_CALLS` is: `--audit-symbols` checks each is a
-# method this tree really declares (`processing/stem_export/stem_export.h:36`, `:39`, `:40`, `:41`).
+# method the source really declares (`StemExport`, `processing/stem_export/stem_export.h`).
 #
 # Why this needs a row of its own, and why it is the only arm of `dispatchShellActions` that does.
 # Every other verb's legacy target is already unreachable from `src/scenes`: `performanceView`,
@@ -76,9 +80,9 @@ ROOT_UI_GLOBALS = (
 # `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
 # `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
 # `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
-# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s at
-# `menu/nodes/roots.cpp:354-360` read and write `allowNormalization`, `exportMixdown` and five more
-# through one macro (`:348`, `:351`). So
+# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s in
+# `menu/nodes/roots.cpp` (the stem-export block, `DELUGE_STEM_TOGGLE`) read and write `allowNormalization`,
+# `exportMixdown` and five more through one macro. So
 # `MenuAction::StartStemExport` is the one
 # verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
 #
@@ -86,21 +90,23 @@ ROOT_UI_GLOBALS = (
 # and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's. A row on
 # the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
 #
-# The five remaining public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
-# `stopOutputRecording`, `renderWait`, `checkForLoopEnd`) are deliberately NOT here: `stopPlayback`
-# in particular is a name `PlaybackHandler` also has, and this row is a whole-word symbol match with
-# no receiver in it. Four names that end in `StemExportProcess` cannot collide with anything.
+# The other public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
+# `stopOutputRecording`, `checkForLoopEnd` and `checkForSilence` among them) are deliberately NOT
+# here: `stopPlayback` in particular is a name `PlaybackHandler` also has, and this row is a
+# whole-word symbol match with no receiver in it. Three names end in `StemExportProcess` and
+# `exportRoutine` (the step the export's job runs) is declared by `StemExport` alone, so none of the
+# four collides with anything.
 STEM_EXPORT_PROCESS_CALLS = (
     "startStemExportProcess",
-    "runStemExportProcess",
+    "exportRoutine",
     "stopStemExportProcess",
     "abortStemExportProcess",
 )
 # The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
-# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global this tree really declares.
+# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global the source really declares.
 # Both were taken from their `extern` declarations, not from memory:
-# `gui/waveform/waveform_renderer.h:65 extern WaveformRenderer waveformRenderer` and
-# `gui/waveform/waveform_basic_navigator.h:64 extern WaveformBasicNavigator waveformBasicNavigator`.
+# `extern WaveformRenderer waveformRenderer` (`gui/waveform/waveform_renderer.h`) and
+# `extern WaveformBasicNavigator waveformBasicNavigator` (`gui/waveform/waveform_basic_navigator.h`).
 #
 # `gui/waveform/` is split in two: the *arithmetic* (peak scanning, the scroll/zoom
 # navigator) moved verbatim to `model/sample/waveform_scan.h` and
@@ -145,9 +151,9 @@ CATALOGUE_DISPATCH_CALLS = (
 #
 # `currentUIMode` and `isUIModeActive(` are deliberately NOT here, and the reason is measured
 # rather than assumed: `is_comment_line` does not strip a TRAILING comment, so the three
-# `holding_save_ = true;  // `:240` currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON` lines in
-# `services/global_controls.cpp` would give this row a non-zero baseline out of pure citation
-# text. They are also a different concern -- reading a mode, not driving an output -- which the
+# `holding_save_`/`holding_load_` assignments in `services/global_controls.cpp`, whose trailing comments name
+# `currentUIMode = ...`, would give this row a non-zero baseline out of pure
+# comment text. They are also a different concern -- reading a mode, not driving an output -- which the
 # ports model as their own booleans.
 LEGACY_HID_DRIVERS = (
     "uiNeedsRendering",
@@ -163,13 +169,13 @@ LEGACY_HID_DRIVERS = (
 # of `CATALOGUE_DISPATCH_CALLS`: it is not a driver call, it is the persisted SETTING BYTE that
 # `flash::Status::readCurrentValue`/`writeCurrentValue`
 # read and write, ported as a value in `menu/nodes/settings.cpp` and recorded there
-# (`nodes/settings.h:320-322`). Excluding the spelling rather than the file keeps the other four
-# drivers -- and every other `PadLEDs::` member -- gated inside `settings.cpp` too.
+# (the `hid/` state note in `nodes/settings.h`). Excluding the spelling rather than the file keeps the other four
+# drivers -- and every other `PadLEDs::` member -- gated inside `menu/nodes/settings.cpp` too.
 LEGACY_HID_DRIVER_RE = (
     r"\b(uiNeedsRendering\(|renderUIsForOled\(|indicator_leds::|"
     r"PadLEDs::(?!flashCursor\b)|uiTimerManager\.)"
 )
-# The UI-stack entry points (`gui/ui/ui.h:184-197`), matched with a following `(`.
+# The UI-stack entry points (declared in `gui/ui/ui.h`), matched with a following `(`.
 UI_STACK_CALLS = (
     "openUI",
     "closeUI",
@@ -179,7 +185,7 @@ UI_STACK_CALLS = (
     "swapOutRootUILowLevel",
 )
 
-# The legacy files authorised to reach into the ported UI -- the `legacy-includes-port` and
+# The legacy files authorised to reach into the scenes UI -- the `legacy-includes-port` and
 # `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
 # `src/deluge/**` is held to zero.
 #
@@ -187,7 +193,7 @@ UI_STACK_CALLS = (
 # exempt the next `shell_`-prefixed file somebody drops into `gui/ui/`, and the whole value of
 # these two rows is that adding a legacy->port edge is a decision somebody has to write down here.
 #
-# * `deluge.cpp` -- the three boot calls: `scenes::assigned_node_ids()` and the service
+# * `src/deluge/deluge.cpp` -- the three boot calls: `scenes::assigned_node_ids()` and the service
 #   install. `src/scenes/registry.h`'s own note is the boot author's copy of this.
 # * `gui/ui/shell_host_ui.{h,cpp}` -- the guest itself, `ShellHostUI : UI`.
 # * `gui/ui/shell_guest_surfaces.{h,cpp}` -- `GuestSurfaceSet`, the `SurfaceSet` that copies into
@@ -200,16 +206,9 @@ UI_STACK_CALLS = (
 #   HEADER is deliberately NOT excluded, on `shell_guest_services.h`'s terms: it declares one
 #   no-arguments free function and names no port type, and leaving it in scope is what keeps that
 #   true.
-# * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
-#   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
+# * `gui/ui/menu_entry.cpp` -- `openMenu`, the one door the fourteen entry points use.
+#   Its DECLARATION (`util/menu_entry.h`) is likewise not excluded, and must stay includable
 #   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type.
-# * `gui/views/performance_view.cpp` -- `syncEditingModeMirror`, the four calls into
-#   `menu::set_performance_editing_mode`. A piece of legacy state the ported menu has to display
-#   but may not read, mirrored by its writers: `performanceView.defaultEditingMode`/`editingParam`
-#   are members of a class `scenes-includes-gui` forbids, and there is no bare-`extern` escape from
-#   a class member, which is what makes the mirror the only shape available rather than the
-#   convenient one. Four call sites in one file, each writing nothing but the mirror;
-#   `scenes/menu/action.h` is the contract they answer to.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
@@ -220,23 +219,23 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_action_dispatch.cpp",
     # The noun half of the same seam. It names
     # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
-    # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
-    # `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
-    # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
+    # scene hands a chosen file it may not load to its host, and this is the side of the wall that gets
+    # to name `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
+    # (`browser_host.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
-    "src/deluge/gui/ui/shell_choice_dispatch.cpp",
+    "src/deluge/gui/ui/browser_host.cpp",
     # The pad half of the same seam. It names `keyboardScreen`,
     # `instrumentClipView` and `performanceView` -- the legacy views the pad grid forwards to --
     # for the same reason the row above names
     # `AudioEngine`/`PadLEDs`/`instrumentClipView`: this is the side of the
     # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
     # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
-    # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
+    # translation unit wide -- exactly the line `browser_host.h` draws above.
     #
     # The sixth arm, `automationView`, is the one arm that cannot be a bare
     # forward: whether the menu is editing an automation-view param is state no legacy object
     # holds, so the question is ported rather than called.
-    # That port is why this `.cpp` now also names `deluge::scenes::menu_scene()`
+    # This `.cpp` also names `deluge::scenes::menu_scene()`
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
@@ -253,15 +252,14 @@ LEGACY_PORT_SEAMS = (
     # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
     # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
     "src/deluge/gui/ui/shell_bind_host.cpp",
-    # The ported slicer's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
+    # The slicer scene's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
     # names no port type, so it is not listed.
     "src/deluge/gui/ui/shell_slice_ops.cpp",
     # And the menu's: what a menu opens over (the clip, its track and kind, the kit row selected, affect-entire), from
     # the clip a legacy view has open, until the views keep it.
     "src/deluge/gui/ui/menu_view_of.h",
     "src/deluge/gui/ui/menu_view_of.cpp",
-    "src/deluge/gui/ui/shell_menu_entry.cpp",
-    "src/deluge/gui/views/performance_view.cpp",
+    "src/deluge/gui/ui/menu_entry.cpp",
     # The note bridge's installer. `src/scenes` may include `model/**`
     # (`src/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the
@@ -274,7 +272,7 @@ LEGACY_PORT_SEAMS = (
     # (`scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
     # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `scenes/` type,
     # only the no-arguments `wireShellNoteBridge()` that installs the bridge, so this seam too is
-    # one translation unit wide -- exactly the line `shell_choice_dispatch.h` and
+    # one translation unit wide -- exactly the line `browser_host.h` and
     # `shell_pad_forward.h` draw above.
     "src/deluge/gui/ui/shell_note_bridge.cpp",
     # The note modes' routing through the guest. It names
@@ -319,11 +317,11 @@ LEGACY_PORT_SEAMS = (
 
 RULES = [
     (
-        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link
-        # closures (`src/bsp/rust/build.rs`, `sim/CMakeLists.txt`), so the link does not stop a
-        # legacy file reaching into the ported UI: this row does.
+        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link closures
+        # (`src/bsp/rust/build/device.rs`, `src/bsp/rust/build/host_app.rs`, `sim/CMakeLists.txt`), so the link does not
+        # stop a legacy file reaching into the scenes UI (`src/scenes`, `src/shell`, `src/ui`): this row does.
         #
-        # The rule: the ported UI enters the firmware
+        # The rule: the scenes UI enters the firmware
         # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
         # listed in `LEGACY_PORT_SEAMS` above. Everything else under `src/deluge/**` -- 1,000-odd
         # files, `model/`, `storage/`, `playback/`, and the rest of `gui/` -- is held to zero, so
@@ -342,7 +340,7 @@ RULES = [
     ),
     (
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
-        # a symbol row rather than an include row: this tree routinely names a symbol through a
+        # a symbol row rather than an include row: the source routinely names a symbol through a
         # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
         # `src/scenes/menu/nodes/settings.cpp`). A legacy file that wants
         # `deluge::scenes::scene_registry()` and finds the include row in its way can write
@@ -351,7 +349,7 @@ RULES = [
         #
         # Matched without a trailing `::` so that the namespace-reopening form above counts too,
         # and `\b`-anchored on `deluge::` so it cannot fire on the English words "scenes" and
-        # "shell", which this tree's prose is full of. Same ratchet-not-proof caveat as every
+        # "shell", which the prose of the scanned files is full of. Same ratchet-not-proof caveat as every
         # symbol row here: a `using namespace` plus an unqualified type would slip past, and
         # `is_comment_line` skips only whole-line comments.
         "legacy-names-port",
@@ -451,7 +449,7 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
     (
-        # Spec G §5: the shell reads no wall clock of its own -- every tick and gate deadline is
+        # The shell reads no wall clock of its own -- every tick and gate deadline is
         # driven by the `now_ms` the caller passes in, so the shell can be driven by a fake clock
         # in a spec exactly as it is driven by the real one on device. Two rows, one glob each
         # (this checker matches one glob per rule row): src/shell/** and src/ui/** both apply.
@@ -463,7 +461,7 @@ RULES = [
     ),
     (
         # Same rule, src/ui/** side -- the scenes and widgets that draw on the shell's ticks must
-        # be exactly as clock-free as the shell that drives them (task-5 ratchet extension).
+        # be exactly as clock-free as the shell that drives them.
         "shell-no-clock",
         "src/ui/**",
         "symbol",
@@ -497,7 +495,7 @@ RULES = [
         # the menu's context could not be written at all.
         # NOTE: the pattern's `(?:.*/)` tail means this row only
         # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
-        # `deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
+        # `src/deluge/deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
         # allowed. That is deliberate: dropping the tail would
         # also flag every standard-library include, and this row has no way to tell `<cstdint>`
         # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
@@ -553,6 +551,16 @@ RULES = [
         "include",
         r"^model/edits/",
         "2026-10-18-scenes-bind-to-model-design.md",
+    ),
+    (
+        # A scene reads the model and the runtime through `scenes/bind`'s readers. Every include from these six
+        # families outside `scenes/bind` counts, vocabulary headers included, so the count is the reads still to move
+        # behind `bind`. It may only fall (`SHRINK_ONLY_RULES`).
+        "scenes-reads-outside-bind",
+        ("src/scenes/**", "src/scenes/bind/**"),
+        "include",
+        r"^(model|modulation|io|processing|storage|playback)/",
+        "docs/dev/roadmap.md (UI read interface)",
     ),
     (
         # The gold knobs' focus is addresses (View::knobFocus()); a gesture resolves the owner's stack when it acts
@@ -665,7 +673,7 @@ RULES = [
     (
         # Menus draw only through widgets: no direct OledFrame primitive calls from the scene
         # layer. The real risk is `f.<primitive>`, not `canvas.` -- OledFrame exposes
-        # pixel/hline/rect/glyphs directly (ui/oled/frame.h:165-269).
+        # pixel/hline/rect/glyphs directly (`ui/oled/frame.h`).
         #
         # A ratchet against drift, not a proof: this only sees the two local names it lists, so a
         # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
@@ -702,16 +710,16 @@ RULES = [
         # jcong;`, `nodes/settings.cpp`) precisely because the include rule forbids the
         # header -- so an include row alone cannot see the call.
         #
-        # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading
-        # which root UI is current is the same coupling as calling into it: legacy's
-        # `isRelevant() == (getRootUI() == &sessionView)` predicates (`song/midi_learn.h`) are
-        # ported as `MenuContext` questions, not as root-UI reads.
+        # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading which root UI is current
+        # is the same coupling as calling into it: main's `isRelevant() == (getRootUI() == &sessionView)` predicates
+        # (`origin/main:src/deluge/gui/menu_item/song/midi_learn.h`) are ported as `MenuContext` questions, not as
+        # root-UI reads.
         #
         # Same ratchet-not-proof caveat as the rows above: it sees these spellings, not every
         # possible one.
         #
         # The identifier list is `ROOT_UI_GLOBALS` / `UI_STACK_CALLS` below, and `--audit-symbols`
-        # checks every name in it is a symbol this tree declares: a ratchet listing a name that does
+        # checks every name in it is a symbol the source declares: a ratchet listing a name that does
         # not exist (`performanceSessionView` for `performanceView`, say) guards nothing while
         # reading as though it does.
         "scenes-no-root-ui",
@@ -930,7 +938,7 @@ RULES = [
     ),
 ]
 
-# A class declaring itself a `shell::Service`, in any of the spellings this tree uses:
+# A class declaring itself a `shell::Service`, in any of the spellings the source uses:
 # `: public Service`, `: public deluge::ui::shell::Service`, and as the second base
 # (`MidiLearn` is `: public deluge::ui::shell::Service, public LearnMode`).
 SERVICE_DECL_RE = re.compile(r"public\s+(?:\w+\s*::\s*)*Service\b")
@@ -1000,7 +1008,7 @@ def count_file(path: Path) -> dict[str, int]:
 
     A SYMBOL rule skips two kinds of line: a comment (`is_comment_line` above) and an
     `#include` directive. A symbol row matches whole words, so without the include skip a path
-    such as `scenes/slicer/slicer_scene.h` would trip `scenes-no-root-ui`'s `slicer` -- a
+    with a `slicer/` directory in it would trip `scenes-no-root-ui`'s `slicer` -- a
     directory name, not the coupling the row exists to forbid.
 
     It loses nothing, and that is checkable rather than argued. Every symbol row here is
@@ -1085,7 +1093,7 @@ AUDITED_SYMBOLS = (
 
 
 def audit_symbols() -> int:
-    """Check every named row's alternatives are symbols this tree actually declares.
+    """Check every named row's alternatives are symbols the source actually declares.
 
     A ratchet row that lists a name nothing declares reads as protection and provides none --
     as a misspelt `performanceView` or `readFileItemsForFolder` would silently be. The test is deliberately crude (does
@@ -1168,6 +1176,22 @@ def main() -> int:
             print(f"{f}\t{r}\t{n}")
         return 0
     if a.update:
+        base = load_baseline()
+        grown = sorted(
+            (key, n)
+            for key, n in cur.items()
+            if key[1] in SHRINK_ONLY_RULES and n > base.get(key, 0)
+        )
+        for (f, r), n in grown:
+            print(
+                f"{f}: rule '{r}' count {n} > baseline {base.get((f, r), 0)}, which --update may not raise"
+            )
+        if grown:
+            print(
+                f"{len(grown)} shrink-only count(s) grew; baseline not written. Remove the new dependency.",
+                file=sys.stderr,
+            )
+            return 1
         BASELINE.write_text(
             "# Layer-rule baseline: file<TAB>rule<TAB>count. May only shrink.\n"
             + "".join(f"{f}\t{r}\t{n}\n" for (f, r), n in sorted(cur.items()))
@@ -1192,7 +1216,8 @@ def main() -> int:
             bad += 1
     if bad:
         print(
-            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move) run --update.",
+            f"{bad} layer-rule regression(s). Remove the new dependency, or (only for an agreed move, and never "
+            "for a SHRINK_ONLY_RULES row) run --update.",
             file=sys.stderr,
         )
         return 1

@@ -8,10 +8,10 @@ Screensaver::Screensaver(SceneStack& stack, uint32_t idle_ms, uint32_t seed)
 
 void Screensaver::note_activity(uint32_t now_ms) {
 	if (active_) {
-		// Legacy never restores anything on wake either: the screensaver never wrote to the scene
-		// beneath it, so waking it is simply "stop showing" (`screensaver.cpp:88-91`). Popping by
-		// kind rather than a bare "pop the top" also takes down anything a caller pushed above the
-		// screensaver while it was up.
+		// Legacy never restores anything on wake either: the screensaver never wrote to the scene beneath it, so waking
+		// it is simply "stop showing" (`Screensaver::noteActivity` in `hid/display/screensaver.cpp`). Popping by kind
+		// rather than a bare "pop the top" also takes down anything a caller pushed above the screensaver while it was
+		// up.
 		stack_.pop(SceneKind::Screensaver);
 		active_ = false;
 	}
@@ -23,17 +23,17 @@ void Screensaver::note_activity(uint32_t now_ms) {
 }
 
 void Screensaver::set_idle_ms(uint32_t idle_ms) {
-	// `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:200-241`), step for step.
+	// `Screensaver::settingsChanged` (`hid/display/screensaver.cpp`), step for step.
 	idle_ms_ = idle_ms;
-	if (active_) { // `:166-169` -- unconditional, and before the OFF test.
+	if (active_) { // Unconditional, and before the OFF test.
 		stack_.pop(SceneKind::Screensaver);
 		active_ = false;
 	}
-	if (idle_ms_ == 0) { // `:171-174` `unsetTimer(TimerName::SCREENSAVER)`.
+	if (idle_ms_ == 0) { // The OFF early-out, `unsetTimer(TimerName::SCREENSAVER)`.
 		armed_ = false;
 		return;
 	}
-	deadline_ms_ = now_ms_ + idle_ms_; // `:176` `arm()`.
+	deadline_ms_ = now_ms_ + idle_ms_; // `arm()`.
 	armed_ = true;
 }
 
@@ -55,8 +55,9 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		return;
 	}
 	if (active_ && inhibited()) {
-		// `screensaver.cpp:113-120`, at the showing screensaver's re-check: give the screen back and count the full
-		// timeout again. `remove`, not `pop`: the working animation is usually stacked above the screensaver.
+		// `Screensaver::timerEvent`'s inhibitor arm (`hid/display/screensaver.cpp`), at the showing screensaver's
+		// re-check: give the screen back and count the full timeout again. `remove`, not `pop`: the working animation
+		// is usually stacked above the screensaver.
 		stack_.remove(SceneKind::Screensaver);
 		active_ = false;
 		deadline_ms_ = now_ms + idle_ms_;

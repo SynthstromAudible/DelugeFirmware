@@ -3,12 +3,12 @@
 /// @brief The compressor subtree as data: `audio_comp` and its six columns.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s compressor block, from `threshold`:
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s compressor block, from `threshold`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `comp_threshold` | `threshold` | `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:26`) |
+/// | `comp_threshold` | `threshold` | `audio_compressor::CompParam` (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_params.h`) |
 /// | `comp_ratio` | `compRatio` | `audio_compressor::Ratio` |
 /// | `comp_blend` | `compBlend` | `audio_compressor::Blend` |
 /// | `comp_attack` | `compAttack` | `audio_compressor::Attack` |
@@ -39,14 +39,16 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief Which `audio_compressor::CompressorValue` a hook formats (`compressor_values.h:68-134`).
+/// @brief Which `audio_compressor::CompressorValue` a hook formats
+/// (`origin/main:src/deluge/gui/menu_item/audio_compressor/compressor_values.h`).
 enum class CompressorShown : uint8_t { Attack, Release, Ratio, SidechainHpf, Blend };
 
-/// @brief `DecimalWithoutScrolling::getNotificationValue` (`decimal.cpp:221-225`): the display value with its places
-///        and unit, for the banner only.
+/// @brief `DecimalWithoutScrolling::getNotificationValue` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): the
+///        display value with its places and unit, for the banner only.
 template <CompressorShown kWhich>
 ValueText compressor_banner(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
-/// @brief `DecimalWithoutScrolling::drawPixelsForOled` (`decimal.cpp:217-219`): the same text, for the screen.
+/// @brief `DecimalWithoutScrolling::drawPixelsForOled` (`origin/main:src/deluge/gui/menu_item/decimal.cpp`): the same
+/// text, for the screen.
 template <CompressorShown kWhich>
 ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
@@ -122,7 +124,7 @@ inline constexpr const Node* kCompChildren[] = {&comp_threshold, &comp_ratio,   
 inline constexpr Node audio_comp = submenu(sid(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR),
                                            kCompChildren, Layout::Horizontal);
 
-/// @brief This file's contribution to `kBatch1Roots`: `audioCompMenu` (`menus.cpp`).
+/// @brief This file's contribution to `kBatch1Roots`: `audioCompMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`).
 ///
 /// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
 extern const std::span<const Node* const> kSoundCompressorChildren;

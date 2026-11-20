@@ -20,23 +20,22 @@
 /// (`src/scenes/timeline/timeline.h`). `TimelineView::initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
 /// and `TimelineView::initiateXZoom` sets `UI_MODE_HORIZONTAL_ZOOM`, and
 /// nothing in a spec process runs either animation to the frame that clears them -- so the *next*
-/// detent hits `horizontalEncoderAction`'s own `isNoUIModeActive()` (`:203`) or
-/// `isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` (`:164`) gate and does
+/// detent hits `TimelineView::horizontalEncoderAction`'s own `isNoUIModeActive()` or
+/// `isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` gate (`gui/views/timeline_view.cpp`) and does
 /// nothing. The marker editor has the same ceiling
 /// (`sim/scenes_spec/marker_scene_spec.cpp`'s zoom example), but clearing the mode by hand did
 /// **not** buy a second detent there.
 ///
-/// **Here clearing it does buy the next detent, and that is measured, not argued.** The evidence is
-/// "scrolls a second page when the transition mode is cleared": it asserts
-/// `UI_MODE_HORIZONTAL_SCROLL` set after the first detent, clears it, takes a second, and lands on
-/// **page two** -- which is impossible if the second turn did nothing. The zoom examples then use
-/// the same move to reach legacy's max-zoom *delay* (`:171-186`), which is otherwise unobservable
-/// because the mode gate would refuse first.
+/// **Here clearing it does buy the next detent, and that is measured, not argued.** The evidence is "scrolls a second
+/// page when the transition mode is cleared": it asserts `UI_MODE_HORIZONTAL_SCROLL` set after the first detent, clears
+/// it, takes a second, and lands on **page two** -- which is impossible if the second turn did nothing. The zoom
+/// examples then use the same move to reach legacy's max-zoom *delay* (`TimelineView::horizontalEncoderAction`'s
+/// `delayHorizontalZoomUntil` arm), which is otherwise unobservable because the mode gate would refuse first.
 ///
 /// No claim is made here about **why** the marker editor shows the opposite. `WaveformBasicNavigator::zoom`'s tail
-/// (`gui/waveform/waveform_basic_navigator.cpp:64-69`) is the same three statements
+/// (`gui/waveform/waveform_basic_navigator.cpp`) is the same three statements
 /// `TimelineView::initiateXZoom` ends in and contains no wait of its own; the only structural
-/// difference is the `waveformRenderer.renderFullScreen` at `:59`, which `initiateXZoom` has no
+/// difference is the `waveformRenderer.renderFullScreen` call, which `initiateXZoom` has no
 /// analogue for. A blocking transition is not the cause -- the conclusion stands on the scroll
 /// example alone.
 ///
@@ -87,15 +86,14 @@ namespace spec_fixture = deluge::scenes::spec;
 ///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at
 ///        `PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick`).
 ///
-/// Declared here rather than included because it is a file-scope global with no header declaration
-/// -- the same shape `menu/nodes/settings.cpp` uses for `jcong`. **Not a convenience.**
-/// `Clip::getLivePos()` (`model/clip/clip.cpp`) adds
-/// `getNumSwungTicksInSinceLastActionedSwungTick()` to `lastProcessedPos`; on a song no transport
-/// ever started that reaches `getActualSwungTickCount`'s external-clock swing branch and divides by
-/// `(uint32_t)(50 + currentSong->swingAmount)` (`:1263`), which is a **SIGFPE, not a failure** --
-/// found by running the tick-square examples without this. Holding the latch takes legacy's own
-/// early return (`:1209-1214`), so `getLivePos()` is exactly `lastProcessedPos`, which is what a
-/// stopped transport means.
+/// Declared here rather than included because it is a file-scope global with no header declaration -- the same shape
+/// `menu/nodes/settings.cpp` uses for `jcong`. **Not a convenience.** `Clip::getLivePos()` (`model/clip/clip.cpp`) adds
+/// `getNumSwungTicksInSinceLastActionedSwungTick()` to `lastProcessedPos`; on a song no transport ever started that
+/// reaches `getActualSwungTickCount`'s external-clock swing branch and divides by
+/// `(uint32_t)(50 + currentSong->project.groove.swing_amount)`, which is a **SIGFPE, not a failure** -- found by
+/// running the tick-square examples without this. Holding the latch takes
+/// `getNumSwungTicksInSinceLastActionedSwungTick`'s own early return, so `getLivePos()` is exactly `lastProcessedPos`,
+/// which is what a stopped transport means.
 extern bool currentlyActioningSwungTickOrResettingPlayPos;
 
 namespace {
@@ -130,11 +128,11 @@ struct TickProbe : ClipView {
 	static constexpr int32_t (ClipView::*kGetTickSquare)() = &TickProbe::getTickSquare;
 
 	/// @brief `ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording`
-	///        (`clip_navigation_timeline_view.h:32`), which is protected and static.
+	///        (`clip_navigation_timeline_view.h`), which is protected and static.
 	///
 	/// Setting it to -1 is `ClipNavigationTimelineView::focusRegained`'s entire body
-	/// (`clip_navigation_timeline_view.cpp:26-28`); the real `focusRegained` is not called because
-	/// `AudioClipView`'s (`audio_clip_view.cpp:79-90`) also drags in `view.focusRegained()` and
+	/// (`clip_navigation_timeline_view.cpp`); the real `focusRegained` is not called because
+	/// `AudioClipView`'s (`audio_clip_view.cpp`) also drags in `view.focusRegained()` and
 	/// `setActiveModControllableTimelineCounter`, neither of which this comparison is about.
 	/// @{
 	static void set_remembered_scroll(int32_t value) { xScrollBeforeFollowingAutoExtendingLinearRecording = value; }
@@ -142,14 +140,14 @@ struct TickProbe : ClipView {
 	/// @}
 };
 
-/// @brief `deluge_boot`'s own `display = new OLED` (`deluge_boot` in `src/deluge/deluge.cpp`).
+/// @brief `deluge_boot`'s own `display = new OLED` (`src/deluge/deluge.cpp`).
 ///
 /// A spec process never calls `deluge_boot()` (see `support/song_fixture.h` for why), so the
-/// `display` global is null (`hid/display/display.cpp:4`). Legacy's scroll arm ends in
+/// `display` global is null (`hid/display/display.cpp`). Legacy's scroll arm ends in
 /// `displayScrollPos()` -> `display->popupTextTemporary` **unconditionally**
 /// (`TimelineView::displayScrollPos`, `TimelineView::initiateXScroll`), and its zoom arm in `displayZoomLevel()` ->
 /// `displayPopup`
-/// (`:198`, `:130`). Without this the gesture examples below do not fail, they segfault -- found by
+///. Without this the gesture examples below do not fail, they segfault -- found by
 /// running them without it.
 void ensure_display() {
 	if (display == nullptr) {
@@ -168,16 +166,14 @@ struct Rig {
 	/// @brief Put @p s into the `Song`, which is what BOTH sides read from.
 	///
 	/// It also expires any max-zoom delay a *previous* example armed. That latch
-	/// (`TimelineView::delayHorizontalZoomUntil`, `timeline_view.h:78`) is a member of the
-	/// `audioClipView` **singleton**, and it is compared against `AudioEngine::audioSampleTimer`
-	/// (`TimelineView::horizontalEncoderAction`), which a spec process never advances -- so once armed it stays
-	/// armed for the rest of the process and silently refuses every later zoom in that direction.
-	/// Not hypothetical: the three "forgets the restore point" examples below were written after
-	/// the delay example and legacy sat at zoom 12 while the port zoomed to 6, until this line
-	/// existed. Advancing the timer past `kShortPressTime` is **legacy's own expiry**
-	/// (`:175-179` clears the latch), not a reach into private state, and it is safe here because
-	/// every `PadLEDs::recordTransitionBegin` in this file happens *after* the last `seed()` of its
-	/// example, so no transition is ever handed a jumped clock.
+	/// (`TimelineView::delayHorizontalZoomUntil`, `timeline_view.h`) is a member of the `audioClipView` **singleton**,
+	/// and it is compared against `AudioEngine::audioSampleTimer` (`TimelineView::horizontalEncoderAction`), which a
+	/// spec process never advances -- so once armed it stays armed for the rest of the process and silently refuses
+	/// every later zoom in that direction. Not hypothetical: without this line the three "forgets the restore point"
+	/// examples below leave legacy at zoom 12 while the port zooms to 6. Advancing the timer past `kShortPressTime` is
+	/// **legacy's own expiry** (`TimelineView::horizontalEncoderAction` clears the latch), not a reach into private
+	/// state, and it is safe here because every `PadLEDs::recordTransitionBegin` in this file happens *after* the last
+	/// `seed()` of its example, so no transition is ever handed a jumped clock.
 	void seed(const Sentinel& s) const {
 		AudioEngine::audioSampleTimer += 2 * kShortPressTime;
 		f.song->persistentView.xScroll[NAVIGATION_CLIP] = s.x_scroll;
@@ -189,7 +185,7 @@ struct Rig {
 	}
 
 	/// @brief A port state adopted from the song, with `AudioClipView`'s own
-	///        `supportsTriplets() == false` (`audio_clip_view.h:38`).
+	///        `supportsTriplets() == false` (`audio_clip_view.h`).
 	[[nodiscard]] TimelineState port() const {
 		TimelineState s;
 		s.adopt(*f.song);
@@ -198,7 +194,7 @@ struct Rig {
 	}
 
 	/// @brief The same, but with triplets supported -- what `instrumentClipView` reports
-	///        (`RootUI::supportsTriplets`, `gui/ui/root_ui.h:32`).
+	///        (`RootUI::supportsTriplets`, `gui/ui/root_ui.h`).
 	[[nodiscard]] TimelineState port_with_triplets() const {
 		TimelineState s;
 		s.adopt(*f.song);
@@ -212,7 +208,7 @@ struct Rig {
 	[[nodiscard]] int32_t song_scroll() const { return f.song->persistentView.xScroll[NAVIGATION_CLIP]; }
 	[[nodiscard]] uint32_t song_zoom() const { return f.song->persistentView.xZoom[NAVIGATION_CLIP]; }
 
-	/// @brief `TimelineView::buttonAction`'s X_ENC arm (`timeline_view.cpp:73-89`), which is how
+	/// @brief `TimelineView::buttonAction`'s X_ENC arm (`timeline_view.cpp`), which is how
 	///        legacy is told the horizontal encoder's button is held.
 	static void hold_x_enc(bool on) { audioClipView.buttonAction(deluge::hid::button::X_ENC, on); }
 
@@ -224,7 +220,7 @@ struct Rig {
 };
 
 /// @brief The 128x48 popup canvas, as a PBM string -- the surface `display->popupTextTemporary`
-///        draws into (`OLED::popupText`, `hid/display/oled.cpp:605-644`).
+///        draws into (`OLED::popupText`, `hid/display/oled.cpp`).
 std::string popup_pbm() {
 	return page_major_to_pbm(deluge::hid::display::OLED::popup.bytes().data(), 128, 48);
 }
@@ -254,7 +250,7 @@ describe timeline_spec_body(
 	    it(
 	        "agrees with TimelineView::getSquareFromPos on both sides of the scroll, exactness included", _ {
 		        // The rounding direction is the whole point: `getSquareFromPos` runs through
-		        // `divide_round_negative` (`timeline_view.cpp:459`) precisely so a position LEFT of the
+		        // `divide_round_negative` (`timeline_view.cpp`) precisely so a position LEFT of the
 		        // scroll floors towards minus infinity instead of towards zero. Positions from three
 		        // columns before the scroll to three past the right edge cover both branches.
 		        Rig r;
@@ -321,10 +317,10 @@ describe timeline_spec_body(
 
 	    it(
 	        "agrees with TimelineView::getPosFromSquare in triplets view, both zoom branches", _ {
-		        // `getPosFromSquare` has three arms (`timeline_view.cpp:371-395`): zoom below the triplets
+		        // `getPosFromSquare` has three arms (`timeline_view.cpp`): zoom below the triplets
 		        // level, zoom below twice it, and everything else. `instrumentClipView` is used rather than
 		        // `audioClipView` because `AudioClipView::supportsTriplets()` is false
-		        // (`audio_clip_view.h:38`) and `inTripletsView()` would be false on every arm.
+		        // (`audio_clip_view.h`) and `inTripletsView()` would be false on every arm.
 		        Rig r;
 		        for (uint32_t zoom : {3U, 6U, 12U, 24U}) {
 			        const Sentinel s{.x_scroll = 144, .x_zoom = zoom, .triplets_on = true, .triplets_level = 12};
@@ -414,7 +410,8 @@ describe timeline_spec_body(
 		        instrumentClipView.tripletsButtonPressed();
 		        expect(port.triplets_on).to_equal(r.f.song->persistentView.tripletsOn);
 		        expect(port.triplets_on).to_be_false();
-		        // Legacy leaves the level behind when switching off (`timeline_view.cpp:357-361`).
+		        // Legacy leaves the level behind when switching off (`TimelineView::tripletsButtonPressed` in
+		        // `timeline_view.cpp`).
 		        expect(port.triplets_level).to_equal(r.f.song->persistentView.tripletsLevel);
 	        });
 
@@ -439,7 +436,8 @@ describe timeline_spec_body(
 
 	    it(
 	        "clamps a left scroll at zero exactly as the left guard does", _ {
-		        // `timeline_view.cpp:211-213`. From half a page in, one detent left overshoots zero.
+		        // `TimelineView::horizontalEncoderAction` (`timeline_view.cpp`). From half a page in, one detent left
+		        // overshoots zero.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 48, .x_zoom = 6};
@@ -477,11 +475,10 @@ describe timeline_spec_body(
 
 	    it(
 	        "scrolls a second page when the transition mode is cleared, as legacy does", _ {
-		        // The scroll half of the one-detent ceiling: `initiateXScroll` sets
-		        // `UI_MODE_HORIZONTAL_SCROLL` and the next detent then fails
-		        // `isNoUIModeActive()` (`:203`). Unlike the marker-editor zoom, clearing the mode really
-		        // does buy the next detent here -- measured by this example, which would land on page one
-		        // rather than page two if it did not.
+		        // The scroll half of the one-detent ceiling: `initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL` and the
+		        // next detent then fails `TimelineView::horizontalEncoderAction`'s `isNoUIModeActive()` test. Unlike
+		        // the marker-editor zoom, clearing the mode really does buy the next detent here -- measured by this
+		        // example, which would land on page one rather than page two if it did not.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 6};
@@ -549,8 +546,9 @@ describe timeline_spec_body(
 
 	    it(
 	        "refuses to zoom in past the floor, exactly as the zoom limit does", _ {
-		        // `timeline_view.cpp:189`: `zoomMagnitude == -1 && oldXZoom <= 3`. Three is the floor of
-		        // `Clip::getMaxZoom()`'s ladder (`model/clip/clip.cpp:144-151`), so this is the real edge.
+		        // `TimelineView::horizontalEncoderAction` (`timeline_view.cpp`):
+		        // `zoomMagnitude == -1 && oldXZoom <= 3`. Three is the floor of `Clip::getMaxZoom()`'s ladder
+		        // (`model/clip/clip.cpp`), so this is the real edge.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 3};
@@ -571,9 +569,9 @@ describe timeline_spec_body(
 
 	    it(
 	        "refuses to zoom out past the ceiling, exactly as the zoom limit does", _ {
-		        // The other half of `:189-191`: `oldXZoom >= min(maxZoom * 16, kMaxZoom)`. With a 768-tick
-		        // clip the max zoom is 48, so the ceiling is 768 -- and starting there, zooming out must
-		        // do nothing.
+		        // The other half of `TimelineView::horizontalEncoderAction`'s zoom limits:
+		        // `oldXZoom >= min(maxZoom * 16, kMaxZoom)`. With a 768-tick clip the max zoom is 48, so the ceiling is
+		        // 768 -- and starting there, zooming out must do nothing.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 768};
@@ -593,11 +591,11 @@ describe timeline_spec_body(
 
 	    it(
 	        "holds the second detent back when a zoom lands on the clip's own max zoom", _ {
-		        // `timeline_view.cpp:171-186`: landing exactly on `getMaxZoom()` arms a `kShortPressTime`
-		        // delay in that direction, and the next detent the same way is dropped. Legacy measures it
-		        // against `AudioEngine::audioSampleTimer`, which does not advance in a spec process, so its
-		        // delay is always "still running"; the port is driven at the same `now_ms` for both detents
-		        // so it is too.
+		        // `TimelineView::horizontalEncoderAction` (`timeline_view.cpp`): landing exactly on `getMaxZoom()` arms
+		        // a `kShortPressTime` delay in that direction, and the next detent the same way is dropped. Legacy
+		        // measures it against `AudioEngine::audioSampleTimer`, which does not advance in a spec process, so its
+		        // delay is always "still running"; the port is driven at the same `now_ms` for both detents so it is
+		        // too.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 96};
@@ -609,14 +607,14 @@ describe timeline_spec_body(
 		        r.seed(s);
 		        Rig::hold_x_enc(true);
 		        audioClipView.horizontalEncoderAction(1);
-		        // Legacy ends at 48 whether the second detent was dropped by the delay latch (`:175`),
-		        // by the `isUIModeActiveExclusively` gate (`:164`), or because `initiateXZoom` never
+		        // Legacy ends at 48 whether the second detent was dropped by the delay latch,
+		        // by the `isUIModeActiveExclusively` gate, or because `initiateXZoom` never
 		        // armed the mode at all -- so the example pins WHICH. The first detent really did
-		        // reach `initiateXZoom` (`:325`)...
+		        // reach `initiateXZoom`...
 		        expect(currentUIMode & UI_MODE_HORIZONTAL_ZOOM).not_().to_equal(0);
 		        Rig::clear_zoom_transition();
-		        // ...and with that cleared, the mode gate at `:164` passes, so the only thing left that
-		        // can stop the second detent is the delay latch. Its `goto getOut` at `:176` returns
+		        // ...and with that cleared, the mode gate passes, so the only thing left that
+		        // can stop the second detent is the delay latch. Its early `return` comes
 		        // before `initiateXZoom`, so the mode must still be clear afterwards.
 		        audioClipView.horizontalEncoderAction(1);
 		        expect(currentUIMode & UI_MODE_HORIZONTAL_ZOOM).to_equal(0);
@@ -631,7 +629,7 @@ describe timeline_spec_body(
 
 	    it(
 	        "lets the delayed detent through once the delay has expired", _ {
-		        // The other side of the same arm (`:175-179`): outside the window the latch is cleared and
+		        // The other side of the same arm: outside the window the latch is cleared and
 		        // the zoom proceeds. Only the port can be driven here -- legacy's window is measured in
 		        // audio samples off a timer a spec process never advances, so its latch never expires. That
 		        // is named as uncovered rather than papered over.
@@ -647,7 +645,7 @@ describe timeline_spec_body(
 
 	    it(
 	        "lets a detent the OTHER way through while the delay is running", _ {
-		        // `:175` only drops the detent whose magnitude matches the armed one.
+		        // The delay latch only drops the detent whose magnitude matches the armed one.
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 96};
 		        r.seed(s);
@@ -662,11 +660,10 @@ describe timeline_spec_body(
 	    it(
 	        "forgets the linear-recording restore point on a manual scroll, as legacy does", _ {
 		        // `ClipNavigationTimelineView::horizontalEncoderAction` is two statements
-		        // (`clip_navigation_timeline_view.cpp:30-34`): clear
-		        // `xScrollBeforeFollowingAutoExtendingLinearRecording` (`:32`), then delegate (`:33`).
-		        // A port that skipped the clear would keep a stale restore point and yank the scroll
-		        // back when the recording stopped -- `getTickSquare`'s restore arm
-		        // (`clip_view.cpp:376-386`) reads exactly this field.
+		        // (`clip_navigation_timeline_view.cpp`): clear `xScrollBeforeFollowingAutoExtendingLinearRecording`,
+		        // then delegate (`TimelineView::horizontalEncoderAction`). A port that skipped the clear would keep a
+		        // stale restore point and yank the scroll back when the recording stopped -- `getTickSquare`'s restore
+		        // arm (`clip_view.cpp`) reads exactly this field.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 6};
@@ -831,9 +828,9 @@ describe timeline_spec_body(
 	    it(
 	        "decomposes into the same bars, beats and sub-beats displayNumberOfBarsAndBeats shows", _ {
 		        // Legacy's decomposition never leaves the function -- it is `sprintf`ed straight into
-		        // `display->popupTextTemporary` (`timeline_view.cpp:262-264`). So both sides are compared
-		        // through that same popup: legacy's own call, and the port's three numbers formatted the
-		        // same way and pushed through the same `display`. Anything the port got wrong shows up as
+		        // `display->popupTextTemporary` (`TimelineView::displayNumberOfBarsAndBeats` in `timeline_view.cpp`).
+		        // So both sides are compared through that same popup: legacy's own call, and the port's three numbers
+		        // formatted the same way and pushed through the same `display`. Anything the port got wrong shows up as
 		        // different pixels.
 		        Rig r;
 		        const Sentinel s;
@@ -896,10 +893,10 @@ describe timeline_spec_body(
 
 	    it(
 	        "restores the remembered scroll when the follow stops, legacy's xZoom comparison and all", _ {
-		        // `clip_view.cpp:376-386`, the arm that stops following. Its `if (newXScroll !=
-		        // currentSong->persistentView.xZoom[NAVIGATION_CLIP])` compares a scroll against the ZOOM -- see the
-		        // note at the top of `timeline.cpp`. Both sides are given the same remembered scroll (6, which is
-		        // deliberately NOT the zoom) and both must restore it.
+		        // `ClipView::getTickSquare` (`clip_view.cpp`), the arm that stops following. Its
+		        // `if (newXScroll != currentSong->persistentView.xZoom[NAVIGATION_CLIP])` compares a scroll against the
+		        // ZOOM -- see the note at the top of `timeline.cpp`. Both sides are given the same remembered scroll
+		        // (6, which is deliberately NOT the zoom) and both must restore it.
 		        StoppedTransport stopped;
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;

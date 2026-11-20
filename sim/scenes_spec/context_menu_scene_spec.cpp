@@ -169,8 +169,8 @@ struct Rig {
 	/// `ContextMenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example
 	/// that left it -- or anything pushed above it -- on the stack would make the NEXT example's
 	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// `support/recorder_scene_fixtures.h`'s `~Rig` was written to stop (a leaked recorder there makes the next
+	/// `on_enter` refuse outright and fails every later example). Popping
 	/// unconditionally means every example starts from the same place whatever the one before it did.
 	~Rig() {
 		while (shell.stack().depth() > 0) {
@@ -288,10 +288,10 @@ std::string frozen_panel(std::string_view action) {
 
 // clang-format off
 describe cm_descriptors("scenes::context_menu descriptor table", $ {
-	it("covers exactly the context menus the ported menu tree opens, and no others", _ {
-		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2108-2117`) and
+	it("covers exactly the context menus the menu tree opens, and no others", _ {
+		// The five `reset_settings::Reset` menu items (`origin/main:src/deluge/gui/ui/menus.cpp`) and
 		// `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
-		// `ContextMenu` subclass is opened from a view or a browser the ported menu tree does not open. See the
+		// `ContextMenu` subclass is opened from a view or a browser the menu does not open. See the
 		// note on `DescriptorId`.
 		expect(static_cast<int>(DescriptorId::Count)).to_equal(9);
 	});
@@ -431,13 +431,13 @@ describe cm_composition("scenes::context_menu::ContextMenuScene composition", $ 
 		    .to_equal(static_cast<int>(SceneKind::FirstApp) + 2);
 
 		const deluge::ui::shell::Scene& s = context_menu_scene();
-		// `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true` (`context_menu.h:27`).
+		// `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true` (`context_menu.h`).
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();
 		// `greyout_mask()` is where the greyout lives: legacy's
 		// `getGreyoutColsAndRows` sets `*cols = 0xFFFFFFFF` and leaves `*rows` at the caller's zero
-		// (`gui/ui/ui.cpp:104-113`), which is a mask, not the shell's halve-everything dim. Same
+		// (`gui/context_menu/context_menu.cpp`), which is a mask, not the shell's halve-everything dim. Same
 		// split `MenuScene` and `RenameScene` make.
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFFu});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
@@ -471,7 +471,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		r.tick(0);
 		// `indicator_leds::blinkLed(IndicatorLED::BACK)`, declared rather than driven -- the shell
 		// composes and flushes it. BACK is board LED 16 on the Deluge profile
-		// (`shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h:47`).
+		// (`shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h`).
 		constexpr uint8_t kBackLed = 16;
 		bool blinked = false;
 		for (const auto& [led, on] : r.fake.led_writes) {
@@ -835,7 +835,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("cannot drive the full factory reset, and pins it by elimination instead", _ {
 		// **The one exclusion.** `Deluge::factoryReset()` is the other four actions back to back
-		// (`deluge.cpp:223-229`), so driving it would run `MIDIDeviceManager::factoryReset`'s
+		// (`deluge/deluge.cpp`), so driving it would run `MIDIDeviceManager::factoryReset`'s
 		// placement-new over the global MIDI cables AND `FlashStorage::resetSettings`' ~60 global
 		// writes in one go -- far more than `ResetWitness` restores, and it would leave this
 		// process' MIDI singletons rebuilt underneath every later example. Not driven.

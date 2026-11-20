@@ -1,5 +1,5 @@
 /// @file
-/// @brief The automation view under the ported menu: the facts about the root UI the menu and the knobs hold, read
+/// @brief The automation view under the menu: the facts about the root UI the menu and the knobs hold, read
 ///        again as the root, or the view's editor, changes while the menu is open; and the param the view follows as
 ///        the menu moves (`dispatchMenuTransitions`).
 ///
@@ -181,7 +181,7 @@ describe automation_root_facts("the menu's root facts under the automation view"
 
 	it("follow the view into its editor, for the menu's greyout and the knobs", _ {
 		// `SoundEditor::getGreyoutColsAndRows` re-reads `automationView.inAutomationEditor()` every time
-		// (`sound_editor.cpp:497-500`): the editor greys nothing.
+		// (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): the editor greys nothing.
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -446,8 +446,8 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 		expect(fx.clip->yScroll).to_equal(moved);
 	});
 });
-describe automation_sound_menu("the legacy views see the ported menu as the sound menu", $ {
-	it("reads the ported menu over the automation view as the open sound menu, and not once it is gone", _ {
+describe automation_sound_menu("the legacy views see the menu scene as the sound menu", $ {
+	it("reads the menu scene over the automation view as the open sound menu, and not once it is gone", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 		on_overview(fx.clip);
 		{
@@ -472,7 +472,7 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 			UiStackGuard ui_guard;
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			setRootUILowLevel(&automationView);
-			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false))
+			expect(deluge::gui::ui::openMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/false))
 			    .to_be_true();
 			expect(automationView.getAffectEntire()).to_be_false();
 		}
@@ -482,7 +482,7 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 			fx.clip->affectEntire = false;
 			(void)menu::assign_node_ids(nodes::kAllRoots);
 			setRootUILowLevel(&automationView);
-			expect(deluge::gui::ui::openShellMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/true))
+			expect(deluge::gui::ui::openMenuAtShortcut(fx.clip, 8, 7, false, false, false, /*kitGlobalFx=*/true))
 			    .to_be_true();
 			expect(automationView.getAffectEntire()).to_be_true();
 		}

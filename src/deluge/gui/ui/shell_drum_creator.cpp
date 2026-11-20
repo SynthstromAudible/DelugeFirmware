@@ -16,7 +16,7 @@
  */
 
 #include "gui/ui/shell_drum_creator.h"
-#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/browser_host.h"
 #include "gui/ui/shell_host_ui.h"
 
 #include "gui/ui/ui.h" // uiNeedsRendering
@@ -27,7 +27,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 #include <iterator>
 #include <utility>
@@ -63,8 +63,8 @@ bool fileChosen(SoundDrum& drum) {
 bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 	// `enterDrumCreator`'s `soundEditor.setup(clip, &menu_item::file0SelectorMenu, 0)`: a kit clip under the clip view,
 	// on source 0's file selector, whose hook pushes the browser.
-	if (!openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
-	                   /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::Osc0FileSelector)) {
+	if (!openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+	              /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, MenuNode::Osc0FileSelector)) {
 		return false;
 	}
 	creatorDrum = drum;
@@ -79,12 +79,12 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 bool openShellDrumRecorder(InstrumentClip* clip) {
 	// `enterDrumCreator`'s `soundEditor.setup(clip, &menu_item::file0SelectorMenu, 0)` and `openUI(&audioRecorder)`.
 	// No drum is remembered: legacy deletes a creator's drum only on the browser's exit, and a take's drum stays.
-	if (!openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
-	                   /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, ShellMenuNode::Osc0Recorder)) {
+	if (!openMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/false,
+	              /*sessionViewRoot=*/false, /*kitGlobalFx=*/false, MenuNode::Osc0Recorder)) {
 		return false;
 	}
 	// And should the recorder refuse, the fallback's file selector, whose browser legacy opens on the new drum.
-	landShellMenuOnFileSelectorIfRecorderRefuses();
+	landMenuOnFileSelectorIfRecorderRefuses();
 	// Legacy opens the recorder over the clip view with no editor; the take's end leaves the UI mode alone.
 	shellHostUI.markVisitWithoutEditor();
 	return true;
@@ -105,8 +105,8 @@ void discardShellDrumCreatorBeforeClose() {
 		return;
 	}
 	InstrumentClip* clip = getCurrentInstrumentClip();
-	// `SampleBrowser::exitAction` (`gui/ui/browser/sample_browser.cpp`): only with no file chosen, and only while the
-	// kit holds a drum no row uses.
+	// `SampleBrowser::exitAction` (`origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`): only with no file
+	// chosen, and only while the kit holds a drum no row uses.
 	if (kit->getFirstUnassignedDrum(clip) != nullptr && !fileChosen(*drum)) {
 		instrumentClipView.deleteDrum(drum);
 		uiNeedsRendering(&instrumentClipView);

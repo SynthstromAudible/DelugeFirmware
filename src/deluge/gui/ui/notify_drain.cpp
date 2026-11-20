@@ -84,8 +84,8 @@ void drain_notifications() {
 		if (r.oled) {
 			renderUIsForOled();
 		}
-		// Clears the tick squares that legacy `PlaybackHandler::endPlayback()` used to clear inline,
-		// once playbackState confirms playback has actually stopped.
+		// Clears the tick squares once playbackState confirms playback has actually stopped; main's
+		// `PlaybackHandler::endPlayback` (`origin/main:src/deluge/playback/playback_handler.cpp`) clears them inline.
 		if (d.has(Dirty::PlaybackState) && !playbackHandler.playbackState) {
 			PadLEDs::clearTickSquares();
 		}
@@ -173,7 +173,7 @@ void drain_notifications() {
 }
 
 void showNoticeNotification(const char* title, const char* value) {
-	// `HorizontalMenu::displayNotification`'s own call (`gui/menu_item/horizontal_menu.cpp:342`).
+	// `HorizontalMenu::displayNotification`'s own call (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	display->displayNotification(title, value);
 }
 
@@ -189,7 +189,7 @@ void removeNoticeWorking() {
 
 void cancelNoticeNotification() {
 	// `HorizontalMenu::switchVisiblePage`/`endSession`'s own guarded cancel
-	// (`gui/menu_item/horizontal_menu.cpp:363-365`, `:587-589`).
+	// (`origin/main:src/deluge/gui/menu_item/horizontal_menu.cpp`).
 	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
 		display->cancelPopup();
 	}

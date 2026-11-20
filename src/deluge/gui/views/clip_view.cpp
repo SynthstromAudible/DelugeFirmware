@@ -37,7 +37,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 
 using namespace deluge;
 

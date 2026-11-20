@@ -4,7 +4,7 @@
 /// Every setting row a menu shows, in every table that owns one (the engines' and each model setting group), has
 /// names under its owner, equal to what its item showed (`tests/golden/ui/menu_oracle/descriptors.tsv`): its title and
 /// name, and for a list its options (full and short) in each context the list changes with. A row with no single item
-/// is one of `descriptor_legacy_spec.cpp`'s named skips, and a row no menu shows is named below; neither has names.
+/// is one of `descriptor_oracle_spec.cpp`'s named skips, and a row no menu shows is named below; neither has names.
 /// Every param of the two engine tables has a name equal to `getParamDisplayName`'s, the morph params under each pair
 /// of filter modes included, and an id outside an engine's table has none.
 

@@ -80,7 +80,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
-#include "util/shell_menu_entry.h"
+#include "util/menu_entry.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>
@@ -333,15 +333,15 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 3 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// Site 3 of `gui/ui/menu_entry.cpp`'s table.
 			// No shift (`:324`) and the arranger is the root: the same
 			// `soundEditorRootMenuSongView` site 2 opens (`gui/ui/sound_editor.cpp:1802-1805`),
 			// but `sessionViewRoot` is false -- `getRootUI()` is the arranger, not the session
 			// view, and two items in that root read exactly that difference.
-			(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-			                                     /*performanceView=*/false,
-			                                     /*sessionOrArrangerRoot=*/true,
-			                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+			(void)deluge::gui::ui::openMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+			                                /*performanceView=*/false,
+			                                /*sessionOrArrangerRoot=*/true,
+			                                /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 		}
 	}
 

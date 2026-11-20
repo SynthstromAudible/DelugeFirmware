@@ -15,7 +15,7 @@ ui::BlinkPhase phase_of(ui::BlinkRate rate, std::span<const ui::BlinkPhase> phas
 }
 
 /// @brief `blinkLed`'s first stretch for \p rate: `kFastFlashTime` for a fast blink, else `kInitialFlashTime` started
-///        lit or `kFlashTime` started dark (`indicator_leds.cpp:85-95`).
+///        lit or `kFlashTime` started dark (`indicator_leds.cpp`).
 uint32_t first_stretch_ms(ui::BlinkRate rate, bool initially_on) {
 	if (rate == ui::BlinkRate::Fast) {
 		return ui::kFastFlashTime;
@@ -23,7 +23,7 @@ uint32_t first_stretch_ms(ui::BlinkRate rate, bool initially_on) {
 	return initially_on ? ui::kInitialFlashTime : ui::kFlashTime;
 }
 
-/// @brief `ledBlinkTimeout`'s toggle period for \p rate (`indicator_leds.cpp:108`).
+/// @brief `ledBlinkTimeout`'s toggle period for \p rate (`indicator_leds.cpp`).
 uint32_t toggle_ms(ui::BlinkRate rate) {
 	return rate == ui::BlinkRate::Fast ? ui::kFastFlashTime : ui::kFlashTime;
 }
@@ -52,7 +52,7 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 		return false;
 	case LedState::Kind::Blink:
 		// The alert deadline wins: legacy's `blinksLeft` countdown ended with
-		// `setLedState(led, returnToState)` (`indicator_leds.cpp:122-128`), and every caller that
+		// `setLedState(led, returnToState)` (`indicator_leds.cpp`), and every caller that
 		// used it passed an LED that was meant to be *on* afterwards -- `indicateAlertOnLed`
 		// blinks and leaves it lit. `until_ms == 0` is "blink for ever", which is what a plain
 		// `blinkLed(led)` (`numBlinks = 255`) did.

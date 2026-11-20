@@ -3,36 +3,34 @@
 /// @brief The master page as data: `sound_master` and its five columns.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains. From
-/// `gui/ui/menus.cpp`'s `soundMasterMenu` literal (`:1739-1742`) and the globals it names
-/// (`:1727`, `:1727-1735`):
+/// `origin/main:src/deluge/gui/ui/menus.cpp`'s `soundMasterMenu` literal and the globals it names:
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `synth_mode` | `synthModeMenu` (`:1735`) | `SynthModeSelection` (`gui/menu_item/synth_mode.h`) | Enum |
-/// | `master_volume` | `volumeMenu` (`:1731`) | `patched_param::Integer`, `GLOBAL_VOLUME_POST_FX`, `BAR` | Int (param) |
-/// | `master_pan` | `panMenu` (`:1733`) | `patched_param::Pan`, `LOCAL_PAN` (`patched_param/pan.h:21`) | Int (param, `Scaling::Pan`) |
-/// | `master_transpose` | `masterTransposeMenu` (`:1725`) | `MasterTranspose` (`master_transpose.h:31`) | Int (hooks + learn param) |
-/// | `vibrato` | `vibratoMenu` (`:1725`) | `patch_cable_strength::Fixed` | **Custom** |
-/// | `sound_master` | `soundMasterMenu` (`:1739`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `synth_mode` | `synthModeMenu` | `SynthModeSelection` (`origin/main:src/deluge/gui/menu_item/synth_mode.h`) | Enum |
+/// | `master_volume` | `volumeMenu` | `patched_param::Integer`, `GLOBAL_VOLUME_POST_FX`, `BAR` | Int (param) |
+/// | `master_pan` | `panMenu` | `patched_param::Pan`, `LOCAL_PAN` (`panMenu` in `origin/main:src/deluge/gui/ui/menus.cpp`; the class is `origin/main:src/deluge/gui/menu_item/patched_param/pan.h`) | Int (param, `Scaling::Pan`) |
+/// | `master_transpose` | `masterTransposeMenu` | `MasterTranspose` (`origin/main:src/deluge/gui/menu_item/master_transpose.h`) | Int (hooks + learn param) |
+/// | `vibrato` | `vibratoMenu` | `patch_cable_strength::Fixed` | **Custom** |
+/// | `sound_master` | `soundMasterMenu` | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
-/// @note **`vibratoMenu` is a custom node.** `patch_cable_strength::Fixed` edits a *patch
-///       cable*'s strength, not a parameter: its `readCurrentValue`/`writeCurrentValue` go through
-///       `PatchCableSet` (`gui/menu_item/patch_cable_strength.cpp`), so it is a `custom` node over
+/// @note **`vibratoMenu` is a custom node.** `patch_cable_strength::Fixed` edits a *patch cable*'s strength, not a
+///       parameter: its `readCurrentValue`/`writeCurrentValue` go through `PatchCableSet`
+///       (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), so it is a `custom` node over
 ///       `kVibratoItem` rather than a data-only page.
 ///
-/// @note **`masterTransposeMenu` is a `menu_item::Transpose`-shaped item**: an `Integer` with its
-///       own read/write over `Sound::transpose` AND a `PatchedParam` reporting
-///       `LOCAL_PITCH_ADJUST` (`master_transpose.h:69-70`), exactly the pattern
-///       `detail.h::with_learn_param` exists for. Its `Hint` is `None`:
-///       `Decimal::getRenderingStyle()` returns `NUMBER`.
+/// @note **`masterTransposeMenu` is a `menu_item::Transpose`-shaped item**: an `Integer` with its own read/write over
+///       `Sound::transpose` AND a `PatchedParam` reporting `LOCAL_PITCH_ADJUST` (`MasterTranspose::MasterTranspose` in
+///       `origin/main:src/deluge/gui/menu_item/master_transpose.h`), exactly the pattern `detail.h::with_learn_param`
+///       exists for. Its `Hint` is `None`: `Decimal::getRenderingStyle()` returns `NUMBER`.
 ///
 /// @note **`SynthModeSelection::writeCurrentValue` ends with `view.setKnobIndicatorLevels()`**
-///       (`synth_mode.h:57`) -- `gui/views/` is behind the `scenes-includes-outside` wall, and the
-///       equivalent is the `Dirty` flag `bindings::write` already raises.
-///       `MasterTranspose::getColumnLabel` (`master_transpose.h:74`) is `master_transpose`'s
-///       `with_column_name`.
+///       (`origin/main:src/deluge/gui/menu_item/synth_mode.h`) -- `gui/views/` is behind the `scenes-includes-outside`
+///       wall, and the equivalent is the `Dirty` flag `bindings::write` already raises.
+///       `MasterTranspose::getColumnLabel` (`origin/main:src/deluge/gui/menu_item/master_transpose.h`) is
+///       `master_transpose`'s `with_column_name`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -67,9 +65,9 @@ inline constexpr Node master_pan =
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PAN},
                            Hint::Pan, nullptr, 0, Scaling::Pan));
 
-// `Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`transpose.h`): semitones as a
-// two-place decimal in cents.
-/// `MasterTranspose::getColumnLabel` is TRANSPOSE (`master_transpose.h:74`).
+// `Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`origin/main:src/deluge/gui/menu_item/transpose.h`):
+// semitones as a two-place decimal in cents.
+/// `MasterTranspose::getColumnLabel` is TRANSPOSE (`origin/main:src/deluge/gui/menu_item/master_transpose.h`).
 inline constexpr Node master_transpose = with_column_name(
     with_patch_chain(with_learn_param(
         with_title(
@@ -80,10 +78,10 @@ inline constexpr Node master_transpose = with_column_name(
         {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST})),
     sid(deluge::l10n::String::STRING_FOR_TRANSPOSE));
 
-// `vibratoMenu` (`gui/ui/menus.cpp`): a `patch_cable_strength::Fixed` on LOCAL_PITCH_ADJUST from
+// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): a `patch_cable_strength::Fixed` on LOCAL_PITCH_ADJUST from
 // LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the pitch. On the MASTER page its column
 // spells the strength and a select press opens the strength page; that page's select chains to the range source
-// picker like every other cable-strength page (`patch_cable_strength.cpp`).
+// picker like every other cable-strength page (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`).
 inline constexpr Node vibrato = fixed_cable_column(
     with_value_text(with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VIBRATO), &kVibratoItem),
                                       &patch_cable_strength_chain, kPatchCableStrengthChain),

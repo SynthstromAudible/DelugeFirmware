@@ -99,7 +99,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 	// is what makes single flight a property of the shared catalogue rather than of this object --
 	// the browser, marker editor and recorder scenes put three of these seams in the same process, AND legacy's
 	// `Browser::beginListing` claims through the very same call,
-	// so a legacy browser listing and a scenes listing can no longer both believe they are alone
+	// so a legacy browser listing and a scenes listing cannot both believe they are alone
 	// over one `fileItems`. A claim held by anyone -- this instance already in flight, another
 	// seam, or a legacy browser -- is `Busy`.
 	if (!FileCatalogue::claim(this)) {
@@ -118,8 +118,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 
 	if (!dispatch_(&Listing::trampoline, this)) {
 		// The owner dropped it, so the op will never run. Undo everything the dispatch attempt
-		// did -- exactly what legacy does on the same return (`browser.cpp:113-117`: clear the
-		// flag, remove the loading animation, return false).
+		// did: clear the in-flight state, release the claim and drop the working notice.
 		state_.store(State::Idle, std::memory_order_release);
 		FileCatalogue::release(this);
 		notify::notice_kind(notify::Notice::Kind::ClearWorking);
@@ -166,11 +165,11 @@ void Listing::perform() {
 	out.count = FileCatalogue::fileItems.size();
 	result_ = std::move(out);
 
-	// Raised from the op, i.e. on the owner fiber on Embassy -- the same context legacy calls
-	// `display->removeLoadingAnimation()` and `display->displayError()` from
-	// (`browser.cpp:140`, `:148`). `NoticeQueue` documents itself as single-logical-producer, serialised
-	// by cooperative scheduling (`notify/notice_queue.h`, COOP-WRITE), which is what the storage
-	// fiber is.
+	// Raised from the op, which the shipped dispatcher (`run_inline`) runs on the caller's tier. Legacy's
+	// `Browser::runPendingListing` (`gui/ui/browser/browser.cpp`) removes the loading animation and reports a
+	// failure (`onListingFailed`) itself; here the notices carry both. `NoticeQueue` documents itself as
+	// single-logical-producer, serialised by cooperative scheduling (`notify/notice_queue.h`, COOP-WRITE), so a
+	// dispatcher that moved the op to another context would have to keep that.
 	notify::notice_kind(notify::Notice::Kind::ClearWorking);
 	if (result_.error != Error::NONE && announces_errors(result_.action)) {
 		notify::notice_error_code(static_cast<int16_t>(result_.error));
@@ -227,9 +226,9 @@ Error Listing::run_action(ListingResult& out) {
 
 	case ListingAction::ByPath: {
 		// `setFileByFullPathImpl`.
-		// TODO(conflation-batch-4): legacy treats an unknown `fileExists` as absent here and carries
-		// the same marker; whatever legacy's load/browse/favourites site decides, this port
-		// inherits.
+		// TODO(conflation-batch-4): an unknown `fileExists` is treated as absent here, the same conflation
+		// `AudioFileManager` marks with `TODO(conflation-batch-5)` (`storage/audio/audio_file_manager.cpp`);
+		// whatever the load/browse/favourites sites decide, this port inherits.
 		if (!StorageManager::fileExists(request_.path.c_str()).value_or(false)) {
 			return Error::FILE_NOT_FOUND;
 		}
@@ -242,7 +241,7 @@ Error Listing::run_action(ListingResult& out) {
 			out.entered_text = request_.path.substr(slash + 1);
 			// Assigned from a substring of the request's own string, not from a `char const*` into
 			// a temporary -- legacy has a comment here about exactly that dangling pointer
-			// (`browser.cpp:246-250`).
+			// (`Browser::setFileByFullPathImpl` in `browser.cpp`).
 			FileCatalogue::currentDir = request_.path.substr(0, slash);
 		}
 
@@ -256,15 +255,14 @@ Error Listing::run_action(ListingResult& out) {
 		// back empty the sort did not run, but the search then has nothing to compare against and
 		// returns 0 regardless -- which is why this file never touches `util/name_compare`'s flags.
 		out.file_index = FileCatalogue::searchFileItems(out.entered_text.c_str(), &out.found_exact);
-		// `>` and not `>=`, copied from legacy (`browser.cpp:264`) rather than corrected. The
-		// consequence is real and is NOT a divergence hidden by omission: `searchFileItems` returns
-		// the match index *or the insertion point*, and an insertion point may be exactly
-		// `fileItems.size()`, one past the end -- which this check lets through with `Error::NONE`.
-		// Legacy survives it because `clampFileSelectionAndScroll` reins
-		// `fileIndexSelected` in before anything dereferences it. This port does not silently
-		// re-decide legacy's comparisons, so the check stays and the hazard is pushed to the
-		// caller, spelled out on `ListingResult::file_index`: index the catalogue with it only
-		// after checking `found_exact`.
+		// `>` and not `>=`, copied from main's `Browser::setFileByFullPath`
+		// (`origin/main:src/deluge/gui/ui/browser/browser.cpp`) rather than corrected. The consequence is real and is
+		// NOT a divergence hidden by omission: `searchFileItems` returns the match index *or the insertion point*, and
+		// an insertion point may be exactly `fileItems.size()`, one past the end -- which this check lets through with
+		// `Error::NONE`. Main survives it because `clampFileSelectionAndScroll` reins `fileIndexSelected` in before
+		// anything dereferences it. This port does not silently re-decide legacy's comparisons, so the check stays and
+		// the hazard is pushed to the caller, spelled out on `ListingResult::file_index`: index the catalogue with it
+		// only after checking `found_exact`.
 		if (out.file_index > static_cast<int32_t>(FileCatalogue::fileItems.size())) {
 			return Error::FILE_NOT_FOUND;
 		}
@@ -274,9 +272,9 @@ Error Listing::run_action(ListingResult& out) {
 	case ListingAction::Reload: {
 		// `reloadImpl`, both arms: with a name to centre on it re-reads around
 		// that name (legacy's `CATALOG_SEARCH_BOTH` on `enteredText`), and without one it re-reads
-		// from whichever end `search_direction` names -- legacy's `pendingReloadSearchFromEnd_`
-		// pair (`browser.h:178`). Choosing the new selection index from the reloaded list is the
-		// caller's (`finishSelectEncoderAction`, `browser.cpp:702`), not the seam's.
+		// from whichever end `search_direction` names -- legacy's `Browser::ReloadTail`
+		// (`gui/ui/browser/browser.h`). Choosing the new selection index from the reloaded list is the
+		// caller's (`finishSelectEncoderAction`, `browser.cpp`), not the seam's.
 		return list_current_dir(request_.filename_to_start_at.empty() ? nullptr
 		                                                              : request_.filename_to_start_at.c_str());
 	}
@@ -285,7 +283,7 @@ Error Listing::run_action(ListingResult& out) {
 }
 
 Error Listing::list_current_dir(char const* filename_to_start_at) {
-	// `arrivedInNewFolder`'s own rule (`browser.cpp:379`): a name to start at means a two-sided
+	// `arrivedInNewFolder`'s own rule (`browser.cpp`): a name to start at means a two-sided
 	// cull around it, no name means keep the start of the folder. `search_direction` overrides it
 	// only where legacy has its own override -- Reload's search-from-end arm.
 	const int32_t direction = request_.search_direction != kDeriveSearchDirection ? request_.search_direction
@@ -321,8 +319,8 @@ Error Listing::list_current_dir(char const* filename_to_start_at) {
 		return error;
 	}
 
-	// The tail of `readFileItemsFromFolderAndMemory` (`browser.cpp:330-340`), minus the in-memory
-	// instrument merge that needs a `Song` -- see listing.h.
+	// The tail of `readFileItemsFromFolderAndMemory` (`origin/main:src/deluge/gui/ui/browser/browser.cpp`), minus the
+	// in-memory instrument merge that needs a `Song` -- see listing.h.
 	if (!FileCatalogue::fileItems.empty()) {
 		FileCatalogue::sortFileItems(request_.interpret_note_names);
 		if (!request_.allow_folders_sharing_name_with_file) {

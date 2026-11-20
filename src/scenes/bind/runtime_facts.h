@@ -80,6 +80,14 @@ enum class FlashCursor : uint8_t {
 	Slow = 2,
 };
 
+/// @brief The performance view's editing mode, numbered as `PerformanceEditingMode` (`definitions_cxx.hpp`), which this
+/// library may not include.
+enum class PerformanceEditing : uint8_t {
+	Disabled = 0, ///< not editing: the view's pads play its FX columns
+	Value = 1,    ///< editing the columns' values
+	Param = 2,    ///< editing which param each column holds
+};
+
 /// @brief The DX7 bank a `.syx` read loaded: its programs' names, as `DX7Cartridge::getProgramNames` gives them.
 struct DxCartridgeNames {
 	std::array<std::array<char, 11>, 32> names{}; ///< each program's name, NUL-terminated
@@ -116,11 +124,13 @@ public:
 	/// @brief Hardware: whether a mic or line input is plugged in. No record holds it; it changes under the song.
 	[[nodiscard]] virtual bool audio_inputs_present() const = 0;
 	/// @brief Audio: the voices sounding now, synth and audio-clip (`cpu::VoiceUsage::sample`,
-	/// `cpu/voice_usage.h:94-96`). No record holds it; it changes every render. Zero for a host that renders nothing.
+	/// `origin/main:src/deluge/gui/menu_item/cpu/voice_usage.h`). No record holds it; it changes every render. Zero for
+	/// a host that renders nothing.
 	[[nodiscard]] virtual int32_t live_voice_count() const { return 0; }
 	/// @brief Whether the sound at @p slot is a kit's only drum, on its clip's first note row: the kit a whole folder
-	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit`, which also asks that the
-	/// menu edits source 0 -- the caller's to check).
+	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit` in
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`, which also asks that the menu edits source 0 -- the
+	/// caller's to check).
 	[[nodiscard]] virtual bool kit_takes_whole_folder(project::SlotAddress /*slot*/) const { return false; }
 	/// @brief Whether an explicit sample load or a folder import is running: either one closes the sample browser to
 	/// the presses that would start another. False for a host that loads nothing.
@@ -172,6 +182,10 @@ public:
 	/// @brief The flash-cursor setting (`PadLEDs::flashCursor`, flash byte 36): how a playhead is shown. The factory's
 	/// Slow for a host that keeps none.
 	[[nodiscard]] virtual FlashCursor flash_cursor() const { return FlashCursor::Slow; }
+	/// @brief The performance view's editing mode, as `EditingMode::readCurrentValue` reads it: its
+	/// `defaultEditingMode`, then its `editingParam`. The performance-editing page's cursor starts on it. Disabled for
+	/// a host with no performance view.
+	[[nodiscard]] virtual PerformanceEditing performance_editing_mode() const { return PerformanceEditing::Disabled; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

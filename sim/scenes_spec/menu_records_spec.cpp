@@ -77,7 +77,8 @@ describe menu_records("a menu's questions, answered from the record", ${
 		expect(picker_cursor(ctx)).to_equal(2);
 		const MenuContext other = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 1, false, false, false, false);
 		expect(picker_cursor(other)).to_equal(1);
-		// `:48-51`: the invalid default is worked out afresh and written back.
+		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): the invalid default is
+		// worked out afresh and written back.
 		expect(sound.sources[1].defaultRangeI).to_equal(1);
 	});
 

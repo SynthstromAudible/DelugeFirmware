@@ -149,16 +149,16 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
 		expect(r.base.exits).to_equal(1);
 		// `closeUI(this)`, the same thing `RenameUI::exitUI` and `SampleMarkerEditor::exitUI` do
-		// (`gui/ui/rename/rename_ui.cpp:88-91`, `gui/ui/sample_marker_editor.cpp:680-683`) and the
-		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp`. Without
+		// (`gui/ui/rename/rename_ui.cpp`, `origin/main:src/deluge/gui/ui/sample_marker_editor.cpp`) and the
+		// same thing `SoundEditor::exitCompletely` does at `origin/main:src/deluge/gui/ui/sound_editor.cpp`. Without
 		// it the user is trapped: neither reader of the return value closes anything.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0]).to_equal(static_cast<::UI*>(&r.guest));
-		// **The answer is `ACTIONED_AND_CAUSED_CHANGE`, not `NOT_DEALT_WITH`.** `ui.h`'s
-		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:181-182`), a UI
-		// did, and every legacy self-closing implementation answers this value -- including the
-		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
-		// (`gui/ui/sound_editor.h`, returning at `gui/ui/sound_editor.cpp`).
+		// **The answer is `ACTIONED_AND_CAUSED_CHANGE`, not `NOT_DEALT_WITH`.** `ui.h`'s contract for this hook is
+		// "returns whether a UI exited" (`UI::exitUI` in `gui/ui/ui.h`), a UI did, and every legacy self-closing
+		// implementation answers this value -- including the tenant the guest stands in for, whose `exitUI` is
+		// `exitCompletely()` (`origin/main:src/deluge/gui/ui/sound_editor.h`, returning at
+		// `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 		expect(result).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 	});
 
@@ -173,8 +173,8 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 	// ---- the SHORT Back, which is the exit a user actually performs -----------------------------
 	//
 	// `exitUI` above is the LONG press only: `Buttons` arms `TimerName::BACK_MENU_EXIT` on Back
-	// down (`hid/buttons.cpp:114-121`) and the manager calls `exitUI` from that arm alone
-	// (`gui/ui_timer_manager.cpp:150-156`). A short Back is fed into the shell like any other
+	// down (`Buttons::buttonAction` in `hid/buttons.cpp`) and the manager calls `exitUI` from that arm alone
+	// (`UITimerManager::routine` in `gui/ui_timer_manager.cpp`). A short Back is fed into the shell like any other
 	// button and routed inside `Shell::tick`, where a scene can take itself off the stack --
 	// `MenuScene`'s `Action::Kind::Remove` at depth 0. If nothing closed the guest
 	// when that emptied the stack, `shellHostUI` would stay current, drawing nothing and swallowing
@@ -204,7 +204,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0]).to_equal(static_cast<::UI*>(&r.guest));
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
-		// (`gui/ui/ui.cpp:227`) before handing focus to the UI beneath, so a timer armed here would
+		// (`gui/ui/ui.cpp`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
 		// (`gui/ui_timer_manager.cpp`).
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
@@ -236,11 +236,11 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		static_cast<::UI&>(r.guest).graphicsRoutine();
 
 		// **What this proves, precisely: non-override.** The fake replaces `UI::graphicsRoutine`'s
-		// body with a counter (`gui/support/fake_legacy_ui.cpp`), because the real body needs
+		// body with a counter (`tests/unit/deluge/gui/support/fake_legacy_ui.cpp`), because the real body needs
 		// `getRootUI()` and a legacy view tree this suite does not build -- so reaching the counter
 		// says the call landed on the base, and says nothing about a root view animating. That the
 		// base's real body then runs the root's animation while `canSeeViewUnderneath()` is a claim
-		// about `gui/ui/ui.cpp:76-80`, read, not driven here. The example's job is the half that can
+		// about `UI::graphicsRoutine` (`gui/ui/ui.cpp`), read, not driven here. The example's job is the half that can
 		// regress silently: `ShellHostUI` adding an override.
 		expect(fakelegacyui::graphics_routines).to_equal(1);
 		// And the predicate the base gates on, evaluated by the fake, is the one the guest answers
@@ -262,7 +262,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 
 		r.guest.displayOrLanguageChanged();
 		// Legacy still hears about it: the base's `renderUIsForOled()` is what sets
-		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp:83-85`).
+		// `doesOLEDNeedRendering` (`gui/ui/ui.cpp`).
 		expect(fakelegacyui::oled_redraws).to_equal(1);
 		// And the shell will actually re-render on its next tick, rather than serving the frame it
 		// happens to be holding.
@@ -288,7 +288,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(fakelegacyui::service_wirings).to_equal(2);
 
 		// A refused open does not wire: `openUI` rolls the hierarchy back on `false`
-		// (`gui/ui/ui.cpp:267-272`), so there is no guest to serve.
+		// (`gui/ui/ui.cpp`), so there is no guest to serve.
 		Rig refused;
 		expect(fakelegacyui::service_wirings).to_equal(0); // the Rig ctor reset the counter
 		refused.guest.setInitialScene(SceneId{SceneKind::Null, 0});
@@ -331,7 +331,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 	it("hands the knob indicator rings back on the close path, and only on the close path", _ {
 		// `GuestSurfaceSet::set_indicator` writes the hardware without legacy's
 		// `knobIndicatorLevels[]` shadow, so `actuallySetKnobIndicatorLevel`'s early-out
-		// (`hid/led/indicator_leds.cpp:186-191`) would otherwise suppress the write that puts the
+		// (`hid/led/indicator_leds.cpp`) would otherwise suppress the write that puts the
 		// rings right when the guest goes away. It matters because of `ModKnobs` -- the one
 		// `frame.indicator(...)` declarer in `src/scenes` -- being installed in the guest.
 		Rig r;
@@ -344,7 +344,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
-		// to the UI beneath on the same call (`gui/ui/ui.cpp:230`) and that is what re-fills the
+		// to the UI beneath on the same call (`gui/ui/ui.cpp`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
 		expect(r.guest.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
@@ -354,8 +354,8 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 
 	it("runs the note mode's exit, the settings save, the drum creator's discard and the slicer's release on both "
 	   "close paths, after the indicator clear and before close()", _ {
-		// `SoundEditor::exitCompletely`'s note arms (`gui/ui/sound_editor.cpp:749-755`) run before its
-		// `close()` (`:761`); `closeGuest` is the body of both of the guest's close paths, so both
+		// `SoundEditor::exitCompletely`'s note arms (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) run before its
+		// `close()`; `closeGuest` is the body of both of the guest's close paths, so both
 		// must reach it, and neither survive path may.
 		{
 			Rig r;

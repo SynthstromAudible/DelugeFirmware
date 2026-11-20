@@ -6,9 +6,8 @@
 namespace deluge::gfx::oled {
 
 namespace {
-// Px5 also serves heights 5 and 6 -- there's no separate 6px table. This unifies drawChar's
-// and getCharWidthInPixels' previously-disagreeing height-6 behaviour (draw used Px5; width
-// queries fell through to MetricBold20). No live caller passes textHeight 6, so the
+// Px5 also serves heights 5 and 6 -- there's no separate 6px table -- so drawChar and
+// getCharWidthInPixels agree on height 6: both use Px5. No live caller passes textHeight 6, so the
 // difference is unobservable either way.
 constexpr Font kPx5{FontId::Px5, font_5px, font_5px_desc, 5, 5, 0, false};
 constexpr Font kApple7{FontId::Apple7, font_apple, font_apple_desc, 8, 7, 0, true};

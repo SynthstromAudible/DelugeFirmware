@@ -1,17 +1,18 @@
 #pragma once
 
-/// @brief The patch-cable pages: the mod-matrix list, the two source pickers, and the three
-///        cable-strength editors -- the port of `gui/menu_item/patch_cables.{h,cpp}`,
-///        `patch_cable_strength.{h,cpp}` and the four singletons under
-///        `gui/menu_item/source_selection/` and `gui/menu_item/patch_cable_strength/`.
+/// @brief The patch-cable pages: the mod-matrix list, the two source pickers, and the three cable-strength editors --
+///        mirroring main's `origin/main:src/deluge/gui/menu_item/patch_cables.h`,
+///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h` and the four singletons under
+///        `origin/main:src/deluge/gui/menu_item/source_selection/` and
+///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength/`.
 ///
 /// Six legacy globals become six `CustomItem`s and four new `Node`s:
 ///
-/// | legacy global (`gui/ui/menus.cpp`) | port |
+/// | legacy global (`origin/main:src/deluge/gui/ui/menus.cpp`) | port |
 /// |---|---|
-/// | `patchCablesMenu` (`:1737`) | `nodes::patch_cables` -> `kPatchCablesItem` |
-/// | `source_selection::regularMenu` (`source_selection/regular.cpp`) | `nodes::source_selection_regular` |
-/// | `patch_cable_strength::regularMenu` | `nodes::patch_cable_strength_regular` |
+/// | `patchCablesMenu` | `nodes::patch_cables` -> `kPatchCablesItem` |
+/// | `source_selection::regularMenu` (`origin/main:src/deluge/gui/menu_item/source_selection/regular.cpp`) |
+/// `nodes::source_selection_regular` | | `patch_cable_strength::regularMenu` | `nodes::patch_cable_strength_regular` |
 /// | `source_selection::rangeMenu` | `nodes::source_selection_range` |
 /// | `patch_cable_strength::rangeMenu` | `nodes::patch_cable_strength_range` |
 /// | `vibratoMenu`, `sidechainVolumeShortcutMenu` | `nodes::vibrato`, `nodes::sidechain_volume` |
@@ -22,21 +23,23 @@
 /// `Node::select_chain` + `Node::chain_targets`. The whole graph:
 ///
 /// ```
-///   53 PatchedParam nodes --(patched_param.cpp:32-40)--> source_selection_regular
-///   source_selection_regular --(source_selection/regular.cpp:33)--> patch_cable_strength_regular
-///   patch_cable_strength_regular --(patch_cable_strength.cpp:302-309)--> source_selection_range
-///   source_selection_range --(source_selection/range.cpp)--> patch_cable_strength_range
-///   patch_cable_strength_range --(patch_cable_strength.cpp:302-309)--> source_selection_range   <-- a 2-cycle
-///   patch_cables --(origin/main:src/deluge/gui/menu_item/patch_cables.cpp)--> patch_cable_strength_{regular,range}
-///   vibrato, sidechain_volume --(patch_cable_strength.cpp:302-309)--> source_selection_range
+///   53 PatchedParam nodes --(`PatchedParam::selectButtonPress` in
+///   `origin/main:src/deluge/gui/menu_item/patched_param.cpp`)--> source_selection_regular source_selection_regular
+///   --(`Regular::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/source_selection/regular.cpp`)-->
+///   patch_cable_strength_regular patch_cable_strength_regular --(`PatchCableStrength::selectButtonPress` in
+///   `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)--> source_selection_range source_selection_range
+///   --(source_selection/range.cpp)--> patch_cable_strength_range patch_cable_strength_range
+///   --(`PatchCableStrength::selectButtonPress` in `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)-->
+///   source_selection_range   <-- a 2-cycle patch_cables --(origin/main:src/deluge/gui/menu_item/patch_cables.cpp)-->
+///   patch_cable_strength_{regular,range} vibrato, sidechain_volume --(`PatchCableStrength::selectButtonPress` in
+///   `origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`)--> source_selection_range
 /// ```
 ///
-/// @note **The last-but-two edge closes a genuine cycle**, and it is legacy's, not an artefact of
-///       the port: from the range-strength page a select press goes back to the range source
-///       picker, whose own select press returns to the strength page. It is the first cyclic chain
-///       in the tree, so the menu dump grew the `"ref"` stub its own `fail_on_chain_cycle`
-///       comment had been asking for (`menu_dump_main.cpp`). `assign_node_ids` and `validate.cpp`
-///       already survived a cycle (both stop at a node they have seen).
+/// @note **The last-but-two edge closes a genuine cycle**, and it is legacy's, not an artefact of the port: from the
+///       range-strength page a select press goes back to the range source picker, whose own select press returns to the
+///       strength page. It is the first cyclic chain in the tree, so the menu dump grew the `"ref"` stub its own
+///       `fail_on_chain_cycle` comment had been asking for (`tests/integration/scenarios/menu_dump.cpp`).
+///       `assign_node_ids` and `validate.cpp` already survived a cycle (both stop at a node they have seen).
 ///
 /// ## Shared state
 ///
@@ -49,11 +52,11 @@
 /// ## Source-pad blinking
 ///
 /// Legacy's `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
-/// (`patch_cables.cpp`) and the three `shouldBlinkPatchingSourceShortcut` overrides drive grid-pad
-/// blinking from `uiTimerManager` and `soundEditor.setupShortcutBlink`. The port has no per-item
-/// timer: `MenuScene::render_grid` owns the one blink cycle (`shortcut_blink.h`'s
-/// `kShortcutBlinkMs`), and each item here answers into it through `CustomItem::patched_param_to_blink`,
-/// `source_blink` and `blink_delay_ms` (read by `shortcut_blink.cpp` and `pads.cpp`).
+/// (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`) and the three `shouldBlinkPatchingSourceShortcut`
+/// overrides drive grid-pad blinking from `uiTimerManager` and `soundEditor.setupShortcutBlink`. The port has no
+/// per-item timer: `MenuScene::render_grid` owns the one blink cycle (`shortcut_blink.h`'s `kShortcutBlinkMs`), and
+/// each item here answers into it through `CustomItem::patched_param_to_blink`, `source_blink` and `blink_delay_ms`
+/// (read by `shortcut_blink.cpp` and `pads.cpp`).
 ///
 /// ## What is ported
 ///
@@ -70,7 +73,7 @@
 /// `delayHorizontalScrollUntil` escape and X_ENC guard are `MenuScene::route_horizontal_turn`.
 ///
 /// `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME fallback walk
-/// (`patch_cable_strength/regular.cpp`) is in `PatchCableStrengthItem::on_focus`.
+/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`) is in `PatchCableStrengthItem::on_focus`.
 /// `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which arrive as grid input -- are
 /// `source_press` below.
 
@@ -91,7 +94,7 @@ namespace deluge::scenes::menu::nodes {
 // ---------------------------------------------------------------------------------------------
 // The items.
 
-/// @brief The MOD MATRIX list -- `menu_item::PatchCables` (`gui/menu_item/patch_cables.cpp`).
+/// @brief The MOD MATRIX list -- `menu_item::PatchCables` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`).
 ///
 /// One row per existing patch cable, "src [src2] value dest", and a select press that opens that
 /// cable's strength page. With no cables at all a select press goes up a level, exactly as
@@ -108,9 +111,11 @@ public:
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void on_reread(const MenuContext& ctx, MenuState& state) const override;
-	/// `PatchCables::blinkShortcutsSoon` (`patch_cables.cpp`): 500 ms on an OLED panel.
+	/// `PatchCables::blinkShortcutsSoon` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`): 500 ms on an OLED
+	/// panel.
 	uint16_t blink_delay_ms() const override { return 500; }
-	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it (`patch_cables.cpp`).
+	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	/// Its source every cycle, and the source whose depth it modulates every fourth.
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
@@ -119,19 +124,21 @@ public:
 
 /// @brief One of the two source pickers -- `source_selection::Regular` / `source_selection::Range`.
 ///
-/// The shared base is `menu_item::SourceSelection` (`gui/menu_item/source_selection.cpp`); the two
-/// subclasses differ only in which destination descriptor they build and which `MenuState` field
-/// their choice lands in, so one parameterised class covers both (the `MidiCommandItem` shape).
+/// The shared base is `menu_item::SourceSelection` (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`); the
+/// two subclasses differ only in which destination descriptor they build and which `MenuState` field their choice lands
+/// in, so one parameterised class covers both (the `MidiCommandItem` shape).
 class SourceSelectionItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
 	bool is_value() const override { return true; }
 	enum class Which : uint8_t {
-		/// `source_selection::regularMenu`: picks the cable's own source. Destination is the bare
-		/// param (`source_selection/regular.cpp:26-30`).
+		/// `source_selection::regularMenu`: picks the cable's own source. Destination is the bare param
+		/// (`Regular::getDestinationDescriptor` in
+		/// `origin/main:src/deluge/gui/menu_item/source_selection/regular.cpp`).
 		Regular,
-		/// `source_selection::rangeMenu`: picks the source modulating that cable's depth. Destination
-		/// is param + the regular source (`source_selection/range.cpp:26-30`).
+		/// `source_selection::rangeMenu`: picks the source modulating that cable's depth. Destination is param + the
+		/// regular source (`Range::getDestinationDescriptor` in
+		/// `origin/main:src/deluge/gui/menu_item/source_selection/range.cpp`).
 		Range,
 	};
 	explicit constexpr SourceSelectionItem(Which which) : which_{which} {}
@@ -147,18 +154,21 @@ public:
 
 	constexpr Which which() const { return which_; }
 
-	/// `source_selection::Range::getPatchingSourceShortcutTarget` (`range.h:28-30`): the item above.
+	/// `source_selection::Range::getPatchingSourceShortcutTarget`
+	/// (`origin/main:src/deluge/gui/menu_item/source_selection/range.h`): the item above.
 	SourceTarget source_target(bool /*previous_held*/) const override {
 		return which_ == Which::Range ? SourceTarget::Parent : SourceTarget::Parameter;
 	}
 
-	/// `source_selection::Regular::patchingSourceShortcutPress` (`source_selection/regular.cpp`): the source's strength
-	/// page, or PARAMETER NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
+	/// `source_selection::Regular::patchingSourceShortcutPress`
+	/// (`origin/main:src/deluge/gui/menu_item/source_selection/regular.cpp`): the source's strength page, or PARAMETER
+	/// NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
 	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
 	                                               bool previous_held, const Node*& open) const override;
 
 	/// `SourceSelection::getIndexOfPatchedParamToBlink` / `shouldBlinkPatchingSourceShortcut`
-	/// (`source_selection.cpp`): the param, and every source patched to the destination.
+	/// (`origin/main:src/deluge/gui/menu_item/source_selection.cpp`): the param, and every source patched to the
+	/// destination.
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
@@ -170,10 +180,10 @@ private:
 /// @brief One of the three cable-strength editors -- `patch_cable_strength::Regular` / `::Range` /
 ///        `::Fixed`.
 ///
-/// `Fixed` is a `Regular` whose destination param and source are baked in rather than navigated to
-/// (`patch_cable_strength/fixed.h:25-26`): its `checkPermissionToBeginSession` writes both into the
-/// shared state and then defers to `Regular` (`fixed.cpp:28-33`), which is exactly what
-/// `on_focus` does here.
+/// `Fixed` is a `Regular` whose destination param and source are baked in rather than navigated to (`Fixed::Fixed` in
+/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/fixed.h`): its `checkPermissionToBeginSession`
+/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/fixed.cpp`) writes both into the shared state and then
+/// defers to `PatchCableStrength::checkPermissionToBeginSession`, which is exactly what `on_focus` does here.
 class PatchCableStrengthItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -198,8 +208,10 @@ public:
 	void commit(const MenuContext& ctx, MenuState& state) const override;
 	void leds(deluge::ui::LedFrame& f, const MenuContext& ctx, const MenuState& state) const override;
 
-	/// `PatchCableStrength::getLearningThing()` -- `MenuItemWithCCLearning`'s answer, which is a
-	/// function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
+	/// `Regular::getLearningThing()` / `Range::getLearningThing()`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/range.cpp`) -- `MenuItemWithCCLearning`'s answer,
+	/// which is a function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
@@ -207,14 +219,17 @@ public:
 	constexpr PatchSource fixed_source() const { return source_; }
 	constexpr uint8_t fixed_param() const { return param_; }
 
-	/// The three classes' `patchingSourceShortcutPress` (`patch_cable_strength/regular.cpp`, `range.cpp:58-60`,
-	/// `fixed.cpp:45-48`): another held source pad opens the range page for the pressed source (`Fixed` always opens
-	/// it); otherwise the item above answers.
+	/// The three classes' `patchingSourceShortcutPress`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/range.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/fixed.cpp`): another held source pad opens the range
+	/// page for the pressed source (`Fixed` always opens it); otherwise the item above answers.
 	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
 	                                               bool previous_held, const Node*& open) const override;
 	bool is_patch_cable() const override { return true; }
-	/// `Regular::getPatchingSourceShortcutTarget` (`regular.h:35-37`): a range with another source pad held, else the
-	/// item above; `Range` the item above; `Fixed` always a range.
+	/// `patch_cable_strength::Regular::getPatchingSourceShortcutTarget`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.h`): a range with another source pad held,
+	/// else the item above; `Range` the item above; `Fixed` always a range.
 	SourceTarget source_target(bool previous_held) const override {
 		if (which_ == Which::Fixed || (which_ == Which::Regular && previous_held)) {
 			return SourceTarget::Range;
@@ -222,9 +237,12 @@ public:
 		return SourceTarget::Parent;
 	}
 
-	/// `PatchCableStrength::getIndexOfPatchedParamToBlink` (`patch_cable_strength.cpp:284-290`, the volume triple
-	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut`
-	/// (`patch_cable_strength/regular.cpp`, `range.cpp:42-56`, `fixed.cpp:35-43`).
+	/// `PatchCableStrength::getIndexOfPatchedParamToBlink`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`, the volume triple folded to POST_FX) and the
+	/// three classes' `shouldBlinkPatchingSourceShortcut`
+	/// (`origin/main:src/deluge/gui/menu_item/patch_cable_strength/regular.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/range.cpp`,
+	/// `origin/main:src/deluge/gui/menu_item/patch_cable_strength/fixed.cpp`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
@@ -234,7 +252,8 @@ public:
 	///        `updatePolarityUI`'s re-render does.
 	void set_polarity(const MenuContext& ctx, MenuState& state, Polarity polarity) const;
 
-	/// `PatchCableStrength : Automation` (`patch_cable_strength.h:29`): shift + select deletes the cable's automation.
+	/// `PatchCableStrength : Automation` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`): shift +
+	/// select deletes the cable's automation.
 	bool is_automation_item() const override { return true; }
 	/// The address of the cable this page edits.
 	std::optional<deluge::project::ParamAddress> automation_address(const MenuContext& ctx,
@@ -253,19 +272,21 @@ inline const SourceSelectionItem kSourceSelectionRegularItem{SourceSelectionItem
 inline const SourceSelectionItem kSourceSelectionRangeItem{SourceSelectionItem::Which::Range};     ///< `rangeMenu`
 inline const PatchCableStrengthItem kPatchCableStrengthRegularItem{PatchCableStrengthItem::Which::Regular};
 inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStrengthItem::Which::Range};
-/// `vibratoMenu` (`menus.cpp:1727-1728`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
+/// `vibratoMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 /// @brief `PatchCableStrength`'s value text on a fixed cable's column: the notification (`getNotificationValue`,
-///        `patch_cable_strength.h`) and the column (`Decimal::renderInHorizontalMenu`, `decimal.cpp`,
-///        rendering style NUMBER), both the value over 100 to two places; the column keeps three characters of a value
-///        at or below -10.00.
+///        `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`) and the column
+///        (`Decimal::renderInHorizontalMenu`, `origin/main:src/deluge/gui/menu_item/decimal.cpp`, rendering style
+///        NUMBER), both the value over 100 to two places; the column keeps three characters of a value at or below
+///        -10.00.
 ValueText cable_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// @brief `sidechain::VolumeShortcut`'s: the notification only. Its column is the ducking meter
-///        (`getRenderingStyle() == SIDECHAIN_DUCKING`, `sidechain/volume.h`), which the node's `Hint::Ducking` draws.
+///        (`getRenderingStyle() == SIDECHAIN_DUCKING`, `origin/main:src/deluge/gui/menu_item/sidechain/volume.h`),
+///        which the node's `Hint::Ducking` draws.
 ValueText ducking_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 
-/// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from
+/// `sidechainVolumeShortcutMenu` (`origin/main:src/deluge/gui/ui/menus.cpp`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
 inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem::Which::Fixed,
                                                          deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
@@ -273,16 +294,18 @@ inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem:
 /// @}
 
 /// @brief The menu-unit strength of the cable `kVibratoItem` edits (LFO_GLOBAL_1 -> LOCAL_PITCH_ADJUST):
-///        `PatchCableStrength::readCurrentValue` (`patch_cable_strength.cpp`), 0 where there is no cable.
+///        `PatchCableStrength::readCurrentValue` (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`), 0
+///        where there is no cable.
 int32_t vibrato_strength(const MenuContext& ctx);
 /// @brief The same for `kSidechainVolumeItem`'s cable (SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND).
 int32_t ducking_strength(const MenuContext& ctx);
 
 /// @brief @p n as a fixed cable's column on a horizontal page: it reads @p get, ranges over +/-50.00
-///        (`getMinValue`/`getMaxValue`, `patch_cable_strength.h`), steps 1.00 a detent and 0.01 with SELECT or
-///        SHIFT held (`Decimal::getNumberEditSize`, `decimal.cpp`), and a select press on it opens its own
-///        strength page (`allowToBeginSessionFromHorizontalMenu`, `patch_cable_strength.h`). The column's edit is
-///        written by the item's `commit`, as on the page.
+///        (`getMinValue`/`getMaxValue`, `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`), steps 1.00 a
+///        detent and 0.01 with SELECT or SHIFT held (`Decimal::getNumberEditSize`,
+///        `origin/main:src/deluge/gui/menu_item/decimal.cpp`), and a select press on it opens its own strength page
+///        (`allowToBeginSessionFromHorizontalMenu`, `origin/main:src/deluge/gui/menu_item/patch_cable_strength.h`). The
+///        column's edit is written by the item's `commit`, as on the page.
 /// @param n   The cable's custom node.
 /// @param get Its strength getter.
 /// @return @p n as a column.
@@ -296,18 +319,20 @@ constexpr Node fixed_cable_column(Node n, GetFn get) {
 // ---------------------------------------------------------------------------------------------
 // The nodes.
 //
-// `extern const Node` defined in `patch_cables.cpp`, not `inline constexpr` like every other node in
+// `extern const Node` defined in `nodes/patch_cables.cpp`, not `inline constexpr` like every other node in
 // this directory, for one reason: the chain graph above is cyclic, and a `constexpr` initialiser
 // cannot name an array holding the address of a node whose own initialiser names it back. An
 // `extern` declaration makes every address an address constant, which is all `with_select_chain`'s
 // spans need, and constant initialisation still happens (the builders are all `constexpr`).
 
-/// `source_selection::regularMenu`, title `STRING_FOR_MODULATE_WITH` (`source_selection/regular.h:29`).
+/// `source_selection::regularMenu`, title `STRING_FOR_MODULATE_WITH` (`Regular::getTitle` in
+/// `origin/main:src/deluge/gui/menu_item/source_selection/regular.h`).
 extern const Node source_selection_regular;
 /// `patch_cable_strength::regularMenu`. Legacy draws no title on this page (`renderOLED` replaces
 /// `drawPixelsForOled` wholesale); the port gives it the title of the picker that leads into it.
 extern const Node patch_cable_strength_regular;
-/// `source_selection::rangeMenu`, title `STRING_FOR_MODULATE_DEPTH` (`source_selection/range.h:27`).
+/// `source_selection::rangeMenu`, title `STRING_FOR_MODULATE_DEPTH` (`Range::getTitle` in
+/// `origin/main:src/deluge/gui/menu_item/source_selection/range.h`).
 extern const Node source_selection_range;
 /// `patch_cable_strength::rangeMenu`. Same titling note as its regular twin.
 extern const Node patch_cable_strength_range;
@@ -315,7 +340,7 @@ extern const Node patch_cable_strength_range;
 // ---------------------------------------------------------------------------------------------
 // The chain hooks and their target spans.
 
-/// @brief `PatchedParam::selectButtonPress`'s non-shift arm (`gui/menu_item/patched_param.cpp:32-40`).
+/// @brief `PatchedParam::selectButtonPress`'s non-shift arm (`origin/main:src/deluge/gui/menu_item/patched_param.cpp`).
 ///
 /// Always the source picker. The `soundEditor.patchingParamSelected = this->getP()` half of that
 /// function happens in `SourceSelectionItem::on_focus` instead -- a `SelectChainFn` is handed a
@@ -325,13 +350,15 @@ extern const Node patch_cable_strength_range;
 /// (`MenuScene::after_render`), which sees shift; this hook answers the unshifted press.
 const Node* patched_param_chain(const MenuContext& ctx, const MenuState& state);
 
-/// @brief `source_selection::Regular::selectButtonPress` (`source_selection/regular.cpp:32-34`).
+/// @brief `source_selection::Regular::selectButtonPress`
+/// (`origin/main:src/deluge/gui/menu_item/source_selection/regular.cpp`).
 const Node* source_selection_regular_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief `source_selection::Range::selectButtonPress` (`source_selection/range.cpp`).
+/// @brief `source_selection::Range::selectButtonPress`
+/// (`origin/main:src/deluge/gui/menu_item/source_selection/range.cpp`).
 const Node* source_selection_range_chain(const MenuContext& ctx, const MenuState& state);
 /// @brief `PatchCableStrength::selectButtonPress`'s non-shift arm
-///        (`patch_cable_strength.cpp:302-309`) -- always the range source picker. Shared by all
-///        three strength pages, `Fixed` included.
+///        (`origin/main:src/deluge/gui/menu_item/patch_cable_strength.cpp`) -- always the range source picker. Shared
+///        by all three strength pages, `Fixed` included.
 const Node* patch_cable_strength_chain(const MenuContext& ctx, const MenuState& state);
 /// @brief `PatchCables::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`): the
 ///        selected cable's own strength page -- the range one when the cable's destination is itself a cable.

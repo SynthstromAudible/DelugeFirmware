@@ -43,13 +43,13 @@ namespace deluge::gui::ui {
 ///
 ///  - The **grid cannot alias at all.** `PadGrid` (`gfx/grid/pad_grid.h`) stores
 ///    `cells_[kMaxGridRows][kMaxGridCols]` inline -- a 32-column row stride -- while
-///    `PadLEDs::image` (`hid/led/pad_leds.h:33`) is `[kDisplayHeight][kDisplayWidth +
+///    `PadLEDs::image` (`hid/led/pad_leds.h`) is `[kDisplayHeight][kDisplayWidth +
 ///    kSideBarWidth]`, an 18-column stride. The strides differ, the storage is a member rather than
 ///    a span, and `PadGrid`'s doc says so in as many words: `row(y)` is the seam for *copying* a
 ///    single row to or from that legacy buffer, never for reinterpreting the whole array.
 ///  - The **OLED could alias but must not.** `OLED::main` is an `OwnedCanvas`
 ///    (`gfx/oled/canvas.h`) over its own 768-byte store, and `OLED::clearMainImage`
-///    (`hid/display/oled.cpp:68-78`) zeroes it -- from seventeen legacy call sites (grep
+///    (`hid/display/oled.cpp`) zeroes it -- from seventeen legacy call sites (grep
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`), which clears it immediately before
 ///    asking each open UI to re-render. The shell is retained-mode: `Shell::flush`
@@ -77,7 +77,7 @@ public:
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
 	/// For scale, legacy already memcpys up to this whole image per frame in
-	/// `copyBackgroundAroundForeground` (`hid/display/oled.cpp:331`) whenever a console or popup is
+	/// `copyBackgroundAroundForeground` (`hid/display/oled.cpp`) whenever a console or popup is
 	/// up.
 	static constexpr uint32_t kOledCopyBytesPerBlit = OLED_MAIN_WIDTH_PIXELS * OLED_MAIN_HEIGHT_PIXELS / 8;
 
@@ -101,7 +101,7 @@ public:
 	/// above is the cost of a *full repaint*, not of a tick. The real figure is 48 B x (pairs whose
 	/// colours actually changed).
 	///
-	/// Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`) already copies these same 16
+	/// Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp`) already copies these same 16
 	/// colours into a `doubleColumn` for every pair it sends, so the guest adds one copy of that
 	/// same size per pair, not a new order of cost.
 	static constexpr uint32_t kGridCopyBytesPerFullFlush =
@@ -127,10 +127,10 @@ public:
 	void set_led(uint8_t board_led, bool on) override;
 	/// @brief Restore legacy's state for an LED the shell has stopped declaring.
 	///
-	/// The state is legacy's `ledStates[]` shadow from the moment the guest first took the LED, the
-	/// same `returnToState` rule legacy's own blinker folds back by
-	/// (`hid/led/indicator_leds.cpp:74`, `:128`). An LED legacy has started blinking since is left
-	/// to that blinker.
+	/// The state is legacy's `ledStates[]` shadow from the moment the guest first took the LED, the same
+	/// `returnToState` rule legacy's own blinker folds back by (`blinkLed` records it and `updateBlinkingLedStates`
+	/// folds back to it, both in `hid/led/indicator_leds.cpp`). An LED legacy has started blinking since is left to
+	/// that blinker.
 	/// @param board_led An `indicator_leds::LED` value.
 	void release_led(uint8_t board_led) override;
 	void set_indicator(uint8_t which, const deluge::ui::KnobIndicator& indicator) override;

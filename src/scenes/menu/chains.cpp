@@ -46,7 +46,7 @@ consteval size_t largest_group_columns() {
 }
 static_assert(largest_group_columns() <= kMaxMenuColumns, "a group lists more columns than a page materialises");
 
-// `SoundEditor::getCurrentHorizontalMenusChain`'s five chains (`gui/ui/menus.cpp`,
+// `SoundEditor::getCurrentHorizontalMenusChain`'s five chains (`origin/main:src/deluge/gui/ui/menus.cpp`,
 // `horizontalMenusChainFor*`), each `HorizontalMenuGroup` spelled as its member pages in order.
 constexpr const Node* kSoundChain[] = {
     &nodes::recorder,  &nodes::sound_master,  &nodes::source_group, &nodes::voice_group, &nodes::env_group,
@@ -136,7 +136,7 @@ bool page_lists(const Node& page, const Node& column) {
 		return false;
 	}
 	// A group lists what its member pages list, not the member pages (`HorizontalMenuGroup::hasItem`,
-	// `horizontal_menu_group.cpp`).
+	// `origin/main:src/deluge/gui/menu_item/horizontal_menu_group.cpp`).
 	if (page.is_group) {
 		return std::ranges::any_of(page.children,
 		                           [&](const Node* m) { return m != nullptr && page_lists(*m, column); });

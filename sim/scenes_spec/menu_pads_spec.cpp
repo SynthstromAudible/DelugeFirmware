@@ -84,7 +84,8 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 	});
 
 	it("waits 500 ms after the patch cables page opens or its cursor moves before it blinks", _ {
-		// `PatchCables::blinkShortcutsSoon`: scrolling the list shows no flashes until the cursor rests.
+		// `PatchCables::blinkShortcutsSoon` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`): scrolling the
+		// list shows no flashes until the cursor rests.
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		spec::SongFixture song = spec::make_synth_song(); // its synth patches NOTE and VELOCITY to the cutoff
 		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,

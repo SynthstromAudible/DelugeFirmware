@@ -31,7 +31,8 @@ constexpr uint8_t kMaxLocalEvents = 32;
 enum class FlashColour : uint8_t {
 	Default = 0,      ///< The PIC's plain white flash (`flashMainPad`'s colour 0).
 	Red = 0b01,       ///< A row recording linearly (legacy `setTickSquares`' fast-cursor arm).
-	Yellow = 0b11,    ///< A second-layer shortcut (`sound_editor.cpp:1099`).
+	Yellow = 0b11,    ///< A second-layer shortcut (the `isSecondLayerParam` arm of `SoundEditor::updatePadLightsFor` in
+	                  ///< `origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	Palette6 = 0b110, ///< A cable's range source (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
 	                  ///< `PatchCables::shouldBlinkPatchingSourceShortcut`,
 	                  ///< `patch_cable_strength::Regular::shouldBlinkPatchingSourceShortcut`).

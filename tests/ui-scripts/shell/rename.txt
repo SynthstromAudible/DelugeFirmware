@@ -4,7 +4,7 @@
 #
 # Pad coordinates are the QWERTY layout's own (`ui/grid/keyboard.cpp` kKeyboardChars, home row
 # 3, table row = 5 - y, table column = x - 3): 'A' is (3,3), 'B' is (7,2), backspace is (14,5) and
-# enter is (14,3) (`text_keyboard_char_at`, `:51-57`).
+# enter is (14,3) (`text_keyboard_char_at`).
 #
 # Two things here need QUIET TICKS, and a single frame per event could not see either:
 #   * the end-of-string cursor bar blinks on a `kFlashTime` (110 ms) half-period
@@ -38,7 +38,7 @@
 # byte-identical to `backspace_press`. The delay is pinned by the two frames below instead.
 1440  snapshot backspace_repeat_1    # 500 ms after the press the first repeat fired -> "AB"
 1520  snapshot backspace_repeat_2    # and 80 ms after THAT, the second -> "A"
-# Fix round 1: one repeat is not the claim. `kBackspaceRepeatMs` -- the 80 ms steady state -- was
+# One repeat is not the claim. `kBackspaceRepeatMs` -- the 80 ms steady state -- was
 # covered only by `rename_scene_spec.cpp`, whose ticks are hand-placed on grid passes and which was
 # therefore structurally blind to the bug this script found. A regression that fires once and then
 # stalls would have passed both. Two repeats at a real 10 ms cadence is what pins the interval.

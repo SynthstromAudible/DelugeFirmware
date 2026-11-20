@@ -8,12 +8,12 @@
 
 /// @brief Test doubles for the legacy HID globals `GuestSurfaceSet` writes through.
 ///
-/// The host spec suite deliberately never builds legacy's `deluge_app` closure (see the long note
-/// in `tests/trees/host/CMakeLists.txt`), so `hid/display/oled.cpp`, `hid/led/pad_leds.cpp` and
-/// `hid/led/indicator_leds.cpp` are not linked here. What IS linked -- and what the guest actually
-/// talks to -- is the handful of symbols those files define, so `fake_legacy_hid.cpp` defines those
-/// symbols itself: the real `OLED::main` and `PadLEDs::image` buffer types, at their real sizes,
-/// with recorders standing in for the three functions that would drive hardware.
+/// The host spec suite deliberately never builds legacy's `deluge_app` closure (see the long note in
+/// `tests/trees/host/CMakeLists.txt`), so `hid/display/oled.cpp`, `hid/led/pad_leds.cpp` and
+/// `hid/led/indicator_leds.cpp` are not linked here. What IS linked -- and what the guest actually talks to -- is the
+/// handful of symbols those files define, so `tests/unit/deluge/gui/support/fake_legacy_hid.cpp` defines those symbols
+/// itself: the real `OLED::main` and `PadLEDs::image` buffer types, at their real sizes, with recorders standing in for
+/// the three functions that would drive hardware.
 ///
 /// That makes the buffers a genuine sentinel: a spec writes colours through the shell's surface and
 /// reads them back out of the legacy buffer, which nothing in the shell can see or touch.
@@ -72,10 +72,10 @@ void reset();
 
 /// @brief Run the fake `OLED::sendMainImage()` and report whether it found a frame to send.
 ///
-/// This is how a spec observes `OLED::markChanged()`: `needsSending` is a private static of `OLED`,
-/// so nothing outside the class may read it -- but `sendMainImage()` is a declared static member of
-/// `OLED`, and the fake's *definition* of it therefore may. It consumes the flag exactly as the real
-/// one does (`hid/display/oled.cpp:336-338`, `:384`).
+/// This is how a spec observes `OLED::markChanged()`: `needsSending` is a private static of `OLED`, so nothing outside
+/// the class may read it -- but `sendMainImage()` is a declared static member of `OLED`, and the fake's *definition* of
+/// it therefore may. It consumes the flag exactly as the real one does (`OLED::sendMainImage` in
+/// `hid/display/oled.cpp`, which returns early when `needsSending` is down and lowers it after the send).
 /// @return True if the dirty flag was raised (and it is now lowered).
 bool consume_oled_frame();
 

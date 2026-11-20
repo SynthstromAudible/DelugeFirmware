@@ -67,11 +67,11 @@ deluge::ui::shell::Result PendingCustom::handle(const deluge::ui::shell::UiEvent
 namespace {
 
 // ---------------------------------------------------------------------------------------------
-// `osc::Type` (`gui/menu_item/osc/type.h:34-160`).
+// `osc::Type` (`origin/main:src/deluge/gui/menu_item/osc/type.h`).
 
 // ---------------------------------------------------------------------------------------------
-// `sample::Transpose` (`gui/menu_item/sample/transpose.h:31-175`) -- "this is actually the
-// Oscillator transpose" (`sample/transpose.h:31`).
+// `sample::Transpose` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`) -- "this is actually the
+// Oscillator transpose" (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
 
 /// @brief `computeCurrentValueForTranspose` (`util/value_scaling.cpp`).
 constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {
@@ -79,7 +79,8 @@ constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {
 }
 
 /// @brief Does source @p id of a sound in @p state take its transpose in its range? A sample source with ranges does,
-///        unless the sound is FM (`sample/transpose.h:38-56`).
+///        unless the sound is FM (`Transpose::readCurrentValue` in
+///        `origin/main:src/deluge/gui/menu_item/sample/transpose.h`).
 bool transposes_in_range(const deluge::instrument::SoundState& state, deluge::instrument::SourceId id) {
 	using namespace deluge::instrument;
 	return !source_ranges(state, id).empty() && synth_mode(state) != SynthMode::FM
@@ -95,7 +96,7 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 	const auto id = static_cast<deluge::instrument::SourceId>(index);
 	if (transposes_in_range(*state, id)) {
 		const std::vector<deluge::instrument::RangeState> ranges = deluge::instrument::source_ranges(*state, id);
-		// `:44-47`: the selected range when the menu is on this very source, else range 0.
+		// The selected range when the menu is on this very source, else range 0.
 		const size_t r =
 		    ctx.source_index == index && ctx.range_index >= 0 && static_cast<size_t>(ctx.range_index) < ranges.size()
 		        ? static_cast<size_t>(ctx.range_index)
@@ -107,12 +108,12 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 }
 
 void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
-	// `sample::Transpose::writeCurrentValue` (`sample/transpose.h`): a sample source's transpose is its range's -- the
-	// selected one, or range 0 in the kit sweep -- and any other source's is its own setting; the sink decides per
-	// sound. Legacy's affect-entire test here is `soundEditor.editingKit()`, not the `editingKitRow()` every other
-	// item uses; `bindings::writes_whole_kit` is the latter, so on a kit-global-FX context this writes one target
-	// where legacy swept the kit. Unreachable in practice (the oscillator menus are not reachable from the
-	// kit-global-FX root).
+	// `sample::Transpose::writeCurrentValue` (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`): a sample
+	// source's transpose is its range's -- the selected one, or range 0 in the kit sweep -- and any other source's is
+	// its own setting; the sink decides per sound. Legacy's affect-entire test here is `soundEditor.editingKit()`, not
+	// the `editingKitRow()` every other item uses; `bindings::writes_whole_kit` is the latter, so on a kit-global-FX
+	// context this writes one target where legacy swept the kit. Unreachable in practice (the oscillator menus are not
+	// reachable from the kit-global-FX root).
 	if (ctx.sink == nullptr) {
 		return;
 	}
@@ -125,7 +126,7 @@ void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `osc::RetriggerPhase` (`gui/menu_item/osc/retrigger_phase.h:25-135`).
+// `osc::RetriggerPhase` (`origin/main:src/deluge/gui/menu_item/osc/retrigger_phase.h`).
 
 // ---------------------------------------------------------------------------------------------
 // The FM modulator items.

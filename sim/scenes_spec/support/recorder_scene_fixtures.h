@@ -96,7 +96,7 @@ struct Rig {
 	///
 	/// **Scenes are process singletons.** An example that left the recorder armed would make the
 	/// NEXT example's `on_enter` refuse (`recorder_ != nullptr`) and cascade into a wall of
-	/// unrelated failures -- which is exactly what the first run of mutant M1 produced. Popping
+	/// unrelated failures. Popping
 	/// here means every example starts from the same place whatever the one before it did, so a
 	/// mutation kills the assertions that actually see it and no others.
 	~Rig() {
@@ -186,7 +186,7 @@ struct Rig {
 	void pad(uint8_t x, uint8_t y, bool down, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(down ? 64 : 0)}, at_ms);
 	}
-	/// @brief Open the sound menu on @p node with the horizontal-menus feature on, as the ShellMenu card has it.
+	/// @brief Open the sound menu on @p node with the horizontal-menus feature on, as the horizontal-menus card has it.
 	void open_menu(const menu::Node& node) {
 		MenuContext c = ctx();
 		c.horizontal_menus = true;
@@ -226,7 +226,7 @@ struct Rig {
 // or a missing clear that `before_each` performs on the code's behalf.
 //
 // `before_each`/`after_each` take a `std::function<void()>` with no `self`
-// (`cppspec/description.hpp`), so `expect` is not available in them. A named reason on
+// (CppSpec's description header), so `expect` is not available in them. A named reason on
 // stderr plus `std::abort()` is what "loudly" can mean there, and it fails the suite non-zero.
 
 [[noreturn]] inline void spec_bail(const char* what) {
