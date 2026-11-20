@@ -816,7 +816,7 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	(void)sound.getOrCreateFirstRange(0); // a range the runtime holds and the record has recorded
 	deluge::instrument::sound_effects(*sound.state_).compressor.threshold = 12345; // the sound's effects come with it
 	// A square oscillator keeps its range for a switch back: the recall holds it
-	const deluge::instrument::RangeState* buffer = sound.boundState()->recall.slots[0].ranges.data();
+	const deluge::synth::SampleRange* buffer = sound.boundState()->recall.slots[0].ranges.data();
 	ctx.song.addOutput(synth);
 	const deluge::instrument::SoundState* record =
 	    synth->docOutput_->instrument->state.as<deluge::instrument::DelugeSynth>();
@@ -824,7 +824,7 @@ void testStateHandedOver(deluge::edits::Context& ctx) {
 	      "handover: adoption moves the sound's own state into its record");
 	check(deluge::instrument::sound_effects(*record).compressor.threshold == 12345,
 	      "handover: the record holds the sound's effects");
-	const deluge::instrument::RangeState* held = record->recall.slots[0].ranges.data();
+	const deluge::synth::SampleRange* held = record->recall.slots[0].ranges.data();
 	ctx.song.deleteOutputThatIsInMainList(synth, false); // a bare synth: nothing auditions it
 	check(sound.boundState() != record && sound.boundState()->recall.slots[0].ranges.data() == held,
 	      "handover: a record that goes moves the state back");

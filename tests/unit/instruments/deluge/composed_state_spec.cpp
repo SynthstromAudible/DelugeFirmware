@@ -124,8 +124,11 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		const auto [state, recall] = compose(sound_of(SynthMode::FM, OscType::SAMPLE, OscType::DX7));
 		const auto& fm = std::get<deluge::synth::FmState>(state.engine);
 		expect(int{fm.carriers[0].tuning.transpose}).to_equal(5);
-		expect(recall.slots[0].osc_type).to_equal(OscType::SAMPLE);
-		expect(recall.slots[0].ranges.size()).to_equal(size_t{2});
+		// The sample oscillator is parked whole, its ranges with it, until FM goes
+		expect(recall.slots[0].parked.has_value()).to_equal(true);
+		const auto* parked = std::get_if<deluge::synth::SampleState>(&*recall.slots[0].parked);
+		expect(parked != nullptr).to_equal(true);
+		expect(parked != nullptr ? parked->ranges.size() : size_t{0}).to_equal(size_t{2});
 		expect(fm.sync).to_equal(true); // the file writes it in the second carrier's pitch
 	});
 
@@ -141,8 +144,8 @@ describe composed_state("a sound's flat record as the state it plays and what it
 		    std::get<deluge::synth::SubtractiveState>(state.engine).oscillators.slots[0]);
 		expect(slot.ranges.size()).to_equal(size_t{2});
 		expect(int{slot.ranges[1].tuning.transpose}).to_equal(2);
-		expect(recall.retrigger[0].has_value()).to_equal(true); // the file does not write a sample's retrigger
-		expect(int{recall.slots[0].transpose}).to_equal(5);
+		expect(recall.slots[0].sample_pitch.retrigger.has_value()).to_equal(true); // the file does not write a sample's retrigger
+		expect(int{recall.slots[0].sample_pitch.tuning.transpose}).to_equal(5);
 	});
 });
 // clang-format on

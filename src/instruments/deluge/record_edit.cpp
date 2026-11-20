@@ -49,6 +49,22 @@ void place_sync(SoundState& state, synth::DualSourceState& dual, bool sync) {
 	state.recall.sync = kept ? sync : false;
 }
 
+/// A playing slot's whole source: its kind state and what its memory keeps; its phase word into @p phase.
+SourceState unpack_playing(const synth::SlotState& slot, const SlotMemory& memory, uint32_t& phase) {
+	synth::Retrigger retrigger;
+	const SourceState kept = recalled(memory, retrigger);
+	return unpack_slot(slot, kept, retrigger, phase);
+}
+
+/// The kind state whole source @p full plays, what its kind does not hold remembered in @p memory.
+synth::SlotState pack_playing(const SourceState& full, uint32_t phase, SlotMemory& memory) {
+	SourceState kept;
+	synth::Retrigger retrigger;
+	synth::SlotState slot = pack_slot(full, phase, kept, retrigger);
+	memory = remember(kept, retrigger);
+	return slot;
+}
+
 /// @p dual played as @p mode's engine.
 void play_dual(ComposedState& plays, SynthMode mode, synth::DualSourceState dual) {
 	if (mode == SynthMode::RINGMOD) {
@@ -63,14 +79,16 @@ void play_dual(ComposedState& plays, SynthMode mode, synth::DualSourceState dual
 
 SlotEdit begin_slot_edit(const SoundState& state, size_t s) {
 	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
-		SlotEdit edit{.full = state.recall.slots[s], .phase = phase_word(fm->carriers[s].retrigger), .sync = fm->sync};
+		SlotEdit edit{.full = recalled_parked(state.recall.slots[s]),
+		              .phase = phase_word(fm->carriers[s].retrigger),
+		              .sync = fm->sync};
 		edit.full.transpose = fm->carriers[s].tuning.transpose;
 		edit.full.cents = fm->carriers[s].tuning.cents;
 		return edit;
 	}
 	const synth::DualSourceState& dual = dual_of(state.plays);
 	SlotEdit edit{.full = {}, .phase = 0, .sync = oscillator_sync(state)};
-	edit.full = unpack_slot(dual.slots[s], state.recall.slots[s], state.recall.retrigger[s], edit.phase);
+	edit.full = unpack_playing(dual.slots[s], state.recall.slots[s], edit.phase);
 	return edit;
 }
 
@@ -81,12 +99,12 @@ void end_slot_edit(SoundState& state, size_t s, const SlotEdit& edit) {
 		SourceState kept = edit.full;
 		kept.transpose = 0;
 		kept.cents = 0;
-		state.recall.slots[s] = std::move(kept);
+		state.recall.slots[s] = remember_parked(kept);
 		fm->sync = edit.sync;
 		return;
 	}
 	synth::DualSourceState& dual = dual_of(state.plays);
-	dual.slots[s] = pack_slot(edit.full, edit.phase, state.recall.slots[s], state.recall.retrigger[s]);
+	dual.slots[s] = pack_playing(edit.full, edit.phase, state.recall.slots[s]);
 	place_sync(state, dual, edit.sync);
 }
 
@@ -109,13 +127,12 @@ void set_engine(SoundState& state, SynthMode mode) {
 		                  .modulator1_to_modulator0 = recall.modulator1_to_modulator0};
 		for (size_t s = 0; s < 2; s++) {
 			uint32_t phase = 0;
-			SourceState full = unpack_slot(dual.slots[s], recall.slots[s], recall.retrigger[s], phase);
+			SourceState full = unpack_playing(dual.slots[s], recall.slots[s], phase);
 			fm.carriers[s] = {.tuning = {.transpose = full.transpose, .cents = full.cents},
 			                  .retrigger = retrigger_of_word(phase)};
 			full.transpose = 0;
 			full.cents = 0;
-			recall.slots[s] = std::move(full);
-			recall.retrigger[s].reset();
+			recall.slots[s] = remember_parked(full);
 		}
 		recall.modulators = synth::FmState{}.modulators;
 		recall.modulator1_to_modulator0 = false;
@@ -129,10 +146,10 @@ void set_engine(SoundState& state, SynthMode mode) {
 	const bool sync = fm.sync;
 	synth::DualSourceState dual{.slots = {}, .sync = false};
 	for (size_t s = 0; s < 2; s++) {
-		SourceState full = recall.slots[s];
+		SourceState full = recalled_parked(recall.slots[s]);
 		full.transpose = fm.carriers[s].tuning.transpose;
 		full.cents = fm.carriers[s].tuning.cents;
-		dual.slots[s] = pack_slot(full, phase_word(fm.carriers[s].retrigger), recall.slots[s], recall.retrigger[s]);
+		dual.slots[s] = pack_playing(full, phase_word(fm.carriers[s].retrigger), recall.slots[s]);
 	}
 	recall.modulators = fm.modulators;
 	recall.modulator1_to_modulator0 = fm.modulator1_to_modulator0;

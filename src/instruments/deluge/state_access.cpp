@@ -45,9 +45,32 @@ namespace {
 	return slots != nullptr ? &slots->slots[index_of(id)] : nullptr;
 }
 
-/// What slot @p id keeps of what its kind does not hold.
-[[nodiscard]] const SourceState& kept(const SoundState& state, SourceId id) noexcept {
+/// What slot @p id remembers of the kinds it is not playing.
+[[nodiscard]] const SlotMemory& memory_of(const SoundState& state, SourceId id) noexcept {
 	return state.recall.slots[index_of(id)];
+}
+
+/// Slot @p id's kind with its parts: the one it plays, or while FM plays the one it parks.
+[[nodiscard]] const synth::SlotState& kind_of(const SoundState& state, SourceId id) noexcept {
+	static const synth::SlotState new_synth_kind = synth::VaState{}; // a slot parks its kind whenever FM plays
+	const synth::SlotState* slot = slot_of(state, id);
+	if (slot != nullptr) {
+		return *slot;
+	}
+	const std::optional<synth::SlotState>& parked = memory_of(state, id).parked;
+	return parked ? *parked : new_synth_kind;
+}
+
+/// A sample range in the file's layout.
+[[nodiscard]] RangeState range_of(const synth::SampleRange& r) {
+	return {.top_note = r.top_note,
+	        .file_path = r.file_path,
+	        .start_pos = r.zone.start,
+	        .end_pos = r.zone.end,
+	        .loop_start_pos = r.zone.loop_start,
+	        .loop_end_pos = r.zone.loop_end,
+	        .transpose = r.tuning.transpose,
+	        .cents = r.tuning.cents};
 }
 
 /// @p state with @p change made to its flat form: what a write means is what it meant to the flat state.
@@ -72,23 +95,20 @@ SynthMode synth_mode(const SoundState& state) noexcept {
 }
 
 OscType source_type(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState* slot = slot_of(state, id);
-	if (slot == nullptr) {
-		return kept(state, id).osc_type;
-	}
-	if (const auto* va = std::get_if<synth::VaState>(slot)) {
+	const synth::SlotState& kind = kind_of(state, id);
+	if (const auto* va = std::get_if<synth::VaState>(&kind)) {
 		return static_cast<OscType>(std::to_underlying(va->shape));
 	}
-	if (std::holds_alternative<synth::WavetableState>(*slot)) {
+	if (std::holds_alternative<synth::WavetableState>(kind)) {
 		return OscType::WAVETABLE;
 	}
-	if (std::holds_alternative<synth::SampleState>(*slot)) {
+	if (std::holds_alternative<synth::SampleState>(kind)) {
 		return OscType::SAMPLE;
 	}
-	if (std::holds_alternative<synth::Dx7State>(*slot)) {
+	if (std::holds_alternative<synth::Dx7State>(kind)) {
 		return OscType::DX7;
 	}
-	switch (std::get_if<synth::InputState>(slot)->channel) {
+	switch (std::get_if<synth::InputState>(&kind)->channel) {
 	case synth::InputChannel::RIGHT:
 		return OscType::INPUT_R;
 	case synth::InputChannel::STEREO:
@@ -99,90 +119,69 @@ OscType source_type(const SoundState& state, SourceId id) noexcept {
 	return OscType::INPUT_L;
 }
 
+namespace {
+
+/// Slot @p id's pitch as its kind or an FM carrier plays it; a sample's is the one its memory keeps for other kinds.
+[[nodiscard]] const synth::Pitch& pitch_of(const SoundState& state, SourceId id) noexcept {
+	if (const auto* fm = std::get_if<synth::FmState>(&state.plays.engine)) {
+		return fm->carriers[index_of(id)];
+	}
+	const synth::SlotState& kind = kind_of(state, id);
+	if (const auto* va = std::get_if<synth::VaState>(&kind)) {
+		return va->pitch;
+	}
+	if (const auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
+		return wavetable->pitch;
+	}
+	if (const auto* dx = std::get_if<synth::Dx7State>(&kind)) {
+		return dx->pitch;
+	}
+	if (const auto* input = std::get_if<synth::InputState>(&kind)) {
+		return input->pitch;
+	}
+	return memory_of(state, id).sample_pitch; // its ranges carry their own tuning
+}
+
+} // namespace
+
 Tuning source_tuning(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState* slot = slot_of(state, id);
-	if (slot == nullptr) {
-		const synth::Tuning& carrier = std::get_if<synth::FmState>(&state.plays.engine)->carriers[index_of(id)].tuning;
-		return {.transpose = carrier.transpose, .cents = carrier.cents};
-	}
-	if (std::holds_alternative<synth::SampleState>(*slot)) {
-		return {.transpose = kept(state, id).transpose, .cents = kept(state, id).cents}; // its ranges carry theirs
-	}
-	synth::Tuning tuning;
-	if (const auto* va = std::get_if<synth::VaState>(slot)) {
-		tuning = va->pitch.tuning;
-	}
-	else if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
-		tuning = wavetable->pitch.tuning;
-	}
-	else if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
-		tuning = dx->pitch.tuning;
-	}
-	else if (const auto* input = std::get_if<synth::InputState>(slot)) {
-		tuning = input->pitch.tuning;
-	}
+	const synth::Tuning& tuning = pitch_of(state, id).tuning;
 	return {.transpose = tuning.transpose, .cents = tuning.cents};
 }
 
 SamplePlayback sample_playback(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState* slot = slot_of(state, id);
-	if (slot != nullptr) {
-		if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
-			const synth::SamplePlayback& p = sample->playback;
-			return {.repeat_mode = p.repeat_mode,
-			        .time_stretch_amount = p.time_stretch_amount,
-			        .interpolation = p.interpolation,
-			        .pitch_and_speed_independent = p.pitch_and_speed_independent,
-			        .reversed = p.reversed};
-		}
-	}
-	const SourceState& source = kept(state, id);
-	return {.repeat_mode = source.repeat_mode,
-	        .time_stretch_amount = source.time_stretch_amount,
-	        .interpolation = source.interpolation_mode,
-	        .pitch_and_speed_independent = source.pitch_and_speed_independent,
-	        .reversed = source.reversed};
+	const auto* sample = std::get_if<synth::SampleState>(&kind_of(state, id));
+	const synth::SamplePlayback& p = sample != nullptr ? sample->playback : memory_of(state, id).playback;
+	return {.repeat_mode = p.repeat_mode,
+	        .time_stretch_amount = p.time_stretch_amount,
+	        .interpolation = p.interpolation,
+	        .pitch_and_speed_independent = p.pitch_and_speed_independent,
+	        .reversed = p.reversed};
 }
 
 std::vector<RangeState> source_ranges(const SoundState& state, SourceId id) {
-	const synth::SlotState* slot = slot_of(state, id);
-	if (slot != nullptr) {
-		if (const auto* sample = std::get_if<synth::SampleState>(slot)) {
-			std::vector<RangeState> ranges;
-			ranges.reserve(sample->ranges.size());
-			for (const synth::SampleRange& r : sample->ranges) {
-				ranges.push_back({.top_note = r.top_note,
-				                  .file_path = r.file_path,
-				                  .start_pos = r.zone.start,
-				                  .end_pos = r.zone.end,
-				                  .loop_start_pos = r.zone.loop_start,
-				                  .loop_end_pos = r.zone.loop_end,
-				                  .transpose = r.tuning.transpose,
-				                  .cents = r.tuning.cents});
-			}
-			return ranges;
+	const synth::SlotState& kind = kind_of(state, id);
+	std::vector<RangeState> ranges;
+	if (const auto* wavetable = std::get_if<synth::WavetableState>(&kind)) {
+		ranges.reserve(wavetable->ranges.size());
+		for (const synth::WavetableRange& r : wavetable->ranges) {
+			ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
 		}
-		if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
-			std::vector<RangeState> ranges;
-			ranges.reserve(wavetable->ranges.size());
-			for (const synth::WavetableRange& r : wavetable->ranges) {
-				ranges.push_back({.top_note = r.top_note, .file_path = r.file_path});
-			}
-			return ranges;
-		}
+		return ranges;
 	}
-	return kept(state, id).ranges;
+	const auto* sample = std::get_if<synth::SampleState>(&kind);
+	const std::vector<synth::SampleRange>& held = sample != nullptr ? sample->ranges : memory_of(state, id).ranges;
+	ranges.reserve(held.size());
+	for (const synth::SampleRange& r : held) {
+		ranges.push_back(range_of(r));
+	}
+	return ranges;
 }
 
 const DxPatchState* dx_patch(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState* slot = slot_of(state, id);
-	const std::optional<DxPatchState>* patch = &kept(state, id).dx_patch;
-	if (slot != nullptr) {
-		if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
-			patch = &dx->patch;
-		}
-	}
-	return *patch ? &**patch : nullptr;
+	const auto* dx = std::get_if<synth::Dx7State>(&kind_of(state, id));
+	const std::optional<DxPatchState>& patch = dx != nullptr ? dx->patch : memory_of(state, id).patch;
+	return patch ? &*patch : nullptr;
 }
 
 const effects::EffectStates& sound_effects(const SoundState& state) noexcept {
@@ -213,23 +212,7 @@ bool oscillator_sync(const SoundState& state) noexcept {
 }
 
 synth::Retrigger source_retrigger(const SoundState& state, SourceId id) noexcept {
-	const synth::SlotState* slot = slot_of(state, id);
-	if (slot == nullptr) {
-		return std::get_if<synth::FmState>(&state.plays.engine)->carriers[index_of(id)].retrigger;
-	}
-	if (std::holds_alternative<synth::SampleState>(*slot)) {
-		return state.recall.retrigger[index_of(id)];
-	}
-	if (const auto* va = std::get_if<synth::VaState>(slot)) {
-		return va->pitch.retrigger;
-	}
-	if (const auto* wavetable = std::get_if<synth::WavetableState>(slot)) {
-		return wavetable->pitch.retrigger;
-	}
-	if (const auto* dx = std::get_if<synth::Dx7State>(slot)) {
-		return dx->pitch.retrigger;
-	}
-	return std::get_if<synth::InputState>(slot)->pitch.retrigger;
+	return pitch_of(state, id).retrigger;
 }
 
 std::array<synth::Pitch, 2> modulators(const SoundState& state) noexcept {

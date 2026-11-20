@@ -44,17 +44,41 @@ struct ComposedState {
 	bool operator==(const ComposedState&) const = default;
 };
 
-/// @brief What a sound keeps of what its file does not write, for a switch back: each oscillator's settings its current
-/// kind does not hold (the fields its state holds are left at their defaults here), a sample oscillator's retrigger
-/// phase, FM's modulators while another engine plays, and the oscillators' sync while the second is a sample.
+/// @brief What one oscillator slot remembers of the kinds it is not playing, so a switch back loses nothing.
+struct SlotMemory {
+	/// While FM plays: the slot's kind with its parts, as it plays again when FM goes (its pitch is the carrier's)
+	std::optional<synth::SlotState> parked;
+	synth::SamplePlayback playback;         ///< how a sample plays, while the slot is another kind
+	std::vector<synth::SampleRange> ranges; ///< the slot's ranges, while its kind plays none
+	std::optional<synth::DxPatch> patch;    ///< a DX7 voice, while the slot is another kind
+	/// While a sample: the pitch the other kinds play (a sample oscillator has none of its own; its ranges carry
+	/// theirs)
+	synth::Pitch sample_pitch;
+	bool operator==(const SlotMemory&) const = default;
+};
+
+/// @brief A sound's memory of what its current engine and oscillator kinds cannot hold, so a switch back loses nothing
+/// (a sample kept through a sine and back; FM's modulators through subtractive and back). Its file never writes it.
 struct Recall {
-	std::array<SourceState, 2> slots;
-	std::array<synth::Retrigger, 2> retrigger{}; ///< a sample oscillator's; free-running where its kind holds its own
-	std::array<synth::Pitch, 2> modulators{synth::FmState{}.modulators};
-	bool modulator1_to_modulator0{false};
-	bool sync{false};
+	std::array<SlotMemory, 2> slots;
+	std::array<synth::Pitch, 2> modulators{synth::FmState{}.modulators}; ///< FM's, while another engine plays
+	bool modulator1_to_modulator0{false};                                ///< FM's, while another engine plays
+	bool sync{false}; ///< the oscillators' sync, while the second is a sample (the file writes it in its pitch)
 	bool operator==(const Recall&) const = default;
 };
+
+/// @brief The memory of a playing slot whose kind does not hold @p kept (the slot's other fields in the file's layout,
+/// the kind's own at their defaults) and @p retrigger (a sample's).
+[[nodiscard]] SlotMemory remember(const SourceState& kept, const synth::Retrigger& retrigger);
+
+/// @brief The kept fields and retrigger @p memory holds for a playing slot, in the file's layout.
+[[nodiscard]] SourceState recalled(const SlotMemory& memory, synth::Retrigger& retrigger);
+
+/// @brief The memory of a slot parked while FM plays: @p kept is its whole source but for its pitch (the carrier's).
+[[nodiscard]] SlotMemory remember_parked(const SourceState& kept);
+
+/// @brief The whole source @p memory parks while FM plays, its pitch left at zero (the carrier's).
+[[nodiscard]] SourceState recalled_parked(const SlotMemory& memory);
 
 /// @brief The retrigger a file's 32-bit phase word means: none for 0xFFFFFFFF (free-running).
 [[nodiscard]] synth::Retrigger retrigger_of_word(uint32_t phase);
