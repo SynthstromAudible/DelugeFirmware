@@ -13,3 +13,6 @@ behavior. Legacy control callers use the restricted live-input role; layered
 control routing is introduced separately and removes their direct live-input
 access. Compile-time checks also reject direct live setters on AutoParam and
 on the other roles.
+The existing lazy-vector tests also run in ParameterTests using the same source
+as the 32-bit target. Tight allocation rounding and extension tests run in the
+existing 32-bit MemoryManagerTests target.

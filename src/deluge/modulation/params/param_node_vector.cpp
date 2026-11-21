@@ -24,6 +24,7 @@
 #include <string.h>
 
 ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {
+	useTightAllocations();
 }
 
 ParamNode* ParamNodeVector::getElement(int32_t index) {
@@ -45,7 +46,7 @@ bool LazyParamNodeVector::allocate() {
 	if (vector_) {
 		return true;
 	}
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ParamNodeVector));
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeedTight(sizeof(ParamNodeVector));
 	if (!memory) {
 		return false;
 	}

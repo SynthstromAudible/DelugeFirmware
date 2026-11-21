@@ -46,12 +46,13 @@ public:
 	MemoryRegion();
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd,
 	           CacheManager* cacheManager);
-	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
+	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom, bool tight = false);
 	size_t nallocx(size_t size) { return padSize(size); }
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
-	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom);
+	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom,
+	            bool tight = false);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* spaceAddress);
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
@@ -87,5 +88,5 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
-	uint32_t padSize(uint32_t requiredSize);
+	[[nodiscard]] uint32_t padSize(uint32_t requiredSize, bool tight = false) const;
 };
