@@ -154,9 +154,8 @@ public:
 	/// @brief False: never takes input, so the scene beneath keeps its own input focus.
 	bool input_transparent() const override { return true; }
 
-	/// @brief Read the count-in from @p transport, or show nothing when it is null. Not owned; it must outlive the
-	/// scene's
-	///        use of it.
+	/// @brief Read the count-in from @p transport, or show nothing when it is null.
+	/// @param transport The transport port; not owned, it must outlive the scene's use of it.
 	void set_transport(const deluge::scenes::bind::Transport* transport) { transport_ = transport; }
 
 	/// @name Observable state
@@ -169,8 +168,8 @@ public:
 	/// @}
 
 private:
-	const deluge::scenes::bind::Transport* transport_ = nullptr; // The installed port; null reads no count-in.
 	static constexpr size_t kTextCap = 11; // `char buffer[12]` (`drain_notifications` in `notify_drain.cpp`).
+	const deluge::scenes::bind::Transport* transport_ = nullptr; ///< The installed port; null reads no count-in.
 	char digit_[kTextCap + 1] = {};
 	size_t digit_len_ = 0;
 

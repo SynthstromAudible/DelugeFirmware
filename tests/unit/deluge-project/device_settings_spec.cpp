@@ -7,6 +7,7 @@
 #include "support/matchers/value_matchers.h"
 
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <set>
 #include <string>
