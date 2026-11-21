@@ -986,9 +986,13 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		// reference into voices_ is held across the note-on (a cull erasing or moving that slot mid-note-on is what
 		// fires E199).
 		std::optional<ActiveVoice> built; // ActiveVoice's deleter makes it not default-constructible
-		try {
-			built.emplace(AudioEngine::VoicePool::get().acquire(*this));
-		} catch (deluge::exception e) {
+		// Room to publish it first: a voice built with nowhere to go could only be destroyed after its note-on ran.
+		if (reserveVoiceSlot()) {
+			if (auto acquired = AudioEngine::VoicePool::get().try_acquire(*this)) {
+				built.emplace(std::move(*acquired));
+			}
+		}
+		if (!built.has_value()) {
 			// No memory for another voice: start this note as a new note on one of this Sound's own voices, as the
 			// voice limit's steal does. That voice is in voices_ and the render plays it, so all of it runs with the
 			// render excluded.
@@ -3253,10 +3257,21 @@ void Sound::noteVoicesEdit() {
 	deluge::noteStructuralEdit(deluge::StructuralContainer::VOICES);
 }
 
+bool Sound::reserveVoiceSlot() {
+	if (voices_.size() < voices_.capacity()) {
+		return true;
+	}
+	// Full: past the pool's capacity, which the constructor reserved (the pool falls back to the heap). Growing moves
+	// the buffer the render walks, so it is excluded; geometric, so a long run past the pool rarely moves it again.
+	AudioExcludedSection section;
+	noteVoicesEdit();
+	return voices_.try_reserve(std::max(voices_.size() + 1, 2 * voices_.size())).has_value();
+}
+
 void Sound::publishVoice(ActiveVoice voice) {
 	AudioExcludedSection section; // the render walks every Sound's voices
 	noteVoicesEdit();
-	voices_.push_back(std::move(voice));
+	voices_.push_back(std::move(voice)); // within the room reserveVoiceSlot() made: cannot allocate
 }
 
 Sound::ActiveVoiceIterator Sound::eraseVoiceAt(ActiveVoiceIterator it) {

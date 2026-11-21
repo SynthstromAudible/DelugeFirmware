@@ -459,8 +459,8 @@ void retire(Song* song);
 ///        snapshot). At once if the render has never run.
 void retireMemory(void* object, void (*destroy)(void*));
 /// @brief [interaction] Make room for @p count retireMemory() calls, so they cannot fail for want of memory.
-/// @throws The allocator's exception when there is no room.
-void reserveRetirements(size_t count);
+/// @return false when there is no memory for the room.
+[[nodiscard]] bool reserveRetirements(size_t count);
 /// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
 ///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E473 otherwise).
 ///        Bounded: freezes with E474 after 250 ms or 1000 waits for a block, whichever comes first. For a

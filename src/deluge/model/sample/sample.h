@@ -134,7 +134,7 @@ public:
 	/// Sized at the same hooks a sample's cluster count can change at (initialize, finalize-grow,
 	/// truncate-shrink -- see those call sites). Never grown concurrently with a reader, so no
 	/// `reserve()` pre-sizing is needed.
-	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
+	[[nodiscard]] deluge::AllocResult<void> resizeOverviewCache(size_t n) { return overviewCache_.try_resize(n); }
 
 	// A float sample's native word, Q31, as convert_word gives an integer one's
 	[[nodiscard]] int32_t convertToNative(float value) const { return deluge::dsp::from_float<31>(value).raw(); }

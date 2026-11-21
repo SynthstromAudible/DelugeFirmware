@@ -126,10 +126,8 @@ Error Sample::initialize(int32_t newNumClusters) {
 	waveTableCycleSize = 2048; // Default
 	fileExplicitlySpecifiesSelfAsWaveTable = false;
 
-	try {
-		overviewCache_.resize(overviewCache_.size() + newNumClusters);
-	} catch (deluge::exception&) {
-		return Error::INSUFFICIENT_RAM;
+	if (!overviewCache_.try_resize(overviewCache_.size() + newNumClusters)) {
+		return Error::INSUFFICIENT_RAM; // try_resize is all or nothing: the cache is as it was
 	}
 	return Error::NONE;
 }

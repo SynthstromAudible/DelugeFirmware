@@ -108,6 +108,15 @@ describe try_vector("deluge::TryVector", $ {
 		expect(contents(v)).to_equal(std::vector<int>{0, 3, 4});
 	});
 
+	it("erase_if erases the matching elements and keeps the order of the rest", _ {
+		Ints v;
+		for (int i = 0; i < 7; ++i) {
+			v.push_back(i);
+		}
+		expect(deluge::erase_if(v, [](int x) { return x % 3 == 0; })).to_equal(3u);
+		expect(contents(v)).to_equal(std::vector<int>{1, 2, 4, 5});
+	});
+
 	it("erases an empty range without touching the elements", _ {
 		using Strings = deluge::TryVector<std::string, FailingAllocator<std::string>>;
 		Strings v;

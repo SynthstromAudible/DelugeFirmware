@@ -304,4 +304,14 @@ private:
 	[[no_unique_address]] Alloc alloc_{};
 };
 
+/// @brief Erase every element @p pred holds for, keeping the rest in order (C++20's uniform container erasure).
+/// @return The number erased.
+template <class T, class Alloc, class Pred>
+typename TryVector<T, Alloc>::size_type erase_if(TryVector<T, Alloc>& v, Pred pred) {
+	auto kept = std::remove_if(v.begin(), v.end(), pred);
+	const auto erased = static_cast<typename TryVector<T, Alloc>::size_type>(v.end() - kept);
+	v.erase(kept, v.end());
+	return erased;
+}
+
 } // namespace deluge

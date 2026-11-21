@@ -194,12 +194,7 @@ bool release(Pick pick) {
 	if (held == 0) {
 		return false;
 	}
-	bool reserved = true;
-	try {
-		AudioEngine::reserveRetirements(held);
-	} catch (...) {
-		reserved = false;
-	}
+	const bool reserved = AudioEngine::reserveRetirements(held);
 	std::array<project::DocAutoParam*, kWorkingCopies> freed{};
 	size_t count = 0;
 	bool endedFreed = false;

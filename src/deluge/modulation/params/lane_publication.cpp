@@ -378,9 +378,7 @@ void discardSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
 }
 
 bool retireSnapshot(const LaneSnapshot* snapshot, const LaneSnapshot* kept) {
-	try {
-		AudioEngine::reserveRetirements(retirementsFor(*snapshot, kept));
-	} catch (...) {
+	if (!AudioEngine::reserveRetirements(retirementsFor(*snapshot, kept))) {
 		return false;
 	}
 	retireReserved(*snapshot, kept);
@@ -402,9 +400,7 @@ bool LanePublication::publish(ParamCollection& collection, ParamManagerForTimeli
 	}
 
 	// Room to retire what the new snapshot replaces, made before the swap so retiring it cannot fail
-	try {
-		AudioEngine::reserveRetirements(old != nullptr ? retirementsFor(*old, next) : 0);
-	} catch (...) {
+	if (!AudioEngine::reserveRetirements(old != nullptr ? retirementsFor(*old, next) : 0)) {
 		discardSnapshot(next, old);
 		return false;
 	}

@@ -366,8 +366,8 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 } // namespace
 
 namespace AudioEngine {
-void reserveRetirements(size_t count) {
-	retireList.reserve(count);
+bool reserveRetirements(size_t count) {
+	return retireList.reserve(count).has_value();
 }
 
 void retireMemory(void* object, void (*destroy)(void*)) {
@@ -2224,11 +2224,8 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 VoiceSample* solicitVoiceSample() {
-	try {
-		return VoiceSamplePool::get().acquire().release();
-	} catch (deluge::exception e) {
-		return nullptr;
-	}
+	auto voiceSample = VoiceSamplePool::get().try_acquire();
+	return voiceSample ? voiceSample->release() : nullptr;
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
@@ -2236,11 +2233,8 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 }
 
 TimeStretcher* solicitTimeStretcher() {
-	try {
-		return TimeStretcherPool::get().acquire().release();
-	} catch (deluge::exception e) {
-		return nullptr;
-	}
+	auto timeStretcher = TimeStretcherPool::get().try_acquire();
+	return timeStretcher ? timeStretcher->release() : nullptr;
 }
 
 // There are no destructors. You gotta clean it up before you call this
