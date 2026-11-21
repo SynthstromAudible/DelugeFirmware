@@ -117,8 +117,6 @@
 #include <optional>
 #include <string>
 
-class Sample;
-
 namespace deluge::scenes::slicing {
 
 /// @brief Legacy's `SLICER_MODE_REGION` / `SLICER_MODE_MANUAL` (`origin/main:src/deluge/gui/ui/slicer.h`), as an
@@ -234,6 +232,13 @@ public:
 	}
 };
 
+/// @brief The file the slicer opens on: which waveform it is, and its path, which a reopen compares.
+struct SliceFile {
+	uint64_t identity{0}; ///< the waveform's identity, as `bind::WaveformInfo::identity` gives it
+	std::string path;     ///< the file's path
+	bool operator==(const SliceFile&) const = default;
+};
+
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 8` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kSlicerSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 8);
@@ -241,18 +246,19 @@ inline constexpr deluge::ui::shell::SceneKind kSlicerSceneKind =
 /// @brief The slicer. One instance for the whole application (`registry.h`).
 class SlicerScene final : public deluge::ui::shell::Scene {
 public:
-	/// @brief Point the scene at the sample the browser previewed.
+	/// @brief Point the scene at the file the browser previewed.
 	///
 	/// The entry point for whoever opens the slicer, split from `on_enter` for the reason `MarkerScene::open` is.
 	/// Legacy has no equivalent line inside `Slicer` at all: it reads the **`waveformBasicNavigator` global**, which
 	/// the sample browser's preview path set up and scanned (`SampleBrowser::previewIfPossible`,
-	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). With @p shown the scene takes the preview's view,
-	/// and the waveforms port answers the columns the preview read, since it keeps them by file. Without it the scene
-	/// opens zoomed out; called again on the sample and file it already shows, it keeps its view, as nothing resets
-	/// legacy's global between two slicer opens.
-	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
-	/// @param shown  The file and view the browser's preview drew @p sample at, or none.
-	void open(Sample* sample, std::optional<sample_view::ShownWaveform> shown = std::nullopt);
+	/// `origin/main:src/deluge/gui/ui/browser/sample_browser.cpp`). The scene draws whatever the waveforms port's SLICE
+	/// address answers, which is the file the host opened it on. With @p shown the scene takes the preview's view, and
+	/// the port answers the columns the preview read, since it keeps them by file. Without it the scene opens zoomed
+	/// out over the length SLICE answers; called again on the file it already shows, it keeps its view, as nothing
+	/// resets legacy's global between two slicer opens.
+	/// @param file  The file to slice; none leaves the scene with nothing to draw.
+	/// @param shown The view the browser's preview drew @p file at, or none.
+	void open(std::optional<SliceFile> file, std::optional<sample_view::ShownWaveform> shown = std::nullopt);
 
 	/// @brief Switch between REGION and MANUAL.
 	///
@@ -352,11 +358,10 @@ public:
 	/// @return Is a slice commit out? Legacy's `currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate,
 	///         which refuses every button and pad until the host ends the commit (`commit_done`).
 	bool committing() const { return committing_; }
-	/// @return Whether `open` handed the scene a sample to slice.
-	bool has_sample() const { return sample_ != nullptr; }
-	/// @return The sample the slicer was last opened on, which the waveforms port's SLICE address resolves to; null
-	///         before the first open. A close does not clear it.
-	[[nodiscard]] Sample* sliced_sample() const { return sample_; }
+	/// @return Whether `open` handed the scene a file to slice.
+	bool has_sample() const { return file_.has_value(); }
+	/// @return The file the scene was last opened on, or none.
+	[[nodiscard]] const std::optional<SliceFile>& file() const { return file_; }
 	/// @}
 
 	/// @brief How often the playhead is redrawn while something plays.
@@ -406,15 +411,15 @@ private:
 	/// @param req The audition request.
 	void preview(const PreviewRequest& req);
 
-	/// The sample the scene slices; null before an open.
-	Sample* sample_{nullptr};
-	/// The scroll and zoom. Main shares one navigator (`waveformBasicNavigator`) between the browser, the marker
-	/// editor and the slicer; each scene here owns its view, and the waveforms port keeps the columns by file.
+	/// The file the scene slices, and `view_` was opened on: a reopen keeps the view only for the same file. None
+	/// before an open.
+	std::optional<SliceFile> file_{};
+	/// The scroll and zoom, over the file's length, which is fixed while the file is loaded. Main shares one navigator
+	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; each scene here owns its
+	/// view, and the waveforms port keeps the columns by file.
 	sample_view::WaveformView view_{};
 	/// The redraws of a frame whose read left columns pending.
 	services::PeakRetry retry_{};
-	/// The file `view_` was opened on: a reopen keeps the view only for the same sample on the same file.
-	std::string nav_path_{};
 
 	/// `int16_t`, as legacy declares it (`Slicer::numClips` in `origin/main:src/deluge/gui/ui/slicer.h`) -- the wrap in
 	/// `selectEncoderAction` is written against exactly 257 and 1, so the width is part of the behaviour.
@@ -431,6 +436,10 @@ private:
 	bind::Ports ports_{};
 	/// @brief The ports the scene reads: the installed ones, each null one filled from the host's.
 	[[nodiscard]] bind::Ports ports() const;
+	/// @return The waveforms port the scene draws through, or null with none.
+	[[nodiscard]] const bind::Waveforms* waveforms() const;
+	/// @return What the waveforms port answers at the SLICE address, or none with no port.
+	[[nodiscard]] std::optional<bind::WaveformInfo> slice_info() const;
 
 	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};

@@ -1570,7 +1570,7 @@ void actShellSlice() {
 	    false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
 	auto& scene = deluge::scenes::slicing::slicer_scene();
-	scene.open(nullptr);
+	scene.open(std::nullopt);
 	if (g_leg == Leg::ShellSliceBack) {
 		// A first drum that holds no file, as a brand-new kit's has: main dereferences its missing sample here.
 		auto* drum = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);

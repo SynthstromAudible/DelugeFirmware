@@ -2,14 +2,16 @@
 
 /// @file
 /// @brief The slicer's fixtures, which `slicer_scene_spec` and the menu oracle freezer share: a sample whose every
-///        display column is an overview-cache hit, a `Shell` over the scene, a `SliceOps` that records rather than
-///        acts, and the port's own front door for a seeded slice table.
+///        display column is an overview-cache hit, a `Shell` over the scene opened through the app's slicer host, a
+///        `SliceOps` that records rather than acts (`fake_slice_ops.h`), and the port's own front door for a seeded
+///        slice table.
 ///
 /// The sample never touches the card: `deluge::sample::find_peaks_per_col`'s whole-cluster arm reuses the sample's
 /// own overview cache, so a sample long enough that every column spans two or more clusters, its every overview entry
 /// marked investigated, draws the waveform the fixture asked for with no reader opened. Halving `kSampleLength` turns
 /// the whole waveform black -- the scan only takes its cache arm at `numClustersSpan >= 2`.
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
@@ -24,7 +26,10 @@
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
 
+#include "support/slicer_host_open.h"
 #include "support/song_fixture.h"
+
+#include "fake_slice_ops.h"
 
 #include "support/mocks/fake_surfaces.h"
 
@@ -32,6 +37,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace deluge::scenes::spec::slicer_fx {
@@ -103,9 +109,14 @@ struct SlicerDisplay final : deluge::hid::Display {
 
 // --- the port's rig ---------------------------------------------------------------------------
 
+/// The path the preview drum holds the fixture's sample under.
+inline constexpr std::string_view kSlicePath = "SAMPLES/SLICE.WAV";
+
 struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
 	Sample* sample = make_sample();
+	/// The sample in the preview drum, which the slicer's host opens on; `open` puts it there.
+	std::optional<spec::SliceHeld> held;
 
 	const BoardProfile& profile;
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
@@ -126,6 +137,7 @@ struct Rig {
 		// wired would hand the next example a dangling boundary. Unwired is also the state
 		// `SliceOps`'s docstring calls the honest default.
 		slicer_scene().set_ops(nullptr);
+		held.reset();
 		std::memset(matrixDriver.padStates, 0, sizeof(matrixDriver.padStates));
 	}
 
@@ -135,9 +147,18 @@ struct Rig {
 		slicer_scene().set_ops(nullptr);
 	}
 
-	/// @brief Open the slicer on the fixture's sample, the way `SampleBrowser` does.
+	/// @brief Put the fixture's sample in the preview drum and open the slicer's host on it, as the browser's SLICE
+	///        door does, without pushing the scene.
+	void open_host() {
+		if (!held) {
+			held.emplace(sample, kSlicePath);
+		}
+		held->open();
+	}
+
+	/// @brief Open the slicer on the fixture's sample, the way `SampleBrowser` does: the host first, then the push.
 	void open() {
-		slicer_scene().open(sample);
+		open_host();
 		shell.init(SceneId{kSlicerSceneKind, 0});
 	}
 
@@ -235,56 +256,7 @@ struct Rig {
 
 // --- the audio/model/card boundary, faked ------------------------------------------------------
 
-/// @brief A `SliceOps` that records rather than acts.
-///
-/// The six calls behind `SliceOps` are the ones this layer may not make (see its docstring); a fake
-/// is how the spec sees *that they were made, with what, and in what order* without a booted audio
-/// engine, a kit, or a card. Everything the scene decides on its own -- the slice table, the modes,
-/// the popup, the gate, the coalescer, the dispatch -- is real and is compared against main's.
-///
-/// `play_position` is the one that answers back: it stands for the voice walk in
-/// main's `Slicer::padAction` do-slice arm, and `nullopt` (its default) is main's
-/// `voiceSample == nullptr`.
-struct FakeOps final : deluge::scenes::slicing::SliceOps {
-	int32_t stop_previewing_calls = 0;
-	int32_t kill_voices_calls = 0;
-	int32_t restore_calls = 0;
-	std::vector<deluge::scenes::slicing::PreviewRequest> auditions;
-	std::vector<deluge::scenes::slicing::SliceCommit> commits;
-	std::optional<int32_t> next_play_position{};
-	int32_t play_position_calls = 0;
-	int32_t cancel_audition_calls = 0;
-	/// What `begin_commit` answers.
-	bool accept_commit = true;
-
-	void stop_previewing() override { stop_previewing_calls++; }
-	void cancel_audition() override { cancel_audition_calls++; }
-	void kill_voices() override { kill_voices_calls++; }
-	void restore_full_range() override { restore_calls++; }
-	void audition(const deluge::scenes::slicing::PreviewRequest& r) override { auditions.push_back(r); }
-	bool begin_commit(const deluge::scenes::slicing::SliceCommit& c) override {
-		commits.push_back(c);
-		return accept_commit;
-	}
-	std::optional<int32_t> play_position() override {
-		play_position_calls++;
-		return next_play_position;
-	}
-
-	/// @brief Element @p i of a recorded vector, or a zeroed value if it was never recorded.
-	///
-	/// cppspec's `expect` does not stop the example, so a bare `auditions[0]` on a mutant that
-	/// recorded nothing aborts the whole process inside libstdc++ and hides every other result.
-	/// This accessor makes such a mutant fail loudly on the value.
-	/// @{
-	deluge::scenes::slicing::PreviewRequest audition_at(size_t i) const {
-		return i < auditions.size() ? auditions[i] : deluge::scenes::slicing::PreviewRequest{};
-	}
-	deluge::scenes::slicing::SliceCommit commit_at(size_t i) const {
-		return i < commits.size() ? commits[i] : deluge::scenes::slicing::SliceCommit{};
-	}
-	/// @}
-};
+using deluge::scenes::slicing::test::FakeOps;
 
 // --- the shared slice table ---------------------------------------------------------------------
 

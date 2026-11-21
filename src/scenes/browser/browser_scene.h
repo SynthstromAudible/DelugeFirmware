@@ -73,6 +73,7 @@
 ///          makes that satisfiable.
 
 #include "definitions_cxx.hpp" // Error
+#include "scenes/browser/browser_kind.h"
 #include "scenes/browser/listing.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/shortcut_blink.h"
@@ -366,10 +367,6 @@ BrowserHost& null_browser_host();
 ///       build a NUL-terminated copy of the edited text for `searchFileItems`, which takes a
 ///       `char const*`. What the fixed buffer does buy is that the *render* path allocates nothing.
 inline constexpr size_t kMaxEnteredChars = 128;
-
-/// @brief `SceneKind` this scene is registered under: `FirstApp + 3` (`registry.h`).
-inline constexpr deluge::ui::shell::SceneKind kBrowserSceneKind =
-    static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 3);
 
 /// @brief `Browser::renderOLED`'s two x origins, on the shipped `PartialInversion` profile.
 ///

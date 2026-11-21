@@ -91,8 +91,9 @@ public:
 				// An earlier open still loading would land over this one.
 				open_load_.cancel();
 				sample_ = sample;
-				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(
-				                                gui::shell_host::waveform_identity(*sample)));
+				const uint64_t identity = gui::shell_host::waveform_identity(*sample);
+				slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+				                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
 				shellSliceReady(true);
 				return;
 			}
@@ -141,13 +142,18 @@ public:
 
 	/// @brief Drop what the guest's close leaves behind: a pending open, the sample the slicer was open on and a held
 	///        audition, which would otherwise land in whatever the next guest edits. A slice that is out cannot be
-	///        dropped; the close is refused while one is (`slicing`).
+	///        dropped; the close is refused while one is (`slicing`). The scene lets its file go too: no slicer shows
+	///        after the close, and a reopen reads afresh.
 	void release() {
 		open_load_.cancel();
 		core_.cancel_audition();
 		sample_ = nullptr;
 		play_position_.reset();
+		slicer_scene().open(std::nullopt);
 	}
+
+	/// @return The sample the slicer is open on, or null before an open and after a release.
+	[[nodiscard]] ::Sample* sample() const { return sample_; }
 
 	[[nodiscard]] bool slicing() const { return core_.slicing(); }
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
@@ -187,8 +193,9 @@ private:
 		Sample* sample = range != nullptr ? static_cast<Sample*>(range->sampleHolder.audioFile) : nullptr;
 		if (outcome->result == Result::Bound && sample != nullptr) {
 			sample_ = sample;
-			slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(
-			                                gui::shell_host::waveform_identity(*sample)));
+			const uint64_t identity = gui::shell_host::waveform_identity(*sample);
+			slicer_scene().open(deluge::scenes::slicing::SliceFile{.identity = identity, .path = path_},
+			                    deluge::scenes::browser::browser_scene().shown_waveform(identity));
 			shellSliceReady(true);
 			return;
 		}
@@ -218,8 +225,7 @@ HostSliceOps& host() {
 } // namespace
 
 ::Sample* shellSlicedSample() {
-	// The scene holds the sample the ops opened it on, and a spec that opens the scene directly holds its own.
-	return slicer_scene().sliced_sample();
+	return host().sample();
 }
 
 void wireShellSliceOps() {

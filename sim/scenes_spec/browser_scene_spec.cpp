@@ -2709,7 +2709,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
-		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		deluge::scenes::slicing::slicer_scene().open(std::nullopt);
 		held.range->sampleHolder.filePath.clear();
 	});
 
@@ -2727,7 +2727,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
-		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		deluge::scenes::slicing::slicer_scene().open(std::nullopt);
 		held.range->sampleHolder.filePath.clear();
 	});
 
