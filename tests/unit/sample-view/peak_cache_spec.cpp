@@ -136,7 +136,7 @@ describe peak_cache_group("peak_cache.h", ${
 			expect(r.last.count()).to_equal(size_t{kColumns - 1});
 		}
 	});
-	it("slides a whole-column scroll at any zoom, and clears when the scrolls are further apart than an int64_t", _ {
+	it("slides a whole-column scroll at a zoom far past any file's, and clears when the scroll's change overflows an int64_t", _ {
 		const int64_t zoom = int64_t{1} << 50;
 		PeakCache cache;
 		Reader setup{.answer = all_peaks(0)};
@@ -145,7 +145,8 @@ describe peak_cache_group("peak_cache.h", ${
 		const PeakRead slid = cache.update({.scroll = zoom, .zoom = zoom}, 1000, false, one);
 		expect(slid.column(0)).to_equal(setup.answer.column(1));
 		expect(one.last.count()).to_equal(size_t{1});
-		// At zoom 2^60, from -2^62 to 2^62 + 2^61 is 2^63 + 2^61 frames: past what an int64_t holds.
+		// At zoom 2^60, from -2^62 to 2^62 + 2^61 is 2^63 + 2^61 frames: past what an int64_t holds, so the change has
+		// no whole-column count to slide by and the cache clears. No file reaches such a zoom (at most 2^28 + 1).
 		const int64_t wide = int64_t{1} << 60;
 		PeakCache far;
 		Reader far_setup{.answer = all_peaks(0)};

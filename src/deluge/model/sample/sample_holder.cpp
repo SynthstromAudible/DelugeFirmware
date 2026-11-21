@@ -39,7 +39,6 @@ static DelugeLoadMode loadModeFor(int32_t clusterLoadInstruction) {
 SampleHolder::SampleHolder() {
 	startPos = 0;
 	endPos = deluge::instrument::kUnsetEndPos;
-	waveformViewZoom = 0;
 	audioFileType = AudioFileType::SAMPLE;
 }
 
@@ -66,8 +65,6 @@ void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 
 	startPos = other->startPos;
 	endPos = other->endPos;
-	waveformViewScroll = other->waveformViewScroll;
-	waveformViewZoom = other->waveformViewZoom;
 }
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {

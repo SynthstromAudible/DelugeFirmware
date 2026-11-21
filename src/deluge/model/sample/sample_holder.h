@@ -33,15 +33,12 @@ public:
 
 	SampleHolder(SampleHolder&& other) noexcept
 	    : AudioFileHolder(std::move(other)), startPos(other.startPos), endPos(other.endPos),
-	      waveformViewScroll(other.waveformViewScroll), waveformViewZoom(other.waveformViewZoom),
 	      neutralPhaseIncrement(other.neutralPhaseIncrement),
 	      clustersForStart_(std::exchange(other.clustersForStart_, nullptr)) {}
 	SampleHolder& operator=(SampleHolder&& other) noexcept {
 		AudioFileHolder::operator=(std::move(other));
 		startPos = other.startPos;
 		endPos = other.endPos;
-		waveformViewScroll = other.waveformViewScroll;
-		waveformViewZoom = other.waveformViewZoom;
 		neutralPhaseIncrement = other.neutralPhaseIncrement;
 		clustersForStart_ = std::exchange(other.clustersForStart_, nullptr);
 		return *this;
@@ -60,9 +57,6 @@ public:
 	// In samples.
 	uint64_t startPos;
 	uint64_t endPos; // Don't access this directly. Call getPos(). This variable may be beyond the end of the sample
-
-	int32_t waveformViewScroll{};
-	int32_t waveformViewZoom; // 0 means neither of these vars set up yet
 
 	int32_t neutralPhaseIncrement{};
 

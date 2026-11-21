@@ -2211,7 +2211,7 @@ void SessionView::graphicsRoutine() {
 
 			if (clip->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->renderData.xScroll = -1; // Make sure values are recalculated
+					((AudioClip*)clip)->renderData.forget(); // Make sure values are recalculated
 
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
 				}
@@ -4796,8 +4796,11 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			                                currentSong->persistentView.xZoom[NAVIGATION_CLIP], &xScrollSamples,
 			                                &xZoomSamples);
 
-			deluge::sample::find_peaks_per_col((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                   xZoomSamples, &((AudioClip*)clip)->renderData);
+			auto* const audio_clip = (AudioClip*)clip;
+			(void)deluge::sample::find_peaks_per_col(
+			    *static_cast<Sample*>(audio_clip->sampleHolder.audioFile),
+			    {.scroll = static_cast<int64_t>(xScrollSamples), .zoom = static_cast<int64_t>(xZoomSamples)},
+			    audio_clip->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}
