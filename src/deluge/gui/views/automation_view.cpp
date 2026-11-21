@@ -1146,7 +1146,8 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 				bool show_control_value = !padSelected && !padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)
-				                          && !playbackHandler.isEitherClockActive();
+				                          && (!playbackHandler.isEitherClockActive()
+				                              || (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr));
 				int32_t knob_pos = 0;
 				if (show_control_value) {
 					int32_t value = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);

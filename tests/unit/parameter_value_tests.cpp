@@ -249,3 +249,24 @@ TEST(ParameterValueTests, AdvancingACurrentValueMatchesFullEvaluation) {
 		}
 	}
 }
+
+TEST(ParameterValueTests, RebasedLinkedUndoRestoresTheEffectiveValue) {
+	int32_t preset = 100;
+	ClipParamValue clip;
+	clip.bindPreset(&preset);
+	clip.setValue(125);
+	// A linked edit moves the shared baseline; the undo record holds the old absolute baseline.
+	int32_t undo_baseline = preset;
+	preset = 110;
+	LONGS_EQUAL(135, clip.getValue());
+	// Saving the preset rebases to the saved value, preserving the effective value.
+	int32_t saved = clip.getValue();
+	clip.preserveBeforePresetChange(&preset, saved);
+	int64_t difference = int64_t{saved} - preset;
+	preset = saved;
+	LONGS_EQUAL(135, clip.getValue());
+	// The history shift (Output::rebasePresetHistory) keeps the undo meaningful.
+	undo_baseline = ClipParamValue::resolve(int64_t{undo_baseline} + difference);
+	preset = undo_baseline;
+	LONGS_EQUAL(125, clip.getValue());
+}

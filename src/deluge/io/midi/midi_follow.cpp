@@ -1370,7 +1370,12 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					}
 					else {
-						currentValue = modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
+						// Report what an incoming CC edits (see handleReceivedCC()). Only unlinked
+						// automation feedback follows the live automated value.
+						bool live = isAutomation && (ParamCollection::getLinkedOutput(modelStackWithParam) == nullptr);
+						currentValue =
+						    live ? modelStackWithParam->autoParam->getCurrentValue()
+						         : modelStackWithParam->paramCollection->getValueForControl(modelStackWithParam);
 					}
 
 					// convert current value to a knob position

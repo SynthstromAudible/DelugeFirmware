@@ -401,5 +401,6 @@ ClipParamValue* MIDIParamCollection::getClipValueStorage(int32_t cc) {
 
 int32_t MIDIParamCollection::getValueForControl(int32_t cc, ModelStackWithThreeMainThings const* modelStack) {
 	using namespace deluge::modulation::params;
-	return params.getValueForControl(cc, controlLayer(Kind::MIDI, true, controlsEditClipValue(modelStack), false));
+	return params.getValueForControl(
+	    cc, controlLayer(Kind::MIDI, true, controlsEditClipValue(modelStack), getLinkedOutput(modelStack) != nullptr));
 }

@@ -153,8 +153,12 @@ public:
 	// Adjust the offset before the shared baseline changes, retaining even the
 	// portion of the scalar hidden by saturation. Other owners are untouched.
 	void preserveBeforePresetChange(const int32_t* preset, int32_t newValue) {
+		shiftOffset(preset, int64_t{*preset} - newValue);
+	}
+	// Move the offset of a value bound to preset, retaining any part hidden by saturation.
+	void shiftOffset(const int32_t* preset, int64_t shift) {
 		if (presetPointer() == preset) {
-			setUnclampedValue(getUnclampedValue() + int64_t{*preset} - newValue);
+			setUnclampedValue(getUnclampedValue() + shift);
 		}
 	}
 

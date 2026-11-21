@@ -16,12 +16,18 @@
  */
 
 #pragma once
+#include "model/action/action.h"
 
 // Callers which may create an undo action from a UI which otherwise can't.
-enum class ActionOrigin { DEFAULT, RESET_PARAM_VALUES };
+enum class ActionOrigin { DEFAULT, RESET_PARAM_VALUES, LINKED_PARAMETER_MENU };
+
+constexpr ActionType parameterChangeActionType(bool recordingNormally, bool clockActive) {
+	return recordingNormally && clockActive ? ActionType::RECORD : ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE;
+}
 
 constexpr bool actionAllowedFromUI(bool root, bool soundEditor, bool gridEditor, bool patternLoader,
                                    ActionOrigin origin) {
 	// Reset Param Values creates its action from its confirmation menu.
-	return root || patternLoader || (soundEditor && gridEditor) || origin == ActionOrigin::RESET_PARAM_VALUES;
+	return root || patternLoader || (soundEditor && (gridEditor || origin == ActionOrigin::LINKED_PARAMETER_MENU))
+	       || origin == ActionOrigin::RESET_PARAM_VALUES;
 }

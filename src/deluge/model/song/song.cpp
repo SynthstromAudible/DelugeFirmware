@@ -3629,6 +3629,9 @@ traverseClips:
 	newOutput->setUSBBus(oldOutput->getUSBBus());
 	oldOutput->setUSBBus(0);
 
+	newOutput->trackLink = oldOutput->trackLink;
+	oldOutput->trackLink = false;
+
 	retargetRecordingFromReferences(oldOutput, newOutput);
 
 	// Properly do away with the oldInstrument
@@ -5390,6 +5393,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->setUSBBus(oldOutput->getUSBBus());
 	oldOutput->setUSBBus(0);
+
+	newOutput->trackLink = oldOutput->trackLink;
+	oldOutput->trackLink = false;
 
 	retargetRecordingFromReferences(oldOutput, newOutput);
 

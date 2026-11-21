@@ -23,7 +23,6 @@ enum class ControlLayer { LIVE, CLIP, PRESET, REGION };
 
 // Shared by panel reads/writes and MIDI feedback. Expression always remains a
 // live input; recording and explicit automation edits never edit a shared preset.
-// linked selects the shared preset layer; no caller links its controls yet.
 constexpr ControlLayer controlLayer(Kind kind, bool hasScalar, bool editScalar, bool linked, bool region = false) {
 	if (region) {
 		return ControlLayer::REGION;
@@ -32,6 +31,11 @@ constexpr ControlLayer controlLayer(Kind kind, bool hasScalar, bool editScalar, 
 		return ControlLayer::LIVE;
 	}
 	return linked ? ControlLayer::PRESET : ControlLayer::CLIP;
+}
+
+// Non-automatable controls still need the timeline for ordinary linked edits.
+constexpr bool retainControlTimeline(bool allowsAutomation, bool linked, bool region) {
+	return allowsAutomation || (linked && !region);
 }
 
 struct AutomationTransition {

@@ -32,6 +32,7 @@ public:
 		PARAM_CHANGE = 3,
 		NOTE_ARRAY_CHANGE = 4,
 		RESET_PARAM_ENTRY = 5,
+		PRESET_PARAM_CHANGE = 6,
 	};
 
 	Consequence();

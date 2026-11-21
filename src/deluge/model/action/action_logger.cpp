@@ -243,10 +243,12 @@ ActionType ActionLogger::getParameterChangeActionType() const {
 	// parameter itself has no automation. Otherwise these edits (e.g. MIDI
 	// expression) split RECORD actions, repeatedly snapshotting the same note
 	// and automation data until undo history consumes all available memory.
-	if (playbackHandler.recording == RecordingMode::NORMAL && playbackHandler.isEitherClockActive()) {
-		return ActionType::RECORD;
-	}
-	return ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE;
+	return parameterChangeActionType(playbackHandler.recording == RecordingMode::NORMAL,
+	                                 playbackHandler.isEitherClockActive());
+}
+
+Action* ActionLogger::getParameterChangeAction(ActionOrigin origin) {
+	return getNewAction(getParameterChangeActionType(), ActionAddition::ALLOWED, origin);
 }
 
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {

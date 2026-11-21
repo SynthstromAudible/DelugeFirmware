@@ -99,8 +99,39 @@ PLACE_SDRAM_TEXT Error Output::preparePresetParameter(Song* song, ModControllabl
 	return materializePresetParameter(this, song, owner, kind, id, *preset);
 }
 
+PLACE_SDRAM_TEXT void Output::shiftPresetOffsets(Song* song, Kind kind, int32_t id, const int32_t* preset,
+                                                 int64_t shift) {
+	auto shift_manager = [&](ParamManager& manager) {
+		for (auto* summary = manager.summaries; summary->paramCollection != nullptr; ++summary) {
+			auto* collection = summary->paramCollection;
+			if (collection->getParamKind() == kind) {
+				auto* scalar = collection->getClipValueStorage(id);
+				if (scalar != nullptr) {
+					scalar->shiftOffset(preset, shift);
+				}
+			}
+		}
+	};
+	for (Clip* candidate : AllClips::everywhere(song)) {
+		shift_manager(candidate->paramManager);
+		if (candidate->type == ClipType::INSTRUMENT) {
+			auto* instrument_clip = static_cast<InstrumentClip*>(candidate);
+			shift_manager(instrument_clip->backedUpParamManagerMIDI);
+			auto& rows = instrument_clip->noteRows;
+			for (int32_t r = 0; r < rows.getNumElements(); ++r) {
+				shift_manager(rows.getElement(r)->paramManager);
+			}
+		}
+	}
+	for (int32_t i = 0; i < song->backedUpParamManagers.getNumElements(); ++i) {
+		auto* backup = static_cast<BackedUpParamManager*>(song->backedUpParamManagers.getElementAddress(i));
+		shift_manager(backup->paramManager);
+	}
+}
+
 PLACE_SDRAM_TEXT Error Output::announcePresetParameterChange(Song* song, ModControllable* owner, Kind kind, int32_t id,
-                                                             int32_t previous, const ParamManager* preserved) {
+                                                             int32_t previous, const ParamManager* preserved,
+                                                             int64_t offset_shift) {
 	return visitOutputParameters(this, song, owner, kind, id, [&](ModelStackWithParamId* stack, Clip* clip) -> Error {
 		auto* collection = stack->paramCollection;
 		auto* scalar = collection->getClipValueStorage(id);
@@ -111,7 +142,7 @@ PLACE_SDRAM_TEXT Error Output::announcePresetParameterChange(Song* song, ModCont
 		auto* param = param_stack->autoParam;
 		int32_t old_scalar = stack->paramManager == preserved
 		                         ? scalar->getValue()
-		                         : ClipParamValue::resolve(int64_t{previous} + scalar->getOffset());
+		                         : ClipParamValue::resolve(int64_t{previous} + scalar->getOffset() - offset_shift);
 		int32_t old_value = ClipParamValue::resolve(int64_t{old_scalar} + param->getAutomationOffset());
 		bool automated = param->isAutomated();
 		// The displayed baseline changed even if an effective value was clamped,
@@ -164,6 +195,7 @@ Error Output::rebasePresetParameter(Song* song, ModControllable* owner, Kind kin
 			scalar->preserveBeforePresetChange(preset, value);
 		}
 	}
+	rebasePresetHistory(owner, kind, id, int64_t{value} - previous);
 	// Each other clip keeps its offset, so its undo records move with the baseline.
 	Error shifted = visitOutputParameters(this, song, owner, kind, id, [&](ModelStackWithParamId* stack, Clip*) {
 		if (stack->paramManager != saved) {

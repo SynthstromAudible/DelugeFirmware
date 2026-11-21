@@ -839,3 +839,37 @@ TEST(AutoParamTests, ReconcilingLoadedTempoDoesNotShiftSavedScalarOrNodes) {
 	param.deleteAutomationBasicForSetup();
 	CHECK_EQUAL(12000, param.getCurrentValue());
 }
+
+TEST(AutoParamTests, LinkedUndoKeepsWhatARebasedBaselineCannotHoldAsAnOffsetShift) {
+	// A linked edit moved the baseline from its minimum to its maximum; undo restores the minimum.
+	preset = INT32_MAX;
+	clip.setValue(INT32_MAX);
+	int32_t undo_value = INT32_MIN;
+	int64_t undo_shift = 0;
+	// A clip saved near the minimum becomes the baseline, so the undo target moves below int32.
+	int32_t saved = INT32_MIN + 10;
+	int64_t target = int64_t{undo_value} + undo_shift + (int64_t{saved} - preset);
+	clip.preserveBeforePresetChange(&preset, saved);
+	preset = saved;
+	undo_value = ClipParamValue::resolve(target);
+	undo_shift = target - undo_value;
+	CHECK_EQUAL(INT32_MAX, clip.getValue());
+	CHECK_EQUAL(INT32_MIN, undo_value);
+	CHECK(undo_shift < 0);
+
+	// Undo, then redo with the record it leaves.
+	int32_t redo_value = preset;
+	clip.shiftOffset(&preset, undo_shift);
+	preset = undo_value;
+	CHECK_EQUAL(INT32_MIN, clip.getValue());
+	clip.shiftOffset(&preset, -undo_shift);
+	preset = redo_value;
+	CHECK_EQUAL(INT32_MAX, clip.getValue());
+
+	int32_t other_preset = 0;
+	ClipParamValue other;
+	other.bindPreset(&other_preset);
+	other.setValue(5);
+	other.shiftOffset(&preset, undo_shift);
+	CHECK_EQUAL(5, other.getValue());
+}

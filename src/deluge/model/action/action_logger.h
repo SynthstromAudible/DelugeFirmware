@@ -40,6 +40,7 @@ public:
 	// warning - super not thread safe
 	Action* getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible = ActionAddition::NOT_ALLOWED,
 	                     ActionOrigin origin = ActionOrigin::DEFAULT);
+	Action* getParameterChangeAction(ActionOrigin origin = ActionOrigin::DEFAULT);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  ActionType actionType = ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);

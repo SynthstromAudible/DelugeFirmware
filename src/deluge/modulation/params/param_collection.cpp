@@ -22,6 +22,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/fx/stutterer.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -67,6 +69,35 @@ bool ParamCollection::controlsEditClipValue(ModelStackWithThreeMainThings const*
 	return !recording_automation;
 }
 
+Output* ParamCollection::getLinkedOutput(ModelStackWithThreeMainThings const* modelStack) {
+	auto* timeline = modelStack->getTimelineCounterAllowNull();
+	if ((timeline == nullptr) || timeline == modelStack->song || !controlsEditClipValue(modelStack)) {
+		return nullptr;
+	}
+	auto* output = static_cast<Clip*>(timeline)->output;
+	return (output != nullptr) && output->trackLink ? output : nullptr;
+}
+
+Output* ParamCollection::getLinkedOutput(ModelStackWithThreeMainThings const* modelStack,
+                                         deluge::modulation::params::Kind kind, int32_t id) {
+	using deluge::modulation::params::Kind;
+	Output* output = getLinkedOutput(modelStack);
+	if (output != nullptr && id == deluge::modulation::params::UNPATCHED_STUTTER_RATE
+	    && (kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL)
+	    && stutterer.isQuantizedStutter(static_cast<ModControllableAudio*>(modelStack->modControllable))) {
+		return nullptr;
+	}
+	return output;
+}
+
+Output* ParamCollection::getLinkedOutput(ModelStackWithParamId const* modelStack) {
+	// A knob with nothing assigned, e.g. a MIDI clip's knob without a CC, has no collection.
+	if (modelStack->paramCollection == nullptr) {
+		return getLinkedOutput(static_cast<ModelStackWithThreeMainThings const*>(modelStack));
+	}
+	return getLinkedOutput(modelStack, modelStack->paramCollection->getParamKind(), modelStack->paramId);
+}
+
 int32_t ParamCollection::getValueForControl(ModelStackWithParamId const* modelStack) {
 	return getValueForControl(modelStack->paramId, modelStack);
 }
@@ -75,8 +106,17 @@ void ParamCollection::setValueFromControl(int32_t value, ModelStackWithParamId c
                                           int32_t length, bool mayDeleteNodesInLinearRun) {
 	using namespace deluge::modulation::params;
 	auto* clip = getClipValueStorage(modelStack->paramId);
-	auto layer = controlLayer(getParamKind(), true, controlsEditClipValue(modelStack), false,
+	auto* output = getLinkedOutput(modelStack);
+	auto layer = controlLayer(getParamKind(), true, controlsEditClipValue(modelStack), output != nullptr,
 	                          length != 0 && modelStack->timelineCounterIsSet());
+	if (layer == ControlLayer::PRESET) {
+		Error error = output->setPresetParameter(modelStack->song, modelStack->modControllable, getParamKind(),
+		                                         modelStack->paramId, value);
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		return;
+	}
 	// Avoid even resolving AutoParam for a scalar edit which changes nothing.
 	if (layer == ControlLayer::CLIP && clip != nullptr && value == clip->getValue()) {
 		return;

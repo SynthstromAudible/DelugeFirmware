@@ -44,6 +44,12 @@ public:
 	virtual ~ParamCollection();
 
 	virtual ClipParamValue* getClipValueStorage(int32_t /*paramId*/) { return nullptr; }
+	static Output* getLinkedOutput(ModelStackWithThreeMainThings const* modelStack);
+	// The same for a control of one parameter. While a quantized stutter runs, its rate control edits the
+	// stutter's centred clip value rather than the shared baseline.
+	static Output* getLinkedOutput(ModelStackWithThreeMainThings const* modelStack,
+	                               deluge::modulation::params::Kind kind, int32_t id);
+	static Output* getLinkedOutput(ModelStackWithParamId const* modelStack);
 	static bool controlsEditClipValue(ModelStackWithThreeMainThings const* modelStack);
 	// Collections choose which value layer their normal panel controls edit.
 	int32_t getValueForControl(ModelStackWithParamId const* modelStack);

@@ -76,7 +76,9 @@
 #include "modulation/automation/auto_param_access.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_control.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
@@ -939,7 +941,9 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	// Hack to make it so stutter can't be automated
 	if (modelStackWithParam->timelineCounterIsSet()
-	    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
+	    && !params::retainControlTimeline(
+	        modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam),
+	        ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr, editing_region)) {
 		copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
 		modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
 		modelStackWithParam->setTimelineCounter(nullptr);
@@ -1514,15 +1518,37 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	int32_t knob_pos = kKnobPosOffset;
 	bool isBipolar = false;
 	auto* param_collection = modelStackWithParam->paramCollection;
-	auto kind = param_collection != nullptr ? param_collection->getParamKind() : params::Kind::NONE;
-	bool editing_region = modLength != 0 && modelStackWithParam->timelineCounterIsSet();
-	bool show_control_value = !editing_region && !playbackHandler.isEitherClockActive();
-	if (modelStackWithParam->autoParam != nullptr && param_collection != nullptr) {
-		int32_t value;
-		if (instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value) == HeldNoteLock::NONE) {
-			value = show_control_value ? param_collection->getValueForControl(modelStackWithParam)
-			                           : modelStackWithParam->autoParam->getValuePossiblyAtPos(
-			                                 static_cast<int32_t>(modPos), modelStackWithParam);
+	auto kind = (param_collection != nullptr) ? param_collection->getParamKind() : params::Kind::NONE;
+	bool editing_region = (modLength != 0u) && modelStackWithParam->timelineCounterIsSet();
+	bool show_linked_preset = !editing_region && kind != params::Kind::EXPRESSION
+	                          && (ParamCollection::getLinkedOutput(modelStackWithParam) != nullptr);
+	bool show_control_value = show_linked_preset || (!editing_region && !playbackHandler.isEitherClockActive());
+	bool missing_linked_param = show_linked_preset && (kind == params::Kind::MIDI || kind == params::Kind::PATCH_CABLE);
+
+	if (param_collection != nullptr && ((modelStackWithParam->autoParam != nullptr) || missing_linked_param)) {
+		int32_t value = 0;
+		// Held note pads show their lock instead.
+		bool held_note =
+		    (modelStackWithParam->autoParam != nullptr)
+		    && instrumentClipView.noteLocks.getHeldValue(modelStackWithParam, &value) != HeldNoteLock::NONE;
+		if (!held_note && show_control_value) {
+			// Stopped controls show the clip scalar; linked controls show the shared
+			// baseline. Neither should inherit the last automation value.
+			if (modelStackWithParam->autoParam != nullptr) {
+				value = param_collection->getValueForControl(modelStackWithParam);
+			}
+			else if (kind == params::Kind::MIDI) {
+				auto* instrument = static_cast<MIDIInstrument*>(modelStackWithParam->modControllable);
+				value = (instrument != nullptr) ? instrument->getPresetMidiValue(modelStackWithParam->paramId) : 0;
+			}
+			else {
+				value = static_cast<PatchCableSet*>(param_collection)
+				            ->getValueForControl(modelStackWithParam->paramId, modelStackWithParam);
+			}
+		}
+		else if (!held_note) {
+			value = modelStackWithParam->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(modPos),
+			                                                              modelStackWithParam);
 		}
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 		knob_pos = param_collection->paramValueToKnobPos(value, modelStackWithParam);

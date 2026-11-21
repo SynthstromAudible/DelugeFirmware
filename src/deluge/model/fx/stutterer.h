@@ -37,6 +37,10 @@ public:
 	Stutterer() = default;
 	static void initParams(ParamManager* paramManager);
 	inline bool isStuttering(void* source) { return stutterSource == source; }
+	// A quantized stutter centres the stutter rate's clip value while it runs.
+	[[nodiscard]] bool isQuantizedStutter(const void* source) const {
+		return stutterSource == source && stutterConfig.quantized;
+	}
 	// These calls are slightly awkward with the magniture & timePerTickInverse, but that's the price for not depending
 	// on currentSong and playbackhandler...
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, StutterConfig stutterConfig,

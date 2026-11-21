@@ -202,6 +202,7 @@ void PatchCableStrength::readCurrentValue() {
 	std::array<char, MODEL_STACK_MAX_SIZE> model_stack_memory_storage{};
 	char* model_stack_memory = model_stack_memory_storage.data();
 	auto* model_stack = soundEditor.getCurrentModelStack(model_stack_memory);
+	// A missing local route can still have a shared baseline when Track Link is on.
 	const int32_t param_value =
 	    patchCableSet->getValueForControl(static_cast<int32_t>(getLearningThing().data), model_stack);
 	// The internal values are stored in the range -(2^30) to 2^30.
