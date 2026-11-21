@@ -40,7 +40,6 @@
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "util/boot.h"
-#include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include <algorithm>

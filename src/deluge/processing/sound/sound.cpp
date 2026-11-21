@@ -99,7 +99,6 @@
 #include "synth/matrix/param_format.h"
 #include "synth/modulation/envelope.h"
 #include "synth/voice/unison.h"
-#include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
